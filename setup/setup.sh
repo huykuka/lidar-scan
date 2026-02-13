@@ -55,4 +55,3 @@ else
     echo "Host build directory is not empty and --clean not specified. Skipping copy from image."
 fi
 
-docker run -it --rm sick-build bash
