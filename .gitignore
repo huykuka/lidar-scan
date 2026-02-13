@@ -8,3 +8,5 @@ server.log
 
 *.pcd
 *.pyc
+
+debug_data/

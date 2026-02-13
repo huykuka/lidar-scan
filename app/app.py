@@ -30,18 +30,17 @@ lidar_service = LidarService()
 
 @app.on_event("startup")
 async def startup_event():
-    # 1. Declare Pipelines by NAME
-    # This keeps main clean and allows swapping via config/env easily
-    front_pipeline = PipelineFactory.get("advanced")
-    
-    # 2. Setup Sensors
+    # 1. Setup Sensors
     launch_file = os.getenv("LIDAR_LAUNCH", "./launch/sick_multiscan.launch")
     hostname = os.getenv("LIDAR_IP", "192.168.100.123")
     lidar_mode = os.getenv("LIDAR_MODE", "real") # "real" or "sim"
     pcd_path = os.getenv("LIDAR_PCD_PATH", "./test.pcd")
 
+    sensor_id = "front_lidar"
+    front_pipeline = PipelineFactory.get("advanced", lidar_id=sensor_id)
+
     lidar_service.add_sensor(LidarSensor(
-        sensor_id="front_lidar",
+        sensor_id=sensor_id,
         launch_args=f"{launch_file} hostname:={hostname}",
         pipeline=front_pipeline,
         mode=lidar_mode,

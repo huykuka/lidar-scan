@@ -9,8 +9,8 @@ _PIPELINE_MAP: Dict[str, Callable] = {
 
 class PipelineFactory:
     @staticmethod
-    def get(name: str):
+    def get(name: str, **kwargs):
         """Resolves a pipeline name to a concrete Pipeline object"""
         if name not in _PIPELINE_MAP:
             raise ValueError(f"Unknown pipeline: '{name}'. Available: {list(_PIPELINE_MAP.keys())}")
-        return _PIPELINE_MAP[name]()
+        return _PIPELINE_MAP[name](**kwargs)

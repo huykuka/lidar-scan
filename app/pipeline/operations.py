@@ -1,5 +1,7 @@
 import numpy as np
 import open3d as o3d
+import os
+import json
 from typing import List, Dict, Any, Callable
 from .base import PipelineOperation, PointCloudPipeline
 
@@ -206,6 +208,64 @@ class FilterByKey(PipelineOperation):
                 
         return {"filtered_count": final_count, "filter_key": self.key}
 
+class DebugSave(PipelineOperation):
+    def __init__(self, output_dir: str = "debug_output", prefix: str = "pcd", max_keeps: int = 10):
+        self.output_dir = output_dir
+        self.prefix = prefix
+        self.max_keeps = max_keeps
+        self.counter = 0
+        self.saved_files = []
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+
+    def apply(self, pcd: Any) -> Dict[str, Any]:
+        filename = os.path.join(self.output_dir, f"{self.prefix}_{self.counter:04d}.pcd")
+        self.counter += 1
+        
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            o3d.t.io.write_point_cloud(filename, pcd)
+        else:
+            o3d.io.write_point_cloud(filename, pcd)
+        
+        self.saved_files.append(filename)
+        
+        # Maintain max_keeps
+        while len(self.saved_files) > self.max_keeps:
+            oldest = self.saved_files.pop(0)
+            if os.path.exists(oldest):
+                os.remove(oldest)
+            
+        return {"debug_file": filename}
+
+class SaveDataStructure(PipelineOperation):
+    def __init__(self, output_file: str = "debug_structure.json"):
+        self.output_file = output_file
+
+    def apply(self, pcd: Any) -> Dict[str, Any]:
+        # Ensure directory exists
+        dir_name = os.path.dirname(self.output_file)
+        if dir_name and not os.path.exists(dir_name):
+            os.makedirs(dir_name, exist_ok=True)
+            
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            structure = {
+                "device": str(pcd.device),
+                "point_attributes": {k: str(v.dtype) for k, v in pcd.point.items()},
+                "count": pcd.point.positions.shape[0]
+            }
+        else:
+            structure = {
+                "type": "legacy",
+                "count": len(pcd.points),
+                "has_colors": pcd.has_colors(),
+                "has_normals": pcd.has_normals()
+            }
+        
+        with open(self.output_file, "w") as f:
+            json.dump(structure, f, indent=2)
+            
+        return {"structure_file": self.output_file}
+
 class PipelineBuilder:
     def __init__(self, use_tensor: bool = False, device: str = "CPU:0"):
         if use_tensor:
@@ -251,6 +311,14 @@ class PipelineBuilder:
     
     def add_custom(self, operation: PipelineOperation):
         self.pipeline.add_operation(operation)
+        return self
+
+    def debug_save(self, output_dir: str = "debug_output", prefix: str = "pcd", max_keeps: int = 10):
+        self.pipeline.add_operation(DebugSave(output_dir, prefix, max_keeps))
+        return self
+
+    def save_structure(self, output_file: str = "debug_structure.json"):
+        self.pipeline.add_operation(SaveDataStructure(output_file))
         return self
 
     def build(self) -> PointCloudPipeline:
