@@ -26,6 +26,11 @@ app.include_router(api_router)
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static", html=True), name="static")
 
+@app.get("/")
+async def read_index():
+    from fastapi.responses import FileResponse
+    return FileResponse("app/static/index.html")
+
 # Central Service
 lidar_service = LidarService()
 
@@ -68,5 +73,5 @@ async def get_status():
     return {
         "is_running": lidar_service.is_running,
         "active_sensors": [s.id for s in lidar_service.sensors],
-        "version": "1.1.0"
+        "version": settings.VERSION
     }

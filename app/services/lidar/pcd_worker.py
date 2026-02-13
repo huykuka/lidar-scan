@@ -30,7 +30,6 @@ def pcd_worker_process(lidar_id: str, pcd_path: str, pipeline: Any, data_queue: 
 
         # Simulate 10Hz
         points_copy = points.copy() # Send a copy to avoid any potential shared memory issues if we were modifying it (we aren't, but safe)
-        
         # --- PROCESS DATA IN WORKER PROCESS ---
         if pipeline:
             try:

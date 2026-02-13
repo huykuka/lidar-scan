@@ -12,12 +12,21 @@ camera.lookAt(5, 5, 5);
 
 // Setup Renderer
 const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 // Clear body to safely append (in case of re-runs or weird states)
 // but keep #info
 const existingCanvas = document.querySelector('canvas');
 if (existingCanvas) existingCanvas.remove();
 document.body.appendChild(renderer.domElement);
+
+// Responsiveness: Handle window resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+});
 
 // Setup Controls
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -49,14 +58,22 @@ scene.add(pointsObj);
 const statusEl = document.getElementById('status');
 const countEl = document.getElementById('point-count');
 const topicSelect = document.getElementById('topic-select');
+const versionEl = document.getElementById('version');
 
 let ws;
 let currentTopic = '';
 
-async function fetchTopics() {
+async function fetchStatus() {
     try {
         const response = await fetch('/status');
         const data = await response.json();
+        
+        // Update Version
+        if (data.version) {
+            versionEl.textContent = data.version;
+        }
+
+        // Update Topics/Sensors
         const sensors = data.active_sensors || [];
         
         topicSelect.innerHTML = '';
@@ -83,6 +100,7 @@ async function fetchTopics() {
     } catch (e) {
         console.error('Error fetching status:', e);
         statusEl.textContent = 'Error fetching topics';
+        versionEl.textContent = 'Unknown';
     }
 }
 
@@ -169,7 +187,7 @@ function updatePointCloud(payload) {
 }
 
 // Start
-fetchTopics();
+fetchStatus();
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
