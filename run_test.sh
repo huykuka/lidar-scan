@@ -1,7 +1,7 @@
 #!/bin/bash
 # Set up library paths
 export LD_LIBRARY_PATH=.:./build:$LD_LIBRARY_PATH
-export PYTHONPATH=.:./python/api:$PYTHONPATH
+export PYTHONPATH=.:./sick-scan-api/api:$PYTHONPATH
 
 # Run the FastAPI standalone application
 # You can override LIDAR_IP and LIDAR_LAUNCH if needed
