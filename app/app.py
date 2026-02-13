@@ -6,11 +6,12 @@ import os
 from app.api.v1.endpoints import router as api_router
 from app.services.lidar.service import LidarService, LidarSensor
 from app.pipeline import PipelineFactory
+from app.core.config import settings
 
 app = FastAPI(
-    title="Lidar Standalone API",
+    title=settings.PROJECT_NAME,
     description="Backend with Modular Pipeline Registry",
-    version="1.3.0"
+    version=settings.VERSION
 )
 
 app.add_middleware(
@@ -31,10 +32,10 @@ lidar_service = LidarService()
 @app.on_event("startup")
 async def startup_event():
     # 1. Setup Sensors
-    launch_file = os.getenv("LIDAR_LAUNCH", "./launch/sick_multiscan.launch")
-    hostname = os.getenv("LIDAR_IP", "192.168.100.123")
-    lidar_mode = os.getenv("LIDAR_MODE", "real") # "real" or "sim"
-    pcd_path = os.getenv("LIDAR_PCD_PATH", "./test.pcd")
+    launch_file = settings.LIDAR_LAUNCH
+    hostname = settings.LIDAR_IP
+    lidar_mode = settings.LIDAR_MODE
+    pcd_path = settings.LIDAR_PCD_PATH
 
     sensor_id = "front_lidar"
     front_pipeline = PipelineFactory.get("advanced", lidar_id=sensor_id)

@@ -1,16 +1,16 @@
 import uvicorn
-import os
+from app.core.config import settings
 
 if __name__ == "__main__":
-    # Get configuration from env
-    port = int(os.getenv("PORT", 8000))
-    host = os.getenv("HOST", "0.0.0.0")
+    # Get configuration from settings
+    port = settings.PORT
+    host = settings.HOST
     
-    print(f"Starting on {host}:{port}")
+    print(f"Starting {settings.PROJECT_NAME} on {host}:{port}")
     
     uvicorn.run(
         "app.app:app", 
         host=host, 
         port=port, 
-        reload=True if os.getenv("DEBUG") == "true" else False
+        reload=settings.DEBUG
     )
