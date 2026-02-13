@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wno-format-overflow -fno-var-tracking-assignments -g -Wl,--export-dynamic -rdynamic -Wl,--no-as-needed CMakeFiles/sick_generic_caller.dir/driver/src/sick_generic_caller.cpp.o -o sick_generic_caller  libsick_scan_xd_lib.a -lpthread 
