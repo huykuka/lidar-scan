@@ -2,15 +2,18 @@ import os
 import asyncio
 import multiprocessing as mp
 from typing import List, Dict, Any, Optional
-from app.services.websocket_manager import manager
-from app.services.lidar_worker import lidar_worker_process
+from app.services.websocket.manager import manager
+from .lidar_worker import lidar_worker_process
+from .pcd_worker import pcd_worker_process
 
 class LidarSensor:
     """Represents a single Lidar sensor and its processing pipeline configuration"""
-    def __init__(self, sensor_id: str, launch_args: str, pipeline: Optional[Any] = None):
+    def __init__(self, sensor_id: str, launch_args: str, pipeline: Optional[Any] = None, mode: str = "real", pcd_path: str = None):
         self.id = sensor_id
         self.launch_args = launch_args
         self.pipeline = pipeline
+        self.mode = mode
+        self.pcd_path = pcd_path
 
 class LidarService:
     def __init__(self):
@@ -32,12 +35,22 @@ class LidarService:
         
         for sensor in self.sensors:
             stop_event = mp.Event()
-            p = mp.Process(
-                target=lidar_worker_process,
-                args=(sensor.id, sensor.launch_args, sensor.pipeline, self.data_queue, stop_event),
-                name=f"LidarWorker-{sensor.id}",
-                daemon=True
-            )
+            
+            if sensor.mode == "sim":
+                 p = mp.Process(
+                    target=pcd_worker_process,
+                    args=(sensor.id, sensor.pcd_path, sensor.pipeline, self.data_queue, stop_event),
+                    name=f"PcdWorker-{sensor.id}",
+                    daemon=True
+                )
+            else:
+                p = mp.Process(
+                    target=lidar_worker_process,
+                    args=(sensor.id, sensor.launch_args, sensor.pipeline, self.data_queue, stop_event),
+                    name=f"LidarWorker-{sensor.id}",
+                    daemon=True
+                )
+                
             p.start()
             
             self.processes[sensor.id] = p
@@ -90,15 +103,14 @@ class LidarService:
                 # Split for raw vs processed topics
                 # We can broadcast the 'points' part to raw_points topic and everything else to processed
                 raw_view = {
-                    "lidar_id": lidar_id,
                     "points": processed_data["points"][:5000], # Limit for UI
                     "count": len(processed_data["points"]),
                     "timestamp": timestamp
                 }
-                await manager.broadcast("raw_points", raw_view)
-                await manager.broadcast("processed_points", processed_data)
+                await manager.broadcast(f"{lidar_id}_raw_points", raw_view)
+                await manager.broadcast(f"{lidar_id}_processed_points", processed_data)
             else:
                 # Fallback for unprocessed data
-                await manager.broadcast("raw_points", payload)
+                await manager.broadcast(f"{lidar_id}_raw_points", payload)
         except Exception as e:
             print(f"Broadcasting error: {e}")

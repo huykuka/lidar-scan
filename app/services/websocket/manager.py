@@ -1,18 +1,14 @@
-from fastapi import WebSocket, HTTPException
+from fastapi import WebSocket
 from typing import List, Dict
-import asyncio
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: Dict[str, List[WebSocket]] = {
-            "raw_points": [],
-            "processed_points": []
-        }
+        self.active_connections: Dict[str, List[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, topic: str):
-        if topic not in self.active_connections:
-            raise HTTPException(status_code=404, detail=f"Topic {topic} not found")
         await websocket.accept()
+        if topic not in self.active_connections:
+            self.active_connections[topic] = []
         self.active_connections[topic].append(websocket)
 
     def disconnect(self, websocket: WebSocket, topic: str):

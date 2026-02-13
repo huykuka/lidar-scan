@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import asyncio
 import os
 from app.api.v1.endpoints import router as api_router
-from app.services.lidar_service import LidarService, LidarSensor
+from app.services.lidar.service import LidarService, LidarSensor
 from app.pipeline import PipelineFactory
 
 app = FastAPI(
@@ -21,6 +22,9 @@ app.add_middleware(
 
 app.include_router(api_router)
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static", html=True), name="static")
+
 # Central Service
 lidar_service = LidarService()
 
@@ -33,11 +37,15 @@ async def startup_event():
     # 2. Setup Sensors
     launch_file = os.getenv("LIDAR_LAUNCH", "./launch/sick_multiscan.launch")
     hostname = os.getenv("LIDAR_IP", "192.168.100.123")
+    lidar_mode = os.getenv("LIDAR_MODE", "real") # "real" or "sim"
+    pcd_path = os.getenv("LIDAR_PCD_PATH", "./test.pcd")
 
     lidar_service.add_sensor(LidarSensor(
         sensor_id="front_lidar",
         launch_args=f"{launch_file} hostname:={hostname}",
-        pipeline=front_pipeline
+        pipeline=front_pipeline,
+        mode=lidar_mode,
+        pcd_path=pcd_path
     ))
 
     # 3. Start everything
