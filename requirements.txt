@@ -1,0 +1,4 @@
+fastapi
+uvicorn
+open3d
+numpy
