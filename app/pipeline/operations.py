@@ -1,9 +1,12 @@
+import json
+import os
+from typing import List, Dict, Any, Callable
+
 import numpy as np
 import open3d as o3d
-import os
-import json
-from typing import List, Dict, Any, Callable
+
 from .base import PipelineOperation, PointCloudPipeline
+
 
 class Crop(PipelineOperation):
     def __init__(self, min_bound: List[float], max_bound: List[float]):
@@ -22,6 +25,7 @@ class Crop(PipelineOperation):
             pcd.points = cropped_pcd.points
             return {"cropped_count": len(pcd.points)}
 
+
 class Downsample(PipelineOperation):
     def __init__(self, voxel_size: float):
         self.voxel_size = voxel_size
@@ -35,7 +39,9 @@ class Downsample(PipelineOperation):
             else:
                 pcd.points = down_pcd.points
                 return {"downsampled_count": len(pcd.points)}
-        return {"downsampled_count": len(pcd.point.positions if isinstance(pcd, o3d.t.geometry.PointCloud) else pcd.points)}
+        return {
+            "downsampled_count": len(pcd.point.positions if isinstance(pcd, o3d.t.geometry.PointCloud) else pcd.points)}
+
 
 class OutlierRemoval(PipelineOperation):
     def __init__(self, nb_neighbors: int = 20, std_ratio: float = 2.0):
@@ -52,16 +58,18 @@ class OutlierRemoval(PipelineOperation):
                     nb_neighbors=self.nb_neighbors,
                     std_ratio=self.std_ratio
                 )
-                pcd.point.positions = o3d.core.Tensor(np.asarray(pcd_filtered.points).astype(np.float32), device=pcd.device)
+                pcd.point.positions = o3d.core.Tensor(np.asarray(pcd_filtered.points).astype(np.float32),
+                                                      device=pcd.device)
             else:
                 pcd_filtered, _ = pcd.remove_statistical_outlier(
                     nb_neighbors=self.nb_neighbors,
                     std_ratio=self.std_ratio
                 )
                 pcd.points = pcd_filtered.points
-        
+
         final_count = len(pcd.point.positions) if isinstance(pcd, o3d.t.geometry.PointCloud) else len(pcd.points)
         return {"filtered_count": final_count}
+
 
 class PlaneSegmentation(PipelineOperation):
     def __init__(self, distance_threshold: float = 0.1, ransac_n: int = 3, num_iterations: int = 1000):
@@ -94,6 +102,7 @@ class PlaneSegmentation(PipelineOperation):
                 }
         return {}
 
+
 class Clustering(PipelineOperation):
     def __init__(self, eps: float = 0.2, min_points: int = 10):
         self.eps = eps
@@ -111,6 +120,7 @@ class Clustering(PipelineOperation):
             return {"cluster_count": cluster_count}
         return {"cluster_count": 0}
 
+
 class Filter(PipelineOperation):
     def __init__(self, filter_fn: Callable[[Any], Any]):
         """
@@ -122,36 +132,37 @@ class Filter(PipelineOperation):
 
     def apply(self, pcd: Any) -> Dict[str, Any]:
         result = self.filter_fn(pcd)
-        
+
         if isinstance(pcd, o3d.t.geometry.PointCloud):
             # Check if result is a boolean mask or indices
             if hasattr(result, 'dtype') and str(result.dtype).lower().startswith('bool'):
                 pcd_filtered = pcd.select_by_mask(result)
             else:
                 pcd_filtered = pcd.select_by_index(result)
-            
+
             # Sync properties
             pcd.point.positions = pcd_filtered.point.positions
             for key in pcd_filtered.point.keys():
                 if key != 'positions':
                     pcd.point[key] = pcd_filtered.point[key]
-            
+
             final_count = pcd.point.positions.shape[0]
         else:
             # For Legacy API
             if isinstance(result, np.ndarray) and result.dtype == bool:
                 result = np.where(result)[0]
-            
+
             pcd_filtered = pcd.select_by_index(result)
             pcd.points = pcd_filtered.points
             if pcd_filtered.has_colors():
                 pcd.colors = pcd_filtered.colors
             if pcd_filtered.has_normals():
                 pcd.normals = pcd_filtered.normals
-                
+
             final_count = len(pcd.points)
-            
+
         return {"filtered_count": final_count}
+
 
 class FilterByKey(PipelineOperation):
     def __init__(self, key: str, value: Any):
@@ -167,24 +178,24 @@ class FilterByKey(PipelineOperation):
         if isinstance(pcd, o3d.t.geometry.PointCloud):
             if self.key not in pcd.point:
                 return {"filtered_count": pcd.point.positions.shape[0], "warning": f"Key '{self.key}' not found"}
-            
+
             data = pcd.point[self.key]
             if callable(self.value):
                 result = self.value(data)
             else:
                 result = (data == self.value)
-            
+
             # Check if result is a boolean mask or indices
             if hasattr(result, 'dtype') and str(result.dtype).lower().startswith('bool'):
                 pcd_filtered = pcd.select_by_mask(result)
             else:
                 pcd_filtered = pcd.select_by_index(result)
-            
+
             pcd.point.positions = pcd_filtered.point.positions
             for key in pcd_filtered.point.keys():
                 if key != 'positions':
                     pcd.point[key] = pcd_filtered.point[key]
-            
+
             final_count = pcd.point.positions.shape[0]
         else:
             # For Legacy API, we check if it's a known attribute (colors, normals)
@@ -192,10 +203,10 @@ class FilterByKey(PipelineOperation):
             if hasattr(pcd, self.key):
                 data = np.asarray(getattr(pcd, self.key))
                 result = self.condition_fn(data)
-                
+
                 if isinstance(result, np.ndarray) and result.dtype == bool:
                     result = np.where(result)[0]
-                
+
                 pcd_filtered = pcd.select_by_index(result)
                 pcd.points = pcd_filtered.points
                 if pcd_filtered.has_colors():
@@ -204,9 +215,11 @@ class FilterByKey(PipelineOperation):
                     pcd.normals = pcd_filtered.normals
                 final_count = len(pcd.points)
             else:
-                return {"filtered_count": len(pcd.points), "warning": f"Attribute '{self.key}' not found on legacy PointCloud"}
-                
+                return {"filtered_count": len(pcd.points),
+                        "warning": f"Attribute '{self.key}' not found on legacy PointCloud"}
+
         return {"filtered_count": final_count, "filter_key": self.key}
+
 
 class DebugSave(PipelineOperation):
     def __init__(self, output_dir: str = "debug_output", prefix: str = "pcd", max_keeps: int = 10):
@@ -221,21 +234,22 @@ class DebugSave(PipelineOperation):
     def apply(self, pcd: Any) -> Dict[str, Any]:
         filename = os.path.join(self.output_dir, f"{self.prefix}_{self.counter:04d}.pcd")
         self.counter += 1
-        
+
         if isinstance(pcd, o3d.t.geometry.PointCloud):
             o3d.t.io.write_point_cloud(filename, pcd)
         else:
             o3d.io.write_point_cloud(filename, pcd)
-        
+
         self.saved_files.append(filename)
-        
+
         # Maintain max_keeps
         while len(self.saved_files) > self.max_keeps:
             oldest = self.saved_files.pop(0)
             if os.path.exists(oldest):
                 os.remove(oldest)
-            
+
         return {"debug_file": filename}
+
 
 class SaveDataStructure(PipelineOperation):
     def __init__(self, output_file: str = "debug_structure.json"):
@@ -246,7 +260,7 @@ class SaveDataStructure(PipelineOperation):
         dir_name = os.path.dirname(self.output_file)
         if dir_name and not os.path.exists(dir_name):
             os.makedirs(dir_name, exist_ok=True)
-            
+
         if isinstance(pcd, o3d.t.geometry.PointCloud):
             structure = {
                 "device": str(pcd.device),
@@ -260,11 +274,12 @@ class SaveDataStructure(PipelineOperation):
                 "has_colors": pcd.has_colors(),
                 "has_normals": pcd.has_normals()
             }
-        
+
         with open(self.output_file, "w") as f:
             json.dump(structure, f, indent=2)
-            
+
         return {"structure_file": self.output_file}
+
 
 class PipelineBuilder:
     def __init__(self, use_tensor: bool = False, device: str = "CPU:0"):
@@ -303,12 +318,12 @@ class PipelineBuilder:
         """
         if condition:
             self.pipeline.add_operation(Filter(condition))
-        
+
         for key, value in kwargs.items():
             self.pipeline.add_operation(FilterByKey(key, value))
-            
+
         return self
-    
+
     def add_custom(self, operation: PipelineOperation):
         self.pipeline.add_operation(operation)
         return self

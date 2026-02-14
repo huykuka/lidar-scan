@@ -1,8 +1,10 @@
-import time
 import multiprocessing as mp
-import numpy as np
+import time
 from typing import Any
-import open3d as o3d # type: ignore
+
+import numpy as np
+import open3d as o3d  # type: ignore
+
 
 def pcd_worker_process(lidar_id: str, pcd_path: str, pipeline: Any, data_queue: mp.Queue, stop_event: mp.Event):
     """
@@ -15,7 +17,7 @@ def pcd_worker_process(lidar_id: str, pcd_path: str, pipeline: Any, data_queue: 
         if pcd.is_empty():
             print(f"[{lidar_id}] Error: PCD file is empty or could not be loaded: {pcd_path}")
             return
-            
+
         points = np.asarray(pcd.points, dtype=np.float32)
         print(f"[{lidar_id}] Loaded {len(points)} points from {pcd_path}")
 
@@ -29,7 +31,7 @@ def pcd_worker_process(lidar_id: str, pcd_path: str, pipeline: Any, data_queue: 
         timestamp = start_time
 
         # Simulate 10Hz
-        points_copy = points.copy() # Send a copy to avoid any potential shared memory issues if we were modifying it (we aren't, but safe)
+        points_copy = points.copy()  # Send a copy to avoid any potential shared memory issues if we were modifying it (we aren't, but safe)
         # --- PROCESS DATA IN WORKER PROCESS ---
         if pipeline:
             try:
@@ -41,23 +43,23 @@ def pcd_worker_process(lidar_id: str, pcd_path: str, pipeline: Any, data_queue: 
                     "timestamp": timestamp
                 }
             except Exception as e:
-                 print(f"[{lidar_id}] Pipeline processing error: {e}")
-                 payload = None
+                print(f"[{lidar_id}] Pipeline processing error: {e}")
+                payload = None
         else:
             payload = {
                 "lidar_id": lidar_id,
                 "processed": False,
                 # Slice to first 5000 for UI performance, similar to live lidar worker
-                "points": points_copy.tolist()[:5000], 
+                "points": points_copy.tolist()[:5000],
                 "count": len(points_copy),
                 "timestamp": timestamp
             }
-        
+
         if payload:
             try:
                 data_queue.put(payload, block=False)
             except Exception:
-                pass # Queue full or closed
+                pass  # Queue full or closed
 
         # Sleep to maintain approx 10Hz
         elapsed = time.time() - start_time

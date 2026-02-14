@@ -1,33 +1,15 @@
-import os
-import sys
-import numpy as np
 import ctypes
 import multiprocessing as mp
+import os
 import time
-from typing import List, Optional, Any
+from typing import Any
+import numpy as np
 
-# Helper to ensure paths are correct for the worker process
-def setup_worker_paths():
-    api_path = os.path.abspath("./python/api")
-    if api_path not in sys.path:
-        sys.path.append(api_path)
 
 def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_queue: mp.Queue, stop_event: mp.Event):
     """
     Worker process that owns its own instance of sick_scan_xd library AND its own pipeline.
     """
-    setup_worker_paths()
-    try:
-        from sick_scan_api import (
-            SickScanApiLoadLibrary, SickScanApiCreate, SickScanApiInitByLaunchfile,
-            SickScanPointCloudMsgCallback, SickScanApiRegisterCartesianPointCloudMsg,
-            SickScanApiDeregisterCartesianPointCloudMsg, SickScanApiClose,
-            SickScanApiRelease, SickScanApiUnloadLibrary
-        )
-    except ImportError:
-        print(f"[{lidar_id}] Error: sick_scan_api not found")
-        return
-
     # 1. Load Library
     if os.name == "nt":
         lib_name = "sick_scan_xd_shared_lib.dll"
@@ -35,7 +17,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
     else:
         lib_name = "libsick_scan_xd_shared_lib.so"
         search_paths = ["build/", "./"]
-    
+
     sick_scan_library = SickScanApiLoadLibrary(search_paths, lib_name)
     if not sick_scan_library:
         print(f"[{lidar_id}] Error: Could not load {lib_name}")
@@ -56,13 +38,13 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
             data_size = msg_contents.data.size
             point_step = msg_contents.point_step
             buffer = ctypes.string_at(data_ptr, data_size)
-            
+
             points_raw = np.frombuffer(buffer, dtype=np.float32)
             fields_count = point_step // 4
             points_reshaped = points_raw.reshape(-1, fields_count)[:, :3]
 
-            timestamp = msg_contents.header.timestamp_sec + msg_contents.header.timestamp_nsec/1e9
-            
+            timestamp = msg_contents.header.timestamp_sec + msg_contents.header.timestamp_nsec / 1e9
+
             # --- PROCESS DATA IN WORKER PROCESS ---
             if pipeline:
                 processed_result = pipeline.process(points_reshaped)
@@ -80,11 +62,11 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
                     "count": len(points_reshaped),
                     "timestamp": timestamp
                 }
-            
+
             try:
                 data_queue.put(payload, block=False)
             except Exception:
-                pass 
+                pass
 
         except Exception as e:
             print(f"[{lidar_id}] Callback error: {e}")
@@ -92,7 +74,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
     # 2. Register Callback
     pc_callback = SickScanPointCloudMsgCallback(_py_pointcloud_cb)
     SickScanApiRegisterCartesianPointCloudMsg(sick_scan_library, api_handle, pc_callback)
-    
+
     print(f"[{lidar_id}] Worker ready with independent pipeline.")
 
     # 3. Main Loop

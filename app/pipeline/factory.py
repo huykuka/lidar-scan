@@ -1,11 +1,13 @@
-from .impl import basic, advanced
 from typing import Dict, Callable
+
+from .impl import basic, advanced
 
 # Add new pipelines to this dictionary as you create them in the impl/ folder
 _PIPELINE_MAP: Dict[str, Callable] = {
     "basic": basic.create_pipeline,
     "advanced": advanced.create_pipeline
 }
+
 
 class PipelineFactory:
     @staticmethod

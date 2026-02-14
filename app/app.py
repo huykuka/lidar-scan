@@ -1,12 +1,13 @@
+import asyncio
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import asyncio
-import os
+
 from app.api.v1.endpoints import router as api_router
-from app.services.lidar.service import LidarService, LidarSensor
-from app.pipeline import PipelineFactory
 from app.core.config import settings
+from app.pipeline import PipelineFactory
+from app.services.lidar.service import LidarService, LidarSensor
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -26,13 +27,16 @@ app.include_router(api_router)
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static", html=True), name="static")
 
+
 @app.get("/")
 async def read_index():
     from fastapi.responses import FileResponse
     return FileResponse("app/static/index.html")
 
+
 # Central Service
 lidar_service = LidarService()
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -67,6 +71,7 @@ async def startup_event():
 @app.on_event("shutdown")
 def shutdown_event():
     lidar_service.stop()
+
 
 @app.get("/status")
 async def get_status():

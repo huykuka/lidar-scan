@@ -1,5 +1,6 @@
 import os
 
+
 class Settings:
     # API Settings
     PROJECT_NAME: str = "Lidar Standalone API"
@@ -16,5 +17,6 @@ class Settings:
 
     # Directory Settings
     DEBUG_OUTPUT_DIR: str = "debug_data"
+
 
 settings = Settings()
