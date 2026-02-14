@@ -43,8 +43,7 @@ class LegacyPointCloudPipeline(PointCloudPipeline):
         results = {}
         for op in self.operations:
             op_result = op.apply(pcd)
-            if op_result:
-                results.update(op_result)
+            results.update(op_result)
 
         processed_points = np.asarray(pcd.points)
 

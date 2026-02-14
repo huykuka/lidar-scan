@@ -4,8 +4,7 @@ import os
 import time
 from typing import Any
 import numpy as np
-
-
+from sick_scan_api import SickScanApiLoadLibrary, SickScanApiCreate, SickScanApiInitByLaunchfile, SickScanPointCloudMsgCallback, SickScanApiRegisterCartesianPointCloudMsg, SickScanApiDeregisterCartesianPointCloudMsg, SickScanApiClose, SickScanApiRelease, SickScanApiUnloadLibrary
 def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_queue: mp.Queue, stop_event: mp.Event):
     """
     Worker process that owns its own instance of sick_scan_xd library AND its own pipeline.
@@ -52,13 +51,14 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
                     "lidar_id": lidar_id,
                     "processed": True,
                     "data": processed_result,
+                    "raw_points": points_reshaped.tolist(),
                     "timestamp": timestamp
                 }
             else:
                 payload = {
                     "lidar_id": lidar_id,
                     "processed": False,
-                    "points": points_reshaped.tolist()[:5000],
+                    "points": points_reshaped.tolist(),
                     "count": len(points_reshaped),
                     "timestamp": timestamp
                 }

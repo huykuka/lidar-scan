@@ -40,6 +40,7 @@ def pcd_worker_process(lidar_id: str, pcd_path: str, pipeline: Any, data_queue: 
                     "lidar_id": lidar_id,
                     "processed": True,
                     "data": processed_result,
+                    "raw_points": points_copy.tolist(),
                     "timestamp": timestamp
                 }
             except Exception as e:
@@ -49,8 +50,7 @@ def pcd_worker_process(lidar_id: str, pcd_path: str, pipeline: Any, data_queue: 
             payload = {
                 "lidar_id": lidar_id,
                 "processed": False,
-                # Slice to first 5000 for UI performance, similar to live lidar worker
-                "points": points_copy.tolist()[:5000],
+                "points": points_copy.tolist(),
                 "count": len(points_copy),
                 "timestamp": timestamp
             }

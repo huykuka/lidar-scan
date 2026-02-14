@@ -105,10 +105,12 @@ class LidarService:
                 processed_data["timestamp"] = timestamp
 
                 # Split for raw vs processed topics
-                # We can broadcast the 'points' part to raw_points topic and everything else to processed
+                # We broadcast the original 'raw_points' if provided, else fallback to pipeline 'points'
+                raw_points = payload.get("raw_points") or processed_data.get("points", [])
+                
                 raw_view = {
-                    "points": processed_data["points"][:5000],  # Limit for UI
-                    "count": len(processed_data["points"]),
+                    "points": raw_points,
+                    "count": len(raw_points),
                     "timestamp": timestamp
                 }
                 await manager.broadcast(f"{lidar_id}_raw_points", raw_view)
