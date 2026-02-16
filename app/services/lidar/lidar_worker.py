@@ -51,14 +51,14 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
                     "lidar_id": lidar_id,
                     "processed": True,
                     "data": processed_result,
-                    "raw_points": points_reshaped.tolist(),
+                    "raw_points": points_reshaped,
                     "timestamp": timestamp
                 }
             else:
                 payload = {
                     "lidar_id": lidar_id,
                     "processed": False,
-                    "points": points_reshaped.tolist(),
+                    "points": points_reshaped,
                     "count": len(points_reshaped),
                     "timestamp": timestamp
                 }

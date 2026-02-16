@@ -121,19 +121,31 @@ function connect(topic) {
     
     console.log(`Connecting to ${wsUrl}`);
     ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
 
     ws.onopen = () => {
         statusEl.textContent = 'Connected';
         statusEl.style.color = '#0f0';
     };
 
-    ws.onmessage = (event) => {
+    ws.onmessage = async (event) => {
         try {
-            const message = JSON.parse(event.data);
-            // Handle both raw and processed structures
-            updatePointCloud(message);
+            let data = event.data;
+            if (data instanceof Blob) {
+                data = await data.arrayBuffer();
+            }
+
+            if (data instanceof ArrayBuffer) {
+                const payload = parseBinaryPointCloud(data);
+                if (payload) {
+                    updatePointCloud(payload);
+                }
+            } else {
+                const message = JSON.parse(event.data);
+                updatePointCloud(message);
+            }
         } catch (e) {
-            console.error('Error parsing message:', e);
+            console.error('Error handling message:', e);
         }
     };
 
@@ -152,38 +164,95 @@ function connect(topic) {
     };
 }
 
+function parseBinaryPointCloud(buffer) {
+    const view = new DataView(buffer);
+    
+    // Check Magic: 'LIDR'
+    const magic = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+    
+    if (magic !== 'LIDR') {
+        console.error('Invalid magic in binary payload:', magic);
+        return null;
+    }
+
+    const version = view.getUint32(4, true);
+    const timestamp = view.getFloat64(8, true);
+    const count = view.getUint32(16, true);
+
+    // Points start at offset 20
+    const pointsBuffer = buffer.slice(20);
+    const pointsArray = new Float32Array(pointsBuffer);
+
+    return {
+        binary: true,
+        count: count,
+        timestamp: timestamp,
+        points: pointsArray
+    };
+}
+
 function updatePointCloud(payload) {
-    let pointsData = [];
-    
-    // Check if it's raw_points payload (has 'points' array)
-    if (payload.points) {
-        pointsData = payload.points;
-    } 
-    // Check if it's processed_points payload (might wrap it differently, based on previous code it was payload["data"]["points"])
-    // But lidar_service.py sends: 
-    // raw: { points: [...], count: N, ... }
-    // processed: { points: [...], ... } (if the pipeline returns dict with points)
-    // Update logic to be robust
-    else if (payload.data && payload.data.points) {
-         pointsData = payload.data.points;
-    }
-
-    if (!pointsData) return;
-
-    const count = pointsData.length;
-    countEl.textContent = count;
-
+    let count = 0;
     const positions = pointsObj.geometry.attributes.position.array;
-    
-    for (let i = 0; i < count; i++) {
-        const pt = pointsData[i];
-        positions[i * 3] = pt[0];
-        positions[i * 3 + 1] = pt[1];
-        positions[i * 3 + 2] = pt[2];
+
+    if (payload.binary) {
+        count = payload.count;
+        const limit = Math.min(count * 3, MAX_POINTS * 3);
+        positions.set(payload.points.subarray(0, limit));
+    } else {
+        // Robust extraction from JSON
+        let pointsData = null;
+        
+        if (Array.isArray(payload)) {
+            pointsData = payload;
+        } else if (payload.points && Array.isArray(payload.points)) {
+            pointsData = payload.points;
+        } else if (payload.data) {
+            if (Array.isArray(payload.data)) {
+                pointsData = payload.data;
+            } else if (payload.data.points && Array.isArray(payload.data.points)) {
+                pointsData = payload.data.points;
+            }
+        }
+
+        if (!pointsData || pointsData.length === 0) return;
+
+        // Optimization: if it's already a flat array (handled by backend or future-proofing)
+        if (pointsData.length > 0 && typeof pointsData[0] === 'number') {
+            count = Math.floor(pointsData.length / 3);
+            const limit = Math.min(count * 3, MAX_POINTS * 3);
+            if (pointsData.subarray) {
+                positions.set(pointsData.subarray(0, limit));
+            } else {
+                for (let i = 0; i < limit; i++) positions[i] = pointsData[i];
+            }
+        } else {
+            // Standard nested array [[x,y,z], ...]
+            count = pointsData.length;
+            const limit = Math.min(count, MAX_POINTS);
+            for (let i = 0; i < limit; i++) {
+                const pt = pointsData[i];
+                if (!pt) continue;
+                positions[i * 3] = pt[0];
+                positions[i * 3 + 1] = pt[1];
+                positions[i * 3 + 2] = pt[2];
+            }
+            count = limit;
+        }
     }
-    
-    pointsObj.geometry.setDrawRange(0, count);
-    pointsObj.geometry.attributes.position.needsUpdate = true;
+
+    if (count > 0) {
+        countEl.textContent = count;
+        pointsObj.geometry.setDrawRange(0, count);
+        // Optimize: only update the part of the buffer that actually contains data
+        // Note: updateRange might be read-only (getter only), so we set its properties
+        const attr = pointsObj.geometry.attributes.position;
+        if (attr.updateRange) {
+            attr.updateRange.offset = 0;
+            attr.updateRange.count = count * 3;
+        }
+        attr.needsUpdate = true;
+    }
 }
 
 // Start

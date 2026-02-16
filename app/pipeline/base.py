@@ -48,7 +48,7 @@ class LegacyPointCloudPipeline(PointCloudPipeline):
         processed_points = np.asarray(pcd.points)
 
         return {
-            "points": processed_points.tolist(),
+            "points": processed_points,
             "metadata": {
                 "count": len(processed_points),
                 "original_count": len(points)
@@ -83,7 +83,7 @@ class TensorPointCloudPipeline(PointCloudPipeline):
         processed_points = pcd.point.positions.cpu().numpy()
 
         return {
-            "points": processed_points.tolist(),
+            "points": processed_points,
             "metadata": {
                 "count": len(processed_points),
                 "original_count": len(points)

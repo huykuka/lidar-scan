@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from fastapi import WebSocket
 
@@ -20,12 +20,15 @@ class ConnectionManager:
             except ValueError:
                 pass
 
-    async def broadcast(self, topic: str, message: dict):
+    async def broadcast(self, topic: str, message: Any):
         if topic in self.active_connections:
             dead_connections = []
             for connection in self.active_connections[topic]:
                 try:
-                    await connection.send_json(message)
+                    if isinstance(message, bytes):
+                        await connection.send_bytes(message)
+                    else:
+                        await connection.send_json(message)
                 except Exception:
                     dead_connections.append(connection)
 

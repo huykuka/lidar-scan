@@ -1,6 +1,9 @@
 import asyncio
+import struct
 import multiprocessing as mp
 from typing import List, Dict, Any, Optional
+
+import numpy as np
 
 from app.services.websocket.manager import manager
 from .lidar_worker import lidar_worker_process
@@ -101,22 +104,46 @@ class LidarService:
             if payload.get("processed"):
                 # Data already processed by the worker's pipeline
                 processed_data = payload["data"]
-                processed_data["lidar_id"] = lidar_id
-                processed_data["timestamp"] = timestamp
-
-                # Split for raw vs processed topics
-                # We broadcast the original 'raw_points' if provided, else fallback to pipeline 'points'
-                raw_points = payload.get("raw_points") or processed_data.get("points", [])
                 
-                raw_view = {
-                    "points": raw_points,
-                    "count": len(raw_points),
-                    "timestamp": timestamp
-                }
-                await manager.broadcast(f"{lidar_id}_raw_points", raw_view)
-                await manager.broadcast(f"{lidar_id}_processed_points", processed_data)
+                # Extract points (they should be numpy arrays now)
+                points = processed_data.get("points")
+                if points is None:
+                    # In case of some legacy or error
+                    return
+
+                # Pack processed points binary
+                binary_data = self._pack_binary(points, timestamp)
+                await manager.broadcast(f"{lidar_id}_processed_points", binary_data)
+
+                # Broadcoast raw points if requested/available
+                raw_points = payload.get("raw_points")
+                if raw_points is not None:
+                    binary_raw = self._pack_binary(raw_points, timestamp)
+                    await manager.broadcast(f"{lidar_id}_raw_points", binary_raw)
             else:
-                # Fallback for unprocessed data
-                await manager.broadcast(f"{lidar_id}_raw_points", payload)
+                # Unprocessed fallback
+                points = payload.get("points")
+                if points is not None:
+                    binary_data = self._pack_binary(points, timestamp)
+                    await manager.broadcast(f"{lidar_id}_raw_points", binary_data)
         except Exception as e:
             print(f"Broadcasting error: {e}")
+
+    def _pack_binary(self, points: np.ndarray, timestamp: float) -> bytes:
+        """
+        Packs points into binary format:
+        Magic (4 bytes): 'LIDR'
+        Version (4 bytes): 1 (uint32)
+        Timestamp (8 bytes): float64
+        Point Count (4 bytes): uint32
+        Points (N * 12 bytes): x, y, z as float32
+        """
+        magic = b'LIDR'
+        version = 1
+        count = len(points)
+        
+        header = struct.pack('<4sIdI', magic, version, timestamp, count)
+        
+        # Ensure points are float32 and reshaped correctly for binary append
+        points_f32 = points.astype(np.float32)
+        return header + points_f32.tobytes()
