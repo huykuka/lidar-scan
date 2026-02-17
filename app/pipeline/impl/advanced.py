@@ -29,8 +29,12 @@ class CustomStatisticsOperation(PipelineOperation):
 
 def create_pipeline(lidar_id: str = "default"):
     """Pipeline with custom stats and segmentation"""
+    debug_dir = os.path.join("debug_data", lidar_id)
     return (PipelineBuilder()
-            .downsample(voxel_size=0.15)
-            .remove_outliers(nb_neighbors=5,std_ratio=2.0)
-            .remove_radius_outliers(nb_points=3, radius=0.5)
+            .filter(
+                reflector=1,                   # Match specific value
+                intensity=('>', 40000),        # Use picklable comparison tuple
+            )          
+            # .debug_save(output_dir=debug_dir, prefix="advanced", max_keeps=10)
+            # .save_structure(output_file=os.path.join(debug_dir, "data_structure.json"))
             .build())

@@ -37,8 +37,9 @@ class LegacyPointCloudPipeline(PointCloudPipeline):
         if points.size == 0:
             return {"points": [], "metadata": {"count": 0}}
 
+        positions = points[:, :3]
         pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd.points = o3d.utility.Vector3dVector(positions)
 
         results = {}
         for op in self.operations:
@@ -71,14 +72,39 @@ class TensorPointCloudPipeline(PointCloudPipeline):
 
         # Create Tensor-based PointCloud
         pcd = o3d.t.geometry.PointCloud(self.device)
-        pcd.point.positions = o3d.core.Tensor(points.astype(np.float32), device=self.device)
+        positions = points[:, :3].astype(np.float32) # Strictly float32 for positions
+        pcd.point.positions = o3d.core.Tensor(positions, device=self.device)
 
+        # Map additional columns to attributes based on PCD structure:
+        # x, y, z, lidar_nsec, lidar_sec, t, layer, elevation, ts, azimuth, range, reflector, echo, intensity
+        if points.shape[1] > 3:
+            pcd.point["lidar_nsec"] = o3d.core.Tensor(points[:, 3].reshape(-1, 1).astype(np.uint32), device=self.device)
+        if points.shape[1] > 4:
+            pcd.point["lidar_sec"] = o3d.core.Tensor(points[:, 4].reshape(-1, 1).astype(np.uint32), device=self.device)
+        if points.shape[1] > 5:
+            pcd.point["t"] = o3d.core.Tensor(points[:, 5].reshape(-1, 1).astype(np.uint32), device=self.device)
+        if points.shape[1] > 6:
+            pcd.point["layer"] = o3d.core.Tensor(points[:, 6].reshape(-1, 1).astype(np.int32), device=self.device)
+        if points.shape[1] > 7:
+            pcd.point["elevation"] = o3d.core.Tensor(points[:, 7].reshape(-1, 1).astype(np.float32), device=self.device)
+        if points.shape[1] > 8:
+            pcd.point["ts"] = o3d.core.Tensor(points[:, 8].reshape(-1, 1).astype(np.float32), device=self.device)
+        if points.shape[1] > 9:
+            pcd.point["azimuth"] = o3d.core.Tensor(points[:, 9].reshape(-1, 1).astype(np.float32), device=self.device)
+        if points.shape[1] > 10:
+            pcd.point["range"] = o3d.core.Tensor(points[:, 10].reshape(-1, 1).astype(np.float32), device=self.device)
+        if points.shape[1] > 11:
+            pcd.point["reflector"] = o3d.core.Tensor(points[:, 11].reshape(-1, 1).astype(np.uint8), device=self.device)
+        if points.shape[1] > 12:
+            pcd.point["echo"] = o3d.core.Tensor(points[:, 12].reshape(-1, 1).astype(np.int32), device=self.device)
+        if points.shape[1] > 13:
+            pcd.point["intensity"] = o3d.core.Tensor(points[:, 13].reshape(-1, 1).astype(np.float32), device=self.device)
         results = {}
         for op in self.operations:
             op_result = op.apply(pcd)
             if op_result:
                 results.update(op_result)
-
+    
         # Retrieve results back to CPU/Numpy
         processed_points = pcd.point.positions.cpu().numpy()
 

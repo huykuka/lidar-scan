@@ -144,6 +144,7 @@ class LidarService:
         
         header = struct.pack('<4sIdI', magic, version, timestamp, count)
         
-        # Ensure points are float32 and reshaped correctly for binary append
-        points_f32 = points.astype(np.float32)
-        return header + points_f32.tobytes()
+        # Ensure we only send X, Y, Z (first 3 columns) to match the (N * 12 bytes) format
+        # points might have 16 columns if it's the raw data from lidar_worker
+        points_xyz = points[:, :3].astype(np.float32)
+        return header + points_xyz.tobytes()

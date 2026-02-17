@@ -18,8 +18,30 @@
         left: 10px;
         z-index: 100;
         background: rgba(0, 0, 0, 0.5);
-        padding: 10px;
-        border-radius: 5px;
+        padding: 15px;
+        border-radius: 8px;
+        min-width: 250px;
+      }
+      .control-group {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .control-group label {
+        margin-right: 10px;
+        font-size: 0.9em;
+      }
+      .control-group input, .control-group select {
+        flex: 1;
+        background: #333;
+        color: white;
+        border: 1px solid #555;
+        border-radius: 4px;
+        padding: 2px 5px;
+      }
+      .control-group input[type="range"] {
+        padding: 0;
       }
     </style>
     <!-- Three.js and OrbitControls from CDN -->
@@ -38,9 +60,17 @@
       <p>Status: <span id="status">Disconnected</span></p>
       <p>Points: <span id="point-count">0</span></p>
       <p>Version: <span id="version">Loading...</span></p>
-      <div>
+      <div class="control-group">
           <label for="topic-select">Topic:</label>
           <select id="topic-select"></select>
+      </div>
+      <div class="control-group">
+          <label for="point-size">Size:</label>
+          <input type="range" id="point-size" min="0.01" max="1.0" step="0.01" value="0.1">
+      </div>
+      <div class="control-group">
+          <label for="point-color">Color:</label>
+          <input type="color" id="point-color" value="#00ff00">
       </div>
     </div>
     <script type="module" src="/static/js/main.js"></script>

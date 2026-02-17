@@ -47,11 +47,11 @@ async def startup_event():
     pcd_path = settings.LIDAR_PCD_PATH
 
     sensor_id = "front_lidar"
-    front_pipeline = PipelineFactory.get("reflector", lidar_id=sensor_id)
+    front_pipeline = PipelineFactory.get("advanced", lidar_id=sensor_id)
 
     lidar_service.add_sensor(LidarSensor(
         sensor_id=sensor_id,
-        launch_args=f"{launch_file} hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 msgpack_output_fifolength:=-1 udp_input_fifolength:=-1",
+        launch_args=f"{launch_file} hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16",
         pipeline=front_pipeline,
         mode=lidar_mode,
         pcd_path=pcd_path

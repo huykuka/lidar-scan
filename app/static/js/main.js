@@ -59,6 +59,19 @@ const statusEl = document.getElementById('status');
 const countEl = document.getElementById('point-count');
 const topicSelect = document.getElementById('topic-select');
 const versionEl = document.getElementById('version');
+const pointSizeEl = document.getElementById('point-size');
+const pointColorEl = document.getElementById('point-color');
+
+pointSizeEl.addEventListener('input', (e) => {
+    const newSize = parseFloat(e.target.value);
+    console.log(`Setting point size to: ${newSize}`);
+    material.size = newSize;
+});
+
+pointColorEl.addEventListener('input', (e) => {
+    console.log(`Setting point color to: ${e.target.value}`);
+    material.color.set(e.target.value);
+});
 
 let ws;
 let currentTopic = '';
@@ -247,9 +260,9 @@ function updatePointCloud(payload) {
         // Optimize: only update the part of the buffer that actually contains data
         // Note: updateRange might be read-only (getter only), so we set its properties
         const attr = pointsObj.geometry.attributes.position;
-        if (attr.updateRange) {
-            attr.updateRange.offset = 0;
-            attr.updateRange.count = count * 3;
+        if (attr.addUpdateRange) {
+            attr.addUpdateRange.offset = 0;
+            attr.addUpdateRange.count = count * 3;
         }
         attr.needsUpdate = true;
     }
