@@ -3,14 +3,32 @@ from typing import List, Dict, Any
 
 import numpy as np
 import open3d as o3d
+from typing import List, Dict, Any
 
+
+def _tensor_map_keys(tensor_map: Any) -> List[str]:
+    """Return TensorMap keys across Open3D versions without triggering key lookups."""
+    try:
+        # In some versions, tensor_map.keys() works
+        return list(tensor_map.keys())
+    except Exception:
+        try:
+            # In others, it's iterable
+            return list(tensor_map)
+        except Exception:
+            return []
+            
 
 class PipelineOperation(ABC):
     """Base class for all point cloud operations"""
 
     @abstractmethod
-    def apply(self, pcd: Any) -> Dict[str, Any]:
-        """Supports both o3d.geometry.PointCloud and o3d.t.geometry.PointCloud"""
+    def apply(self, pcd: Any) -> Any:
+        """
+        Processes the point cloud.
+        Must return the updated PointCloud object (can be the same or a new one) 
+        and an optional metadata dictionary: return pcd, {"some": "info"}
+        """
         pass
 
 
@@ -43,8 +61,15 @@ class LegacyPointCloudPipeline(PointCloudPipeline):
 
         results = {}
         for op in self.operations:
-            op_result = op.apply(pcd)
-            results.update(op_result)
+            # Capturing the returned pcd ensures replacements work correctly
+            outcome = op.apply(pcd)
+            if isinstance(outcome, tuple):
+                pcd, op_result = outcome
+            else:
+                pcd, op_result = outcome, {}
+                
+            if op_result:
+                results.update(op_result)
 
         processed_points = np.asarray(pcd.points)
 
@@ -99,9 +124,15 @@ class TensorPointCloudPipeline(PointCloudPipeline):
             pcd.point["echo"] = o3d.core.Tensor(points[:, 12].reshape(-1, 1).astype(np.int32), device=self.device)
         if points.shape[1] > 13:
             pcd.point["intensity"] = o3d.core.Tensor(points[:, 13].reshape(-1, 1).astype(np.float32), device=self.device)
+        
         results = {}
         for op in self.operations:
-            op_result = op.apply(pcd)
+            outcome = op.apply(pcd)
+            if isinstance(outcome, tuple):
+                pcd, op_result = outcome
+            else:
+                pcd, op_result = outcome, {}
+                
             if op_result:
                 results.update(op_result)
     
