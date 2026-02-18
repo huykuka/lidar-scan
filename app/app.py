@@ -1,3 +1,4 @@
+from app.pipeline.factory import _PIPELINE_MAP
 import asyncio
 
 from fastapi import FastAPI
@@ -8,6 +9,7 @@ from app.api.v1.endpoints import router as api_router
 from app.core.config import settings
 from app.pipeline import PipelineFactory
 from app.services.lidar.service import LidarService, LidarSensor
+import numpy as np
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -42,20 +44,18 @@ lidar_service = LidarService()
 async def startup_event():
     # 1. Setup Sensors
     launch_file = settings.LIDAR_LAUNCH
-    hostname = settings.LIDAR_IP
     lidar_mode = settings.LIDAR_MODE
     pcd_path = settings.LIDAR_PCD_PATH
 
-    sensor_id = "front_lidar"
-    front_pipeline = PipelineFactory.get("advanced", lidar_id=sensor_id)
-
-    lidar_service.add_sensor(LidarSensor(
-        sensor_id=sensor_id,
+    # Simplified sensor creation with pose
+    # Example: 2m forward (x), rotated 180 degrees (yaw = pi)
+    lidar_service.generate_lidar(
+        sensor_id='lidar1',
         launch_args=f"{launch_file} hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16",
-        pipeline=front_pipeline,
+        pipeline_name="advanced",
         mode=lidar_mode,
-        pcd_path=pcd_path
-    ))
+        # x=2.0, y=2.0
+    )
 
     # 3. Start everything
     lidar_service.start(asyncio.get_running_loop())

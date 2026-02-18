@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 
 import numpy as np
 
+from app.pipeline import PipelineFactory, PipelineName, PointCloudPipeline
 from app.services.websocket.manager import manager
 from .lidar_worker import lidar_worker_process
 from .pcd_worker import pcd_worker_process
@@ -13,13 +14,38 @@ from .pcd_worker import pcd_worker_process
 class LidarSensor:
     """Represents a single Lidar sensor and its processing pipeline configuration"""
 
-    def __init__(self, sensor_id: str, launch_args: str, pipeline: Optional[Any] = None, mode: str = "real",
-                 pcd_path: str = None):
+    def __init__(self, sensor_id: str, launch_args: str, pipeline: Optional[PointCloudPipeline] = None, mode: str = "real",
+                 pcd_path: str = None, transformation: Optional[np.ndarray] = None):
         self.id = sensor_id
         self.launch_args = launch_args
         self.pipeline = pipeline
         self.mode = mode
         self.pcd_path = pcd_path
+        # 4x4 Transformation matrix (Identity by default)
+        self.transformation = transformation if transformation is not None else np.eye(4)
+
+    def set_pose(self, x: float, y: float, z: float, roll: float = 0, pitch: float = 0, yaw: float = 0):
+        """
+        Sets the transformation matrix using translation and rotation (Euler angles in radians).
+        """
+        # Translation
+        T = np.eye(4)
+        T[:3, 3] = [x, y, z]
+
+        # Rotation (Z-Y-X order)
+        cr, sr = np.cos(roll), np.sin(roll)
+        cp, sp = np.cos(pitch), np.sin(pitch)
+        cy, sy = np.cos(yaw), np.sin(yaw)
+
+        R = np.array([
+            [cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr],
+            [sy * cp, sy * sp * sr + cy * cr, sy * sp * cr - cy * sr],
+            [-sp, cp * sr, cp * cr]
+        ])
+
+        T[:3, :3] = R
+        self.transformation = T
+        return self
 
 
 class LidarService:
@@ -35,6 +61,30 @@ class LidarService:
     def add_sensor(self, sensor: LidarSensor):
         self.sensors.append(sensor)
         return self
+
+    def generate_lidar(self, sensor_id: str, launch_args: str,
+                       pipeline_name: Optional[PipelineName] = None,
+                       mode: str = "real", pcd_path: str = None,
+                       x: float = 0, y: float = 0, z: float = 0,
+                       roll: float = 0, pitch: float = 0, yaw: float = 0):
+        """
+        Helper method to create and add a sensor with a specific pose in one call.
+        If pipeline_name is provided and pipeline is None, it creates the pipeline automatically.
+        """
+        pipeline = None
+        if pipeline_name is not None:
+            pipeline = PipelineFactory.get(pipeline_name, lidar_id=sensor_id)
+
+        sensor = LidarSensor(
+            sensor_id=sensor_id,
+            launch_args=launch_args,
+            pipeline=pipeline,
+            mode=mode,
+            pcd_path=pcd_path
+        )
+        sensor.set_pose(x, y, z, roll, pitch, yaw)
+        self.add_sensor(sensor)
+        return sensor
 
     def start(self, loop=None):
         self._loop = loop or asyncio.get_event_loop()
@@ -101,6 +151,10 @@ class LidarService:
             lidar_id = payload["lidar_id"]
             timestamp = payload["timestamp"]
 
+            # Find the sensor to get its transformation matrix
+            sensor = next((s for s in self.sensors if s.id == lidar_id), None)
+            transformation = sensor.transformation if sensor else np.eye(4)
+
             if payload.get("processed"):
                 # Data already processed by the worker's pipeline
                 processed_data = payload["data"]
@@ -111,19 +165,24 @@ class LidarService:
                     # In case of some legacy or error
                     return
 
+                # Apply transformation to bring points into global/unified space
+                points = self._transform_points(points, transformation)
+
                 # Pack processed points binary
                 binary_data = self._pack_binary(points, timestamp)
                 await manager.broadcast(f"{lidar_id}_processed_points", binary_data)
 
-                # Broadcoast raw points if requested/available
+                # Broadcast raw points if requested/available
                 raw_points = payload.get("raw_points")
                 if raw_points is not None:
+                    raw_points = self._transform_points(raw_points, transformation)
                     binary_raw = self._pack_binary(raw_points, timestamp)
                     await manager.broadcast(f"{lidar_id}_raw_points", binary_raw)
             else:
                 # Unprocessed fallback
                 points = payload.get("points")
                 if points is not None:
+                    points = self._transform_points(points, transformation)
                     binary_data = self._pack_binary(points, timestamp)
                     await manager.broadcast(f"{lidar_id}_raw_points", binary_data)
         except Exception as e:
@@ -145,6 +204,27 @@ class LidarService:
         header = struct.pack('<4sIdI', magic, version, timestamp, count)
         
         # Ensure we only send X, Y, Z (first 3 columns) to match the (N * 12 bytes) format
-        # points might have 16 columns if it's the raw data from lidar_worker
         points_xyz = points[:, :3].astype(np.float32)
         return header + points_xyz.tobytes()
+
+    def _transform_points(self, points: np.ndarray, T: np.ndarray) -> np.ndarray:
+        """
+        Applies a 4x4 transformation matrix T to (N, 3) or (N, M) points.
+        Efficiently handles rotation and translation using numpy.
+        """
+        if points is None or len(points) == 0:
+            return points
+            
+        # Skip if identity matrix
+        if np.array_equal(T, np.eye(4)):
+            return points
+
+        # R is top-left 3x3, t is top-right 3x1
+        R = T[:3, :3]
+        t = T[:3, 3]
+
+        # Apply transformation only to the first 3 columns (x, y, z)
+        # points_transformed = points * R^T + t
+        transformed = points.copy()
+        transformed[:, :3] = points[:, :3] @ R.T + t
+        return transformed
