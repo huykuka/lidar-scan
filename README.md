@@ -2,6 +2,8 @@
 
 A standalone Python backend for real-time LiDAR point cloud processing and streaming. Built with FastAPI, Open3D, and the SICK Scan API. Supports multiple sensors, modular processing pipelines, multi-sensor fusion, and live WebSocket streaming to a browser frontend.
 
+![Demo](demo.png)
+
 ---
 
 ## Features
@@ -18,17 +20,31 @@ A standalone Python backend for real-time LiDAR point cloud processing and strea
 ## Requirements
 
 - Python 3.12+
-- [SICK Scan API](https://github.com/SICKAG/sick_scan_xd) (native library, pre-built)
+- Docker (required to build the SICK Scan native library)
+
+---
+
+## Installation
+
+### 1. Create Virtual Environment
 
 ```bash
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-```
-fastapi
-uvicorn[standard]
-open3d
-numpy
+### 2. Build SICK Scan API
+
+This script uses Docker to build the library and copy the artifacts (drivers, launch files, and Python API) into the project directory.
+
+```bash
+cd setup
+./setup.sh
+cd ..
 ```
 
 ---
