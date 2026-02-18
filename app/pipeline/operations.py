@@ -15,11 +15,11 @@ Example:
 import json
 import os
 from typing import List, Any, Callable
+
 import numpy as np
 import open3d as o3d
+
 from .base import PipelineOperation, PointCloudPipeline, _tensor_map_keys
-
-
 
 
 class Crop(PipelineOperation):
@@ -30,6 +30,7 @@ class Crop(PipelineOperation):
         min_bound (List[float]): Minimum coordinates [x, y, z].
         max_bound (List[float]): Maximum coordinates [x, y, z].
     """
+
     def __init__(self, min_bound: List[float], max_bound: List[float]):
         self.min_bound = np.array(min_bound)
         self.max_bound = np.array(max_bound)
@@ -53,6 +54,7 @@ class Downsample(PipelineOperation):
         voxel_size (float): The size of the voxel to use for downsampling. 
                            Values <= 0 will bypass downsampling.
     """
+
     def __init__(self, voxel_size: float):
         self.voxel_size = voxel_size
 
@@ -77,6 +79,7 @@ class StatisticalOutlierRemoval(PipelineOperation):
         
     Note: Tensor API implementation currently falls back to legacy API.
     """
+
     def __init__(self, nb_neighbors: int = 20, std_ratio: float = 2.0):
         self.nb_neighbors = nb_neighbors
         self.std_ratio = std_ratio
@@ -113,6 +116,7 @@ class RadiusOutlierRemoval(PipelineOperation):
         
     Note: Tensor API implementation currently falls back to legacy API.
     """
+
     def __init__(self, nb_points: int = 16, radius: float = 0.05):
         self.nb_points = nb_points
         self.radius = radius
@@ -145,6 +149,7 @@ class UniformDownsample(PipelineOperation):
     Args:
         every_k_points (int): The interval at which points are collected (e.g., every 5th point).
     """
+
     def __init__(self, every_k_points: int = 5):
         self.every_k_points = every_k_points
 
@@ -173,6 +178,7 @@ class PlaneSegmentation(PipelineOperation):
         ransac_n (int): Number of points sampled to estimate the plane.
         num_iterations (int): Maximum number of iterations for RANSAC.
     """
+
     def __init__(self, distance_threshold: float = 0.1, ransac_n: int = 3, num_iterations: int = 1000):
         self.distance_threshold = distance_threshold
         self.ransac_n = ransac_n
@@ -202,7 +208,7 @@ class PlaneSegmentation(PipelineOperation):
                     probability=0.9999
                 )
                 pcd = pcd.select_by_index(inliers)
-                
+
                 return pcd, {
                     "plane_model": plane_model.tolist(),
                     "inlier_count": len(inliers)
@@ -218,6 +224,7 @@ class Clustering(PipelineOperation):
         eps (float): Distance to neighbors in a cluster.
         min_points (int): Minimum number of points required to form a cluster.
     """
+
     def __init__(self, eps: float = 0.2, min_points: int = 10):
         self.eps = eps
         self.min_points = min_points
@@ -248,6 +255,7 @@ class Filter(PipelineOperation):
                              - Tensor API: filter_fn(pcd) -> o3d.core.Tensor (bool or int64)
                              - Legacy API: filter_fn(pcd) -> np.ndarray (bool or int) or List[int]
     """
+
     def __init__(self, filter_fn: Callable[[Any], Any]):
         """
         filter_fn should take a PointCloud and return a boolean mask or indices.
@@ -285,6 +293,7 @@ class FilterByKey(PipelineOperation):
         key (str): The attribute key to filter by (e.g., 'intensity', 'reflector').
         value (Any): The value to match, or a callable condition (e.g., lambda x: x > 0.5).
     """
+
     def __init__(self, key: str, value: Any):
         """
         Filters the point cloud based on a specific attribute (key).
@@ -304,13 +313,20 @@ class FilterByKey(PipelineOperation):
                 result = self.value(data)
             elif isinstance(self.value, (tuple, list)) and len(self.value) == 2:
                 op, val = self.value
-                if op == '>': result = (data > val)
-                elif op == '>=': result = (data >= val)
-                elif op == '<': result = (data < val)
-                elif op == '<=': result = (data <= val)
-                elif op == '!=': result = (data != val)
-                elif op == '==': result = (data == val)
-                else: result = (data == self.value)
+                if op == '>':
+                    result = (data > val)
+                elif op == '>=':
+                    result = (data >= val)
+                elif op == '<':
+                    result = (data < val)
+                elif op == '<=':
+                    result = (data <= val)
+                elif op == '!=':
+                    result = (data != val)
+                elif op == '==':
+                    result = (data == val)
+                else:
+                    result = (data == self.value)
             else:
                 result = (data == self.value)
 
@@ -325,23 +341,30 @@ class FilterByKey(PipelineOperation):
         else:
             attr_name = self.key
             if self.key == "intensity": attr_name = "colors"
-            
+
             if hasattr(pcd, attr_name):
                 data = np.asarray(getattr(pcd, attr_name))
                 if callable(self.value):
                     mask = self.value(data)
                 elif isinstance(self.value, (tuple, list)) and len(self.value) == 2:
                     op, val = self.value
-                    if op == '>': mask = (data > val)
-                    elif op == '>=': mask = (data >= val)
-                    elif op == '<': mask = (data < val)
-                    elif op == '<=': mask = (data <= val)
-                    elif op == '!=': mask = (data != val)
-                    elif op == '==': mask = (data == val)
-                    else: mask = (data == self.value)
+                    if op == '>':
+                        mask = (data > val)
+                    elif op == '>=':
+                        mask = (data >= val)
+                    elif op == '<':
+                        mask = (data < val)
+                    elif op == '<=':
+                        mask = (data <= val)
+                    elif op == '!=':
+                        mask = (data != val)
+                    elif op == '==':
+                        mask = (data == val)
+                    else:
+                        mask = (data == self.value)
                 else:
                     mask = (data == self.value)
-                
+
                 if isinstance(mask, np.ndarray) and mask.dtype == bool:
                     indices = np.where(mask)[0]
                 else:
@@ -351,7 +374,7 @@ class FilterByKey(PipelineOperation):
                 final_count = len(pcd.points)
             else:
                 return pcd, {"filtered_count": len(pcd.points),
-                            "warning": f"Attribute '{self.key}' not found on legacy PointCloud"}
+                             "warning": f"Attribute '{self.key}' not found on legacy PointCloud"}
 
         return pcd, {"filtered_count": final_count, "filter_key": self.key}
 
@@ -365,6 +388,7 @@ class DebugSave(PipelineOperation):
         prefix (str): Prefix for the saved PCD files.
         max_keeps (int): Maximum number of recent files to keep. Older files are deleted.
     """
+
     def __init__(self, output_dir: str = "debug_output", prefix: str = "pcd", max_keeps: int = 10):
         self.output_dir = output_dir
         self.prefix = prefix
@@ -399,6 +423,7 @@ class SaveDataStructure(PipelineOperation):
     Args:
         output_file (str): Path to the output JSON file.
     """
+
     def __init__(self, output_file: str = "debug_structure.json"):
         self.output_file = output_file
 
@@ -463,6 +488,7 @@ class PipelineBuilder:
         >>> result = pipeline.process(points)
         >>> print(f"Remaining points: {result['metadata']['count']}")
     """
+
     def __init__(self, use_tensor: bool = True, device: str = "CPU:0"):
         if use_tensor:
             from .base import TensorPointCloudPipeline
@@ -534,4 +560,3 @@ class PipelineBuilder:
 
     def build(self) -> PointCloudPipeline:
         return self.pipeline
-

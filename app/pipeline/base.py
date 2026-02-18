@@ -3,7 +3,6 @@ from typing import List, Dict, Any
 
 import numpy as np
 import open3d as o3d
-from typing import List, Dict, Any
 
 
 def _tensor_map_keys(tensor_map: Any) -> List[str]:
@@ -17,7 +16,7 @@ def _tensor_map_keys(tensor_map: Any) -> List[str]:
             return list(tensor_map)
         except Exception:
             return []
-            
+
 
 class PipelineOperation(ABC):
     """Base class for all point cloud operations"""
@@ -67,7 +66,7 @@ class LegacyPointCloudPipeline(PointCloudPipeline):
                 pcd, op_result = outcome
             else:
                 pcd, op_result = outcome, {}
-                
+
             if op_result:
                 results.update(op_result)
 
@@ -97,7 +96,7 @@ class TensorPointCloudPipeline(PointCloudPipeline):
 
         # Create Tensor-based PointCloud
         pcd = o3d.t.geometry.PointCloud(self.device)
-        positions = points[:, :3].astype(np.float32) # Strictly float32 for positions
+        positions = points[:, :3].astype(np.float32)  # Strictly float32 for positions
         pcd.point.positions = o3d.core.Tensor(positions, device=self.device)
 
         # Map additional columns to attributes based on PCD structure:
@@ -123,8 +122,9 @@ class TensorPointCloudPipeline(PointCloudPipeline):
         if points.shape[1] > 12:
             pcd.point["echo"] = o3d.core.Tensor(points[:, 12].reshape(-1, 1).astype(np.int32), device=self.device)
         if points.shape[1] > 13:
-            pcd.point["intensity"] = o3d.core.Tensor(points[:, 13].reshape(-1, 1).astype(np.float32), device=self.device)
-        
+            pcd.point["intensity"] = o3d.core.Tensor(points[:, 13].reshape(-1, 1).astype(np.float32),
+                                                     device=self.device)
+
         results = {}
         for op in self.operations:
             outcome = op.apply(pcd)
@@ -132,10 +132,10 @@ class TensorPointCloudPipeline(PointCloudPipeline):
                 pcd, op_result = outcome
             else:
                 pcd, op_result = outcome, {}
-                
+
             if op_result:
                 results.update(op_result)
-    
+
         # Retrieve results back to CPU/Numpy
         processed_points = pcd.point.positions.cpu().numpy()
 

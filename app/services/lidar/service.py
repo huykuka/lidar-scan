@@ -1,6 +1,6 @@
 import asyncio
-import struct
 import multiprocessing as mp
+import struct
 from typing import List, Dict, Any, Optional
 
 import numpy as np
@@ -14,7 +14,8 @@ from .pcd_worker import pcd_worker_process
 class LidarSensor:
     """Represents a single Lidar sensor and its processing pipeline configuration"""
 
-    def __init__(self, sensor_id: str, launch_args: str, pipeline: Optional[PointCloudPipeline] = None, mode: str = "real",
+    def __init__(self, sensor_id: str, launch_args: str, pipeline: Optional[PointCloudPipeline] = None,
+                 mode: str = "real",
                  pcd_path: str = None, transformation: Optional[np.ndarray] = None):
         self.id = sensor_id
         self.launch_args = launch_args
@@ -158,7 +159,7 @@ class LidarService:
             if payload.get("processed"):
                 # Data already processed by the worker's pipeline
                 processed_data = payload["data"]
-                
+
                 # Extract points (they should be numpy arrays now)
                 points = processed_data.get("points")
                 if points is None:
@@ -200,9 +201,9 @@ class LidarService:
         magic = b'LIDR'
         version = 1
         count = len(points)
-        
+
         header = struct.pack('<4sIdI', magic, version, timestamp, count)
-        
+
         # Ensure we only send X, Y, Z (first 3 columns) to match the (N * 12 bytes) format
         points_xyz = points[:, :3].astype(np.float32)
         return header + points_xyz.tobytes()
@@ -214,7 +215,7 @@ class LidarService:
         """
         if points is None or len(points) == 0:
             return points
-            
+
         # Skip if identity matrix
         if np.array_equal(T, np.eye(4)):
             return points

@@ -3,8 +3,11 @@ import multiprocessing as mp
 import os
 import time
 from typing import Any
+
 import numpy as np
-from sick_scan_api import SickScanApiLoadLibrary, SickScanApiCreate, SickScanApiInitByLaunchfile, SickScanPointCloudMsgCallback, SickScanApiRegisterCartesianPointCloudMsg, SickScanApiDeregisterCartesianPointCloudMsg, SickScanApiClose, SickScanApiRelease, SickScanApiUnloadLibrary
+from sick_scan_api import SickScanApiLoadLibrary, SickScanApiCreate, SickScanApiInitByLaunchfile, \
+    SickScanPointCloudMsgCallback, SickScanApiRegisterCartesianPointCloudMsg, \
+    SickScanApiDeregisterCartesianPointCloudMsg, SickScanApiClose, SickScanApiRelease, SickScanApiUnloadLibrary
 
 
 def parse_sick_scan_pointcloud(msg_contents):
@@ -14,7 +17,7 @@ def parse_sick_scan_pointcloud(msg_contents):
     """
     requiredTopic = "cloud_all_fields_fullframe"
     points_reshaped = None
-    
+
     try:
         # Robust topic decoding (handle null terminators and slashes)
         topic = msg_contents.topic.decode('utf-8').split('\x00')[0].strip()
@@ -36,7 +39,7 @@ def parse_sick_scan_pointcloud(msg_contents):
         # 1. Map sick_scan_api types to numpy types
         # 1:I8, 2:U8, 3:I16, 4:U16, 5:I32, 6:U32/U4, 7:F32, 8:F64
         type_map = {1: 'i1', 2: 'u1', 3: 'i2', 4: 'u2', 5: 'i4', 6: 'u4', 7: 'f4', 8: 'f8'}
-        
+
         fields_arr = msg_contents.fields
         names = []
         formats = []
@@ -48,14 +51,14 @@ def parse_sick_scan_pointcloud(msg_contents):
             names.append(f_name)
             formats.append(type_map.get(f.datatype, 'f4'))
             offsets.append(f.offset)
-        
+
         dt = np.dtype({
             'names': names,
             'formats': formats,
             'offsets': offsets,
             'itemsize': point_step
         })
-        
+
         # 2. Vectorized extraction respecting row_step and point_step
         points_struct = np.ndarray(
             shape=(msg_contents.height, msg_contents.width),
@@ -66,7 +69,7 @@ def parse_sick_scan_pointcloud(msg_contents):
 
         # 3. Map to 16-column array for pipeline
         points_reshaped = np.zeros((num_points, 16), dtype=np.float64)
-        
+
         col_map = {
             'x': 0, 'y': 1, 'z': 2,
             'lidar_nsec': 3,
@@ -81,13 +84,14 @@ def parse_sick_scan_pointcloud(msg_contents):
             'echo': 12,
             'intensity': 13, 'i': 13
         }
-        
+
         for name in names:
             if name in col_map:
                 idx = col_map[name]
                 points_reshaped[:, idx] = points_struct[name].astype(np.float64)
-        
+
     return points_reshaped, topic
+
 
 def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_queue: mp.Queue, stop_event: mp.Event):
     """
@@ -115,7 +119,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
         try:
             msg_contents = msg.contents
             points_reshaped, topic = parse_sick_scan_pointcloud(msg_contents)
-            
+
             if points_reshaped is None:
                 return
 

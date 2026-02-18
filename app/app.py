@@ -1,4 +1,3 @@
-from app.pipeline.factory import _PIPELINE_MAP
 import asyncio
 
 from fastapi import FastAPI
@@ -7,9 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.endpoints import router as api_router
 from app.core.config import settings
-from app.pipeline import PipelineFactory
-from app.services.lidar.service import LidarService, LidarSensor
-import numpy as np
+from app.services.lidar.service import LidarService
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

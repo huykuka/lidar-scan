@@ -20,4 +20,3 @@ class PipelineFactory:
         if name not in _PIPELINE_MAP:
             raise ValueError(f"Unknown pipeline: '{name}'. Available: {list(_PIPELINE_MAP.keys())}")
         return _PIPELINE_MAP[name](**kwargs)
-

@@ -1,5 +1,7 @@
 import os
+
 from ..operations import PipelineBuilder
+
 
 def create_pipeline(lidar_id: str = "default"):
     """
@@ -8,7 +10,7 @@ def create_pipeline(lidar_id: str = "default"):
     Skips downsampling to preserve point density.
     """
     debug_dir = os.path.join("debug_data", lidar_id, "reflector")
-    
+
     return (PipelineBuilder()
             .filter(reflector=True)
             .remove_outliers(nb_neighbors=10, std_ratio=1.0)

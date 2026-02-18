@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any
+from typing import Any
 
 import numpy as np
 import open3d as o3d
