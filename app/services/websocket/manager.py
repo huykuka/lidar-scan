@@ -7,6 +7,11 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
 
+    def register_topic(self, topic: str):
+        """Pre-registers a topic so it appears in the topic list even with no active connections."""
+        if topic not in self.active_connections:
+            self.active_connections[topic] = []
+
     async def connect(self, websocket: WebSocket, topic: str):
         await websocket.accept()
         if topic not in self.active_connections:

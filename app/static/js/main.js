@@ -78,25 +78,17 @@ let currentTopic = '';
 
 async function fetchStatus() {
     try {
-        const response = await fetch('/status');
-        const data = await response.json();
-        
-        // Update Version
-        if (data.version) {
-            versionEl.textContent = data.version;
-        }
+        // 1. Fetch Version/Status
+        const statusRes = await fetch('/status');
+        const statusData = await statusRes.json();
+        if (statusData.version) versionEl.textContent = statusData.version;
 
-        // Update Topics/Sensors
-        const sensors = data.active_sensors || [];
+        // 2. Fetch Dynamic Topics
+        const topicsRes = await fetch('/topics');
+        const topicsData = await topicsRes.json();
+        const topics = topicsData.topics || [];
         
         topicSelect.innerHTML = '';
-        const topics = [];
-        
-        sensors.forEach(sensorId => {
-            topics.push(`${sensorId}_raw_points`);
-            topics.push(`${sensorId}_processed_points`);
-        });
-
         topics.forEach(topic => {
             const option = document.createElement('option');
             option.value = topic;
@@ -105,14 +97,20 @@ async function fetchStatus() {
         });
 
         if (topics.length > 0) {
-            currentTopic = topics[0];
-            connect(currentTopic);
+            // Keep current selection if it still exists, otherwise pick first
+            if (!topics.includes(currentTopic)) {
+                currentTopic = topics[0];
+                topicSelect.value = currentTopic;
+                connect(currentTopic);
+            } else {
+                topicSelect.value = currentTopic;
+            }
         } else {
-             statusEl.textContent = 'No active sensors';
+             statusEl.textContent = 'No active topics';
         }
     } catch (e) {
         console.error('Error fetching status:', e);
-        statusEl.textContent = 'Error fetching topics';
+        statusEl.textContent = 'Error loading API';
         versionEl.textContent = 'Unknown';
     }
 }

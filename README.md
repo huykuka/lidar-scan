@@ -119,13 +119,13 @@ lidar_service.generate_lidar(
     launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.10 udp_receiver_ip:=192.168.1.1",
     pipeline_name="advanced",   # optional — resolves via PipelineFactory
     mode="real",                # "real" or "sim"
-    # Physical pose in world space (meters / radians):
+    # Physical pose in world space (meters / degrees):
     x=0.0, y=0.0, z=0.5,
-    yaw=0.0, pitch=0.0, roll=0.0,
+    yaw=180.0, pitch=0.0, roll=0.0,
 )
 ```
 
-Each sensor runs in its own subprocess. Points are automatically transformed into world space using the sensor's pose before broadcasting.
+Each sensor runs in its own subprocess. Points are automatically transformed into world space using the sensor's pose (angles in degrees) before broadcasting.
 
 ---
 

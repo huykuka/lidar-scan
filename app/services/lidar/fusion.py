@@ -56,6 +56,9 @@ class FusionService:
         self._latest_frames: Dict[str, np.ndarray] = {}
         self._enabled = False
         self._original_handle = None
+        
+        # Register the topic so it shows up in the discovery API
+        manager.register_topic(self._topic)
 
     def enable(self):
         """Activate fusion — patches LidarService to intercept frames."""
@@ -103,13 +106,32 @@ class FusionService:
 
         self._latest_frames[lidar_id] = points
 
-        # Wait until all expected sensors have contributed
+        # Wait until all expected sensors have contributed at least once
         expected: Set[str] = self._filter or {s.id for s in self._service.sensors}
         if not expected.issubset(self._latest_frames.keys()):
+            missing = expected - self._latest_frames.keys()
+            # Only print at start or if it's been a while (to avoid spamming)
+            # For debugging, we'll print it once per unique missing set
+            if not hasattr(self, '_last_missing') or self._last_missing != missing:
+                print(f"[Fusion] Waiting for sensors: {missing}. Have: {list(self._latest_frames.keys())}")
+                self._last_missing = missing
             return
 
+        if hasattr(self, '_last_missing'):
+            print(f"[Fusion] All sensors active: {list(expected)}. Starting fusion.")
+            delattr(self, '_last_missing')
+
+        # Collect frames for fusion
+        frames = [self._latest_frames[sid] for sid in expected]
+
+        # Check for column mismatch
+        num_cols = {f.shape[1] for f in frames}
+        if len(num_cols) > 1:
+            # Fallback to XYZ (3 columns) if fields don't match (e.g. Real Lidar 16-cols + Sim PCD 3-cols)
+            frames = [f[:, :3] for f in frames]
+
         # Merge all frames into one cloud
-        fused = np.concatenate(list(self._latest_frames.values()), axis=0)
+        fused = np.concatenate(frames, axis=0)
 
         # Optionally run a pipeline on the fused cloud
         if self._pipeline is not None:

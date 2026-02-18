@@ -27,16 +27,21 @@ class LidarSensor:
 
     def set_pose(self, x: float, y: float, z: float, roll: float = 0, pitch: float = 0, yaw: float = 0):
         """
-        Sets the transformation matrix using translation and rotation (Euler angles in radians).
+        Sets the transformation matrix using translation (meters) and rotation (degrees).
         """
+        # Convert degrees to radians for internal math
+        roll_rad = np.radians(roll)
+        pitch_rad = np.radians(pitch)
+        yaw_rad = np.radians(yaw)
+
         # Translation
         T = np.eye(4)
         T[:3, 3] = [x, y, z]
 
         # Rotation (Z-Y-X order)
-        cr, sr = np.cos(roll), np.sin(roll)
-        cp, sp = np.cos(pitch), np.sin(pitch)
-        cy, sy = np.cos(yaw), np.sin(yaw)
+        cr, sr = np.cos(roll_rad), np.sin(roll_rad)
+        cp, sp = np.cos(pitch_rad), np.sin(pitch_rad)
+        cy, sy = np.cos(yaw_rad), np.sin(yaw_rad)
 
         R = np.array([
             [cy * cp, cy * sp * sr - sy * cr, cy * sp * cr + sy * sr],
@@ -75,7 +80,9 @@ class LidarService:
         pipeline = None
         if pipeline_name is not None:
             pipeline = PipelineFactory.get(pipeline_name, lidar_id=sensor_id)
-
+            if pipeline:
+                manager.register_topic(f"{sensor_id}_processed_points")
+                
         sensor = LidarSensor(
             sensor_id=sensor_id,
             launch_args=launch_args,
@@ -85,6 +92,10 @@ class LidarService:
         )
         sensor.set_pose(x, y, z, roll, pitch, yaw)
         self.add_sensor(sensor)
+
+        # Register topics in the connection manager
+        manager.register_topic(f"{sensor_id}_raw_points")
+
         return sensor
 
     def start(self, loop=None):

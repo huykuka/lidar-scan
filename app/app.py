@@ -43,10 +43,16 @@ async def startup_event():
     lidar_service.generate_lidar(
         sensor_id='lidar1',
         launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
-        pipeline_name="advanced",
+        yaw = 180,
+        # pipeline_name="advanced",
     )
 
-
+    lidar_service.generate_lidar(
+        sensor_id='lidar2',
+        launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
+        mode="sim",
+        pcd_path="/home/thaiqu/Projects/personnal/lidar-standalone/1769503697-362730026.pcd"
+    )
 
     # Example: Sensor 1 with Object Clustering (in parallel)
     # lidar_service.add_sensor(LidarSensor(
@@ -56,7 +62,7 @@ async def startup_event():
     # ))
 
     # --- Fusion Examples (uncomment to use) ---
-    # from app.services.lidar.fusion import FusionService
+    from app.services.lidar.fusion import FusionService
     #
     # # Option 1: Fuse ALL registered sensors into a single "fused_points" topic
     # fusion = FusionService(lidar_service)
@@ -73,13 +79,13 @@ async def startup_event():
     # ground_fusion.enable()
     #
     # # Option 4: Fuse + run a named pipeline on the merged cloud (same API as generate_lidar)
-    # fusion = FusionService(
-    #     lidar_service,
-    #     topic="fused_reflectors",
-    #     sensor_ids=["lidar_front", "lidar_rear"],
-    #     pipeline_name="reflector",
-    # )
-    # fusion.enable()
+    fusion = FusionService(
+        lidar_service,
+        topic="fused_reflectors",
+        sensor_ids=["lidar1", "lidar2"],
+        # pipeline_name="advanced",
+    )
+    fusion.enable()
     
 
     lidar_service.start(asyncio.get_running_loop())
