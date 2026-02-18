@@ -39,23 +39,14 @@ lidar_service = LidarService()
 
 @app.on_event("startup")
 async def startup_event():
-    # 1. Setup Sensors
-    launch_file = settings.LIDAR_LAUNCH
-    lidar_mode = settings.LIDAR_MODE
-    pcd_path = settings.LIDAR_PCD_PATH
-
-    # Simplified sensor creation with pose
-    # Example: 2m forward (x), rotated 180 degrees (yaw = pi)
+    # --- Sensor Setup ---
     lidar_service.generate_lidar(
         sensor_id='lidar1',
-        launch_args=f"{launch_file} hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16",
+        launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
         pipeline_name="advanced",
-        mode=lidar_mode,
-        # x=2.0, y=2.0
     )
 
-    # 3. Start everything
-    lidar_service.start(asyncio.get_running_loop())
+
 
     # Example: Sensor 1 with Object Clustering (in parallel)
     # lidar_service.add_sensor(LidarSensor(
@@ -63,6 +54,35 @@ async def startup_event():
     #     launch_args=f"./launch/sick_tim.launch hostname:=192.168.100.124",
     #     pipeline=object_pipeline
     # ))
+
+    # --- Fusion Examples (uncomment to use) ---
+    # from app.services.lidar.fusion import FusionService
+    #
+    # # Option 1: Fuse ALL registered sensors into a single "fused_points" topic
+    # fusion = FusionService(lidar_service)
+    # fusion.enable()
+    #
+    # # Option 2: Fuse only specific sensors (e.g. front + rear, ignoring others)
+    # fusion = FusionService(lidar_service, sensor_ids=["lidar_front", "lidar_rear"])
+    # fusion.enable()
+    #
+    # # Option 3: Multiple independent fusion groups on different topics
+    # top_fusion    = FusionService(lidar_service, topic="top_fused",    sensor_ids=["lidar_top_left", "lidar_top_right"])
+    # ground_fusion = FusionService(lidar_service, topic="ground_fused", sensor_ids=["lidar_front",    "lidar_rear"])
+    # top_fusion.enable()
+    # ground_fusion.enable()
+    #
+    # # Option 4: Fuse + run a named pipeline on the merged cloud (same API as generate_lidar)
+    # fusion = FusionService(
+    #     lidar_service,
+    #     topic="fused_reflectors",
+    #     sensor_ids=["lidar_front", "lidar_rear"],
+    #     pipeline_name="reflector",
+    # )
+    # fusion.enable()
+    
+
+    lidar_service.start(asyncio.get_running_loop())
 
 
 @app.on_event("shutdown")

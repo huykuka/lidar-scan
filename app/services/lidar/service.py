@@ -166,14 +166,12 @@ class LidarService:
                     # In case of some legacy or error
                     return
 
-                # Apply transformation to bring points into global/unified space
+                # Apply transformation to bring points into world/global space
                 points = self._transform_points(points, transformation)
 
-                # Pack processed points binary
                 binary_data = self._pack_binary(points, timestamp)
                 await manager.broadcast(f"{lidar_id}_processed_points", binary_data)
 
-                # Broadcast raw points if requested/available
                 raw_points = payload.get("raw_points")
                 if raw_points is not None:
                     raw_points = self._transform_points(raw_points, transformation)
