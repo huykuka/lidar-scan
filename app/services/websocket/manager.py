@@ -12,6 +12,10 @@ class ConnectionManager:
         if topic not in self.active_connections:
             self.active_connections[topic] = []
 
+
+    def reset_active_connections(self):
+        self.active_connections.clear()
+
     async def connect(self, websocket: WebSocket, topic: str):
         await websocket.accept()
         if topic not in self.active_connections:

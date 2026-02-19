@@ -4,9 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api.v1.endpoints import router as api_router
+from app.api.v1 import router as api_router
 from app.core.config import settings
-from app.services.lidar.service import LidarService
+from app.services.lidar.instance import lidar_service
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -33,33 +33,14 @@ async def read_index():
     return FileResponse("app/static/index.html")
 
 
-# Central Service
-lidar_service = LidarService()
+# Central Service (imported from instance)
 
 
 @app.on_event("startup")
 async def startup_event():
     # --- Sensor Setup ---
-    lidar_service.generate_lidar(
-        sensor_id='lidar1',
-        launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
-        yaw = 180,
-        # pipeline_name="advanced",
-    )
 
-    lidar_service.generate_lidar(
-        sensor_id='lidar2',
-        launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
-        mode="sim",
-        pcd_path="/home/thaiqu/Projects/personnal/lidar-standalone/1769503697-362730026.pcd"
-    )
-
-    # Example: Sensor 1 with Object Clustering (in parallel)
-    # lidar_service.add_sensor(LidarSensor(
-    #     sensor_id="back_lidar",
-    #     launch_args=f"./launch/sick_tim.launch hostname:=192.168.100.124",
-    #     pipeline=object_pipeline
-    # ))
+    lidar_service.load_config()
 
     # --- Fusion Examples (uncomment to use) ---
     from app.services.lidar.fusion import FusionService
@@ -79,13 +60,13 @@ async def startup_event():
     # ground_fusion.enable()
     #
     # # Option 4: Fuse + run a named pipeline on the merged cloud (same API as generate_lidar)
-    fusion = FusionService(
-        lidar_service,
-        topic="fused_reflectors",
-        sensor_ids=["lidar1", "lidar2"],
-        # pipeline_name="advanced",
-    )
-    fusion.enable()
+    # fusion = FusionService(
+    #     lidar_service,
+    #     topic="fused_reflectors",
+    #     sensor_ids=["lidar1", "lidar2"],
+    #     # pipeline_name="advanced",
+    # )
+    # fusion.enable()
     
 
     lidar_service.start(asyncio.get_running_loop())

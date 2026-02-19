@@ -7,7 +7,8 @@ from typing import Any
 import numpy as np
 from sick_scan_api import SickScanApiLoadLibrary, SickScanApiCreate, SickScanApiInitByLaunchfile, \
     SickScanPointCloudMsgCallback, SickScanApiRegisterCartesianPointCloudMsg, \
-    SickScanApiDeregisterCartesianPointCloudMsg, SickScanApiClose, SickScanApiRelease, SickScanApiUnloadLibrary
+    SickScanApiDeregisterCartesianPointCloudMsg, SickScanApiClose, SickScanApiRelease, SickScanApiUnloadLibrary, \
+    SickScanApiSetVerboseLevel
 
 
 def parse_sick_scan_pointcloud(msg_contents):
@@ -113,6 +114,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
         return
 
     api_handle = SickScanApiCreate(sick_scan_library)
+    SickScanApiSetVerboseLevel(sick_scan_library, api_handle,3)
     SickScanApiInitByLaunchfile(sick_scan_library, api_handle, launch_args)
 
     def _py_pointcloud_cb(handle, msg):
@@ -163,6 +165,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
     try:
         while not stop_event.is_set():
             time.sleep(0.1)
+
     finally:
         SickScanApiDeregisterCartesianPointCloudMsg(sick_scan_library, api_handle, pc_callback)
         SickScanApiClose(sick_scan_library, api_handle)

@@ -1,0 +1,15 @@
+[
+    {
+        "id": "lidar1",
+        "launch_args": "./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
+        "pipeline_name": "advanced",
+        "mode": "real",
+        "pcd_path": "",
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": 0.0
+    }
+]

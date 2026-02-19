@@ -1,6 +1,9 @@
 import asyncio
+import json
+import os
 import multiprocessing as mp
 import struct
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 import numpy as np
@@ -15,15 +18,18 @@ class LidarSensor:
     """Represents a single Lidar sensor and its processing pipeline configuration"""
 
     def __init__(self, sensor_id: str, launch_args: str, pipeline: Optional[PointCloudPipeline] = None,
+                 pipeline_name: Optional[str] = None,
                  mode: str = "real",
                  pcd_path: str = None, transformation: Optional[np.ndarray] = None):
         self.id = sensor_id
         self.launch_args = launch_args
         self.pipeline = pipeline
+        self.pipeline_name = pipeline_name
         self.mode = mode
         self.pcd_path = pcd_path
         # 4x4 Transformation matrix (Identity by default)
         self.transformation = transformation if transformation is not None else np.eye(4)
+        self.pose_params = {"x": 0, "y": 0, "z": 0, "roll": 0, "pitch": 0, "yaw": 0}
 
     def set_pose(self, x: float, y: float, z: float, roll: float = 0, pitch: float = 0, yaw: float = 0):
         """
@@ -50,12 +56,13 @@ class LidarSensor:
         ])
 
         T[:3, :3] = R
+        self.pose_params = {"x": x, "y": y, "z": z, "roll": roll, "pitch": pitch, "yaw": yaw}
         self.transformation = T
         return self
 
 
 class LidarService:
-    def __init__(self):
+    def __init__(self, config_path: str = "config/lidars.json"):
         self.sensors: List[LidarSensor] = []
         self.processes: Dict[str, mp.Process] = {}
         self.stop_events: Dict[str, mp.Event] = {}
@@ -63,6 +70,73 @@ class LidarService:
         self.is_running = False
         self._loop = None
         self._listener_task = None
+        self.config_path = config_path
+
+    def load_config(self):
+        """Loads sensor configurations from JSON and registers them."""
+        if not os.path.exists(self.config_path):
+            print(f"Config file not found: {self.config_path}")
+            return
+
+        try:
+            with open(self.config_path, "r") as f:
+                config = json.load(f)
+                for item in config:
+                    self.generate_lidar(
+                        sensor_id=item["id"],
+                        launch_args=item["launch_args"],
+                        pipeline_name=item.get("pipeline_name"),
+                        mode=item.get("mode", "real"),
+                        pcd_path=item.get("pcd_path"),
+                        x=item.get("x", 0),
+                        y=item.get("y", 0),
+                        z=item.get("z", 0),
+                        roll=item.get("roll", 0),
+                        pitch=item.get("pitch", 0),
+                        yaw=item.get("yaw", 0)
+                    )
+            print(f"Loaded {len(config)} sensors from {self.config_path}")
+        except Exception as e:
+            print(f"Error loading config: {e}")
+
+    def save_config(self):
+        """Saves current sensor configurations to JSON."""
+        config = []
+        for sensor in self.sensors:
+            # We need to reverse-engineer some fields if possible, or store them in LidarSensor
+            # For now, let's assume we might need to store the original config dict or more meta on LidarSensor
+            # Let's add more attributes to LidarSensor to keep track of these values.
+            item = {"id": sensor.id, "launch_args": sensor.launch_args,
+                    "pipeline_name": sensor.pipeline_name if hasattr(sensor, 'pipeline_name') else None,
+                    "mode": sensor.mode, "pcd_path": sensor.pcd_path, "x": (sensor.transformation[:3, 3].tolist())[0],
+                    "y": (sensor.transformation[:3, 3].tolist())[1], "z": (sensor.transformation[:3, 3].tolist())[2]}
+            # Extracting translation from T
+            # Rotation is harder to extract uniquely (Euler angles),
+            # so let's just use the ones stored if we add them.
+            if hasattr(sensor, 'pose_params'):
+                 item.update(sensor.pose_params)
+            
+            config.append(item)
+
+        os.makedirs(os.path.dirname(self.config_path), exist_ok=True)
+        with open(self.config_path, "w") as f:
+            json.dump(config, f, indent=4)
+
+    def reload_config(self, loop=None):
+        """Stops all services, reloads config, and restarts."""
+        was_running = self.is_running
+
+        self.stop()
+        self.sensors = []
+        manager.reset_active_connections()
+        self.load_config()
+        if was_running:
+            self.start(loop or self._loop)
+
+    def get_pipelines(self) -> List[str]:
+        """Returns available pipeline names from the factory."""
+        from app.pipeline.factory import _PIPELINE_MAP
+        return list(_PIPELINE_MAP.keys())
 
     def add_sensor(self, sensor: LidarSensor):
         self.sensors.append(sensor)
@@ -87,6 +161,7 @@ class LidarService:
             sensor_id=sensor_id,
             launch_args=launch_args,
             pipeline=pipeline,
+            pipeline_name=pipeline_name,
             mode=mode,
             pcd_path=pcd_path
         )
@@ -101,6 +176,10 @@ class LidarService:
     def start(self, loop=None):
         self._loop = loop or asyncio.get_event_loop()
         self.is_running = True
+        
+        # Recreate queue to ensure it's fresh after potential terminations
+        # This prevents "corrupted queue" issues if a worker was terminated while writing
+        self.data_queue = mp.Queue(maxsize=100)
 
         for sensor in self.sensors:
             stop_event = mp.Event()

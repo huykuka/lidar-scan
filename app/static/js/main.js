@@ -35,7 +35,7 @@ controls.target.set(5, 5, 5);
 
 // Grid Helper
 const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
-gridHelper.position.set(0, -1, 0); // Optional: lower grid slightly
+gridHelper.position.set(0, 0, 0); // Optional: lower grid slightly
 scene.add(gridHelper);
 
 // Axes Helper
@@ -52,6 +52,8 @@ const material = new THREE.PointsMaterial({ size: 0.1, color: 0x00ff00 });
 const pointsObj = new THREE.Points(geometry, material);
 pointsObj.frustumCulled = false; // Important for dynamic updates
 pointsObj.rotation.x = -Math.PI / 2; // Rotate -90 deg to align Z-up data with Y-up scene
+pointsObj.rotation.z = -Math.PI / 2; // Rotate -90 deg to align Z-up data with Y-up scene
+// pointsObj.rotation.y = -Math.PI / 2; // Rotate -90 deg to align Z-up data with Y-up scene
 scene.add(pointsObj);
 
 // WebSocket Connection
@@ -226,39 +228,44 @@ function updatePointCloud(payload) {
             }
         }
 
-        if (!pointsData || pointsData.length === 0) return;
-
-        // Optimization: if it's already a flat array (handled by backend or future-proofing)
-        if (pointsData.length > 0 && typeof pointsData[0] === 'number') {
-            count = Math.floor(pointsData.length / 3);
-            const limit = Math.min(count * 3, MAX_POINTS * 3);
-            if (pointsData.subarray) {
-                positions.set(pointsData.subarray(0, limit));
+        if (pointsData && pointsData.length > 0) {
+            // Optimization: if it's already a flat array (handled by backend or future-proofing)
+            if (typeof pointsData[0] === 'number') {
+                count = Math.floor(pointsData.length / 3);
+                const limit = Math.min(count * 3, MAX_POINTS * 3);
+                if (pointsData.subarray) {
+                    positions.set(pointsData.subarray(0, limit));
+                } else {
+                    for (let i = 0; i < limit; i++) positions[i] = pointsData[i];
+                }
             } else {
-                for (let i = 0; i < limit; i++) positions[i] = pointsData[i];
+                // Standard nested array [[x,y,z], ...]
+                count = pointsData.length;
+                const limit = Math.min(count, MAX_POINTS);
+                for (let i = 0; i < limit; i++) {
+                    const pt = pointsData[i];
+                    if (!pt) continue;
+                    positions[i * 3] = pt[0];
+                    positions[i * 3 + 1] = pt[1];
+                    positions[i * 3 + 2] = pt[2];
+                }
+                count = limit;
             }
-        } else {
-            // Standard nested array [[x,y,z], ...]
-            count = pointsData.length;
-            const limit = Math.min(count, MAX_POINTS);
-            for (let i = 0; i < limit; i++) {
-                const pt = pointsData[i];
-                if (!pt) continue;
-                positions[i * 3] = pt[0];
-                positions[i * 3 + 1] = pt[1];
-                positions[i * 3 + 2] = pt[2];
-            }
-            count = limit;
         }
     }
 
+    // Always update count and draw range to support clearing the scene
+    countEl.textContent = count;
+    pointsObj.geometry.setDrawRange(0, count);
+
     if (count > 0) {
-        countEl.textContent = count;
-        pointsObj.geometry.setDrawRange(0, count);
         // Optimize: only update the part of the buffer that actually contains data
-        // Note: updateRange might be read-only (getter only), so we set its properties
         const attr = pointsObj.geometry.attributes.position;
+        // Check for both updateRange and addUpdateRange for cross-version compatibility
         if (attr.addUpdateRange) {
+            attr.addUpdateRange.offset = 0;
+            attr.addUpdateRange.count = count * 3;
+        } else if (attr.addUpdateRange) {
             attr.addUpdateRange.offset = 0;
             attr.addUpdateRange.count = count * 3;
         }
@@ -268,9 +275,135 @@ function updatePointCloud(payload) {
 
 // Start
 fetchStatus();
+
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
 }
 animate();
+
+// --- Lidar Management Logic ---
+const mgrBtn = document.getElementById('mgr-btn');
+const mgrModal = document.getElementById('mgr-modal');
+const closeMgr = document.getElementById('close-mgr');
+const lidarList = document.getElementById('lidar-list');
+const lidarForm = document.getElementById('lidar-form');
+const pipelineSelect = document.getElementById('pipeline-select');
+const reloadBtn = document.getElementById('reload-btn');
+
+mgrBtn.onclick = () => {
+    mgrModal.style.display = 'block';
+    refreshLidarList();
+};
+
+closeMgr.onclick = () => {
+    mgrModal.style.display = 'none';
+};
+
+window.onclick = (event) => {
+    if (event.target == mgrModal) {
+        mgrModal.style.display = 'none';
+    }
+};
+
+async function refreshLidarList() {
+    try {
+        const res = await fetch('/lidars');
+        const data = await res.json();
+        
+        // Update Pipeline Select
+        pipelineSelect.innerHTML = '<option value="">None</option>';
+        data.available_pipelines.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            pipelineSelect.appendChild(opt);
+        });
+        
+        // Update Lidar List
+        lidarList.innerHTML = '';
+        data.lidars.forEach(lidar => {
+            const div = document.createElement('div');
+            div.className = 'lidar-item';
+            
+            div.innerHTML = `
+                <div class="lidar-info">
+                    <strong>${lidar.id}</strong>
+                    <small>${lidar.mode === 'sim' ? 'Simulation' : 'Hardware'} • ${lidar.pipeline_name || 'No Pipeline'}</small>
+                </div>
+                <div>
+                    <button class="edit-btn btn-outline">Edit</button>
+                    <button class="delete-btn btn-danger">Delete</button>
+                </div>
+            `;
+            
+            div.querySelector('.edit-btn').onclick = () => {
+                const form = lidarForm.elements;
+                form.id.value = lidar.id;
+                form.launch_args.value = lidar.launch_args;
+                form.pipeline_name.value = lidar.pipeline_name || '';
+                form.mode.value = lidar.mode;
+                form.pcd_path.value = lidar.pcd_path || '';
+                form.x.value = lidar.pose.x;
+                form.y.value = lidar.pose.y;
+                form.z.value = lidar.pose.z;
+                form.roll.value = lidar.pose.roll;
+                form.pitch.value = lidar.pose.pitch;
+                form.yaw.value = lidar.pose.yaw;
+            };
+
+            div.querySelector('.delete-btn').onclick = async () => {
+                if (!confirm(`Are you sure you want to delete ${lidar.id}?`)) return;
+                try {
+                    const res = await fetch(`/lidars/${lidar.id}`, { method: 'DELETE' });
+                    const result = await res.json();
+                    refreshLidarList();
+                } catch (e) {
+                    console.error('Error deleting lidar:', e);
+                    alert('Failed to delete lidar');
+                }
+            };
+            
+            lidarList.appendChild(div);
+        });
+    } catch (e) {
+        console.error('Error refreshing lidar list:', e);
+    }
+}
+
+lidarForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(lidarForm);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Numeric conversions
+    ['x', 'y', 'z', 'roll', 'pitch', 'yaw'].forEach(k => data[k] = parseFloat(data[k]));
+    
+    try {
+        const res = await fetch('/lidars', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        refreshLidarList();
+    } catch (e) {
+        console.error('Error saving lidar:', e);
+        alert('Failed to save lidar configuration');
+    }
+};
+
+reloadBtn.onclick = async () => {
+
+    try {
+        const res = await fetch('/lidars/reload', { method: 'POST' });
+        const result = await res.json();
+        mgrModal.style.display = 'none';
+        // Give it a second to restart before refreshing topics
+        setTimeout(location.reload(), 500);
+    } catch (e) {
+        console.error('Error reloading:', e);
+        alert('Failed to reload configuration');
+    }
+};

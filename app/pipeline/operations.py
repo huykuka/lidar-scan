@@ -39,7 +39,8 @@ class Crop(PipelineOperation):
         if isinstance(pcd, o3d.t.geometry.PointCloud):
             bbox = o3d.t.geometry.AxisAlignedBoundingBox(self.min_bound, self.max_bound)
             pcd = pcd.crop(bbox)
-            return pcd, {"cropped_count": len(pcd.point.positions)}
+            count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+            return pcd, {"cropped_count": count}
         else:
             bbox = o3d.geometry.AxisAlignedBoundingBox(min_bound=self.min_bound, max_bound=self.max_bound)
             pcd = pcd.crop(bbox)
@@ -61,12 +62,11 @@ class Downsample(PipelineOperation):
     def apply(self, pcd: Any):
         if self.voxel_size > 0:
             pcd = pcd.voxel_down_sample(voxel_size=self.voxel_size)
-            if isinstance(pcd, o3d.t.geometry.PointCloud):
-                return pcd, {"downsampled_count": len(pcd.point.positions)}
-            else:
-                return pcd, {"downsampled_count": len(pcd.points)}
-        return pcd, {
-            "downsampled_count": len(pcd.point.positions if isinstance(pcd, o3d.t.geometry.PointCloud) else pcd.points)}
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+        else:
+            count = len(pcd.points)
+        return pcd, {"downsampled_count": count}
 
 
 class StatisticalOutlierRemoval(PipelineOperation):
@@ -85,8 +85,12 @@ class StatisticalOutlierRemoval(PipelineOperation):
         self.std_ratio = std_ratio
 
     def apply(self, pcd: Any):
-        count = len(pcd.point.positions) if isinstance(pcd, o3d.t.geometry.PointCloud) else len(pcd.points)
-        if count > self.nb_neighbors:
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+        else:
+            count = len(pcd.points)
+            
+        if count > 0:
             if isinstance(pcd, o3d.t.geometry.PointCloud):
                 # Fallback to legacy
                 pcd_legacy = pcd.to_legacy()
@@ -102,7 +106,10 @@ class StatisticalOutlierRemoval(PipelineOperation):
                     std_ratio=self.std_ratio
                 )
 
-        final_count = len(pcd.point.positions) if isinstance(pcd, o3d.t.geometry.PointCloud) else len(pcd.points)
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            final_count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+        else:
+            final_count = len(pcd.points)
         return pcd, {"filtered_count": final_count}
 
 
@@ -122,8 +129,12 @@ class RadiusOutlierRemoval(PipelineOperation):
         self.radius = radius
 
     def apply(self, pcd: Any):
-        count = len(pcd.point.positions) if isinstance(pcd, o3d.t.geometry.PointCloud) else len(pcd.points)
-        if count > self.nb_points:
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+        else:
+            count = len(pcd.points)
+            
+        if count > 0:
             if isinstance(pcd, o3d.t.geometry.PointCloud):
                 # Fallback to legacy
                 pcd_legacy = pcd.to_legacy()
@@ -137,8 +148,10 @@ class RadiusOutlierRemoval(PipelineOperation):
                     nb_points=self.nb_points,
                     radius=self.radius
                 )
-
-        final_count = len(pcd.point.positions) if isinstance(pcd, o3d.t.geometry.PointCloud) else len(pcd.points)
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            final_count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+        else:
+            final_count = len(pcd.points)
         return pcd, {"filtered_count": final_count}
 
 
@@ -156,12 +169,11 @@ class UniformDownsample(PipelineOperation):
     def apply(self, pcd: Any):
         if self.every_k_points > 1:
             pcd = pcd.uniform_down_sample(every_k_points=self.every_k_points)
-            if isinstance(pcd, o3d.t.geometry.PointCloud):
-                return pcd, {"downsampled_count": len(pcd.point.positions)}
-            else:
-                return pcd, {"downsampled_count": len(pcd.points)}
-        return pcd, {
-            "downsampled_count": len(pcd.point.positions if isinstance(pcd, o3d.t.geometry.PointCloud) else pcd.points)}
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+        else:
+            count = len(pcd.points)
+        return pcd, {"downsampled_count": count}
 
 
 class OutlierRemoval(StatisticalOutlierRemoval):
@@ -185,8 +197,12 @@ class PlaneSegmentation(PipelineOperation):
         self.num_iterations = num_iterations
 
     def apply(self, pcd: Any):
-        count = len(pcd.point.positions) if isinstance(pcd, o3d.t.geometry.PointCloud) else len(pcd.points)
-        if count > self.ransac_n:
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+        else:
+            count = len(pcd.points)
+
+        if count >= self.ransac_n:
             if isinstance(pcd, o3d.t.geometry.PointCloud):
                 plane_model, inliers = pcd.segment_plane(
                     distance_threshold=self.distance_threshold,
@@ -230,8 +246,12 @@ class Clustering(PipelineOperation):
         self.min_points = min_points
 
     def apply(self, pcd: Any):
-        count = pcd.point.positions.shape[0] if isinstance(pcd, o3d.t.geometry.PointCloud) else len(pcd.points)
-        if count > self.min_points:
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+        else:
+            count = len(pcd.points)
+
+        if count > 0:
             if isinstance(pcd, o3d.t.geometry.PointCloud):
                 labels = pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points, print_progress=True)
                 mask = labels >= 0
@@ -275,7 +295,10 @@ class Filter(PipelineOperation):
                 pcd = pcd.select_by_mask(result)
             else:
                 pcd = pcd.select_by_index(result)
-            final_count = pcd.point.positions.shape[0]
+            if 'positions' in pcd.point:
+                final_count = pcd.point.positions.shape[0]
+            else:
+                final_count = 0
         else:
             if isinstance(result, np.ndarray) and result.dtype == bool:
                 result = np.where(result)[0]
@@ -306,7 +329,8 @@ class FilterByKey(PipelineOperation):
     def apply(self, pcd: Any):
         if isinstance(pcd, o3d.t.geometry.PointCloud):
             if self.key not in pcd.point:
-                return pcd, {"filtered_count": pcd.point.positions.shape[0], "warning": f"Key '{self.key}' not found"}
+                count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+                return pcd, {"filtered_count": count, "warning": f"Key '{self.key}' not found"}
 
             data = pcd.point[self.key]
             if callable(self.value):
@@ -337,7 +361,11 @@ class FilterByKey(PipelineOperation):
                 pcd = pcd.select_by_mask(result)
             else:
                 pcd = pcd.select_by_index(result)
-            final_count = pcd.point.positions.shape[0]
+            
+            if 'positions' in pcd.point:
+                final_count = pcd.point.positions.shape[0]
+            else:
+                final_count = 0
         else:
             attr_name = self.key
             if self.key == "intensity": attr_name = "colors"
@@ -377,6 +405,51 @@ class FilterByKey(PipelineOperation):
                              "warning": f"Attribute '{self.key}' not found on legacy PointCloud"}
 
         return pcd, {"filtered_count": final_count, "filter_key": self.key}
+
+
+class BoundaryDetection(PipelineOperation):
+    """
+    Detects boundary points in the point cloud.
+    
+    Args:
+        radius (float): Radius for neighbor search.
+        max_nn (int): Maximum number of neighbors to consider.
+        angle_threshold (float): Angle threshold (in degrees) for boundary detection.
+    """
+
+    def __init__(self, radius: float = 0.02, max_nn: int = 30, angle_threshold: float = 90.0):
+        self.radius = radius
+        self.max_nn = max_nn
+        self.angle_threshold = angle_threshold
+
+    def apply(self, pcd: Any):
+        if isinstance(pcd, o3d.t.geometry.PointCloud):
+            # Boundary detection requires normals
+            if 'normals' not in pcd.point:
+                pcd.estimate_normals(max_nn=self.max_nn, radius=self.radius)
+            
+            boundary_pcd, mask = pcd.compute_boundary_points(self.radius, self.max_nn, self.angle_threshold)
+            
+            count = boundary_pcd.point.positions.shape[0] if 'positions' in boundary_pcd.point else 0
+            original_count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
+            
+            return boundary_pcd, {
+                "boundary_count": int(count),
+                "original_count": int(original_count)
+            }
+        else:
+            # Fallback for Legacy API
+            pcd_tensor = o3d.t.geometry.PointCloud.from_legacy(pcd)
+            if 'normals' not in pcd_tensor.point:
+                pcd_tensor.estimate_normals(max_nn=self.max_nn, radius=self.radius)
+            
+            boundary_pcd, mask = pcd_tensor.compute_boundary_points(self.radius, self.max_nn, self.angle_threshold)
+            pcd_legacy = boundary_pcd.to_legacy()
+            
+            return pcd_legacy, {
+                "boundary_count": len(pcd_legacy.points),
+                "original_count": len(pcd.points)
+            }
 
 
 class DebugSave(PipelineOperation):
@@ -435,13 +508,20 @@ class SaveDataStructure(PipelineOperation):
 
         if isinstance(pcd, o3d.t.geometry.PointCloud):
             attr_keys = list(_tensor_map_keys(pcd.point))
+            
+            # Robustly determine count even if attributes are missing
+            try:
+                count = int(pcd.point.positions.shape[0])
+            except Exception:
+                count = 0
+                
             structure = {
                 "device": str(pcd.device),
                 "point_attributes": {k: str(pcd.point[k].dtype) for k in attr_keys},
-                "count": int(pcd.point.positions.shape[0]),
+                "count": count,
                 "sample_data": {}
             }
-            sample_count = min(5, structure["count"])
+            sample_count = min(5, count)
             for k in attr_keys:
                 try:
                     data = pcd.point[k][:sample_count].cpu().numpy()
@@ -522,14 +602,19 @@ class PipelineBuilder:
         self.pipeline.add_operation(UniformDownsample(every_k_points))
         return self
 
-    def segment_plane(self, distance_threshold: float = 0.1):
+    def segment_plane(self, distance_threshold: float = 0.1, ransac_n: int = 3, num_iterations: int = 1000):
         """Segments and keeps ONLY the dominant plane."""
-        self.pipeline.add_operation(PlaneSegmentation(distance_threshold))
+        self.pipeline.add_operation(PlaneSegmentation(distance_threshold, ransac_n, num_iterations))
         return self
 
     def cluster(self, eps: float = 0.2, min_points: int = 10):
         """Segments clusters and removes noise points using DBSCAN."""
         self.pipeline.add_operation(Clustering(eps, min_points))
+        return self
+
+    def compute_boundary(self, radius: float = 0.02, max_nn: int = 30, angle_threshold: float = 90.0):
+        """Detects boundary points in the point cloud."""
+        self.pipeline.add_operation(BoundaryDetection(radius, max_nn, angle_threshold))
         return self
 
     def filter(self, condition: Callable[[Any], Any] = None, **kwargs):
