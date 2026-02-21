@@ -34,7 +34,9 @@
     "@synergy-design-system/components": "^3.4.0",
     "@synergy-design-system/styles": "^2.0.1",
     "@synergy-design-system/tokens": "^3.4.0",
+    "@types/three": "^0.183.1",
     "rxjs": "~7.8.0",
+    "three": "^0.183.1",
     "tslib": "^2.3.0"
   },
   "devDependencies": {

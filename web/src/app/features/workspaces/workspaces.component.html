@@ -1,5 +1,33 @@
-<div class="p-4 text-syn-typography-color-text">
-  <p class="text-lg leading-relaxed">
-    Manage your 3D workspaces and project configurations here.
-  </p>
+<div class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500 relative">
+  <!-- Local Action Bar (Absolute positioned to align with title area) -->
+  <div class="absolute -top-11 right-2 z-20">
+    <syn-button variant="text" size="small" (click)="toggleCockpit()" class="text-syn-color-primary-600">
+      <syn-icon slot="prefix" [name]="showCockpit() ? 'visibility_off' : 'visibility'"></syn-icon>
+      {{ showCockpit() ? 'Hide Controls' : 'Show Controls' }}
+    </syn-button>
+  </div>
+
+  <div class="flex flex-col lg:flex-row gap-4 flex-1 h-full w-full min-h-0">
+  
+  <!-- Live View Container (Main Area) -->
+  <div class="flex-1 h-full relative bg-[#2a2a2b] rounded-2xl overflow-hidden shadow-2xl border border-syn-color-neutral-300 group">
+    <app-point-cloud
+      #pointCloud
+      [pointSize]="pointSize()"
+      [pointColor]="pointColor()"
+      class="w-full h-full"
+    ></app-point-cloud>
+    
+    <!-- Stats Overlay (Floating inside the view) -->
+    <app-workspace-telemetry></app-workspace-telemetry>
+
+    <!-- UI Controls Overlay (Bottom Center) -->
+    <app-workspace-view-controls
+      (onResetCamera)="resetCamera()"
+      (onClearPoints)="clearPoints()"
+    ></app-workspace-view-controls>
+  </div>
+
+  <!-- Control Cockpit (Right Sidebar) -->
+  <app-workspace-controls *ngIf="showCockpit()" class="animate-in slide-in-from-right-4 duration-300"></app-workspace-controls>
 </div>

@@ -20,7 +20,7 @@ export class MainLayoutComponent implements AfterViewInit {
   private navService = inject(NavigationService);
 
   protected readonly headline = this.navService.headline;
-  protected readonly isSideNavOpen = signal(true);
+  protected readonly isSideNavOpen = signal(false);
 
   ngAfterViewInit() {
     if (this.header && this.sideNav) {
