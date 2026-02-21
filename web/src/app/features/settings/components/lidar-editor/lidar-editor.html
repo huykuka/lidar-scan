@@ -1,0 +1,103 @@
+<div class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+  <div class="bg-white rounded-3xl shadow-2xl border border-syn-color-neutral-200 w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+    <div class="p-8 border-b border-syn-color-neutral-100 flex items-center justify-between bg-syn-color-neutral-50">
+      <h3 class="text-xl font-black text-syn-typography-color-text uppercase tracking-tight">
+        {{ lidarStore.selectedLidar().id ? 'Edit' : 'Register' }} Lidar
+      </h3>
+      <syn-button variant="outline" size="small" (click)="onCancel()" circle>
+        <syn-icon name="close"></syn-icon>
+      </syn-button>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col">
+      <div class="p-8 max-h-[70vh] overflow-y-auto">
+        <div class="flex flex-col gap-8 pb-12">
+          
+          <!-- Identity -->
+          <div class="grid grid-cols-2 gap-4">
+            <syn-input label="Sensor ID" 
+                       placeholder="lidar_front" 
+                       formControlName="id"
+                       ngDefaultControl
+                       [helpText]="form.get('id')?.invalid && form.get('id')?.touched ? 'ID is required' : ''">
+            </syn-input>
+
+            <syn-select label="Mode" 
+                        formControlName="mode"
+                        ngDefaultControl>
+              <syn-option value="real">Hardware (Real)</syn-option>
+              <syn-option value="sim">Simulation (PCD)</syn-option>
+            </syn-select>
+          </div>
+
+          <!-- Configuration -->
+          <div class="flex flex-col gap-4">
+            
+            <!-- Real Mode Params -->
+            <div *ngIf="form.get('mode')?.value === 'real'" class="flex flex-col gap-4 animate-in slide-in-from-top-2 duration-300">
+              <div class="grid grid-cols-2 gap-4">
+                <syn-input label="Lidar Hostname" 
+                           placeholder="192.168.1.123" 
+                           formControlName="hostname"
+                           ngDefaultControl
+                           [helpText]="form.get('hostname')?.invalid && form.get('hostname')?.touched ? 'Invalid IP' : ''">
+                </syn-input>
+                <syn-input label="UDP Receiver IP" 
+                           placeholder="192.168.1.89" 
+                           formControlName="udp_receiver_ip"
+                           ngDefaultControl
+                           [helpText]="form.get('udp_receiver_ip')?.invalid && form.get('udp_receiver_ip')?.touched ? 'Invalid IP' : ''">
+                </syn-input>
+              </div>
+              <syn-input label="UDP Port" 
+                         type="number" 
+                         formControlName="udp_port"
+                         ngDefaultControl
+                         [helpText]="form.get('udp_port')?.invalid && form.get('udp_port')?.touched ? 'Range 1-65535' : ''">
+              </syn-input>
+            </div>
+
+            <!-- Pipeline -->
+            <syn-select label="Processing Pipeline" 
+                        formControlName="pipeline_name"
+                        ngDefaultControl>
+              <syn-option value="">none</syn-option>
+              <syn-option *ngFor="let p of pipelines()" [value]="p">{{ p }}</syn-option>
+            </syn-select>
+
+            <!-- Sim Mode Params -->
+            <syn-input *ngIf="form.get('mode')?.value === 'sim'" 
+                       label="PCD File Path" 
+                       placeholder="./data/scan.pcd" 
+                       formControlName="pcd_path"
+                       ngDefaultControl
+                       class="animate-in slide-in-from-top-2 duration-300"
+                       [helpText]="form.get('pcd_path')?.invalid && form.get('pcd_path')?.touched ? 'Path is required' : ''">
+            </syn-input>
+          </div>
+
+          <div class="h-px bg-syn-color-neutral-100"></div>
+
+          <!-- Spatial Transformation -->
+          <div>
+            <h4 class="text-[10px] font-black text-syn-color-neutral-400 uppercase tracking-widest mb-4">Spatial Transformation</h4>
+            <div class="grid grid-cols-3 gap-x-4 gap-y-6">
+              <syn-input label="X (m)" type="number" formControlName="x" ngDefaultControl></syn-input>
+              <syn-input label="Y (m)" type="number" formControlName="y" ngDefaultControl></syn-input>
+              <syn-input label="Z (m)" type="number" formControlName="z" ngDefaultControl></syn-input>
+              
+              <syn-input label="Roll (°)" type="number" formControlName="roll" ngDefaultControl></syn-input>
+              <syn-input label="Pitch (°)" type="number" formControlName="pitch" ngDefaultControl></syn-input>
+              <syn-input label="Yaw (°)" type="number" formControlName="yaw" ngDefaultControl></syn-input>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-8 border-t border-syn-color-neutral-100 flex justify-end gap-3 bg-syn-color-neutral-50">
+        <syn-button variant="outline" type="button" (click)="onCancel()">Cancel</syn-button>
+        <syn-button variant="filled" type="submit" [disabled]="form.invalid">Save Configuration</syn-button>
+      </div>
+    </form>
+  </div>
+</div>

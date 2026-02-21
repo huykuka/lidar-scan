@@ -1,12 +1,63 @@
-<div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-8 animate-in fade-in duration-500">
-  <div class="max-w-4xl">
+<div class="flex flex-col gap-6 animate-in fade-in duration-500">
+  <!-- Lidar List Section -->
+  <div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-8">
+    <div class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-3">
+        <syn-icon name="sensors" class="text-3xl text-syn-color-primary-600"></syn-icon>
+        <h2 class="text-2xl font-black text-syn-typography-color-text uppercase tracking-tight">Lidar Configuration</h2>
+      </div>
+      <div class="flex gap-3">
+        <syn-button variant="outline" size="small" (click)="onReloadConfig()">
+          <syn-icon slot="prefix" name="refresh"></syn-icon>
+          Reload Network
+        </syn-button>
+        <syn-button variant="filled" size="small" (click)="onAddLidar()">
+          <syn-icon slot="prefix" name="add"></syn-icon>
+          Add Lidar
+        </syn-button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4">
+      <div *ngFor="let lidar of lidars()" 
+           class="flex items-center justify-between p-4 rounded-xl border border-syn-color-neutral-100 hover:border-syn-color-primary-200 hover:bg-syn-color-primary-50 transition-all group">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-2">
+            <span class="font-black text-syn-typography-color-text">{{ lidar.id }}</span>
+            <syn-badge [variant]="lidar.mode === 'sim' ? 'neutral' : 'success'" pill size="small">
+              {{ lidar.mode === 'sim' ? 'Simulation' : 'Hardware' }}
+            </syn-badge>
+          </div>
+          <span class="text-xs text-syn-color-neutral-500 font-medium">
+            Pipeline: {{ lidar.pipeline_name || 'None' }} • {{ lidar.launch_args }}
+          </span>
+        </div>
+        <div class="flex gap-2">
+          <syn-button variant="outline" size="small" (click)="onEditLidar(lidar)">
+            <syn-icon name="edit"></syn-icon>
+          </syn-button>
+          <syn-button variant="outline" color="danger" size="small" (click)="onDeleteLidar(lidar.id)">
+            <syn-icon name="delete"></syn-icon>
+          </syn-button>
+        </div>
+      </div>
+
+      <div *ngIf="lidars().length === 0 && !isLoading()" 
+           class="flex flex-col items-center justify-center p-12 bg-syn-color-neutral-50 rounded-xl border border-dashed border-syn-color-neutral-200 text-syn-color-neutral-400">
+        <syn-icon name="sensors_off" class="text-5xl mb-4"></syn-icon>
+        <p class="font-bold uppercase tracking-widest text-xs">No sensors registered</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Preferences Section (Restored)
+  <div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-8">
     <div class="flex items-center gap-3 mb-8">
       <syn-icon name="tune" class="text-3xl text-syn-color-primary-600"></syn-icon>
       <h2 class="text-2xl font-black text-syn-typography-color-text uppercase tracking-tight">System Preferences</h2>
     </div>
 
     <div class="flex flex-col gap-10">
-      <!-- General Section -->
       <section>
         <h3 class="text-sm font-black text-syn-color-neutral-400 uppercase tracking-widest mb-4">General Settings</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -20,12 +71,10 @@
 
       <div class="h-px bg-syn-color-neutral-100"></div>
 
-      <!-- Advanced Section -->
       <section>
         <h3 class="text-sm font-black text-syn-color-neutral-400 uppercase tracking-widest mb-4">Advanced Configuration</h3>
         <div class="flex flex-col gap-6">
           <syn-switch checked>Auto-reconnect WebSocket</syn-switch>
-          <syn-switch>Enable Hardware Acceleration</syn-switch>
           <syn-switch checked>Dynamic Point Density</syn-switch>
         </div>
       </section>
@@ -35,5 +84,10 @@
         <syn-button variant="filled" size="small">Save Settings</syn-button>
       </div>
     </div>
-  </div>
+  </div> -->
 </div>
+
+<app-lidar-editor *ngIf="editMode()" 
+                  (save)="onSaveLidar($event)"
+                  (cancel)="onCancel()">
+</app-lidar-editor>
