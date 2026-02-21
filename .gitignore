@@ -6,6 +6,8 @@ sick-scan-api/
 __pycache__/
 server.log
 
+web/.env*
+
 *.pcd
 *.pyc
 
