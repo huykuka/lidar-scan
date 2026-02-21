@@ -1,7 +1,12 @@
-from fastapi import APIRouter
+import os
+import tempfile
+from fastapi import APIRouter, BackgroundTasks
+from fastapi.responses import FileResponse
 from typing import Optional
 from pydantic import BaseModel
 from app.services.lidar.instance import lidar_service
+from app.services.websocket.manager import manager
+from app.services.lidar.pcd_utils import unpack_lidr_binary, save_to_pcd
 
 router = APIRouter()
 
@@ -70,3 +75,53 @@ async def delete_lidar(lidar_id: str):
         return {"status": "success", "message": f"Lidar {lidar_id} removed. Reload to apply."}
     
     return {"status": "error", "message": f"Lidar {lidar_id} not found."}
+
+@router.get("/lidars/capture")
+async def capture_pcd(topic: str, background_tasks: BackgroundTasks):
+    """
+    Captures the next available frame from a topic and returns it as a PCD file.
+    """
+    try:
+        # 1. Wait for the next message on this topic
+        print(f"[Capture] Waiting for next frame on topic: {topic}")
+        data = await manager.wait_for_next(topic, timeout=5.0)
+        
+        if not isinstance(data, bytes):
+            return {"status": "error", "message": f"Topic '{topic}' did not provide binary point cloud data."}
+
+        # 2. Unpack LIDR binary format
+        points, timestamp = unpack_lidr_binary(data)
+        
+        # 3. Save to temporary PCD file
+        # We use a temporary file that we'll delete after the response is sent
+        fd, tmp_path = tempfile.mkstemp(suffix=".pcd")
+        try:
+            os.close(fd)
+            save_to_pcd(points, tmp_path)
+        except Exception as e:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            raise e
+
+        # 4. Define cleanup task
+        def cleanup_temp_file(path: str):
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                    print(f"[Capture] Cleaned up temporary file: {path}")
+                except Exception as e:
+                    print(f"[Capture] Error cleaning up {path}: {e}")
+
+        background_tasks.add_task(cleanup_temp_file, tmp_path)
+
+        # 5. Return FileResponse
+        filename = f"capture_{topic}_{int(timestamp)}.pcd"
+        return FileResponse(
+            path=tmp_path,
+            filename=filename,
+            media_type="application/octet-stream"
+        )
+
+    except Exception as e:
+        print(f"[Capture] Error: {e}")
+        return {"status": "error", "message": str(e)}

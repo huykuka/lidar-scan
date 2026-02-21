@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { WorkspaceStoreService } from '../../../../core/services/stores/workspace-store.service';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { TopicApiService } from '../../../../core/services/api/topic-api.service';
 
 @Component({
   selector: 'app-workspace-controls',
@@ -30,6 +31,16 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
               {{ topic }}
             </syn-option>
           </syn-select>
+
+          <syn-button
+            variant="outline"
+            class="w-full"
+            [disabled]="!currentTopic()"
+            (click)="onCapturePcd()"
+          >
+            <syn-icon slot="prefix" name="download"></syn-icon>
+            Capture PCD
+          </syn-button>
 
           <div
             class="flex items-center gap-3 bg-syn-color-neutral-50 p-3 rounded-xl border border-syn-color-neutral-200"
@@ -113,6 +124,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 })
 export class WorkspaceControlsComponent {
   private store = inject(WorkspaceStoreService);
+  private topicApi = inject(TopicApiService);
 
   protected topics = this.store.topics;
   protected currentTopic = this.store.currentTopic;
@@ -122,6 +134,13 @@ export class WorkspaceControlsComponent {
 
   protected onTopicChange(event: any) {
     this.store.set('currentTopic', event.target.value);
+  }
+
+  protected onCapturePcd() {
+    const topic = this.currentTopic();
+    if (topic) {
+      this.topicApi.downloadPcd(topic);
+    }
   }
 
   protected onPointSizeChange(event: any) {

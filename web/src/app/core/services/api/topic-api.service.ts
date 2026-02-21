@@ -20,4 +20,9 @@ export class TopicApiService {
       return [];
     }
   }
+
+  downloadPcd(topic: string): void {
+    const url = `${environment.apiUrl}/lidars/capture?topic=${encodeURIComponent(topic)}`;
+    window.open(url, '_blank');
+  }
 }
