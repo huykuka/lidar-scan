@@ -1,0 +1,42 @@
+<div class="flex flex-col h-screen overflow-hidden bg-syn-page-background-color">
+  <!-- Top Header -->
+  <app-header #header label="Synergy" class="z-50 shrink-0"></app-header>
+
+  <div class="flex flex-1 overflow-hidden relative">
+    <!-- Sidebar -->
+    <!-- We use absolute positioning for the side-nav when narrow, 
+         but here we'll let it be part of the flex flow if we want it to push. 
+         Synergy side-nav handles its own width. -->
+    <app-side-nav 
+      #sideNav
+      [open]="true"
+      (onShow)="handleSideNavShow()"
+      (onHide)="handleSideNavHide()"
+      class="h-full shrink-0 border-r border-syn-color-neutral-200 shadow-sm"
+    ></app-side-nav>
+
+    <!-- Content Area -->
+    <div 
+      class="flex-1 flex flex-col overflow-y-auto bg-syn-page-background-color-muted"
+    >
+      <main class="flex-1 p-5 w-full mx-auto">
+        <header class="mb-10">
+          <h1 class="text-4xl font-extrabold tracking-tight text-syn-typography-color-text">
+            {{ headline() }}
+          </h1>
+          <p class="mt-2 text-lg text-syn-color-neutral-600">
+            LiDAR Projection and Control Surface
+          </p>
+        </header>
+        
+        <section class="bg-white rounded-xl shadow-md border border-syn-color-neutral-200 min-h-[500px] overflow-hidden">
+          <div class="p-8">
+            <router-outlet></router-outlet>
+          </div>
+        </section>
+      </main>
+
+      <app-footer class="mt-auto"></app-footer>
+    </div>
+  </div>
+</div>
