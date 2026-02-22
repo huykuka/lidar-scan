@@ -35,9 +35,12 @@
                      class="flex items-center gap-3 p-3 rounded-lg border border-syn-color-neutral-200 hover:bg-syn-color-neutral-50 cursor-pointer transition-colors"
                      [class.bg-syn-color-primary-50]="lidar.id && selectedSensors.includes(lidar.id)"
                      [class.border-syn-color-primary-300]="lidar.id && selectedSensors.includes(lidar.id)">
-                <syn-checkbox [checked]="!!lidar.id && selectedSensors.includes(lidar.id)" (syn-change)="lidar.id && toggleSensor(lidar.id)"></syn-checkbox>
-                <span class="text-sm font-medium">{{ lidar.name || lidar.id }}</span>
-              </label>
+                 <syn-checkbox [checked]="!!lidar.id && selectedSensors.includes(lidar.id)" (syn-change)="lidar.id && toggleSensor(lidar.id)"></syn-checkbox>
+                 <div class="flex flex-col leading-tight">
+                   <span class="text-sm font-medium">{{ lidar.name }}</span>
+                   <span class="text-[10px] text-syn-color-neutral-500 font-mono break-all">{{ lidar.processed_topic || lidar.raw_topic || (lidar.topic_prefix ? (lidar.topic_prefix + '_raw_points') : '') }}</span>
+                 </div>
+               </label>
               
               <div *ngIf="lidars().length === 0" class="col-span-2 text-sm text-syn-color-neutral-500 italic">
                 No lidars registered. Please add lidars first.

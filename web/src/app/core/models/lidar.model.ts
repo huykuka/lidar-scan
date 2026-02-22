@@ -10,6 +10,9 @@ export interface LidarPose {
 export interface LidarConfig {
   id?: string;
   name: string;
+  topic_prefix?: string;
+  raw_topic?: string;
+  processed_topic?: string | null;
   launch_args: string;
   pipeline_name?: string;
   mode: 'real' | 'sim';

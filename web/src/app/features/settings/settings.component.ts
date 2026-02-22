@@ -40,6 +40,17 @@ export class SettingsComponent implements OnInit {
   // Drag and drop state
   protected isDraggingOver = false;
 
+  protected lidarNameById(id?: string): string {
+    if (!id) return '';
+    const lidar = this.lidars().find((l) => l.id === id);
+    return lidar?.name || id;
+  }
+
+  protected fusionSensorsLabel(sensorIds?: string[]): string {
+    if (!sensorIds || sensorIds.length === 0) return 'All';
+    return sensorIds.map((id) => this.lidarNameById(id)).join(', ');
+  }
+
   onDragStart(event: DragEvent, type: 'lidar' | 'fusion') {
     if (event.dataTransfer) {
       event.dataTransfer.setData('componentType', type);
@@ -107,7 +118,8 @@ export class SettingsComponent implements OnInit {
 
   async onDeleteLidar(id?: string) {
     if (!id) return;
-    if (!confirm(`Are you sure you want to delete ${id}?`)) return;
+    const name = this.lidarNameById(id);
+    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
     try {
       await this.lidarApi.deleteLidar(id);
       await this.onReloadConfig();
@@ -134,7 +146,9 @@ export class SettingsComponent implements OnInit {
 
   async onDeleteFusion(id?: string) {
     if (!id) return;
-    if (!confirm(`Are you sure you want to delete fusion ${id}?`)) return;
+    const fusion = this.fusions().find((f) => f.id === id);
+    const label = fusion?.name || id;
+    if (!confirm(`Are you sure you want to delete fusion ${label}?`)) return;
     try {
       await this.fusionApi.deleteFusion(id);
       await this.onReloadConfig(); // Reload backend fusions
@@ -146,6 +160,7 @@ export class SettingsComponent implements OnInit {
   async onReloadConfig() {
     try {
       await this.lidarApi.reloadConfig();
+      await this.loadConfig();
     } catch (error) {
       console.error('Failed to reload config', error);
     }

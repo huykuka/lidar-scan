@@ -115,10 +115,15 @@ class FusionService:
         if active_filter and topic_prefix not in active_filter:
             return
 
-        # Get the points from the payload
+        # Get the points from the payload.
+        # Prefer processed output when available, but fall back to raw points if the
+        # pipeline yields an empty cloud (common when filters are too strict).
+        points = None
         if payload.get("processed"):
             data = payload.get("data") or {}
             points = data.get("points")
+            if points is None or len(points) == 0:
+                points = payload.get("raw_points")
         else:
             points = payload.get("points")
 

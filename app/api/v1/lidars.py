@@ -34,6 +34,13 @@ async def list_lidars():
             {
                 "id": s.id,
                 "name": getattr(s, 'name', s.id),
+                "topic_prefix": getattr(s, 'topic_prefix', s.id),
+                "raw_topic": f"{getattr(s, 'topic_prefix', s.id)}_raw_points",
+                "processed_topic": (
+                    f"{getattr(s, 'topic_prefix', s.id)}_processed_points"
+                    if getattr(s, 'pipeline', None) is not None
+                    else None
+                ),
                 "launch_args": s.launch_args,
                 "pipeline_name": s.pipeline_name,
                 "mode": s.mode,

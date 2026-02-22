@@ -7,10 +7,12 @@ def create_pipeline(lidar_id: str = "default"):
     """Pipeline with custom stats and segmentation"""
     debug_dir = os.path.join("debug_data", lidar_id)
     return (PipelineBuilder()
-            .filter(
-                reflector=1,                   # Match specific value
-                # intensity=('>', 42000),        # Use picklable comparison tuple
-            )        
+            # NOTE: Keep this pipeline non-destructive by default.
+            # Use the dedicated `reflector` pipeline if you want reflector-only filtering.
+            # .filter(
+            #     reflector=1,                   # Match specific value
+            #     # intensity=('>', 42000),        # Use picklable comparison tuple
+            # )
             # .remove_outliers(nb_neighbors=3,std_ratio=1)  
             # .remove_radius_outliers(nb_points=3, radius=0.02)
             # .cluster(eps=0.05, min_points=6)

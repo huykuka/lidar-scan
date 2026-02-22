@@ -6,6 +6,7 @@ import { DialogService } from '../../../../core/services';
 import { FusionStoreService } from '../../../../core/services/stores/fusion-store.service';
 import { FusionApiService } from '../../../../core/services/api/fusion-api.service';
 import { LidarStoreService } from '../../../../core/services/stores/lidar-store.service';
+import { LidarApiService } from '../../../../core/services/api/lidar-api.service';
 
 @Component({
   selector: 'app-fusion-editor',
@@ -18,6 +19,7 @@ export class FusionEditorComponent implements OnInit {
   protected fusionStore = inject(FusionStoreService);
   protected lidarStore = inject(LidarStoreService);
   private fusionApi = inject(FusionApiService);
+  private lidarApi = inject(LidarApiService);
   private dialogService = inject(DialogService);
 
   @Output() save = new EventEmitter<any>();
@@ -72,8 +74,8 @@ export class FusionEditorComponent implements OnInit {
 
     try {
       await this.fusionApi.saveFusion(payload);
-      // Wait for the backend config to reload after the action is done
-      // The reload endpoint handles saving the current state properly for fusion
+      await this.lidarApi.reloadConfig();
+      await Promise.all([this.lidarApi.getLidars(), this.fusionApi.getFusions()]);
       this.save.emit(payload);
       this.dialogService.close();
     } catch (error) {

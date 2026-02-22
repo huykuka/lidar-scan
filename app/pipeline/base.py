@@ -52,7 +52,7 @@ class LegacyPointCloudPipeline(PointCloudPipeline):
 
     def process(self, points: np.ndarray) -> Dict[str, Any]:
         if points.size == 0:
-            return {"points": [], "metadata": {"count": 0}}
+            return {"points": np.zeros((0, 3), dtype=np.float32), "metadata": {"count": 0, "original_count": 0}, "algorithms": {}}
 
         positions = points[:, :3]
         pcd = o3d.geometry.PointCloud()
@@ -92,7 +92,7 @@ class TensorPointCloudPipeline(PointCloudPipeline):
 
     def process(self, points: np.ndarray) -> Dict[str, Any]:
         if points.size == 0:
-            return {"points": [], "metadata": {"count": 0}}
+            return {"points": np.zeros((0, 3), dtype=np.float32), "metadata": {"count": 0, "original_count": 0}, "algorithms": {}}
 
         # Create Tensor-based PointCloud
         pcd = o3d.t.geometry.PointCloud(self.device)

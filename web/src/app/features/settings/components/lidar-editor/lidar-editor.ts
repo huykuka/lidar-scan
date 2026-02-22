@@ -127,6 +127,7 @@ export class LidarEditorComponent implements OnInit {
     try {
       await this.lidarApi.saveLidar(payload);
       await this.lidarApi.reloadConfig();
+      await this.lidarApi.getLidars();
       this.save.emit(payload);
       this.dialogService.close();
     } catch (error) {
