@@ -5,63 +5,79 @@
 ```
 lidar-standalone/
 ├── app/                    # Backend (Python FastAPI)
-│   ├── static/             # Legacy vanilla JS frontend
-│   │   ├── index.html
-│   │   └── js/main.js
+│   ├── api/v1/             # REST API endpoints
+│   ├── services/           # Lidar data parsing and WebSocket handling
 │   └── ...
-├── web/                    # New React frontend
+├── web/                    # Modern Angular frontend
 │   ├── src/
-│   │   ├── main.tsx        # Entry point
-│   │   ├── App.tsx         # Main app with R3F Canvas
-│   │   ├── index.css       # Tailwind imports
-│   │   ├── state/
-│   │   │   └── useLidarStore.ts    # Zustand store
-│   │   ├── lib/
-│   │   │   └── frames.ts           # Binary LIDR frame parser
-│   │   ├── hooks/
-│   │   │   ├── useLidarStream.ts   # WebSocket connection
-│   │   │   ├── useTopics.ts        # Topics API fetch
-│   │   │   ├── useStatus.ts        # Version/status fetch
-│   │   │   └── useMemoizedCloud.ts # R3F geometry memoization
-│   │   ├── components/
-│   │   │   ├── TopicPanel.tsx      # Control panel with dropdown
-│   │   │   ├── PointCloud.tsx      # R3F point cloud renderer
-│   │   │   └── Hud.tsx             # Status overlay
-│   │   └── layout/
-│   │       └── Layout.tsx          # Grid layout wrapper
+│   │   ├── app/
+│   │   │   ├── core/       # Core singletons (API services, Store architecture, Models)
+│   │   │   │   ├── models/           # TS Interfaces (lidar.model.ts)
+│   │   │   │   ├── services/         # Global Services (navigation, lidar-api.service)
+│   │   │   │   └── services/stores/  # State Management (SignalsSimpleStoreService, lidar-store.service)
+│   │   │   ├── features/   # Feature modules/components (Settings, Workspaces)
+│   │   │   │   ├── settings/
+│   │   │   │   │   ├── components/lidar-editor/ # Reactive Lidar Configuration Form
+│   │   │   │   │   └── settings.component.*     # Lidar List and management wrap
+│   │   │   │   └── workspaces/
+│   │   │   ├── layout/     # Layout shells (Main, SideNav, Header, Footer)
+│   │   │   ├── app.*       # Root component and config
+│   │   │   └── ...
+│   │   ├── assets/         # Static assets
+│   │   ├── environments/   # Environment config
+│   │   └── styles/         # Global styles and Tailwind configuration
 │   ├── package.json
-│   ├── vite.config.ts
-│   ├── vitest.config.ts
+│   ├── angular.json
 │   └── tailwind.config.js
 └── AGENTS.md               # This file
 ```
 
 ## Frontend Stack
 
-- **Vite** + **TypeScript** - Build tooling
-- **React 18** - UI framework
-- **React Three Fiber** (`@react-three/fiber`, `@react-three/drei`) - 3D rendering
-- **Zustand** - State management
-- **Tailwind CSS** - Styling
-- **Synergy Design System** (`@synergy-design-system/react`) - UI components
-- **Vitest** + **Testing Library** - Unit testing
+- **Angular** - UI framework (utilizing Standalone Components and new Control Flow)
+- **Angular Signals** - Reactive state management (`signal`, `computed`, `update`)
+- **Three.js** - 3D point cloud rendering (Canvas/WebGL)
+- **Tailwind CSS** - Utility-first styling
+- **Synergy Design System** (`@synergy-design-system/angular`) - Enterprise UI component library
+- **Reactive Forms** - Form handling and strict validation (e.g., Lidar Editor)
+
+## Backend Stack & Architecture
+
+- **FastAPI** - Python web framework for REST endpoints and WebSockets
+- **Open3D** - Point cloud processing, transformation, and downsampling pipelines
+- **Multiprocessing / Subprocesses** - Hard-isolated workers for lidar ingestion
+- **Asyncio** - Event loop for non-blocking WebSocket streaming
+- **msgpack** - Fast binary serialization (if used for IPC) / Custom binary format for WebSockets
+
+### Core Backend Components
+
+1. **API Layer (`app/api/v1/`)**: REST endpoints for managing Lidar configs, pipelines, and retrieving topics.
+2. **WebSocket Manager (`app/services/websocket/`)**: Broadcasts the optimized point cloud binary frames (LIDR format) to connected Angular clients.
+3. **Lidar Workers (`app/services/lidar/`)**:
+   - Spawns isolated process tasks that connect to actual Hardware (UDP) or load PCD files (Simulation).
+   - Passes data through a configurable sequence of `operations` (e.g., Outlier Removal, Voxel Downsampling, Pose Transformation) defined in `PipelineOperation` classes.
+
+## State Management Architecture
+
+The application uses a lightweight signal-based store architecture:
+
+1. `SignalsSimpleStoreService<T>`: A generic class providing a `.state` signal, `.select()` for computed slices, and `.set()`/`.setState()` for dispatching changes.
+2. **Domain Stores** (e.g., `LidarStoreService`): Extend the simple store to provide domain-specific state (like `lidars`, `selectedLidar`, `isLoading`, `editMode`).
+3. **Components**: Inject the specific store via `inject()`, bind properties directly to store selectors, and dispatch updates cleanly without convoluted input/output drilling for global models.
 
 ## Backend API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/status` | GET | Returns `{ version: string }` |
-| `/topics` | GET | Returns `{ topics: string[] }` - available WebSocket topics |
-| `/lidars` | GET/POST | CRUD for lidar configurations |
-| `/ws/{topic}` | WebSocket | Point cloud streaming |
+| Endpoint                     | Method    | Description                                                        |
+| ---------------------------- | --------- | ------------------------------------------------------------------ |
+| `/api/v1/lidars/`            | GET       | Returns `{ lidars: LidarConfig[], available_pipelines: string[] }` |
+| `/api/v1/lidars/`            | POST      | Register or Update a Lidar configuration                           |
+| `/api/v1/lidars/{sensor_id}` | DELETE    | Remove a Lidar configuration                                       |
+| `/api/v1/lidars/reload`      | POST      | Trigger backend service to reload config and network parameters    |
+| `/api/v1/status`             | GET       | Returns `{ version: string }`                                      |
+| `/api/v1/topics`             | GET       | Returns available WebSocket topics                                 |
+| `/ws/{topic}`                | WebSocket | Point cloud binary streaming                                       |
 
-## WebSocket Protocol
-
-### Connection URL
-- **Development**: Use `VITE_WS_HOST` env variable (e.g., `ws://localhost:8000/ws`)
-- **Production**: `${protocol}//${window.location.host}/ws/${topic}`
-
-### Binary Frame Format (LIDR)
+## WebSocket Binary Frame Format (LIDR)
 
 ```
 Offset | Size | Type    | Description
@@ -80,29 +96,16 @@ Offset | Size | Type    | Description
 cd web && npm install
 
 # Start dev server
-npm run dev
-
-# Run tests
-npm test
+npm run start
 
 # Build for production
 npm run build
 ```
 
-## Environment Variables
-
-Create `.env.local` in `web/` directory:
-
-```env
-# API host for development
-# WebSocket URL is automatically derived (http->ws, https->wss)
-VITE_API_HOST=http://localhost:8004
-```
-
 ## Key Implementation Notes
 
-1. **Synergy Design System**: Use React components from `@synergy-design-system/react`, not raw web components
-2. **React 18 required**: R3F v8 has peer dependency on React 18 (not React 19)
-3. **Topic selection**: Dropdown populated from `/topics` API, auto-selects first topic
-4. **WebSocket reconnection**: Handled automatically when topic changes
-5. **Point cloud rotation**: Applied `-90°` rotation on X and Z axes to convert Z-up to Y-up coordinate system
+1. **Synergy Design System**: Use Angular components from `@synergy-design-system/angular` seamlessly with standard structural directives (`*ngIf`, `*ngFor`).
+2. **Signals Over RxJS Variables**: Component reactive states rely natively on Angular Signals (`set`, `update`, `computed`) instead of `BehaviorSubject` chains where appropriate.
+3. **Data Flows**:
+   - Modal forms (like `<app-lidar-editor>`) are encapsulated and driven entirely by ReactiveForms logic, initialized from `LidarStoreService` state on load.
+   - The "Save" actions invoke `LidarApiService`, refresh `LidarStoreService`, and subsequently clear the global form flag.
