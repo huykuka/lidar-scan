@@ -5,8 +5,15 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 # Get project root (parent of scripts/)
-spec_dir = Path(os.path.dirname(os.path.abspath(SPECPATH)))
-project_root = spec_dir.parent
+# SPECPATH is set by PyInstaller to the absolute path of the directory containing this spec file
+spec_dir = Path(SPECPATH).resolve()  # Ensure it's absolute
+project_root = spec_dir.parent  # scripts/ -> project root
+
+print(f"DEBUG: SPECPATH = {SPECPATH}")
+print(f"DEBUG: spec_dir = {spec_dir}")
+print(f"DEBUG: project_root = {project_root}")
+print(f"DEBUG: standalone.py path = {project_root / 'scripts' / 'standalone.py'}")
+
 
 block_cipher = None
 
