@@ -7,6 +7,7 @@ import { FusionStoreService } from '../../../../core/services/stores/fusion-stor
 import { FusionApiService } from '../../../../core/services/api/fusion-api.service';
 import { LidarStoreService } from '../../../../core/services/stores/lidar-store.service';
 import { LidarApiService } from '../../../../core/services/api/lidar-api.service';
+import { ToastService } from '../../../../core/services/toast.service';
 
 @Component({
   selector: 'app-fusion-editor',
@@ -21,6 +22,7 @@ export class FusionEditorComponent implements OnInit {
   private fusionApi = inject(FusionApiService);
   private lidarApi = inject(LidarApiService);
   private dialogService = inject(DialogService);
+  private toast = inject(ToastService);
 
   @Output() save = new EventEmitter<any>();
 
@@ -80,7 +82,7 @@ export class FusionEditorComponent implements OnInit {
       this.dialogService.close();
     } catch (error) {
       console.error('Failed to save fusion', error);
-      alert('Failed to save fusion configuration');
+      this.toast.danger('Failed to save fusion configuration.');
     }
   }
 

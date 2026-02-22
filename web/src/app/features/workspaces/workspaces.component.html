@@ -19,6 +19,8 @@
       #pointCloud
       [pointSize]="pointSize()"
       [pointColor]="pointColor()"
+      [showGrid]="showGrid()"
+      [showAxes]="showAxes()"
       class="w-full h-full"
     ></app-point-cloud>
     
@@ -28,6 +30,9 @@
     <!-- UI Controls Overlay (Bottom Center) -->
     <app-workspace-view-controls
       (onResetCamera)="resetCamera()"
+      (onScreenshot)="captureScreenshot()"
+      (onToggleGrid)="toggleGrid()"
+      (onToggleAxes)="toggleAxes()"
       (onClearPoints)="clearPoints()"
     ></app-workspace-view-controls>
   </div>

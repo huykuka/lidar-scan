@@ -5,6 +5,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarStoreService } from '../../../../core/services/stores/lidar-store.service';
 import { LidarApiService } from '../../../../core/services/api/lidar-api.service';
 import { DialogService } from '../../../../core/services';
+import { ToastService } from '../../../../core/services/toast.service';
 
 @Component({
   selector: 'app-lidar-editor',
@@ -18,6 +19,7 @@ export class LidarEditorComponent implements OnInit {
   protected lidarStore = inject(LidarStoreService);
   private lidarApi = inject(LidarApiService);
   private dialogService = inject(DialogService);
+  private toast = inject(ToastService);
 
   @Output() save = new EventEmitter<any>();
 
@@ -132,7 +134,7 @@ export class LidarEditorComponent implements OnInit {
       this.dialogService.close();
     } catch (error) {
       console.error('Failed to save lidar', error);
-      alert('Failed to save lidar configuration');
+      this.toast.danger('Failed to save LiDAR configuration.');
     }
   }
 

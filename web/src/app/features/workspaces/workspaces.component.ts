@@ -46,6 +46,8 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
   protected pointSize = this.workspaceStore.pointSize;
   protected pointColor = this.workspaceStore.pointColor;
   protected showCockpit = this.workspaceStore.showCockpit;
+  protected showGrid = this.workspaceStore.showGrid;
+  protected showAxes = this.workspaceStore.showAxes;
 
   private wsSubscription?: Subscription;
   private frameCount = 0;
@@ -166,9 +168,23 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     this.pointCloud?.resetCamera();
   }
 
+  protected captureScreenshot() {
+    const topic = this.workspaceStore.currentTopic();
+    const safeTopic = (topic || 'workspace').replace(/[^A-Za-z0-9_-]+/g, '_');
+    this.pointCloud?.capturePng(`${safeTopic}.png`);
+  }
+
   protected clearPoints() {
     this.pointCloud?.clear();
     this.workspaceStore.set('pointCount', 0);
+  }
+
+  protected toggleGrid() {
+    this.workspaceStore.set('showGrid', !this.showGrid());
+  }
+
+  protected toggleAxes() {
+    this.workspaceStore.set('showAxes', !this.showAxes());
   }
 
   protected toggleCockpit() {

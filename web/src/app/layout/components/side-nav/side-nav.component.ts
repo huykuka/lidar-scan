@@ -22,6 +22,16 @@ export class SideNavComponent {
     return this.synSideNav.nativeElement;
   }
 
+  show() {
+    const el: any = this.synSideNav?.nativeElement;
+    if (el?.show) el.show();
+  }
+
+  hide() {
+    const el: any = this.synSideNav?.nativeElement;
+    if (el?.hide) el.hide();
+  }
+
   protected readonly mainNavItems = NAVIGATION_CONFIG.filter((item) => !item.footer);
   protected readonly footerNavItems = NAVIGATION_CONFIG.filter((item) => item.footer);
 

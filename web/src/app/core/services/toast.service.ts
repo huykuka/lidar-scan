@@ -17,7 +17,6 @@ export interface ToastConfig {
 })
 export class ToastService {
   private toastQueue$ = new Subject<ToastConfig>();
-  private destroy$ = new Subject<void>();
 
   // Shared observable for toast processing
   private processedToasts$ = this.toastQueue$.pipe(
@@ -76,17 +75,22 @@ export class ToastService {
 
     // Use service method or fallback to a default icon
     const icon = config.icon || 'info';
-    const alert = this.createToastAlert(message, variant, icon);
+    const alert = this.createToastAlert(message, variant, icon, duration);
 
     document.body.append(alert);
     alert.toast();
   }
 
-  private createToastAlert(message: string, variant: SynAlert['variant'], icon: string): any {
+  private createToastAlert(
+    message: string,
+    variant: SynAlert['variant'],
+    icon: string,
+    duration: number,
+  ): any {
     return Object.assign(document.createElement('syn-alert'), {
       variant,
       closable: true,
-      duration: 3000,
+      duration,
       innerHTML: `
         <syn-icon name="${icon}" slot="icon"></syn-icon>
         <strong>Notification</strong>

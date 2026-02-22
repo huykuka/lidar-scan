@@ -11,6 +11,8 @@ export interface WorkspaceState {
   fps: number;
   lidarTime: string;
   showHud: boolean;
+  showGrid: boolean;
+  showAxes: boolean;
   showCockpit: boolean;
 }
 
@@ -24,6 +26,8 @@ const initialState: WorkspaceState = {
   fps: 0,
   lidarTime: '--:--:--',
   showHud: true,
+  showGrid: true,
+  showAxes: true,
   showCockpit: true,
 };
 
@@ -54,6 +58,8 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
         pointSize: state.pointSize,
         pointColor: state.pointColor,
         showHud: state.showHud,
+        showGrid: state.showGrid,
+        showAxes: state.showAxes,
         showCockpit: state.showCockpit,
         currentTopic: state.currentTopic,
       };
@@ -71,5 +77,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
   fps = this.select('fps');
   lidarTime = this.select('lidarTime');
   showHud = this.select('showHud');
+  showGrid = this.select('showGrid');
+  showAxes = this.select('showAxes');
   showCockpit = this.select('showCockpit');
 }

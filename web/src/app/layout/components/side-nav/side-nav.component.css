@@ -2,8 +2,11 @@
   display: contents;
 }
 
-syn-side-nav::part(overlay) {
-  display: none;
+/* Keep overlay disabled on desktop (persistent sidenav), but allow it on mobile. */
+@media (min-width: 1024px) {
+  syn-side-nav::part(overlay) {
+    display: none;
+  }
 }
 
 syn-nav-item.current {

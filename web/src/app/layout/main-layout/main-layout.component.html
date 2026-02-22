@@ -6,7 +6,7 @@
     <!-- Sidebar -->
     <app-side-nav 
       #sideNav
-      [open]="true"
+      [open]="isSideNavOpen()"
       (onShow)="handleSideNavShow()"
       (onHide)="handleSideNavHide()"
       class="h-full shrink-0 border-r border-syn-color-neutral-200 shadow-sm"

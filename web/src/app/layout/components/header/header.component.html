@@ -1,5 +1,33 @@
 <syn-header #header [label]="label()">
   <nav slot="meta-navigation" class="flex items-center gap-2">
+    <button
+      type="button"
+      class="flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-widest transition-colors"
+      [ngClass]="statusPillClass()"
+      (click)="refreshStatus()"
+      title="Backend status (click to refresh)"
+    >
+      <span class="inline-flex h-2.5 w-2.5 rounded-full" [ngClass]="statusDotClass()"></span>
+      <span class="text-syn-color-neutral-700">{{ backendLabel() }}</span>
+      <span class="text-syn-color-neutral-400" *ngIf="backendVersion()">v{{ backendVersion() }}</span>
+      <span class="text-syn-color-neutral-400" *ngIf="activeSensors().length">· {{ activeSensors().length }} sensors</span>
+    </button>
+
+    <button
+      type="button"
+      class="flex items-center gap-2 rounded-xl border border-syn-color-neutral-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-widest hover:bg-syn-color-neutral-50 transition-colors"
+      (click)="acknowledgeNotices()"
+      [title]="noticeText()"
+    >
+      <syn-icon [name]="noticeIcon()" class="text-syn-color-neutral-600"></syn-icon>
+      <span class="text-syn-color-neutral-700">Status</span>
+      <span
+        *ngIf="unreadCount() > 0"
+        class="ml-1 inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-syn-color-danger-500 px-1.5 text-[10px] text-white"
+        >{{ unreadCount() }}</span
+      >
+    </button>
+
     <ng-content select="[meta-nav]"></ng-content>
   </nav>
 </syn-header>

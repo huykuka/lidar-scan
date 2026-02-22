@@ -1,0 +1,80 @@
+<div class="workspace-controls">
+  <div class="panel">
+    <div class="panel__header">
+      <syn-icon name="sensors" class="panel__icon"></syn-icon>
+      <h3 class="panel__title">Live Source</h3>
+    </div>
+
+    <div class="panel__body">
+      <syn-select
+        [value]="currentTopic()"
+        (synChangeEvent)="onTopicChange($event)"
+        placeholder="Select topic..."
+        label="LiDAR Topic"
+        class="w-full"
+      >
+        <syn-option *ngFor="let topic of topics()" [value]="topic">{{ topic }}</syn-option>
+      </syn-select>
+
+      <div class="actions">
+        <syn-button
+          variant="outline"
+          size="small"
+          class="w-full"
+          [disabled]="!currentTopic()"
+          (click)="onCapturePcd()"
+        >
+          <syn-icon slot="prefix" name="download"></syn-icon>
+          Capture PCD
+        </syn-button>
+      </div>
+
+      <div class="status" [class.status--ok]="isConnected()" [class.status--bad]="!isConnected()">
+        <div class="status__dot">
+          <span class="status__ping"></span>
+          <span class="status__core"></span>
+        </div>
+        <p class="status__label">{{ isConnected() ? 'Stream Active' : 'Waiting for data' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel panel--tight">
+    <div class="panel__header">
+      <syn-icon name="blur_on" class="panel__icon"></syn-icon>
+      <h3 class="panel__title">Appearance</h3>
+    </div>
+
+    <div class="panel__body">
+      <div class="field">
+        <div class="field__row">
+          <label class="field__label">Point Size</label>
+          <syn-badge pill variant="neutral">{{ pointSize() | number: '1.2-2' }}</syn-badge>
+        </div>
+        <syn-range
+          [min]="0.01"
+          [max]="0.1"
+          [step]="0.01"
+          [value]="pointSize().toString()"
+          (synInputEvent)="onPointSizeChange($event)"
+        ></syn-range>
+      </div>
+
+      <div class="field">
+        <label class="field__label">Point Color</label>
+        <div class="color">
+          <input
+            type="color"
+            [value]="pointColor()"
+            (input)="onPointColorChange($event)"
+            class="color__swatch"
+          />
+          <div class="color__meta">
+            <span class="color__hex">{{ pointColor() }}</span>
+            <span class="color__hint">Click to select</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

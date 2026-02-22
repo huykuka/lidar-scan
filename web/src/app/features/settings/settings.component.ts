@@ -12,6 +12,7 @@ import { FusionEditorComponent } from './components/fusion-editor/fusion-editor'
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
 import { FusionStoreService } from '../../core/services/stores/fusion-store.service';
 import { DialogService } from '../../core/services';
+import { ToastService } from '../../core/services/toast.service';
 
 @Component({
   selector: 'app-settings',
@@ -27,6 +28,7 @@ export class SettingsComponent implements OnInit {
   private lidarStore = inject(LidarStoreService);
   protected fusionStore = inject(FusionStoreService);
   private dialogService = inject(DialogService);
+  private toast = inject(ToastService);
 
   protected lidars = this.lidarStore.lidars;
   protected pipelines = this.lidarStore.availablePipelines;
@@ -95,6 +97,7 @@ export class SettingsComponent implements OnInit {
       await Promise.all([this.lidarApi.getLidars(), this.fusionApi.getFusions()]);
     } catch (error) {
       console.error('Failed to load lidars', error);
+      this.toast.warning('Unable to load configuration.');
     } finally {
       this.lidarStore.set('isLoading', false);
     }
@@ -123,8 +126,10 @@ export class SettingsComponent implements OnInit {
     try {
       await this.lidarApi.deleteLidar(id);
       await this.onReloadConfig();
+      this.toast.success(`${name} deleted.`);
     } catch (error) {
       console.error('Failed to delete lidar', error);
+      this.toast.danger(`Failed to delete ${name}.`);
     }
   }
 
@@ -152,8 +157,10 @@ export class SettingsComponent implements OnInit {
     try {
       await this.fusionApi.deleteFusion(id);
       await this.onReloadConfig(); // Reload backend fusions
+      this.toast.success(`Fusion ${label} deleted.`);
     } catch (error) {
       console.error('Failed to delete fusion', error);
+      this.toast.danger(`Failed to delete fusion ${label}.`);
     }
   }
 
@@ -161,8 +168,10 @@ export class SettingsComponent implements OnInit {
     try {
       await this.lidarApi.reloadConfig();
       await this.loadConfig();
+      this.toast.success('Configuration reloaded.');
     } catch (error) {
       console.error('Failed to reload config', error);
+      this.toast.danger('Failed to reload backend configuration.');
     }
   }
 }
