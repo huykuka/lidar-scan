@@ -18,6 +18,42 @@ A standalone Python backend for real-time LiDAR point cloud processing and strea
 - **Simulation mode** — replay from a `.pcd` file without physical hardware
 - **Sensor pose / transformation** — define each sensor's physical position and orientation; points are automatically transformed into world space
 - **Dev-friendly** — gracefully handles missing hardware dependencies; surfaces errors in UI instead of crashing
+- **Standalone builds** — create distributable executables for Linux and Windows
+
+---
+
+## Project Structure
+
+```
+lidar-standalone/
+├── app/                    # Backend application
+│   ├── api/               # FastAPI routes
+│   ├── db/                # Database models & migrations
+│   ├── pipeline/          # Point cloud processing pipelines
+│   ├── repositories/      # Data access layer
+│   ├── services/          # Core business logic
+│   │   ├── lidar/        # LiDAR sensor management
+│   │   └── websocket/    # WebSocket streaming
+│   └── static/            # Built Angular frontend (generated)
+├── config/                 # Runtime configuration & database
+├── docs/                   # Documentation
+│   ├── BUILD.md           # Build system documentation
+│   ├── PLUGIN_GUIDE.md    # Pipeline plugin development
+│   └── ...
+├── examples/               # Demo files and ROS launch configs
+│   ├── demo.png           # Screenshot
+│   └── launch/            # SICK sensor launch files
+├── scripts/                # Build and run scripts
+│   ├── build.sh           # Build standalone executable
+│   ├── standalone.py      # PyInstaller entry point
+│   ├── lidar-standalone.spec  # PyInstaller config
+│   ├── run.sh             # Run development server
+│   └── run_sim.sh         # Run in simulation mode
+├── tests/                  # Unit and integration tests
+├── web/                    # Angular frontend application
+├── main.py                 # Development entry point
+└── requirements.txt        # Python dependencies
+```
 
 ---
 
@@ -66,95 +102,29 @@ python3 main.py
 ### Simulation (PCD file replay)
 
 ```bash
-./run_sim.sh
+./scripts/run_sim.sh
 ```
 
 Frontend available at: `http://localhost:8004`
 
+### Building Standalone Executables
+
+```bash
+./scripts/build.sh
+```
+
+Creates a distributable executable in `dist/lidar-standalone/`. See [docs/BUILD.md](docs/BUILD.md) for details.
+
 ### Environment variables
 
-| Variable         | Default                          | Description                  |
-| ---------------- | -------------------------------- | ---------------------------- |
-| `HOST`           | `0.0.0.0`                        | Server bind address          |
-| `PORT`           | `8005`                           | Server port                  |
-| `DEBUG`          | `false`                          | Enable hot-reload            |
-| `LIDAR_MODE`     | `real`                           | `real` or `sim`              |
-| `LIDAR_LAUNCH`   | `./launch/sick_multiscan.launch` | Launch file path             |
-| `LIDAR_PCD_PATH` | `./test.pcd`                     | PCD file for simulation mode |
-
----
-
-## Project Structure
-
-```
-lidar-standalone/
-├── app/                          # Backend (Python FastAPI)
-│   ├── app.py                    # FastAPI app, startup, shutdown
-│   ├── core/
-│   │   └── config.py             # Settings from environment variables
-│   ├── api/v1/
-│   │   ├── lidars.py             # Lidar CRUD + enable/disable + reload
-│   │   ├── fusions.py            # Fusion CRUD + enable/disable
-│   │   ├── nodes.py              # Runtime status monitoring (GET /nodes/status)
-│   │   ├── system.py             # System status (GET /status)
-│   │   └── websocket.py          # WebSocket streaming + topic discovery
-│   ├── pipeline/
-│   │   ├── base.py               # PipelineOperation, PointCloudPipeline base classes
-│   │   ├── factory.py            # PipelineFactory — resolves pipeline names to instances
-│   │   ├── operations.py         # PipelineBuilder + all built-in operations
-│   │   └── impl/
-│   │       ├── basic.py          # Basic pipeline (downsample + outlier removal)
-│   │       ├── advanced.py       # Advanced pipeline (stats, plane segmentation, debug export)
-│   │       └── reflector.py      # Reflector detection pipeline (filter + cluster)
-│   ├── services/
-│   │   ├── lidar/
-│   │   │   ├── core/             # Core domain models and utilities
-│   │   │   │   ├── sensor_model.py   # LidarSensor class with pose configuration
-│   │   │   │   ├── transformations.py # Transformation mathematics
-│   │   │   │   └── topics.py         # Topic prefix generation & collision handling
-│   │   │   ├── protocol/         # Communication protocols
-│   │   │   │   └── binary.py         # LIDR binary format encoding/decoding
-│   │   │   ├── workers/
-│   │   │   │   ├── sick_scan.py  # Worker process for real hardware (SICK Scan API)
-│   │   │   │   └── pcd.py        # Worker process for PCD file simulation
-│   │   │   ├── sensor.py         # LidarService — sensor lifecycle orchestrator
-│   │   │   └── fusion.py         # FusionService — multi-sensor point cloud fusion
-│   │   └── websocket/
-│   │       └── manager.py        # WebSocket connection manager
-│   ├── repositories/
-│   │   ├── lidars.py             # SQLite persistence for lidar configs
-│   │   └── fusions.py            # SQLite persistence for fusion configs
-│   └── static/                   # Built Angular frontend (served at /)
-│
-├── web/                          # Modern Angular frontend
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── core/             # Core singletons (API services, Store architecture, Models)
-│   │   │   │   ├── models/       # TypeScript interfaces (lidar.model.ts, fusion.model.ts)
-│   │   │   │   ├── services/     # Global services (navigation, API clients, stores)
-│   │   │   │   │   ├── api/      # Backend API clients (lidar-api, fusion-api, nodes-api)
-│   │   │   │   │   └── stores/   # State management (SignalsSimpleStoreService)
-│   │   │   ├── features/         # Feature modules/components
-│   │   │   │   ├── settings/     # Lidar + Fusion management UI with runtime status
-│   │   │   │   └── workspaces/   # 3D visualization with Three.js
-│   │   │   └── layout/           # Layout shells (Main, SideNav, Header, Footer)
-│   │   └── environments/         # Environment config (API URLs)
-│   └── package.json
-│
-├── tests/                        # Unit tests (pytest)
-│   └── services/
-│       └── lidar/
-│           ├── test_sensor_model.py    # LidarSensor model tests (30 tests)
-│           ├── test_transformations.py # Transformation math tests (33 tests)
-│           ├── test_topics.py          # Topic management tests (37 tests)
-│           └── test_binary_protocol.py # Binary protocol tests (26 tests)
-│
-├── config/
-│   └── data.db                   # SQLite database (gitignored, auto-created)
-│
-├── pytest.ini                    # Pytest configuration
-└── requirements.txt              # Python dependencies (includes pytest)
-```
+| Variable         | Default                                   | Description                  |
+| ---------------- | ----------------------------------------- | ---------------------------- |
+| `HOST`           | `0.0.0.0`                                 | Server bind address          |
+| `PORT`           | `8005`                                    | Server port                  |
+| `DEBUG`          | `false`                                   | Enable hot-reload            |
+| `LIDAR_MODE`     | `real`                                    | `real` or `sim`              |
+| `LIDAR_LAUNCH`   | `./examples/launch/sick_multiscan.launch` | Launch file path             |
+| `LIDAR_PCD_PATH` | `./test.pcd`                              | PCD file for simulation mode |
 
 ---
 
