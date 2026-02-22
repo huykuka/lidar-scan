@@ -35,6 +35,7 @@ import { TopicApiService } from '../../../../core/services/api/topic-api.service
           <syn-button
             variant="outline"
             class="w-full"
+            size="small"
             [disabled]="!currentTopic()"
             (click)="onCapturePcd()"
           >

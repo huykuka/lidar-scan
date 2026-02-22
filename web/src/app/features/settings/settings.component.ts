@@ -7,18 +7,20 @@ import { LidarApiService } from '../../core/services/api/lidar-api.service';
 import { LidarConfig } from '../../core/models/lidar.model';
 import { LidarEditorComponent } from './components/lidar-editor/lidar-editor';
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
+import { DialogService } from '../../core/services';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
-  imports: [CommonModule, FormsModule, SynergyComponentsModule, LidarEditorComponent],
+  imports: [CommonModule, FormsModule, SynergyComponentsModule],
 })
 export class SettingsComponent implements OnInit {
   private navService = inject(NavigationService);
   private lidarApi = inject(LidarApiService);
   private lidarStore = inject(LidarStoreService);
+  private dialogService = inject(DialogService);
 
   protected lidars = this.lidarStore.lidars;
   protected pipelines = this.lidarStore.availablePipelines;
@@ -36,11 +38,7 @@ export class SettingsComponent implements OnInit {
   async loadConfig() {
     this.lidarStore.set('isLoading', true);
     try {
-      const data = await this.lidarApi.getLidars();
-      this.lidarStore.setState({
-        lidars: data.lidars,
-        availablePipelines: data.available_pipelines,
-      });
+      await this.lidarApi.getLidars();
     } catch (error) {
       console.error('Failed to load lidars', error);
     } finally {
@@ -49,35 +47,29 @@ export class SettingsComponent implements OnInit {
   }
 
   onAddLidar() {
-    this.lidarStore.setState({
-      selectedLidar: {},
-      editMode: true,
+    this.lidarStore.set('selectedLidar', {});
+    this.lidarStore.set('editMode', false);
+    this.dialogService.open(LidarEditorComponent, {
+      label: 'Add Lidar',
+      noHeader: true,
     });
   }
 
   onEditLidar(lidar: LidarConfig) {
-    this.lidarStore.setState({
-      selectedLidar: { ...lidar },
-      editMode: true,
-    });
-  }
+    this.lidarStore.set('selectedLidar', lidar);
+    this.lidarStore.set('editMode', true);
+    this.dialogService.open(LidarEditorComponent, {
+      label: 'Edit Lidar',
 
-  async onSaveLidar(payload: any) {
-    try {
-      await this.lidarApi.saveLidar(payload);
-      await this.loadConfig();
-      this.lidarStore.set('editMode', false);
-    } catch (error) {
-      console.error('Failed to save lidar', error);
-      alert('Failed to save lidar configuration');
-    }
+      noHeader: true,
+    });
   }
 
   async onDeleteLidar(id: string) {
     if (!confirm(`Are you sure you want to delete ${id}?`)) return;
     try {
       await this.lidarApi.deleteLidar(id);
-      await this.loadConfig();
+      await this.onReloadConfig();
     } catch (error) {
       console.error('Failed to delete lidar', error);
     }
@@ -89,9 +81,5 @@ export class SettingsComponent implements OnInit {
     } catch (error) {
       console.error('Failed to reload config', error);
     }
-  }
-
-  onCancel() {
-    this.lidarStore.set('editMode', false);
   }
 }

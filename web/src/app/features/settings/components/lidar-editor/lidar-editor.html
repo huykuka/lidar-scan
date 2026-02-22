@@ -10,8 +10,8 @@
     </div>
 
     <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col">
-      <div class="p-8 max-h-[70vh] overflow-y-auto">
-        <div class="flex flex-col gap-8 pb-12">
+      <div class="p-6 pt-4 pb-8 max-h-[70vh] overflow-y-auto">
+        <div class="flex flex-col gap-4">
           
           <!-- Identity -->
           <div class="grid grid-cols-2 gap-4">
@@ -19,14 +19,16 @@
                        placeholder="lidar_front" 
                        formControlName="id"
                        ngDefaultControl
+                       size="small"
                        [helpText]="form.get('id')?.invalid && form.get('id')?.touched ? 'ID is required' : ''">
             </syn-input>
 
             <syn-select label="Mode" 
+                        size="small"
                         formControlName="mode"
                         ngDefaultControl>
-              <syn-option value="real">Hardware (Real)</syn-option>
-              <syn-option value="sim">Simulation (PCD)</syn-option>
+              <syn-option size="small" value="real">Hardware (Real)</syn-option>
+              <syn-option size="small" value="sim">Simulation (PCD)</syn-option>
             </syn-select>
           </div>
 
@@ -40,12 +42,14 @@
                            placeholder="192.168.1.123" 
                            formControlName="hostname"
                            ngDefaultControl
+                           size="small"
                            [helpText]="form.get('hostname')?.invalid && form.get('hostname')?.touched ? 'Invalid IP' : ''">
                 </syn-input>
                 <syn-input label="UDP Receiver IP" 
                            placeholder="192.168.1.89" 
                            formControlName="udp_receiver_ip"
                            ngDefaultControl
+                           size="small"
                            [helpText]="form.get('udp_receiver_ip')?.invalid && form.get('udp_receiver_ip')?.touched ? 'Invalid IP' : ''">
                 </syn-input>
               </div>
@@ -53,6 +57,7 @@
                          type="number" 
                          formControlName="udp_port"
                          ngDefaultControl
+                         size="small"
                          [helpText]="form.get('udp_port')?.invalid && form.get('udp_port')?.touched ? 'Range 1-65535' : ''">
               </syn-input>
             </div>
@@ -60,6 +65,7 @@
             <!-- Pipeline -->
             <syn-select label="Processing Pipeline" 
                         formControlName="pipeline_name"
+                        size="small"
                         ngDefaultControl>
               <syn-option value="">none</syn-option>
               <syn-option *ngFor="let p of pipelines()" [value]="p">{{ p }}</syn-option>
@@ -76,27 +82,31 @@
             </syn-input>
           </div>
 
-          <div class="h-px bg-syn-color-neutral-100"></div>
 
           <!-- Spatial Transformation -->
           <div>
-            <h4 class="text-[10px] font-black text-syn-color-neutral-400 uppercase tracking-widest mb-4">Spatial Transformation</h4>
             <div class="grid grid-cols-3 gap-x-4 gap-y-6">
-              <syn-input label="X (m)" type="number" formControlName="x" ngDefaultControl></syn-input>
-              <syn-input label="Y (m)" type="number" formControlName="y" ngDefaultControl></syn-input>
-              <syn-input label="Z (m)" type="number" formControlName="z" ngDefaultControl></syn-input>
+              <syn-input size="small" label="X (m)" type="number" formControlName="x" ngDefaultControl></syn-input>
+              <syn-input size="small" label="Y (m)" type="number" formControlName="y" ngDefaultControl></syn-input>
+              <syn-input size="small" label="Z (m)" type="number" formControlName="z" ngDefaultControl></syn-input>
               
-              <syn-input label="Roll (°)" type="number" formControlName="roll" ngDefaultControl></syn-input>
-              <syn-input label="Pitch (°)" type="number" formControlName="pitch" ngDefaultControl></syn-input>
-              <syn-input label="Yaw (°)" type="number" formControlName="yaw" ngDefaultControl></syn-input>
+              <syn-input size="small" label="Roll (°)" type="number" formControlName="roll" ngDefaultControl></syn-input>
+              <syn-input size="small" label="Pitch (°)" type="number" formControlName="pitch" ngDefaultControl></syn-input>
+              <syn-input size="small" label="Yaw (°)" type="number" formControlName="yaw" ngDefaultControl></syn-input>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="p-8 border-t border-syn-color-neutral-100 flex justify-end gap-3 bg-syn-color-neutral-50">
-        <syn-button variant="outline" type="button" (click)="onCancel()">Cancel</syn-button>
-        <syn-button variant="filled" type="submit" [disabled]="form.invalid">Save Configuration</syn-button>
+      <div class="p-5 border-t border-syn-color-neutral-100 flex justify-end gap-3 bg-syn-color-neutral-50">
+        <syn-button variant="outline" size="small" type="button" (click)="onCancel()">
+          <syn-icon name="close"></syn-icon>
+          Cancel
+        </syn-button>
+        <syn-button variant="filled" size="small" type="submit" [disabled]="form.invalid">
+          <syn-icon name="save"></syn-icon>
+          Save Configuration
+        </syn-button>
       </div>
     </form>
   </div>

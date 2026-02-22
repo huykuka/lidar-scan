@@ -1,10 +1,10 @@
 [
     {
-        "id": "lidar2",
-        "launch_args": "./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
-        "pipeline_name": "none",
-        "mode": "sim",
-        "pcd_path": "/home/thaiqu/Projects/personnal/lidar-standalone/1769503697-362730026.pcd",
+        "id": "lidar1",
+        "launch_args": "./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.89 udp_port:=2666",
+        "pipeline_name": "advanced",
+        "mode": "real",
+        "pcd_path": "",
         "x": 0.0,
         "y": 0.0,
         "z": 0.0,
@@ -13,11 +13,11 @@
         "yaw": 0.0
     },
     {
-        "id": "lidar1",
-        "launch_args": "./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.89 udp_port:=2666",
-        "pipeline_name": "advanced",
-        "mode": "real",
-        "pcd_path": "",
+        "id": "lidar2",
+        "launch_args": "",
+        "pipeline_name": null,
+        "mode": "sim",
+        "pcd_path": "/home/thaiqu/Projects/personnal/lidar-standalone/1769503697-362730026.pcd",
         "x": 0.0,
         "y": 0.0,
         "z": 0.0,

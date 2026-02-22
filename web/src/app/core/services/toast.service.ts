@@ -1,6 +1,5 @@
 import { Injectable } from '@angular/core';
 import { SynAlert } from '@synergy-design-system/components';
-import { MsddService } from './msdd.service';
 import { Subject } from 'rxjs';
 import { debounceTime, share, tap } from 'rxjs/operators';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
@@ -76,8 +75,7 @@ export class ToastService {
     const { message, variant, duration = 3000 } = config;
 
     // Use service method or fallback to a default icon
-    const icon = config.icon || MsddService.getToastIcon(variant);
-
+    const icon = config.icon || 'info';
     const alert = this.createToastAlert(message, variant, icon);
 
     document.body.append(alert);
@@ -90,7 +88,7 @@ export class ToastService {
       closable: true,
       duration: 3000,
       innerHTML: `
-        <syn-icon src="${MsddService.getToastIcon(icon)}" slot="icon"></syn-icon>
+        <syn-icon name="${icon}" slot="icon"></syn-icon>
         <strong>Notification</strong>
         <br />
         ${this.escapeHtml(message)}

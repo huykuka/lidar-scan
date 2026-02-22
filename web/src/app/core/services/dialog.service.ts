@@ -66,7 +66,10 @@ export class DialogService {
     this.childComponentRef = componentRef;
 
     // Append the new component to dialog
-    this.dialogElement.insertBefore((componentRef.hostView as EmbeddedViewRef<any>).rootNodes[0], footer || null);
+    this.dialogElement.insertBefore(
+      (componentRef.hostView as EmbeddedViewRef<any>).rootNodes[0],
+      footer || null,
+    );
 
     // Show dialog and activate modal
     (this.dialogElement as any).show();

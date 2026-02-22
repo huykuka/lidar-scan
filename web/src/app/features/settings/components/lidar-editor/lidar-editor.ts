@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarStoreService } from '../../../../core/services/stores/lidar-store.service';
+import { LidarApiService } from '../../../../core/services/api/lidar-api.service';
+import { DialogService } from '../../../../core/services';
 
 @Component({
   selector: 'app-lidar-editor',
@@ -14,9 +16,10 @@ import { LidarStoreService } from '../../../../core/services/stores/lidar-store.
 export class LidarEditorComponent implements OnInit {
   private fb = inject(FormBuilder);
   protected lidarStore = inject(LidarStoreService);
+  private lidarApi = inject(LidarApiService);
+  private dialogService = inject(DialogService);
 
   @Output() save = new EventEmitter<any>();
-  @Output() cancel = new EventEmitter<void>();
 
   protected form!: FormGroup;
   protected pipelines = this.lidarStore.availablePipelines;
@@ -95,14 +98,14 @@ export class LidarEditorComponent implements OnInit {
     return this.form;
   }
 
-  protected onSave() {
+  protected async onSave() {
     if (this.form.invalid) return;
 
     const val = this.form.getRawValue();
     let launch_args = '';
 
     if (val.mode === 'real') {
-      launch_args = `hostname:=${val.hostname} udp_receiver_ip:=${val.udp_receiver_ip} udp_port:=${val.udp_port}`;
+      launch_args = `./launch/sick_multilscan.launch hostname:=${val.hostname} udp_receiver_ip:=${val.udp_receiver_ip} udp_port:=${val.udp_port}`;
     }
 
     const payload = {
@@ -119,10 +122,18 @@ export class LidarEditorComponent implements OnInit {
       yaw: val.yaw,
     };
 
-    this.save.emit(payload);
+    try {
+      await this.lidarApi.saveLidar(payload);
+      await this.lidarApi.reloadConfig();
+      this.save.emit(payload);
+      this.dialogService.close();
+    } catch (error) {
+      console.error('Failed to save lidar', error);
+      alert('Failed to save lidar configuration');
+    }
   }
 
   protected onCancel() {
-    this.cancel.emit();
+    this.dialogService.close();
   }
 }
