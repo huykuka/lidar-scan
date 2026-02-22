@@ -1,0 +1,24 @@
+<svg class="absolute inset-0 w-full h-full pointer-events-none" style="overflow: visible">
+  <defs>
+    <marker
+      id="arrowhead"
+      markerWidth="10"
+      markerHeight="10"
+      refX="9"
+      refY="3"
+      orient="auto"
+    >
+      <polygon points="0 0, 10 3, 0 6" fill="#6366f1" />
+    </marker>
+  </defs>
+
+  @for (connection of connections(); track connection.from + '-' + connection.to) {
+    <path
+      [attr.d]="connection.path"
+      stroke="#6366f1"
+      stroke-width="2"
+      fill="none"
+      marker-end="url(#arrowhead)"
+    />
+  }
+</svg>

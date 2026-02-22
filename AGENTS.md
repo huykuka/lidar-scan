@@ -167,13 +167,139 @@ npm run start
 npm run build
 ```
 
+## Flow Canvas & Node System
+
+The Settings page features a **Node-RED style flow canvas** for visual node configuration:
+
+### Canvas Features
+- **Drag-and-drop**: Nodes can be dragged from the palette onto the canvas
+- **Visual connections**: Bezier curves show data flow from sensors to fusions
+- **Real-time status**: Node cards display runtime health with color-coded badges
+- **Pan & Zoom**: Canvas supports panning (Shift+drag or middle mouse) and zooming (mouse wheel)
+- **Auto layout**: Automatically arrange nodes in a clean grid
+- **Persistent positions**: Node positions saved to localStorage
+
+### Canvas Architecture
+- **Location**: `web/src/app/features/settings/components/flow-canvas/`
+- **Reactive updates**: Uses Angular `effect()` to watch store changes and auto-update when nodes are added/removed
+- **Connection calculation**: SVG bezier curves calculated from node positions with output ports (right side of sensors) to input ports (left side of fusions)
+- **Node state management**: Canvas reads from `LidarStoreService` and `FusionStoreService` signals
+
+### Node Plugin System
+
+The canvas supports extensible node types through a plugin architecture:
+
+#### Core Plugin Components
+
+1. **`NodePlugin` interface** (`web/src/app/core/models/node-plugin.model.ts`):
+```typescript
+interface NodePlugin {
+  type: string;              // Unique identifier (e.g., 'sensor', 'transform')
+  displayName: string;       // UI label
+  description: string;       // Short description for palette
+  icon: string;             // Material icon name
+  category: 'source' | 'processing' | 'sink' | 'utility';
+  style: NodeStyle;         // Visual styling (colors, borders)
+  ports: NodePorts;         // Input/output port configuration
+  config?: NodeConfigSchema; // Optional configuration schema
+}
+```
+
+2. **`NodePluginRegistry` service** (`web/src/app/core/services/node-plugin-registry.service.ts`):
+   - Singleton service managing all registered plugins
+   - Built-in plugins: `sensor` and `fusion`
+   - Methods: `register()`, `getAll()`, `getByType()`, `unregister()`
+
+#### Creating New Plugins
+
+**Step 1**: Define your plugin in `web/src/app/plugins/`:
+
+```typescript
+// example: web/src/app/plugins/transform-plugin.ts
+import { NodePlugin } from '../core/models/node-plugin.model';
+
+export const TransformNodePlugin: NodePlugin = {
+  type: 'transform',
+  displayName: 'Transform',
+  description: 'Apply transformations to point clouds',
+  icon: 'rotate_90_degrees_ccw',
+  category: 'processing',
+  style: {
+    backgroundColor: '#fef3c7',
+    color: '#f59e0b',
+    borderColor: '#fbbf24',
+  },
+  ports: {
+    inputs: [{ id: 'input', label: 'Points In', type: 'pointcloud' }],
+    outputs: [{ id: 'output', label: 'Points Out', type: 'pointcloud' }],
+  },
+  config: {
+    fields: [
+      { name: 'rotation', type: 'number', label: 'Rotation (degrees)', default: 0 },
+      { name: 'scale', type: 'number', label: 'Scale Factor', default: 1.0 },
+    ],
+  },
+};
+```
+
+**Step 2**: Register plugin in `app.config.ts`:
+
+```typescript
+import { NodePluginRegistry } from './core/services/node-plugin-registry.service';
+import { TransformNodePlugin } from './plugins/transform-plugin';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // ... other providers
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (registry: NodePluginRegistry) => () => {
+        registry.register(TransformNodePlugin);
+      },
+      deps: [NodePluginRegistry],
+      multi: true,
+    },
+  ],
+};
+```
+
+**Step 3**: The plugin automatically appears in the palette and can be dragged onto the canvas.
+
+#### Plugin Categories
+
+- **source**: Data producers (sensors, file readers)
+- **processing**: Data transformers (filters, fusion, downsampling)
+- **sink**: Data consumers (recorders, publishers)
+- **utility**: Helper nodes (debug, monitoring)
+
+#### Current Plugin Status
+
+**Implemented (Frontend Only)**:
+- Plugin palette displays all registered plugins dynamically
+- Drag-and-drop from palette to canvas works
+- Visual distinction by category colors
+
+**Backend Integration Needed**:
+- Custom plugins currently show a warning toast when dropped
+- To make custom plugins functional, backend API endpoints need to be extended to support generic node types
+- Currently only `sensor` and `fusion` types are persisted and executed
+
+#### Future Plugin Enhancements
+
+1. **Backend Support**: Extend `/api/v1/nodes` to support generic node types with plugin metadata
+2. **Connection Validation**: Enforce port type compatibility when connecting nodes
+3. **Node Configuration UI**: Auto-generate config forms from `NodeConfigSchema`
+4. **Plugin Marketplace**: Allow importing/exporting plugin definitions
+5. **Custom Node Rendering**: Support custom templates per plugin type
+
 ## Key Implementation Notes
 
 1. **Synergy Design System**: Use Angular components from `@synergy-design-system/angular` seamlessly with standard structural directives (`*ngIf`, `*ngFor`).
-2. **Signals Over RxJS Variables**: Component reactive states rely natively on Angular Signals (`set`, `update`, `computed`) instead of `BehaviorSubject` chains where appropriate.
+2. **Signals Over RxJS Variables**: Component reactive states rely natively on Angular Signals (`set`, `update`, `computed`, `effect`) instead of `BehaviorSubject` chains where appropriate.
 3. **Data Flows**:
    - Modal forms (like `<app-lidar-editor>`) are encapsulated and driven entirely by ReactiveForms logic, initialized from `LidarStoreService` state on load.
    - The "Save" actions invoke `LidarApiService`, refresh `LidarStoreService`, and subsequently clear the global form flag.
+   - Canvas components use `effect()` to reactively update when stores change (e.g., when nodes are added/edited).
 4. **Runtime Status Monitoring**:
    - Settings page polls `/api/v1/nodes/status` every 2 seconds to display real-time node health.
    - Status badges show: Running (green), Stale (yellow), Starting (yellow), Stopped (gray), Error (red).

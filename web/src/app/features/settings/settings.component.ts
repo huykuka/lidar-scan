@@ -12,10 +12,10 @@ import { FusionConfig } from '../../core/models/fusion.model';
 import { ConfigExport, ConfigValidationResponse } from '../../core/models/config.model';
 import { LidarEditorComponent } from './components/lidar-editor/lidar-editor';
 import { FusionEditorComponent } from './components/fusion-editor/fusion-editor';
-import { ToolboxHeaderComponent } from './components/toolbox-header/toolbox-header.component';
 import { LidarCardComponent } from './components/lidar-card/lidar-card.component';
 import { FusionCardComponent } from './components/fusion-card/fusion-card.component';
 import { ConfigImportDialogComponent } from './components/config-import-dialog/config-import-dialog.component';
+import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.component';
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
 import { FusionStoreService } from '../../core/services/stores/fusion-store.service';
 import { DialogService } from '../../core/services';
@@ -30,10 +30,10 @@ import { ToastService } from '../../core/services/toast.service';
     CommonModule,
     FormsModule,
     SynergyComponentsModule,
-    ToolboxHeaderComponent,
     LidarCardComponent,
     FusionCardComponent,
     ConfigImportDialogComponent,
+    FlowCanvasComponent,
   ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
@@ -51,6 +51,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected pipelines = this.lidarStore.availablePipelines;
   protected isLoading = this.lidarStore.isLoading;
   protected fusions = this.fusionStore.fusions;
+  
+  // Tab state
+  protected activeTab = signal<'all' | 'sensors' | 'fusions'>('all');
+  
+  // View mode state
+  protected viewMode = signal<'grid' | 'canvas'>('canvas');
   
   // Node status
   protected nodesStatus = signal<NodesStatusResponse | null>(null);
@@ -72,9 +78,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected editMode = this.lidarStore.editMode;
   protected selectedLidar = this.lidarStore.selectedLidar;
 
-  // Drag and drop state
-  protected isDraggingOver = false;
-
   protected lidarNameById(id?: string): string {
     if (!id) return '';
     const lidar = this.lidars().find((l) => l.id === id);
@@ -84,39 +87,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected fusionSensorsLabel(sensorIds?: string[]): string {
     if (!sensorIds || sensorIds.length === 0) return 'All';
     return sensorIds.map((id) => this.lidarNameById(id)).join(', ');
-  }
-
-  onDragStart(event: DragEvent, type: 'lidar' | 'fusion') {
-    if (event.dataTransfer) {
-      event.dataTransfer.setData('componentType', type);
-      event.dataTransfer.effectAllowed = 'copy';
-    }
-  }
-
-  onDragOver(event: DragEvent) {
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'copy';
-    }
-    this.isDraggingOver = true;
-  }
-
-  onDragLeave(event: DragEvent) {
-    event.preventDefault();
-    this.isDraggingOver = false;
-  }
-
-  onDrop(event: DragEvent) {
-    event.preventDefault();
-    this.isDraggingOver = false;
-    if (event.dataTransfer) {
-      const type = event.dataTransfer.getData('componentType');
-      if (type === 'lidar') {
-        this.onAddLidar();
-      } else if (type === 'fusion') {
-        this.onAddFusion();
-      }
-    }
   }
 
   async ngOnInit() {

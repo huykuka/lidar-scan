@@ -7,13 +7,16 @@
     </div>
     <div class="flex gap-2">
       <syn-button variant="outline" size="small" (click)="exportConfig.emit()" [disabled]="isExporting()">
-        <syn-icon slot="prefix" name="download"></syn-icon>{{ isExporting() ? 'Exporting...' : 'Export' }}
+        <syn-icon slot="prefix" name="download"></syn-icon>
+        {{ isExporting() ? 'Exporting...' : 'Export' }}
       </syn-button>
       <syn-button variant="outline" size="small" (click)="importConfig.emit()" [disabled]="isImporting()">
-        <syn-icon slot="prefix" name="upload"></syn-icon>{{ isImporting() ? 'Importing...' : 'Import' }}
+        <syn-icon slot="prefix" name="upload"></syn-icon>
+        {{ isImporting() ? 'Importing...' : 'Import' }}
       </syn-button>
       <syn-button variant="outline" size="small" (click)="reloadConfig.emit()">
-        <syn-icon slot="prefix" name="refresh"></syn-icon>Reload
+        <syn-icon slot="prefix" name="refresh"></syn-icon>
+        Reload
       </syn-button>
     </div>
   </div>

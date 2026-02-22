@@ -1,0 +1,74 @@
+<div class="flex h-full bg-syn-color-neutral-50">
+  <!-- Left Palette Sidebar -->
+  <app-flow-canvas-palette
+    [plugins]="availablePlugins()"
+    [zoom]="zoom()"
+    (onAutoLayout)="autoLayoutNodes()"
+    (onClearPositions)="clearAllPositions()"
+    (onResetView)="resetView()"
+    (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
+    (onPluginDragEnd)="onPaletteDragEnd()"
+  ></app-flow-canvas-palette>
+
+  <!-- Canvas Area -->
+  <div class="flex-1 relative overflow-hidden">
+    <div
+      class="w-full h-full relative"
+      [style.cursor]="isPanning() ? 'grabbing' : paletteDragType() ? 'copy' : 'default'"
+      (mousedown)="onCanvasMouseDown($event)"
+      (mousemove)="onCanvasMouseMove($event)"
+      (mouseup)="onCanvasMouseUp($event)"
+      (wheel)="onCanvasWheel($event)"
+      (dragover)="onCanvasDragOver($event)"
+      (drop)="onCanvasDrop($event)"
+    >
+      <!-- Grid Background -->
+      <svg class="absolute inset-0 w-full h-full pointer-events-none">
+        <defs>
+          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="#e5e7eb" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#grid)" />
+      </svg>
+
+      <!-- Nodes Container -->
+      <div
+        class="absolute inset-0"
+        [style.transform]="
+          'translate(' + panOffset().x + 'px, ' + panOffset().y + 'px) scale(' + zoom() + ')'
+        "
+        [style.transform-origin]="'0 0'"
+      >
+        <!-- Connection Lines Layer (below nodes) -->
+        <app-flow-canvas-connections [connections]="connections()"></app-flow-canvas-connections>
+
+        <!-- Nodes Layer -->
+        @for (node of canvasNodes(); track node.id) {
+          <div
+            class="absolute transition-shadow"
+            [style.left.px]="node.position.x"
+            [style.top.px]="node.position.y"
+            [style.cursor]="draggingNode()?.id === node.id ? 'grabbing' : 'grab'"
+            (mousedown)="onNodeMouseDown($event, node)"
+          >
+            <app-flow-canvas-node
+              [node]="node"
+              [status]="getNodeStatus(node)"
+              [isLoading]="isNodeLoading(node.id)"
+              [isDragging]="draggingNode()?.id === node.id"
+              (onEdit)="onEditNode(node)"
+              (onDelete)="onDeleteNode(node)"
+              (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
+            ></app-flow-canvas-node>
+          </div>
+        }
+      </div>
+
+      <!-- Empty State -->
+      @if (canvasNodes().length === 0) {
+        <app-flow-canvas-empty-state></app-flow-canvas-empty-state>
+      }
+    </div>
+  </div>
+</div>

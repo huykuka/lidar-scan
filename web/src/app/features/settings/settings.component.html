@@ -1,47 +1,169 @@
-<div class="flex flex-col gap-8 animate-in fade-in duration-500">
-  
-  <!-- Toolbox Header -->
-  <app-toolbox-header
-    [isExporting]="isExporting()"
-    [isImporting]="isImporting()"
-    (exportConfig)="onExportConfig()"
-    (importConfig)="onImportConfigClick()"
-    (reloadConfig)="onReloadConfig()"
-    (addLidar)="onAddLidar()"
-    (addFusion)="onAddFusion()"
-    (dragStart)="onDragStart($event.event, $event.type)"
-  />
+<div class="flex flex-col gap-6 animate-in fade-in duration-500">
+  <!-- Nodes Section with Tabs -->
+  <div
+    class="bg-white rounded-xl shadow-sm border border-syn-color-neutral-200 overflow-hidden flex flex-col"
+    style="height: calc(100vh - 200px)"
+  >
+    <!-- Tab Navigation -->
+    <div class="border-b border-syn-color-neutral-200 bg-syn-color-neutral-50 flex-shrink-0">
+      <div class="flex items-center justify-between px-4 py-3">
+        <div class="flex gap-1">
+          <!-- View Mode Toggle -->
+          <div class="flex gap-1 mr-4 pr-4 border-r border-syn-color-neutral-300">
+            <button
+              (click)="viewMode.set('canvas')"
+              class="px-3 py-2 rounded-lg text-sm font-black uppercase tracking-wider transition-all"
+              [class.bg-white]="viewMode() === 'canvas'"
+              [class.text-syn-color-primary-700]="viewMode() === 'canvas'"
+              [class.shadow-sm]="viewMode() === 'canvas'"
+              [class.text-syn-color-neutral-600]="viewMode() !== 'canvas'"
+              [class.hover:bg-syn-color-neutral-100]="viewMode() !== 'canvas'"
+              title="Flow Canvas View"
+            >
+              <syn-icon name="account_tree" class="text-base"></syn-icon>
+            </button>
+            <button
+              (click)="viewMode.set('grid')"
+              class="px-3 py-2 rounded-lg text-sm font-black uppercase tracking-wider transition-all"
+              [class.bg-white]="viewMode() === 'grid'"
+              [class.text-syn-color-primary-700]="viewMode() === 'grid'"
+              [class.shadow-sm]="viewMode() === 'grid'"
+              [class.text-syn-color-neutral-600]="viewMode() !== 'grid'"
+              [class.hover:bg-syn-color-neutral-100]="viewMode() !== 'grid'"
+              title="Grid View"
+            >
+              <syn-icon name="grid_view" class="text-base"></syn-icon>
+            </button>
+          </div>
 
-  <div class="relative rounded-2xl transition-all duration-300 h-full w-full min-h-[300px]" 
-       (dragover)="onDragOver($event)">
-       
-    <!-- Centered Drop Zone Indicator (Intercepts events so no flickering) -->
-    <div *ngIf="isDraggingOver" 
-         class="absolute inset-x-0 inset-y-0 -m-1 z-50 flex items-center justify-center bg-syn-color-neutral-50/70 backdrop-blur-sm rounded-2xl border-4 border-dashed border-syn-color-primary-500 animate-in fade-in zoom-in-95 duration-200"
-         (dragover)="onDragOver($event)" 
-         (dragleave)="onDragLeave($event)" 
-         (drop)="onDrop($event)">
-         
-      <div class="flex flex-col items-center justify-center gap-4 bg-white px-10 py-8 rounded-3xl shadow-2xl pointer-events-none scale-110">
-        <syn-icon name="add_circle" class="text-5xl text-syn-color-primary-600 animate-bounce"></syn-icon>
-        <h3 class="text-lg font-black text-syn-color-primary-800 uppercase tracking-widest">Drop to Add Node</h3>
+          <div class="flex gap-2">
+            <syn-button
+              variant="outline"
+              size="small"
+              (click)="onExportConfig()"
+              [disabled]="isExporting()"
+              [loading]="isExporting()"
+            >
+              <syn-icon slot="prefix" name="download"></syn-icon>Export
+            </syn-button>
+            <syn-button
+              variant="outline"
+              size="small"
+              [loading]="isImporting()"
+              [disabled]="isExporting()"
+              (click)="onImportConfigClick()"
+            >
+              <syn-icon slot="prefix" name="upload"></syn-icon>Import
+            </syn-button>
+            <syn-button variant="outline" size="small" (click)="onReloadConfig()">
+              <syn-icon slot="prefix" name="refresh"></syn-icon>Reload
+            </syn-button>
+          </div>
+        </div>
+        @if (viewMode() === 'grid') {
+          <div class="flex gap-2">
+            @if (activeTab() === 'sensors' || activeTab() === 'all') {
+              <syn-button size="small" (click)="onAddLidar()">
+                <syn-icon slot="prefix" name="add"></syn-icon>Add Sensor
+              </syn-button>
+            }
+            @if (activeTab() === 'fusions' || activeTab() === 'all') {
+              <syn-button size="small" (click)="onAddFusion()">
+                <syn-icon slot="prefix" name="add"></syn-icon>Add Fusion
+              </syn-button>
+            }
+          </div>
+        }
       </div>
     </div>
 
-    <div class="transition-opacity duration-300" [class.opacity-40]="isDraggingOver">
-      <syn-accordion contained size="small" class="block">
-        <syn-details [open]="lidars().length > 0" [disabled]="lidars().length === 0" contained size="small">
-          <div slot="summary" class="w-full flex items-center justify-between gap-3 pr-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <syn-icon name="sensors" class="text-base text-syn-color-success-600"></syn-icon>
-              <span class="text-[11px] font-black uppercase tracking-widest text-syn-color-neutral-600 truncate">Sensors</span>
-              <span class="text-[11px] text-syn-color-neutral-400 truncate">(hardware / sim)</span>
+    <!-- Tab Content -->
+    @if (viewMode() === 'canvas') {
+      <div class="flex-1 overflow-hidden">
+        <app-flow-canvas />
+      </div>
+    } @else {
+      <div class="p-4 overflow-y-auto flex-1">
+        <!-- All Nodes Tab -->
+        @if (activeTab() === 'all') {
+          @if (lidars().length === 0 && fusions().length === 0) {
+            <div class="flex flex-col items-center justify-center py-16 text-syn-color-neutral-400">
+              <div class="p-4 bg-syn-color-neutral-50 rounded-full mb-4">
+                <syn-icon name="widgets" class="text-5xl text-syn-color-neutral-300"></syn-icon>
+              </div>
+              <p class="font-black uppercase tracking-widest text-sm text-syn-color-neutral-600">
+                No Nodes Configured
+              </p>
+              <p class="text-sm mt-2">Click "Add Sensor" or "Add Fusion" to get started.</p>
             </div>
-            <syn-badge variant="success" pill size="small">{{ lidars().length }}</syn-badge>
-          </div>
+          } @else {
+            <div class="space-y-6">
+              @if (lidars().length > 0) {
+                <div>
+                  <h3
+                    class="text-xs font-black uppercase tracking-widest text-syn-color-neutral-500 mb-3 flex items-center gap-2"
+                  >
+                    <syn-icon
+                      name="sensors"
+                      class="text-base text-syn-color-success-600"
+                    ></syn-icon>
+                    Sensors ({{ lidars().length }})
+                  </h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    @for (lidar of lidars(); track lidar.id) {
+                      <app-lidar-card
+                        [lidar]="lidar"
+                        [isLoading]="isLidarLoading(lidar.id || '')"
+                        [nodeStatus]="getNodeStatus(lidar.id || '') ?? null"
+                        (toggleEnabled)="onToggleLidarEnabled($event.lidar, $event.enabled)"
+                        (edit)="onEditLidar($event)"
+                        (delete)="onDeleteLidar($event)"
+                      />
+                    }
+                  </div>
+                </div>
+              }
+              @if (fusions().length > 0) {
+                <div>
+                  <h3
+                    class="text-xs font-black uppercase tracking-widest text-syn-color-neutral-500 mb-3 flex items-center gap-2"
+                  >
+                    <syn-icon name="hub" class="text-base text-syn-color-primary-600"></syn-icon>
+                    Fusions ({{ fusions().length }})
+                  </h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    @for (fusion of fusions(); track fusion.id) {
+                      <app-fusion-card
+                        [fusion]="fusion"
+                        [isLoading]="isFusionLoading(fusion.id || '')"
+                        [nodeStatus]="getFusionStatus(fusion.id || '') ?? null"
+                        [sensorsLabel]="fusionSensorsLabel(fusion.sensor_ids)"
+                        (toggleEnabled)="onToggleFusionEnabled($event.fusion, $event.enabled)"
+                        (edit)="onEditFusion($event)"
+                        (delete)="onDeleteFusion($event)"
+                      />
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        }
 
-          <div class="pt-3">
-            <div *ngIf="lidars().length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <!-- Sensors Tab -->
+        @if (activeTab() === 'sensors') {
+          @if (lidars().length === 0) {
+            <div class="flex flex-col items-center justify-center py-16 text-syn-color-neutral-400">
+              <div class="p-4 bg-syn-color-success-50 rounded-full mb-4">
+                <syn-icon name="sensors" class="text-5xl text-syn-color-success-300"></syn-icon>
+              </div>
+              <p class="font-black uppercase tracking-widest text-sm text-syn-color-neutral-600">
+                No Sensors Configured
+              </p>
+              <p class="text-sm mt-2">Add a hardware or simulated lidar sensor to begin.</p>
+            </div>
+          } @else {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               @for (lidar of lidars(); track lidar.id) {
                 <app-lidar-card
                   [lidar]="lidar"
@@ -53,25 +175,23 @@
                 />
               }
             </div>
+          }
+        }
 
-            <div *ngIf="lidars().length === 0" class="text-sm text-syn-color-neutral-500 italic">
-              No sensors registered.
+        <!-- Fusions Tab -->
+        @if (activeTab() === 'fusions') {
+          @if (fusions().length === 0) {
+            <div class="flex flex-col items-center justify-center py-16 text-syn-color-neutral-400">
+              <div class="p-4 bg-syn-color-primary-50 rounded-full mb-4">
+                <syn-icon name="hub" class="text-5xl text-syn-color-primary-300"></syn-icon>
+              </div>
+              <p class="font-black uppercase tracking-widest text-sm text-syn-color-neutral-600">
+                No Fusions Configured
+              </p>
+              <p class="text-sm mt-2">Merge multiple sensors into a single point cloud topic.</p>
             </div>
-          </div>
-        </syn-details>
-
-        <syn-details [open]="lidars().length === 0 && fusions().length > 0" [disabled]="fusions().length === 0" contained size="small">
-          <div slot="summary" class="w-full flex items-center justify-between gap-3 pr-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <syn-icon name="hub" class="text-base text-syn-color-primary-600"></syn-icon>
-              <span class="text-[11px] font-black uppercase tracking-widest text-syn-color-neutral-600 truncate">Fusions</span>
-              <span class="text-[11px] text-syn-color-neutral-400 truncate">(merged topics)</span>
-            </div>
-            <syn-badge variant="primary" pill size="small">{{ fusions().length }}</syn-badge>
-          </div>
-
-          <div class="pt-3">
-            <div *ngIf="fusions().length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          } @else {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               @for (fusion of fusions(); track fusion.id) {
                 <app-fusion-card
                   [fusion]="fusion"
@@ -84,24 +204,10 @@
                 />
               }
             </div>
-
-            <div *ngIf="fusions().length === 0" class="text-sm text-syn-color-neutral-500 italic">
-              No fusions registered.
-            </div>
-          </div>
-        </syn-details>
-      </syn-accordion>
-
-      <!-- Empty State if no nodes at all -->
-      <div *ngIf="lidars().length === 0 && fusions().length === 0 && !isLoading()" 
-           class="flex flex-col items-center justify-center p-12 bg-syn-color-neutral-50/50 rounded-2xl border-2 border-dashed border-syn-color-neutral-200 text-syn-color-neutral-400">
-        <div class="p-4 bg-white rounded-full shadow-sm mb-4 border border-syn-color-neutral-100">
-          <syn-icon name="widgets" class="text-4xl text-syn-color-primary-300"></syn-icon>
-        </div>
-        <p class="font-black uppercase tracking-widest text-sm text-syn-typography-color-text">No active nodes in network</p>
-        <p class="text-sm mt-2 font-medium">Click on a component in the toolbox to get started.</p>
+          }
+        }
       </div>
-    </div>
+    }
   </div>
 
   <!-- Configuration Import Validation Dialog -->

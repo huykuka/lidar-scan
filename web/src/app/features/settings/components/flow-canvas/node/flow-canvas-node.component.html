@@ -1,0 +1,101 @@
+<div
+  class="bg-white rounded-lg shadow-lg border-2 w-64 overflow-hidden hover:shadow-xl transition-all relative"
+  [class.border-syn-color-success-400]="node().type === 'sensor'"
+  [class.border-syn-color-primary-400]="node().type === 'fusion'"
+  [class.opacity-50]="isDragging()"
+>
+  <!-- Output Port (right side for sensors) -->
+  @if (node().type === 'sensor') {
+    <div
+      class="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-syn-color-success-600 border-2 border-white shadow-md z-10"
+      title="Output"
+    ></div>
+  }
+
+  <!-- Input Port (left side for fusions) -->
+  @if (node().type === 'fusion') {
+    <div
+      class="absolute left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-syn-color-primary-600 border-2 border-white shadow-md z-10"
+      title="Input"
+    ></div>
+  }
+
+  <!-- Node Header -->
+  <div
+    class="p-3 flex items-center justify-between"
+    [class.bg-syn-color-success-50]="node().type === 'sensor'"
+    [class.bg-syn-color-primary-50]="node().type === 'fusion'"
+  >
+    <div class="flex items-center gap-2 min-w-0 flex-1">
+      <syn-icon
+        [name]="node().type === 'sensor' ? 'sensors' : 'hub'"
+        class="text-lg"
+        [class.text-syn-color-success-600]="node().type === 'sensor'"
+        [class.text-syn-color-primary-600]="node().type === 'fusion'"
+      ></syn-icon>
+      <span class="font-semibold text-sm truncate">{{ getNodeName() }}</span>
+    </div>
+    <syn-badge [variant]="statusBadge().variant" size="small" pill>
+      {{ statusBadge().label }}
+    </syn-badge>
+  </div>
+
+  <!-- Node Body -->
+  <div class="p-3 space-y-2 text-xs">
+    @if (node().type === 'sensor') {
+      <div class="flex justify-between">
+        <span class="text-syn-color-neutral-500">Type:</span>
+        <span class="font-medium">{{ getNodeDriver() }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-syn-color-neutral-500">Topic:</span>
+        <span class="font-mono text-xs">{{ getNodeTopicPrefix() }}</span>
+      </div>
+    } @else {
+      <div class="flex justify-between">
+        <span class="text-syn-color-neutral-500">Sensors:</span>
+        <span class="font-medium">{{ getNodeSensorCount() }}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-syn-color-neutral-500">Pipeline:</span>
+        <span class="font-medium">{{ getNodePipeline() }}</span>
+      </div>
+    }
+
+    @if (status()?.last_error) {
+      <div class="text-syn-color-danger-600 text-xs mt-2 p-2 bg-syn-color-danger-50 rounded">
+        {{ status()?.last_error }}
+      </div>
+    }
+  </div>
+
+  <!-- Node Actions -->
+  <div class="p-2 border-t border-syn-color-neutral-200 flex items-center gap-1">
+    <div class="flex items-center gap-2 flex-1 min-w-0">
+      <syn-switch
+        size="small"
+        [checked]="isNodeEnabled()"
+        [disabled]="isLoading()"
+        (syn-change)="onToggleEnabled.emit($any($event.target).checked)"
+        class="shrink-0"
+      ></syn-switch>
+      @if (isLoading()) {
+        <syn-spinner size="small"></syn-spinner>
+      } @else {
+        <span
+          class="text-xs font-semibold truncate transition-colors"
+          [class.text-syn-color-success-700]="isNodeEnabled()"
+          [class.text-syn-color-danger-600]="!isNodeEnabled()"
+        >
+          {{ isNodeEnabled() ? 'Enabled' : 'Disabled' }}
+        </span>
+      }
+    </div>
+    <syn-button variant="text" size="small" (click)="onEdit.emit()">
+      <syn-icon name="edit"></syn-icon>
+    </syn-button>
+    <syn-button variant="text" size="small" (click)="onDelete.emit()">
+      <syn-icon name="delete" style="color: var(--syn-color-danger-600)"></syn-icon>
+    </syn-button>
+  </div>
+</div>

@@ -53,6 +53,7 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
         <app-workspace-view-controls-button
           label="Clear Points"
           icon="delete_sweep"
+          [danger]="true"
           (clicked)="onClearPoints.emit()"
         ></app-workspace-view-controls-button>
       </div>

@@ -11,6 +11,8 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
       class="rounded-xl transition-colors"
       [class.bg-white/10]="active()"
       [class.hover:bg-white/10]="!active()"
+      [class.hover:bg-red-500/20]="danger()"
+      [style.color]="danger() ? 'var(--syn-color-danger-600)' : 'var(--syn-color-neutral-100)'"
     >
       <syn-button
         variant="text"
@@ -26,9 +28,8 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
   styles: [
     `
       .wv-btn {
-        --syn-button-color-outline: #ffffff;
-        --syn-button-color-text: #ffffff;
-        color: #ffffff;
+        --syn-button-color-outline: var(--syn-color-neutral-100);
+        --syn-button-color-text: var(--syn-color-neutral-100);
       }
 
       /* Icon-only button: make padding visually square/centered.
@@ -41,7 +42,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
       }
 
       .wv-btn syn-icon {
-        color: #ffffff;
+        color: inherit;
       }
     `,
   ],
@@ -50,6 +51,7 @@ export class WorkspaceViewControlsButtonComponent {
   label = input<string>('');
   icon = input<string>('');
   active = input<boolean>(false);
+  danger = input<boolean>(false);
 
   clicked = output<void>();
 }
