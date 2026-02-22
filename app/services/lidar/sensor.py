@@ -102,9 +102,11 @@ class LidarService:
 
     def load_config(self):
         """Loads sensor configurations from SQLite and registers them."""
-        from app.db import get_lidars, get_fusions
+        from app.repositories import FusionRepository, LidarRepository
+        lidar_repo = LidarRepository()
+        fusion_repo = FusionRepository()
         try:
-            configs = get_lidars()
+            configs = lidar_repo.list()
             for item in configs:
                 sensor = self.generate_lidar(
                     sensor_id=item["id"],
@@ -126,7 +128,7 @@ class LidarService:
 
         # Load Fusions
         try:
-            fusions_cfg = get_fusions()
+            fusions_cfg = fusion_repo.list()
             from app.services.lidar.fusion import FusionService
             for item in fusions_cfg:
                 fusion = FusionService(

@@ -1,52 +1,175 @@
-<div class="flex flex-col gap-6 animate-in fade-in duration-500">
-  <!-- Lidar List Section -->
-  <div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-8">
-    <div class="flex items-center justify-between mb-8">
-      <div class="flex items-center gap-3">
-        <syn-icon name="sensors" class="text-3xl text-syn-color-primary-600"></syn-icon>
-        <h2 class="text-2xl font-black text-syn-typography-color-text uppercase tracking-tight">Lidar Configuration</h2>
+<div class="flex flex-col gap-8 animate-in fade-in duration-500">
+  
+  <!-- Toolbox Header -->
+  <div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-5">
+    <div class="flex items-center justify-between mb-1">
+      <div class="flex items-center gap-2">
+        <syn-icon name="handyman" class="text-2xl text-syn-color-primary-600"></syn-icon>
+        <h2 class="text-xl font-black text-syn-typography-color-text uppercase tracking-tight">System Toolbox</h2>
       </div>
-      <div class="flex gap-3">
-        <syn-button variant="outline" size="small" (click)="onReloadConfig()">
-          <syn-icon slot="prefix" name="refresh"></syn-icon>
-          Reload Network
-        </syn-button>
-        <syn-button variant="filled" size="small" (click)="onAddLidar()">
-          <syn-icon slot="prefix" name="add"></syn-icon>
-          Add Lidar
-        </syn-button>
+      <syn-button variant="outline" size="small" (click)="onReloadConfig()">
+        <syn-icon slot="prefix" name="refresh"></syn-icon>
+        Reload Network
+      </syn-button>
+    </div>
+    <p class="text-xs text-syn-color-neutral-500 mb-4">Add new components to your processing pipeline and configure the system network.</p>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div draggable="true" (dragstart)="onDragStart($event, 'lidar')" class="flex items-center gap-3 p-3 rounded-xl border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 cursor-pointer transition-all group" (click)="onAddLidar()">
+        <div class="bg-syn-color-primary-100 p-2 rounded-lg text-syn-color-primary-600 group-hover:bg-syn-color-primary-600 group-hover:text-white transition-colors">
+          <syn-icon name="sensors" class="text-xl"></syn-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-syn-typography-color-text flex items-center gap-1">
+            Sensor Node
+            <syn-icon name="add_circle" class="text-syn-color-primary-500 opacity-0 group-hover:opacity-100 transition-opacity text-sm"></syn-icon>
+          </h3>
+          <p class="text-[10px] text-syn-color-neutral-500">Add a real or simulated Lidar</p>
+        </div>
+      </div>
+
+      <div draggable="true" (dragstart)="onDragStart($event, 'fusion')" class="flex items-center gap-3 p-3 rounded-xl border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 cursor-pointer transition-all group" (click)="onAddFusion()">
+        <div class="bg-syn-color-primary-100 p-2 rounded-lg text-syn-color-primary-600 group-hover:bg-syn-color-primary-600 group-hover:text-white transition-colors">
+          <syn-icon name="hub" class="text-xl"></syn-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-syn-typography-color-text flex items-center gap-1">
+            Fusion Node
+            <syn-icon name="add_circle" class="text-syn-color-primary-500 opacity-0 group-hover:opacity-100 transition-opacity text-sm"></syn-icon>
+          </h3>
+          <p class="text-[10px] text-syn-color-neutral-500">Merge clouds into one topic</p>
+        </div>
+      </div>
+
+      <!-- Placeholder for future functionality -->
+      <div class="flex items-center gap-3 p-3 rounded-xl border border-dashed border-syn-color-neutral-200 opacity-60">
+        <div class="bg-syn-color-neutral-100 p-2 rounded-lg text-syn-color-neutral-500">
+          <syn-icon name="extension" class="text-xl"></syn-icon>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-syn-color-neutral-500">Pipeline Node</h3>
+          <p class="text-[10px] text-syn-color-neutral-400">Processing components (soon...)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="relative rounded-2xl transition-all duration-300 h-full w-full min-h-[300px]" 
+       (dragover)="onDragOver($event)">
+       
+    <!-- Centered Drop Zone Indicator (Intercepts events so no flickering) -->
+    <div *ngIf="isDraggingOver" 
+         class="absolute inset-x-0 inset-y-0 -m-1 z-50 flex items-center justify-center bg-syn-color-neutral-50/70 backdrop-blur-sm rounded-2xl border-4 border-dashed border-syn-color-primary-500 animate-in fade-in zoom-in-95 duration-200"
+         (dragover)="onDragOver($event)" 
+         (dragleave)="onDragLeave($event)" 
+         (drop)="onDrop($event)">
+         
+      <div class="flex flex-col items-center justify-center gap-4 bg-white px-10 py-8 rounded-3xl shadow-2xl pointer-events-none scale-110">
+        <syn-icon name="add_circle" class="text-5xl text-syn-color-primary-600 animate-bounce"></syn-icon>
+        <h3 class="text-lg font-black text-syn-color-primary-800 uppercase tracking-widest">Drop to Add Node</h3>
       </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4">
-      <div *ngFor="let lidar of lidars()" 
-           class="flex items-center justify-between p-4 rounded-xl border border-syn-color-neutral-100 hover:border-syn-color-primary-200 hover:bg-syn-color-primary-50 transition-all group">
-        <div class="flex flex-col gap-1">
-          <div class="flex items-center gap-2">
-            <span class="font-black text-syn-typography-color-text">{{ lidar.id }}</span>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-300"
+         [class.opacity-40]="isDraggingOver">
+      <!-- Lidars -->
+      <div *ngFor="let lidar of lidars()" class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 flex flex-col justify-between hover:border-syn-color-primary-300 hover:shadow-md transition-all group overflow-hidden">
+        <!-- Top Color Bar -->
+        <div class="h-1 w-full" [ngClass]="lidar.mode === 'sim' ? 'bg-syn-color-neutral-400' : 'bg-syn-color-success-500'"></div>
+        
+        <div class="p-6">
+          <div class="flex items-start justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-syn-color-neutral-100 text-syn-color-primary-600 group-hover:bg-syn-color-primary-50 transition-colors">
+                <syn-icon name="sensors" class="text-xl"></syn-icon>
+              </div>
+              <span class="font-black text-syn-typography-color-text text-lg">{{ lidar.name || lidar.id }}</span>
+            </div>
             <syn-badge [variant]="lidar.mode === 'sim' ? 'neutral' : 'success'" pill size="small">
               {{ lidar.mode === 'sim' ? 'Simulation' : 'Hardware' }}
             </syn-badge>
           </div>
-          <span class="text-xs text-syn-color-neutral-500 font-medium">
-            Pipeline: {{ lidar.pipeline_name || 'None' }} • {{ lidar.launch_args }}
-          </span>
+          <div class="space-y-3 mb-2">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-syn-color-neutral-400 uppercase tracking-wider">ID</span>
+              <span class="text-syn-typography-color-text font-medium">{{ lidar.id }}</span>
+            </div>
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-syn-color-neutral-400 uppercase tracking-wider">Pipeline</span>
+              <span class="text-syn-typography-color-text font-medium">{{ lidar.pipeline_name || 'None' }}</span>
+            </div>
+            <div class="flex flex-col text-xs mt-2 p-2 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
+              <span class="font-bold text-syn-color-neutral-400 uppercase tracking-wider mb-1">Args</span>
+              <span class="text-syn-color-neutral-600 font-mono break-all">{{ lidar.launch_args }}</span>
+            </div>
+          </div>
         </div>
-        <div class="flex gap-2">
+        <div class="flex justify-end p-4 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <syn-button variant="outline" size="small" (click)="onEditLidar(lidar)">
-            <syn-icon name="edit"></syn-icon>
+            <syn-icon slot="prefix" name="edit"></syn-icon>
+            Edit
           </syn-button>
           <syn-button variant="outline" color="danger" size="small" (click)="onDeleteLidar(lidar.id)">
-            <syn-icon name="delete"></syn-icon>
+            <syn-icon slot="prefix" name="delete"></syn-icon>
+            Delete
           </syn-button>
         </div>
       </div>
 
-      <div *ngIf="lidars().length === 0 && !isLoading()" 
-           class="flex flex-col items-center justify-center p-12 bg-syn-color-neutral-50 rounded-xl border border-dashed border-syn-color-neutral-200 text-syn-color-neutral-400">
-        <syn-icon name="sensors_off" class="text-5xl mb-4"></syn-icon>
-        <p class="font-bold uppercase tracking-widest text-xs">No sensors registered</p>
+      <!-- Fusions -->
+      <div *ngFor="let fusion of fusions()" class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 flex flex-col justify-between hover:border-syn-color-primary-300 hover:shadow-md transition-all group overflow-hidden">
+        <!-- Top Color Bar -->
+        <div class="h-1 w-full bg-syn-color-primary-500"></div>
+
+        <div class="p-6">
+          <div class="flex items-start justify-between mb-5">
+            <div class="flex items-center gap-3">
+              <div class="p-2 rounded-lg bg-syn-color-neutral-100 text-syn-color-primary-600 group-hover:bg-syn-color-primary-50 transition-colors">
+                <syn-icon name="hub" class="text-xl"></syn-icon>
+              </div>
+              <span class="font-black text-syn-typography-color-text text-lg">{{ fusion.name || fusion.id }}</span>
+            </div>
+            <syn-badge variant="neutral" pill size="small">
+              {{ fusion.topic }}
+            </syn-badge>
+          </div>
+          <div class="space-y-3 mb-2">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-syn-color-neutral-400 uppercase tracking-wider">ID</span>
+              <span class="text-syn-typography-color-text font-medium">{{ fusion.id }}</span>
+            </div>
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-syn-color-neutral-400 uppercase tracking-wider">Sensors</span>
+              <span class="text-syn-typography-color-text font-medium">{{ fusion.sensor_ids && fusion.sensor_ids.length ? fusion.sensor_ids.join(', ') : 'All' }}</span>
+            </div>
+            <div class="flex justify-between items-center text-xs" *ngIf="fusion.pipeline_name">
+              <span class="font-bold text-syn-color-neutral-400 uppercase tracking-wider">Pipeline</span>
+              <span class="text-syn-typography-color-text font-medium">{{ fusion.pipeline_name }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-end p-4 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <syn-button variant="outline" size="small" (click)="onEditFusion(fusion)">
+            <syn-icon slot="prefix" name="edit"></syn-icon>
+            Edit
+          </syn-button>
+          <syn-button variant="outline" color="danger" size="small" (click)="onDeleteFusion(fusion.id)">
+            <syn-icon slot="prefix" name="delete"></syn-icon>
+            Delete
+          </syn-button>
+        </div>
       </div>
+
+      <!-- Empty State if no nodes at all -->
+      <div *ngIf="lidars().length === 0 && fusions().length === 0 && !isLoading()" 
+           class="col-span-full flex flex-col items-center justify-center p-16 bg-syn-color-neutral-50/50 rounded-2xl border-2 border-dashed border-syn-color-neutral-200 text-syn-color-neutral-400">
+        <div class="p-4 bg-white rounded-full shadow-sm mb-4 border border-syn-color-neutral-100">
+          <syn-icon name="widgets" class="text-4xl text-syn-color-primary-300"></syn-icon>
+        </div>
+        <p class="font-black uppercase tracking-widest text-sm text-syn-typography-color-text">No active nodes in network</p>
+        <p class="text-sm mt-2 font-medium">Click on a component in the toolbox to get started.</p>
+      </div>
+
     </div>
   </div>
 </div>

@@ -4,9 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { NavigationService } from '../../core/services/navigation.service';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarApiService } from '../../core/services/api/lidar-api.service';
+import { FusionApiService } from '../../core/services/api/fusion-api.service';
 import { LidarConfig } from '../../core/models/lidar.model';
+import { FusionConfig } from '../../core/services/api/fusion-api.service';
 import { LidarEditorComponent } from './components/lidar-editor/lidar-editor';
+import { FusionEditorComponent } from './components/fusion-editor/fusion-editor';
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
+import { FusionStoreService } from '../../core/services/stores/fusion-store.service';
 import { DialogService } from '../../core/services';
 
 @Component({
@@ -19,16 +23,55 @@ import { DialogService } from '../../core/services';
 export class SettingsComponent implements OnInit {
   private navService = inject(NavigationService);
   private lidarApi = inject(LidarApiService);
+  private fusionApi = inject(FusionApiService);
   private lidarStore = inject(LidarStoreService);
+  protected fusionStore = inject(FusionStoreService);
   private dialogService = inject(DialogService);
 
   protected lidars = this.lidarStore.lidars;
   protected pipelines = this.lidarStore.availablePipelines;
   protected isLoading = this.lidarStore.isLoading;
+  protected fusions = this.fusionStore.fusions;
 
   // Form State
   protected editMode = this.lidarStore.editMode;
   protected selectedLidar = this.lidarStore.selectedLidar;
+
+  // Drag and drop state
+  protected isDraggingOver = false;
+
+  onDragStart(event: DragEvent, type: 'lidar' | 'fusion') {
+    if (event.dataTransfer) {
+      event.dataTransfer.setData('componentType', type);
+      event.dataTransfer.effectAllowed = 'copy';
+    }
+  }
+
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+    this.isDraggingOver = true;
+  }
+
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    this.isDraggingOver = false;
+  }
+
+  onDrop(event: DragEvent) {
+    event.preventDefault();
+    this.isDraggingOver = false;
+    if (event.dataTransfer) {
+      const type = event.dataTransfer.getData('componentType');
+      if (type === 'lidar') {
+        this.onAddLidar();
+      } else if (type === 'fusion') {
+        this.onAddFusion();
+      }
+    }
+  }
 
   async ngOnInit() {
     this.navService.setHeadline('Settings');
@@ -38,7 +81,7 @@ export class SettingsComponent implements OnInit {
   async loadConfig() {
     this.lidarStore.set('isLoading', true);
     try {
-      await this.lidarApi.getLidars();
+      await Promise.all([this.lidarApi.getLidars(), this.fusionApi.getFusions()]);
     } catch (error) {
       console.error('Failed to load lidars', error);
     } finally {
@@ -51,7 +94,6 @@ export class SettingsComponent implements OnInit {
     this.lidarStore.set('editMode', false);
     this.dialogService.open(LidarEditorComponent, {
       label: 'Add Lidar',
-      noHeader: true,
     });
   }
 
@@ -60,18 +102,44 @@ export class SettingsComponent implements OnInit {
     this.lidarStore.set('editMode', true);
     this.dialogService.open(LidarEditorComponent, {
       label: 'Edit Lidar',
-
-      noHeader: true,
     });
   }
 
-  async onDeleteLidar(id: string) {
+  async onDeleteLidar(id?: string) {
+    if (!id) return;
     if (!confirm(`Are you sure you want to delete ${id}?`)) return;
     try {
       await this.lidarApi.deleteLidar(id);
       await this.onReloadConfig();
     } catch (error) {
       console.error('Failed to delete lidar', error);
+    }
+  }
+
+  onAddFusion() {
+    this.fusionStore.set('selectedFusion', {});
+    this.fusionStore.set('editMode', false);
+    this.dialogService.open(FusionEditorComponent, {
+      label: 'Add Fusion',
+    });
+  }
+
+  onEditFusion(fusion: FusionConfig) {
+    this.fusionStore.set('selectedFusion', fusion);
+    this.fusionStore.set('editMode', true);
+    this.dialogService.open(FusionEditorComponent, {
+      label: 'Edit Fusion',
+    });
+  }
+
+  async onDeleteFusion(id?: string) {
+    if (!id) return;
+    if (!confirm(`Are you sure you want to delete fusion ${id}?`)) return;
+    try {
+      await this.fusionApi.deleteFusion(id);
+      await this.onReloadConfig(); // Reload backend fusions
+    } catch (error) {
+      console.error('Failed to delete fusion', error);
     }
   }
 

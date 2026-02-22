@@ -1,35 +1,24 @@
-<div class="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
-  <div class="bg-white rounded-3xl shadow-2xl border border-syn-color-neutral-200 w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-300">
-    <div class="p-8 border-b border-syn-color-neutral-100 flex items-center justify-between bg-syn-color-neutral-50">
-      <h3 class="text-xl font-black text-syn-typography-color-text uppercase tracking-tight">
-        {{ lidarStore.selectedLidar().id ? 'Edit' : 'Register' }} Lidar
-      </h3>
-      <syn-button variant="outline" size="small" (click)="onCancel()" circle>
-        <syn-icon name="close"></syn-icon>
-      </syn-button>
-    </div>
-
-    <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col">
-      <div class="p-6 pt-4 pb-8 max-h-[70vh] overflow-y-auto">
-        <div class="flex flex-col gap-4">
+<form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col">
+  <div class="flex flex-col gap-5">
           
           <!-- Identity -->
           <div class="grid grid-cols-2 gap-4">
-            <syn-input label="Sensor ID" 
-                       placeholder="lidar_front" 
-                       formControlName="id"
+            <syn-input label="Sensor Name" 
+                       placeholder="Front Lidar" 
+                       formControlName="name"
                        ngDefaultControl
                        size="small"
-                       [helpText]="form.get('id')?.invalid && form.get('id')?.touched ? 'ID is required' : ''">
+                       [helpText]="form.get('name')?.invalid && form.get('name')?.touched ? 'Name is required' : ''">
             </syn-input>
 
-            <syn-select label="Mode" 
-                        size="small"
-                        formControlName="mode"
-                        ngDefaultControl>
-              <syn-option size="small" value="real">Hardware (Real)</syn-option>
-              <syn-option size="small" value="sim">Simulation (PCD)</syn-option>
-            </syn-select>
+            <div class="flex flex-col justify-center">
+              <span class="text-xs font-bold text-syn-typography-color-text mb-2">Operation Mode</span>
+              <syn-switch size="small"
+                          [checked]="form.get('mode')?.value === 'sim'"
+                          (syn-change)="form.get('mode')?.setValue($any($event.target).checked ? 'sim' : 'real')">
+                {{ form.get('mode')?.value === 'sim' ? 'Simulation (PCD)' : 'Hardware (Real)' }}
+              </syn-switch>
+            </div>
           </div>
 
           <!-- Configuration -->
@@ -64,7 +53,8 @@
 
             <!-- Pipeline -->
             <syn-select label="Processing Pipeline" 
-                        formControlName="pipeline_name"
+                        [value]="form.get('pipeline_name')?.value"
+                        (syn-change)="form.get('pipeline_name')?.setValue($any($event.target).value)"
                         size="small"
                         ngDefaultControl>
               <syn-option value="">none</syn-option>
@@ -95,19 +85,16 @@
               <syn-input size="small" label="Yaw (°)" type="number" formControlName="yaw" ngDefaultControl></syn-input>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div class="p-5 border-t border-syn-color-neutral-100 flex justify-end gap-3 bg-syn-color-neutral-50">
-        <syn-button variant="outline" size="small" type="button" (click)="onCancel()">
-          <syn-icon name="close"></syn-icon>
-          Cancel
-        </syn-button>
-        <syn-button variant="filled" size="small" type="submit" [disabled]="form.invalid">
-          <syn-icon name="save"></syn-icon>
-          Save Configuration
-        </syn-button>
-      </div>
-    </form>
   </div>
-</div>
+
+  <div class="pt-8 flex justify-end gap-3">
+    <syn-button variant="outline" size="small" type="button" (click)="onCancel()">
+      <syn-icon name="close"></syn-icon>
+      Cancel
+    </syn-button>
+    <syn-button variant="filled" size="small" type="submit" [disabled]="form.invalid">
+      <syn-icon name="save"></syn-icon>
+      Save Configuration
+    </syn-button>
+  </div>
+</form>

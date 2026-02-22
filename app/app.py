@@ -42,8 +42,6 @@ async def startup_event():
 
     lidar_service.load_config()
 
-    # --- Fusion Examples (uncomment to use) ---
-    from app.services.lidar.fusion import FusionService
     #
     # # Option 1: Fuse ALL registered sensors into a single "fused_points" topic
     # fusion = FusionService(lidar_service)

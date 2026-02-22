@@ -1,0 +1,63 @@
+<form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col">
+  <div class="flex flex-col gap-6">
+          
+          <div class="grid grid-cols-2 gap-4">
+            <syn-input label="Fusion Name" 
+                       placeholder="Front Fusion" 
+                       formControlName="name"
+                       ngDefaultControl
+                       size="small"
+                       [helpText]="form.get('name')?.invalid && form.get('name')?.touched ? 'Name is required' : ''">
+            </syn-input>
+
+            <syn-input label="WebSocket Topic"  
+                        placeholder="fused_points"
+                        size="small"
+                        formControlName="topic"
+                        ngDefaultControl>
+            </syn-input>
+          </div>
+
+          <syn-select label="Processing Pipeline (Optional)" 
+                      [value]="form.get('pipeline_name')?.value"
+                      (syn-change)="form.get('pipeline_name')?.setValue($any($event.target).value)"
+                      size="small"
+                      placeholder="Select a pipeline..."
+                      ngDefaultControl>
+            <syn-option value="">none</syn-option>
+            <syn-option *ngFor="let p of pipelines()" [value]="p">{{ p }}</syn-option>
+          </syn-select>
+
+          <div class="flex flex-col gap-2">
+            <span class="text-sm font-medium text-syn-typography-color-text">Included Sensors</span>
+            <div class="grid grid-cols-2 gap-2">
+              <label *ngFor="let lidar of lidars()" 
+                     class="flex items-center gap-3 p-3 rounded-lg border border-syn-color-neutral-200 hover:bg-syn-color-neutral-50 cursor-pointer transition-colors"
+                     [class.bg-syn-color-primary-50]="lidar.id && selectedSensors.includes(lidar.id)"
+                     [class.border-syn-color-primary-300]="lidar.id && selectedSensors.includes(lidar.id)">
+                <syn-checkbox [checked]="!!lidar.id && selectedSensors.includes(lidar.id)" (syn-change)="lidar.id && toggleSensor(lidar.id)"></syn-checkbox>
+                <span class="text-sm font-medium">{{ lidar.name || lidar.id }}</span>
+              </label>
+              
+              <div *ngIf="lidars().length === 0" class="col-span-2 text-sm text-syn-color-neutral-500 italic">
+                No lidars registered. Please add lidars first.
+              </div>
+            </div>
+            <div *ngIf="form.get('sensor_ids')?.invalid && form.get('sensor_ids')?.touched" class="text-xs text-syn-color-danger-500 mt-1">
+              At least one sensor is required.
+            </div>
+          </div>
+
+        </div>
+
+  <div class="pt-8 flex justify-end gap-3">
+    <syn-button variant="outline" size="small" type="button" (click)="onCancel()">
+      <syn-icon name="close"></syn-icon>
+      Cancel
+    </syn-button>
+    <syn-button variant="filled" size="small" type="submit" [disabled]="form.invalid">
+      <syn-icon name="save"></syn-icon>
+      Save Fusion Config
+    </syn-button>
+  </div>
+</form>

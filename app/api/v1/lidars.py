@@ -6,12 +6,15 @@ from typing import Optional
 from pydantic import BaseModel
 from app.services.lidar.instance import lidar_service
 from app.services.websocket.manager import manager
-from app.services.lidar.pcd_utils import unpack_lidr_binary, save_to_pcd
+from app.services.lidar.io.pcd import unpack_lidr_binary, save_to_pcd
+from app.repositories import LidarRepository
 
 router = APIRouter()
+lidar_repo = LidarRepository()
 
 class LidarConfig(BaseModel):
-    id: str
+    id: Optional[str] = None
+    name: str
     launch_args: str
     pipeline_name: Optional[str] = None
     mode: str = "real"
@@ -30,6 +33,7 @@ async def list_lidars():
         "lidars": [
             {
                 "id": s.id,
+                "name": getattr(s, 'name', s.id),
                 "launch_args": s.launch_args,
                 "pipeline_name": s.pipeline_name,
                 "mode": s.mode,
@@ -42,21 +46,9 @@ async def list_lidars():
 
 @router.post("/lidars")
 async def create_lidar(config: LidarConfig):
-    """Adds or updates a lidar configuration and saves to JSON"""
-    # Remove if exists to update
-    lidar_service.sensors = [s for s in lidar_service.sensors if s.id != config.id]
-    
-    lidar_service.generate_lidar(
-        sensor_id=config.id,
-        launch_args=config.launch_args,
-        pipeline_name=config.pipeline_name,
-        mode=config.mode,
-        pcd_path=config.pcd_path,
-        x=config.x, y=config.y, z=config.z,
-        roll=config.roll, pitch=config.pitch, yaw=config.yaw
-    )
-    lidar_service.save_config()
-    return {"status": "success", "message": f"Lidar {config.id} saved. Reload to apply."}
+    """Adds or updates a lidar configuration and saves to DB"""
+    saved_id = lidar_repo.upsert(config.dict())
+    return {"status": "success", "message": f"Lidar saved.", "id": saved_id}
 
 @router.post("/lidars/reload")
 async def reload_lidars():
@@ -65,16 +57,10 @@ async def reload_lidars():
     return {"status": "success", "message": "Configuration reloaded."}
 
 @router.delete("/lidars/{lidar_id}")
-async def delete_lidar(lidar_id: str):
-    """Removes a lidar configuration and saves to JSON"""
-    initial_count = len(lidar_service.sensors)
-    lidar_service.sensors = [s for s in lidar_service.sensors if s.id != lidar_id]
-    
-    if len(lidar_service.sensors) < initial_count:
-        lidar_service.save_config()
-        return {"status": "success", "message": f"Lidar {lidar_id} removed. Reload to apply."}
-    
-    return {"status": "error", "message": f"Lidar {lidar_id} not found."}
+async def remove_lidar(lidar_id: str):
+    """Removes a lidar configuration and saves to DB"""
+    lidar_repo.delete(lidar_id)
+    return {"status": "success", "message": f"Lidar {lidar_id} removed. Reload to apply."}
 
 @router.get("/lidars/capture")
 async def capture_pcd(topic: str, background_tasks: BackgroundTasks):

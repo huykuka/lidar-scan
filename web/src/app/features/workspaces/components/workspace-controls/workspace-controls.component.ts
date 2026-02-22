@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { WorkspaceStoreService } from '../../../../core/services/stores/workspace-store.service';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
@@ -86,7 +86,7 @@ import { TopicApiService } from '../../../../core/services/api/topic-api.service
             </div>
             <syn-range
               [min]="0.01"
-              [max]="1"
+              [max]="0.1"
               [step]="0.01"
               [value]="pointSize().toString()"
               (synInputEvent)="onPointSizeChange($event)"
@@ -133,8 +133,11 @@ export class WorkspaceControlsComponent {
   protected pointSize = this.store.pointSize;
   protected pointColor = this.store.pointColor;
 
+  @Output() actionTaken = new EventEmitter<void>();
+
   protected onTopicChange(event: any) {
     this.store.set('currentTopic', event.target.value);
+    this.actionTaken.emit();
   }
 
   protected onCapturePcd() {
@@ -142,6 +145,7 @@ export class WorkspaceControlsComponent {
     if (topic) {
       this.topicApi.downloadPcd(topic);
     }
+    this.actionTaken.emit();
   }
 
   protected onPointSizeChange(event: any) {

@@ -42,7 +42,8 @@ export class LidarEditorComponent implements OnInit {
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
 
     this.form = this.fb.group({
-      id: [{ value: lidar?.id || '', disabled: isEdit }, [Validators.required]],
+      id: [{ value: lidar?.id || '', disabled: isEdit }],
+      name: [lidar?.name || '', [Validators.required]],
       mode: [lidar?.mode || 'real'],
       pipeline_name: [lidar?.pipeline_name === 'none' ? '' : lidar?.pipeline_name || ''],
       pcd_path: [lidar?.pcd_path || ''],
@@ -105,11 +106,12 @@ export class LidarEditorComponent implements OnInit {
     let launch_args = '';
 
     if (val.mode === 'real') {
-      launch_args = `./launch/sick_multilscan.launch hostname:=${val.hostname} udp_receiver_ip:=${val.udp_receiver_ip} udp_port:=${val.udp_port}`;
+      launch_args = `./launch/sick_multiscan.launch hostname:=${val.hostname} udp_receiver_ip:=${val.udp_receiver_ip} udp_port:=${val.udp_port}`;
     }
 
     const payload = {
-      id: val.id,
+      id: val.id || undefined,
+      name: val.name,
       mode: val.mode,
       pipeline_name: val.pipeline_name || null,
       launch_args: launch_args,

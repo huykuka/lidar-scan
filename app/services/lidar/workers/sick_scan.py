@@ -2,13 +2,13 @@ import ctypes
 import multiprocessing as mp
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
-from sick_scan_api import SickScanApiLoadLibrary, SickScanApiCreate, SickScanApiInitByLaunchfile, \
-    SickScanPointCloudMsgCallback, SickScanApiRegisterCartesianPointCloudMsg, \
-    SickScanApiDeregisterCartesianPointCloudMsg, SickScanApiClose, SickScanApiRelease, SickScanApiUnloadLibrary, \
-    SickScanApiSetVerboseLevel
+
+# Lazy-import inside the worker function so importing the backend doesn't
+# require `sick_scan_api` unless the real sensor mode is used.
 
 
 def parse_sick_scan_pointcloud(msg_contents):
@@ -94,10 +94,42 @@ def parse_sick_scan_pointcloud(msg_contents):
     return points_reshaped, topic
 
 
-def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_queue: mp.Queue, stop_event: mp.Event):
+def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_queue: Any, stop_event: Any):
     """
     Worker process that owns its own instance of sick_scan_xd library AND its own pipeline.
     """
+
+    try:
+        from sick_scan_api import (
+            SickScanApiLoadLibrary,
+            SickScanApiCreate,
+            SickScanApiInitByLaunchfile,
+            SickScanPointCloudMsgCallback,
+            SickScanApiRegisterCartesianPointCloudMsg,
+            SickScanApiDeregisterCartesianPointCloudMsg,
+            SickScanApiClose,
+            SickScanApiRelease,
+            SickScanApiUnloadLibrary,
+            SickScanApiSetVerboseLevel,
+        )
+    except ModuleNotFoundError as e:
+        raise RuntimeError(
+            "Real lidar worker requires 'sick_scan_api' to be installed/available."
+        ) from e
+
+    # Hint for some linters/LS: names come from the import above.
+    _ = (
+        SickScanApiLoadLibrary,
+        SickScanApiCreate,
+        SickScanApiInitByLaunchfile,
+        SickScanPointCloudMsgCallback,
+        SickScanApiRegisterCartesianPointCloudMsg,
+        SickScanApiDeregisterCartesianPointCloudMsg,
+        SickScanApiClose,
+        SickScanApiRelease,
+        SickScanApiUnloadLibrary,
+        SickScanApiSetVerboseLevel,
+    )
 
     requiredTopic = "cloud_all_fields_fullframe"
     # 1. Load Library
@@ -115,6 +147,28 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
 
     api_handle = SickScanApiCreate(sick_scan_library)
     SickScanApiSetVerboseLevel(sick_scan_library, api_handle,3)
+
+    # `launch_args` is typically: "<launchfile> key:=value ...".
+    # The sick_scan_api parser expects the launchfile to be readable from the
+    # current working directory if a relative path is used.
+    # Make the launchfile absolute when it looks like a file path.
+    try:
+        parts = (launch_args or "").strip().split()
+        if parts:
+            launch_file = parts[0]
+            if (launch_file.endswith(".launch") or launch_file.endswith(".launch.py")) and not os.path.isabs(launch_file):
+                repo_root = Path(__file__).resolve().parents[4]
+                candidate = (repo_root / launch_file).resolve()
+                if not candidate.exists() and launch_file.startswith("./"):
+                    candidate = (repo_root / launch_file[2:]).resolve()
+                if candidate.exists():
+                    parts[0] = str(candidate)
+                    launch_args = " ".join(parts)
+                else:
+                    print(f"[{lidar_id}] Launch file not found: {launch_file} (cwd={os.getcwd()})")
+    except Exception:
+        pass
+
     SickScanApiInitByLaunchfile(sick_scan_library, api_handle, launch_args)
 
     def _py_pointcloud_cb(handle, msg):

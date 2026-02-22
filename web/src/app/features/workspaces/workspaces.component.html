@@ -1,7 +1,11 @@
 <div class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500 relative">
-  <!-- Local Action Bar (Absolute positioned to align with title area) -->
+  <!-- Local Action Bar (Absolute positioned to align with title area on ALL screens) -->
   <div class="absolute -top-11 right-2 z-20">
-    <syn-button variant="text" size="small" (click)="toggleCockpit()" class="text-syn-color-primary-600">
+    <syn-button variant="text" size="small" (click)="toggleCockpit()" class="text-syn-color-primary-600 lg:hidden">
+      <syn-icon slot="prefix" name="tune"></syn-icon>
+      Controls
+    </syn-button>
+    <syn-button variant="text" size="small" (click)="toggleCockpit()" class="text-syn-color-primary-600 hidden lg:flex">
       <syn-icon slot="prefix" [name]="showCockpit() ? 'visibility_off' : 'visibility'"></syn-icon>
       {{ showCockpit() ? 'Hide Controls' : 'Show Controls' }}
     </syn-button>
@@ -28,6 +32,21 @@
     ></app-workspace-view-controls>
   </div>
 
-  <!-- Control Cockpit (Right Sidebar) -->
-  <app-workspace-controls *ngIf="showCockpit()" class="animate-in slide-in-from-right-4 duration-300"></app-workspace-controls>
+  <!-- Control Cockpit (Desktop View) -->
+  <div class="hidden lg:block overflow-hidden transition-all duration-500 ease-in-out shrink-0"
+       [ngClass]="showCockpit() ? 'w-[360px] opacity-100' : 'w-0 opacity-0 -ml-4'">
+    <app-workspace-controls class="block w-[360px] h-full transition-opacity duration-300"
+                            [class.opacity-0]="!showCockpit()">
+    </app-workspace-controls>
+  </div>
+
+  <!-- Control Cockpit (Mobile View using Drawer) -->
+  <syn-drawer 
+    label="Workspace Controls" 
+    [open]="showCockpit()" 
+    class="lg:hidden" 
+    placement="end"
+    (syn-hide)="closeCockpit()">
+    <app-workspace-controls class="block w-full h-full bg-white"></app-workspace-controls>
+  </syn-drawer>
 </div>

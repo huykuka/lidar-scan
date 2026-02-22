@@ -8,7 +8,8 @@ export interface LidarPose {
 }
 
 export interface LidarConfig {
-  id: string;
+  id?: string;
+  name: string;
   launch_args: string;
   pipeline_name?: string;
   mode: 'real' | 'sim';

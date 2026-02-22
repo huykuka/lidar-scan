@@ -19,7 +19,14 @@ async def websocket_endpoint(websocket: WebSocket, topic: str):
     await manager.connect(websocket, topic)
     try:
         while True:
-            # Keep connection alive and wait for client messages if any
-            await websocket.receive_text()
+            # Keep connection open; client may not send messages.
+            msg = await websocket.receive()
+            if msg.get("type") == "websocket.disconnect":
+                break
     except WebSocketDisconnect:
+        pass
+    except RuntimeError:
+        # Starlette raises if receive() is called after disconnect.
+        pass
+    finally:
         manager.disconnect(websocket, topic)

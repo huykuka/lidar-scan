@@ -83,8 +83,10 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     const topics = await this.topicApi.getTopics();
     this.workspaceStore.set('topics', topics);
 
-    // Initial topic selection if none exists
-    if (topics.length > 0 && !this.workspaceStore.getValue('currentTopic')) {
+    // Pick a valid topic.
+    // The persisted `currentTopic` can become stale if backend topic naming changes.
+    const current = this.workspaceStore.getValue('currentTopic');
+    if (topics.length > 0 && (!current || !topics.includes(current))) {
       this.workspaceStore.set('currentTopic', topics[0]);
     }
   }
@@ -171,5 +173,9 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
 
   protected toggleCockpit() {
     this.workspaceStore.set('showCockpit', !this.showCockpit());
+  }
+
+  protected closeCockpit() {
+    this.workspaceStore.set('showCockpit', false);
   }
 }

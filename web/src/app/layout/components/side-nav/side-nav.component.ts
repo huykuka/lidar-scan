@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Output, input, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { SynergyComponentsModule, SynSideNavComponent } from '@synergy-design-system/angular';
 import { NavItem, NAVIGATION_CONFIG } from '../../../core/models/navigation.model';
 
@@ -23,4 +24,13 @@ export class SideNavComponent {
 
   protected readonly mainNavItems = NAVIGATION_CONFIG.filter((item) => !item.footer);
   protected readonly footerNavItems = NAVIGATION_CONFIG.filter((item) => item.footer);
+
+  constructor(private router: Router) {
+    this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {
+      // Auto-close on mobile/tablet (less than 1024px)
+      if (window.innerWidth < 1024 && this.synSideNav?.nativeElement?.hide) {
+        this.synSideNav.nativeElement.hide();
+      }
+    });
+  }
 }
