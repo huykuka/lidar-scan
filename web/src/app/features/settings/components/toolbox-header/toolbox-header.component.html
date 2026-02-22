@@ -1,0 +1,72 @@
+<div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-3">
+  <div class="flex items-center justify-between gap-3 mb-2">
+    <div class="flex items-center gap-2 min-w-0">
+      <syn-icon name="handyman" class="text-xl text-syn-color-primary-600"></syn-icon>
+      <h2 class="text-sm font-black text-syn-typography-color-text uppercase tracking-widest truncate">Toolbox</h2>
+      <span class="text-[11px] text-syn-color-neutral-500 truncate">Drag or click to add</span>
+    </div>
+    <div class="flex gap-2">
+      <syn-button variant="outline" size="small" (click)="exportConfig.emit()" [disabled]="isExporting()">
+        <syn-icon slot="prefix" name="download"></syn-icon>{{ isExporting() ? 'Exporting...' : 'Export' }}
+      </syn-button>
+      <syn-button variant="outline" size="small" (click)="importConfig.emit()" [disabled]="isImporting()">
+        <syn-icon slot="prefix" name="upload"></syn-icon>{{ isImporting() ? 'Importing...' : 'Import' }}
+      </syn-button>
+      <syn-button variant="outline" size="small" (click)="reloadConfig.emit()">
+        <syn-icon slot="prefix" name="refresh"></syn-icon>Reload
+      </syn-button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+    <div
+      draggable="true"
+      (dragstart)="onDragStart($event, 'lidar')"
+      (click)="addLidar.emit()"
+      class="flex items-center gap-2 p-2 rounded-lg border border-syn-color-neutral-200 hover:border-syn-color-success-400 hover:bg-syn-color-success-50 cursor-pointer transition-all group"
+      title="Add a real or simulated lidar">
+      <div class="bg-syn-color-success-100 p-1.5 rounded-md text-syn-color-success-700 group-hover:bg-syn-color-success-600 group-hover:text-white transition-colors">
+        <syn-icon name="sensors" class="text-base"></syn-icon>
+      </div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-black text-syn-typography-color-text truncate">Sensor</span>
+          <syn-badge variant="success" pill size="small">Node</syn-badge>
+        </div>
+        <div class="text-[10px] text-syn-color-neutral-500 truncate">Hardware / Sim</div>
+      </div>
+    </div>
+
+    <div
+      draggable="true"
+      (dragstart)="onDragStart($event, 'fusion')"
+      (click)="addFusion.emit()"
+      class="flex items-center gap-2 p-2 rounded-lg border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 cursor-pointer transition-all group"
+      title="Merge multiple sensors into one topic">
+      <div class="bg-syn-color-primary-100 p-1.5 rounded-md text-syn-color-primary-700 group-hover:bg-syn-color-primary-600 group-hover:text-white transition-colors">
+        <syn-icon name="hub" class="text-base"></syn-icon>
+      </div>
+      <div class="min-w-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-black text-syn-typography-color-text truncate">Fusion</span>
+          <syn-badge variant="primary" pill size="small">Node</syn-badge>
+        </div>
+        <div class="text-[10px] text-syn-color-neutral-500 truncate">Topic output</div>
+      </div>
+    </div>
+
+    <!-- Placeholder for future functionality -->
+    <div class="flex items-center gap-2 p-2 rounded-lg border border-dashed border-syn-color-neutral-200 opacity-60" title="More tools coming soon">
+      <div class="bg-syn-color-neutral-100 p-1.5 rounded-md text-syn-color-neutral-500">
+        <syn-icon name="extension" class="text-base"></syn-icon>
+      </div>
+      <div class="min-w-0">
+        <span class="text-xs font-black text-syn-color-neutral-500 truncate">More</span>
+        <div class="text-[10px] text-syn-color-neutral-400 truncate">REST / MQTT / Files</div>
+      </div>
+    </div>
+
+    <!-- Placeholder for spacing on md+ (keeps grid tidy) -->
+    <div class="hidden md:block"></div>
+  </div>
+</div>

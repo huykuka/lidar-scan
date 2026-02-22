@@ -6,10 +6,16 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarApiService } from '../../core/services/api/lidar-api.service';
 import { FusionApiService } from '../../core/services/api/fusion-api.service';
 import { NodesApiService, NodesStatusResponse } from '../../core/services/api/nodes-api.service';
+import { ConfigApiService } from '../../core/services/api/config-api.service';
 import { LidarConfig } from '../../core/models/lidar.model';
 import { FusionConfig } from '../../core/models/fusion.model';
+import { ConfigExport, ConfigValidationResponse } from '../../core/models/config.model';
 import { LidarEditorComponent } from './components/lidar-editor/lidar-editor';
 import { FusionEditorComponent } from './components/fusion-editor/fusion-editor';
+import { ToolboxHeaderComponent } from './components/toolbox-header/toolbox-header.component';
+import { LidarCardComponent } from './components/lidar-card/lidar-card.component';
+import { FusionCardComponent } from './components/fusion-card/fusion-card.component';
+import { ConfigImportDialogComponent } from './components/config-import-dialog/config-import-dialog.component';
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
 import { FusionStoreService } from '../../core/services/stores/fusion-store.service';
 import { DialogService } from '../../core/services';
@@ -20,13 +26,22 @@ import { ToastService } from '../../core/services/toast.service';
   standalone: true,
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
-  imports: [CommonModule, FormsModule, SynergyComponentsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    SynergyComponentsModule,
+    ToolboxHeaderComponent,
+    LidarCardComponent,
+    FusionCardComponent,
+    ConfigImportDialogComponent,
+  ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
   private navService = inject(NavigationService);
   private lidarApi = inject(LidarApiService);
   private fusionApi = inject(FusionApiService);
   private nodesApi = inject(NodesApiService);
+  private configApi = inject(ConfigApiService);
   private lidarStore = inject(LidarStoreService);
   protected fusionStore = inject(FusionStoreService);
   private dialogService = inject(DialogService);
@@ -44,6 +59,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
   // Loading state for individual nodes
   protected lidarLoadingStates = signal<Record<string, boolean>>({});
   protected fusionLoadingStates = signal<Record<string, boolean>>({});
+
+  // Import/Export state
+  protected isExporting = signal(false);
+  protected isImporting = signal(false);
+  protected showValidationDialog = signal(false);
+  protected validationResult = signal<ConfigValidationResponse | null>(null);
+  protected pendingImportConfig = signal<ConfigExport | null>(null);
+  protected importMergeMode = signal(false);
 
   // Form State
   protected editMode = this.lidarStore.editMode;
@@ -278,6 +301,96 @@ export class SettingsComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('Failed to reload config', error);
       this.toast.danger('Failed to reload backend configuration.');
+    }
+  }
+
+  async onExportConfig() {
+    this.isExporting.set(true);
+    try {
+      const config = await this.configApi.exportConfig();
+      
+      // Create blob and download
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `lidar-config-${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      
+      this.toast.success('Configuration exported successfully.');
+    } catch (error) {
+      console.error('Failed to export config', error);
+      this.toast.danger('Failed to export configuration.');
+    } finally {
+      this.isExporting.set(false);
+    }
+  }
+
+  onImportConfigClick() {
+    // Trigger file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (event: any) => {
+      const file = event.target.files?.[0];
+      if (file) {
+        this.readAndValidateConfigFile(file);
+      }
+    };
+    input.click();
+  }
+
+  private async readAndValidateConfigFile(file: File) {
+    this.isImporting.set(true);
+    try {
+      const text = await file.text();
+      const config = JSON.parse(text) as ConfigExport;
+      
+      // Validate the config
+      const validation = await this.configApi.validateConfig(config);
+      this.validationResult.set(validation);
+      this.pendingImportConfig.set(config);
+      this.showValidationDialog.set(true);
+      
+      if (!validation.valid) {
+        this.toast.warning('Configuration has validation errors. Please review.');
+      }
+    } catch (error) {
+      console.error('Failed to read or validate config file', error);
+      this.toast.danger('Failed to read configuration file. Please check the file format.');
+      this.isImporting.set(false);
+    }
+  }
+
+  onCancelImport() {
+    this.showValidationDialog.set(false);
+    this.validationResult.set(null);
+    this.pendingImportConfig.set(null);
+    this.isImporting.set(false);
+  }
+
+  async onConfirmImport() {
+    const config = this.pendingImportConfig();
+    if (!config) return;
+
+    try {
+      const result = await this.configApi.importConfig(config, this.importMergeMode());
+      
+      this.showValidationDialog.set(false);
+      this.validationResult.set(null);
+      this.pendingImportConfig.set(null);
+      
+      await this.onReloadConfig();
+      
+      this.toast.success(
+        `Configuration imported: ${result.imported.lidars} lidars, ${result.imported.fusions} fusions.`
+      );
+    } catch (error) {
+      console.error('Failed to import config', error);
+      this.toast.danger('Failed to import configuration.');
+    } finally {
+      this.isImporting.set(false);
     }
   }
 }

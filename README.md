@@ -38,7 +38,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 ```
 
 ### 2. Build SICK Scan API
@@ -290,11 +290,11 @@ Data is broadcast as binary frames in the following format:
 
 Each sensor generates two topics (where `{prefix}` is the sensor's `topic_prefix`):
 
-| Topic                   | Description                                      |
-| ----------------------- | ------------------------------------------------ |
-| `{prefix}_raw_points`   | Raw (unprocessed) points for a single sensor     |
+| Topic                       | Description                                                            |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `{prefix}_raw_points`       | Raw (unprocessed) points for a single sensor                           |
 | `{prefix}_processed_points` | Pipeline-processed points for a single sensor (if pipeline configured) |
-| _(fusion topic)_        | Merged cloud from selected sensors (e.g., `fused_points`) |
+| _(fusion topic)_            | Merged cloud from selected sensors (e.g., `fused_points`)              |
 
 **Note:** Topic names are now derived from the sensor's persisted `topic_prefix` field, which is auto-generated from the sensor `name` and guaranteed unique.
 
@@ -304,20 +304,20 @@ Each sensor generates two topics (where `{prefix}` is the sensor's `topic_prefix
 
 All API endpoints are under the `/api/v1` prefix:
 
-| Method | Path                              | Description                                          |
-| ------ | --------------------------------- | ---------------------------------------------------- |
-| `GET`  | `/`                               | Serves the Angular SPA                               |
-| `GET`  | `/api/v1/status`                  | System status (version, running state)               |
-| `GET`  | `/api/v1/nodes/status`            | **Runtime status** of all lidars and fusions (process health, frame age, errors) |
-| `GET`  | `/api/v1/lidars`                  | List all lidars + available pipelines                |
-| `POST` | `/api/v1/lidars`                  | Create or update a lidar configuration               |
-| `DELETE` | `/api/v1/lidars/{id}`           | Delete a lidar configuration                         |
-| `POST` | `/api/v1/lidars/{id}/enabled`    | Enable/disable a lidar (`?enabled=true` or `false`)  |
-| `POST` | `/api/v1/lidars/{id}/topic_prefix` | Update topic prefix (`?topic_prefix=...`)          |
-| `POST` | `/api/v1/lidars/reload`           | Reload config and restart all sensors/fusions        |
-| `GET`  | `/api/v1/fusions`                 | List all fusion configurations                       |
-| `POST` | `/api/v1/fusions`                 | Create or update a fusion configuration              |
-| `DELETE` | `/api/v1/fusions/{id}`          | Delete a fusion configuration                        |
-| `POST` | `/api/v1/fusions/{id}/enabled`   | Enable/disable a fusion (`?enabled=true` or `false`) |
-| `GET`  | `/api/v1/topics`                  | List available WebSocket topics                      |
-| `WS`   | `/api/v1/ws/{topic}`              | WebSocket streaming endpoint                         |
+| Method   | Path                               | Description                                                                      |
+| -------- | ---------------------------------- | -------------------------------------------------------------------------------- |
+| `GET`    | `/`                                | Serves the Angular SPA                                                           |
+| `GET`    | `/api/v1/status`                   | System status (version, running state)                                           |
+| `GET`    | `/api/v1/nodes/status`             | **Runtime status** of all lidars and fusions (process health, frame age, errors) |
+| `GET`    | `/api/v1/lidars`                   | List all lidars + available pipelines                                            |
+| `POST`   | `/api/v1/lidars`                   | Create or update a lidar configuration                                           |
+| `DELETE` | `/api/v1/lidars/{id}`              | Delete a lidar configuration                                                     |
+| `POST`   | `/api/v1/lidars/{id}/enabled`      | Enable/disable a lidar (`?enabled=true` or `false`)                              |
+| `POST`   | `/api/v1/lidars/{id}/topic_prefix` | Update topic prefix (`?topic_prefix=...`)                                        |
+| `POST`   | `/api/v1/lidars/reload`            | Reload config and restart all sensors/fusions                                    |
+| `GET`    | `/api/v1/fusions`                  | List all fusion configurations                                                   |
+| `POST`   | `/api/v1/fusions`                  | Create or update a fusion configuration                                          |
+| `DELETE` | `/api/v1/fusions/{id}`             | Delete a fusion configuration                                                    |
+| `POST`   | `/api/v1/fusions/{id}/enabled`     | Enable/disable a fusion (`?enabled=true` or `false`)                             |
+| `GET`    | `/api/v1/topics`                   | List available WebSocket topics                                                  |
+| `WS`     | `/api/v1/ws/{topic}`               | WebSocket streaming endpoint                                                     |

@@ -20,7 +20,7 @@ async def get_fusions():
 
 @router.post("/fusions")
 async def save_fusion_route(fusion: FusionModel):
-    saved_id = fusion_repo.upsert(fusion.dict())
+    saved_id = fusion_repo.upsert(fusion.model_dump())
     return {"status": "success", "id": saved_id}
 
 

@@ -18,8 +18,8 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
         class="wv-btn"
         (click)="clicked.emit()"
         [attr.title]="label()"
-      >
-        <syn-icon [name]="icon()"></syn-icon>
+       >
+        <syn-icon [attr.name]="icon()"></syn-icon>
       </syn-button>
     </div>
   `,

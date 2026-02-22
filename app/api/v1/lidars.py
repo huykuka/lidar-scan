@@ -66,7 +66,7 @@ async def list_lidars():
 @router.post("/lidars")
 async def create_lidar(config: LidarConfig):
     """Adds or updates a lidar configuration and saves to DB"""
-    saved_id = lidar_repo.upsert(config.dict())
+    saved_id = lidar_repo.upsert(config.model_dump())
     return {"status": "success", "message": f"Lidar saved.", "id": saved_id}
 
 

@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,12 +7,30 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import router as api_router
 from app.core.config import settings
+from app.db.migrate import ensure_schema
+from app.db.session import init_engine
 from app.services.lidar.instance import lidar_service
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Startup
+    engine = init_engine()
+    ensure_schema(engine)
+
+    lidar_service.load_config()
+    lidar_service.start(asyncio.get_running_loop())
+
+    yield
+
+    # Shutdown
+    lidar_service.stop()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Backend with Modular Pipeline Registry",
-    version=settings.VERSION
+    version=settings.VERSION,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -22,22 +41,6 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
-
-
-# Central Service (imported from instance)
-
-
-@app.on_event("startup")
-async def startup_event():
-    # --- Sensor Setup ---
-
-    lidar_service.load_config()
-    lidar_service.start(asyncio.get_running_loop())
-
-
-@app.on_event("shutdown")
-def shutdown_event():
-    lidar_service.stop()
 
 
 
