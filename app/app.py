@@ -40,13 +40,7 @@ def shutdown_event():
     lidar_service.stop()
 
 
-@app.get("/status")
-async def get_status():
-    return {
-        "is_running": lidar_service.is_running,
-        "active_sensors": [s.id for s in lidar_service.sensors],
-        "version": settings.VERSION
-    }
+
 
 
 # Serve Angular SPA (and assets) from app/static at root.

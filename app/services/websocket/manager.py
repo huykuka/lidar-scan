@@ -17,6 +17,7 @@ class ConnectionManager:
 
     def reset_active_connections(self):
         self.active_connections.clear()
+        self._interceptors.clear()
 
     async def connect(self, websocket: WebSocket, topic: str):
         await websocket.accept()

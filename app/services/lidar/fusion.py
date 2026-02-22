@@ -27,6 +27,8 @@ import numpy as np
 from app.pipeline import PipelineFactory
 from app.pipeline.base import PointCloudPipeline
 from app.services.websocket.manager import manager
+from .core import transform_points
+from .protocol import pack_points_binary
 
 
 class FusionService:
@@ -44,10 +46,16 @@ class FusionService:
                        API as generate_lidar(pipeline_name=...).
     """
 
-    def __init__(self, lidar_service, topic: str = "fused_points",
-                 sensor_ids: Optional[List[str]] = None,
-                 pipeline_name: Optional[str] = None):
+    def __init__(
+        self,
+        lidar_service,
+        topic: str = "fused_points",
+        sensor_ids: Optional[List[str]] = None,
+        pipeline_name: Optional[str] = None,
+        fusion_id: Optional[str] = None,
+    ):
         self._service = lidar_service
+        self.id = fusion_id
         self._topic = topic
         self._filter: Optional[Set[str]] = set(sensor_ids) if sensor_ids else None
         self._by_topic: bool = False
@@ -57,6 +65,10 @@ class FusionService:
         self._latest_frames: Dict[str, np.ndarray] = {}
         self._enabled = False
         self._original_handle: Optional[Callable[[Any], Awaitable[None]]] = None
+
+        self.last_broadcast_at: Optional[float] = None
+        self.last_broadcast_ts: Optional[float] = None
+        self.last_error: Optional[str] = None
         
         # Register the topic so it shows up in the discovery API
         manager.register_topic(self._topic)
@@ -93,6 +105,10 @@ class FusionService:
             await self._on_frame(payload)
 
         self._service._handle_incoming_data = _patched_handle
+
+    @property
+    def enabled(self) -> bool:
+        return self._enabled
 
     def disable(self):
         """Deactivate fusion — restores the original handler."""
@@ -132,7 +148,7 @@ class FusionService:
 
         # Apply the sensor's transformation to bring into world space
         if sensor is not None:
-            points = self._service._transform_points(points, sensor.transformation)
+            points = transform_points(points, sensor.transformation)
 
         self._latest_frames[topic_prefix] = points
 
@@ -170,5 +186,13 @@ class FusionService:
             if fused is None or len(fused) == 0:
                 return
 
-        binary = self._service._pack_binary(fused, timestamp)
-        await manager.broadcast(self._topic, binary)
+        try:
+            binary = pack_points_binary(fused, timestamp)
+            await manager.broadcast(self._topic, binary)
+            import time
+
+            self.last_broadcast_at = time.time()
+            self.last_broadcast_ts = timestamp
+            self.last_error = None
+        except Exception as e:
+            self.last_error = str(e)

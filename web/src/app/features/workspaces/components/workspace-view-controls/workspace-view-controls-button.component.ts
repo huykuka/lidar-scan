@@ -9,8 +9,8 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
   template: `
     <div
       class="rounded-xl transition-colors"
-      [class.bg-white\/10]="active()"
-      [class.hover:bg-white\/10]="!active()"
+      [class.bg-white/10]="active()"
+      [class.hover:bg-white/10]="!active()"
     >
       <syn-button
         variant="text"
@@ -19,8 +19,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
         (click)="clicked.emit()"
         [attr.title]="label()"
       >
-        <syn-icon slot="prefix" [name]="icon()"></syn-icon>
-        <span class="hidden xl:inline">{{ label() }}</span>
+        <syn-icon [name]="icon()"></syn-icon>
       </syn-button>
     </div>
   `,
@@ -31,6 +30,16 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
         --syn-button-color-text: #ffffff;
         color: #ffffff;
       }
+
+      /* Icon-only button: make padding visually square/centered.
+         (Part names depend on Synergy's web component implementation; harmless if unsupported.) */
+      .wv-btn::part(button),
+      .wv-btn::part(base),
+      .wv-btn::part(control) {
+        padding: 6px;
+        min-width: 32px;
+      }
+
       .wv-btn syn-icon {
         color: #ffffff;
       }

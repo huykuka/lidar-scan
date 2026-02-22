@@ -24,16 +24,31 @@ export class LidarApiService {
   }
 
   async saveLidar(config: any): Promise<any> {
-    const response = await firstValueFrom(this.http.post(`${environment.apiUrl}/lidars`, config));
+    const response = await firstValueFrom(
+      this.http.post(`${environment.apiUrl}/lidars`, config),
+    );
     return response;
   }
 
   async deleteLidar(id: string): Promise<any> {
-    const response = await firstValueFrom(this.http.delete(`${environment.apiUrl}/lidars/${id}`));
+    const response = await firstValueFrom(
+      this.http.delete(`${environment.apiUrl}/lidars/${id}`),
+    );
     return response;
   }
 
   async reloadConfig(): Promise<any> {
-    return await firstValueFrom(this.http.post(`${environment.apiUrl}/lidars/reload`, {}));
+    return await firstValueFrom(
+      this.http.post(`${environment.apiUrl}/lidars/reload`, {}),
+    );
+  }
+
+  async setEnabled(id: string, enabled: boolean): Promise<any> {
+    return await firstValueFrom(
+      this.http.post(
+        `${environment.apiUrl}/lidars/${encodeURIComponent(id)}/enabled?enabled=${enabled}`,
+        {},
+      ),
+    );
   }
 }

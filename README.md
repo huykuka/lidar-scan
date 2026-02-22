@@ -8,12 +8,16 @@ A standalone Python backend for real-time LiDAR point cloud processing and strea
 
 ## Features
 
-- **Multi-sensor support** — run multiple LiDAR sensors simultaneously, each in its own process
+- **Modern Angular frontend** — reactive UI with real-time node status monitoring and WebGL 3D visualization
+- **Multi-sensor support** — run multiple LiDAR sensors simultaneously, each in its own isolated process
+- **Enable/disable nodes** — control sensor and fusion availability via UI without restarting
+- **Runtime status monitoring** — real-time process health, frame rates, and error reporting
 - **Modular pipeline system** — compose point cloud operations using a fluent builder API
 - **Multi-sensor fusion** — merge point clouds from multiple sensors into a unified world-space cloud
 - **Real-time WebSocket streaming** — binary point cloud data streamed to the frontend at full sensor rate
 - **Simulation mode** — replay from a `.pcd` file without physical hardware
 - **Sensor pose / transformation** — define each sensor's physical position and orientation; points are automatically transformed into world space
+- **Dev-friendly** — gracefully handles missing hardware dependencies; surfaces errors in UI instead of crashing
 
 ---
 
@@ -65,7 +69,7 @@ python3 main.py
 ./run_sim.sh
 ```
 
-Frontend available at: `http://localhost:8004/static/index.html`
+Frontend available at: `http://localhost:8004`
 
 ### Environment variables
 
@@ -83,42 +87,91 @@ Frontend available at: `http://localhost:8004/static/index.html`
 ## Project Structure
 
 ```
-app/
-├── app.py                        # FastAPI app, sensor setup, startup
-├── core/
-│   └── config.py                 # Settings from environment variables
-├── api/v1/
-│   └── endpoints.py              # REST API routes
-├── pipeline/
-│   ├── base.py                   # PipelineOperation, PointCloudPipeline base classes
-│   ├── factory.py                # PipelineFactory — resolves pipeline names to instances
-│   ├── operations.py             # PipelineBuilder + all built-in operations
-│   └── impl/
-│       ├── basic.py              # Basic pipeline (downsample + outlier removal)
-│       ├── advanced.py           # Advanced pipeline (stats, plane segmentation, debug export)
-│       └── reflector.py          # Reflector detection pipeline (filter + cluster)
-└── services/
-    ├── lidar/
-    │   ├── service.py            # LidarService — sensor management, transformation, broadcasting
-    │   ├── lidar_worker.py       # Worker process for real hardware (SICK Scan API)
-    │   ├── pcd_worker.py         # Worker process for PCD file simulation
-    │   └── fusion.py             # FusionService — opt-in multi-sensor point cloud fusion
-    └── websocket/
-        └── manager.py            # WebSocket connection manager
+lidar-standalone/
+├── app/                          # Backend (Python FastAPI)
+│   ├── app.py                    # FastAPI app, startup, shutdown
+│   ├── core/
+│   │   └── config.py             # Settings from environment variables
+│   ├── api/v1/
+│   │   ├── lidars.py             # Lidar CRUD + enable/disable + reload
+│   │   ├── fusions.py            # Fusion CRUD + enable/disable
+│   │   ├── nodes.py              # Runtime status monitoring (GET /nodes/status)
+│   │   ├── system.py             # System status (GET /status)
+│   │   └── websocket.py          # WebSocket streaming + topic discovery
+│   ├── pipeline/
+│   │   ├── base.py               # PipelineOperation, PointCloudPipeline base classes
+│   │   ├── factory.py            # PipelineFactory — resolves pipeline names to instances
+│   │   ├── operations.py         # PipelineBuilder + all built-in operations
+│   │   └── impl/
+│   │       ├── basic.py          # Basic pipeline (downsample + outlier removal)
+│   │       ├── advanced.py       # Advanced pipeline (stats, plane segmentation, debug export)
+│   │       └── reflector.py      # Reflector detection pipeline (filter + cluster)
+│   ├── services/
+│   │   ├── lidar/
+│   │   │   ├── core/             # Core domain models and utilities
+│   │   │   │   ├── sensor_model.py   # LidarSensor class with pose configuration
+│   │   │   │   ├── transformations.py # Transformation mathematics
+│   │   │   │   └── topics.py         # Topic prefix generation & collision handling
+│   │   │   ├── protocol/         # Communication protocols
+│   │   │   │   └── binary.py         # LIDR binary format encoding/decoding
+│   │   │   ├── workers/
+│   │   │   │   ├── sick_scan.py  # Worker process for real hardware (SICK Scan API)
+│   │   │   │   └── pcd.py        # Worker process for PCD file simulation
+│   │   │   ├── sensor.py         # LidarService — sensor lifecycle orchestrator
+│   │   │   └── fusion.py         # FusionService — multi-sensor point cloud fusion
+│   │   └── websocket/
+│   │       └── manager.py        # WebSocket connection manager
+│   ├── repositories/
+│   │   ├── lidars.py             # SQLite persistence for lidar configs
+│   │   └── fusions.py            # SQLite persistence for fusion configs
+│   └── static/                   # Built Angular frontend (served at /)
+│
+├── web/                          # Modern Angular frontend
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── core/             # Core singletons (API services, Store architecture, Models)
+│   │   │   │   ├── models/       # TypeScript interfaces (lidar.model.ts, fusion.model.ts)
+│   │   │   │   ├── services/     # Global services (navigation, API clients, stores)
+│   │   │   │   │   ├── api/      # Backend API clients (lidar-api, fusion-api, nodes-api)
+│   │   │   │   │   └── stores/   # State management (SignalsSimpleStoreService)
+│   │   │   ├── features/         # Feature modules/components
+│   │   │   │   ├── settings/     # Lidar + Fusion management UI with runtime status
+│   │   │   │   └── workspaces/   # 3D visualization with Three.js
+│   │   │   └── layout/           # Layout shells (Main, SideNav, Header, Footer)
+│   │   └── environments/         # Environment config (API URLs)
+│   └── package.json
+│
+├── tests/                        # Unit tests (pytest)
+│   └── services/
+│       └── lidar/
+│           ├── test_sensor_model.py    # LidarSensor model tests (30 tests)
+│           ├── test_transformations.py # Transformation math tests (33 tests)
+│           ├── test_topics.py          # Topic management tests (37 tests)
+│           └── test_binary_protocol.py # Binary protocol tests (26 tests)
+│
+├── config/
+│   └── data.db                   # SQLite database (gitignored, auto-created)
+│
+├── pytest.ini                    # Pytest configuration
+└── requirements.txt              # Python dependencies (includes pytest)
 ```
 
 ---
 
 ## Sensor Setup
 
-Sensors are registered in `app/app.py` using `lidar_service.generate_lidar()`:
+**Note:** Sensors and fusions are now persisted in SQLite (`config/data.db`) and managed via the **Settings UI** (`http://localhost:8004/settings`) or REST API.
+
+For programmatic setup, sensors are registered in `app/app.py` using `lidar_service.generate_lidar()`:
 
 ```python
 lidar_service.generate_lidar(
     sensor_id="lidar_front",
+    name="Front Lidar",                 # Human-readable name
+    topic_prefix="front",               # WebSocket topic prefix (auto-slugified)
     launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.10 udp_receiver_ip:=192.168.1.1",
-    pipeline_name="advanced",   # optional — resolves via PipelineFactory
-    mode="real",                # "real" or "sim"
+    pipeline_name="advanced",           # optional — resolves via PipelineFactory
+    mode="real",                        # "real" or "sim"
     # Physical pose in world space (meters / degrees):
     x=0.0, y=0.0, z=0.5,
     yaw=180.0, pitch=0.0, roll=0.0,
@@ -235,19 +288,36 @@ Data is broadcast as binary frames in the following format:
 
 ### Topics
 
-| Topic                          | Description                                                   |
-| ------------------------------ | ------------------------------------------------------------- |
-| `{sensor_id}_processed_points` | Pipeline-processed points for a single sensor                 |
-| `{sensor_id}_raw_points`       | Raw (unprocessed) points for a single sensor                  |
-| `fused_points`                 | Merged cloud from all sensors (when FusionService is enabled) |
-| _(custom)_                     | Any topic name passed to `FusionService(topic=...)`           |
+Each sensor generates two topics (where `{prefix}` is the sensor's `topic_prefix`):
+
+| Topic                   | Description                                      |
+| ----------------------- | ------------------------------------------------ |
+| `{prefix}_raw_points`   | Raw (unprocessed) points for a single sensor     |
+| `{prefix}_processed_points` | Pipeline-processed points for a single sensor (if pipeline configured) |
+| _(fusion topic)_        | Merged cloud from selected sensors (e.g., `fused_points`) |
+
+**Note:** Topic names are now derived from the sensor's persisted `topic_prefix` field, which is auto-generated from the sensor `name` and guaranteed unique.
 
 ---
 
 ## REST API
 
-| Method | Path          | Description                                 |
-| ------ | ------------- | ------------------------------------------- |
-| `GET`  | `/`           | Serves the frontend (`index.html`)          |
-| `GET`  | `/status`     | Returns running state and active sensor IDs |
-| `GET`  | `/static/...` | Static frontend assets                      |
+All API endpoints are under the `/api/v1` prefix:
+
+| Method | Path                              | Description                                          |
+| ------ | --------------------------------- | ---------------------------------------------------- |
+| `GET`  | `/`                               | Serves the Angular SPA                               |
+| `GET`  | `/api/v1/status`                  | System status (version, running state)               |
+| `GET`  | `/api/v1/nodes/status`            | **Runtime status** of all lidars and fusions (process health, frame age, errors) |
+| `GET`  | `/api/v1/lidars`                  | List all lidars + available pipelines                |
+| `POST` | `/api/v1/lidars`                  | Create or update a lidar configuration               |
+| `DELETE` | `/api/v1/lidars/{id}`           | Delete a lidar configuration                         |
+| `POST` | `/api/v1/lidars/{id}/enabled`    | Enable/disable a lidar (`?enabled=true` or `false`)  |
+| `POST` | `/api/v1/lidars/{id}/topic_prefix` | Update topic prefix (`?topic_prefix=...`)          |
+| `POST` | `/api/v1/lidars/reload`           | Reload config and restart all sensors/fusions        |
+| `GET`  | `/api/v1/fusions`                 | List all fusion configurations                       |
+| `POST` | `/api/v1/fusions`                 | Create or update a fusion configuration              |
+| `DELETE` | `/api/v1/fusions/{id}`          | Delete a fusion configuration                        |
+| `POST` | `/api/v1/fusions/{id}/enabled`   | Enable/disable a fusion (`?enabled=true` or `false`) |
+| `GET`  | `/api/v1/topics`                  | List available WebSocket topics                      |
+| `WS`   | `/api/v1/ws/{topic}`              | WebSocket streaming endpoint                         |

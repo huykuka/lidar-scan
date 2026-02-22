@@ -13,6 +13,7 @@ export interface LidarConfig {
   topic_prefix?: string;
   raw_topic?: string;
   processed_topic?: string | null;
+  enabled?: boolean;
   launch_args: string;
   pipeline_name?: string;
   mode: 'real' | 'sim';

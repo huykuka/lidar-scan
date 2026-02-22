@@ -2,3 +2,4 @@ fastapi
 uvicorn[standard]
 open3d
 numpy
+pytest>=7.0.0

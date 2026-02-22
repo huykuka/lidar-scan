@@ -26,6 +26,16 @@ export class LidarEditorComponent implements OnInit {
   protected form!: FormGroup;
   protected pipelines = this.lidarStore.availablePipelines;
 
+  private slugify(val: string): string {
+    const base = (val || '').trim().replace(/[^A-Za-z0-9_-]+/g, '_');
+    return base.replace(/_+/g, '_').replace(/^[_-]+|[_-]+$/g, '') || 'sensor';
+  }
+
+  protected topicHelpText(): string {
+    const prefix = this.slugify(this.form?.get('topic_prefix')?.value || this.form?.get('name')?.value || 'sensor');
+    return `Topics: ${prefix}_raw_points, ${prefix}_processed_points`;
+  }
+
   ngOnInit() {
     this.initForm();
   }
@@ -46,6 +56,7 @@ export class LidarEditorComponent implements OnInit {
     this.form = this.fb.group({
       id: [{ value: lidar?.id || '', disabled: isEdit }],
       name: [lidar?.name || '', [Validators.required]],
+      topic_prefix: [lidar?.topic_prefix || this.slugify(lidar?.name || '')],
       mode: [lidar?.mode || 'real'],
       pipeline_name: [lidar?.pipeline_name === 'none' ? '' : lidar?.pipeline_name || ''],
       pcd_path: [lidar?.pcd_path || ''],
@@ -73,6 +84,13 @@ export class LidarEditorComponent implements OnInit {
       this.updateValidators(mode);
     });
     this.updateValidators(this.form.get('mode')?.value).updateValueAndValidity();
+
+    // If user hasn't touched topic_prefix, keep it aligned with name.
+    this.form.get('name')?.valueChanges.subscribe((name) => {
+      const ctrl = this.form.get('topic_prefix');
+      if (!ctrl || ctrl.dirty) return;
+      ctrl.setValue(this.slugify(name || ''));
+    });
   }
 
   private updateValidators(mode: string) {
@@ -114,6 +132,7 @@ export class LidarEditorComponent implements OnInit {
     const payload = {
       id: val.id || undefined,
       name: val.name,
+      topic_prefix: val.topic_prefix || undefined,
       mode: val.mode,
       pipeline_name: val.pipeline_name || null,
       launch_args: launch_args,

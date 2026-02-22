@@ -39,4 +39,13 @@ export class FusionApiService {
     await this.getFusions();
     return response;
   }
+
+  async setEnabled(id: string, enabled: boolean): Promise<any> {
+    return await firstValueFrom(
+      this.http.post(
+        `${environment.apiUrl}/fusions/${encodeURIComponent(id)}/enabled?enabled=${enabled}`,
+        {},
+      ),
+    );
+  }
 }

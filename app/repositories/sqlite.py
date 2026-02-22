@@ -45,6 +45,15 @@ def init_schema() -> None:
             )
             """
         )
+
+        # Lightweight migrations
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(lidars)").fetchall()}
+        if "enabled" not in cols:
+            conn.execute("ALTER TABLE lidars ADD COLUMN enabled INTEGER DEFAULT 1")
+
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(lidars)").fetchall()}
+        if "topic_prefix" not in cols:
+            conn.execute("ALTER TABLE lidars ADD COLUMN topic_prefix TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS fusions (
@@ -56,6 +65,54 @@ def init_schema() -> None:
             )
             """
         )
+
+        fcols = {row[1] for row in conn.execute("PRAGMA table_info(fusions)").fetchall()}
+        if "enabled" not in fcols:
+            conn.execute("ALTER TABLE fusions ADD COLUMN enabled INTEGER DEFAULT 1")
+
+        # Backfill lidar.topic_prefix for existing rows
+        # Keep it URL-friendly and stable; avoid collisions.
+        lrows = conn.execute(
+            "SELECT id, name, topic_prefix FROM lidars ORDER BY rowid ASC"
+        ).fetchall()
+        in_use: set[str] = set()
+        for r in lrows:
+            existing = (r[2] or "").strip()
+            if existing:
+                in_use.add(existing)
+
+        def _slugify(val: str) -> str:
+            import re
+
+            base = re.sub(r"[^A-Za-z0-9_-]+", "_", (val or "").strip())
+            base = re.sub(r"_+", "_", base).strip("_-")
+            return base or "sensor"
+
+        def _unique(desired: str, sensor_id: str) -> str:
+            base = _slugify(desired)
+            if base not in in_use:
+                in_use.add(base)
+                return base
+
+            suffix = _slugify(sensor_id)[:8]
+            candidate = f"{base}_{suffix}" if suffix else f"{base}_1"
+            i = 2
+            while candidate in in_use:
+                candidate = f"{base}_{suffix}_{i}" if suffix else f"{base}_{i}"
+                i += 1
+            in_use.add(candidate)
+            return candidate
+
+        for r in lrows:
+            if (r[2] or "").strip():
+                continue
+            sensor_id = r[0]
+            name = r[1] or sensor_id
+            topic_prefix = _unique(name, sensor_id=sensor_id)
+            conn.execute(
+                "UPDATE lidars SET topic_prefix = ? WHERE id = ?",
+                (topic_prefix, sensor_id),
+            )
         conn.commit()
 
 

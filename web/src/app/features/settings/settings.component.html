@@ -84,87 +84,187 @@
     </div>
 
     <div class="transition-opacity duration-300" [class.opacity-40]="isDraggingOver">
-      <div *ngIf="lidars().length > 0" class="mb-6">
-        <div class="flex items-center justify-between mb-2 px-1">
-          <div class="flex items-center gap-2">
-            <syn-icon name="sensors" class="text-base text-syn-color-success-600"></syn-icon>
-            <span class="text-[11px] font-black uppercase tracking-widest text-syn-color-neutral-500">Sensors</span>
+      <syn-accordion contained size="small" class="block">
+        <syn-details [open]="lidars().length > 0" [disabled]="lidars().length === 0" contained size="small">
+          <div slot="summary" class="w-full flex items-center justify-between gap-3 pr-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <syn-icon name="sensors" class="text-base text-syn-color-success-600"></syn-icon>
+              <span class="text-[11px] font-black uppercase tracking-widest text-syn-color-neutral-600 truncate">Sensors</span>
+              <span class="text-[11px] text-syn-color-neutral-400 truncate">(hardware / sim)</span>
+            </div>
+            <syn-badge variant="success" pill size="small">{{ lidars().length }}</syn-badge>
           </div>
-          <syn-badge variant="success" pill size="small">{{ lidars().length }}</syn-badge>
-        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div *ngFor="let lidar of lidars()" class="bg-white rounded-xl shadow-sm border border-syn-color-neutral-200 flex flex-col justify-between hover:border-syn-color-primary-300 hover:shadow-md transition-all group overflow-hidden">
-            <div class="h-1 w-full" [ngClass]="lidar.mode === 'sim' ? 'bg-syn-color-neutral-300' : 'bg-syn-color-success-500'"></div>
-
-            <div class="p-3">
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div class="p-1.5 rounded-md bg-syn-color-neutral-100 text-syn-color-success-700">
-                    <syn-icon name="sensors" class="text-base"></syn-icon>
+          <div class="pt-3">
+            <div *ngIf="lidars().length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div *ngFor="let lidar of lidars()" class="relative">
+                <!-- Loading Overlay -->
+                @if (isLidarLoading(lidar.id || '')) {
+                  <div class="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <syn-spinner></syn-spinner>
                   </div>
-                  <span class="font-black text-syn-typography-color-text text-sm truncate" [title]="lidar.name">{{ lidar.name }}</span>
-                </div>
-                <syn-badge [variant]="lidar.mode === 'sim' ? 'neutral' : 'success'" pill size="small">Sensor</syn-badge>
-              </div>
+                }
+                
+                <div class="bg-white rounded-xl shadow-sm border border-syn-color-neutral-200 flex flex-col justify-between hover:border-syn-color-primary-300 hover:shadow-md transition-all group overflow-hidden" [class.opacity-60]="lidar.enabled === false">
+                  <div class="h-1 w-full" [ngClass]="lidar.mode === 'sim' ? 'bg-syn-color-neutral-300' : 'bg-syn-color-success-500'"></div>
 
-              <div class="mt-2 text-[11px] text-syn-color-neutral-600 font-mono truncate" [title]="(lidar.processed_topic || lidar.raw_topic || (lidar.topic_prefix ? (lidar.topic_prefix + '_raw_points') : ''))">
-                {{ lidar.processed_topic || lidar.raw_topic || (lidar.topic_prefix ? (lidar.topic_prefix + '_raw_points') : '') }}
-              </div>
+                  <div class="p-3">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <div class="p-1.5 rounded-md bg-syn-color-neutral-100 text-syn-color-success-700">
+                          <syn-icon name="sensors" class="text-base"></syn-icon>
+                        </div>
+                        <span class="font-black text-syn-typography-color-text text-sm truncate" [title]="lidar.name">{{ lidar.name }}</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <syn-badge [variant]="(lidar.enabled ?? true) ? (lidar.mode === 'sim' ? 'neutral' : 'success') : 'neutral'" pill size="small">{{ (lidar.enabled ?? true) ? 'Sensor' : 'Disabled' }}</syn-badge>
+                        <syn-switch
+                          size="small"
+                          [checked]="lidar.enabled ?? true"
+                          (syn-change)="onToggleLidarEnabled(lidar, $any($event.target).checked); $event.stopPropagation()"
+                        >
+                          {{ (lidar.enabled ?? true) ? 'Enabled' : 'Disabled' }}
+                        </syn-switch>
+                      </div>
+                    </div>
 
-              <div class="mt-2 flex items-center gap-2">
-                <syn-badge variant="neutral" pill size="small">{{ lidar.pipeline_name || 'No pipeline' }}</syn-badge>
-                <syn-badge [variant]="lidar.mode === 'sim' ? 'neutral' : 'success'" pill size="small">{{ lidar.mode === 'sim' ? 'Sim' : 'HW' }}</syn-badge>
-              </div>
-            </div>
+                    <div class="mt-2 text-[11px] text-syn-color-neutral-600 font-mono truncate" [title]="(lidar.processed_topic || lidar.raw_topic || (lidar.topic_prefix ? (lidar.topic_prefix + '_raw_points') : ''))">
+                      {{ lidar.processed_topic || lidar.raw_topic || (lidar.topic_prefix ? (lidar.topic_prefix + '_raw_points') : '') }}
+                    </div>
 
-            <div class="flex justify-end px-3 py-2 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <syn-button variant="outline" size="small" (click)="onEditLidar(lidar)">Edit</syn-button>
-              <syn-button variant="outline" color="danger" size="small" (click)="onDeleteLidar(lidar.id)">Delete</syn-button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div *ngIf="fusions().length > 0" class="mb-6">
-        <div class="flex items-center justify-between mb-2 px-1">
-          <div class="flex items-center gap-2">
-            <syn-icon name="hub" class="text-base text-syn-color-primary-600"></syn-icon>
-            <span class="text-[11px] font-black uppercase tracking-widest text-syn-color-neutral-500">Fusions</span>
-          </div>
-          <syn-badge variant="primary" pill size="small">{{ fusions().length }}</syn-badge>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div *ngFor="let fusion of fusions()" class="bg-white rounded-xl shadow-sm border border-syn-color-neutral-200 flex flex-col justify-between hover:border-syn-color-primary-300 hover:shadow-md transition-all group overflow-hidden">
-            <div class="h-1 w-full bg-syn-color-primary-500"></div>
-
-            <div class="p-3">
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div class="p-1.5 rounded-md bg-syn-color-neutral-100 text-syn-color-primary-700">
-                    <syn-icon name="hub" class="text-base"></syn-icon>
+                    <div class="mt-2 flex items-center gap-2 flex-wrap">
+                      <syn-badge variant="neutral" pill size="small">{{ lidar.pipeline_name || 'No pipeline' }}</syn-badge>
+                      <syn-badge [variant]="lidar.mode === 'sim' ? 'neutral' : 'success'" pill size="small">{{ lidar.mode === 'sim' ? 'Sim' : 'HW' }}</syn-badge>
+                      <syn-badge
+                        [variant]="lidar.enabled === false ? 'neutral' : 'success'"
+                        pill
+                        size="small"
+                      >
+                        {{ lidar.enabled === false ? 'Disabled' : 'Enabled' }}
+                      </syn-badge>
+                      
+                      <!-- Runtime Status -->
+                      @if (getNodeStatus(lidar.id || ''); as status) {
+                        @if (status.last_error) {
+                          <syn-badge variant="danger" pill size="small" [title]="status.last_error">Error</syn-badge>
+                        } @else if (status.running) {
+                          @if (status.frame_age_seconds !== null && status.frame_age_seconds < 5) {
+                            <syn-badge variant="success" pill size="small">Running</syn-badge>
+                          } @else if (status.frame_age_seconds !== null && status.frame_age_seconds >= 5) {
+                            <syn-badge variant="warning" pill size="small" [title]="'Last frame ' + status.frame_age_seconds.toFixed(1) + 's ago'">Stale</syn-badge>
+                          } @else {
+                            <syn-badge variant="warning" pill size="small">Starting</syn-badge>
+                          }
+                        } @else if (status.enabled) {
+                          <syn-badge variant="neutral" pill size="small">Stopped</syn-badge>
+                        }
+                      }
+                    </div>
                   </div>
-                  <span class="font-black text-syn-typography-color-text text-sm truncate" [title]="fusion.name">{{ fusion.name }}</span>
+
+                  <div class="flex justify-end px-3 py-2 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <syn-button variant="outline" size="small" (click)="onEditLidar(lidar)">Edit</syn-button>
+                    <syn-button variant="outline" color="danger" size="small" (click)="onDeleteLidar(lidar.id)">Delete</syn-button>
+                  </div>
                 </div>
-                <syn-badge variant="primary" pill size="small">Fusion</syn-badge>
-              </div>
-
-              <div class="mt-2 text-[11px] text-syn-color-neutral-600 font-mono truncate" [title]="fusion.topic">{{ fusion.topic }}</div>
-
-              <div class="mt-2 flex items-center gap-2">
-                <syn-badge variant="neutral" pill size="small">{{ fusion.pipeline_name || 'No pipeline' }}</syn-badge>
-                <syn-badge variant="neutral" pill size="small" [title]="fusionSensorsLabel(fusion.sensor_ids)">{{ fusion.sensor_ids && fusion.sensor_ids.length ? (fusion.sensor_ids.length + ' sensors') : 'All sensors' }}</syn-badge>
               </div>
             </div>
 
-            <div class="flex justify-end px-3 py-2 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <syn-button variant="outline" size="small" (click)="onEditFusion(fusion)">Edit</syn-button>
-              <syn-button variant="outline" color="danger" size="small" (click)="onDeleteFusion(fusion.id)">Delete</syn-button>
+            <div *ngIf="lidars().length === 0" class="text-sm text-syn-color-neutral-500 italic">
+              No sensors registered.
             </div>
           </div>
-        </div>
-      </div>
+        </syn-details>
+
+        <syn-details [open]="lidars().length === 0 && fusions().length > 0" [disabled]="fusions().length === 0" contained size="small">
+          <div slot="summary" class="w-full flex items-center justify-between gap-3 pr-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <syn-icon name="hub" class="text-base text-syn-color-primary-600"></syn-icon>
+              <span class="text-[11px] font-black uppercase tracking-widest text-syn-color-neutral-600 truncate">Fusions</span>
+              <span class="text-[11px] text-syn-color-neutral-400 truncate">(merged topics)</span>
+            </div>
+            <syn-badge variant="primary" pill size="small">{{ fusions().length }}</syn-badge>
+          </div>
+
+          <div class="pt-3">
+            <div *ngIf="fusions().length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div *ngFor="let fusion of fusions()" class="relative">
+                <!-- Loading Overlay -->
+                @if (isFusionLoading(fusion.id || '')) {
+                  <div class="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <syn-spinner></syn-spinner>
+                  </div>
+                }
+                
+                <div class="bg-white rounded-xl shadow-sm border border-syn-color-neutral-200 flex flex-col justify-between hover:border-syn-color-primary-300 hover:shadow-md transition-all group overflow-hidden" [class.opacity-60]="fusion.enabled === false">
+                  <div class="h-1 w-full bg-syn-color-primary-500"></div>
+
+                  <div class="p-3">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <div class="p-1.5 rounded-md bg-syn-color-neutral-100 text-syn-color-primary-700">
+                          <syn-icon name="hub" class="text-base"></syn-icon>
+                        </div>
+                        <span class="font-black text-syn-typography-color-text text-sm truncate" [title]="fusion.name">{{ fusion.name }}</span>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <syn-badge [variant]="(fusion.enabled ?? true) ? 'primary' : 'neutral'" pill size="small">{{ (fusion.enabled ?? true) ? 'Fusion' : 'Disabled' }}</syn-badge>
+                        <syn-switch
+                          size="small"
+                          [checked]="fusion.enabled ?? true"
+                          (syn-change)="onToggleFusionEnabled(fusion, $any($event.target).checked); $event.stopPropagation()"
+                        >
+                          {{ (fusion.enabled ?? true) ? 'Enabled' : 'Disabled' }}
+                        </syn-switch>
+                      </div>
+                    </div>
+
+                    <div class="mt-2 text-[11px] text-syn-color-neutral-600 font-mono truncate" [title]="fusion.topic">{{ fusion.topic }}</div>
+
+                    <div class="mt-2 flex items-center gap-2 flex-wrap">
+                      <syn-badge variant="neutral" pill size="small">{{ fusion.pipeline_name || 'No pipeline' }}</syn-badge>
+                      <syn-badge variant="neutral" pill size="small" [title]="fusionSensorsLabel(fusion.sensor_ids)">{{ fusion.sensor_ids && fusion.sensor_ids.length ? (fusion.sensor_ids.length + ' sensors') : 'All sensors' }}</syn-badge>
+                      <syn-badge
+                        [variant]="fusion.enabled === false ? 'neutral' : 'primary'"
+                        pill
+                        size="small"
+                      >
+                        {{ fusion.enabled === false ? 'Disabled' : 'Enabled' }}
+                      </syn-badge>
+                      
+                      <!-- Runtime Status -->
+                      @if (getFusionStatus(fusion.id || ''); as status) {
+                        @if (status.last_error) {
+                          <syn-badge variant="danger" pill size="small" [title]="status.last_error">Error</syn-badge>
+                        } @else if (status.running) {
+                          @if (status.broadcast_age_seconds !== null && status.broadcast_age_seconds < 5) {
+                            <syn-badge variant="success" pill size="small">Running</syn-badge>
+                          } @else if (status.broadcast_age_seconds !== null && status.broadcast_age_seconds >= 5) {
+                            <syn-badge variant="warning" pill size="small" [title]="'Last broadcast ' + status.broadcast_age_seconds.toFixed(1) + 's ago'">Stale</syn-badge>
+                          } @else {
+                            <syn-badge variant="warning" pill size="small">Starting</syn-badge>
+                          }
+                        } @else if (status.enabled) {
+                          <syn-badge variant="neutral" pill size="small">Stopped</syn-badge>
+                        }
+                      }
+                    </div>
+                  </div>
+
+                  <div class="flex justify-end px-3 py-2 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <syn-button variant="outline" size="small" (click)="onEditFusion(fusion)">Edit</syn-button>
+                    <syn-button variant="outline" color="danger" size="small" (click)="onDeleteFusion(fusion.id)">Delete</syn-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div *ngIf="fusions().length === 0" class="text-sm text-syn-color-neutral-500 italic">
+              No fusions registered.
+            </div>
+          </div>
+        </syn-details>
+      </syn-accordion>
 
       <!-- Empty State if no nodes at all -->
       <div *ngIf="lidars().length === 0 && fusions().length === 0 && !isLoading()" 

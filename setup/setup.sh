@@ -111,5 +111,9 @@ if [ "$DO_FRONTEND" = true ]; then
             echo "Frontend build output not found at $DIST_DIR."
             exit 1
         fi
+
+        # Keep a tracked placeholder for the directory structure.
+        # app/static/* is gitignored except for this file.
+        : > "$STATIC_DIR/.gitkeep"
     fi
 fi

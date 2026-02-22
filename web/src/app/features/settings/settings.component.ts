@@ -1,12 +1,13 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationService } from '../../core/services/navigation.service';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarApiService } from '../../core/services/api/lidar-api.service';
 import { FusionApiService } from '../../core/services/api/fusion-api.service';
+import { NodesApiService, NodesStatusResponse } from '../../core/services/api/nodes-api.service';
 import { LidarConfig } from '../../core/models/lidar.model';
-import { FusionConfig } from '../../core/services/api/fusion-api.service';
+import { FusionConfig } from '../../core/models/fusion.model';
 import { LidarEditorComponent } from './components/lidar-editor/lidar-editor';
 import { FusionEditorComponent } from './components/fusion-editor/fusion-editor';
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
@@ -21,10 +22,11 @@ import { ToastService } from '../../core/services/toast.service';
   styleUrl: './settings.component.css',
   imports: [CommonModule, FormsModule, SynergyComponentsModule],
 })
-export class SettingsComponent implements OnInit {
+export class SettingsComponent implements OnInit, OnDestroy {
   private navService = inject(NavigationService);
   private lidarApi = inject(LidarApiService);
   private fusionApi = inject(FusionApiService);
+  private nodesApi = inject(NodesApiService);
   private lidarStore = inject(LidarStoreService);
   protected fusionStore = inject(FusionStoreService);
   private dialogService = inject(DialogService);
@@ -34,6 +36,14 @@ export class SettingsComponent implements OnInit {
   protected pipelines = this.lidarStore.availablePipelines;
   protected isLoading = this.lidarStore.isLoading;
   protected fusions = this.fusionStore.fusions;
+  
+  // Node status
+  protected nodesStatus = signal<NodesStatusResponse | null>(null);
+  private statusPollInterval: any = null;
+  
+  // Loading state for individual nodes
+  protected lidarLoadingStates = signal<Record<string, boolean>>({});
+  protected fusionLoadingStates = signal<Record<string, boolean>>({});
 
   // Form State
   protected editMode = this.lidarStore.editMode;
@@ -89,6 +99,54 @@ export class SettingsComponent implements OnInit {
   async ngOnInit() {
     this.navService.setHeadline('Settings');
     await this.loadConfig();
+    this.startStatusPolling();
+  }
+
+  ngOnDestroy(): void {
+    this.stopStatusPolling();
+  }
+  
+  private startStatusPolling() {
+    // Poll every 2 seconds
+    this.statusPollInterval = setInterval(async () => {
+      try {
+        const status = await this.nodesApi.getNodesStatus();
+        this.nodesStatus.set(status);
+      } catch (error) {
+        // Silently fail - don't toast on every poll failure
+        console.error('Failed to fetch node status', error);
+      }
+    }, 2000);
+    
+    // Also fetch immediately
+    this.nodesApi.getNodesStatus().then(status => this.nodesStatus.set(status)).catch(console.error);
+  }
+  
+  private stopStatusPolling() {
+    if (this.statusPollInterval) {
+      clearInterval(this.statusPollInterval);
+      this.statusPollInterval = null;
+    }
+  }
+  
+  protected getNodeStatus(lidarId: string) {
+    const status = this.nodesStatus();
+    if (!status) return null;
+    return status.lidars.find(l => l.id === lidarId);
+  }
+  
+  protected getFusionStatus(fusionId: string) {
+    const status = this.nodesStatus();
+    if (!status) return null;
+    return status.fusions.find(f => f.id === fusionId);
+  }
+  
+  protected isLidarLoading(lidarId: string): boolean {
+    return this.lidarLoadingStates()[lidarId] || false;
+  }
+  
+  protected isFusionLoading(fusionId: string): boolean {
+    return this.fusionLoadingStates()[fusionId] || false;
   }
 
   async loadConfig() {
@@ -133,6 +191,30 @@ export class SettingsComponent implements OnInit {
     }
   }
 
+  protected async onToggleLidarEnabled(lidar: LidarConfig, enabled: boolean) {
+    if (!lidar?.id) return;
+    const next = enabled;
+    
+    // Set loading state for this specific lidar
+    this.lidarLoadingStates.update(states => ({...states, [lidar.id!]: true}));
+    
+    try {
+      await this.lidarApi.setEnabled(lidar.id, next);
+      await this.loadConfig();
+      this.toast.success(`${lidar.name} ${next ? 'enabled' : 'disabled'}.`);
+    } catch (error) {
+      console.error('Failed to toggle lidar', error);
+      this.toast.danger(`Failed to update ${lidar.name}.`);
+    } finally {
+      // Clear loading state
+      this.lidarLoadingStates.update(states => {
+        const newStates = {...states};
+        delete newStates[lidar.id!];
+        return newStates;
+      });
+    }
+  }
+
   onAddFusion() {
     this.fusionStore.set('selectedFusion', {});
     this.fusionStore.set('editMode', false);
@@ -161,6 +243,30 @@ export class SettingsComponent implements OnInit {
     } catch (error) {
       console.error('Failed to delete fusion', error);
       this.toast.danger(`Failed to delete fusion ${label}.`);
+    }
+  }
+
+  protected async onToggleFusionEnabled(fusion: FusionConfig, enabled: boolean) {
+    if (!fusion?.id) return;
+    const next = enabled;
+    
+    // Set loading state for this specific fusion
+    this.fusionLoadingStates.update(states => ({...states, [fusion.id!]: true}));
+    
+    try {
+      await this.fusionApi.setEnabled(fusion.id, next);
+      await this.loadConfig();
+      this.toast.success(`${fusion.name} ${next ? 'enabled' : 'disabled'}.`);
+    } catch (error) {
+      console.error('Failed to toggle fusion', error);
+      this.toast.danger(`Failed to update ${fusion.name}.`);
+    } finally {
+      // Clear loading state
+      this.fusionLoadingStates.update(states => {
+        const newStates = {...states};
+        delete newStates[fusion.id!];
+        return newStates;
+      });
     }
   }
 

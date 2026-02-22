@@ -4,4 +4,5 @@ export interface FusionConfig {
   topic: string;
   sensor_ids: string[];
   pipeline_name?: string;
+  enabled?: boolean;
 }

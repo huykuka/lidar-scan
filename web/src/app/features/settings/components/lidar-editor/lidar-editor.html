@@ -21,6 +21,15 @@
             </div>
           </div>
 
+          <syn-input
+            label="Topic Prefix"
+            placeholder="front_lidar"
+            formControlName="topic_prefix"
+            ngDefaultControl
+            size="small"
+            [helpText]="topicHelpText()"
+          ></syn-input>
+
           <!-- Configuration -->
           <div class="flex flex-col gap-4">
             

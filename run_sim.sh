@@ -4,7 +4,7 @@ export LD_LIBRARY_PATH=.:./build:$LD_LIBRARY_PATH
 export PYTHONPATH=.:./sick-scan-api/api:$PYTHONPATH
 
 # Configure for Simulation Mode
-export LIDAR_MODE=real
+export LIDAR_MODE=sim
 export LIDAR_PCD_PATH=./1769503697-362730026.pcd
 
 # Allow overriding PORT

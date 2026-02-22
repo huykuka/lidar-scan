@@ -1,2 +1,3 @@
 
-from .sensor import LidarSensor, LidarService
+from .core import LidarSensor
+from .sensor import LidarService

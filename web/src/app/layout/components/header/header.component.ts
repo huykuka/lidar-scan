@@ -13,7 +13,7 @@ import { SystemStatusService } from '../../../core/services/system-status.servic
 export class HeaderComponent {
   private systemStatus = inject(SystemStatusService);
 
-  label = input<string>('Synergy');
+  label = input<string>('Lidar 3D Control Cockpit');
   @ViewChild('header', { static: true }) synHeader!: SynHeaderComponent;
 
   protected readonly backendOnline = this.systemStatus.backendOnline;

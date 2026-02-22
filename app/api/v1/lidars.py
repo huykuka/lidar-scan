@@ -15,6 +15,8 @@ lidar_repo = LidarRepository()
 class LidarConfig(BaseModel):
     id: Optional[str] = None
     name: str
+    topic_prefix: Optional[str] = None
+    enabled: Optional[bool] = None
     launch_args: str
     pipeline_name: Optional[str] = None
     mode: str = "real"
@@ -29,24 +31,34 @@ class LidarConfig(BaseModel):
 @router.get("/lidars")
 async def list_lidars():
     """Returns all registered lidars and available pipelines"""
+    lidars = lidar_repo.list()
     return {
         "lidars": [
             {
-                "id": s.id,
-                "name": getattr(s, 'name', s.id),
-                "topic_prefix": getattr(s, 'topic_prefix', s.id),
-                "raw_topic": f"{getattr(s, 'topic_prefix', s.id)}_raw_points",
+                "id": s.get("id"),
+                "name": s.get("name") or s.get("id"),
+                "topic_prefix": s.get("topic_prefix") or (s.get("name") or s.get("id")),
+                "raw_topic": f"{(s.get('topic_prefix') or (s.get('name') or s.get('id')))}_raw_points",
                 "processed_topic": (
-                    f"{getattr(s, 'topic_prefix', s.id)}_processed_points"
-                    if getattr(s, 'pipeline', None) is not None
+                    f"{(s.get('topic_prefix') or (s.get('name') or s.get('id')))}_processed_points"
+                    if s.get("pipeline_name")
                     else None
                 ),
-                "launch_args": s.launch_args,
-                "pipeline_name": s.pipeline_name,
-                "mode": s.mode,
-                "pcd_path": s.pcd_path,
-                "pose": s.pose_params
-            } for s in lidar_service.sensors
+                "enabled": bool(s.get("enabled", True)),
+                "launch_args": s.get("launch_args"),
+                "pipeline_name": s.get("pipeline_name"),
+                "mode": s.get("mode", "real"),
+                "pcd_path": s.get("pcd_path"),
+                "pose": {
+                    "x": s.get("x", 0),
+                    "y": s.get("y", 0),
+                    "z": s.get("z", 0),
+                    "roll": s.get("roll", 0),
+                    "pitch": s.get("pitch", 0),
+                    "yaw": s.get("yaw", 0),
+                },
+            }
+            for s in lidars
         ],
         "available_pipelines": lidar_service.get_pipelines()
     }
@@ -56,6 +68,22 @@ async def create_lidar(config: LidarConfig):
     """Adds or updates a lidar configuration and saves to DB"""
     saved_id = lidar_repo.upsert(config.dict())
     return {"status": "success", "message": f"Lidar saved.", "id": saved_id}
+
+
+@router.post("/lidars/{lidar_id}/enabled")
+async def set_lidar_enabled(lidar_id: str, enabled: bool):
+    """Enable/disable a lidar node, then reload config."""
+    lidar_repo.set_enabled(lidar_id, enabled)
+    lidar_service.reload_config()
+    return {"status": "success", "id": lidar_id, "enabled": enabled}
+
+
+@router.post("/lidars/{lidar_id}/topic_prefix")
+async def set_lidar_topic_prefix(lidar_id: str, topic_prefix: str):
+    """Update topic prefix, then reload config."""
+    lidar_repo.upsert({"id": lidar_id, "topic_prefix": topic_prefix})
+    lidar_service.reload_config()
+    return {"status": "success", "id": lidar_id, "topic_prefix": topic_prefix}
 
 @router.post("/lidars/reload")
 async def reload_lidars():

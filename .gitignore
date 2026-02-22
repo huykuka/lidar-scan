@@ -17,3 +17,6 @@ debug_data/
 # Keep the folder structure, but do not track generated assets.
 app/static/*
 !app/static/.gitkeep
+
+# Local dev database
+config/data.db
