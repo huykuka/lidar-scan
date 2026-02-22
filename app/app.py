@@ -23,15 +23,6 @@ app.add_middleware(
 
 app.include_router(api_router)
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="app/static", html=True), name="static")
-
-
-@app.get("/")
-async def read_index():
-    from fastapi.responses import FileResponse
-    return FileResponse("app/static/index.html")
-
 
 # Central Service (imported from instance)
 
@@ -41,32 +32,6 @@ async def startup_event():
     # --- Sensor Setup ---
 
     lidar_service.load_config()
-
-    #
-    # # Option 1: Fuse ALL registered sensors into a single "fused_points" topic
-    # fusion = FusionService(lidar_service)
-    # fusion.enable()
-    #
-    # # Option 2: Fuse only specific sensors (e.g. front + rear, ignoring others)
-    # fusion = FusionService(lidar_service, sensor_ids=["lidar_front", "lidar_rear"])
-    # fusion.enable()
-    #
-    # # Option 3: Multiple independent fusion groups on different topics
-    # top_fusion    = FusionService(lidar_service, topic="top_fused",    sensor_ids=["lidar_top_left", "lidar_top_right"])
-    # ground_fusion = FusionService(lidar_service, topic="ground_fused", sensor_ids=["lidar_front",    "lidar_rear"])
-    # top_fusion.enable()
-    # ground_fusion.enable()
-    #
-    # # Option 4: Fuse + run a named pipeline on the merged cloud (same API as generate_lidar)
-    # fusion = FusionService(
-    #     lidar_service,
-    #     topic="fused_reflectors",
-    #     sensor_ids=["lidar1", "lidar2"],
-    #     # pipeline_name="advanced",
-    # )
-    # fusion.enable()
-    
-
     lidar_service.start(asyncio.get_running_loop())
 
 
@@ -82,3 +47,8 @@ async def get_status():
         "active_sensors": [s.id for s in lidar_service.sensors],
         "version": settings.VERSION
     }
+
+
+# Serve Angular SPA (and assets) from app/static at root.
+# Keep this mount LAST so API routes (e.g. /lidars, /ws/*, /status) take precedence.
+app.mount("/", StaticFiles(directory="app/static", html=True), name="spa")

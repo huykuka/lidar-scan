@@ -12,3 +12,8 @@ web/.env*
 *.pyc
 
 debug_data/
+
+# Backend-served frontend build output
+# Keep the folder structure, but do not track generated assets.
+app/static/*
+!app/static/.gitkeep

@@ -5,6 +5,7 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:backend": "DEPLOY_BACKEND_STATIC=1 ng build --configuration production && node scripts/deploy-to-backend.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
