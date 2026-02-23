@@ -5,9 +5,9 @@ router = APIRouter()
 
 @router.get("/topics")
 async def list_topics():
-    """Returns available websocket topics"""
+    """Returns available websocket topics (excluding system topics)"""
     return {
-        "topics": sorted(manager.active_connections.keys()),
+        "topics": manager.get_public_topics(),
         "description": {
             "raw_points": "Stream of raw point cloud data (sub-sampled for performance)",
             "processed_points": "Stream of preprocessed data with algorithm results"

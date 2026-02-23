@@ -78,5 +78,12 @@ class ConnectionManager:
                 self._interceptors[topic].remove(future)
             raise
 
+    def get_public_topics(self) -> List[str]:
+        """Returns list of topics excluding system topics."""
+        return sorted([
+            topic for topic in self.active_connections.keys()
+            if topic not in SYSTEM_TOPICS
+        ])
+
 
 manager = ConnectionManager()

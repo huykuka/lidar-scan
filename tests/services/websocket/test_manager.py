@@ -4,7 +4,7 @@ Tests for WebSocket ConnectionManager
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
-from app.services.websocket.manager import ConnectionManager
+from app.services.websocket.manager import ConnectionManager, SYSTEM_TOPICS
 
 
 class TestConnectionManager:
@@ -237,3 +237,78 @@ class TestConnectionManager:
         websocket.send_bytes.assert_called_once_with(message)
         assert future.done()
         assert future.result() == message
+
+
+class TestSystemTopicsFiltering:
+    """Test suite for system topics filtering"""
+    
+    def test_system_topics_constant_defined(self):
+        """Test SYSTEM_TOPICS constant is defined"""
+        assert isinstance(SYSTEM_TOPICS, set)
+        assert "system_status" in SYSTEM_TOPICS
+    
+    def test_get_public_topics_empty(self):
+        """Test get_public_topics returns empty list when no topics"""
+        manager = ConnectionManager()
+        
+        public_topics = manager.get_public_topics()
+        
+        assert public_topics == []
+    
+    def test_get_public_topics_filters_system_topics(self):
+        """Test get_public_topics excludes system topics"""
+        manager = ConnectionManager()
+        
+        # Register both system and public topics
+        manager.register_topic("system_status")
+        manager.register_topic("sensor1_raw_points")
+        manager.register_topic("sensor1_processed_points")
+        
+        public_topics = manager.get_public_topics()
+        
+        # System topic should be filtered out
+        assert "system_status" not in public_topics
+        assert "sensor1_raw_points" in public_topics
+        assert "sensor1_processed_points" in public_topics
+    
+    def test_get_public_topics_returns_sorted(self):
+        """Test get_public_topics returns sorted list"""
+        manager = ConnectionManager()
+        
+        # Register in random order
+        manager.register_topic("zebra_points")
+        manager.register_topic("alpha_points")
+        manager.register_topic("beta_points")
+        
+        public_topics = manager.get_public_topics()
+        
+        assert public_topics == ["alpha_points", "beta_points", "zebra_points"]
+    
+    def test_get_public_topics_only_system_topics(self):
+        """Test get_public_topics returns empty when only system topics"""
+        manager = ConnectionManager()
+        
+        # Register only system topics
+        for topic in SYSTEM_TOPICS:
+            manager.register_topic(topic)
+        
+        public_topics = manager.get_public_topics()
+        
+        assert public_topics == []
+    
+    def test_get_public_topics_mixed(self):
+        """Test get_public_topics with mix of system and public topics"""
+        manager = ConnectionManager()
+        
+        # Register mix of topics
+        manager.register_topic("system_status")
+        manager.register_topic("lidar1_raw_points")
+        manager.register_topic("lidar2_raw_points")
+        manager.register_topic("fused_points")
+        
+        public_topics = manager.get_public_topics()
+        
+        # Should only include public topics
+        assert len(public_topics) == 3
+        assert "system_status" not in public_topics
+        assert all(t in public_topics for t in ["lidar1_raw_points", "lidar2_raw_points", "fused_points"])
