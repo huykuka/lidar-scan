@@ -1,256 +1,68 @@
-<div class="h-full flex flex-col gap-4">
-  <!-- Toolbar -->
-  <div class="bg-white rounded-lg border border-syn-color-neutral-200 p-4 shadow-sm">
-    <div class="flex items-center justify-between gap-4">
-      <!-- Search & Status -->
-      <div class="flex items-center gap-4 flex-1">
-        <syn-input
-          type="search"
-          placeholder="Search logs by message or module..."
-          size="medium"
-          [value]="searchText()"
-          (syn-input)="searchText.set($any($event.target).value); onFilterChange()"
-          clearable
-          class="flex-1 max-w-md"
-        >
-          <syn-icon slot="prefix" name="search"></syn-icon>
-        </syn-input>
+<div class="h-full flex flex-col gap-3 p-2 bg-syn-color-neutral-50/30">
+  <!-- Unified Command Header -->
+  <div
+    class="flex flex-col shadow-md rounded-xl overflow-hidden border border-syn-color-neutral-200"
+  >
+    <app-logs-toolbar
+      [searchText]="searchText()"
+      [selectedLevel]="selectedLevel()"
+      [isStreaming]="isStreaming()"
+      [totalCount]="entries().length"
+      [errorCount]="levelCounts()['ERROR'] || 0"
+      (searchChanged)="searchText.set($event); onFilterChange()"
+      (levelChanged)="selectedLevel.set($event); onFilterChange()"
+      (streamingToggled)="$event ? startStreaming() : stopStreaming()"
+      (downloadClicked)="downloadLogs()"
+      (clearClicked)="clearAllLogs()"
+    ></app-logs-toolbar>
 
-        <div class="flex items-center gap-2">
-          <syn-badge variant="neutral" size="medium">Total: {{ entries().length }}</syn-badge>
-          @if (levelCounts()['ERROR']) {
-            <syn-badge variant="danger" size="medium"
-              >Errors: {{ levelCounts()['ERROR'] }}</syn-badge
-            >
-          }
-        </div>
-      </div>
-
-      <!-- Main Actions -->
-      <div class="flex items-center gap-2">
-        <syn-button
-          [variant]="showFilters() ? 'filled' : 'outline'"
-          (click)="toggleFilters()"
-          size="medium"
-        >
-          <syn-icon slot="prefix" name="filter_alt"></syn-icon>
-          Filters
-        </syn-button>
-
-        <syn-button
-          [variant]="isStreaming() ? 'filled' : 'outline'"
-          (click)="isStreaming() ? stopStreaming() : startStreaming()"
-          size="medium"
-        >
-          <syn-icon slot="prefix" [name]="isStreaming() ? 'stop_circle' : 'play_circle'"></syn-icon>
-          {{ isStreaming() ? 'Stop' : 'Stream' }}
-        </syn-button>
-
-        <syn-icon-button
-          name="download"
-          label="Download Logs"
-          (click)="downloadLogs()"
-        ></syn-icon-button>
-        <syn-icon-button
-          name="delete_sweep"
-          label="Clear Logs"
-          (click)="clearAllLogs()"
-        ></syn-icon-button>
-      </div>
-    </div>
-
-    <!-- Expanded Filters -->
-    @if (showFilters()) {
+    <!-- Integrated Status Bar -->
+    @if (isStreaming() || streamError()) {
       <div
-        class="mt-4 pt-4 border-t border-syn-color-neutral-100 flex items-center gap-4 animate-in fade-in slide-in-from-top-2 duration-200"
+        class="flex items-center gap-4 px-4 py-1.5 border-t border-syn-color-neutral-100 animate-in slide-in-from-top-1 duration-300"
+        [class.bg-syn-color-green-50]="isStreaming() && !streamError()"
+        [class.bg-syn-color-red-50]="streamError()"
       >
-        <div class="flex items-center gap-3">
-          <label class="text-sm font-medium text-syn-color-neutral-600">Level Filter:</label>
-          <syn-select
-            [value]="selectedLevel()"
-            (syn-change)="selectedLevel.set($any($event.target).value); onFilterChange()"
-            placeholder="All Levels"
-            size="small"
-            class="w-[150px]"
+        @if (isStreaming() && !streamError()) {
+          <div
+            class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-syn-color-green-800"
           >
-            <syn-option value="">All Levels</syn-option>
-            <syn-option value="DEBUG">Debug</syn-option>
-            <syn-option value="INFO">Info</syn-option>
-            <syn-option value="WARNING">Warning</syn-option>
-            <syn-option value="ERROR">Error</syn-option>
-            <syn-option value="CRITICAL">Critical</syn-option>
-          </syn-select>
-        </div>
-        <syn-button variant="text" size="small" (click)="clearFilters()">Reset Filters</syn-button>
+            <span class="relative flex h-2 w-2">
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-syn-color-green-400 opacity-75"
+              ></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-syn-color-green-600"></span>
+            </span>
+            Live Monitoring Active
+          </div>
+        }
+        @if (streamError()) {
+          <div
+            class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-syn-color-red-700"
+          >
+            <syn-icon name="error_outline" size="small" class="text-syn-color-red-600"></syn-icon>
+            {{ streamError() }}
+          </div>
+        }
       </div>
     }
   </div>
 
-  <!-- Status Indicators -->
-  @if (isStreaming() || streamError()) {
-    <div class="flex items-center gap-3 px-1">
-      @if (isStreaming()) {
-        <div
-          class="flex items-center gap-2 text-syn-color-green-700 text-xs font-medium px-2 py-1 bg-syn-color-green-50 rounded border border-syn-color-green-100"
-        >
-          <syn-icon name="sync" class="animate-spin size-3"></syn-icon>
-          Streaming live...
-        </div>
-      }
-      @if (streamError()) {
-        <div
-          class="flex items-center gap-2 text-syn-color-red-700 text-xs font-medium px-2 py-1 bg-syn-color-red-50 rounded border border-syn-color-red-100"
-        >
-          <syn-icon name="error" class="size-3"></syn-icon>
-          {{ streamError() }}
-        </div>
-      }
-    </div>
-  }
-
-  <!-- Content area -->
+  <!-- Main Content Area -->
   <div
-    class="flex-1 min-h-0 bg-white rounded-lg border border-syn-color-neutral-200 overflow-hidden flex flex-col relative shadow-sm"
+    class="flex-1 min-h-0 bg-white rounded-xl border border-syn-color-neutral-200 overflow-hidden flex flex-col relative shadow-sm"
   >
-    @if (isLoading()) {
-      <div class="absolute inset-0 flex items-center justify-center bg-white/60 z-30">
-        <syn-spinner size="large"></syn-spinner>
-      </div>
-    }
+    <!-- Sub-component: Table with Load More -->
+    <app-logs-table
+      [entries]="displayEntries()"
+      [selectedEntry]="selectedEntry()"
+      [isLoading]="isLoading()"
+      [isLoadingMore]="isLoadingMore()"
+      (entrySelected)="onSelectEntry($event)"
+      (loadMoreClicked)="loadMoreLogs()"
+    ></app-logs-table>
 
-    <!-- Table Container -->
-    <div class="flex-1 overflow-auto">
-      @if (!isLoading() && displayEntries().length === 0) {
-        <div
-          class="flex flex-col items-center justify-center h-full text-syn-color-neutral-400 py-12"
-        >
-          <syn-icon name="description" class="text-5xl opacity-20 mb-4"></syn-icon>
-          <p class="text-lg">No log entries found</p>
-        </div>
-      } @else {
-        <table class="syn-table--default w-full">
-          <thead>
-            <tr>
-              <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-color-neutral-100 text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-[180px] shadow-[0_1px_0_var(--syn-color-neutral-200)]"
-              >
-                Timestamp
-              </th>
-              <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-color-neutral-100 text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-[110px] shadow-[0_1px_0_var(--syn-color-neutral-200)]"
-              >
-                Level
-              </th>
-              <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-color-neutral-100 text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-[200px] shadow-[0_1px_0_var(--syn-color-neutral-200)]"
-              >
-                Module
-              </th>
-              <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-color-neutral-100 text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest shadow-[0_1px_0_var(--syn-color-neutral-200)]"
-              >
-                Message
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (entry of displayEntries(); track entry.timestamp + $index) {
-              <tr
-                (click)="onSelectEntry(entry)"
-                class="cursor-pointer transition-colors group"
-                [class.bg-syn-color-blue-50]="entry === selectedEntry()"
-                [class.hover:bg-syn-color-neutral-50]="entry !== selectedEntry()"
-              >
-                <td
-                  class="px-4 py-3 font-mono text-[11px] text-syn-color-neutral-500 whitespace-nowrap align-top"
-                >
-                  {{ entry.timestamp }}
-                </td>
-                <td class="px-4 py-3 align-top">
-                  <syn-badge [variant]="getSynergyBadgeVariant(entry.level)" size="small">
-                    {{ entry.level }}
-                  </syn-badge>
-                </td>
-                <td
-                  class="px-4 py-3 font-mono text-[11px] text-syn-color-blue-700 break-all align-top"
-                >
-                  {{ entry.module }}
-                </td>
-                <td
-                  class="px-4 py-3 font-mono text-xs text-syn-color-neutral-900 break-all opacity-90 group-hover:opacity-100 align-top"
-                >
-                  {{ entry.message }}
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      }
-    </div>
-
-    <!-- Detail Panel -->
-    @if (selectedEntry()) {
-      <div class="h-[300px] border-t border-syn-color-neutral-200 flex flex-col bg-white">
-        <div
-          class="flex justify-between items-center px-6 py-2 bg-syn-color-neutral-50 border-b border-syn-color-neutral-100"
-        >
-          <h3 class="text-sm font-bold uppercase tracking-wider text-syn-color-neutral-600">
-            Log Details
-          </h3>
-          <syn-icon-button
-            name="close"
-            label="Close"
-            size="small"
-            (click)="onSelectEntry(null)"
-          ></syn-icon-button>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4 flex gap-6">
-          <div class="flex flex-col gap-3 min-w-[200px]">
-            <div class="flex flex-col">
-              <span class="text-[10px] font-bold text-syn-color-neutral-400 uppercase"
-                >Timestamp</span
-              >
-              <span class="font-mono text-sm font-medium">{{ selectedEntry()?.timestamp }}</span>
-            </div>
-            <div class="flex flex-col">
-              <span class="text-[10px] font-bold text-syn-color-neutral-400 uppercase">Level</span>
-              <syn-badge
-                [variant]="getSynergyBadgeVariant(selectedEntry()?.level || '')"
-                size="small"
-                class="w-min"
-              >
-                {{ selectedEntry()?.level }}
-              </syn-badge>
-            </div>
-            <div class="flex flex-col">
-              <span class="text-[10px] font-bold text-syn-color-neutral-400 uppercase">Module</span>
-              <span class="font-mono text-sm text-syn-color-blue-700 font-semibold">{{
-                selectedEntry()?.module
-              }}</span>
-            </div>
-          </div>
-          <div class="flex-1 flex flex-col gap-2">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] font-bold text-syn-color-neutral-400 uppercase"
-                >Message</span
-              >
-              <syn-button
-                variant="outline"
-                size="small"
-                (click)="copyToClipboard(selectedEntry()?.message || '')"
-              >
-                <syn-icon slot="prefix" name="content_copy"></syn-icon>
-                Copy Message
-              </syn-button>
-            </div>
-            <pre
-              class="flex-1 bg-syn-color-neutral-950 text-syn-color-neutral-100 p-3 rounded font-mono text-xs whitespace-pre-wrap break-all shadow-inner overflow-auto ring-1 ring-white/10 leading-relaxed"
-            >
-              {{ selectedEntry()?.message }}
-            </pre>
-          </div>
-        </div>
-      </div>
-    }
+    <!-- Sub-component: Detail Panel -->
+    <app-logs-detail [entry]="selectedEntry()" (close)="onSelectEntry(null)"></app-logs-detail>
   </div>
 </div>

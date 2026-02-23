@@ -61,11 +61,23 @@ export class LogsStoreService extends SignalsSimpleStoreService<LogsState> {
     this.setState({ entries, filteredEntries: entries });
   }
 
+  appendEntries(entries: LogEntry[]) {
+    this.state.update((current) => ({
+      ...current,
+      entries: [...current.entries, ...entries],
+      filteredEntries: [...current.filteredEntries, ...entries],
+    }));
+  }
+
   setFilters(filters: Partial<LogFilterOptions>) {
     this.state.update((current) => ({
       ...current,
       filters: { ...current.filters, ...filters },
     }));
+  }
+
+  setOffset(offset: number) {
+    this.setFilters({ offset });
   }
 
   clearEntries() {

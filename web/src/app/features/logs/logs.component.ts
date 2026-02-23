@@ -7,21 +7,29 @@ import { LogEntry } from '../../core/models/log.model';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NavigationService } from '../../core/services';
+import { LogsToolbarComponent } from './components/logs-toolbar.component';
+import { LogsTableComponent } from './components/logs-table.component';
+import { LogsDetailComponent } from './components/logs-detail.component';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs',
   standalone: true,
-  imports: [CommonModule, FormsModule, SynergyComponentsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LogsToolbarComponent,
+    LogsTableComponent,
+    LogsDetailComponent,
+    SynergyComponentsModule,
+  ],
   templateUrl: './logs.component.html',
-  styleUrls: ['./logs.component.scss'],
 })
 export class LogsComponent implements OnInit, OnDestroy {
   store = inject(LogsStoreService);
   private api = inject(LogsApiService);
   private destroy$ = new Subject<void>();
-
   private navService = inject(NavigationService);
 
   // Signals
@@ -36,7 +44,7 @@ export class LogsComponent implements OnInit, OnDestroy {
   // UI state
   selectedLevel = signal<string>('');
   searchText = signal<string>('');
-  showFilters = signal<boolean>(false);
+  isLoadingMore = signal<boolean>(false);
 
   // Computed
   displayEntries = computed(() => {
@@ -112,7 +120,36 @@ export class LogsComponent implements OnInit, OnDestroy {
   }
 
   onFilterChange() {
-    // Applied in displayEntries computed
+    // Reset offset when filters change
+    this.store.setOffset(0);
+    this.loadInitialLogs();
+  }
+
+  async loadMoreLogs() {
+    if (this.isLoadingMore() || this.isLoading()) return;
+
+    try {
+      this.isLoadingMore.set(true);
+      const currentFilters = this.store.filters();
+      const newOffset = (currentFilters.offset || 0) + (currentFilters.limit || 100);
+
+      this.store.setOffset(newOffset);
+
+      const newLogs = await this.api.getLogs({
+        ...currentFilters,
+        offset: newOffset,
+        level: this.selectedLevel() || undefined,
+        search: this.searchText() || undefined,
+      });
+
+      if (newLogs.length > 0) {
+        this.store.appendEntries(newLogs);
+      }
+    } catch (error) {
+      console.error('Error loading more logs:', error);
+    } finally {
+      this.isLoadingMore.set(false);
+    }
   }
 
   clearFilters() {
@@ -166,77 +203,27 @@ export class LogsComponent implements OnInit, OnDestroy {
     this.store.selectEntry(entry);
   }
 
-  toggleFilters() {
-    this.showFilters.update((v) => !v);
-  }
-
-  getSynergyBadgeVariant(level: string): 'neutral' | 'primary' | 'warning' | 'danger' {
-    switch (level) {
-      case 'DEBUG':
-        return 'neutral';
-      case 'INFO':
-        return 'primary';
-      case 'WARNING':
-        return 'warning';
-      case 'ERROR':
-      case 'CRITICAL':
-        return 'danger';
-      default:
-        return 'neutral';
-    }
-  }
-
-  getLevelColor(level: string): string {
-    switch (level) {
-      case 'DEBUG':
-        return '#808080';
-      case 'INFO':
-        return '#0066cc';
-      case 'WARNING':
-        return '#ff9900';
-      case 'ERROR':
-        return '#cc0000';
-      case 'CRITICAL':
-        return '#990000';
-      default:
-        return '#000000';
-    }
-  }
-
-  getLevelIcon(level: string): string {
-    switch (level) {
-      case 'DEBUG':
-        return 'bug_report';
-      case 'INFO':
-        return 'info';
-      case 'WARNING':
-        return 'warning';
-      case 'ERROR':
-        return 'error';
-      case 'CRITICAL':
-        return 'report';
-      default:
-        return 'help_outline';
-    }
-  }
-
   copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      console.log('Copied to clipboard');
-    });
+    navigator.clipboard.writeText(text);
   }
 
   downloadLogs() {
-    const content = this.displayEntries()
-      .map((e) => `[${e.timestamp}] ${e.level} [${e.module}] ${e.message}`)
-      .join('\n');
+    const filters = {
+      level: this.selectedLevel() || undefined,
+      search: this.searchText() || undefined,
+    };
 
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `logs-${new Date().toISOString().split('T')[0]}.txt`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    const downloadUrl = this.api.getLogsDownloadUrl(filters);
+
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    // The backend provides the filename in Content-Disposition
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
   }
 }

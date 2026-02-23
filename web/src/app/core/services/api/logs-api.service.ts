@@ -37,6 +37,22 @@ export class LogsApiService {
   }
 
   /**
+   * Get the URL for downloading logs from the backend
+   */
+  getLogsDownloadUrl(filters?: { level?: string; search?: string }): string {
+    const params = new URLSearchParams();
+
+    if (filters?.level) {
+      params.append('level', filters.level);
+    }
+    if (filters?.search) {
+      params.append('search', filters.search);
+    }
+
+    return `${environment.apiUrl}/download${params.toString() ? '?' + params.toString() : ''}`;
+  }
+
+  /**
    * Connect to WebSocket for real-time log streaming
    */
   connectLogsWebSocket(level?: string, search?: string): Observable<string> {

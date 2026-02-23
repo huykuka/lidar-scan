@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, StreamingResponse
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import os
@@ -54,6 +55,35 @@ def get_logs(
             break
 
     return results
+
+@router.get("/download")
+def download_logs(
+    level: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+):
+    if not os.path.exists(LOG_PATH):
+        raise HTTPException(status_code=404, detail="Log file not found")
+
+    def generate():
+        with open(LOG_PATH, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                entry = parse_log_line(line)
+                if not entry:
+                    continue
+                if level and entry['level'] != level.upper():
+                    continue
+                if search and search.lower() not in entry['message'].lower():
+                    continue
+                # Format: [2024-02-23 10:30:45] [INFO    ] [app.services] Message
+                formatted = f"[{entry['timestamp']}] [{entry['level'].marker_padding if hasattr(entry['level'], 'marker_padding') else entry['level'].ljust(8)}] [{entry['module'].ljust(20)}] {entry['message']}\n"
+                yield formatted
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    return StreamingResponse(
+        generate(),
+        media_type="text/plain",
+        headers={"Content-Disposition": f"attachment; filename=lidar_logs_{timestamp}.txt"}
+    )
 
 @router.websocket("/logs/ws")
 async def logs_websocket_endpoint(websocket: WebSocket, level: Optional[str] = None, search: Optional[str] = None):
