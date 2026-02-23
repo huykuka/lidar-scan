@@ -5,13 +5,28 @@ This script initializes the FastAPI app and runs it with uvicorn.
 """
 import sys
 import os
+from pathlib import Path
+
 
 # When running from PyInstaller, adjust paths
 if getattr(sys, 'frozen', False):
     # Running in a PyInstaller bundle
-    bundle_dir = sys._MEIPASS
+    bundle_dir = Path(sys._MEIPASS)
+    
+    debug_print(f"DEBUG: Running from PyInstaller bundle: {bundle_dir}")
+    
     # Add the bundle directory to sys.path
-    sys.path.insert(0, bundle_dir)
+    sys.path.insert(0, str(bundle_dir))
+    
+    # Add sick-scan-api to Python path if it exists
+    
+    # Also set environment variables for SICK driver to find its files
+    build_path = bundle_dir / 'build'
+    launch_path = bundle_dir / 'launch'
+
+    debug_print(f"DEBUG: Updated sys.path (first 3): {sys.path[:3]}")
+else:
+    debug_print("DEBUG: Not running from PyInstaller bundle (development mode)")
 
 # Now import uvicorn and other dependencies
 import uvicorn

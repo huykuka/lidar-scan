@@ -188,15 +188,6 @@ class LidarService:
                         daemon=True
                     )
                 else:
-                    # Check if sick_scan_api is available before spawning hardware worker
-                    try:
-                        import sick_scan_api
-                    except ImportError:
-                        error_msg = "sick_scan_api not installed (skipping real hardware mode)"
-                        print(f"[{sensor.id}] {error_msg}")
-                        self.lidar_runtime[sensor.id]["last_error"] = error_msg
-                        continue
-                    
                     # Lazy import: sick_scan_api might not be installed in all environments
                     from .workers.sick_scan import lidar_worker_process
                     p = mp.Process(

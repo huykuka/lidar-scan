@@ -60,7 +60,6 @@ if [ "$CLEAN" = true ] || [ -z "$(ls -A "$PROJECT_ROOT/build")" ]; then
     # Copy the build directory contents from the container to the host
     docker cp "${CONTAINER_ID}:/workspace/build/." "$PROJECT_ROOT/build/"
     docker cp "${CONTAINER_ID}:/workspace/sick_scan_xd/launch/." "$PROJECT_ROOT/launch/"
-    docker cp "${CONTAINER_ID}:/workspace/sick_scan_xd/python/." "$PROJECT_ROOT/sick-scan-api/"
 
     # Clean up the temporary container
     docker rm "${CONTAINER_ID}" > /dev/null

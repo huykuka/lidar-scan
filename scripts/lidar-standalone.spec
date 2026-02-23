@@ -9,10 +9,22 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 spec_dir = Path(SPECPATH).resolve()  # Ensure it's absolute
 project_root = spec_dir.parent  # scripts/ -> project root
 
-print(f"DEBUG: SPECPATH = {SPECPATH}")
-print(f"DEBUG: spec_dir = {spec_dir}")
-print(f"DEBUG: project_root = {project_root}")
-print(f"DEBUG: standalone.py path = {project_root / 'scripts' / 'standalone.py'}")
+# Check if sick-scan-api, build, and launch folders exist and should be included
+# These folders are created by setup.sh from Docker and contain SICK scan driver files
+sick_scan_folders = []
+
+# Note: We include the SICK driver's build folder (not PyInstaller's build folder)
+build_path = project_root / 'build'
+if build_path.exists() and any(build_path.iterdir()):
+    # Only include if it doesn't look like PyInstaller's build dir
+    if not any((build_path / 'Analysis-00.toc').exists() for _ in [1]):
+        sick_scan_folders.append((str(build_path), 'build'))
+        print(f"INFO: Including SICK driver build folder from {build_path}")
+
+launch_path = project_root / 'launch'
+if launch_path.exists() and any(launch_path.iterdir()):
+    sick_scan_folders.append((str(launch_path), 'launch'))
+    print(f"INFO: Including launch folder from {launch_path}")
 
 
 block_cipher = None
@@ -49,7 +61,7 @@ a = Analysis(
         (str(project_root / 'app' / 'static'), 'app/static'),  # Include frontend static files
         (str(project_root / 'config'), 'config'),  # Include config directory
         (str(project_root / 'app'), 'app'),  # Include entire app directory as data
-    ] + open3d_datas,
+    ] + open3d_datas + sick_scan_folders,  # Add sick-scan-api, build, and launch folders if they exist
     hiddenimports=hidden_imports,
     hookspath=[],
     hooksconfig={},

@@ -1,15 +1,9 @@
-import ctypes
-import multiprocessing as mp
-import os
+
 import time
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
-# Lazy-import inside the worker function so importing the backend doesn't
-# require `sick_scan_api` unless the real sensor mode is used.
-
+from app.services.lidar.workers.api.sick_scan_api import *
 
 def parse_sick_scan_pointcloud(msg_contents):
     """
@@ -99,39 +93,10 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
     Worker process that owns its own instance of sick_scan_xd library AND its own pipeline.
     """
 
-    try:
-        from sick_scan_api import (
-            SickScanApiLoadLibrary,
-            SickScanApiCreate,
-            SickScanApiInitByLaunchfile,
-            SickScanPointCloudMsgCallback,
-            SickScanApiRegisterCartesianPointCloudMsg,
-            SickScanApiDeregisterCartesianPointCloudMsg,
-            SickScanApiClose,
-            SickScanApiRelease,
-            SickScanApiUnloadLibrary,
-            SickScanApiSetVerboseLevel,
-        )
-    except ModuleNotFoundError as e:
-        raise RuntimeError(
-            "Real lidar worker requires 'sick_scan_api' to be installed/available."
-        ) from e
-
-    # Hint for some linters/LS: names come from the import above.
-    _ = (
-        SickScanApiLoadLibrary,
-        SickScanApiCreate,
-        SickScanApiInitByLaunchfile,
-        SickScanPointCloudMsgCallback,
-        SickScanApiRegisterCartesianPointCloudMsg,
-        SickScanApiDeregisterCartesianPointCloudMsg,
-        SickScanApiClose,
-        SickScanApiRelease,
-        SickScanApiUnloadLibrary,
-        SickScanApiSetVerboseLevel,
-    )
-
     requiredTopic = "cloud_all_fields_fullframe"
+    repo_root = Path(__file__).resolve().parents[4]
+    sick_scan_api_root = repo_root / "sick_scan-api"
+
     # 1. Load Library
     if os.name == "nt":
         lib_name = "sick_scan_xd_shared_lib.dll"
@@ -139,6 +104,16 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
     else:
         lib_name = "libsick_scan_xd_shared_lib.so"
         search_paths = ["build/", "./"]
+
+    # Add sick_scan-api search paths outside app/
+    search_paths = (
+        search_paths
+        + [
+            str(sick_scan_api_root / "build"),
+            str(sick_scan_api_root / "build/Debug"),
+            str(sick_scan_api_root),
+        ]
+    )
 
     sick_scan_library = SickScanApiLoadLibrary(search_paths, lib_name)
     if not sick_scan_library:
