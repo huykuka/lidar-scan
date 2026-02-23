@@ -1,9 +1,11 @@
-import { Component, input, output } from '@angular/core';
+import { Component, computed, inject, input, output, signal, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarConfig } from '../../../../../core/models/lidar.model';
 import { FusionConfig } from '../../../../../core/models/fusion.model';
 import { LidarNodeStatus, FusionNodeStatus } from '../../../../../core/services/api/nodes-api.service';
+import { RecordingStoreService } from '../../../../../core/services/stores/recording-store.service';
+import { RecordingApiService } from '../../../../../core/services/api/recording-api.service';
 
 export interface CanvasNode {
   id: string;
@@ -19,7 +21,10 @@ export interface CanvasNode {
   templateUrl: './flow-canvas-node.component.html',
   styleUrl: './flow-canvas-node.component.css',
 })
-export class FlowCanvasNodeComponent {
+export class FlowCanvasNodeComponent implements OnDestroy {
+  private recordingStore = inject(RecordingStoreService);
+  private recordingApi = inject(RecordingApiService);
+
   node = input.required<CanvasNode>();
   status = input<LidarNodeStatus | FusionNodeStatus | null>(null);
   isLoading = input<boolean>(false);
@@ -28,6 +33,24 @@ export class FlowCanvasNodeComponent {
   onEdit = output<void>();
   onDelete = output<void>();
   onToggleEnabled = output<boolean>();
+
+  // Recording state
+  protected isRecording = computed(() => {
+    const topic = this.getNodeTopicForRecording();
+    if (!topic) return false;
+    const checkFn = this.recordingStore.isRecording();
+    return checkFn(topic);
+  });
+
+  protected activeRecording = computed(() => {
+    const topic = this.getNodeTopicForRecording();
+    if (!topic) return null;
+    const getFn = this.recordingStore.getActiveRecordingByTopic();
+    return getFn(topic);
+  });
+
+  protected recordingDuration = signal<number>(0);
+  private recordingInterval: any = null;
 
   statusBadge(): {
     variant: 'primary' | 'success' | 'neutral' | 'warning' | 'danger';
@@ -202,5 +225,95 @@ export class FlowCanvasNodeComponent {
     }
 
     return age > 60; // Consider very stale after 1 minute
+  }
+
+  // Recording functionality
+  protected getNodeTopicForRecording(): string | null {
+    const data = this.node().data as any;
+    
+    if (this.node().type === 'sensor') {
+      // For sensors, use processed_topic or raw_topic or construct from topic_prefix
+      return data.processed_topic || data.raw_topic || (data.topic_prefix ? `${data.topic_prefix}_raw_points` : null);
+    } else if (this.node().type === 'fusion') {
+      // For fusion nodes, use the topic field
+      return data.topic || null;
+    }
+    
+    return null;
+  }
+
+  protected async toggleRecording(): Promise<void> {
+    const topic = this.getNodeTopicForRecording();
+    if (!topic) return;
+
+    const nodeData = this.node().data as any;
+
+    if (this.isRecording()) {
+      // Stop recording
+      const recording = this.activeRecording();
+      if (recording) {
+        try {
+          await this.recordingApi.stopRecording(recording.recording_id).toPromise();
+          await this.recordingStore.loadRecordings();
+          this.stopRecordingTimer();
+        } catch (error) {
+          console.error('Failed to stop recording:', error);
+        }
+      }
+    } else {
+      // Start recording
+      try {
+        const metadata: any = {
+          node_name: nodeData.name,
+          node_type: this.node().type,
+        };
+
+        if (this.node().type === 'sensor') {
+          metadata.sensor_id = nodeData.id;
+          metadata.mode = nodeData.mode;
+          metadata.pipeline = nodeData.pipeline_name;
+          metadata.pose = nodeData.pose;
+        } else if (this.node().type === 'fusion') {
+          metadata.fusion_id = nodeData.id;
+          metadata.sensor_ids = nodeData.sensor_ids;
+          metadata.pipeline = nodeData.pipeline;
+        }
+
+        await this.recordingApi.startRecording({
+          topic,
+          name: `${nodeData.name} Recording`,
+          metadata,
+        }).toPromise();
+        await this.recordingStore.loadRecordings();
+        this.startRecordingTimer();
+      } catch (error) {
+        console.error('Failed to start recording:', error);
+      }
+    }
+  }
+
+  private startRecordingTimer(): void {
+    this.recordingDuration.set(0);
+    this.recordingInterval = setInterval(() => {
+      this.recordingDuration.update(d => d + 1);
+    }, 1000);
+  }
+
+  private stopRecordingTimer(): void {
+    if (this.recordingInterval) {
+      clearInterval(this.recordingInterval);
+      this.recordingInterval = null;
+    }
+    this.recordingDuration.set(0);
+  }
+
+  protected formatDuration(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  ngOnDestroy(): void {
+    this.stopRecordingTimer();
   }
 }

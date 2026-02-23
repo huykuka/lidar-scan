@@ -1,0 +1,158 @@
+<!-- Container: flex column, h-[75vh], gap-4 -->
+<div class="flex flex-col h-[75vh] gap-4">
+  <!-- 3D Canvas Container: relative, flex-1, bg-[#2a2a2b], rounded-lg, overflow-hidden, min-h-0, flex -->
+  <div class="relative flex-1 bg-[#2a2a2b] rounded-lg overflow-hidden min-h-0 flex">
+    <div #container class="w-full h-full min-h-0 bg-transparent"></div>
+
+    <!-- Loading Overlay: absolute inset-0, flex items-center justify-center, bg-black/70, z-10 -->
+    @if (isLoading()) {
+      <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
+        <div class="flex flex-col items-center gap-4">
+          <syn-spinner></syn-spinner>
+          @if (loadingProgress() > 0) {
+            <div class="text-white">
+              <div class="text-lg font-semibold">Loading frames...</div>
+              <div class="text-sm">{{ loadingProgress() }}%</div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Error Overlay -->
+    @if (error()) {
+      <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
+        <syn-alert variant="danger" open>
+          {{ error() }}
+        </syn-alert>
+      </div>
+    }
+  </div>
+
+  <!-- Media Controls: flex flex-col gap-3, p-4, bg-syn-color-neutral-50, rounded-lg -->
+  <div class="flex flex-col gap-3 p-4 bg-syn-color-neutral-50 rounded-lg">
+    <!-- Timeline Scrubber: flex items-center gap-3 -->
+    <div class="flex items-center gap-3">
+      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[3rem]">{{
+        formatTime(currentTime())
+      }}</span>
+      <input
+        type="range"
+        class="flex-1 h-1.5 appearance-none bg-syn-color-neutral-200 rounded-full outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-syn-color-primary-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-syn-color-primary-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none"
+        [min]="0"
+        [max]="frameCount() - 1"
+        [value]="currentFrame()"
+        (input)="onSeek($event)"
+        [disabled]="frameCount() === 0"
+      />
+      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[3rem]">{{
+        formatTime(duration())
+      }}</span>
+    </div>
+
+    <!-- Control Buttons: flex items-center justify-between gap-4 -->
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <!-- Step Backward -->
+        <syn-icon-button
+          name="skip_previous"
+          label="Previous Frame"
+          (click)="onStepBackward()"
+          [disabled]="currentFrame() === 0"
+        ></syn-icon-button>
+
+        <!-- Play/Pause -->
+        <syn-icon-button
+          [name]="isPlaying() ? 'pause' : 'play_arrow'"
+          [label]="isPlaying() ? 'Pause' : 'Play'"
+          (click)="onPlay()"
+          [disabled]="frameCount() === 0 || isLoading()"
+        ></syn-icon-button>
+
+        <!-- Step Forward -->
+        <syn-icon-button
+          name="skip_next"
+          label="Next Frame"
+          (click)="onStepForward()"
+          [disabled]="currentFrame() >= frameCount() - 1"
+        ></syn-icon-button>
+      </div>
+
+      <!-- Frame Counter: text-sm font-medium text-syn-color-neutral-700 font-mono -->
+      <div class="text-sm font-medium text-syn-color-neutral-700 font-mono">
+        Frame {{ currentFrame() + 1 }} / {{ frameCount() }}
+      </div>
+
+      <!-- Speed Control: flex items-center gap-2 -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-syn-color-neutral-600">Speed:</span>
+        <syn-button
+          size="small"
+          [variant]="playbackSpeed() === 0.5 ? 'filled' : 'outline'"
+          (click)="onSpeedChange(0.5)"
+          >0.5x</syn-button
+        >
+        <syn-button
+          size="small"
+          [variant]="playbackSpeed() === 1.0 ? 'filled' : 'outline'"
+          (click)="onSpeedChange(1.0)"
+          >1x</syn-button
+        >
+        <syn-button
+          size="small"
+          [variant]="playbackSpeed() === 2.0 ? 'filled' : 'outline'"
+          (click)="onSpeedChange(2.0)"
+          >2x</syn-button
+        >
+      </div>
+    </div>
+  </div>
+
+  <!-- Metadata Panel: grid auto-fit-[200px], gap-3, p-4, bg-syn-color-neutral-50, rounded-lg -->
+  @if (info()) {
+    <div
+      class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 p-4 bg-syn-color-neutral-50 rounded-lg"
+    >
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-syn-color-neutral-500 uppercase tracking-wide"
+          >Topic:</span
+        >
+        <span class="text-sm text-syn-color-neutral-900 font-mono">{{ info()!.topic }}</span>
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-syn-color-neutral-500 uppercase tracking-wide"
+          >Duration:</span
+        >
+        <span class="text-sm text-syn-color-neutral-900 font-mono">{{
+          formatTime(info()!.duration_seconds)
+        }}</span>
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-semibold text-syn-color-neutral-500 uppercase tracking-wide"
+          >Frames:</span
+        >
+        <span class="text-sm text-syn-color-neutral-900 font-mono">{{ info()!.frame_count }}</span>
+      </div>
+      @if (info()!.metadata.sensor_name) {
+        <div class="flex flex-col gap-1">
+          <span class="text-xs font-semibold text-syn-color-neutral-500 uppercase tracking-wide"
+            >Sensor:</span
+          >
+          <span class="text-sm text-syn-color-neutral-900 font-mono">{{
+            info()!.metadata.sensor_name
+          }}</span>
+        </div>
+      }
+      @if (info()!.metadata.mode) {
+        <div class="flex flex-col gap-1">
+          <span class="text-xs font-semibold text-syn-color-neutral-500 uppercase tracking-wide"
+            >Mode:</span
+          >
+          <span class="text-sm text-syn-color-neutral-900 font-mono">{{
+            info()!.metadata.mode
+          }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>

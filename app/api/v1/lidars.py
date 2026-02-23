@@ -14,10 +14,10 @@ lidar_repo = LidarRepository()
 
 class LidarConfig(BaseModel):
     id: Optional[str] = None
-    name: str
+    name: Optional[str] = None
     topic_prefix: Optional[str] = None
     enabled: Optional[bool] = None
-    launch_args: str
+    launch_args: Optional[str] = None
     pipeline_name: Optional[str] = None
     mode: str = "real"
     pcd_path: Optional[str] = None

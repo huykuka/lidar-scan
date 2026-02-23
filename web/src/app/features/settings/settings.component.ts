@@ -19,6 +19,7 @@ import { ConfigImportDialogComponent } from './components/config-import-dialog/c
 import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.component';
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
 import { FusionStoreService } from '../../core/services/stores/fusion-store.service';
+import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
 import { DialogService } from '../../core/services';
 import { ToastService } from '../../core/services/toast.service';
 
@@ -46,6 +47,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private configApi = inject(ConfigApiService);
   private lidarStore = inject(LidarStoreService);
   protected fusionStore = inject(FusionStoreService);
+  private recordingStore = inject(RecordingStoreService);
   private dialogService = inject(DialogService);
   private toast = inject(ToastService);
 
@@ -92,7 +94,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit() {
-    this.navService.setHeadline('Settings');
+    this.navService.setPageConfig({
+      title: 'Settings',
+      subtitle: 'Configure LiDAR sensors, fusion nodes, and recording settings',
+    });
     await this.loadConfig();
     
     // Connect to WebSocket for real-time status updates
@@ -127,7 +132,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
   async loadConfig() {
     this.lidarStore.set('isLoading', true);
     try {
-      await Promise.all([this.lidarApi.getLidars(), this.fusionApi.getFusions()]);
+      await Promise.all([
+        this.lidarApi.getLidars(), 
+        this.fusionApi.getFusions(),
+        this.recordingStore.loadRecordings()
+      ]);
     } catch (error) {
       console.error('Failed to load lidars', error);
       this.toast.warning('Unable to load configuration.');

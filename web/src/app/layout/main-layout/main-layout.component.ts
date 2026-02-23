@@ -20,6 +20,8 @@ export class MainLayoutComponent implements AfterViewInit {
   private navService = inject(NavigationService);
 
   protected readonly headline = this.navService.headline;
+  protected readonly subtitle = this.navService.subtitle;
+  protected readonly showActionsSlot = this.navService.showActionsSlot;
   protected readonly isSideNavOpen = signal(false);
 
   private readonly desktopBreakpoint = 1024;

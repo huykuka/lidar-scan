@@ -13,7 +13,9 @@ from app.core.config import settings
 from app.db.migrate import ensure_schema
 from app.db.session import init_engine
 from app.services.lidar.instance import lidar_service
+from app.services.lidar.recorder import get_recorder
 from app.services.status_broadcaster import start_status_broadcaster, stop_status_broadcaster
+from app.services.websocket.manager import manager
 
 
 def get_static_path():
@@ -34,6 +36,10 @@ async def lifespan(_: FastAPI):
     # Startup
     engine = init_engine()
     ensure_schema(engine)
+    
+    # Initialize recorder and connect to WebSocket manager
+    recorder = get_recorder()
+    manager.recorder = recorder
 
     lidar_service.load_config()
     lidar_service.start(asyncio.get_running_loop())
@@ -45,6 +51,10 @@ async def lifespan(_: FastAPI):
 
     # Shutdown
     stop_status_broadcaster()
+    
+    # Stop all active recordings
+    await recorder.stop_all_recordings()
+    
     lidar_service.stop()
 
 app = FastAPI(

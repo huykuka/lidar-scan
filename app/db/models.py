@@ -57,6 +57,43 @@ class LidarModel(Base):
         }
 
 
+class RecordingModel(Base):
+    """SQLAlchemy model for recordings table."""
+
+    __tablename__ = "recordings"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    topic: Mapped[str] = mapped_column(String, nullable=False)
+    sensor_id: Mapped[str | None] = mapped_column(String)
+    file_path: Mapped[str] = mapped_column(String, nullable=False)
+    file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    frame_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    duration_seconds: Mapped[float] = mapped_column(Float, nullable=False)
+    recording_timestamp: Mapped[str] = mapped_column(String, nullable=False)
+    metadata_json: Mapped[str] = mapped_column(String, nullable=False)
+    thumbnail_path: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[str] = mapped_column(String, nullable=False)
+
+    def to_dict(self) -> dict:
+        import json
+
+        return {
+            "id": self.id,
+            "name": self.name,
+            "topic": self.topic,
+            "sensor_id": self.sensor_id,
+            "file_path": self.file_path,
+            "file_size_bytes": self.file_size_bytes,
+            "frame_count": self.frame_count,
+            "duration_seconds": self.duration_seconds,
+            "recording_timestamp": self.recording_timestamp,
+            "metadata": json.loads(self.metadata_json),
+            "thumbnail_path": self.thumbnail_path,
+            "created_at": self.created_at,
+        }
+
+
 class FusionModel(Base):
     """SQLAlchemy model for fusions table."""
 

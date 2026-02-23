@@ -73,9 +73,38 @@
       </div>
     </div>
 
-    <div class="flex justify-end px-3 py-2 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-      <syn-button variant="outline" size="small" (click)="edit.emit(lidar())">Edit</syn-button>
-      <syn-button variant="outline" color="danger" size="small" (click)="delete.emit(lidar().id!)">Delete</syn-button>
+    <div class="flex justify-between items-center px-3 py-2 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2">
+      <!-- Recording Controls -->
+      <div class="flex items-center gap-2">
+        @if (isRecording()) {
+          <syn-button 
+            variant="filled" 
+            color="danger"
+            size="small" 
+            (click)="toggleRecording(); $event.stopPropagation()"
+            class="recording-button"
+          >
+            <syn-icon slot="prefix" name="stop" class="animate-pulse"></syn-icon>
+            {{ formatDuration(recordingDuration()) }}
+          </syn-button>
+        } @else {
+          <syn-button 
+            variant="outline" 
+            size="small" 
+            (click)="toggleRecording(); $event.stopPropagation()"
+            [disabled]="!lidar().enabled"
+          >
+            <syn-icon slot="prefix" name="fiber_manual_record"></syn-icon>
+            Record
+          </syn-button>
+        }
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <syn-button variant="outline" size="small" (click)="edit.emit(lidar())">Edit</syn-button>
+        <syn-button variant="outline" color="danger" size="small" (click)="delete.emit(lidar().id!)">Delete</syn-button>
+      </div>
     </div>
   </div>
 </div>

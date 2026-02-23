@@ -13,6 +13,9 @@ export class StartComponent implements OnInit {
   private navService = inject(NavigationService);
 
   ngOnInit() {
-    this.navService.setHeadline('Start');
+    this.navService.setPageConfig({
+      title: 'Start',
+      subtitle: 'Welcome to the LiDAR Command Surface',
+    });
   }
 }

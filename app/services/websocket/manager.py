@@ -1,7 +1,10 @@
 import asyncio
-from typing import List, Dict, Any
+from typing import List, Dict, Any, TYPE_CHECKING
 
 from fastapi import WebSocket
+
+if TYPE_CHECKING:
+    from app.services.lidar.recorder import RecordingService
 
 
 # System topics that should not be listed in the /topics endpoint
@@ -14,6 +17,7 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self._interceptors: Dict[str, List[asyncio.Future]] = {}
+        self.recorder: "RecordingService | None" = None  # Will be set later to avoid circular imports
 
     def register_topic(self, topic: str):
         """Pre-registers a topic so it appears in the topic list even with no active connections."""
@@ -39,6 +43,15 @@ class ConnectionManager:
                 pass
 
     async def broadcast(self, topic: str, message: Any):
+        # Handle recording if active
+        if self.recorder and isinstance(message, bytes):
+            try:
+                await self.recorder.record_frame(topic, message)
+            except Exception as e:
+                # Don't let recording errors break broadcasts
+                import logging
+                logging.getLogger(__name__).error(f"Recording error for topic '{topic}': {e}")
+        
         # Handle active websocket connections
         if topic in self.active_connections:
             dead_connections = []

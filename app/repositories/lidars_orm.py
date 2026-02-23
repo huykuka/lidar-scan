@@ -149,7 +149,7 @@ class LidarORMRepository:
                     pitch=config.get("pitch", 0.0),
                     yaw=config.get("yaw", 0.0),
                     imu_udp_port=config.get("imu_udp_port"),
-                    enabled=enabled
+                    enabled=enabled,
                 )
                 session.add(lidar)
             

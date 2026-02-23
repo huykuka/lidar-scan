@@ -9,5 +9,6 @@ export interface NavItem {
 export const NAVIGATION_CONFIG: NavItem[] = [
   { label: 'Start', route: '/start', icon: 'home' },
   { label: 'Workspaces', route: '/workspaces', icon: 'spoke', divider: true },
+  { label: 'Recordings', route: '/recordings', icon: 'video_library', divider: true },
   { label: 'Settings', route: '/settings', icon: 'settings', divider: true, footer: false },
 ];

@@ -47,6 +47,14 @@ def ensure_schema(engine: Engine) -> None:
             conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN topic_prefix TEXT")
         if "imu_udp_port" not in lidar_cols:
             conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN imu_udp_port INTEGER")
+        
+        # Legacy playback fields (deprecated, kept for backwards compatibility with old DBs)
+        if "recording_file_path" not in lidar_cols:
+            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN recording_file_path TEXT")
+        if "playback_speed" not in lidar_cols:
+            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN playback_speed REAL DEFAULT 1.0")
+        if "playback_loop" not in lidar_cols:
+            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN playback_loop BOOLEAN DEFAULT 0")
 
         fusion_cols = _table_cols(conn, "fusions")
         if "enabled" not in fusion_cols:

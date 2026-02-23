@@ -66,7 +66,10 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.navService.setHeadline('Workspaces');
+    this.navService.setPageConfig({
+      title: 'Workspaces',
+      subtitle: 'Real-time 3D visualization of point cloud streams',
+    });
     this.initWorkspace();
 
     this.fpsUpdateInterval = setInterval(() => {

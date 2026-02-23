@@ -26,6 +26,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/settings/settings.component').then((m) => m.SettingsComponent),
       },
+      {
+        path: 'recordings',
+        loadComponent: () =>
+          import('./features/recordings/recordings.component').then((m) => m.RecordingsComponent),
+      },
     ],
   },
   {
