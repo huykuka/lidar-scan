@@ -4,6 +4,12 @@ from typing import List, Dict, Any
 from fastapi import WebSocket
 
 
+# System topics that should not be listed in the /topics endpoint
+SYSTEM_TOPICS = {
+    "system_status",  # Real-time node status updates
+}
+
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}

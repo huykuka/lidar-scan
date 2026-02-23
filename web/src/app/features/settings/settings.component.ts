@@ -6,6 +6,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarApiService } from '../../core/services/api/lidar-api.service';
 import { FusionApiService } from '../../core/services/api/fusion-api.service';
 import { NodesApiService, NodesStatusResponse } from '../../core/services/api/nodes-api.service';
+import { StatusWebSocketService } from '../../core/services/status-websocket.service';
 import { ConfigApiService } from '../../core/services/api/config-api.service';
 import { LidarConfig } from '../../core/models/lidar.model';
 import { FusionConfig } from '../../core/models/fusion.model';
@@ -41,6 +42,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private lidarApi = inject(LidarApiService);
   private fusionApi = inject(FusionApiService);
   private nodesApi = inject(NodesApiService);
+  private statusWs = inject(StatusWebSocketService);
   private configApi = inject(ConfigApiService);
   private lidarStore = inject(LidarStoreService);
   protected fusionStore = inject(FusionStoreService);
@@ -58,9 +60,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
   // View mode state
   protected viewMode = signal<'grid' | 'canvas'>('canvas');
   
-  // Node status
-  protected nodesStatus = signal<NodesStatusResponse | null>(null);
-  private statusPollInterval: any = null;
+  // Node status (from WebSocket)
+  protected nodesStatus = this.statusWs.status;
+  protected statusConnected = this.statusWs.connected;
   
   // Loading state for individual nodes
   protected lidarLoadingStates = signal<Record<string, boolean>>({});
@@ -92,34 +94,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.navService.setHeadline('Settings');
     await this.loadConfig();
-    this.startStatusPolling();
+    
+    // Connect to WebSocket for real-time status updates
+    this.statusWs.connect();
   }
 
   ngOnDestroy(): void {
-    this.stopStatusPolling();
-  }
-  
-  private startStatusPolling() {
-    // Poll every 2 seconds
-    this.statusPollInterval = setInterval(async () => {
-      try {
-        const status = await this.nodesApi.getNodesStatus();
-        this.nodesStatus.set(status);
-      } catch (error) {
-        // Silently fail - don't toast on every poll failure
-        console.error('Failed to fetch node status', error);
-      }
-    }, 2000);
-    
-    // Also fetch immediately
-    this.nodesApi.getNodesStatus().then(status => this.nodesStatus.set(status)).catch(console.error);
-  }
-  
-  private stopStatusPolling() {
-    if (this.statusPollInterval) {
-      clearInterval(this.statusPollInterval);
-      this.statusPollInterval = null;
-    }
+    // Disconnect WebSocket when component is destroyed
+    this.statusWs.disconnect();
   }
   
   protected getNodeStatus(lidarId: string) {

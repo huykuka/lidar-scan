@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.db.migrate import ensure_schema
 from app.db.session import init_engine
 from app.services.lidar.instance import lidar_service
+from app.services.status_broadcaster import start_status_broadcaster, stop_status_broadcaster
 
 
 def get_static_path():
@@ -36,10 +37,14 @@ async def lifespan(_: FastAPI):
 
     lidar_service.load_config()
     lidar_service.start(asyncio.get_running_loop())
+    
+    # Start status broadcaster
+    start_status_broadcaster()
 
     yield
 
     # Shutdown
+    stop_status_broadcaster()
     lidar_service.stop()
 
 app = FastAPI(
