@@ -2,10 +2,13 @@
 import asyncio
 import time
 from typing import Any, Dict, List, Optional
+from app.core.logging_config import get_logger
 
 from app.services.websocket.manager import manager
 from app.services.lidar.instance import lidar_service
 from app.repositories import LidarRepository, FusionRepository
+
+logger = get_logger("status_broadcaster")
 
 _broadcast_task: Optional[asyncio.Task] = None
 _stop_event: Optional[asyncio.Event] = None
@@ -19,7 +22,7 @@ def _build_status_message() -> Dict[str, Any]:
     # Get DB configs to include disabled nodes
     lidar_configs = lidar_repo.list()
     fusion_configs = fusion_repo.list()
-    
+
     # Build lidar status
     lidars_status: List[Dict[str, Any]] = []
     for config in lidar_configs:
@@ -63,7 +66,7 @@ def _build_status_message() -> Dict[str, Any]:
             "frame_age_seconds": frame_age_seconds,
             "last_error": last_error,
         })
-    
+
     # Build fusion status
     fusions_status: List[Dict[str, Any]] = []
     for config in fusion_configs:
@@ -109,18 +112,15 @@ async def _status_broadcast_loop():
     
     # Register the status topic
     manager.register_topic("system_status")
-    
+
     while not _stop_event.is_set():
         try:
             # Build status payload
             status = _build_status_message()
-            
             # Broadcast to all connected clients
             await manager.broadcast("system_status", status)
-            
         except Exception as e:
-            print(f"[StatusBroadcaster] Error broadcasting status: {e}")
-        
+            logger.exception("[StatusBroadcaster] Error broadcasting status:")
         # Wait 2 seconds before next broadcast
         try:
             await asyncio.wait_for(_stop_event.wait(), timeout=2.0)
@@ -132,24 +132,20 @@ async def _status_broadcast_loop():
 def start_status_broadcaster():
     """Start the background status broadcaster task."""
     global _broadcast_task, _stop_event
-    
     if _broadcast_task is not None:
         return  # Already running
-    
     _stop_event = asyncio.Event()
     _broadcast_task = asyncio.create_task(_status_broadcast_loop())
-    print("[StatusBroadcaster] Started")
+    logger.info("[StatusBroadcaster] Started")
 
 
 def stop_status_broadcaster():
     """Stop the background status broadcaster task."""
     global _broadcast_task, _stop_event
-    
     if _broadcast_task is None:
         return
-    
     _stop_event.set()
     _broadcast_task.cancel()
     _broadcast_task = None
     _stop_event = None
-    print("[StatusBroadcaster] Stopped")
+    logger.info("[StatusBroadcaster] Stopped")

@@ -438,3 +438,57 @@ async def get_recording_frame_as_pcd(
     except Exception as e:
         logger.error(f"Error reading frame {frame_index} from recording {recording_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to read frame: {str(e)}")
+
+
+@router.get("/recordings/{recording_id}/thumbnail")
+async def get_recording_thumbnail(
+    recording_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get thumbnail image for a recording.
+    
+    Args:
+        recording_id: Recording UUID
+        db: Database session
+    
+    Returns:
+        PNG thumbnail image or placeholder
+    """
+    repo = RecordingsRepository(db)
+    recording = repo.get_by_id(recording_id)
+    
+    if not recording:
+        raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
+    
+    # Check if thumbnail exists
+    if recording.get("thumbnail_path") and os.path.exists(recording["thumbnail_path"]):
+        return FileResponse(
+            path=recording["thumbnail_path"],
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=86400"}  # Cache for 24 hours
+        )
+    
+    # Try to generate thumbnail if missing
+    file_path = recording["file_path"]
+    if os.path.exists(file_path):
+        try:
+            from app.services.lidar.io.thumbnail import generate_thumbnail_from_file
+            
+            thumbnail_path = Path(file_path).with_suffix(".png")
+            success = generate_thumbnail_from_file(file_path, output_path=thumbnail_path)
+            
+            if success:
+                # Update database with thumbnail path
+                repo.update(recording_id, {"thumbnail_path": str(thumbnail_path)})
+                
+                return FileResponse(
+                    path=str(thumbnail_path),
+                    media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=86400"}
+                )
+        except Exception as e:
+            logger.warning(f"Failed to generate thumbnail on-demand: {e}")
+    
+    # Return 404 if no thumbnail available
+    raise HTTPException(status_code=404, detail="Thumbnail not available")

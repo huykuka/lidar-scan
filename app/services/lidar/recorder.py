@@ -135,6 +135,25 @@ class RecordingService:
             # Finalize recording file
             info = handle.writer.finalize()
             
+            # Generate thumbnail asynchronously
+            thumbnail_path = None
+            file_path = Path(info["file_path"])
+            try:
+                from app.services.lidar.io.thumbnail import generate_thumbnail_from_file
+                
+                thumbnail_output = file_path.with_suffix(".png")
+                success = await asyncio.to_thread(
+                    generate_thumbnail_from_file,
+                    file_path,
+                    output_path=thumbnail_output,
+                    view="top"
+                )
+                if success:
+                    thumbnail_path = str(thumbnail_output)
+                    logger.info(f"Generated thumbnail: {thumbnail_path}")
+            except Exception as e:
+                logger.warning(f"Failed to generate thumbnail for recording {recording_id}: {e}")
+            
             logger.info(
                 f"Stopped recording '{handle.topic}' (ID: {recording_id}): "
                 f"{handle.frame_count} frames, {info['duration_seconds']:.2f}s"
@@ -150,6 +169,7 @@ class RecordingService:
                 "duration_seconds": info["duration_seconds"],
                 "average_fps": info["average_fps"],
                 "metadata": handle.metadata,
+                "thumbnail_path": thumbnail_path,
             }
     
     async def record_frame(self, topic: str, frame_data: bytes):

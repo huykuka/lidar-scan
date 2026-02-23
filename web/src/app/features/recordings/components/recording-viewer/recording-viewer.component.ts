@@ -17,6 +17,7 @@ import { RecordingViewerInfo } from '../../../../core/models/recording.model';
 import { DialogService } from '../../../../core/services/dialog.service';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { FormsModule } from '@angular/forms';
 
 interface PCDData {
   points: Float32Array;
@@ -26,7 +27,7 @@ interface PCDData {
 @Component({
   selector: 'app-recording-viewer',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [CommonModule, SynergyComponentsModule, FormsModule],
   templateUrl: './recording-viewer.component.html',
   styleUrl: './recording-viewer.component.css',
 })
@@ -50,6 +51,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   error = signal<string | null>(null);
 
   // Frame cache - preload all frames
+  private decodingWorker: Worker | null = null; // Web worker to offload PCD parsing
   private frameCache: PCDData[] = [];
   private framesLoaded = false;
 
@@ -72,6 +74,9 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   });
 
   constructor() {
+    // Initialize Web Worker for PCD decoding
+    this.decodingWorker = new Worker(new URL('./pcd-decoder.worker.ts', import.meta.url), { type: 'module' });
+    
     // Update visualization when current frame changes
     effect(() => {
       const frame = this.currentFrame();
@@ -94,16 +99,30 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   ngOnDestroy() {
+    // Terminate the decoding Web Worker to release resources
+    if (this.decodingWorker) {
+      this.decodingWorker.terminate();
+      this.decodingWorker = null;
+    }
+    
     this.stopPlayback();
+    
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
     }
+    
     if (this.pointCloud) {
       this.pointCloud.geometry.dispose();
       (this.pointCloud.material as THREE.Material).dispose();
+      this.pointCloud = null;
     }
+    
     this.renderer?.dispose();
     this.controls?.dispose();
+    
+    // Clear frame cache
+    this.frameCache = [];
   }
 
   private initThreeJS() {
@@ -214,18 +233,39 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
 
   private loadSingleFrame(recordingId: string, frameIndex: number): Promise<void> {
     return new Promise((resolve, reject) => {
+      if (!this.decodingWorker) {
+        reject(new Error('Worker not initialized'));
+        return;
+      }
+
       this.recordingApi.getFrameAsPcd(recordingId, frameIndex).subscribe({
         next: (blob) => {
           const reader = new FileReader();
           reader.onload = (e) => {
             const text = e.target?.result as string;
-            const pcdData = this.parsePCD(text);
-            if (pcdData) {
-              this.frameCache[frameIndex] = pcdData;
-              resolve();
-            } else {
-              reject(new Error(`Failed to parse frame ${frameIndex}`));
-            }
+            
+            // Send text to worker for decoding
+            this.decodingWorker!.postMessage({
+              action: 'decode',
+              payload: { text, frameIndex },
+            });
+            
+            // Listen for worker response
+            const onMessage = (event: MessageEvent) => {
+              const { action, payload } = event.data;
+              if (action === 'decoded' && payload.frameIndex === frameIndex) {
+                this.decodingWorker!.removeEventListener('message', onMessage);
+                
+                if (payload.result) {
+                  this.frameCache[frameIndex] = payload.result;
+                  resolve();
+                } else {
+                  reject(new Error(`Failed to parse frame ${frameIndex}`));
+                }
+              }
+            };
+            
+            this.decodingWorker!.addEventListener('message', onMessage);
           };
           reader.onerror = () => reject(new Error(`Failed to read frame ${frameIndex}`));
           reader.readAsText(blob);
@@ -233,52 +273,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
         error: (err) => reject(err),
       });
     });
-  }
-
-  private parsePCD(text: string): PCDData | null {
-    const lines = text.split('\n');
-    let pointCount = 0;
-    let dataStart = 0;
-
-    // Parse header
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line.startsWith('POINTS')) {
-        pointCount = parseInt(line.split(' ')[1]);
-      }
-      if (line.startsWith('DATA')) {
-        dataStart = i + 1;
-        break;
-      }
-    }
-
-    if (pointCount === 0) return null;
-
-    // Parse points and filter out zeros (no lidar return)
-    const tempPoints: number[] = [];
-
-    for (let i = dataStart; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const values = line.split(/\s+/).map((v) => parseFloat(v));
-      if (values.length >= 3) {
-        const x = values[0];
-        const y = values[1];
-        const z = values[2];
-
-        // Skip points at origin (0, 0, 0) - these are invalid lidar returns
-        if (x !== 0 || y !== 0 || z !== 0) {
-          tempPoints.push(x, y, z);
-        }
-      }
-    }
-
-    // Convert to Float32Array
-    const points = new Float32Array(tempPoints);
-    const validCount = tempPoints.length / 3;
-
-    return { points, count: validCount };
   }
 
   private updatePointCloud(pcdData: PCDData) {
@@ -293,7 +287,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(pcdData.points, 3));
 
-    // Compute bounding sphere for auto-framing
+    // Compute bounding sphere for centering
     geometry.computeBoundingSphere();
 
     // Create material with larger points
@@ -306,23 +300,22 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     // Create points
     this.pointCloud = new THREE.Points(geometry, material);
     this.pointCloud.frustumCulled = false;
-    
+
     // Rotate to match LiDAR coordinate system (Z-up vs Three.js Y-up)
     this.pointCloud.rotation.x = -Math.PI / 2;
     this.pointCloud.rotation.z = -Math.PI / 2;
-    
+
     this.scene.add(this.pointCloud);
 
-    // Auto-frame camera on first frame
+    // Auto-frame camera on first frame, but always keep orbit target at origin
     if (this.currentFrame() === 0 && geometry.boundingSphere) {
-      const center = geometry.boundingSphere.center;
       const radius = geometry.boundingSphere.radius;
 
       // Position camera to view the entire point cloud
       const distance = radius * 3;
-      this.camera.position.set(center.x, center.y + distance * 0.5, center.z + distance);
-      this.camera.lookAt(center);
-      this.controls.target.copy(center);
+      this.camera.position.set(0, distance * 0.5, distance);
+      this.camera.lookAt(0, 0, 0);
+      this.controls.target.set(0, 0, 0);
       this.controls.update();
     }
   }
@@ -361,8 +354,8 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   onSeek(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const frame = parseInt(input.value, 10);
+    const synRange = event.target as any;
+    const frame = parseInt(synRange.value, 10);
     this.currentFrame.set(frame);
   }
 

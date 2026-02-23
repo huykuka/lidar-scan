@@ -87,6 +87,7 @@ export class RecordingsComponent implements OnInit {
       RecordingViewerComponent,
       {
         label: `Recording Viewer - ${recording.name}`,
+        class: 'recording-viewer-dialog',
       },
       {
         recordingId: recording.id,
@@ -134,5 +135,11 @@ export class RecordingsComponent implements OnInit {
 
   protected closeDetails(): void {
     this.selectedRecording.set(null);
+  }
+
+  protected onThumbnailError(event: Event): void {
+    // Hide broken image on error
+    const img = event.target as HTMLImageElement;
+    img.style.display = 'none';
   }
 }

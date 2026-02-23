@@ -8,6 +8,9 @@ from app.services.lidar.instance import lidar_service
 from app.services.websocket.manager import manager
 from app.services.lidar.io.pcd import unpack_lidr_binary, save_to_pcd
 from app.repositories import LidarRepository
+from app.core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 lidar_repo = LidarRepository()
@@ -71,14 +74,12 @@ async def create_lidar(config: LidarConfig):
     saved_id = lidar_repo.upsert(config.model_dump())
     return {"status": "success", "message": f"Lidar saved.", "id": saved_id}
 
-
 @router.post("/lidars/{lidar_id}/enabled")
 async def set_lidar_enabled(lidar_id: str, enabled: bool):
     """Enable/disable a lidar node, then reload config."""
     lidar_repo.set_enabled(lidar_id, enabled)
     lidar_service.reload_config()
     return {"status": "success", "id": lidar_id, "enabled": enabled}
-
 
 @router.post("/lidars/{lidar_id}/topic_prefix")
 async def set_lidar_topic_prefix(lidar_id: str, topic_prefix: str):
@@ -106,15 +107,15 @@ async def capture_pcd(topic: str, background_tasks: BackgroundTasks):
     """
     try:
         # 1. Wait for the next message on this topic
-        print(f"[Capture] Waiting for next frame on topic: {topic}")
+        logger.info(f"[Capture] Waiting for next frame on topic: {topic}")
         data = await manager.wait_for_next(topic, timeout=5.0)
-        
+
         if not isinstance(data, bytes):
             return {"status": "error", "message": f"Topic '{topic}' did not provide binary point cloud data."}
 
         # 2. Unpack LIDR binary format
         points, timestamp = unpack_lidr_binary(data)
-        
+
         # 3. Save to temporary PCD file
         # We use a temporary file that we'll delete after the response is sent
         fd, tmp_path = tempfile.mkstemp(suffix=".pcd")
@@ -124,6 +125,7 @@ async def capture_pcd(topic: str, background_tasks: BackgroundTasks):
         except Exception as e:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
+            logger.error(f"[Capture] Error saving PCD to {tmp_path}: {e}", exc_info=True)
             raise e
 
         # 4. Define cleanup task
@@ -131,9 +133,9 @@ async def capture_pcd(topic: str, background_tasks: BackgroundTasks):
             if os.path.exists(path):
                 try:
                     os.remove(path)
-                    print(f"[Capture] Cleaned up temporary file: {path}")
+                    logger.info(f"[Capture] Cleaned up temporary file: {path}")
                 except Exception as e:
-                    print(f"[Capture] Error cleaning up {path}: {e}")
+                    logger.error(f"[Capture] Error cleaning up {path}: {e}", exc_info=True)
 
         background_tasks.add_task(cleanup_temp_file, tmp_path)
 
@@ -146,5 +148,5 @@ async def capture_pcd(topic: str, background_tasks: BackgroundTasks):
         )
 
     except Exception as e:
-        print(f"[Capture] Error: {e}")
+        logger.error(f"[Capture] Error: {e}", exc_info=True)
         return {"status": "error", "message": str(e)}

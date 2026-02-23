@@ -1,12 +1,14 @@
 <!-- Container: flex column, h-[75vh], gap-4 -->
-<div class="flex flex-col h-[75vh] gap-4">
+<div class="flex flex-col h-[75vh] gap-4 p-4 bg-gray-50 r">
   <!-- 3D Canvas Container: relative, flex-1, bg-[#2a2a2b], rounded-lg, overflow-hidden, min-h-0, flex -->
-  <div class="relative flex-1 bg-[#2a2a2b] rounded-lg overflow-hidden min-h-0 flex">
+  <div
+    class="relative flex-1 bg-[#1e293b] rounded-lg overflow-hidden min-h-0 flex shadow-md border border-gray-600"
+  >
     <div #container class="w-full h-full min-h-0 bg-transparent"></div>
 
     <!-- Loading Overlay: absolute inset-0, flex items-center justify-center, bg-black/70, z-10 -->
     @if (isLoading()) {
-      <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
+      <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10 rounded-lg">
         <div class="flex flex-col items-center gap-4">
           <syn-spinner></syn-spinner>
           @if (loadingProgress() > 0) {
@@ -32,26 +34,25 @@
   <!-- Media Controls: flex flex-col gap-3, p-4, bg-syn-color-neutral-50, rounded-lg -->
   <div class="flex flex-col gap-3 p-4 bg-syn-color-neutral-50 rounded-lg">
     <!-- Timeline Scrubber: flex items-center gap-3 -->
-    <div class="flex items-center gap-3">
-      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[3rem]">{{
+    <div class="flex items-center gap-3 p-2 bg-gray-100 rounded shadow-sm">
+      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[4rem]">{{
         formatTime(currentTime())
       }}</span>
-      <input
-        type="range"
-        class="flex-1 h-1.5 appearance-none bg-syn-color-neutral-200 rounded-full outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-syn-color-primary-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-syn-color-primary-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-none"
+      <syn-range
+        class="flex-1"
         [min]="0"
         [max]="frameCount() - 1"
-        [value]="currentFrame()"
-        (input)="onSeek($event)"
+        [value]="currentFrame().toString()"
+        (syn-input)="onSeek($event)"
         [disabled]="frameCount() === 0"
-      />
-      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[3rem]">{{
+      ></syn-range>
+      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[4rem]">{{
         formatTime(duration())
       }}</span>
     </div>
 
     <!-- Control Buttons: flex items-center justify-between gap-4 -->
-    <div class="flex items-center justify-between gap-4">
+    <div class="flex items-center justify-between gap-4 p-3 bg-gray-200 rounded-lg">
       <div class="flex items-center gap-2">
         <!-- Step Backward -->
         <syn-icon-button
@@ -85,7 +86,7 @@
 
       <!-- Speed Control: flex items-center gap-2 -->
       <div class="flex items-center gap-2">
-        <span class="text-sm text-syn-color-neutral-600">Speed:</span>
+        <span class="text-sm text-syn-color-neutral-800 font-medium">Playback Speed:</span>
         <syn-button
           size="small"
           [variant]="playbackSpeed() === 0.5 ? 'filled' : 'outline'"
@@ -111,7 +112,7 @@
   <!-- Metadata Panel: grid auto-fit-[200px], gap-3, p-4, bg-syn-color-neutral-50, rounded-lg -->
   @if (info()) {
     <div
-      class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 p-4 bg-syn-color-neutral-50 rounded-lg"
+      class="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4 p-5 bg-white shadow-lg rounded-lg"
     >
       <div class="flex flex-col gap-1">
         <span class="text-xs font-semibold text-syn-color-neutral-500 uppercase tracking-wide"

@@ -1,14 +1,14 @@
 import asyncio
 import multiprocessing as mp
 from typing import Any, Dict, List, Optional, cast
-
 import numpy as np
-
 from app.pipeline import PipelineFactory, PointCloudPipeline
 from app.services.websocket.manager import manager
 from .core import LidarSensor, transform_points, TopicRegistry
 from .protocol import pack_points_binary
+from app.core.logging_config import get_logger
 
+logger = get_logger(__name__)
 
 class LidarService:
     def __init__(self):
@@ -23,7 +23,6 @@ class LidarService:
         self._topic_registry = TopicRegistry()
         # Runtime tracking for status endpoint
         self.lidar_runtime: Dict[str, Dict[str, Any]] = {}
-
     def load_config(self):
         """Loads sensor configurations from SQLite and registers them."""
         from app.repositories import FusionRepository, LidarRepository
@@ -48,9 +47,9 @@ class LidarService:
                     pitch=item.get("pitch", 0),
                     yaw=item.get("yaw", 0)
                 )
-            print(f"Loaded {len(enabled_configs)} sensors from DB")
+            logger.info(f"Loaded {len(enabled_configs)} sensors from DB")
         except Exception as e:
-            print(f"Error loading lidars from DB: {e}")
+            logger.error(f"Error loading lidars from DB: {e}", exc_info=True)
 
         # Load Fusions
         try:
@@ -68,7 +67,7 @@ class LidarService:
                 )
                 self.fusions.append(fusion)
         except Exception as e:
-            print(f"Error loading fusions from DB: {e}")
+            logger.error(f"Error loading fusions from DB: {e}", exc_info=True)
 
     def reload_config(self, loop=None):
         """Stops all services, reloads config, and restarts."""
@@ -123,7 +122,7 @@ class LidarService:
             pipeline = PipelineFactory.get(cast(Any, pipeline_name), lidar_id=sensor_id)
             if pipeline:
                 manager.register_topic(f"{topic_prefix}_processed_points")
-                
+
         sensor = LidarSensor(
             sensor_id=sensor_id,
             name=sensor_name,
@@ -147,14 +146,12 @@ class LidarService:
         import os
         self._loop = loop or asyncio.get_event_loop()
         self.is_running = True
-        
         # Recreate queue to ensure it's fresh after potential terminations
         # This prevents "corrupted queue" issues if a worker was terminated while writing
         self.data_queue = mp.Queue(maxsize=100)
 
         for sensor in self.sensors:
             stop_event = mp.Event()
-            
             # Initialize runtime state for this sensor
             self.lidar_runtime[sensor.id] = {
                 "last_frame_at": None,
@@ -163,25 +160,22 @@ class LidarService:
                 "mode": sensor.mode,
                 "connection_status": "starting",
             }
-
             try:
                 if sensor.mode == "sim":
                     # Validate PCD path before spawning
                     if not sensor.pcd_path or not os.path.exists(sensor.pcd_path):
                         error_msg = f"PCD file not found: {sensor.pcd_path or '(not specified)'}"
-                        print(f"[{sensor.id}] {error_msg}")
+                        logger.error(f"[{sensor.id}] {error_msg}")
                         self.lidar_runtime[sensor.id]["last_error"] = error_msg
                         continue
-                    
                     # Lazy import: open3d might not be installed in all environments
                     try:
                         from .workers.pcd import pcd_worker_process
                     except ImportError as e:
                         error_msg = f"open3d not available: {e}"
-                        print(f"[{sensor.id}] {error_msg}")
+                        logger.error(f"[{sensor.id}] {error_msg}", exc_info=True)
                         self.lidar_runtime[sensor.id]["last_error"] = error_msg
                         continue
-                    
                     p = mp.Process(
                         target=pcd_worker_process,
                         args=(sensor.id, sensor.pcd_path or "", sensor.pipeline, self.data_queue, stop_event),
@@ -197,38 +191,30 @@ class LidarService:
                         name=f"LidarWorker-{sensor.id}",
                         daemon=True
                     )
-
                 p.start()
-
                 self.processes[sensor.id] = p
                 self.stop_events[sensor.id] = stop_event
                 self.lidar_runtime[sensor.id]["process_alive"] = True
-                print(f"Spawned worker for {sensor.id} (PID: {p.pid})")
-            
+                logger.info(f"Spawned worker for {sensor.id} (PID: {p.pid})")
             except Exception as e:
                 error_msg = f"Failed to start worker: {e}"
-                print(f"[{sensor.id}] {error_msg}")
+                logger.error(f"[{sensor.id}] {error_msg}", exc_info=True)
                 self.lidar_runtime[sensor.id]["last_error"] = error_msg
-
         for fusion in self.fusions:
             fusion.enable()
-
         self._listener_task = asyncio.create_task(self._queue_listener())
 
     def stop(self):
         self.is_running = False
         if self._listener_task:
             self._listener_task.cancel()
-
         for stop_event in self.stop_events.values():
             stop_event.set()
-
         for p in self.processes.values():
             p.join(timeout=1.0)
             if p.is_alive():
                 p.terminate()
-
-        print("All Lidar services stopped.")
+        logger.info("All Lidar services stopped.")
 
     async def _queue_listener(self):
         loop = asyncio.get_event_loop()
@@ -242,7 +228,7 @@ class LidarService:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print(f"Listener error: {e}")
+                logger.error(f"Listener error: {e}", exc_info=True)
                 await asyncio.sleep(0.1)
 
     async def _handle_incoming_data(self, payload: Dict[str, Any]):
@@ -250,7 +236,6 @@ class LidarService:
         try:
             lidar_id = payload["lidar_id"]
             timestamp = payload["timestamp"]
-            
             # Handle event-type messages (connection status, errors)
             event_type = payload.get("event_type")
             if event_type:
@@ -258,44 +243,37 @@ class LidarService:
                     if event_type == "connected":
                         self.lidar_runtime[lidar_id]["last_error"] = None
                         self.lidar_runtime[lidar_id]["connection_status"] = "connected"
-                        print(f"[{lidar_id}] Connected: {payload.get('message', '')}")
+                        logger.info(f"[{lidar_id}] Connected: {payload.get('message', '')}")
                     elif event_type == "disconnected":
                         self.lidar_runtime[lidar_id]["last_error"] = f"Disconnected: {payload.get('message', 'Connection lost')}"
                         self.lidar_runtime[lidar_id]["connection_status"] = "disconnected"
-                        print(f"[{lidar_id}] Disconnected: {payload.get('message', '')}")
+                        logger.warning(f"[{lidar_id}] Disconnected: {payload.get('message', '')}")
                     elif event_type == "error":
                         self.lidar_runtime[lidar_id]["last_error"] = payload.get("message", "Unknown error")
                         self.lidar_runtime[lidar_id]["connection_status"] = "error"
-                        print(f"[{lidar_id}] Error: {payload.get('message', '')}")
+                        logger.error(f"[{lidar_id}] Error: {payload.get('message', '')}")
                 return  # Event handled, no point cloud data to process
-            
             # Update runtime tracking for point cloud data
             if lidar_id in self.lidar_runtime:
                 self.lidar_runtime[lidar_id]["last_frame_at"] = time.time()
                 self.lidar_runtime[lidar_id]["last_error"] = None
                 self.lidar_runtime[lidar_id]["connection_status"] = "connected"
-
             # Find the sensor to get its transformation matrix
             sensor = next((s for s in self.sensors if s.id == lidar_id), None)
             transformation = sensor.transformation if sensor else np.eye(4)
             topic_prefix = sensor.topic_prefix if sensor else lidar_id
-
             if payload.get("processed"):
                 # Data already processed by the worker's pipeline
                 processed_data = payload["data"]
-
                 # Extract points (they should be numpy arrays now)
                 points = processed_data.get("points")
                 if points is None:
                     # In case of some legacy or error
                     return
-
                 # Apply transformation to bring points into world/global space
                 points = transform_points(points, transformation)
-
                 binary_data = pack_points_binary(points, timestamp)
                 await manager.broadcast(f"{topic_prefix}_processed_points", binary_data)
-
                 raw_points = payload.get("raw_points")
                 if raw_points is not None:
                     raw_points = transform_points(raw_points, transformation)
@@ -309,7 +287,7 @@ class LidarService:
                     binary_data = pack_points_binary(points, timestamp)
                     await manager.broadcast(f"{topic_prefix}_raw_points", binary_data)
         except Exception as e:
-            print(f"Broadcasting error: {e}")
+            logger.error(f"Broadcasting error: {e}", exc_info=True)
             # Track error in runtime state if we can identify the lidar
             lidar_id = payload.get("lidar_id")
             if lidar_id and lidar_id in self.lidar_runtime:

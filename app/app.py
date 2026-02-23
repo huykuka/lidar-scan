@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
+from app.core.logging_config import get_logger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,6 +18,7 @@ from app.services.lidar.recorder import get_recorder
 from app.services.status_broadcaster import start_status_broadcaster, stop_status_broadcaster
 from app.services.websocket.manager import manager
 
+logger = get_logger("app")
 
 def get_static_path():
     """Get the correct static files path for both development and PyInstaller builds."""
@@ -73,14 +75,10 @@ app.add_middleware(
 
 app.include_router(api_router)
 
-
-
-
-
 # Serve Angular SPA (and assets) from app/static at root.
 # Keep this mount LAST so API routes (e.g. /lidars, /ws/*, /status) take precedence.
 static_dir = get_static_path()
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="spa")
 else:
-    print(f"Warning: Static directory not found at {static_dir}")
+    logger.warning(f"Static directory not found at {static_dir}")
