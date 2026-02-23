@@ -2,31 +2,124 @@
   <div class="panel">
     <div class="panel__header">
       <syn-icon name="sensors" class="panel__icon"></syn-icon>
-      <h3 class="panel__title">Live Source</h3>
+      <h3 class="panel__title">Live Sources</h3>
     </div>
 
     <div class="panel__body">
-      <syn-select
-        [value]="currentTopic()"
-        (synChangeEvent)="onTopicChange($event)"
-        placeholder="Select topic..."
-        label="LiDAR Topic"
-        class="w-full"
-      >
-        <syn-option *ngFor="let topic of topics()" [value]="topic">{{ topic }}</syn-option>
-      </syn-select>
-
-      <div class="actions">
-        <syn-button
-          variant="outline"
-          size="small"
+      <!-- Add New Topic -->
+      <div class="field" *ngIf="availableTopics().length > 0">
+        <label class="field__label">Add Topic</label>
+        <syn-select
+          [value]="selectedNewTopic"
+          (synChangeEvent)="onTopicSelect($event)"
+          placeholder="Select topic to add..."
           class="w-full"
-          [disabled]="!currentTopic()"
-          (click)="onCapturePcd()"
         >
-          <syn-icon slot="prefix" name="download"></syn-icon>
-          Capture PCD
-        </syn-button>
+          <syn-option *ngFor="let topic of availableTopics()" [value]="topic">{{
+            topic
+          }}</syn-option>
+        </syn-select>
+      </div>
+
+      <!-- All Topics Selected Message -->
+      <div
+        class="field"
+        *ngIf="availableTopics().length === 0 && topics().length > 0"
+      >
+        <div class="text-center py-3 px-4 bg-syn-color-success-50 rounded-lg border border-syn-color-success-200">
+          <syn-icon name="check_circle" class="text-syn-color-success-600 text-2xl mb-1"></syn-icon>
+          <p class="text-sm text-syn-color-success-700 font-medium">All available topics are active</p>
+        </div>
+      </div>
+
+      <!-- Selected Topics List -->
+      <div class="field" *ngIf="selectedTopics().length > 0">
+        <label class="field__label">Active Topics ({{ selectedTopics().length }})</label>
+        <div class="flex flex-col gap-2">
+          <div
+            *ngFor="let topicConfig of selectedTopics()"
+            class="flex items-center gap-2 p-2 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
+          >
+            <!-- Color Swatch -->
+            <input
+              type="color"
+              [value]="topicConfig.color"
+              (input)="onTopicColorChange(topicConfig.topic, $event)"
+              class="w-8 h-8 rounded cursor-pointer border-0"
+              title="Click to change color"
+            />
+
+            <!-- Topic Name -->
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-syn-color-neutral-900 truncate">
+                {{ topicConfig.topic }}
+              </div>
+            </div>
+
+            <!-- Capture PCD -->
+            <syn-icon-button
+              name="download"
+              label="Capture PCD"
+              (click)="onCapturePcd(topicConfig.topic)"
+              class="shrink-0"
+              title="Download point cloud as PCD file"
+            ></syn-icon-button>
+
+            <!-- Toggle Enable/Disable -->
+            <syn-icon-button
+              [name]="topicConfig.enabled ? 'visibility' : 'visibility_off'"
+              [label]="topicConfig.enabled ? 'Hide' : 'Show'"
+              (click)="toggleTopicEnabled(topicConfig.topic)"
+              class="shrink-0"
+              [title]="topicConfig.enabled ? 'Hide point cloud' : 'Show point cloud'"
+            ></syn-icon-button>
+
+            <!-- Remove Topic -->
+            <syn-icon-button
+              name="close"
+              label="Remove"
+              (click)="removeTopic(topicConfig.topic)"
+              class="shrink-0"
+              title="Remove topic from workspace"
+            ></syn-icon-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div
+        *ngIf="selectedTopics().length === 0"
+        class="text-center py-6 text-syn-color-neutral-500"
+      >
+        <syn-icon name="info" class="text-4xl mb-2"></syn-icon>
+        <p class="text-sm">No topics selected. Add a topic to start viewing.</p>
+      </div>
+
+      <!-- Legacy Single Topic (for backwards compatibility) -->
+      <div class="field" *ngIf="selectedTopics().length === 0">
+        <label class="field__label">Legacy Single Topic</label>
+        <syn-select
+          [value]="currentTopic()"
+          (synChangeEvent)="onLegacyTopicChange($event)"
+          placeholder="Select topic..."
+          class="w-full"
+        >
+          <syn-option *ngFor="let topic of topics()" [value]="topic">{{ topic }}</syn-option>
+        </syn-select>
+        
+        <!-- Capture PCD for legacy mode -->
+        <div class="actions mt-3">
+          <syn-button
+            variant="outline"
+            size="small"
+            class="w-full"
+            [disabled]="!currentTopic()"
+            (click)="onCapturePcd(currentTopic())"
+          >
+            <syn-icon slot="prefix" name="download"></syn-icon>
+            Capture PCD
+          </syn-button>
+        </div>
       </div>
 
       <div class="status" [class.status--ok]="isConnected()" [class.status--bad]="!isConnected()">
@@ -58,22 +151,6 @@
           [value]="pointSize().toString()"
           (synInputEvent)="onPointSizeChange($event)"
         ></syn-range>
-      </div>
-
-      <div class="field">
-        <label class="field__label">Point Color</label>
-        <div class="color">
-          <input
-            type="color"
-            [value]="pointColor()"
-            (input)="onPointColorChange($event)"
-            class="color__swatch"
-          />
-          <div class="color__meta">
-            <span class="color__hex">{{ pointColor() }}</span>
-            <span class="color__hint">Click to select</span>
-          </div>
-        </div>
       </div>
     </div>
   </div>

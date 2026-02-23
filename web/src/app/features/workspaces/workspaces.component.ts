@@ -2,6 +2,7 @@ import {
   Component,
   OnInit,
   OnDestroy,
+  AfterViewInit,
   inject,
   ViewChild,
   ChangeDetectorRef,
@@ -10,7 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NavigationService } from '../../core/services/navigation.service';
-import { WebsocketService } from '../../core/services/websocket.service';
+import { MultiWebsocketService } from '../../core/services/multi-websocket.service';
 import { TopicApiService } from '../../core/services/api/topic-api.service';
 import { WorkspaceStoreService } from '../../core/services/stores/workspace-store.service';
 import { PointCloudComponent } from './components/point-cloud/point-cloud.component';
@@ -34,31 +35,32 @@ import { environment } from '../../../environments/environment';
   templateUrl: './workspaces.component.html',
   styleUrl: './workspaces.component.css',
 })
-export class WorkspacesComponent implements OnInit, OnDestroy {
+export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('pointCloud') pointCloud!: PointCloudComponent;
 
   private navService = inject(NavigationService);
-  private wsService = inject(WebsocketService);
+  private wsService = inject(MultiWebsocketService);
   private topicApi = inject(TopicApiService);
   private workspaceStore = inject(WorkspaceStoreService);
   private cdr = inject(ChangeDetectorRef);
 
   protected pointSize = this.workspaceStore.pointSize;
-  protected pointColor = this.workspaceStore.pointColor;
   protected showCockpit = this.workspaceStore.showCockpit;
   protected showGrid = this.workspaceStore.showGrid;
   protected showAxes = this.workspaceStore.showAxes;
 
-  private wsSubscription?: Subscription;
-  private frameCount = 0;
+  private wsSubscriptions = new Map<string, Subscription>();
+  private frameCountPerTopic = new Map<string, number>();
   private fpsUpdateInterval?: any;
+  private viewInitialized = false;
 
   constructor() {
-    // Reactively connect to WebSocket when topic changes in store
+    // Reactively manage WebSocket connections based on selectedTopics
     effect(() => {
-      const topic = this.workspaceStore.currentTopic();
-      if (topic) {
-        this.connectToTopic(topic);
+      const selectedTopics = this.workspaceStore.selectedTopics();
+      // Only sync if view is initialized
+      if (this.viewInitialized) {
+        this.syncWebSocketConnections(selectedTopics);
       }
     });
   }
@@ -68,14 +70,30 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     this.initWorkspace();
 
     this.fpsUpdateInterval = setInterval(() => {
-      this.workspaceStore.set('fps', this.frameCount);
-      this.frameCount = 0;
+      // Calculate total FPS across all topics
+      let totalFrames = 0;
+      this.frameCountPerTopic.forEach((count) => {
+        totalFrames += count;
+      });
+      this.workspaceStore.set('fps', totalFrames);
+      this.frameCountPerTopic.clear();
     }, 1000);
   }
 
+  ngAfterViewInit() {
+    // Mark view as initialized
+    this.viewInitialized = true;
+    
+    // Trigger initial sync now that pointCloud component is available
+    const selectedTopics = this.workspaceStore.selectedTopics();
+    this.syncWebSocketConnections(selectedTopics);
+  }
+
   ngOnDestroy() {
-    this.wsSubscription?.unsubscribe();
-    this.wsService.disconnect();
+    this.viewInitialized = false;
+    this.wsSubscriptions.forEach((sub) => sub.unsubscribe());
+    this.wsSubscriptions.clear();
+    this.wsService.disconnectAll();
     if (this.fpsUpdateInterval) {
       clearInterval(this.fpsUpdateInterval);
     }
@@ -85,35 +103,95 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     const topics = await this.topicApi.getTopics();
     this.workspaceStore.set('topics', topics);
 
-    // Pick a valid topic.
-    // The persisted `currentTopic` can become stale if backend topic naming changes.
-    const current = this.workspaceStore.getValue('currentTopic');
-    if (topics.length > 0 && (!current || !topics.includes(current))) {
-      this.workspaceStore.set('currentTopic', topics[0]);
+    // Validate and clean up persisted topics
+    const selectedTopics = this.workspaceStore.getValue('selectedTopics');
+    const validSelectedTopics = selectedTopics.filter((st) => topics.includes(st.topic));
+    
+    // Update store with only valid topics
+    if (validSelectedTopics.length !== selectedTopics.length) {
+      this.workspaceStore.set('selectedTopics', validSelectedTopics);
+    }
+
+    // Auto-select first topic if no valid topics are selected
+    if (topics.length > 0 && validSelectedTopics.length === 0) {
+      this.workspaceStore.addTopic(topics[0]);
     }
   }
 
-  private connectToTopic(topic: string) {
-    this.workspaceStore.set('isConnected', false);
-    this.wsService.connect(environment.wsUrl(topic));
-    this.setupWsSubscription();
-  }
+  /**
+   * Sync WebSocket connections with selected topics
+   * Connect to enabled topics, disconnect from disabled or removed topics
+   */
+  private syncWebSocketConnections(
+    selectedTopics: Array<{ topic: string; color: string; enabled: boolean }>,
+  ) {
+    const enabledTopics = selectedTopics.filter((t) => t.enabled);
+    const enabledTopicNames = new Set(enabledTopics.map((t) => t.topic));
 
-  private setupWsSubscription() {
-    this.wsSubscription?.unsubscribe();
-    this.wsSubscription = this.wsService.messages$.subscribe((data) => {
-      this.workspaceStore.set('isConnected', true);
-      this.handleWsMessage(data);
+    // Disconnect from topics that are no longer enabled
+    this.wsSubscriptions.forEach((_, topic) => {
+      if (!enabledTopicNames.has(topic)) {
+        this.disconnectFromTopic(topic);
+      }
     });
+
+    // Connect to newly enabled topics and update colors
+    enabledTopics.forEach(({ topic, color }) => {
+      this.pointCloud?.addOrUpdatePointCloud(topic, color);
+      if (!this.wsSubscriptions.has(topic)) {
+        this.connectToTopic(topic);
+      }
+    });
+
+    // Remove point clouds for disabled topics
+    selectedTopics
+      .filter((t) => !t.enabled)
+      .forEach(({ topic }) => {
+        this.pointCloud?.removePointCloud(topic);
+      });
+
+    // Update connection status
+    const isAnyConnected = enabledTopics.length > 0;
+    this.workspaceStore.set('isConnected', isAnyConnected);
   }
 
-  private async handleWsMessage(data: any) {
-    this.frameCount++;
+  private connectToTopic(topic: string) {
+    if (this.wsSubscriptions.has(topic)) return;
+
+    const url = environment.wsUrl(topic);
+    const subscription = this.wsService.connect(topic, url).subscribe((data) => {
+      this.handleWsMessage(topic, data);
+    });
+
+    this.wsSubscriptions.set(topic, subscription);
+    this.frameCountPerTopic.set(topic, 0);
+  }
+
+  private disconnectFromTopic(topic: string) {
+    const subscription = this.wsSubscriptions.get(topic);
+    if (subscription) {
+      subscription.unsubscribe();
+      this.wsSubscriptions.delete(topic);
+    }
+
+    this.wsService.disconnect(topic);
+    this.frameCountPerTopic.delete(topic);
+  }
+
+  private async handleWsMessage(topic: string, data: any) {
+    // Increment frame count for this topic
+    const currentCount = this.frameCountPerTopic.get(topic) || 0;
+    this.frameCountPerTopic.set(topic, currentCount + 1);
+
     if (data instanceof ArrayBuffer) {
       const payload = this.parseBinaryPointCloud(data);
       if (payload) {
-        this.pointCloud.updatePoints(payload.points, payload.count);
-        this.workspaceStore.set('pointCount', payload.count);
+        this.pointCloud?.updatePointsForTopic(topic, payload.points, payload.count);
+        
+        // Update total point count
+        const totalPoints = this.pointCloud?.getTotalPointCount() || 0;
+        this.workspaceStore.set('pointCount', totalPoints);
+        
         if (payload.timestamp > 0) {
           const date = new Date(payload.timestamp * 1000);
           this.workspaceStore.set('lidarTime', date.toISOString().substr(11, 12));
@@ -130,8 +208,11 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
             flatArray[i * 3 + 1] = points[i][1];
             flatArray[i * 3 + 2] = points[i][2];
           }
-          this.pointCloud.updatePoints(flatArray, points.length);
-          this.workspaceStore.set('pointCount', points.length);
+          this.pointCloud?.updatePointsForTopic(topic, flatArray, points.length);
+          
+          // Update total point count
+          const totalPoints = this.pointCloud?.getTotalPointCount() || 0;
+          this.workspaceStore.set('pointCount', totalPoints);
         }
       } catch (e) {
         console.error('JSON parse error:', e);
@@ -166,6 +247,26 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
 
   protected resetCamera() {
     this.pointCloud?.resetCamera();
+  }
+
+  protected setTopView() {
+    this.pointCloud?.setTopView();
+  }
+
+  protected setFrontView() {
+    this.pointCloud?.setFrontView();
+  }
+
+  protected setSideView() {
+    this.pointCloud?.setSideView();
+  }
+
+  protected setIsometricView() {
+    this.pointCloud?.setIsometricView();
+  }
+
+  protected fitToPoints() {
+    this.pointCloud?.fitToPoints();
   }
 
   protected captureScreenshot() {

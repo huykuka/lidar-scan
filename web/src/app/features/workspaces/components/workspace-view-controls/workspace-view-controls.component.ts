@@ -38,6 +38,39 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
 
         <div class="w-px h-6 bg-white/15 mx-1"></div>
 
+        <!-- Camera View Presets -->
+        <app-workspace-view-controls-button
+          label="Top View"
+          icon="vertical_align_top"
+          (clicked)="onTopView.emit()"
+        ></app-workspace-view-controls-button>
+
+        <app-workspace-view-controls-button
+          label="Front View"
+          icon="view_agenda"
+          (clicked)="onFrontView.emit()"
+        ></app-workspace-view-controls-button>
+
+        <app-workspace-view-controls-button
+          label="Side View"
+          icon="view_sidebar"
+          (clicked)="onSideView.emit()"
+        ></app-workspace-view-controls-button>
+
+        <app-workspace-view-controls-button
+          label="Isometric"
+          icon="view_in_ar"
+          (clicked)="onIsometricView.emit()"
+        ></app-workspace-view-controls-button>
+
+        <app-workspace-view-controls-button
+          label="Fit to Points"
+          icon="fit_screen"
+          (clicked)="onFitToPoints.emit()"
+        ></app-workspace-view-controls-button>
+
+        <div class="w-px h-6 bg-white/15 mx-1"></div>
+
         <app-workspace-view-controls-button
           label="Reset View"
           icon="center_focus_strong"
@@ -75,6 +108,11 @@ export class WorkspaceViewControlsComponent {
   protected showAxes = this.store.showAxes;
 
   onResetCamera = output<void>();
+  onTopView = output<void>();
+  onFrontView = output<void>();
+  onSideView = output<void>();
+  onIsometricView = output<void>();
+  onFitToPoints = output<void>();
   onScreenshot = output<void>();
   onClearPoints = output<void>();
 

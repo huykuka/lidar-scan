@@ -33,7 +33,6 @@ export class PointCloudComponent implements OnInit, OnDestroy {
 
   // Inputs for customization
   pointSize = input<number>(0.1);
-  pointColor = input<string>('#00ff00');
   showGrid = input<boolean>(true);
   showAxes = input<boolean>(true);
 
@@ -42,13 +41,20 @@ export class PointCloudComponent implements OnInit, OnDestroy {
   private camera!: THREE.PerspectiveCamera;
   private renderer!: THREE.WebGLRenderer;
   private controls!: OrbitControls;
-  private pointsObj!: THREE.Points;
-  private geometry!: THREE.BufferGeometry;
-  private material!: THREE.PointsMaterial;
+  
+  // Multiple point clouds support
+  private pointClouds: Map<
+    string,
+    {
+      pointsObj: THREE.Points;
+      geometry: THREE.BufferGeometry;
+      material: THREE.PointsMaterial;
+      lastCount: number;
+    }
+  > = new Map();
+  
   private gridHelper?: THREE.GridHelper;
   private axesHelper?: THREE.AxesHelper;
-
-  private lastCount = 0;
 
   private animationId?: number;
   private readonly MAX_POINTS = 50000;
@@ -56,15 +62,11 @@ export class PointCloudComponent implements OnInit, OnDestroy {
   constructor() {
     // React to input changes
     effect(() => {
-      if (this.material) {
-        this.material.size = this.pointSize();
-      }
-    });
-
-    effect(() => {
-      if (this.material) {
-        this.material.color.set(this.pointColor());
-      }
+      // Update point size for all clouds
+      const size = this.pointSize();
+      this.pointClouds.forEach(({ material }) => {
+        material.size = size;
+      });
     });
 
     effect(() => {
@@ -89,6 +91,12 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
     }
+    // Dispose all point clouds
+    this.pointClouds.forEach(({ geometry, material }) => {
+      geometry.dispose();
+      material.dispose();
+    });
+    this.pointClouds.clear();
     this.renderer.dispose();
   }
 
@@ -129,25 +137,6 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     this.axesHelper.visible = !!this.showAxes();
     this.scene.add(this.axesHelper);
 
-    // Point Cloud
-    this.geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(this.MAX_POINTS * 3);
-    this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-    this.material = new THREE.PointsMaterial({
-      size: this.pointSize(),
-      color: this.pointColor(),
-    });
-
-    this.pointsObj = new THREE.Points(this.geometry, this.material);
-    this.pointsObj.frustumCulled = false;
-
-    // Rotate to match LiDAR coordinate system (Z-up vs Three.js Y-up)
-    this.pointsObj.rotation.x = -Math.PI / 2;
-    this.pointsObj.rotation.z = -Math.PI / 2;
-
-    this.scene.add(this.pointsObj);
-
     // Resize observer
     const resizeObserver = new ResizeObserver(() => {
       this.camera.aspect = container.clientWidth / container.clientHeight;
@@ -157,20 +146,106 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     resizeObserver.observe(container);
   }
 
-  updatePoints(positionsArray: Float32Array, count: number) {
-    if (!this.geometry) return;
+  /**
+   * Add or update a point cloud for a specific topic
+   * @param topic Topic identifier
+   * @param color Color for this point cloud
+   */
+  addOrUpdatePointCloud(topic: string, color: string) {
+    if (this.pointClouds.has(topic)) {
+      // Update existing cloud color
+      const cloud = this.pointClouds.get(topic)!;
+      cloud.material.color.set(color);
+      return;
+    }
 
-    this.lastCount = count;
+    // Create new point cloud
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(this.MAX_POINTS * 3);
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    const positions = this.geometry.attributes['position'].array as Float32Array;
+    const material = new THREE.PointsMaterial({
+      size: this.pointSize(),
+      color: color,
+    });
+
+    const pointsObj = new THREE.Points(geometry, material);
+    pointsObj.frustumCulled = false;
+
+    // Rotate to match LiDAR coordinate system (Z-up vs Three.js Y-up)
+    pointsObj.rotation.x = -Math.PI / 2;
+    pointsObj.rotation.z = -Math.PI / 2;
+
+    this.scene.add(pointsObj);
+
+    this.pointClouds.set(topic, {
+      pointsObj,
+      geometry,
+      material,
+      lastCount: 0,
+    });
+  }
+
+  /**
+   * Remove a point cloud for a specific topic
+   * @param topic Topic identifier
+   */
+  removePointCloud(topic: string) {
+    const cloud = this.pointClouds.get(topic);
+    if (!cloud) return;
+
+    this.scene.remove(cloud.pointsObj);
+    cloud.geometry.dispose();
+    cloud.material.dispose();
+    this.pointClouds.delete(topic);
+  }
+
+  /**
+   * Update points for a specific topic
+   * @param topic Topic identifier
+   * @param positionsArray Point positions as Float32Array
+   * @param count Number of points
+   */
+  updatePointsForTopic(topic: string, positionsArray: Float32Array, count: number) {
+    const cloud = this.pointClouds.get(topic);
+    if (!cloud) return;
+
+    cloud.lastCount = count;
+
+    const positions = cloud.geometry.attributes['position'].array as Float32Array;
     const limit = Math.min(count * 3, this.MAX_POINTS * 3);
 
     if (count > 0) {
       positions.set(positionsArray.subarray(0, limit));
     }
 
-    this.geometry.setDrawRange(0, count);
-    this.geometry.attributes['position'].needsUpdate = true;
+    cloud.geometry.setDrawRange(0, count);
+    cloud.geometry.attributes['position'].needsUpdate = true;
+  }
+
+  /**
+   * Legacy method for backwards compatibility - updates the first point cloud
+   */
+  updatePoints(positionsArray: Float32Array, count: number) {
+    // If no point clouds exist, create a default one
+    if (this.pointClouds.size === 0) {
+      this.addOrUpdatePointCloud('default', '#00ff00');
+    }
+
+    // Update first (or only) point cloud
+    const firstTopic = Array.from(this.pointClouds.keys())[0];
+    this.updatePointsForTopic(firstTopic, positionsArray, count);
+  }
+
+  /**
+   * Get total point count across all clouds
+   */
+  getTotalPointCount(): number {
+    let total = 0;
+    this.pointClouds.forEach(({ lastCount }) => {
+      total += lastCount;
+    });
+    return total;
   }
 
   resetCamera() {
@@ -179,13 +254,49 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     this.controls.update();
   }
 
-  fitToPoints(paddingFactor = 1.25) {
-    if (!this.geometry || !this.controls) return;
-    if (!this.lastCount || this.lastCount <= 0) return;
+  /**
+   * Set camera to top view (looking down at XZ plane)
+   */
+  setTopView() {
+    const distance = 30;
+    this.camera.position.set(0, distance, 0);
+    this.controls.target.set(0, 0, 0);
+    this.controls.update();
+  }
 
-    const attr = this.geometry.getAttribute('position') as THREE.BufferAttribute;
-    const positions = attr.array as Float32Array;
-    const count = Math.min(this.lastCount, this.MAX_POINTS);
+  /**
+   * Set camera to front view (looking along Y axis)
+   */
+  setFrontView() {
+    const distance = 30;
+    this.camera.position.set(0, 0, distance);
+    this.controls.target.set(0, 0, 0);
+    this.controls.update();
+  }
+
+  /**
+   * Set camera to side view (looking along X axis)
+   */
+  setSideView() {
+    const distance = 30;
+    this.camera.position.set(distance, 0, 0);
+    this.controls.target.set(0, 0, 0);
+    this.controls.update();
+  }
+
+  /**
+   * Set camera to isometric view (45° angle)
+   */
+  setIsometricView() {
+    const distance = 30;
+    this.camera.position.set(distance, distance, distance);
+    this.controls.target.set(0, 0, 0);
+    this.controls.update();
+  }
+
+  fitToPoints(paddingFactor = 1.25) {
+    if (!this.controls) return;
+    if (this.pointClouds.size === 0) return;
 
     let minX = Infinity,
       minY = Infinity,
@@ -194,17 +305,26 @@ export class PointCloudComponent implements OnInit, OnDestroy {
       maxY = -Infinity,
       maxZ = -Infinity;
 
-    for (let i = 0; i < count; i++) {
-      const x = positions[i * 3];
-      const y = positions[i * 3 + 1];
-      const z = positions[i * 3 + 2];
-      if (x < minX) minX = x;
-      if (y < minY) minY = y;
-      if (z < minZ) minZ = z;
-      if (x > maxX) maxX = x;
-      if (y > maxY) maxY = y;
-      if (z > maxZ) maxZ = z;
-    }
+    // Calculate bounding box across all point clouds
+    this.pointClouds.forEach(({ geometry, lastCount }) => {
+      if (lastCount <= 0) return;
+
+      const attr = geometry.getAttribute('position') as THREE.BufferAttribute;
+      const positions = attr.array as Float32Array;
+      const count = Math.min(lastCount, this.MAX_POINTS);
+
+      for (let i = 0; i < count; i++) {
+        const x = positions[i * 3];
+        const y = positions[i * 3 + 1];
+        const z = positions[i * 3 + 2];
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (z < minZ) minZ = z;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+        if (z > maxZ) maxZ = z;
+      }
+    });
 
     if (!isFinite(minX) || !isFinite(maxX)) return;
 
@@ -236,7 +356,10 @@ export class PointCloudComponent implements OnInit, OnDestroy {
   }
 
   clear() {
-    this.updatePoints(new Float32Array(0), 0);
+    // Clear all point clouds
+    this.pointClouds.forEach((cloud, topic) => {
+      this.updatePointsForTopic(topic, new Float32Array(0), 0);
+    });
   }
 
   private animate() {

@@ -18,7 +18,6 @@
     <app-point-cloud
       #pointCloud
       [pointSize]="pointSize()"
-      [pointColor]="pointColor()"
       [showGrid]="showGrid()"
       [showAxes]="showAxes()"
       class="w-full h-full"
@@ -30,6 +29,11 @@
     <!-- UI Controls Overlay (Bottom Center) -->
     <app-workspace-view-controls
       (onResetCamera)="resetCamera()"
+      (onTopView)="setTopView()"
+      (onFrontView)="setFrontView()"
+      (onSideView)="setSideView()"
+      (onIsometricView)="setIsometricView()"
+      (onFitToPoints)="fitToPoints()"
       (onScreenshot)="captureScreenshot()"
       (onToggleGrid)="toggleGrid()"
       (onToggleAxes)="toggleAxes()"
