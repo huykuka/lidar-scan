@@ -60,6 +60,7 @@ async def get_nodes_status():
         
         last_frame_at = runtime.get("last_frame_at")
         last_error = runtime.get("last_error")
+        connection_status = runtime.get("connection_status", "unknown")
         mode = config.get("mode", "real")
         
         # Calculate frame age if we have a timestamp
@@ -76,6 +77,7 @@ async def get_nodes_status():
             "raw_topic": f"{topic_prefix}_raw_points",
             "processed_topic": f"{topic_prefix}_processed_points" if config.get("pipeline_name") else None,
             "running": process_alive and enabled,
+            "connection_status": connection_status,
             "last_frame_at": last_frame_at,
             "frame_age_seconds": frame_age_seconds,
             "last_error": last_error,

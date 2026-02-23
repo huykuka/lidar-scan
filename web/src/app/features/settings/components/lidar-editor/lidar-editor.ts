@@ -1,6 +1,6 @@
 import { Component, Output, EventEmitter, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarStoreService } from '../../../../core/services/stores/lidar-store.service';
 import { LidarApiService } from '../../../../core/services/api/lidar-api.service';
@@ -36,6 +36,67 @@ export class LidarEditorComponent implements OnInit {
     return `Topics: ${prefix}_raw_points, ${prefix}_processed_points`;
   }
 
+  /**
+   * Calculate the next available IMU UDP port.
+   * Starts from 7501 and increments to avoid collisions.
+   */
+  private calculateNextImuUdpPort(currentLidarId?: string): number {
+    const allLidars = this.lidarStore.lidars();
+    const usedPorts = new Set<number>();
+
+    // Extract all currently used IMU UDP ports
+    allLidars.forEach((lidar) => {
+      // Skip the current lidar being edited
+      if (currentLidarId && lidar.id === currentLidarId) {
+        return;
+      }
+
+      const args = lidar.launch_args || '';
+      const imuPortMatch = args.match(/imu_udp_port:=(\d+)/);
+      if (imuPortMatch) {
+        usedPorts.add(parseInt(imuPortMatch[1]));
+      }
+    });
+
+    // Find next available port starting from 7501
+    let port = 7501;
+    while (usedPorts.has(port)) {
+      port++;
+    }
+
+    return port;
+  }
+
+  /**
+   * Custom validator to check if IMU UDP port is already used by another sensor.
+   */
+  private imuPortDuplicateValidator(control: AbstractControl): ValidationErrors | null {
+    if (!control.value) {
+      return null;
+    }
+
+    const port = parseInt(control.value);
+    const currentLidarId = this.form?.getRawValue().id;
+    const allLidars = this.lidarStore.lidars();
+
+    // Check if port is used by another sensor
+    const isDuplicate = allLidars.some((lidar) => {
+      // Skip the current lidar being edited
+      if (currentLidarId && lidar.id === currentLidarId) {
+        return false;
+      }
+
+      const args = lidar.launch_args || '';
+      const imuPortMatch = args.match(/imu_udp_port:=(\d+)/);
+      if (imuPortMatch) {
+        return parseInt(imuPortMatch[1]) === port;
+      }
+      return false;
+    });
+
+    return isDuplicate ? { duplicate: { value: port } } : null;
+  }
+
   ngOnInit() {
     this.initForm();
   }
@@ -50,8 +111,12 @@ export class LidarEditorComponent implements OnInit {
     const hostMatch = args.match(/hostname:=([\d\.]+)/);
     const receiverMatch = args.match(/udp_receiver_ip:=([\d\.]+)/);
     const portMatch = args.match(/udp_port:=(\d+)/);
+    const imuPortMatch = args.match(/imu_udp_port:=(\d+)/);
 
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+
+    // Calculate next available IMU UDP port if creating new sensor
+    const nextImuPort = this.calculateNextImuUdpPort(lidar?.id);
 
     this.form = this.fb.group({
       id: [{ value: lidar?.id || '', disabled: isEdit }],
@@ -68,6 +133,10 @@ export class LidarEditorComponent implements OnInit {
       ],
       udp_port: [
         portMatch ? parseInt(portMatch[1]) : 2666,
+        [Validators.min(1), Validators.max(65535)],
+      ],
+      imu_udp_port: [
+        imuPortMatch ? parseInt(imuPortMatch[1]) : nextImuPort,
         [Validators.min(1), Validators.max(65535)],
       ],
       // Pose
@@ -91,6 +160,9 @@ export class LidarEditorComponent implements OnInit {
       if (!ctrl || ctrl.dirty) return;
       ctrl.setValue(this.slugify(name || ''));
     });
+
+    // Add custom validator for imu_udp_port to check duplicates
+    this.form.get('imu_udp_port')?.addValidators(this.imuPortDuplicateValidator.bind(this));
   }
 
   private updateValidators(mode: string) {
@@ -98,24 +170,33 @@ export class LidarEditorComponent implements OnInit {
     const hostnameCtrl = this.form.get('hostname');
     const receiverCtrl = this.form.get('udp_receiver_ip');
     const portCtrl = this.form.get('udp_port');
+    const imuPortCtrl = this.form.get('imu_udp_port');
 
     if (mode === 'sim') {
       pcdPathCtrl?.setValidators([Validators.required]);
       hostnameCtrl?.clearValidators();
       receiverCtrl?.clearValidators();
       portCtrl?.clearValidators();
+      imuPortCtrl?.clearValidators();
     } else {
       pcdPathCtrl?.clearValidators();
       const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
       hostnameCtrl?.setValidators([Validators.required, Validators.pattern(ipPattern)]);
       receiverCtrl?.setValidators([Validators.required, Validators.pattern(ipPattern)]);
       portCtrl?.setValidators([Validators.required, Validators.min(1), Validators.max(65535)]);
+      imuPortCtrl?.setValidators([
+        Validators.required,
+        Validators.min(1),
+        Validators.max(65535),
+        this.imuPortDuplicateValidator.bind(this),
+      ]);
     }
 
     pcdPathCtrl?.updateValueAndValidity();
     hostnameCtrl?.updateValueAndValidity();
     receiverCtrl?.updateValueAndValidity();
     portCtrl?.updateValueAndValidity();
+    imuPortCtrl?.updateValueAndValidity();
     return this.form;
   }
 
@@ -126,7 +207,7 @@ export class LidarEditorComponent implements OnInit {
     let launch_args = '';
 
     if (val.mode === 'real') {
-      launch_args = `./launch/sick_multiscan.launch hostname:=${val.hostname} udp_receiver_ip:=${val.udp_receiver_ip} udp_port:=${val.udp_port}`;
+      launch_args = `./launch/sick_multiscan.launch hostname:=${val.hostname} udp_receiver_ip:=${val.udp_receiver_ip} udp_port:=${val.udp_port} imu_udp_port:=${val.imu_udp_port}`;
     }
 
     const payload = {

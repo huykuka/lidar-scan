@@ -19,6 +19,7 @@ export interface LidarConfig {
   mode: 'real' | 'sim';
   pcd_path?: string;
   pose: LidarPose;
+  imu_udp_port?: number;
 }
 
 export interface LidarListResponse {

@@ -45,6 +45,8 @@ def ensure_schema(engine: Engine) -> None:
             conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN enabled BOOLEAN DEFAULT 1")
         if "topic_prefix" not in lidar_cols:
             conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN topic_prefix TEXT")
+        if "imu_udp_port" not in lidar_cols:
+            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN imu_udp_port INTEGER")
 
         fusion_cols = _table_cols(conn, "fusions")
         if "enabled" not in fusion_cols:

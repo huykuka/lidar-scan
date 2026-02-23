@@ -161,6 +161,7 @@ class LidarService:
                 "last_error": None,
                 "process_alive": False,
                 "mode": sensor.mode,
+                "connection_status": "starting",
             }
 
             try:
@@ -250,10 +251,29 @@ class LidarService:
             lidar_id = payload["lidar_id"]
             timestamp = payload["timestamp"]
             
-            # Update runtime tracking
+            # Handle event-type messages (connection status, errors)
+            event_type = payload.get("event_type")
+            if event_type:
+                if lidar_id in self.lidar_runtime:
+                    if event_type == "connected":
+                        self.lidar_runtime[lidar_id]["last_error"] = None
+                        self.lidar_runtime[lidar_id]["connection_status"] = "connected"
+                        print(f"[{lidar_id}] Connected: {payload.get('message', '')}")
+                    elif event_type == "disconnected":
+                        self.lidar_runtime[lidar_id]["last_error"] = f"Disconnected: {payload.get('message', 'Connection lost')}"
+                        self.lidar_runtime[lidar_id]["connection_status"] = "disconnected"
+                        print(f"[{lidar_id}] Disconnected: {payload.get('message', '')}")
+                    elif event_type == "error":
+                        self.lidar_runtime[lidar_id]["last_error"] = payload.get("message", "Unknown error")
+                        self.lidar_runtime[lidar_id]["connection_status"] = "error"
+                        print(f"[{lidar_id}] Error: {payload.get('message', '')}")
+                return  # Event handled, no point cloud data to process
+            
+            # Update runtime tracking for point cloud data
             if lidar_id in self.lidar_runtime:
                 self.lidar_runtime[lidar_id]["last_frame_at"] = time.time()
                 self.lidar_runtime[lidar_id]["last_error"] = None
+                self.lidar_runtime[lidar_id]["connection_status"] = "connected"
 
             # Find the sensor to get its transformation matrix
             sensor = next((s for s in self.sensors if s.id == lidar_id), None)

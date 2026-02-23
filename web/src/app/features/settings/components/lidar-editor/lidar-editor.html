@@ -51,13 +51,22 @@
                            [helpText]="form.get('udp_receiver_ip')?.invalid && form.get('udp_receiver_ip')?.touched ? 'Invalid IP' : ''">
                 </syn-input>
               </div>
-              <syn-input label="UDP Port" 
-                         type="number" 
-                         formControlName="udp_port"
-                         ngDefaultControl
-                         size="small"
-                         [helpText]="form.get('udp_port')?.invalid && form.get('udp_port')?.touched ? 'Range 1-65535' : ''">
-              </syn-input>
+              <div class="grid grid-cols-2 gap-4">
+                <syn-input label="UDP Port" 
+                           type="number" 
+                           formControlName="udp_port"
+                           ngDefaultControl
+                           size="small"
+                           [helpText]="form.get('udp_port')?.invalid && form.get('udp_port')?.touched ? 'Range 1-65535' : ''">
+                </syn-input>
+                <syn-input label="IMU UDP Port" 
+                           type="number" 
+                           formControlName="imu_udp_port"
+                           ngDefaultControl
+                           size="small"
+                           [helpText]="form.get('imu_udp_port')?.hasError('duplicate') ? 'Port already in use by another sensor' : (form.get('imu_udp_port')?.invalid && form.get('imu_udp_port')?.touched ? 'Range 1-65535' : 'Auto-incremented to avoid conflicts')">
+                </syn-input>
+              </div>
             </div>
 
             <!-- Pipeline -->

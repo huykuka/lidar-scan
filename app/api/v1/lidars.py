@@ -27,6 +27,7 @@ class LidarConfig(BaseModel):
     roll: float = 0
     pitch: float = 0
     yaw: float = 0
+    imu_udp_port: Optional[int] = None
 
 @router.get("/lidars")
 async def list_lidars():
@@ -49,6 +50,7 @@ async def list_lidars():
                 "pipeline_name": s.get("pipeline_name"),
                 "mode": s.get("mode", "real"),
                 "pcd_path": s.get("pcd_path"),
+                "imu_udp_port": s.get("imu_udp_port"),
                 "pose": {
                     "x": s.get("x", 0),
                     "y": s.get("y", 0),

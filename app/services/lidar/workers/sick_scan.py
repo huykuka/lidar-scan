@@ -186,9 +186,68 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
         except Exception as e:
             print(f"[{lidar_id}] Callback error: {e}")
 
-    # 2. Register Callback
+    # 2. Register Callbacks
     pc_callback = SickScanPointCloudMsgCallback(_py_pointcloud_cb)
     SickScanApiRegisterCartesianPointCloudMsg(sick_scan_library, api_handle, pc_callback)
+
+    # Diagnostic callback to catch disconnection and errors
+    def _py_diagnostic_cb(handle, msg):
+        try:
+            msg_contents = msg.contents
+            status_code = msg_contents.status_code
+            status_message = msg_contents.status_message
+            
+            if status_message:
+                try:
+                    message_str = status_message.decode('utf-8') if isinstance(status_message, bytes) else str(status_message)
+                except:
+                    message_str = str(status_message)
+            else:
+                message_str = "Unknown status"
+            
+            # status_code: OK=0, WARN=1, ERROR=2, INIT=3, EXIT=4
+            if status_code == 2:  # ERROR
+                print(f"[{lidar_id}] SICK_SCAN ERROR: {message_str}")
+                payload = {
+                    "lidar_id": lidar_id,
+                    "event_type": "error",
+                    "message": message_str,
+                    "timestamp": time.time()
+                }
+                try:
+                    data_queue.put(payload, block=False)
+                except:
+                    pass
+            elif status_code == 4:  # EXIT
+                print(f"[{lidar_id}] SICK_SCAN EXIT: {message_str}")
+                payload = {
+                    "lidar_id": lidar_id,
+                    "event_type": "disconnected",
+                    "message": message_str,
+                    "timestamp": time.time()
+                }
+                try:
+                    data_queue.put(payload, block=False)
+                except:
+                    pass
+            elif status_code == 3:  # INIT
+                print(f"[{lidar_id}] SICK_SCAN INIT: {message_str}")
+                payload = {
+                    "lidar_id": lidar_id,
+                    "event_type": "connected",
+                    "message": message_str,
+                    "timestamp": time.time()
+                }
+                try:
+                    data_queue.put(payload, block=False)
+                except:
+                    pass
+                    
+        except Exception as e:
+            print(f"[{lidar_id}] Diagnostic callback error: {e}")
+    
+    diagnostic_callback = SickScanDiagnosticMsgCallback(_py_diagnostic_cb)
+    SickScanApiRegisterDiagnosticMsg(sick_scan_library, api_handle, diagnostic_callback)
 
     # 3. Main Loop
     try:
@@ -197,6 +256,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, pipeline: Any, data_qu
 
     finally:
         SickScanApiDeregisterCartesianPointCloudMsg(sick_scan_library, api_handle, pc_callback)
+        SickScanApiDeregisterDiagnosticMsg(sick_scan_library, api_handle, diagnostic_callback)
         SickScanApiClose(sick_scan_library, api_handle)
         SickScanApiRelease(sick_scan_library, api_handle)
         SickScanApiUnloadLibrary(sick_scan_library)

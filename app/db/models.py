@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import cast
 
 
-from sqlalchemy import Boolean, Float, String
+from sqlalchemy import Boolean, Float, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -34,6 +34,7 @@ class LidarModel(Base):
     roll: Mapped[float] = mapped_column(Float, default=0.0)
     pitch: Mapped[float] = mapped_column(Float, default=0.0)
     yaw: Mapped[float] = mapped_column(Float, default=0.0)
+    imu_udp_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     def to_dict(self) -> dict:
@@ -51,6 +52,7 @@ class LidarModel(Base):
             "roll": self.roll,
             "pitch": self.pitch,
             "yaw": self.yaw,
+            "imu_udp_port": self.imu_udp_port,
             "enabled": self.enabled,
         }
 

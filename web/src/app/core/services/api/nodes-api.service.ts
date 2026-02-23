@@ -12,6 +12,7 @@ export interface LidarNodeStatus {
   raw_topic: string;
   processed_topic: string | null;
   running: boolean;
+  connection_status: 'starting' | 'connected' | 'disconnected' | 'error' | 'unknown';
   last_frame_at: number | null;
   frame_age_seconds: number | null;
   last_error: string | null;

@@ -1,5 +1,5 @@
 <div
-  class="bg-white rounded-lg shadow-lg border-2 w-64 overflow-hidden hover:shadow-xl transition-all relative"
+  class="bg-white rounded-lg shadow-lg border-2 w-72 overflow-hidden hover:shadow-xl transition-all relative"
   [class.border-syn-color-success-400]="node().type === 'sensor'"
   [class.border-syn-color-primary-400]="node().type === 'fusion'"
   [class.opacity-50]="isDragging()"
@@ -43,14 +43,80 @@
   <!-- Node Body -->
   <div class="p-3 space-y-2 text-xs">
     @if (node().type === 'sensor') {
-      <div class="flex justify-between">
-        <span class="text-syn-color-neutral-500">Type:</span>
-        <span class="font-medium">{{ getNodeDriver() }}</span>
+      <!-- Mode -->
+      <div class="flex justify-between items-center">
+        <span class="text-syn-color-neutral-500">Mode:</span>
+        <syn-badge 
+          [variant]="getNodeMode() === 'real' ? 'primary' : 'neutral'" 
+          size="small">
+          {{ getNodeMode() === 'real' ? 'Hardware' : 'Simulation' }}
+        </syn-badge>
       </div>
+      
+      <!-- Topic Prefix -->
       <div class="flex justify-between">
         <span class="text-syn-color-neutral-500">Topic:</span>
-        <span class="font-mono text-xs">{{ getNodeTopicPrefix() }}</span>
+        <span class="font-mono text-xs truncate max-w-[140px]" [title]="getNodeTopicPrefix()">
+          {{ getNodeTopicPrefix() }}
+        </span>
       </div>
+
+      <!-- Pipeline -->
+      <div class="flex justify-between">
+        <span class="text-syn-color-neutral-500">Pipeline:</span>
+        <span class="font-medium truncate max-w-[140px]" [title]="getNodePipelineName()">
+          {{ getNodePipelineName() }}
+        </span>
+      </div>
+
+      <!-- Hardware-specific info -->
+      @if (getNodeMode() === 'real' && getNodeHostname()) {
+        <div class="flex justify-between">
+          <span class="text-syn-color-neutral-500">Hostname:</span>
+          <span class="font-mono text-xs">{{ getNodeHostname() }}</span>
+        </div>
+      }
+
+      @if (getNodeMode() === 'real' && getNodeImuUdpPort()) {
+        <div class="flex justify-between">
+          <span class="text-syn-color-neutral-500">IMU Port:</span>
+          <span class="font-mono text-xs">{{ getNodeImuUdpPort() }}</span>
+        </div>
+      }
+
+      <!-- Simulation-specific info -->
+      @if (getNodeMode() === 'sim' && getNodePcdPath()) {
+        <div class="flex justify-between">
+          <span class="text-syn-color-neutral-500">PCD File:</span>
+          <span class="font-mono text-xs truncate max-w-[140px]" [title]="getNodePcdPath()!">
+            {{ getNodePcdPath()!.split('/').pop() }}
+          </span>
+        </div>
+      }
+
+      <!-- Pose information -->
+      @if (getNodePose(); as pose) {
+        <div class="flex justify-between">
+          <span class="text-syn-color-neutral-500">Position:</span>
+          <span class="font-mono text-xs">
+            {{ pose.x.toFixed(2) }}, {{ pose.y.toFixed(2) }}, {{ pose.z.toFixed(2) }}
+          </span>
+        </div>
+      }
+
+      <!-- Frame age (runtime status) -->
+      @if (status() && getFrameAge()) {
+        <div class="flex justify-between items-center">
+          <span class="text-syn-color-neutral-500">Last Frame:</span>
+          <span 
+            class="font-mono text-xs font-semibold"
+            [class.text-syn-color-success-600]="!isFrameStale() && !isFrameVeryStale()"
+            [class.text-syn-color-warning-600]="isFrameStale() && !isFrameVeryStale()"
+            [class.text-syn-color-danger-600]="isFrameVeryStale()">
+            {{ getFrameAge() }} ago
+          </span>
+        </div>
+      }
     } @else {
       <div class="flex justify-between">
         <span class="text-syn-color-neutral-500">Sensors:</span>
@@ -60,6 +126,20 @@
         <span class="text-syn-color-neutral-500">Pipeline:</span>
         <span class="font-medium">{{ getNodePipeline() }}</span>
       </div>
+
+      <!-- Frame age (runtime status) for fusion nodes -->
+      @if (status() && getFrameAge()) {
+        <div class="flex justify-between items-center">
+          <span class="text-syn-color-neutral-500">Last Broadcast:</span>
+          <span 
+            class="font-mono text-xs font-semibold"
+            [class.text-syn-color-success-600]="!isFrameStale() && !isFrameVeryStale()"
+            [class.text-syn-color-warning-600]="isFrameStale() && !isFrameVeryStale()"
+            [class.text-syn-color-danger-600]="isFrameVeryStale()">
+            {{ getFrameAge() }} ago
+          </span>
+        </div>
+      }
     }
 
     @if (status()?.last_error) {

@@ -130,6 +130,7 @@ class LidarORMRepository:
                 existing.roll = config.get("roll", existing.roll)
                 existing.pitch = config.get("pitch", existing.pitch)
                 existing.yaw = config.get("yaw", existing.yaw)
+                existing.imu_udp_port = config.get("imu_udp_port", existing.imu_udp_port)
                 existing.enabled = enabled
             else:
                 # Create new
@@ -147,6 +148,7 @@ class LidarORMRepository:
                     roll=config.get("roll", 0.0),
                     pitch=config.get("pitch", 0.0),
                     yaw=config.get("yaw", 0.0),
+                    imu_udp_port=config.get("imu_udp_port"),
                     enabled=enabled
                 )
                 session.add(lidar)
