@@ -1,12 +1,30 @@
 .idea
 .venv
-build/
-launch/
-sick-scan-api/
 __pycache__/
+*.pyc
+*.pcd
 server.log
 
-*.pcd
-*.pyc
+# Build artifacts
+build/
+dist/
+requirements-frozen.txt
 
+# Runtime/debug data
 debug_data/
+
+# Backend-served frontend build output
+# Keep the folder structure, but do not track generated assets.
+app/static/*
+!app/static/.gitkeep
+
+# Local dev database
+config/
+recordings/
+
+# Web/frontend
+web/.env*
+
+# Third-party dependencies
+sick-scan-api/
+

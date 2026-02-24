@@ -4,6 +4,7 @@ from .impl import basic, advanced, reflector
 
 # Single source of truth: add a new pipeline here and the type updates automatically
 _PIPELINE_MAP: dict[str, Callable] = {
+    "none": lambda **kwargs: None,  # Special case for no pipeline
     "basic": basic.create_pipeline,
     "advanced": advanced.create_pipeline,
     "reflector": reflector.create_pipeline

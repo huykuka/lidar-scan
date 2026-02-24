@@ -1,0 +1,36 @@
+<syn-side-nav
+  #sideNav
+  noFocusTrapping
+  [open]="open()"
+  variant="default"
+  (synShowEvent)="onShow.emit()"
+  (synHideEvent)="onHide.emit()"
+>
+  <ng-container *ngFor="let item of mainNavItems">
+    <syn-nav-item
+      [routerLink]="[item.route]"
+      routerLinkActive="current"
+      #rla="routerLinkActive"
+      [current]="rla.isActive"
+      [routerLinkActiveOptions]="{ exact: true }"
+      [attr.divider]="item.divider ? '' : null"
+    >
+      <syn-icon [name]="item.icon" slot="prefix"></syn-icon>
+      {{ item.label }}
+    </syn-nav-item>
+  </ng-container>
+
+  <ng-container *ngFor="let item of footerNavItems">
+    <syn-nav-item
+      slot="footer"
+      [routerLink]="[item.route]"
+      routerLinkActive="current"
+      #rlaFooter="routerLinkActive"
+      [current]="rlaFooter.isActive"
+      [attr.divider]="item.divider ? '' : null"
+    >
+      <syn-icon [name]="item.icon" slot="prefix"></syn-icon>
+      {{ item.label }}
+    </syn-nav-item>
+  </ng-container>
+</syn-side-nav>

@@ -1,0 +1,57 @@
+# Development Dockerfile with hot-reload support
+
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js for frontend development
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy and install Python requirements
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r requirements-dev.txt
+
+# Copy and install frontend dependencies
+COPY web/package*.json ./web/
+WORKDIR /app/web
+RUN npm install
+
+WORKDIR /app
+
+# Copy application code (will be overridden by volume mounts)
+COPY app/ ./app/
+COPY main.py .
+COPY pytest.ini .
+
+# Copy launch and build folders as-is
+COPY launch/ ./launch/
+COPY build/ ./build/
+
+# Create necessary directories
+RUN mkdir -p config debug_data
+
+# Expose ports
+EXPOSE 8005
+EXPOSE 4200
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV HOST=0.0.0.0
+ENV PORT=8005
+ENV DEBUG=true
+
+# Run the application with hot-reload
+CMD ["python", "main.py"]

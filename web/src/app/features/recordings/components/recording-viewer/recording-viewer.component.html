@@ -1,0 +1,106 @@
+<!-- Container: flex column, h-[75vh], gap-4 -->
+<div class="flex flex-col h-[75vh] gap-4 bg-gray-50 r">
+  <!-- 3D Canvas Container: relative, flex-1, bg-[#2a2a2b], rounded-lg, overflow-hidden, min-h-0, flex -->
+  <div
+    class="relative flex-1 bg-[#1e293b] rounded-lg overflow-hidden min-h-0 h-[1000px] shadow-md border border-gray-600"
+  >
+    <div #container class="w-full h-full min-h-0 bg-transparent"></div>
+
+    <!-- Loading Overlay: absolute inset-0, flex items-center justify-center, bg-black/70, z-10 -->
+    @if (isLoading()) {
+      <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10 rounded-lg">
+        <div class="flex flex-col items-center gap-4">
+          <syn-spinner></syn-spinner>
+          <div class="text-white text-lg font-semibold">Initializing recording...</div>
+        </div>
+      </div>
+    }
+
+    <!-- Error Overlay -->
+    @if (error()) {
+      <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
+        <syn-alert variant="danger" open>
+          {{ error() }}
+        </syn-alert>
+      </div>
+    }
+  </div>
+
+  <!-- Media Controls: flex flex-col gap-3, p-4, bg-syn-color-neutral-50, rounded-lg -->
+  <div class="flex flex-col gap-3 bg-syn-color-neutral-50 rounded-lg">
+    <!-- Timeline Scrubber: flex items-center gap-3 -->
+    <div class="flex items-center gap-3 p-2 bg-gray-100 rounded shadow-sm">
+      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[4rem]">{{
+        formatTime(currentTime())
+      }}</span>
+      <syn-range
+        class="flex-1"
+        [min]="0"
+        [max]="frameCount() - 1"
+        [value]="currentFrame().toString()"
+        (syn-input)="onSeek($event)"
+        [disabled]="frameCount() === 0"
+      ></syn-range>
+      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[4rem]">{{
+        formatTime(duration())
+      }}</span>
+    </div>
+
+    <!-- Control Buttons: flex items-center justify-between gap-4 -->
+    <div class="flex items-center justify-between gap-4 p-3 bg-gray-200 rounded-lg">
+      <div class="flex items-center gap-2">
+        <!-- Step Backward -->
+        <syn-icon-button
+          name="skip_previous"
+          label="Previous Frame"
+          (click)="onStepBackward()"
+          [disabled]="currentFrame() === 0"
+        ></syn-icon-button>
+
+        <!-- Play/Pause -->
+        <syn-icon-button
+          [name]="isPlaying() ? 'pause' : 'play_arrow'"
+          [label]="isPlaying() ? 'Pause' : 'Play'"
+          (click)="onPlay()"
+          [disabled]="frameCount() === 0 || isLoading()"
+        ></syn-icon-button>
+
+        <!-- Step Forward -->
+        <syn-icon-button
+          name="skip_next"
+          label="Next Frame"
+          (click)="onStepForward()"
+          [disabled]="currentFrame() >= frameCount() - 1"
+        ></syn-icon-button>
+      </div>
+
+      <!-- Frame Counter: text-sm font-medium text-syn-color-neutral-700 font-mono -->
+      <div class="text-sm font-medium text-syn-color-neutral-700 font-mono">
+        Frame {{ currentFrame() + 1 }} / {{ frameCount() }}
+      </div>
+
+      <!-- Speed Control: flex items-center gap-2 -->
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-syn-color-neutral-800 font-medium">Playback Speed:</span>
+        <syn-button
+          size="small"
+          [variant]="playbackSpeed() === 0.5 ? 'filled' : 'outline'"
+          (click)="onSpeedChange(0.5)"
+          >0.5x</syn-button
+        >
+        <syn-button
+          size="small"
+          [variant]="playbackSpeed() === 1.0 ? 'filled' : 'outline'"
+          (click)="onSpeedChange(1.0)"
+          >1x</syn-button
+        >
+        <syn-button
+          size="small"
+          [variant]="playbackSpeed() === 2.0 ? 'filled' : 'outline'"
+          (click)="onSpeedChange(2.0)"
+          >2x</syn-button
+        >
+      </div>
+    </div>
+  </div>
+</div>

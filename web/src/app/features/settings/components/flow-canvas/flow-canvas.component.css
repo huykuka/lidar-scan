@@ -1,0 +1,24 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Smooth dragging */
+.dragging {
+  opacity: 0.8;
+  cursor: grabbing !important;
+}
+
+/* Node hover effects */
+.node-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Prevent text selection during drag */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}

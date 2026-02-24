@@ -1,0 +1,24 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.bg-black\/60 {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.backdrop-blur-md {
+  backdrop-filter: blur(12px);
+}
+.text-white {
+  --syn-button-color-outline: #ffffff;
+  --syn-button-color-text: #ffffff;
+  color: #ffffff;
+}
+
+.text-white syn-icon {
+  color: #ffffff;
+}

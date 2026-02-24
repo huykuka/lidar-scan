@@ -1,0 +1,111 @@
+<syn-dialog 
+  [open]="open()" 
+  (syn-request-close)="requestClose.emit()"
+  label="Import Configuration"
+  class="import-validation-dialog">
+  
+  <div class="flex flex-col gap-4 p-4">
+    @if (validationResult(); as validation) {
+      <!-- Summary -->
+      <div class="flex items-start gap-3 p-3 rounded-lg" 
+           [ngClass]="validation.valid ? 'bg-syn-color-success-50 border border-syn-color-success-200' : 'bg-syn-color-danger-50 border border-syn-color-danger-200'">
+        <syn-icon 
+          [name]="validation.valid ? 'check_circle' : 'error'" 
+          [class]="validation.valid ? 'text-syn-color-success-600' : 'text-syn-color-danger-600'"
+          class="text-xl flex-shrink-0 mt-0.5">
+        </syn-icon>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-black text-sm" 
+              [class]="validation.valid ? 'text-syn-color-success-800' : 'text-syn-color-danger-800'">
+            {{ validation.valid ? 'Configuration Valid' : 'Validation Failed' }}
+          </h3>
+          <p class="text-xs mt-1" 
+             [class]="validation.valid ? 'text-syn-color-success-700' : 'text-syn-color-danger-700'">
+            {{ validation.summary.lidars }} lidar(s) and {{ validation.summary.fusions }} fusion(s) found
+          </p>
+        </div>
+      </div>
+
+      <!-- Errors -->
+      @if (validation.errors.length > 0) {
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <syn-icon name="error" class="text-syn-color-danger-600 text-base"></syn-icon>
+            <h4 class="font-black text-xs uppercase tracking-widest text-syn-color-danger-800">Errors</h4>
+          </div>
+          <div class="flex flex-col gap-1">
+            @for (error of validation.errors; track error) {
+              <div class="text-xs text-syn-color-danger-700 bg-syn-color-danger-50 p-2 rounded border border-syn-color-danger-200">
+                {{ error }}
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Warnings -->
+      @if (validation.warnings.length > 0) {
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <syn-icon name="warning" class="text-syn-color-warning-600 text-base"></syn-icon>
+            <h4 class="font-black text-xs uppercase tracking-widest text-syn-color-warning-800">Warnings</h4>
+          </div>
+          <div class="flex flex-col gap-1">
+            @for (warning of validation.warnings; track warning) {
+              <div class="text-xs text-syn-color-warning-700 bg-syn-color-warning-50 p-2 rounded border border-syn-color-warning-200">
+                {{ warning }}
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Import Mode Toggle -->
+      <div class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200">
+        <div class="flex items-center gap-2">
+          <syn-icon name="settings" class="text-syn-color-neutral-600 text-base"></syn-icon>
+          <h4 class="font-black text-xs uppercase tracking-widest text-syn-color-neutral-800">Import Mode</h4>
+        </div>
+        <div class="flex flex-col gap-2">
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input 
+              type="radio" 
+              name="importMode" 
+              [checked]="!mergeMode()"
+              (change)="mergeMode.set(false)"
+              class="mt-1">
+            <div class="flex-1">
+              <div class="text-xs font-bold text-syn-typography-color-text">Replace (Default)</div>
+              <div class="text-xs text-syn-color-neutral-600">Delete all existing configurations and import new ones</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-2 cursor-pointer">
+            <input 
+              type="radio" 
+              name="importMode" 
+              [checked]="mergeMode()"
+              (change)="mergeMode.set(true)"
+              class="mt-1">
+            <div class="flex-1">
+              <div class="text-xs font-bold text-syn-typography-color-text">Merge</div>
+              <div class="text-xs text-syn-color-neutral-600">Keep existing configurations and add/update from import</div>
+            </div>
+          </label>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div slot="footer" class="flex justify-end gap-2">
+    <syn-button variant="outline" (click)="cancel.emit()">
+      Cancel
+    </syn-button>
+    <syn-button 
+      variant="filled" 
+      (click)="confirm.emit()" 
+      [disabled]="!validationResult()?.valid || isImporting()">
+      <syn-icon slot="prefix" name="upload"></syn-icon>
+      {{ isImporting() ? 'Importing...' : 'Import Configuration' }}
+    </syn-button>
+  </div>
+</syn-dialog>

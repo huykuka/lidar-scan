@@ -1,17 +1,71 @@
 import asyncio
+import sys
+import os
+from pathlib import Path
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from app.core.logging_config import get_logger
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.v1.endpoints import router as api_router
+from app.api.v1 import router as api_router
 from app.core.config import settings
-from app.services.lidar.service import LidarService
+from app.db.migrate import ensure_schema
+from app.db.session import init_engine
+from app.services.lidar.instance import lidar_service
+from app.services.lidar.recorder import get_recorder
+from app.services.status_broadcaster import start_status_broadcaster, stop_status_broadcaster
+from app.services.websocket.manager import manager
+
+logger = get_logger("app")
+
+def get_static_path():
+    """Get the correct static files path for both development and PyInstaller builds."""
+    if getattr(sys, 'frozen', False):
+        # Running in PyInstaller bundle
+        base_path = Path(sys._MEIPASS)
+    else:
+        # Running in development
+        base_path = Path(__file__).parent.parent
+    
+    static_path = base_path / "app" / "static"
+    return str(static_path)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Startup
+    engine = init_engine()
+    ensure_schema(engine)
+    
+    # Initialize recorder and connect to WebSocket manager
+    recorder = get_recorder()
+    manager.recorder = recorder
+
+    lidar_service.load_config()
+    lidar_service.start(asyncio.get_running_loop())
+    
+    # Start status broadcaster
+    start_status_broadcaster()
+
+    yield
+
+    # Shutdown
+    stop_status_broadcaster()
+    
+    # Stop all active recordings
+    await recorder.stop_all_recordings()
+    
+    lidar_service.stop()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="Backend with Modular Pipeline Registry",
-    version=settings.VERSION
+    version=settings.VERSION,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -23,83 +77,28 @@ app.add_middleware(
 
 app.include_router(api_router)
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="app/static", html=True), name="static")
+# Mount recordings directory statically
+recordings_dir = Path("recordings")
+recordings_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/recordings", StaticFiles(directory=str(recordings_dir)), name="recordings")
 
+# Serve Angular SPA (and assets) from app/static at root.
+# Keep this mount LAST so API routes (e.g. /lidars, /ws/*, /status) take precedence.
+static_dir = get_static_path()
+if os.path.exists(static_dir):
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="spa")
 
-@app.get("/")
-async def read_index():
-    from fastapi.responses import FileResponse
-    return FileResponse("app/static/index.html")
-
-
-# Central Service
-lidar_service = LidarService()
-
-
-@app.on_event("startup")
-async def startup_event():
-    # --- Sensor Setup ---
-    lidar_service.generate_lidar(
-        sensor_id='lidar1',
-        launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
-        yaw = 180,
-        # pipeline_name="advanced",
-    )
-
-    lidar_service.generate_lidar(
-        sensor_id='lidar2',
-        launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.123 udp_receiver_ip:=192.168.1.16 udp_port:=2666",
-        mode="sim",
-        pcd_path="/home/thaiqu/Projects/personnal/lidar-standalone/1769503697-362730026.pcd"
-    )
-
-    # Example: Sensor 1 with Object Clustering (in parallel)
-    # lidar_service.add_sensor(LidarSensor(
-    #     sensor_id="back_lidar",
-    #     launch_args=f"./launch/sick_tim.launch hostname:=192.168.100.124",
-    #     pipeline=object_pipeline
-    # ))
-
-    # --- Fusion Examples (uncomment to use) ---
-    from app.services.lidar.fusion import FusionService
-    #
-    # # Option 1: Fuse ALL registered sensors into a single "fused_points" topic
-    # fusion = FusionService(lidar_service)
-    # fusion.enable()
-    #
-    # # Option 2: Fuse only specific sensors (e.g. front + rear, ignoring others)
-    # fusion = FusionService(lidar_service, sensor_ids=["lidar_front", "lidar_rear"])
-    # fusion.enable()
-    #
-    # # Option 3: Multiple independent fusion groups on different topics
-    # top_fusion    = FusionService(lidar_service, topic="top_fused",    sensor_ids=["lidar_top_left", "lidar_top_right"])
-    # ground_fusion = FusionService(lidar_service, topic="ground_fused", sensor_ids=["lidar_front",    "lidar_rear"])
-    # top_fusion.enable()
-    # ground_fusion.enable()
-    #
-    # # Option 4: Fuse + run a named pipeline on the merged cloud (same API as generate_lidar)
-    fusion = FusionService(
-        lidar_service,
-        topic="fused_reflectors",
-        sensor_ids=["lidar1", "lidar2"],
-        # pipeline_name="advanced",
-    )
-    fusion.enable()
-    
-
-    lidar_service.start(asyncio.get_running_loop())
-
-
-@app.on_event("shutdown")
-def shutdown_event():
-    lidar_service.stop()
-
-
-@app.get("/status")
-async def get_status():
-    return {
-        "is_running": lidar_service.is_running,
-        "active_sensors": [s.id for s in lidar_service.sensors],
-        "version": settings.VERSION
-    }
+    @app.exception_handler(StarletteHTTPException)
+    async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == 404:
+            # If the request is not for the API or recordings, return the SPA index.html
+            if not request.url.path.startswith("/api/") and not request.url.path.startswith("/recordings/"):
+                index_path = Path(static_dir) / "index.html"
+                if index_path.exists():
+                    return FileResponse(index_path)
+                    
+        # Otherwise, fall back to standard JSON response
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        
+else:
+    logger.warning(f"Static directory not found at {static_dir}")

@@ -1,0 +1,28 @@
+/* Global styles for the application */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+/* Make dialogs fit their content width */
+syn-dialog::part(panel) {
+  width: fit-content;
+  max-width: 90vw;
+}
+
+/* Recording Viewer Dialog - Large size (90vw x 90vh)
+syn-dialog.recording-viewer-dialog::part(panel) {
+  width: 90vw;
+  height: 90vh;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+syn-dialog.recording-viewer-dialog::part(body) {
+  padding: 1rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+} */

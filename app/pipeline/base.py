@@ -52,7 +52,7 @@ class LegacyPointCloudPipeline(PointCloudPipeline):
 
     def process(self, points: np.ndarray) -> Dict[str, Any]:
         if points.size == 0:
-            return {"points": [], "metadata": {"count": 0}}
+            return {"points": np.zeros((0, 3), dtype=np.float32), "metadata": {"count": 0, "original_count": 0}, "algorithms": {}}
 
         positions = points[:, :3]
         pcd = o3d.geometry.PointCloud()
@@ -92,7 +92,7 @@ class TensorPointCloudPipeline(PointCloudPipeline):
 
     def process(self, points: np.ndarray) -> Dict[str, Any]:
         if points.size == 0:
-            return {"points": [], "metadata": {"count": 0}}
+            return {"points": np.zeros((0, 3), dtype=np.float32), "metadata": {"count": 0, "original_count": 0}, "algorithms": {}}
 
         # Create Tensor-based PointCloud
         pcd = o3d.t.geometry.PointCloud(self.device)
@@ -126,7 +126,7 @@ class TensorPointCloudPipeline(PointCloudPipeline):
                                                      device=self.device)
 
         results = {}
-        for op in self.operations:
+        for i, op in enumerate(self.operations):
             outcome = op.apply(pcd)
             if isinstance(outcome, tuple):
                 pcd, op_result = outcome
@@ -135,9 +135,26 @@ class TensorPointCloudPipeline(PointCloudPipeline):
 
             if op_result:
                 results.update(op_result)
+            
+            # Robust check to see if the cloud is still valid and has points
+            # If a filter (especially from_legacy fallback) clears the map, 
+            # 'positions' might be missing entirely.
+            try:
+                if not hasattr(pcd, 'point') or 'positions' not in pcd.point or pcd.point.positions.shape[0] == 0:
+                    break
+            except Exception:
+                # Any access error means we should stop processing this frame
+                break
 
-        # Retrieve results back to CPU/Numpy
-        processed_points = pcd.point.positions.cpu().numpy()
+        # Retrieve results back to CPU/Numpy with safe check
+        try:
+            # Final check if positions exist
+            if hasattr(pcd, 'point') and 'positions' in pcd.point:
+                processed_points = pcd.point.positions.cpu().numpy()
+            else:
+                processed_points = np.zeros((0, 3), dtype=np.float32)
+        except Exception:
+            processed_points = np.zeros((0, 3), dtype=np.float32)
 
         return {
             "points": processed_points,

@@ -1,0 +1,15 @@
+:host {
+  display: contents;
+}
+
+/* Keep overlay disabled on desktop (persistent sidenav), but allow it on mobile. */
+@media (min-width: 1024px) {
+  syn-side-nav::part(overlay) {
+    display: none;
+  }
+}
+
+syn-nav-item.current {
+  --syn-nav-item-color: var(--syn-color-primary-600);
+  font-weight: var(--syn-font-weight-bold);
+}

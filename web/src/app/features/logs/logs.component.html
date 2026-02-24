@@ -1,0 +1,68 @@
+<div class="h-full flex flex-col gap-3 p-2 bg-syn-color-neutral-50/30">
+  <!-- Unified Command Header -->
+  <div
+    class="flex flex-col shadow-md rounded-xl overflow-hidden border border-syn-color-neutral-200"
+  >
+    <app-logs-toolbar
+      [searchText]="searchText()"
+      [selectedLevel]="selectedLevel()"
+      [isStreaming]="isStreaming()"
+      [totalCount]="entries().length"
+      [errorCount]="levelCounts()['ERROR'] || 0"
+      (searchChanged)="searchText.set($event); onFilterChange()"
+      (levelChanged)="selectedLevel.set($event); onFilterChange()"
+      (streamingToggled)="$event ? startStreaming() : stopStreaming()"
+      (downloadClicked)="downloadLogs()"
+      (clearClicked)="clearAllLogs()"
+    ></app-logs-toolbar>
+
+    <!-- Integrated Status Bar -->
+    @if (isStreaming() || streamError()) {
+      <div
+        class="flex items-center gap-4 px-4 py-1.5 border-t border-syn-color-neutral-100 animate-in slide-in-from-top-1 duration-300"
+        [class.bg-syn-color-green-50]="isStreaming() && !streamError()"
+        [class.bg-syn-color-red-50]="streamError()"
+      >
+        @if (isStreaming() && !streamError()) {
+          <div
+            class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-syn-color-green-800"
+          >
+            <span class="relative flex h-2 w-2">
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-syn-color-green-400 opacity-75"
+              ></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-syn-color-green-600"></span>
+            </span>
+            Live Monitoring Active
+          </div>
+        }
+        @if (streamError()) {
+          <div
+            class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-syn-color-red-700"
+          >
+            <syn-icon name="error_outline" size="small" class="text-syn-color-red-600"></syn-icon>
+            {{ streamError() }}
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <!-- Main Content Area -->
+  <div
+    class="flex-1 min-h-0 bg-white rounded-xl border border-syn-color-neutral-200 overflow-hidden flex flex-col relative shadow-sm"
+  >
+    <!-- Sub-component: Table with Load More -->
+    <app-logs-table
+      [entries]="displayEntries()"
+      [selectedEntry]="selectedEntry()"
+      [isLoading]="isLoading()"
+      [isLoadingMore]="isLoadingMore()"
+      (entrySelected)="onSelectEntry($event)"
+      (loadMoreClicked)="loadMoreLogs()"
+    ></app-logs-table>
+
+    <!-- Sub-component: Detail Panel -->
+    <app-logs-detail [entry]="selectedEntry()" (close)="onSelectEntry(null)"></app-logs-detail>
+  </div>
+</div>

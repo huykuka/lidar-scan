@@ -1,0 +1,49 @@
+<div class="flex flex-col h-screen overflow-hidden bg-syn-page-background-color">
+  <!-- Top Header -->
+  <app-header #header label="3D LiDAR Control Cockpit" class="z-50 shrink-0"></app-header>
+
+  <div class="flex flex-1 overflow-hidden relative">
+    <!-- Sidebar -->
+    <app-side-nav
+      #sideNav
+      [open]="isSideNavOpen()"
+      (onShow)="handleSideNavShow()"
+      (onHide)="handleSideNavHide()"
+      class="h-full shrink-0 border-r border-syn-color-neutral-200 shadow-sm"
+    ></app-side-nav>
+
+    <!-- Content Area -->
+    <div class="flex-1 flex flex-col overflow-hidden bg-syn-page-background-color-muted">
+      <main class="flex-1 flex flex-col px-4 py-3 overflow-y-auto overflow-x-hidden">
+        <header class="mb-2 px-2 shrink-0 flex justify-between items-end">
+          <div class="flex flex-col">
+            <h1 class="text-2xl font-black tracking-tight text-syn-typography-color-text">
+              {{ headline() }}
+            </h1>
+            @if (subtitle()) {
+              <p class="mt-1 text-sm text-syn-color-neutral-600">
+                {{ subtitle() }}
+              </p>
+            } @else {
+              <p
+                class="mt-0 text-[10px] font-bold text-syn-color-neutral-500 uppercase tracking-widest"
+              >
+                LiDAR Control Surface
+              </p>
+            }
+          </div>
+          @if (showActionsSlot()) {
+            <div id="page-actions-container" class="flex items-center gap-2 mb-1"></div>
+          }
+        </header>
+
+        <!-- Main Content Slot -->
+        <div class="flex-1 flex flex-col min-h-0">
+          <router-outlet></router-outlet>
+        </div>
+      </main>
+
+      <app-footer class="shrink-0"></app-footer>
+    </div>
+  </div>
+</div>

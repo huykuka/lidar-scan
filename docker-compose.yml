@@ -1,0 +1,62 @@
+services:
+  lidar-standalone:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lidar-standalone
+    ports:
+      - "8005:8005"
+    environment:
+      # API Settings
+      - HOST=0.0.0.0
+      - PORT=8005
+
+    volumes:
+      # Persist SQLite database
+      - ./config:/app/config
+      
+      # Optional: Mount debug data directory
+      - ./debug_data:/app/debug_data
+      
+      # Optional: Mount PCD files for simulation mode
+      - ./data:/app/data
+    restart: unless-stopped
+    networks:
+      - lidar-network
+
+  # Optional: Development mode with hot-reload
+  lidar-standalone-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: lidar-standalone-dev
+    ports:
+      - "8005:8005"
+      - "4200:4200"  # Angular dev server
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8005
+      - DEBUG=true
+      - LIDAR_MODE=sim
+      - LIDAR_PCD_PATH=/app/data/test.pcd
+    volumes:
+      # Mount source code for hot-reload
+      - ./app:/app/app
+      - ./web:/app/web
+      - ./main.py:/app/main.py
+      - ./config:/app/config
+      - ./debug_data:/app/debug_data
+      - ./data:/app/data
+      
+      # Preserve node_modules and Python packages
+      - /app/web/node_modules
+      - /usr/local/lib/python3.11/site-packages
+    restart: unless-stopped
+    networks:
+      - lidar-network
+    profiles:
+      - dev
+
+networks:
+  lidar-network:
+    driver: bridge

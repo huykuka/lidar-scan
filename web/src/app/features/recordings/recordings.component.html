@@ -1,0 +1,171 @@
+<div class="h-full flex flex-col">
+  <!-- Toolbar -->
+  <div class="bg-white rounded-lg border border-syn-color-neutral-200 p-4 mb-4">
+    <div class="flex items-center justify-between gap-4">
+      <!-- Search Bar -->
+      <syn-input
+        type="search"
+        placeholder="Search recordings by name, topic, or sensor..."
+        size="medium"
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+        class="flex-1 max-w-md"
+      >
+        <syn-icon slot="prefix" name="search"></syn-icon>
+      </syn-input>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-2">
+        @if (isSelectionMode()) {
+          <syn-button
+            variant="outline"
+            size="medium"
+            (click)="selectAllFiltered()"
+            [disabled]="isLoading() || filteredRecordings().length === 0"
+          >
+            <syn-icon slot="prefix" name="done_all"></syn-icon>
+            Select All
+          </syn-button>
+          <syn-button
+            variant="outline"
+            size="medium"
+            style="color: var(--syn-color-error-700); border-color: var(--syn-color-error-700)"
+            (click)="confirmBulkDelete()"
+            [disabled]="selectedRecordingIds().size === 0"
+          >
+            <syn-icon slot="prefix" name="delete"></syn-icon>
+            Delete ({{ selectedRecordingIds().size }})
+          </syn-button>
+          <syn-button variant="text" size="medium" (click)="toggleSelectionMode()">
+            Cancel
+          </syn-button>
+        } @else {
+          <syn-button
+            variant="outline"
+            size="medium"
+            (click)="toggleSelectionMode()"
+            [disabled]="isLoading() || filteredRecordings().length === 0"
+          >
+            <syn-icon slot="prefix" name="checklist"></syn-icon>
+            Select
+          </syn-button>
+          <syn-button
+            variant="outline"
+            size="medium"
+            (click)="refreshRecordings()"
+            [disabled]="isLoading()"
+          >
+            <syn-icon slot="prefix" name="refresh"></syn-icon>
+            Refresh
+          </syn-button>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="flex-1 overflow-auto">
+    @if (isLoading()) {
+      <div class="flex items-center justify-center h-64">
+        <syn-spinner></syn-spinner>
+      </div>
+    } @else if (sortedRecordings().length === 0) {
+      <div class="flex flex-col items-center justify-center h-64 text-center">
+        <syn-icon name="video_library" class="text-6xl text-syn-color-neutral-400 mb-4"></syn-icon>
+        <h3 class="text-lg font-semibold text-syn-color-neutral-700 mb-2">No Recordings Found</h3>
+        <p class="text-sm text-syn-color-neutral-600">
+          @if (searchQuery()) {
+            Try adjusting your search query
+          } @else {
+            Start recording from the Settings page to create your first recording
+          }
+        </p>
+      </div>
+    } @else {
+      <!-- Recordings Grid -->
+      <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(500px, 1fr))">
+        @for (recording of sortedRecordings(); track recording.id) {
+          <app-recording-card
+            [recording]="recording"
+            [selectable]="isSelectionMode()"
+            [selected]="selectedRecordingIds().has(recording.id)"
+            (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
+            (select)="selectRecording($event)"
+            (play)="loadForPlayback($event)"
+            (download)="downloadRecording($event)"
+            (delete)="confirmDelete($event)"
+          ></app-recording-card>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Delete Confirmation Dialog -->
+@if (showDeleteDialog()) {
+  <syn-dialog open (syn-request-close)="cancelDelete()">
+    <span slot="label">Delete Recording</span>
+
+    <p class="text-sm">
+      Are you sure you want to delete <strong>{{ recordingToDelete()?.name }}</strong
+      >? This action cannot be undone.
+    </p>
+
+    <syn-button slot="footer" variant="text" (click)="cancelDelete()" [disabled]="isDeleting()">
+      Cancel
+    </syn-button>
+    <syn-button
+      slot="footer"
+      variant="outline"
+      style="
+        color: var(--syn-color-error-700);
+        border-color: var(--syn-color-error-700);
+        font-size: var(--syn-font-size-x-large);
+      "
+      (click)="deleteRecording()"
+      [disabled]="isDeleting()"
+    >
+      @if (isDeleting()) {
+        <syn-spinner slot="prefix" size="small"></syn-spinner>
+      }
+      Delete
+    </syn-button>
+  </syn-dialog>
+}
+
+<!-- Bulk Delete Confirmation Dialog -->
+@if (showBulkDeleteDialog()) {
+  <syn-dialog open (syn-request-close)="cancelBulkDelete()">
+    <span slot="label">Delete Multiple Recordings</span>
+
+    <p class="text-sm">
+      Are you sure you want to delete <strong>{{ selectedRecordingIds().size }}</strong> recordings?
+      This action cannot be undone.
+    </p>
+
+    <syn-button slot="footer" variant="text" (click)="cancelBulkDelete()" [disabled]="isDeleting()">
+      Cancel
+    </syn-button>
+    <syn-button
+      slot="footer"
+      variant="outline"
+      style="
+        color: var(--syn-color-error-700);
+        border-color: var(--syn-color-error-700);
+        font-size: var(--syn-font-size-x-large);
+      "
+      (click)="bulkDeleteRecordings()"
+      [disabled]="isDeleting()"
+    >
+      @if (isDeleting()) {
+        <syn-spinner slot="prefix" size="small"></syn-spinner>
+      }
+      Delete All
+    </syn-button>
+  </syn-dialog>
+}
+
+<!-- Details Panel (Future Enhancement) -->
+@if (selectedRecording()) {
+  <!-- Could add a detailed side panel or modal here -->
+}
