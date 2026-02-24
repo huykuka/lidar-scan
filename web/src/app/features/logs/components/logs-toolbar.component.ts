@@ -72,6 +72,14 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
         <div class="flex items-center gap-2">
           <syn-button
             variant="outline"
+            (click)="refreshClicked.emit()"
+            class="transition-all hover:bg-syn-color-primary-50"
+          >
+            <syn-icon slot="prefix" name="refresh"></syn-icon>
+            Refresh
+          </syn-button>
+          <syn-button
+            variant="outline"
             (click)="downloadClicked.emit()"
             class="transition-all hover:bg-syn-color-primary-50"
           >
@@ -95,6 +103,7 @@ export class LogsToolbarComponent {
   streamingToggled = output<boolean>();
   downloadClicked = output<void>();
   clearClicked = output<void>();
+  refreshClicked = output<void>();
 
   onSearchInput(event: any) {
     this.searchChanged.emit(event.target.value);

@@ -27,8 +27,8 @@ import numpy as np
 from app.pipeline import PipelineFactory
 from app.pipeline.base import PointCloudPipeline
 from app.services.websocket.manager import manager
-from .core import transform_points
-from .protocol import pack_points_binary
+from ..core import transform_points
+from ..protocol import pack_points_binary
 
 
 class FusionService:
