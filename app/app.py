@@ -5,9 +5,11 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from app.core.logging_config import get_logger
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import router as api_router
 from app.core.config import settings
@@ -85,5 +87,18 @@ app.mount("/recordings", StaticFiles(directory=str(recordings_dir)), name="recor
 static_dir = get_static_path()
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="spa")
+
+    @app.exception_handler(StarletteHTTPException)
+    async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+        if exc.status_code == 404:
+            # If the request is not for the API or recordings, return the SPA index.html
+            if not request.url.path.startswith("/api/") and not request.url.path.startswith("/recordings/"):
+                index_path = Path(static_dir) / "index.html"
+                if index_path.exists():
+                    return FileResponse(index_path)
+                    
+        # Otherwise, fall back to standard JSON response
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        
 else:
     logger.warning(f"Static directory not found at {static_dir}")

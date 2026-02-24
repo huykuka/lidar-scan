@@ -1,60 +1,85 @@
-<div class="w-64 bg-white border-r h-full border-syn-color-neutral-200 flex flex-col">
-  <div class="p-4 border-b border-syn-color-neutral-200">
-    <h3 class="text-xs font-black uppercase tracking-widest text-syn-color-neutral-600">
-      Node Palette
-    </h3>
-    <p class="text-xs text-syn-color-neutral-500 mt-1">Drag nodes onto canvas</p>
+<div
+  class="bg-white border-r h-full border-syn-color-neutral-200 flex flex-col relative transition-all duration-300 z-10"
+  [class.w-64]="!isCollapsed()"
+  [class.w-0]="isCollapsed()"
+  [class.border-none]="isCollapsed()"
+>
+  <!-- Toggle button -->
+  <button
+    class="absolute top-4 z-20 w-6 h-6 bg-white border border-syn-color-neutral-200 rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
+    [class.-right-3]="!isCollapsed()"
+    [class.-right-10]="isCollapsed()"
+    (click)="isCollapsed.set(!isCollapsed())"
+  >
+    <syn-icon
+      [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'"
+      class="text-sm text-syn-color-neutral-600"
+    ></syn-icon>
+  </button>
 
-    <!-- Configuration Actions -->
-    <div class="mt-3 flex gap-2">
-      <syn-button
-        variant="outline"
-        title="Auto layout nodes"
-        size="small"
-        (click)="onAutoLayout.emit()"
-        class="flex-1"
-      >
-        <syn-icon slot="prefix" name="grid_view" class="text-sm"></syn-icon>
-      </syn-button>
-      <syn-button
-        variant="outline"
-        title="Clear all positions"
-        size="small"
-        (click)="onClearPositions.emit()"
-        class="flex-1"
-      >
-        <syn-icon slot="prefix" name="refresh" class="text-sm"></syn-icon>
-      </syn-button>
-    </div>
-  </div>
+  <div
+    class="flex-1 flex flex-col overflow-hidden w-64 transition-opacity duration-300"
+    [class.opacity-0]="isCollapsed()"
+    [class.opacity-100]="!isCollapsed()"
+    [class.pointer-events-none]="isCollapsed()"
+  >
+    <div class="p-4 border-b border-syn-color-neutral-200">
+      <h3 class="text-xs font-black uppercase tracking-widest text-syn-color-neutral-600">
+        Node Palette
+      </h3>
+      <p class="text-xs text-syn-color-neutral-500 mt-1">Drag nodes onto canvas</p>
 
-  <div class="flex-1 overflow-y-auto p-4 space-y-3">
-    <!-- Dynamic Plugin Templates -->
-    @for (plugin of plugins(); track plugin.type) {
-      <div
-        draggable="true"
-        (dragstart)="onPluginDragStart.emit({ plugin: plugin.type, event: $event })"
-        (dragend)="onPluginDragEnd.emit()"
-        class="p-3 border-2 rounded-lg cursor-move hover:shadow-md transition-shadow"
-        [style.background-color]="plugin.style.backgroundColor"
-        [style.border-color]="plugin.style.color"
-      >
-        <div class="flex items-center gap-2" [style.color]="plugin.style.color">
-          <syn-icon [name]="plugin.icon" class="text-lg"></syn-icon>
-          <span class="text-sm font-semibold">{{ plugin.displayName }}</span>
-        </div>
-        <p class="text-xs text-syn-color-neutral-600 mt-1">{{ plugin.description }}</p>
+      <!-- Configuration Actions -->
+      <div class="mt-3 flex gap-2">
+        <syn-button
+          variant="outline"
+          title="Auto layout nodes"
+          size="small"
+          (click)="onAutoLayout.emit()"
+          class="flex-1"
+        >
+          <syn-icon slot="prefix" name="grid_view" class="text-sm"></syn-icon>
+        </syn-button>
+        <syn-button
+          variant="outline"
+          title="Clear all positions"
+          size="small"
+          (click)="onClearPositions.emit()"
+          class="flex-1"
+        >
+          <syn-icon slot="prefix" name="refresh" class="text-sm"></syn-icon>
+        </syn-button>
       </div>
-    }
-  </div>
+    </div>
 
-  <!-- Canvas Controls -->
-  <div class="p-4 border-t border-syn-color-neutral-200 space-y-2">
-    <syn-button variant="outline" size="small" (click)="onResetView.emit()" class="w-full">
-      <syn-icon slot="prefix" name="center_focus_strong"></syn-icon>Reset View
-    </syn-button>
-    <div class="text-xs text-syn-color-neutral-500 text-center">
-      Zoom: {{ (zoom() * 100).toFixed(0) }}%
+    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      <!-- Dynamic Plugin Templates -->
+      @for (plugin of plugins(); track plugin.type) {
+        <div
+          draggable="true"
+          (dragstart)="onPluginDragStart.emit({ plugin: plugin.type, event: $event })"
+          (dragend)="onPluginDragEnd.emit()"
+          class="p-3 border-2 rounded-lg cursor-move hover:shadow-md transition-shadow"
+          [style.background-color]="plugin.style.backgroundColor"
+          [style.border-color]="plugin.style.color"
+        >
+          <div class="flex items-center gap-2" [style.color]="plugin.style.color">
+            <syn-icon [name]="plugin.icon" class="text-lg"></syn-icon>
+            <span class="text-sm font-semibold">{{ plugin.displayName }}</span>
+          </div>
+          <p class="text-xs text-syn-color-neutral-600 mt-1">{{ plugin.description }}</p>
+        </div>
+      }
+    </div>
+
+    <!-- Canvas Controls -->
+    <div class="p-4 border-t border-syn-color-neutral-200 space-y-2">
+      <syn-button variant="outline" size="small" (click)="onResetView.emit()" class="w-full">
+        <syn-icon slot="prefix" name="center_focus_strong"></syn-icon>Reset View
+      </syn-button>
+      <div class="text-xs text-syn-color-neutral-500 text-center">
+        Zoom: {{ (zoom() * 100).toFixed(0) }}%
+      </div>
     </div>
   </div>
 </div>

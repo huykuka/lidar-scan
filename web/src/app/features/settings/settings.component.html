@@ -12,7 +12,7 @@
           <div class="flex gap-1 mr-4 pr-4 border-r border-syn-color-neutral-300">
             <button
               (click)="viewMode.set('canvas')"
-              class="px-3 py-2 rounded-lg text-sm font-black uppercase tracking-wider transition-all"
+              class="px-3 py-2 rounded-lg text-sm font-black uppercase tracking-wider transition-all flex items-center justify-center"
               [class.bg-white]="viewMode() === 'canvas'"
               [class.text-syn-color-primary-700]="viewMode() === 'canvas'"
               [class.shadow-sm]="viewMode() === 'canvas'"
@@ -24,7 +24,7 @@
             </button>
             <button
               (click)="viewMode.set('grid')"
-              class="px-3 py-2 rounded-lg text-sm font-black uppercase tracking-wider transition-all"
+              class="px-3 py-2 rounded-lg text-sm font-black uppercase tracking-wider transition-all flex items-center justify-center"
               [class.bg-white]="viewMode() === 'grid'"
               [class.text-syn-color-primary-700]="viewMode() === 'grid'"
               [class.shadow-sm]="viewMode() === 'grid'"
