@@ -86,7 +86,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit() {
     // Mark view as initialized
     this.viewInitialized = true;
-    
+
     // Trigger initial sync now that pointCloud component is available
     const selectedTopics = this.workspaceStore.selectedTopics();
     this.syncWebSocketConnections(selectedTopics);
@@ -109,7 +109,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     // Validate and clean up persisted topics
     const selectedTopics = this.workspaceStore.getValue('selectedTopics');
     const validSelectedTopics = selectedTopics.filter((st) => topics.includes(st.topic));
-    
+
     // Update store with only valid topics
     if (validSelectedTopics.length !== selectedTopics.length) {
       this.workspaceStore.set('selectedTopics', validSelectedTopics);
@@ -131,10 +131,11 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     const enabledTopics = selectedTopics.filter((t) => t.enabled);
     const enabledTopicNames = new Set(enabledTopics.map((t) => t.topic));
 
-    // Disconnect from topics that are no longer enabled
+    // Disconnect and remove point clouds for topics that are no longer enabled (or were removed)
     this.wsSubscriptions.forEach((_, topic) => {
       if (!enabledTopicNames.has(topic)) {
         this.disconnectFromTopic(topic);
+        this.pointCloud?.removePointCloud(topic);
       }
     });
 
@@ -146,7 +147,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    // Remove point clouds for disabled topics
+    // Safety: Remove point clouds for disabled topics that are still in selectedTopics
     selectedTopics
       .filter((t) => !t.enabled)
       .forEach(({ topic }) => {
@@ -190,11 +191,11 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
       const payload = this.parseBinaryPointCloud(data);
       if (payload) {
         this.pointCloud?.updatePointsForTopic(topic, payload.points, payload.count);
-        
+
         // Update total point count
         const totalPoints = this.pointCloud?.getTotalPointCount() || 0;
         this.workspaceStore.set('pointCount', totalPoints);
-        
+
         if (payload.timestamp > 0) {
           const date = new Date(payload.timestamp * 1000);
           this.workspaceStore.set('lidarTime', date.toISOString().substr(11, 12));
@@ -212,7 +213,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
             flatArray[i * 3 + 2] = points[i][2];
           }
           this.pointCloud?.updatePointsForTopic(topic, flatArray, points.length);
-          
+
           // Update total point count
           const totalPoints = this.pointCloud?.getTotalPointCount() || 0;
           this.workspaceStore.set('pointCount', totalPoints);

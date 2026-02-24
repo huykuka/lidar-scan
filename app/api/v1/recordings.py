@@ -171,6 +171,10 @@ async def stop_recording(
             "created_at": datetime.utcnow().isoformat()
         }
         
+        if info.get("thumbnail_path"):
+            recording_data["thumbnail_path"] = info["thumbnail_path"]
+            logger.info(f"Using recorder-generated thumbnail for {recording_id}")
+        
         saved = repo.create(recording_data)
         
         logger.info(f"Stopped and saved recording {recording_id}")
@@ -375,6 +379,7 @@ async def get_recording_viewer_info(
 async def get_recording_frame_as_pcd(
     recording_id: str,
     frame_index: int,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)]
 ):
     """
@@ -419,18 +424,20 @@ async def get_recording_frame_as_pcd(
             temp_path = tmp_file.name
             save_to_pcd(points, temp_path)
         
-        # Return PCD file and schedule cleanup
         def cleanup():
             try:
                 os.unlink(temp_path)
             except Exception as e:
                 logger.warning(f"Failed to cleanup temp PCD file {temp_path}: {e}")
+
+        # Schedule cleanup
+        background_tasks.add_task(cleanup)
         
         return FileResponse(
             path=temp_path,
             filename=f"frame_{frame_index}.pcd",
             media_type="application/octet-stream",
-            background=BackgroundTasks().add_task(cleanup)
+            background=background_tasks
         )
     
     except ValueError as e:
@@ -470,13 +477,17 @@ async def get_recording_thumbnail(
         )
     
     # Try to generate thumbnail if missing
-    file_path = recording["file_path"]
-    if os.path.exists(file_path):
+    file_path = Path(recording["file_path"])
+    if file_path.exists():
         try:
             from app.services.lidar.io.thumbnail import generate_thumbnail_from_file
             
-            thumbnail_path = Path(file_path).with_suffix(".png")
-            success = generate_thumbnail_from_file(file_path, output_path=thumbnail_path)
+            thumbnail_path = file_path.with_suffix(".png")
+            success = await asyncio.to_thread(
+                generate_thumbnail_from_file,
+                file_path,
+                output_path=thumbnail_path
+            )
             
             if success:
                 # Update database with thumbnail path

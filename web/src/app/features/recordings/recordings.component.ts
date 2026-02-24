@@ -30,6 +30,28 @@ export class RecordingsComponent implements OnInit {
   protected recordingToDelete = signal<Recording | null>(null);
   protected isDeleting = signal<boolean>(false);
 
+  // Thumbnail state
+  private failedThumbnails = signal<Set<string>>(new Set());
+  private loadingThumbnails = signal<Set<string>>(new Set());
+
+  constructor() {
+    // Track loading status for thumbnails
+    effect(() => {
+      const recs = this.recordings();
+      if (recs && recs.length > 0) {
+        const loading = new Set(this.loadingThumbnails());
+        recs.forEach((r) => {
+          if (!this.failedThumbnails().has(r.id) && !loading.has(r.id)) {
+            loading.add(r.id);
+          }
+        });
+        if (loading.size !== this.loadingThumbnails().size) {
+          this.loadingThumbnails.set(loading);
+        }
+      }
+    });
+  }
+
   // Computed
   protected filteredRecordings = computed(() => {
     const query = this.searchQuery().toLowerCase();
@@ -137,9 +159,27 @@ export class RecordingsComponent implements OnInit {
     this.selectedRecording.set(null);
   }
 
-  protected onThumbnailError(event: Event): void {
-    // Hide broken image on error
-    const img = event.target as HTMLImageElement;
-    img.style.display = 'none';
+  protected thumbnailLoadFailed(recordingId: string): boolean {
+    return this.failedThumbnails().has(recordingId);
+  }
+
+  protected isLoadingThumbnail(recordingId: string): boolean {
+    return this.loadingThumbnails().has(recordingId);
+  }
+
+  protected onThumbnailLoad(recordingId: string): void {
+    const loading = new Set(this.loadingThumbnails());
+    loading.delete(recordingId);
+    this.loadingThumbnails.set(loading);
+  }
+
+  protected onThumbnailError(recordingId: string): void {
+    const loading = new Set(this.loadingThumbnails());
+    loading.delete(recordingId);
+    this.loadingThumbnails.set(loading);
+
+    const failed = new Set(this.failedThumbnails());
+    failed.add(recordingId);
+    this.failedThumbnails.set(failed);
   }
 }

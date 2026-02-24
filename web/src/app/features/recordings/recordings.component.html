@@ -54,25 +54,41 @@
             (click)="selectRecording(recording)"
           >
             <!-- Thumbnail -->
-            <div class="relative w-full h-48 bg-[#2a2a2b] flex items-center justify-center overflow-hidden">
-              @if (recording.thumbnail_path) {
+            <div
+              class="relative w-full h-48 bg-[#1e293b] flex items-center justify-center overflow-hidden border-b border-syn-color-neutral-200"
+            >
+              @if (!thumbnailLoadFailed(recording.id)) {
                 <img
                   [src]="'/api/v1/recordings/' + recording.id + '/thumbnail'"
                   [alt]="recording.name + ' thumbnail'"
-                  class="w-full h-full object-contain"
+                  class="w-full h-full object-cover transition-opacity duration-300"
+                  [class.opacity-0]="isLoadingThumbnail(recording.id)"
+                  (load)="onThumbnailLoad(recording.id)"
+                  (error)="onThumbnailError(recording.id)"
                   loading="lazy"
-                  (error)="onThumbnailError($event)"
                 />
+
+                @if (isLoadingThumbnail(recording.id)) {
+                  <div class="absolute inset-0 flex items-center justify-center bg-[#1e293b]">
+                    <syn-spinner size="small"></syn-spinner>
+                  </div>
+                }
               } @else {
-                <!-- Fallback icon -->
-                <syn-icon name="videocam" class="text-6xl text-syn-color-neutral-600 opacity-50"></syn-icon>
+                <!-- Fallback icon when generation fails -->
+                <div class="flex flex-col items-center gap-2 opacity-40">
+                  <syn-icon name="videocam" class="text-5xl text-syn-color-neutral-400"></syn-icon>
+                  <span
+                    class="text-[10px] font-medium tracking-tight uppercase text-syn-color-neutral-400"
+                    >No Preview</span
+                  >
+                </div>
               }
-              
+
               <!-- Frame count badge overlay -->
-              <syn-badge 
-                variant="primary" 
-                size="small" 
-                pill 
+              <syn-badge
+                variant="primary"
+                size="small"
+                pill
                 class="absolute top-2 right-2 shadow-lg"
               >
                 {{ recording.frame_count }} frames

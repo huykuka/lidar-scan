@@ -46,14 +46,14 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   currentFrame = signal(0);
   isPlaying = signal(false);
   isLoading = signal(false);
-  loadingProgress = signal(0); // 0-100
   playbackSpeed = signal(1.0);
   error = signal<string | null>(null);
 
-  // Frame cache - preload all frames
-  private decodingWorker: Worker | null = null; // Web worker to offload PCD parsing
-  private frameCache: PCDData[] = [];
-  private framesLoaded = false;
+  // Frame cache - smart loading
+  private decodingWorker: Worker | null = null;
+  private frameCache = new Map<number, PCDData>();
+  private readonly MAX_CACHE_SIZE = 150; // Keep up to 150 frames in memory
+  private framesLoading = new Set<number>();
 
   // Three.js objects
   private scene!: THREE.Scene;
@@ -75,19 +75,36 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
 
   constructor() {
     // Initialize Web Worker for PCD decoding
-    this.decodingWorker = new Worker(new URL('./pcd-decoder.worker.ts', import.meta.url), { type: 'module' });
-    
+    this.decodingWorker = new Worker(new URL('./pcd-decoder.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+
     // Update visualization when current frame changes
     effect(() => {
       const frame = this.currentFrame();
-      if (this.framesLoaded && this.frameCache[frame]) {
-        this.updatePointCloud(this.frameCache[frame]);
+      this.ensureFrameBuffered(frame);
+
+      if (this.frameCache.has(frame)) {
+        this.updatePointCloud(this.frameCache.get(frame)!);
+      }
+    });
+
+    // Proactive buffering logic
+    effect(() => {
+      if (this.isPlaying()) {
+        const current = this.currentFrame();
+        // Buffer ahead 15 frames for smooth playback
+        for (let i = 1; i <= 15; i++) {
+          const ahead = current + i;
+          if (ahead < this.frameCount()) {
+            this.ensureFrameBuffered(ahead);
+          }
+        }
       }
     });
   }
 
   ngOnInit() {
-    // Load info and preload all frames when component initializes
     if (this.recordingId) {
       this.loadRecordingInfo(this.recordingId);
     }
@@ -99,30 +116,28 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   ngOnDestroy() {
-    // Terminate the decoding Web Worker to release resources
     if (this.decodingWorker) {
       this.decodingWorker.terminate();
       this.decodingWorker = null;
     }
-    
+
     this.stopPlayback();
-    
+
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-    
+
     if (this.pointCloud) {
       this.pointCloud.geometry.dispose();
       (this.pointCloud.material as THREE.Material).dispose();
       this.pointCloud = null;
     }
-    
+
     this.renderer?.dispose();
     this.controls?.dispose();
-    
-    // Clear frame cache
-    this.frameCache = [];
+
+    this.frameCache.clear();
   }
 
   private initThreeJS() {
@@ -178,15 +193,16 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   private loadRecordingInfo(id: string) {
     this.isLoading.set(true);
     this.error.set(null);
-    this.framesLoaded = false;
-    this.frameCache = [];
+    this.frameCache.clear();
+    this.framesLoading.clear();
 
     this.recordingApi.getRecordingInfo(id).subscribe({
       next: (info) => {
         this.info.set(info);
         this.currentFrame.set(0);
-        // Start preloading all frames
-        this.preloadAllFrames(id, info.frame_count);
+        this.isLoading.set(false);
+        // Load initial frame immediately
+        this.ensureFrameBuffered(0);
       },
       error: (err) => {
         this.error.set(`Failed to load recording info: ${err.message}`);
@@ -195,39 +211,47 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     });
   }
 
-  private async preloadAllFrames(recordingId: string, frameCount: number) {
-    this.loadingProgress.set(0);
-    this.frameCache = new Array(frameCount);
+  /**
+   * Ensures a frame is in the cache, fetching it if necessary.
+   * Implements a simple cache eviction policy.
+   */
+  private async ensureFrameBuffered(frameIndex: number) {
+    if (frameIndex < 0 || this.frameCache.has(frameIndex) || this.framesLoading.has(frameIndex)) {
+      return;
+    }
 
-    // Load frames in parallel (batch of 10 at a time to avoid overwhelming the server)
-    const batchSize = 10;
-    let loaded = 0;
+    // Cache management: If too many frames, remove the one furthest from current
+    if (this.frameCache.size >= this.MAX_CACHE_SIZE) {
+      let furthestFrame = -1;
+      let maxDistance = -1;
+      const current = this.currentFrame();
 
-    for (let i = 0; i < frameCount; i += batchSize) {
-      const batch = [];
-      const batchEnd = Math.min(i + batchSize, frameCount);
-
-      for (let j = i; j < batchEnd; j++) {
-        batch.push(this.loadSingleFrame(recordingId, j));
+      for (const cachedIndex of this.frameCache.keys()) {
+        const distance = Math.abs(cachedIndex - current);
+        if (distance > maxDistance) {
+          maxDistance = distance;
+          furthestFrame = cachedIndex;
+        }
       }
 
-      try {
-        await Promise.all(batch);
-        loaded += batch.length;
-        this.loadingProgress.set(Math.round((loaded / frameCount) * 100));
-      } catch (err: any) {
-        this.error.set(`Failed to load frames: ${err.message}`);
-        this.isLoading.set(false);
-        return;
+      if (furthestFrame !== -1) {
+        this.frameCache.delete(furthestFrame);
       }
     }
 
-    this.framesLoaded = true;
-    this.isLoading.set(false);
+    this.framesLoading.add(frameIndex);
 
-    // Display first frame
-    if (this.frameCache[0]) {
-      this.updatePointCloud(this.frameCache[0]);
+    try {
+      await this.loadSingleFrame(this.recordingId, frameIndex);
+      this.framesLoading.delete(frameIndex);
+
+      // If we just loaded the current frame, trigger update
+      if (frameIndex === this.currentFrame()) {
+        this.updatePointCloud(this.frameCache.get(frameIndex)!);
+      }
+    } catch (err) {
+      this.framesLoading.delete(frameIndex);
+      console.error(`Failed to load frame ${frameIndex}:`, err);
     }
   }
 
@@ -243,28 +267,26 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
           const reader = new FileReader();
           reader.onload = (e) => {
             const text = e.target?.result as string;
-            
-            // Send text to worker for decoding
+
             this.decodingWorker!.postMessage({
               action: 'decode',
               payload: { text, frameIndex },
             });
-            
-            // Listen for worker response
+
             const onMessage = (event: MessageEvent) => {
               const { action, payload } = event.data;
               if (action === 'decoded' && payload.frameIndex === frameIndex) {
                 this.decodingWorker!.removeEventListener('message', onMessage);
-                
+
                 if (payload.result) {
-                  this.frameCache[frameIndex] = payload.result;
+                  this.frameCache.set(frameIndex, payload.result);
                   resolve();
                 } else {
                   reject(new Error(`Failed to parse frame ${frameIndex}`));
                 }
               }
             };
-            
+
             this.decodingWorker!.addEventListener('message', onMessage);
           };
           reader.onerror = () => reject(new Error(`Failed to read frame ${frameIndex}`));

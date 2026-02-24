@@ -11,12 +11,7 @@
       <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10 rounded-lg">
         <div class="flex flex-col items-center gap-4">
           <syn-spinner></syn-spinner>
-          @if (loadingProgress() > 0) {
-            <div class="text-white">
-              <div class="text-lg font-semibold">Loading frames...</div>
-              <div class="text-sm">{{ loadingProgress() }}%</div>
-            </div>
-          }
+          <div class="text-white text-lg font-semibold">Initializing recording...</div>
         </div>
       </div>
     }
