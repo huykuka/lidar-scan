@@ -3,7 +3,7 @@ import asyncio
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,13 +20,13 @@ class RecordingHandle:
         self.topic = topic
         self.writer = writer
         self.metadata = metadata
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(timezone.utc)
         self.frame_count = 0
         self.last_timestamp: float | None = None
     
     def get_info(self) -> dict[str, Any]:
         """Get current recording info."""
-        duration = (datetime.utcnow() - self.started_at).total_seconds()
+        duration = (datetime.now(timezone.utc) - self.started_at).total_seconds()
         return {
             "recording_id": self.recording_id,
             "topic": self.topic,
@@ -50,7 +50,7 @@ class RecordingService:
             recordings_dir: Directory for storing recordings (default: config/recordings)
         """
         if recordings_dir is None:
-            recordings_dir = Path("config") / "recordings"
+            recordings_dir = Path("recordings")
         
         self.recordings_dir = Path(recordings_dir)
         self.recordings_dir.mkdir(parents=True, exist_ok=True)
@@ -88,7 +88,7 @@ class RecordingService:
             
             # Generate recording ID and file path
             recording_id = str(uuid.uuid4())
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             filename = f"{topic}_{timestamp}_{recording_id[:8]}.lidr"
             file_path = self.recordings_dir / filename
             
@@ -99,7 +99,7 @@ class RecordingService:
             metadata.update({
                 "topic": topic,
                 "name": name or topic,
-                "recording_timestamp": datetime.utcnow().isoformat(),
+                "recording_timestamp": datetime.now(timezone.utc).isoformat(),
             })
             
             # Create recording writer

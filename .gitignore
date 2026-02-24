@@ -19,7 +19,8 @@ app/static/*
 !app/static/.gitkeep
 
 # Local dev database
-config/data.db
+config/
+recordings/
 
 # Web/frontend
 web/.env*

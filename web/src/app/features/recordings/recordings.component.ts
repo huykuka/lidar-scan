@@ -7,11 +7,12 @@ import { NavigationService } from '../../core/services/navigation.service';
 import { DialogService } from '../../core/services/dialog.service';
 import { Recording } from '../../core/models/recording.model';
 import { RecordingViewerComponent } from './components/recording-viewer/recording-viewer.component';
+import { RecordingCardComponent } from './components/recording-card/recording-card.component';
 
 @Component({
   selector: 'app-recordings',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [CommonModule, SynergyComponentsModule, RecordingCardComponent],
   templateUrl: './recordings.component.html',
   styleUrl: './recordings.component.css',
 })
@@ -30,27 +31,12 @@ export class RecordingsComponent implements OnInit {
   protected recordingToDelete = signal<Recording | null>(null);
   protected isDeleting = signal<boolean>(false);
 
-  // Thumbnail state
-  private failedThumbnails = signal<Set<string>>(new Set());
-  private loadingThumbnails = signal<Set<string>>(new Set());
+  // Selection state
+  protected isSelectionMode = signal<boolean>(false);
+  protected selectedRecordingIds = signal<Set<string>>(new Set());
+  protected showBulkDeleteDialog = signal<boolean>(false);
 
-  constructor() {
-    // Track loading status for thumbnails
-    effect(() => {
-      const recs = this.recordings();
-      if (recs && recs.length > 0) {
-        const loading = new Set(this.loadingThumbnails());
-        recs.forEach((r) => {
-          if (!this.failedThumbnails().has(r.id) && !loading.has(r.id)) {
-            loading.add(r.id);
-          }
-        });
-        if (loading.size !== this.loadingThumbnails().size) {
-          this.loadingThumbnails.set(loading);
-        }
-      }
-    });
-  }
+  constructor() {}
 
   // Computed
   protected filteredRecordings = computed(() => {
@@ -82,25 +68,6 @@ export class RecordingsComponent implements OnInit {
 
   protected async refreshRecordings(): Promise<void> {
     await this.recordingStore.loadRecordings();
-  }
-
-  protected formatDate(dateStr: string): string {
-    const date = new Date(dateStr);
-    return date.toLocaleString();
-  }
-
-  protected formatDuration(seconds: number): string {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-
-  protected formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   }
 
   protected async loadForPlayback(recording: Recording): Promise<void> {
@@ -152,6 +119,10 @@ export class RecordingsComponent implements OnInit {
   }
 
   protected selectRecording(recording: Recording): void {
+    if (this.isSelectionMode()) {
+      this.toggleRecordingSelection(recording.id, !this.selectedRecordingIds().has(recording.id));
+      return;
+    }
     this.selectedRecording.set(recording);
   }
 
@@ -159,27 +130,70 @@ export class RecordingsComponent implements OnInit {
     this.selectedRecording.set(null);
   }
 
-  protected thumbnailLoadFailed(recordingId: string): boolean {
-    return this.failedThumbnails().has(recordingId);
+  // --- Bulk Selection & Deletion Methods ---
+
+  protected toggleSelectionMode(): void {
+    if (this.isSelectionMode()) {
+      this.isSelectionMode.set(false);
+      this.selectedRecordingIds.set(new Set());
+    } else {
+      this.isSelectionMode.set(true);
+    }
   }
 
-  protected isLoadingThumbnail(recordingId: string): boolean {
-    return this.loadingThumbnails().has(recordingId);
+  protected toggleRecordingSelection(id: string, selected: boolean): void {
+    const current = new Set(this.selectedRecordingIds());
+    if (selected) {
+      current.add(id);
+    } else {
+      current.delete(id);
+    }
+    this.selectedRecordingIds.set(current);
   }
 
-  protected onThumbnailLoad(recordingId: string): void {
-    const loading = new Set(this.loadingThumbnails());
-    loading.delete(recordingId);
-    this.loadingThumbnails.set(loading);
+  protected selectAllFiltered(): void {
+    const current = new Set(this.selectedRecordingIds());
+    const filtered = this.filteredRecordings();
+    const allSelected = filtered.every((r) => current.has(r.id));
+
+    if (allSelected) {
+      // Deselect all filtered
+      filtered.forEach((r) => current.delete(r.id));
+    } else {
+      // Select all filtered
+      filtered.forEach((r) => current.add(r.id));
+    }
+    this.selectedRecordingIds.set(new Set(current));
   }
 
-  protected onThumbnailError(recordingId: string): void {
-    const loading = new Set(this.loadingThumbnails());
-    loading.delete(recordingId);
-    this.loadingThumbnails.set(loading);
+  protected confirmBulkDelete(): void {
+    if (this.selectedRecordingIds().size > 0) {
+      this.showBulkDeleteDialog.set(true);
+    }
+  }
 
-    const failed = new Set(this.failedThumbnails());
-    failed.add(recordingId);
-    this.failedThumbnails.set(failed);
+  protected cancelBulkDelete(): void {
+    this.showBulkDeleteDialog.set(false);
+  }
+
+  protected async bulkDeleteRecordings(): Promise<void> {
+    const ids = Array.from(this.selectedRecordingIds());
+    if (ids.length === 0) return;
+
+    this.isDeleting.set(true);
+    try {
+      // A more robust implementation might send an array to a bulk delete endpoint.
+      // Since recordingApi.deleteRecording takes a single ID, we loop.
+      await Promise.all(ids.map((id) => this.recordingApi.deleteRecording(id).toPromise()));
+
+      await this.recordingStore.loadRecordings();
+      this.selectedRecordingIds.set(new Set());
+      this.isSelectionMode.set(false);
+      this.showBulkDeleteDialog.set(false);
+    } catch (error) {
+      console.error('Failed to perform bulk deletion:', error);
+    } finally {
+      this.isDeleting.set(false);
+    }
   }
 }

@@ -10,7 +10,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
   template: `
     <div
       *ngIf="showHud()"
-      class="absolute top-6 left-6 pointer-events-none animate-in fade-in slide-in-from-left-4 duration-300"
+      class="absolute top-6 right-6 pointer-events-none animate-in fade-in slide-in-from-left-4 duration-300"
     >
       <div
         class="bg-black/20 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg ring-1 ring-white/5"
@@ -48,10 +48,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
               >Active Topics ({{ enabledTopicsCount() }})</span
             >
             <div class="flex flex-col gap-1.5 mt-1.5" *ngIf="enabledTopics().length > 0">
-              <div
-                *ngFor="let topic of enabledTopics()"
-                class="flex items-center gap-2"
-              >
+              <div *ngFor="let topic of enabledTopics()" class="flex items-center gap-2">
                 <div
                   class="w-3 h-3 rounded-full shrink-0 ring-2 ring-white/30"
                   [style.background-color]="topic.color"
@@ -61,8 +58,8 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
                 </span>
               </div>
             </div>
-            <span 
-              *ngIf="enabledTopics().length === 0" 
+            <span
+              *ngIf="enabledTopics().length === 0"
               class="text-[11px] font-mono text-white/50 mt-1"
             >
               No topics selected
@@ -81,13 +78,9 @@ export class WorkspaceTelemetryComponent {
   protected pointCount = this.store.pointCount;
   protected fps = this.store.fps;
   protected lidarTime = this.store.lidarTime;
-  
+
   // Computed to get only enabled topics
-  protected enabledTopics = computed(() => 
-    this.store.selectedTopics().filter(t => t.enabled)
-  );
-  
-  protected enabledTopicsCount = computed(() => 
-    this.enabledTopics().length
-  );
+  protected enabledTopics = computed(() => this.store.selectedTopics().filter((t) => t.enabled));
+
+  protected enabledTopicsCount = computed(() => this.enabledTopics().length);
 }

@@ -1,7 +1,7 @@
 """Repository for recording persistence using SQLAlchemy ORM."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import cast
 
 from sqlalchemy.orm import Session
@@ -60,7 +60,7 @@ class RecordingsRepository:
         
         # Ensure created_at is set
         if "created_at" not in recording_data:
-            recording_data["created_at"] = datetime.utcnow().isoformat()
+            recording_data["created_at"] = datetime.now(timezone.utc).isoformat()
         
         # Convert metadata dict to JSON string if needed
         if "metadata" in recording_data and isinstance(recording_data["metadata"], dict):

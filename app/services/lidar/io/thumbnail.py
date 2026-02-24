@@ -66,8 +66,8 @@ def generate_thumbnail(
         x_range = x_max - x_min
         y_range = y_max - y_min
         
-        if x_range == 0 or y_range == 0:
-            logger.warning("Degenerate point cloud, cannot generate thumbnail")
+        if x_range == 0 and y_range == 0:
+            logger.warning("Degenerate point cloud (single point pointcloud), cannot generate thumbnail")
             return False
         
         # Add padding
@@ -78,8 +78,16 @@ def generate_thumbnail(
         
         # Normalize to image coordinates
         img_width, img_height = size
-        x_norm = ((x - x_min) / (x_max - x_min) * (img_width - 1)).astype(int)
-        y_norm = ((y - y_min) / (y_max - y_min) * (img_height - 1)).astype(int)
+        
+        if x_max > x_min:
+            x_norm = ((x - x_min) / (x_max - x_min) * (img_width - 1)).astype(int)
+        else:
+            x_norm = np.full_like(x, img_width // 2, dtype=int)
+            
+        if y_max > y_min:
+            y_norm = ((y - y_min) / (y_max - y_min) * (img_height - 1)).astype(int)
+        else:
+            y_norm = np.full_like(y, img_height // 2, dtype=int)
         
         # Flip Y (image coordinates are top-down)
         y_norm = img_height - 1 - y_norm
@@ -159,19 +167,43 @@ def generate_thumbnail_from_file(
         # Open recording
         reader = RecordingReader(str(recording_path))
         
-        # Select frame (10% into recording to skip startup artifacts)
-        if frame_index is None:
-            frame_index = max(0, int(reader.frame_count * 0.1))
+        # Handle specific frame index explicitly
+        if frame_index is not None:
+            if frame_index >= reader.frame_count:
+                logger.warning(f"Frame index {frame_index} out of range (max: {reader.frame_count - 1})")
+                frame_index = max(0, reader.frame_count - 1)
+            frames_to_try = [frame_index]
+        else:
+            # Auto-select frames: try up to 10 frames starting from 10% to find a non-empty one
+            if reader.frame_count == 0:
+                logger.warning("Recording has 0 frames, cannot generate thumbnail")
+                return False
+                
+            frames_to_try = []
+            start_pct = 0.1
+            for i in range(10):
+                pct = start_pct + i * ((1.0 - start_pct) / 10.0)
+                idx = min(int(reader.frame_count * pct), reader.frame_count - 1)
+                if idx not in frames_to_try:
+                    frames_to_try.append(idx)
+                    
+            if not frames_to_try:
+                frames_to_try = [0]
         
-        if frame_index >= reader.frame_count:
-            logger.warning(f"Frame index {frame_index} out of range (max: {reader.frame_count - 1})")
-            frame_index = reader.frame_count - 1
-        
-        # Read frame
-        points, _ = reader.get_frame(frame_index)
-        
-        # Generate thumbnail
-        return generate_thumbnail(points, output_path, size, view)
+        # Read frames and try generating
+        for target_index in frames_to_try:
+            points, _ = reader.get_frame(target_index)
+            
+            # Quick check if it's completely empty before attempting full generation
+            if points.shape[0] == 0 or np.all(points == 0):
+                continue
+                
+            success = generate_thumbnail(points, output_path, size, view)
+            if success:
+                return True
+                
+        logger.warning(f"All tried frames were empty or invalid for {recording_path}")
+        return False
     
     except Exception as e:
         logger.error(f"Failed to generate thumbnail from file: {e}", exc_info=True)

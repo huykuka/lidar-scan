@@ -10,8 +10,7 @@ from typing import cast
 
 from sqlalchemy import Boolean, Float, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-
+import datetime
 class Base(DeclarativeBase):
     pass
 
@@ -73,7 +72,7 @@ class RecordingModel(Base):
     recording_timestamp: Mapped[str] = mapped_column(String, nullable=False)
     metadata_json: Mapped[str] = mapped_column(String, nullable=False)
     thumbnail_path: Mapped[str | None] = mapped_column(String)
-    created_at: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[str] = mapped_column(String, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
 
     def to_dict(self) -> dict:
         import json

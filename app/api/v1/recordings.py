@@ -1,8 +1,9 @@
 """REST API endpoints for recording management."""
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -121,7 +122,7 @@ async def start_recording(
         return {
             "recording_id": recording_id,
             "file_path": file_path,
-            "started_at": datetime.utcnow().isoformat()
+            "started_at": datetime.now(timezone.utc).isoformat()
         }
     
     except ValueError as e:
@@ -166,9 +167,9 @@ async def stop_recording(
             "file_size_bytes": info["file_size_bytes"],
             "frame_count": info["frame_count"],
             "duration_seconds": info["duration_seconds"],
-            "recording_timestamp": info["metadata"].get("recording_timestamp", datetime.utcnow().isoformat()),
+            "recording_timestamp": info["metadata"].get("recording_timestamp", datetime.now(timezone.utc).isoformat()),
             "metadata": info["metadata"],
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat()
         }
         
         if info.get("thumbnail_path"):
@@ -276,6 +277,7 @@ async def delete_recording(
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
     
     file_path = recording["file_path"]
+    thumbnail_path = recording.get("thumbnail_path")
     
     # Delete from database
     repo.delete(recording_id)
@@ -286,6 +288,9 @@ async def delete_recording(
             if os.path.exists(file_path):
                 os.remove(file_path)
                 logger.info(f"Deleted recording file: {file_path}")
+            if thumbnail_path and os.path.exists(thumbnail_path):
+                os.remove(thumbnail_path)
+                logger.info(f"Deleted thumbnail file: {thumbnail_path}")
         except Exception as e:
             logger.error(f"Error deleting file {file_path}: {e}")
     

@@ -12,7 +12,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
       [class.bg-white/10]="active()"
       [class.hover:bg-white/10]="!active()"
       [class.hover:bg-red-500/20]="danger()"
-      [style.color]="danger() ? 'var(--syn-color-danger-600)' : 'var(--syn-color-neutral-100)'"
+      [style.color]="danger() ? 'var(--syn-color-danger-600)' : 'white'"
     >
       <syn-button
         variant="text"
@@ -20,7 +20,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
         class="wv-btn"
         (click)="clicked.emit()"
         [attr.title]="label()"
-       >
+      >
         <syn-icon [attr.name]="icon()"></syn-icon>
       </syn-button>
     </div>
@@ -28,8 +28,11 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
   styles: [
     `
       .wv-btn {
-        --syn-button-color-outline: var(--syn-color-neutral-100);
-        --syn-button-color-text: var(--syn-color-neutral-100);
+        --syn-button-color-text: white;
+      }
+
+      :host ::ng-deep .button--text {
+        color: #f2f0ed;
       }
 
       /* Icon-only button: make padding visually square/centered.

@@ -292,6 +292,338 @@ export const appConfig: ApplicationConfig = {
 4. **Plugin Marketplace**: Allow importing/exporting plugin definitions
 5. **Custom Node Rendering**: Support custom templates per plugin type
 
+## 3D Visualization System (Workspaces)
+
+The Workspaces view provides real-time 3D visualization of point cloud streams with advanced controls and multi-topic support.
+
+### Architecture Overview
+
+**Location**: `web/src/app/features/workspaces/`
+
+**Component Structure**:
+```
+workspaces/
+├── workspaces.component.*              # Main container (283 lines)
+└── components/
+    ├── point-cloud/                    # Three.js renderer (340 lines)
+    ├── workspace-controls/             # Topic & control panel (87 lines, 145 HTML)
+    ├── workspace-view-controls/        # Camera presets & view controls (115 lines)
+    └── workspace-telemetry/            # HUD stats display (93 lines)
+```
+
+### Multi-Topic Point Cloud Streaming
+
+The visualization system supports **viewing multiple LiDAR/fusion streams simultaneously** with independent colors and controls.
+
+#### State Management
+
+**`WorkspaceStoreService`** (`web/src/app/core/services/stores/workspace-store.service.ts`):
+
+```typescript
+interface TopicConfig {
+  topic: string;       // WebSocket topic name
+  color: string;       // Hex color (e.g., '#3b82f6')
+  enabled: boolean;    // Show/hide toggle
+}
+
+interface WorkspaceState {
+  selectedTopics: TopicConfig[];  // Multi-topic array
+  availableTopics: string[];      // From backend /api/v1/topics
+  // ... other state
+}
+
+// 8 predefined colors that cycle automatically
+const DEFAULT_TOPIC_COLORS = [
+  '#3b82f6', // blue
+  '#10b981', // green
+  '#f59e0b', // amber
+  '#ef4444', // red
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#f97316', // orange
+];
+```
+
+**Helper Methods**:
+- `addTopic(topic, color?)` - Add new topic with auto-assigned color
+- `removeTopic(topic)` - Remove topic from visualization
+- `toggleTopicEnabled(topic)` - Show/hide without removing
+- `updateTopicColor(topic, color)` - Change point cloud color
+- **Persistence**: Selections auto-save to `localStorage` via Angular `effect()`
+- **Validation**: On load, filters out stale topics (deleted sensors/fusions)
+
+#### Multi-WebSocket Management
+
+**`MultiWebsocketService`** (`web/src/app/core/services/multi-websocket.service.ts`):
+
+- Manages **multiple simultaneous WebSocket connections** (one per topic)
+- Each connection subscribes to `/api/v1/ws/{topic}`
+- Returns `Observable<{ topic: string, data: ArrayBuffer }>` with topic identifier
+- Independent lifecycle: `connect(topic)`, `disconnect(topic)`, `disconnectAll()`
+
+**Connection Sync Pattern** (`workspaces.component.ts`):
+
+```typescript
+private syncWebSocketConnections() {
+  const currentTopics = new Set(this.wsSubscriptions.keys());
+  const desiredTopics = new Set(
+    this.selectedTopics().filter(t => t.enabled).map(t => t.topic)
+  );
+
+  // Connect new topics
+  for (const topic of desiredTopics) {
+    if (!currentTopics.has(topic)) {
+      this.connectToTopic(topic);
+    }
+  }
+
+  // Disconnect removed topics
+  for (const topic of currentTopics) {
+    if (!desiredTopics.has(topic)) {
+      this.disconnectFromTopic(topic);
+    }
+  }
+}
+```
+
+Triggered reactively via Angular `effect()` watching `selectedTopics` signal.
+
+#### Point Cloud Rendering Architecture
+
+**`PointCloudComponent`** (`point-cloud.component.ts`) - Manages Three.js scene:
+
+**Data Structure**:
+```typescript
+private pointClouds = new Map<string, {
+  pointsObj: THREE.Points,           // Scene object
+  geometry: THREE.BufferGeometry,    // Point positions
+  material: THREE.PointsMaterial,    // Color & rendering
+  lastCount: number                  // For efficient updates
+}>();
+```
+
+**Key Methods**:
+
+1. **`addOrUpdatePointCloud(topic: string, color: string)`**
+   - Creates new Three.js `Points` object if topic is new
+   - Updates material color if topic already exists
+   - Each topic gets independent Three.js objects added to scene
+
+2. **`removePointCloud(topic: string)`**
+   - Removes Three.js objects from scene
+   - Disposes geometry and material to prevent memory leaks
+   - Deletes from `pointClouds` map
+
+3. **`updatePointsForTopic(topic: string, points: Float32Array, count: number)`**
+   - Updates specific topic's point positions
+   - Efficient buffer updates (only resizes if count changes)
+   - Marks geometry attributes as needing update
+
+4. **`getTotalPointCount(): number`**
+   - Aggregates point counts across all active topics
+   - Used for HUD display
+
+**Backwards Compatibility**: Legacy `updatePoints()` method still supported for single-topic mode.
+
+### Camera View Presets
+
+Quick navigation buttons for common viewpoints:
+
+**Available Presets** (all in `point-cloud.component.ts`):
+
+1. **`setTopView()`** - Orthographic top-down view (looking down Z-axis)
+2. **`setFrontView()`** - Front elevation view (looking along Y-axis)
+3. **`setSideView()`** - Side elevation view (looking along X-axis)
+4. **`setIsometricView()`** - 45° isometric perspective
+5. **`fitToPoints()`** - Auto-zoom to fit all point clouds in view (calculates bounding box across all topics)
+
+**Implementation Pattern**:
+```typescript
+setTopView() {
+  this.camera.position.set(0, 0, 50);
+  this.camera.lookAt(0, 0, 0);
+  this.camera.up.set(0, 1, 0);
+  this.controls.update();
+}
+```
+
+**UI Integration**: Buttons in `workspace-view-controls.component` emit events bound to these methods in parent component.
+
+### UI Components & Controls
+
+#### Workspace Controls Panel
+
+**Location**: `workspace-controls.component.*`
+
+**Features**:
+- **Topic Dropdown**: Shows only unselected topics (filtered via `computed` signal)
+- **Auto-add on Selection**: Selecting a topic immediately adds it (no button needed)
+- **Active Topics List**: Per-topic controls displayed as cards:
+  - **Color Picker**: `<input type="color">` bound to `updateTopicColor()`
+  - **Download Button**: `syn-icon-button` with "download" icon → `onCapturePcd(topic)`
+  - **Show/Hide Toggle**: `syn-icon-button` with visibility icon → `toggleTopicEnabled(topic)`
+  - **Remove Button**: `syn-icon-button` with close icon → `removeTopic(topic)`
+- **Tooltips**: All action buttons have descriptive tooltips
+- **Success Message**: Shown when all available topics are selected
+- **Legacy Mode**: Backwards-compatible single-topic section (hidden when multi-topic active)
+
+#### Telemetry HUD
+
+**Location**: `workspace-telemetry.component.*`
+
+**Display**:
+- **Active Topics Count**: Badge showing `(3)` enabled topics
+- **Topic List**: Color-coded dots matching point cloud colors
+  - Dot styling: `ring-2 ring-white/30` for visibility
+  - Topic names next to each dot
+- **Empty State**: Message when no topics selected
+- **Computed Signals**: `enabledTopics()` filters hidden topics
+- **FPS & Point Count**: Aggregated across all active streams
+
+#### View Controls
+
+**Location**: `workspace-view-controls.component.*`
+
+**Camera Preset Buttons**:
+- Top View
+- Front View
+- Side View
+- Isometric View
+- Fit to Points
+
+**Other Controls**:
+- Grid toggle
+- Axes helper toggle
+- Point size slider
+- Render quality settings
+
+### Lifecycle & ViewChild Management
+
+**Critical Pattern** for Angular `@ViewChild` components:
+
+```typescript
+export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
+  @ViewChild('pointCloud') pointCloud!: PointCloudComponent;
+  private viewInitialized = false;
+
+  constructor() {
+    // DON'T access pointCloud here - it's undefined!
+    
+    effect(() => {
+      // Guard with viewInitialized flag
+      if (this.viewInitialized) {
+        this.syncWebSocketConnections();
+      }
+    });
+  }
+
+  ngAfterViewInit() {
+    // NOW pointCloud is available
+    this.viewInitialized = true;
+    this.initWorkspace(); // Manual sync on first load
+  }
+}
+```
+
+**Why This Matters**: Angular `@ViewChild` components are **not available until `ngAfterViewInit()`**. Accessing them earlier (in constructor or `ngOnInit`) causes point clouds to not render when navigating back to the page.
+
+### Persistence & Validation
+
+**Auto-Persistence**:
+- `WorkspaceStoreService` uses `effect()` to watch state changes
+- Automatically saves `selectedTopics` to `localStorage` on any modification
+- Key: `workspace_state_v1`
+
+**Stale Topic Validation** (on page load):
+```typescript
+initWorkspace() {
+  const availableSet = new Set(this.availableTopics());
+  const validTopics = this.selectedTopics().filter(t => 
+    availableSet.has(t.topic)
+  );
+  
+  if (validTopics.length !== this.selectedTopics().length) {
+    // Some topics were deleted - update state
+    this.workspaceStore.set({ selectedTopics: validTopics });
+  }
+}
+```
+
+Prevents errors from deleted sensors/fusions that were previously selected.
+
+### WebSocket Binary Protocol
+
+Point cloud data streams via WebSocket in **LIDR binary format** (see "WebSocket Binary Frame Format" section above).
+
+**Decoding in Frontend**:
+```typescript
+private decodePointCloud(buffer: ArrayBuffer) {
+  const view = new DataView(buffer);
+  const magic = String.fromCharCode(...new Uint8Array(buffer, 0, 4));
+  const version = view.getUint32(4, true);
+  const timestamp = view.getFloat64(8, true);
+  const count = view.getUint32(16, true);
+  
+  const points = new Float32Array(buffer, 20, count * 3);
+  return { points, count, timestamp };
+}
+```
+
+### Performance Considerations
+
+**Efficient Updates**:
+- Buffer geometry only reallocated if point count changes
+- Uses `bufferAttribute.needsUpdate = true` for in-place updates
+- Three.js renderer capped at 60 FPS via `requestAnimationFrame()`
+
+**Memory Management**:
+- Explicit disposal of geometries/materials when removing topics
+- WebSocket subscriptions properly unsubscribed in `ngOnDestroy()`
+
+**FPS Calculation**:
+```typescript
+private frameCount = new Map<string, number>();
+private lastFpsUpdate = Date.now();
+
+// Update per-topic frame count
+this.frameCount.set(topic, (this.frameCount.get(topic) || 0) + 1);
+
+// Calculate aggregate FPS every second
+const elapsed = now - this.lastFpsUpdate;
+if (elapsed >= 1000) {
+  const totalFrames = Array.from(this.frameCount.values())
+    .reduce((sum, count) => sum + count, 0);
+  this.fps = Math.round(totalFrames / (elapsed / 1000));
+}
+```
+
+### Key Files Reference
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| `workspaces.component.ts` | Main orchestrator with WebSocket sync | 283 |
+| `point-cloud.component.ts` | Three.js scene & multi-topic rendering | 340 |
+| `workspace-controls.component.ts` | Topic selection & per-topic actions | 87 |
+| `workspace-controls.component.html` | Control panel UI template | 145 |
+| `workspace-view-controls.component.ts` | Camera presets & view toggles | 115 |
+| `workspace-telemetry.component.ts` | HUD stats with multi-topic display | 93 |
+| `workspace-store.service.ts` | State management & persistence | 144 |
+| `multi-websocket.service.ts` | Multi-connection WebSocket manager | 102 |
+
+### Common Patterns
+
+**Adding a New Camera Preset**:
+1. Add method to `PointCloudComponent` (e.g., `setCustomView()`)
+2. Add output event to `WorkspaceViewControlsComponent`
+3. Add button to view controls template with event binding
+4. Bind event in `workspaces.component.html`: `(onCustomView)="pointCloud.setCustomView()"`
+
+**Adding Per-Topic Action**:
+1. Add method to `WorkspaceStoreService` (e.g., `downloadPcd(topic)`)
+2. Add button to active topics list in `workspace-controls.component.html`
+3. Bind click to method: `(click)="onCustomAction(config.topic)"`
+
 ## Key Implementation Notes
 
 1. **Synergy Design System**: Use Angular components from `@synergy-design-system/angular` seamlessly with standard structural directives (`*ngIf`, `*ngFor`).
@@ -308,3 +640,4 @@ export const appConfig: ApplicationConfig = {
    - Each lidar has a persisted `topic_prefix` field (auto-generated from `name`, slugified, collision-safe).
    - WebSocket topics: `{topic_prefix}_raw_points` and `{topic_prefix}_processed_points`.
    - Fusion topics: custom topic name (e.g., `fused_points`).
+6. **ViewChild Lifecycle**: Always guard `@ViewChild` component access with a `viewInitialized` flag set in `ngAfterViewInit()`. Accessing ViewChild components before this lifecycle hook causes rendering issues (point clouds won't display when navigating back to page).

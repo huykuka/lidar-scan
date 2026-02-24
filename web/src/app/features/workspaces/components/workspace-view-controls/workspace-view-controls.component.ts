@@ -10,10 +10,10 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
   imports: [CommonModule, SynergyComponentsModule, WorkspaceViewControlsButtonComponent],
   template: `
     <div
-      class="absolute bottom-4 left-1/2 -translate-x-1/2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300"
+      class="absolute left-4 top-0 bottom-0 flex flex-col justify-center items-start opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 py-2 sm:py-4 pointer-events-none z-50"
     >
       <div
-        class="flex items-center gap-1 bg-black/40 backdrop-blur-xl p-1.5 rounded-2xl border border-white/15 shadow-2xl"
+        class="flex flex-col items-center justify-center gap-1 bg-black/40 backdrop-blur-xl p-1.5 rounded-2xl border border-white/15 shadow-2xl pointer-events-auto max-h-full overflow-y-auto"
       >
         <app-workspace-view-controls-button
           [label]="showHud() ? 'Hide HUD' : 'Show HUD'"
@@ -36,7 +36,7 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
           (clicked)="toggleAxes()"
         ></app-workspace-view-controls-button>
 
-        <div class="w-px h-6 bg-white/15 mx-1"></div>
+        <div class="h-px w-6 bg-white/15 my-1 hidden sm:block"></div>
 
         <!-- Camera View Presets -->
         <app-workspace-view-controls-button
@@ -69,7 +69,7 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
           (clicked)="onFitToPoints.emit()"
         ></app-workspace-view-controls-button>
 
-        <div class="w-px h-6 bg-white/15 mx-1"></div>
+        <div class="h-px w-6 bg-white/15 my-1 hidden sm:block"></div>
 
         <app-workspace-view-controls-button
           label="Reset View"

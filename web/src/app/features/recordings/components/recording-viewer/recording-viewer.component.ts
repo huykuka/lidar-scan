@@ -14,7 +14,6 @@ import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { RecordingApiService } from '../../../../core/services/api/recording-api.service';
 import { RecordingViewerInfo } from '../../../../core/models/recording.model';
-import { DialogService } from '../../../../core/services/dialog.service';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { FormsModule } from '@angular/forms';
@@ -30,12 +29,20 @@ interface PCDData {
   imports: [CommonModule, SynergyComponentsModule, FormsModule],
   templateUrl: './recording-viewer.component.html',
   styleUrl: './recording-viewer.component.css',
+  styles: [
+    `
+      :host {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    `,
+  ],
 })
 export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) containerRef!: ElementRef<HTMLDivElement>;
 
   private recordingApi = inject(RecordingApiService);
-  private dialogService = inject(DialogService);
 
   // Data passed from parent (set by DialogService)
   recordingId!: string;
@@ -147,19 +154,36 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x2a2a2b);
 
-    // Camera
-    this.camera = new THREE.PerspectiveCamera(
-      75,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      1000,
-    );
+    // Initial dummy values until resize observer picks up the correct dom flow size
+    const initWidth = container.clientWidth > 0 ? container.clientWidth : 800;
+    const initHeight = container.clientHeight > 0 ? container.clientHeight : 600;
+
+    // Camera setup with 50 degree FOV matching the workspace viewer
+    this.camera = new THREE.PerspectiveCamera(40, initWidth / initHeight, 0.1, 1000);
     this.camera.position.set(15, 15, 15);
     this.camera.lookAt(0, 0, 0);
 
-    // Renderer
+    // Renderer setup
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setSize(initWidth, initHeight);
+
+    // If init failed because dialog is lazy-rendering with 0x0
+    if (container.clientWidth === 0) {
+      const waitInterval = setInterval(() => {
+        if (container.clientWidth > 0) {
+          clearInterval(waitInterval);
+          this.camera.aspect = container.clientWidth / container.clientHeight;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(container.clientWidth, container.clientHeight);
+          if (this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+          }
+        }
+      }, 50);
+
+      // Clear out safety interval eventually
+      setTimeout(() => clearInterval(waitInterval), 2000);
+    }
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(this.renderer.domElement);
 
@@ -177,11 +201,38 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
 
     // Resize observer
     const resizeObserver = new ResizeObserver(() => {
+      // Dialog containers sometimes fire ResizeObserver with 0 bounds when just appending
+      if (container.clientWidth <= 0 || container.clientHeight <= 0) return;
+
       this.camera.aspect = container.clientWidth / container.clientHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(container.clientWidth, container.clientHeight);
+
+      // Explicitly trigger a render on resize to avoid black frames until next animation tick
+      if (this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
     });
-    resizeObserver.observe(container);
+
+    // A small buffer to let the modal completely attach to the DOM before observing
+    setTimeout(() => {
+      if (!container) return;
+      resizeObserver.observe(container);
+
+      // Force an explicit manual resize trigger a few ticks later in case observer missed the CSS layout transition
+      setTimeout(() => {
+        if (container.clientWidth > 0 && container.clientHeight > 0) {
+          this.camera.aspect = container.clientWidth / container.clientHeight;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // Start animation loop ONLY AFTER layout stabilizes
+        if (this.animationFrameId === null) {
+          this.animate();
+        }
+      }, 300);
+    }, 100);
   }
 
   private animate = () => {
@@ -268,7 +319,12 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
           reader.onload = (e) => {
             const text = e.target?.result as string;
 
-            this.decodingWorker!.postMessage({
+            if (!this.decodingWorker) {
+              reject(new Error('Worker was destroyed'));
+              return;
+            }
+
+            this.decodingWorker.postMessage({
               action: 'decode',
               payload: { text, frameIndex },
             });
@@ -276,7 +332,9 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
             const onMessage = (event: MessageEvent) => {
               const { action, payload } = event.data;
               if (action === 'decoded' && payload.frameIndex === frameIndex) {
-                this.decodingWorker!.removeEventListener('message', onMessage);
+                if (this.decodingWorker) {
+                  this.decodingWorker.removeEventListener('message', onMessage);
+                }
 
                 if (payload.result) {
                   this.frameCache.set(frameIndex, payload.result);
@@ -287,7 +345,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
               }
             };
 
-            this.decodingWorker!.addEventListener('message', onMessage);
+            this.decodingWorker.addEventListener('message', onMessage);
           };
           reader.onerror = () => reject(new Error(`Failed to read frame ${frameIndex}`));
           reader.readAsText(blob);

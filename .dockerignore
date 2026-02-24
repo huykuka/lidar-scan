@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+web/dist/
+web/.angular/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Database (will be mounted as volume)
+config/data.db
+config/*.db
+
+# Debug data (will be mounted as volume)
+debug_data/
+
+# Keep launch and build folders (they will be copied)
+!launch/
+!build/
+
+# Documentation
+*.md
+docs/
+README.md
+AGENTS.md
+
+# Tests
+tests/
+pytest.ini
+
+# Development
+.python-version
+requirements-dev.txt
+requirements-frozen.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+docker-compose*.yml
+Dockerfile*

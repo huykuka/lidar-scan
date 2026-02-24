@@ -8,7 +8,7 @@ export const routes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'start',
+        redirectTo: 'workspaces',
         pathMatch: 'full',
       },
       {
@@ -33,8 +33,7 @@ export const routes: Routes = [
       },
       {
         path: 'logs',
-        loadComponent: () =>
-          import('./features/logs/logs.component').then((m) => m.LogsComponent),
+        loadComponent: () => import('./features/logs/logs.component').then((m) => m.LogsComponent),
       },
     ],
   },

@@ -41,7 +41,7 @@ export class PointCloudComponent implements OnInit, OnDestroy {
   private camera!: THREE.PerspectiveCamera;
   private renderer!: THREE.WebGLRenderer;
   private controls!: OrbitControls;
-  
+
   // Multiple point clouds support
   private pointClouds: Map<
     string,
@@ -52,9 +52,12 @@ export class PointCloudComponent implements OnInit, OnDestroy {
       lastCount: number;
     }
   > = new Map();
-  
+
   private gridHelper?: THREE.GridHelper;
   private axesHelper?: THREE.AxesHelper;
+  private axesLabels: THREE.Sprite[] = [];
+  private gridLabels: THREE.Sprite[] = [];
+  private currentGridSize = 50;
 
   private animationId?: number;
   private readonly MAX_POINTS = 50000;
@@ -71,13 +74,17 @@ export class PointCloudComponent implements OnInit, OnDestroy {
 
     effect(() => {
       if (this.gridHelper) {
-        this.gridHelper.visible = !!this.showGrid();
+        const isVisible = !!this.showGrid();
+        this.gridHelper.visible = isVisible;
+        this.gridLabels.forEach((l) => (l.visible = isVisible));
       }
     });
 
     effect(() => {
       if (this.axesHelper) {
-        this.axesHelper.visible = !!this.showAxes();
+        const isVisible = !!this.showAxes();
+        this.axesHelper.visible = isVisible;
+        this.axesLabels.forEach((l) => (l.visible = isVisible));
       }
     });
   }
@@ -105,11 +112,11 @@ export class PointCloudComponent implements OnInit, OnDestroy {
 
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x2a2a2b);
+    this.scene.background = new THREE.Color(0x000000);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
-      75,
+      50,
       container.clientWidth / container.clientHeight,
       0.1,
       1000,
@@ -129,13 +136,27 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     this.controls.target.set(0, 0, 0);
 
     // Grid & Axes
-    this.gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x333333);
-    this.gridHelper.visible = !!this.showGrid();
-    this.scene.add(this.gridHelper);
+    this.rebuildGrid();
 
     this.axesHelper = new THREE.AxesHelper(5);
     this.axesHelper.visible = !!this.showAxes();
     this.scene.add(this.axesHelper);
+
+    // Axis Labels
+    const axisX = this.createTextSprite('Y', '#ff0000');
+    axisX.position.set(5.5, 0, 0);
+    axisX.visible = !!this.showAxes();
+
+    const axisY = this.createTextSprite('Z', '#00ff00');
+    axisY.position.set(0, 5.5, 0);
+    axisY.visible = !!this.showAxes();
+
+    const axisZ = this.createTextSprite('X', '#0000ff');
+    axisZ.position.set(0, 0, 5.5);
+    axisZ.visible = !!this.showAxes();
+
+    this.axesLabels = [axisX, axisY, axisZ];
+    this.scene.add(...this.axesLabels);
 
     // Resize observer
     const resizeObserver = new ResizeObserver(() => {
@@ -328,11 +349,7 @@ export class PointCloudComponent implements OnInit, OnDestroy {
 
     if (!isFinite(minX) || !isFinite(maxX)) return;
 
-    const center = new THREE.Vector3(
-      (minX + maxX) / 2,
-      (minY + maxY) / 2,
-      (minZ + maxZ) / 2,
-    );
+    const center = new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
     const size = new THREE.Vector3(maxX - minX, maxY - minY, maxZ - minZ);
     const radius = Math.max(size.x, size.y, size.z) / 2;
 
@@ -340,7 +357,9 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     const distance = (radius / Math.tan(fov / 2)) * paddingFactor + 0.1;
 
     // Keep the current view direction but reposition to fit
-    const dir = new THREE.Vector3().subVectors(this.camera.position, this.controls.target).normalize();
+    const dir = new THREE.Vector3()
+      .subVectors(this.camera.position, this.controls.target)
+      .normalize();
     this.controls.target.copy(center);
     this.camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
     this.controls.update();
@@ -365,6 +384,85 @@ export class PointCloudComponent implements OnInit, OnDestroy {
   private animate() {
     this.animationId = requestAnimationFrame(() => this.animate());
     this.controls.update();
+
+    // Dynamically scale text sprites based on camera distance
+    const spritesToScale = [...this.gridLabels, ...this.axesLabels];
+    spritesToScale.forEach((label) => {
+      if (!label.visible) return;
+      const distance = this.camera.position.distanceTo(label.position);
+      // Determine a base scale factor that makes it readable but appropriately small
+      const scaleBase = Math.max(0.2, distance * 0.05);
+      label.scale.set(scaleBase * 2, scaleBase, 1);
+    });
+
     this.renderer.render(this.scene, this.camera);
+  }
+
+  private rebuildGrid() {
+    if (this.gridHelper) {
+      this.scene.remove(this.gridHelper);
+      this.gridHelper.dispose();
+    }
+
+    const size = this.currentGridSize; // Always 50
+    const stepLines = 10; // Labels every 10m
+    const divisions = size / stepLines; // 5 divisions across the 50m grid
+
+    this.gridHelper = new THREE.GridHelper(size, divisions, 0x555555, 0x333333);
+    this.gridHelper.position.y = -0.1; // lower to avoid z-fighting
+    this.gridHelper.visible = !!this.showGrid();
+    this.scene.add(this.gridHelper);
+
+    // Remove old labels
+    this.gridLabels.forEach((label) => {
+      this.scene.remove(label);
+      if (label.material.map) label.material.map.dispose();
+      label.material.dispose();
+    });
+    this.gridLabels = [];
+
+    const halfSize = size / 2;
+    for (let i = -halfSize; i <= halfSize; i += stepLines) {
+      if (i === 0) continue;
+
+      const spriteX = this.createTextSprite(`${i}m`);
+      spriteX.position.set(i, 0, halfSize + stepLines * 0.2);
+      spriteX.visible = !!this.showGrid();
+      this.gridLabels.push(spriteX);
+      this.scene.add(spriteX);
+
+      const spriteZ = this.createTextSprite(`${i}m`);
+      spriteZ.position.set(halfSize + stepLines * 0.2, 0, i);
+      spriteZ.visible = !!this.showGrid();
+      this.gridLabels.push(spriteZ);
+      this.scene.add(spriteZ);
+    }
+  }
+
+  private createTextSprite(message: string, color: string = '#888888'): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = 'rgba(0,0,0,0)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.font = 'bold 24px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillStyle = color;
+    context.fillText(message, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: true,
+    });
+    const sprite = new THREE.Sprite(material);
+
+    // Dynamic scaling happens in animate() to make it responsive to zoom
+    return sprite;
   }
 }

@@ -15,15 +15,51 @@
       </syn-input>
 
       <!-- Actions -->
-      <syn-button
-        variant="outline"
-        size="medium"
-        (click)="refreshRecordings()"
-        [disabled]="isLoading()"
-      >
-        <syn-icon slot="prefix" name="refresh"></syn-icon>
-        Refresh
-      </syn-button>
+      <div class="flex items-center gap-2">
+        @if (isSelectionMode()) {
+          <syn-button
+            variant="outline"
+            size="medium"
+            (click)="selectAllFiltered()"
+            [disabled]="isLoading() || filteredRecordings().length === 0"
+          >
+            <syn-icon slot="prefix" name="done_all"></syn-icon>
+            Select All
+          </syn-button>
+          <syn-button
+            variant="outline"
+            size="medium"
+            style="color: var(--syn-color-error-700); border-color: var(--syn-color-error-700)"
+            (click)="confirmBulkDelete()"
+            [disabled]="selectedRecordingIds().size === 0"
+          >
+            <syn-icon slot="prefix" name="delete"></syn-icon>
+            Delete ({{ selectedRecordingIds().size }})
+          </syn-button>
+          <syn-button variant="text" size="medium" (click)="toggleSelectionMode()">
+            Cancel
+          </syn-button>
+        } @else {
+          <syn-button
+            variant="outline"
+            size="medium"
+            (click)="toggleSelectionMode()"
+            [disabled]="isLoading() || filteredRecordings().length === 0"
+          >
+            <syn-icon slot="prefix" name="checklist"></syn-icon>
+            Select
+          </syn-button>
+          <syn-button
+            variant="outline"
+            size="medium"
+            (click)="refreshRecordings()"
+            [disabled]="isLoading()"
+          >
+            <syn-icon slot="prefix" name="refresh"></syn-icon>
+            Refresh
+          </syn-button>
+        }
+      </div>
     </div>
   </div>
 
@@ -47,147 +83,18 @@
       </div>
     } @else {
       <!-- Recordings Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(500px, 1fr))">
         @for (recording of sortedRecordings(); track recording.id) {
-          <div
-            class="bg-white rounded-lg border border-syn-color-neutral-200 hover:border-syn-color-primary-300 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden flex flex-col"
-            (click)="selectRecording(recording)"
-          >
-            <!-- Thumbnail -->
-            <div
-              class="relative w-full h-48 bg-[#1e293b] flex items-center justify-center overflow-hidden border-b border-syn-color-neutral-200"
-            >
-              @if (!thumbnailLoadFailed(recording.id)) {
-                <img
-                  [src]="'/api/v1/recordings/' + recording.id + '/thumbnail'"
-                  [alt]="recording.name + ' thumbnail'"
-                  class="w-full h-full object-cover transition-opacity duration-300"
-                  [class.opacity-0]="isLoadingThumbnail(recording.id)"
-                  (load)="onThumbnailLoad(recording.id)"
-                  (error)="onThumbnailError(recording.id)"
-                  loading="lazy"
-                />
-
-                @if (isLoadingThumbnail(recording.id)) {
-                  <div class="absolute inset-0 flex items-center justify-center bg-[#1e293b]">
-                    <syn-spinner size="small"></syn-spinner>
-                  </div>
-                }
-              } @else {
-                <!-- Fallback icon when generation fails -->
-                <div class="flex flex-col items-center gap-2 opacity-40">
-                  <syn-icon name="videocam" class="text-5xl text-syn-color-neutral-400"></syn-icon>
-                  <span
-                    class="text-[10px] font-medium tracking-tight uppercase text-syn-color-neutral-400"
-                    >No Preview</span
-                  >
-                </div>
-              }
-
-              <!-- Frame count badge overlay -->
-              <syn-badge
-                variant="primary"
-                size="small"
-                pill
-                class="absolute top-2 right-2 shadow-lg"
-              >
-                {{ recording.frame_count }} frames
-              </syn-badge>
-            </div>
-
-            <!-- Card Header -->
-            <div class="p-4 border-b border-syn-color-neutral-100">
-              <div class="flex items-start justify-between gap-2">
-                <div class="flex-1 min-w-0">
-                  <h3 class="font-semibold text-sm truncate mb-1" [title]="recording.name">
-                    {{ recording.name }}
-                  </h3>
-                  <p
-                    class="text-xs text-syn-color-neutral-600 font-mono truncate"
-                    [title]="recording.topic"
-                  >
-                    {{ recording.topic }}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card Body -->
-            <div class="p-4 space-y-2 text-xs flex-1">
-              <div class="flex justify-between">
-                <span class="text-syn-color-neutral-600">Duration:</span>
-                <span class="font-medium">{{ formatDuration(recording.duration_seconds) }}</span>
-              </div>
-
-              <div class="flex justify-between">
-                <span class="text-syn-color-neutral-600">File Size:</span>
-                <span class="font-medium">{{ formatFileSize(recording.file_size_bytes) }}</span>
-              </div>
-
-              <div class="flex justify-between">
-                <span class="text-syn-color-neutral-600">Created:</span>
-                <span class="font-medium">{{ formatDate(recording.created_at) }}</span>
-              </div>
-
-              @if (recording?.metadata?.sensor_name) {
-                <div class="flex justify-between">
-                  <span class="text-syn-color-neutral-600">Sensor:</span>
-                  <span
-                    class="font-medium truncate max-w-[150px]"
-                    [title]="recording.metadata.sensor_name"
-                  >
-                    {{ recording.metadata.sensor_name }}
-                  </span>
-                </div>
-              }
-
-              @if (recording?.metadata?.mode) {
-                <div class="flex justify-between">
-                  <span class="text-syn-color-neutral-600">Mode:</span>
-                  <syn-badge
-                    [variant]="recording.metadata.mode === 'real' ? 'success' : 'neutral'"
-                    size="small"
-                  >
-                    {{ recording.metadata.mode === 'real' ? 'Hardware' : 'Simulation' }}
-                  </syn-badge>
-                </div>
-              }
-            </div>
-
-            <!-- Card Actions -->
-            <div
-              class="p-3 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 flex gap-2"
-            >
-              <syn-button
-                variant="filled"
-                color="primary"
-                size="small"
-                (click)="loadForPlayback(recording); $event.stopPropagation()"
-                class="flex-1"
-              >
-                <syn-icon slot="prefix" name="play_circle"></syn-icon>
-                View
-              </syn-button>
-
-              <syn-button
-                variant="outline"
-                size="small"
-                (click)="downloadRecording(recording); $event.stopPropagation()"
-              >
-                <syn-icon name="download"></syn-icon>
-              </syn-button>
-
-              <syn-button
-                variant="outline"
-                color="danger"
-                size="small"
-                style="color: var(--syn-color-error-700)"
-                (click)="confirmDelete(recording); $event.stopPropagation()"
-              >
-                <syn-icon style="color: var(--syn-color-error-700)" name="delete"></syn-icon>
-              </syn-button>
-            </div>
-          </div>
+          <app-recording-card
+            [recording]="recording"
+            [selectable]="isSelectionMode()"
+            [selected]="selectedRecordingIds().has(recording.id)"
+            (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
+            (select)="selectRecording($event)"
+            (play)="loadForPlayback($event)"
+            (download)="downloadRecording($event)"
+            (delete)="confirmDelete($event)"
+          ></app-recording-card>
         }
       </div>
     }
@@ -209,9 +116,12 @@
     </syn-button>
     <syn-button
       slot="footer"
-      variant="filled"
-      color="danger"
-      style="color: var(--syn-color-error-700); font-size: var(--syn-font-size-x-large)"
+      variant="outline"
+      style="
+        color: var(--syn-color-error-700);
+        border-color: var(--syn-color-error-700);
+        font-size: var(--syn-font-size-x-large);
+      "
       (click)="deleteRecording()"
       [disabled]="isDeleting()"
     >
@@ -219,6 +129,38 @@
         <syn-spinner slot="prefix" size="small"></syn-spinner>
       }
       Delete
+    </syn-button>
+  </syn-dialog>
+}
+
+<!-- Bulk Delete Confirmation Dialog -->
+@if (showBulkDeleteDialog()) {
+  <syn-dialog open (syn-request-close)="cancelBulkDelete()">
+    <span slot="label">Delete Multiple Recordings</span>
+
+    <p class="text-sm">
+      Are you sure you want to delete <strong>{{ selectedRecordingIds().size }}</strong> recordings?
+      This action cannot be undone.
+    </p>
+
+    <syn-button slot="footer" variant="text" (click)="cancelBulkDelete()" [disabled]="isDeleting()">
+      Cancel
+    </syn-button>
+    <syn-button
+      slot="footer"
+      variant="outline"
+      style="
+        color: var(--syn-color-error-700);
+        border-color: var(--syn-color-error-700);
+        font-size: var(--syn-font-size-x-large);
+      "
+      (click)="bulkDeleteRecordings()"
+      [disabled]="isDeleting()"
+    >
+      @if (isDeleting()) {
+        <syn-spinner slot="prefix" size="small"></syn-spinner>
+      }
+      Delete All
     </syn-button>
   </syn-dialog>
 }
