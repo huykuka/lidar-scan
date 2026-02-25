@@ -15,22 +15,25 @@ class TestConfigurationExport:
         assert "attachment" in response.headers.get("content-disposition", "")
         
         data = response.json()
-        assert "lidars" in data
-        assert "fusions" in data
-        assert data["lidars"] == []
-        assert data["fusions"] == []
+        assert data["nodes"] == []
+        assert data["edges"] == []
     
     def test_export_with_data(self, client):
-        """Test exporting configuration with lidars and fusions"""
+        """Test exporting configuration with nodes and edges"""
         # Create some test data
-        client.post("/api/v1/lidars", json={
+        client.post("/api/v1/nodes", json={
+            "id": "s1",
             "name": "Test Lidar",
-            "launch_args": "test_args"
+            "type": "sensor",
+            "category": "Input",
+            "config": {"launch_args": "test_args"}
         })
-        client.post("/api/v1/fusions", json={
+        client.post("/api/v1/nodes", json={
+            "id": "f1",
             "name": "Test Fusion",
-            "topic": "fused",
-            "sensor_ids": ["s1", "s2"]
+            "type": "fusion",
+            "category": "Processing",
+            "config": {"topic": "fused"}
         })
         
         response = client.get("/api/v1/config/export")
@@ -38,10 +41,10 @@ class TestConfigurationExport:
         assert response.status_code == 200
         data = response.json()
         
-        assert len(data["lidars"]) == 1
-        assert len(data["fusions"]) == 1
-        assert data["lidars"][0]["name"] == "Test Lidar"
-        assert data["fusions"][0]["name"] == "Test Fusion"
+        assert len(data["nodes"]) == 2
+        assert len(data["edges"]) == 0
+        names = {n["name"] for n in data["nodes"]}
+        assert names == {"Test Lidar", "Test Fusion"}
 
 
 class TestConfigurationImport:
@@ -50,31 +53,33 @@ class TestConfigurationImport:
     def test_import_empty_configuration(self, client):
         """Test importing empty configuration"""
         response = client.post("/api/v1/config/import", json={
-            "lidars": [],
-            "fusions": []
+            "nodes": [],
+            "edges": []
         })
         
         assert response.status_code == 200
         data = response.json()
         
         assert data["success"] is True
-        assert data["imported"]["lidars"] == 0
-        assert data["imported"]["fusions"] == 0
+        assert data["imported"]["nodes"] == 0
+        assert data["imported"]["edges"] == 0
     
     def test_import_replace_mode(self, client):
         """Test import in replace mode (default)"""
         # Create existing data
-        client.post("/api/v1/lidars", json={
+        client.post("/api/v1/nodes", json={
+            "id": "old_s1",
             "name": "Existing Lidar",
-            "launch_args": "args"
+            "type": "sensor",
+            "category": "Input"
         })
         
         # Import new configuration (should replace)
         response = client.post("/api/v1/config/import", json={
-            "lidars": [
-                {"name": "New Lidar", "launch_args": "new_args"}
+            "nodes": [
+                {"id": "new_s1", "name": "New Lidar", "type": "sensor", "category": "Input"}
             ],
-            "fusions": [],
+            "edges": [],
             "merge": False
         })
         
@@ -82,29 +87,31 @@ class TestConfigurationImport:
         data = response.json()
         
         assert data["mode"] == "replace"
-        assert data["imported"]["lidars"] == 1
+        assert data["imported"]["nodes"] == 1
         
         # Verify old data is gone
-        lidars_response = client.get("/api/v1/lidars")
-        lidars = lidars_response.json()["lidars"]
+        nodes_response = client.get("/api/v1/nodes")
+        nodes = nodes_response.json()
         
-        assert len(lidars) == 1
-        assert lidars[0]["name"] == "New Lidar"
+        assert len(nodes) == 1
+        assert nodes[0]["name"] == "New Lidar"
     
     def test_import_merge_mode(self, client):
         """Test import in merge mode"""
         # Create existing data
-        client.post("/api/v1/lidars", json={
+        client.post("/api/v1/nodes", json={
+            "id": "old_s1",
             "name": "Existing Lidar",
-            "launch_args": "args"
+            "type": "sensor",
+            "category": "Input"
         })
         
         # Import new configuration (should merge)
         response = client.post("/api/v1/config/import", json={
-            "lidars": [
-                {"name": "New Lidar", "launch_args": "new_args"}
+            "nodes": [
+                {"id": "new_s1", "name": "New Lidar", "type": "sensor", "category": "Input"}
             ],
-            "fusions": [],
+            "edges": [],
             "merge": True
         })
         
@@ -112,25 +119,27 @@ class TestConfigurationImport:
         data = response.json()
         
         assert data["mode"] == "merge"
-        assert data["imported"]["lidars"] == 1
+        assert data["imported"]["nodes"] == 1
         
         # Verify both exist
-        lidars_response = client.get("/api/v1/lidars")
-        lidars = lidars_response.json()["lidars"]
+        nodes_response = client.get("/api/v1/nodes")
+        nodes = nodes_response.json()
         
-        assert len(lidars) == 2
-        names = {l["name"] for l in lidars}
+        assert len(nodes) == 2
+        names = {n["name"] for n in nodes}
         assert names == {"Existing Lidar", "New Lidar"}
     
-    def test_import_with_fusions(self, client):
-        """Test importing fusions"""
+    def test_import_with_edges(self, client):
+        """Test importing edges"""
         response = client.post("/api/v1/config/import", json={
-            "lidars": [],
-            "fusions": [
+            "nodes": [],
+            "edges": [
                 {
-                    "name": "Test Fusion",
-                    "topic": "fused",
-                    "sensor_ids": ["s1", "s2"]
+                    "id": "edge_1",
+                    "source_node": "n1",
+                    "source_port": "out",
+                    "target_node": "n2",
+                    "target_port": "in"
                 }
             ]
         })
@@ -138,14 +147,14 @@ class TestConfigurationImport:
         assert response.status_code == 200
         data = response.json()
         
-        assert data["imported"]["fusions"] == 1
+        assert data["imported"]["edges"] == 1
         
-        # Verify fusion was created
-        fusions_response = client.get("/api/v1/fusions")
-        fusions = fusions_response.json()["fusions"]
+        # Verify edge was created
+        edges_response = client.get("/api/v1/edges")
+        edges = edges_response.json()
         
-        assert len(fusions) == 1
-        assert fusions[0]["name"] == "Test Fusion"
+        assert len(edges) == 1
+        assert edges[0]["id"] == "edge_1"
 
 
 class TestConfigurationValidation:
@@ -154,17 +163,20 @@ class TestConfigurationValidation:
     def test_validate_valid_configuration(self, client):
         """Test validating a valid configuration"""
         response = client.post("/api/v1/config/validate", json={
-            "lidars": [
+            "nodes": [
                 {
-                    "name": "Test Lidar",
-                    "launch_args": "args"
+                    "id": "node1",
+                    "name": "Test Node",
+                    "type": "sensor"
                 }
             ],
-            "fusions": [
+            "edges": [
                 {
-                    "name": "Test Fusion",
-                    "topic": "fused",
-                    "sensor_ids": ["s1"]
+                    "id": "e1",
+                    "source_node": "node1",
+                    "source_port": "out",
+                    "target_node": "node2",
+                    "target_port": "in"
                 }
             ]
         })
@@ -174,35 +186,33 @@ class TestConfigurationValidation:
         
         assert data["valid"] is True
         assert len(data["errors"]) == 0
-        assert data["summary"]["lidars"] == 1
-        assert data["summary"]["fusions"] == 1
+        assert data["summary"]["nodes"] == 1
+        assert data["summary"]["edges"] == 1
     
     def test_validate_missing_required_fields(self, client):
         """Test validation catches missing required fields"""
         response = client.post("/api/v1/config/validate", json={
-            "lidars": [
-                {"launch_args": "args"}  # Missing name
+            "nodes": [
+                {"type": "sensor"}  # Missing name
             ],
-            "fusions": [
-                {"topic": "fused", "sensor_ids": []}  # Missing name
-            ]
+            "edges": []
         })
         
         assert response.status_code == 200
         data = response.json()
         
         assert data["valid"] is False
-        assert len(data["errors"]) >= 2
+        assert len(data["errors"]) >= 1
         assert any("missing 'name'" in e for e in data["errors"])
     
     def test_validate_duplicate_ids(self, client):
         """Test validation catches duplicate IDs"""
         response = client.post("/api/v1/config/validate", json={
-            "lidars": [
-                {"id": "same_id", "name": "Lidar 1", "launch_args": "args1"},
-                {"id": "same_id", "name": "Lidar 2", "launch_args": "args2"}
+            "nodes": [
+                {"id": "same_id", "name": "Node 1", "type": "sensor"},
+                {"id": "same_id", "name": "Node 2", "type": "sensor"}
             ],
-            "fusions": []
+            "edges": []
         })
         
         assert response.status_code == 200
@@ -210,21 +220,3 @@ class TestConfigurationValidation:
         
         assert data["valid"] is False
         assert any("duplicate ID" in e for e in data["errors"])
-    
-    def test_validate_duplicate_topic_prefix_warning(self, client):
-        """Test validation warns about duplicate topic_prefix"""
-        response = client.post("/api/v1/config/validate", json={
-            "lidars": [
-                {"name": "Lidar 1", "launch_args": "args1", "topic_prefix": "same"},
-                {"name": "Lidar 2", "launch_args": "args2", "topic_prefix": "same"}
-            ],
-            "fusions": []
-        })
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        # Should be valid but with warnings
-        assert data["valid"] is True
-        assert len(data["warnings"]) > 0
-        assert any("duplicate topic_prefix" in w for w in data["warnings"])

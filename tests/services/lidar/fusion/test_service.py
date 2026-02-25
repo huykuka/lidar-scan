@@ -26,7 +26,7 @@ def mock_lidar_service():
     s2.topic_prefix = "topic2"
     s2.transformation = np.eye(4)
     
-    service.sensors = [s1, s2]
+    service.nodes = {"sensor1": s1, "sensor2": s2}
     service._handle_incoming_data = AsyncMock()
     return service
 

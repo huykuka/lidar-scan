@@ -1,122 +1,110 @@
-"""Node runtime status endpoint"""
 import time
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
-from app.services.lidar.instance import lidar_service
-from app.repositories import LidarRepository, FusionRepository
+from app.repositories import NodeRepository, EdgeRepository
+from app.services.nodes.instance import node_manager
+from app.services.nodes.schema import node_schema_registry
 
 router = APIRouter()
 
+class NodeCreateUpdate(BaseModel):
+    id: Optional[str] = None
+    name: str
+    type: str
+    category: str
+    enabled: bool = True
+    config: Dict[str, Any] = {}
 
-@router.get("/nodes/status")
+class NodeStatusToggle(BaseModel):
+    enabled: bool
+
+@router.get("/nodes")
+async def list_nodes():
+    repo = NodeRepository()
+    return repo.list()
+
+@router.get("/nodes/definitions")
+async def list_node_definitions():
+    """Returns all available node types and their configuration schemas"""
+    return node_schema_registry.get_all()
+
+
+
+@router.get("/nodes/{node_id}")
+async def get_node(node_id: str):
+    repo = NodeRepository()
+    node = repo.get_by_id(node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    return node
+
+@router.post("/nodes")
+async def upsert_node(req: NodeCreateUpdate):
+    repo = NodeRepository()
+    node_id = repo.upsert(req.model_dump())
+    return {"status": "success", "id": node_id}
+
+@router.put("/nodes/{node_id}/enabled")
+async def set_node_enabled(node_id: str, req: NodeStatusToggle):
+    repo = NodeRepository()
+    repo.set_enabled(node_id, req.enabled)
+    return {"status": "success"}
+
+@router.delete("/nodes/{node_id}")
+async def delete_node(node_id: str):
+    node_repo = NodeRepository()
+    edge_repo = EdgeRepository()
+    
+    # Delete the node dynamically from orchestrator
+    node_manager.remove_node(node_id)
+    node_repo.delete(node_id)
+    
+    # Delete any edges connected to this node
+    all_edges = edge_repo.list()
+    filtered_edges = [
+        e for e in all_edges 
+        if e.get("source_node") != node_id and e.get("target_node") != node_id
+    ]
+    if len(filtered_edges) < len(all_edges):
+        edge_repo.save_all(filtered_edges)
+        
+    return {"status": "success"}
+
+@router.post("/nodes/reload")
+async def reload_all_config():
+    node_manager.reload_config()
+    return {"status": "success"}
+
+@router.get("/nodes/status/all")
 async def get_nodes_status():
-    """
-    Returns runtime status of all configured lidar sensors and fusion nodes.
+    """Returns runtime status of all nodes based on their engine handlers"""
+    # Build a unified status list from the running service
+    nodes_status = []
     
-    For each lidar:
-    - enabled: whether it's enabled in DB
-    - mode: "real" or "sim"
-    - topic_prefix: derived websocket topic prefix
-    - raw_topic: websocket topic for raw points
-    - processed_topic: websocket topic for processed points
-    - running: whether the worker process is alive
-    - last_frame_at: unix timestamp of last received frame (None if never)
-    - last_error: error message if any
+    repo = NodeRepository()
+    nodes = repo.list()
     
-    For each fusion:
-    - enabled: whether it's enabled
-    - topic: websocket topic
-    - running: whether fusion is enabled/active
-    - last_broadcast_at: unix timestamp of last broadcast (None if never)
-    - last_error: error message if any
-    """
+    for cnfg in nodes:
+        node_id = cnfg["id"]
+        node_instance = node_manager.nodes.get(node_id)
+        
+        if node_instance and hasattr(node_instance, "get_status"):
+            status = node_instance.get_status(node_manager.node_runtime_status)
+            # Re-add category from DB if not in runtime status
+            status["category"] = cnfg["category"]
+            status["enabled"] = cnfg["enabled"]
+            nodes_status.append(status)
+        else:
+            nodes_status.append({
+                "id": node_id,
+                "name": cnfg["name"],
+                "type": cnfg["type"],
+                "category": cnfg["category"],
+                "enabled": cnfg["enabled"],
+                "running": False,
+                "last_error": "Node instance not found"
+            })
     
-    lidar_repo = LidarRepository()
-    fusion_repo = FusionRepository()
-    
-    # Get DB configs to include disabled nodes
-    lidar_configs = lidar_repo.list()
-    fusion_configs = fusion_repo.list()
-    
-    # Build lidar status
-    lidars_status: List[Dict[str, Any]] = []
-    for config in lidar_configs:
-        sensor_id = config["id"]
-        enabled = bool(config.get("enabled", True))
-        
-        # Find runtime data if sensor is running
-        runtime = lidar_service.lidar_runtime.get(sensor_id, {})
-        process = lidar_service.processes.get(sensor_id)
-        
-        # Check if process is alive
-        process_alive = False
-        if process and process.is_alive():
-            process_alive = True
-        
-        # Find the sensor object to get topic_prefix
-        sensor = next((s for s in lidar_service.sensors if s.id == sensor_id), None)
-        topic_prefix = sensor.topic_prefix if sensor else config.get("topic_prefix", sensor_id)
-        
-        last_frame_at = runtime.get("last_frame_at")
-        last_error = runtime.get("last_error")
-        connection_status = runtime.get("connection_status", "unknown")
-        mode = config.get("mode", "real")
-        
-        # Calculate frame age if we have a timestamp
-        frame_age_seconds: Optional[float] = None
-        if last_frame_at:
-            frame_age_seconds = time.time() - last_frame_at
-        
-        lidars_status.append({
-            "id": sensor_id,
-            "name": config.get("name", sensor_id),
-            "enabled": enabled,
-            "mode": mode,
-            "topic_prefix": topic_prefix,
-            "raw_topic": f"{topic_prefix}_raw_points",
-            "processed_topic": f"{topic_prefix}_processed_points" if config.get("pipeline_name") else None,
-            "running": process_alive and enabled,
-            "connection_status": connection_status,
-            "last_frame_at": last_frame_at,
-            "frame_age_seconds": frame_age_seconds,
-            "last_error": last_error,
-        })
-    
-    # Build fusion status
-    fusions_status: List[Dict[str, Any]] = []
-    for config in fusion_configs:
-        fusion_id = config["id"]
-        enabled = bool(config.get("enabled", True))
-        
-        # Find the fusion service object
-        fusion = next((f for f in lidar_service.fusions if getattr(f, "id", None) == fusion_id), None)
-        
-        running = False
-        last_broadcast_at = None
-        last_error = None
-        broadcast_age_seconds: Optional[float] = None
-        
-        if fusion:
-            running = fusion.enabled and enabled
-            last_broadcast_at = getattr(fusion, "last_broadcast_at", None)
-            last_error = getattr(fusion, "last_error", None)
-            
-            if last_broadcast_at:
-                broadcast_age_seconds = time.time() - last_broadcast_at
-        
-        fusions_status.append({
-            "id": fusion_id,
-            "topic": config.get("topic", "fused_points"),
-            "sensor_ids": config.get("sensor_ids", []),
-            "enabled": enabled,
-            "running": running,
-            "last_broadcast_at": last_broadcast_at,
-            "broadcast_age_seconds": broadcast_age_seconds,
-            "last_error": last_error,
-        })
-    
-    return {
-        "lidars": lidars_status,
-        "fusions": fusions_status,
-    }
+    return {"nodes": nodes_status}

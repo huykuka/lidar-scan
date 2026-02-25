@@ -1,10 +1,11 @@
 import { Component, signal, ViewChild, AfterViewInit, HostListener, inject } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterOutlet, ChildrenOutletContexts } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NavigationService } from '../../core/services/navigation.service';
 import { HeaderComponent } from '../components/header/header.component';
 import { SideNavComponent } from '../components/side-nav/side-nav.component';
 import { FooterComponent } from '../components/footer/footer.component';
+import { pageTransition } from '../../core/animations/page-transitions';
 
 @Component({
   selector: 'app-main-layout',
@@ -12,17 +13,23 @@ import { FooterComponent } from '../components/footer/footer.component';
   imports: [RouterOutlet, CommonModule, HeaderComponent, SideNavComponent, FooterComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.css',
+  animations: [pageTransition],
 })
 export class MainLayoutComponent implements AfterViewInit {
   @ViewChild('header') header!: HeaderComponent;
   @ViewChild('sideNav') sideNav!: SideNavComponent;
 
   private navService = inject(NavigationService);
+  private contexts = inject(ChildrenOutletContexts);
 
   protected readonly headline = this.navService.headline;
   protected readonly subtitle = this.navService.subtitle;
   protected readonly showActionsSlot = this.navService.showActionsSlot;
   protected readonly isSideNavOpen = signal(false);
+
+  getRouteAnimationData() {
+    return this.contexts.getContext('primary')?.route?.snapshot?.url.join('/') || 'root';
+  }
 
   private readonly desktopBreakpoint = 1024;
   private autoCollapsedByResize = false;

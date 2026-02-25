@@ -1,4 +1,4 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, output, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodePlugin } from '../../../../../core/models/node-plugin.model';
@@ -13,10 +13,31 @@ import { NodePlugin } from '../../../../../core/models/node-plugin.model';
 export class FlowCanvasPaletteComponent {
   isCollapsed = signal<boolean>(false);
   plugins = input.required<NodePlugin[]>();
+  isLoading = input<boolean>(false);
   zoom = input<number>(1);
 
-  onAutoLayout = output<void>();
-  onClearPositions = output<void>();
+  groupedPlugins = computed(() => {
+    const groups: { [key: string]: NodePlugin[] } = {};
+    for (const plugin of this.plugins()) {
+      const cat = plugin.category || 'other';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(plugin);
+    }
+
+    // Sort logic to put 'sensor' first, 'fusion' second, etc.
+    const order = ['sensor', 'fusion', 'operation', 'other'];
+    return Object.keys(groups)
+      .sort((a, b) => {
+        const indexA = order.indexOf(a);
+        const indexB = order.indexOf(b);
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return a.localeCompare(b);
+      })
+      .map((key) => ({ category: key, plugins: groups[key] }));
+  });
+
   onResetView = output<void>();
   onPluginDragStart = output<{ plugin: string; event: DragEvent }>();
   onPluginDragEnd = output<void>();

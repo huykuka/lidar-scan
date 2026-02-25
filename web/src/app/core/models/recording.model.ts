@@ -5,7 +5,7 @@
 export interface Recording {
   id: string;
   name: string;
-  topic: string;
+  node_id: string;
   sensor_id?: string;
   file_path: string;
   file_size_bytes: number;
@@ -20,7 +20,7 @@ export interface Recording {
 export interface RecordingMetadata {
   sensor_id?: string;
   sensor_name?: string;
-  topic: string;
+  node_id: string;
   name: string;
   mode?: string;
   pipeline_name?: string;
@@ -38,14 +38,15 @@ export interface RecordingMetadata {
 
 export interface ActiveRecording {
   recording_id: string;
-  topic: string;
+  node_id: string;
   frame_count: number;
   duration_seconds: number;
   started_at: string;
+  metadata?: Record<string, any>;
 }
 
 export interface StartRecordingRequest {
-  topic: string;
+  node_id: string;
   name?: string;
   metadata?: Record<string, any>;
 }
@@ -64,7 +65,7 @@ export interface ListRecordingsResponse {
 export interface RecordingViewerInfo {
   id: string;
   name: string;
-  topic: string;
+  node_id: string;
   frame_count: number;
   duration_seconds: number;
   metadata: RecordingMetadata;

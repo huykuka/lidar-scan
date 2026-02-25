@@ -8,11 +8,18 @@ export class GlobalErrorHandler implements ErrorHandler {
   private systemStatus = inject(SystemStatusService);
 
   handleError(error: unknown): void {
+    const message = this.normalize(error) || 'Unexpected error.';
+
+    // Ignore ResizeObserver loop errors as they are non-critical browser warnings
+    // often triggered during transitions or layout shifts and don't affect app state.
+    if (message.includes('ResizeObserver loop')) {
+      return;
+    }
+
     // Always log for debugging
     // eslint-disable-next-line no-console
     console.error(error);
 
-    const message = this.normalize(error) || 'Unexpected error.';
     this.toast.danger(message);
     this.systemStatus.report('error', message);
   }

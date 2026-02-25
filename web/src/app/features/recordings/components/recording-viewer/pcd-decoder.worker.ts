@@ -5,55 +5,79 @@ self.onmessage = async (event) => {
 
   switch (action) {
     case 'decode': {
-      const { text, frameIndex } = payload;
-      const result = parsePCD(text);
+      const { buffer, frameIndex } = payload;
+      const result = parsePCD(buffer);
       self.postMessage({ action: 'decoded', payload: { result, frameIndex } });
       break;
     }
   }
 };
 
-function parsePCD(text: string): { points: Float32Array; count: number } | null {
-  const lines = text.split('\n');
-  let pointCount = 0;
-  let dataStart = 0;
+function parsePCD(
+  buffer: Uint8Array,
+): { points: Float32Array; intensities: Float32Array; count: number } | null {
+  const textDecoder = new TextDecoder('ascii');
+  const fullText = textDecoder.decode(buffer);
 
-  // Parse header
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+  const asciiHeaderStr = 'DATA ascii';
+  const asciiIndex = fullText.indexOf(asciiHeaderStr);
+
+  if (asciiIndex === -1) {
+    console.error('PCD: DATA ascii header not found');
+    return null;
+  }
+
+  const dataIndex = fullText.indexOf('\n', asciiIndex) + 1;
+  const header = fullText.substring(0, dataIndex);
+  const lines = header.split('\n');
+
+  let pointsCount = 0;
+  let dims = 3;
+
+  for (const line of lines) {
     if (line.startsWith('POINTS')) {
-      pointCount = parseInt(line.split(' ')[1]);
-    }
-    if (line.startsWith('DATA')) {
-      dataStart = i + 1;
-      break;
+      pointsCount = parseInt(line.split(/\s+/)[1], 10);
+    } else if (line.startsWith('FIELDS')) {
+      dims = line.split(/\s+/).length - 1;
     }
   }
 
-  if (pointCount === 0) return null;
+  if (pointsCount === 0) return null;
 
-  // Parse points and filter out zeros (no lidar return)
-  const tempPoints: number[] = [];
+  let outPoints = new Float32Array(pointsCount * 3);
+  let outIntensities = new Float32Array(pointsCount);
+  let validCount = 0;
 
-  for (let i = dataStart; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
+  const dataPart = fullText.substring(dataIndex);
+  const dataLines = dataPart.split('\n');
 
-    const values = line.split(/\s+/).map((v) => parseFloat(v));
-    if (values.length >= 3) {
-      const x = values[0];
-      const y = values[1];
-      const z = values[2];
+  for (const line of dataLines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
 
-      // Skip points at origin (0, 0, 0) - these are invalid lidar returns
-      if (x !== 0 || y !== 0 || z !== 0) {
-        tempPoints.push(x, y, z);
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 3) continue;
+
+    const x = parseFloat(parts[0]);
+    const y = parseFloat(parts[1]);
+    const z = parseFloat(parts[2]);
+    // Intensity is usually at index 13 in SICK/Pipeline data (16 or 14 cols)
+    const intensity = parts.length > 13 ? parseFloat(parts[13]) : 0;
+
+    if (x !== 0 || y !== 0 || z !== 0) {
+      if (validCount < pointsCount) {
+        outPoints[validCount * 3] = x;
+        outPoints[validCount * 3 + 1] = y;
+        outPoints[validCount * 3 + 2] = z;
+        outIntensities[validCount] = intensity;
+        validCount++;
       }
     }
   }
 
-  // Convert to Float32Array
-  const points = new Float32Array(tempPoints);
-  const validCount = tempPoints.length / 3;
-  return { points, count: validCount };
+  return {
+    points: outPoints.slice(0, validCount * 3),
+    intensities: outIntensities.slice(0, validCount),
+    count: validCount,
+  };
 }

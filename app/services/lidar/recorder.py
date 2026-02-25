@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 class RecordingHandle:
     """Handle for an active recording session."""
     
-    def __init__(self, recording_id: str, topic: str, writer: RecordingWriter, metadata: dict[str, Any]):
+    def __init__(self, recording_id: str, node_id: str, writer: RecordingWriter, metadata: dict[str, Any]):
         self.recording_id = recording_id
-        self.topic = topic
+        self.node_id = node_id
         self.writer = writer
         self.metadata = metadata
         self.started_at = datetime.now(timezone.utc)
@@ -29,10 +29,11 @@ class RecordingHandle:
         duration = (datetime.now(timezone.utc) - self.started_at).total_seconds()
         return {
             "recording_id": self.recording_id,
-            "topic": self.topic,
+            "node_id": self.node_id,
             "frame_count": self.frame_count,
             "duration_seconds": duration,
             "started_at": self.started_at.isoformat(),
+            "metadata": self.metadata,
         }
 
 
@@ -62,7 +63,7 @@ class RecordingService:
     
     async def start_recording(
         self,
-        topic: str,
+        node_id: str,
         name: str | None = None,
         metadata: dict[str, Any] | None = None
     ) -> tuple[str, str]:
@@ -70,7 +71,7 @@ class RecordingService:
         Start recording a topic.
         
         Args:
-            topic: WebSocket topic to record
+            node_id: Target Node ID to intercept pipeline payload from
             name: Optional display name for the recording
             metadata: Optional metadata to store with recording
         
@@ -81,15 +82,14 @@ class RecordingService:
             ValueError: If topic is already being recorded
         """
         async with self.lock:
-            # Check if topic is already being recorded
-            for handle in self.active_recordings.values():
-                if handle.topic == topic:
-                    raise ValueError(f"Topic '{topic}' is already being recorded")
+            # Note: We intentionally DO NOT check if the topic is already being recorded.
+            # Allowing multiple isolated recording loops for the same output string ensures
+            # multiple duplicate backend graph node outputs can be individually explicitly captured.
             
             # Generate recording ID and file path
             recording_id = str(uuid.uuid4())
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-            filename = f"{topic}_{timestamp}_{recording_id[:8]}.lidr"
+            filename = f"capture_{timestamp}_{recording_id[:8]}.zip"
             file_path = self.recordings_dir / filename
             
             # Prepare metadata
@@ -97,8 +97,8 @@ class RecordingService:
                 metadata = {}
             
             metadata.update({
-                "topic": topic,
-                "name": name or topic,
+                "node_id": node_id,
+                "name": name or node_id,
                 "recording_timestamp": datetime.now(timezone.utc).isoformat(),
             })
             
@@ -106,10 +106,10 @@ class RecordingService:
             writer = RecordingWriter(file_path, metadata)
             
             # Create handle
-            handle = RecordingHandle(recording_id, topic, writer, metadata)
+            handle = RecordingHandle(recording_id, node_id, writer, metadata)
             self.active_recordings[recording_id] = handle
             
-            logger.info(f"Started recording '{topic}' (ID: {recording_id}) to {file_path}")
+            logger.info(f"Started recording '{node_id}' (ID: {recording_id}) to {file_path}")
             
             return recording_id, str(file_path)
     
@@ -155,14 +155,14 @@ class RecordingService:
                 logger.warning(f"Failed to generate thumbnail for recording {recording_id}: {e}")
             
             logger.info(
-                f"Stopped recording '{handle.topic}' (ID: {recording_id}): "
+                f"Stopped recording '{handle.node_id}' (ID: {recording_id}): "
                 f"{handle.frame_count} frames, {info['duration_seconds']:.2f}s"
             )
             
             return {
                 "recording_id": recording_id,
-                "topic": handle.topic,
-                "name": handle.metadata.get("name", handle.topic),
+                "node_id": handle.node_id,
+                "name": handle.metadata.get("name", handle.node_id),
                 "file_path": info["file_path"],
                 "file_size_bytes": info["file_size_bytes"],
                 "frame_count": handle.frame_count,
@@ -172,27 +172,24 @@ class RecordingService:
                 "thumbnail_path": thumbnail_path,
             }
     
-    async def record_frame(self, topic: str, frame_data: bytes):
+    async def record_node_payload(self, node_id: str, points: Any, timestamp: float):
         """
-        Record a frame for all active recordings on this topic.
-        Called by WebSocket manager during broadcasts.
+        Record a native compute payload for all active recordings targeting this node.
+        Called by DAG pipeline orchestrator after frame process loop.
         
         Args:
-            topic: WebSocket topic
-            frame_data: LIDR binary frame data
+            node_id: Source Node ID
+            points: N-dim point cloud NumPy Array
+            timestamp: Unix timestamp
         """
-        # Import here to avoid circular dependency
-        from app.services.lidar.protocol.binary import unpack_points_binary
-        
-        # Find all recordings for this topic
-        handles = [h for h in self.active_recordings.values() if h.topic == topic]
+        # Find all recordings for this node
+        handles = [h for h in self.active_recordings.values() if h.node_id == node_id]
         
         if not handles:
             return
         
         try:
-            # Unpack frame
-            points, timestamp = unpack_points_binary(frame_data)
+            # Write unencoded raw NumPy NDArray to the zip archiver
             
             # Write to all active recordings for this topic
             for handle in handles:
@@ -201,7 +198,7 @@ class RecordingService:
                 handle.last_timestamp = timestamp
         
         except Exception as e:
-            logger.error(f"Error recording frame for topic '{topic}': {e}", exc_info=True)
+            logger.error(f"Error recording frame for node '{node_id}': {e}", exc_info=True)
     
     def get_active_recordings(self) -> list[dict[str, Any]]:
         """
@@ -212,30 +209,30 @@ class RecordingService:
         """
         return [handle.get_info() for handle in self.active_recordings.values()]
     
-    def is_recording(self, topic: str) -> bool:
+    def is_recording(self, node_id: str) -> bool:
         """
-        Check if a topic is currently being recorded.
+        Check if a node is currently being recorded.
         
         Args:
-            topic: WebSocket topic
+            node_id: Node ID
         
         Returns:
             True if recording, False otherwise
         """
-        return any(h.topic == topic for h in self.active_recordings.values())
+        return any(h.node_id == node_id for h in self.active_recordings.values())
     
-    def get_recording_for_topic(self, topic: str) -> dict[str, Any] | None:
+    def get_recording_for_node(self, node_id: str) -> dict[str, Any] | None:
         """
-        Get active recording info for a specific topic.
+        Get active recording info for a specific node.
         
         Args:
-            topic: WebSocket topic
+            node_id: Node ID
         
         Returns:
             Recording info dictionary or None if not recording
         """
         for handle in self.active_recordings.values():
-            if handle.topic == topic:
+            if handle.node_id == node_id:
                 return handle.get_info()
         return None
     

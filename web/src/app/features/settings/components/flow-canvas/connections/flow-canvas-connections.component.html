@@ -1,24 +1,65 @@
 <svg class="absolute inset-0 w-full h-full pointer-events-none" style="overflow: visible">
   <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#6366f1" />
+    </marker>
     <marker
-      id="arrowhead"
+      id="arrowhead-pending"
       markerWidth="10"
       markerHeight="10"
       refX="9"
       refY="3"
       orient="auto"
     >
-      <polygon points="0 0, 10 3, 0 6" fill="#6366f1" />
+      <polygon points="0 0, 10 3, 0 6" fill="#94a3b8" />
     </marker>
   </defs>
 
-  @for (connection of connections(); track connection.from + '-' + connection.to) {
+  <!-- Existing connections -->
+  @for (connection of connections(); track $index) {
+    <!-- Grouped connection paths to increase clickable area -->
+    <g
+      class="cursor-pointer group"
+      (click)="connection.id ? onDelete.emit(connection.id) : null"
+      title="Click to delete connection"
+    >
+      <!-- Visible Path -->
+      <path
+        [attr.d]="connection.path"
+        stroke="#6366f1"
+        stroke-width="2"
+        fill="none"
+        marker-end="url(#arrowhead)"
+        class="group-hover:stroke-red-500 transition-colors pointer-events-none"
+      />
+      <!-- Invisible wide path for better click hitbox -->
+      <path
+        [attr.d]="connection.path"
+        stroke="transparent"
+        stroke-width="15"
+        fill="none"
+        class="pointer-events-auto"
+      />
+    </g>
+  }
+
+  <!-- Pending (in-progress) connection while dragging -->
+  @if (pendingPath()) {
     <path
-      [attr.d]="connection.path"
-      stroke="#6366f1"
+      [attr.d]="pendingPath()"
+      stroke="#94a3b8"
       stroke-width="2"
+      stroke-dasharray="6 3"
       fill="none"
-      marker-end="url(#arrowhead)"
-    />
+      marker-end="url(#arrowhead-pending)"
+    >
+      <animate
+        attributeName="stroke-dashoffset"
+        from="0"
+        to="-18"
+        dur="0.5s"
+        repeatCount="indefinite"
+      />
+    </path>
   }
 </svg>

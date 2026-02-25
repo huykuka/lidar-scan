@@ -14,12 +14,14 @@ export interface LidarConfig {
   raw_topic?: string;
   processed_topic?: string | null;
   enabled?: boolean;
-  launch_args: string;
+  hostname?: string;
+  udp_receiver_ip?: string;
+  udp_port?: number;
+  imu_udp_port?: number;
   pipeline_name?: string;
   mode: 'real' | 'sim';
   pcd_path?: string;
   pose: LidarPose;
-  imu_udp_port?: number;
 }
 
 export interface LidarListResponse {

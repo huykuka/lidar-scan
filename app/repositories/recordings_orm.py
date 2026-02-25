@@ -9,26 +9,26 @@ from sqlalchemy.orm import Session
 from app.db.models import RecordingModel
 
 
-class RecordingsRepository:
+class RecordingRepository:
     """Repository for managing recording configurations."""
 
     def __init__(self, db: Session):
         self.db = db
 
-    def list(self, topic: str | None = None) -> list[dict]:
+    def list(self, node_id: str | None = None) -> list[dict]:
         """
         List all recordings, optionally filtered by topic.
 
         Args:
-            topic: Optional topic filter
+            node_id: Optional node ID filter
 
         Returns:
             List of recording dictionaries
         """
         query = self.db.query(RecordingModel)
         
-        if topic:
-            query = query.filter(RecordingModel.topic == topic)
+        if node_id:
+            query = query.filter(RecordingModel.node_id == node_id)
         
         recordings = query.order_by(RecordingModel.created_at.desc()).all()
         return [r.to_dict() for r in recordings]

@@ -4,9 +4,8 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
 import { RecordingApiService } from '../../core/services/api/recording-api.service';
 import { NavigationService } from '../../core/services/navigation.service';
-import { DialogService } from '../../core/services/dialog.service';
+import { Router } from '@angular/router';
 import { Recording } from '../../core/models/recording.model';
-import { RecordingViewerComponent } from './components/recording-viewer/recording-viewer.component';
 import { RecordingCardComponent } from './components/recording-card/recording-card.component';
 
 @Component({
@@ -20,7 +19,7 @@ export class RecordingsComponent implements OnInit {
   private recordingStore = inject(RecordingStoreService);
   private recordingApi = inject(RecordingApiService);
   private navService = inject(NavigationService);
-  private dialogService = inject(DialogService);
+  private router = inject(Router);
 
   // State
   protected recordings = this.recordingStore.recordings;
@@ -47,7 +46,7 @@ export class RecordingsComponent implements OnInit {
     return recs.filter(
       (r: Recording) =>
         r.name.toLowerCase().includes(query) ||
-        r.topic.toLowerCase().includes(query) ||
+        r.node_id.toLowerCase().includes(query) ||
         (r.metadata?.sensor_name && r.metadata.sensor_name.toLowerCase().includes(query)),
     );
   });
@@ -71,23 +70,12 @@ export class RecordingsComponent implements OnInit {
   }
 
   protected async loadForPlayback(recording: Recording): Promise<void> {
-    // Open viewer using DialogService
-    this.dialogService.open(
-      RecordingViewerComponent,
-      {
-        label: `Recording Viewer - ${recording.name}`,
-        class: 'recording-viewer-dialog',
-      },
-      {
-        recordingId: recording.id,
-        recordingName: recording.name,
-      },
-    );
+    this.router.navigate(['/recordings', recording.id]);
   }
 
   protected downloadRecording(recording: Recording): void {
     // Download the recording file
-    const filename = `${recording.name}_${recording.created_at.substring(0, 10)}.lidr`;
+    const filename = `${recording.name}_${recording.created_at.substring(0, 10)}.zip`;
     this.recordingApi.downloadRecording(recording.id, filename);
   }
 

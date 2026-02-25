@@ -81,7 +81,7 @@ class TestRecordingService:
         """Test service initialization with default directory"""
         service = RecordingService()
         
-        assert service.recordings_dir == Path("config") / "recordings"
+        assert service.recordings_dir == Path("recordings")
         assert service.recordings_dir.exists()
     
     @pytest.mark.asyncio
@@ -467,5 +467,5 @@ class TestRecordingServiceSingleton:
         
         recorder = get_recorder()
         
-        assert recorder.recordings_dir == Path("config") / "recordings"
+        assert recorder.recordings_dir == Path("recordings")
         assert recorder.recordings_dir.exists()

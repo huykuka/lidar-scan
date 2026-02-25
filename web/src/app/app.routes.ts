@@ -32,6 +32,13 @@ export const routes: Routes = [
           import('./features/recordings/recordings.component').then((m) => m.RecordingsComponent),
       },
       {
+        path: 'recordings/:id',
+        loadComponent: () =>
+          import('./features/recordings/components/recording-viewer/recording-viewer.component').then(
+            (m) => m.RecordingViewerComponent,
+          ),
+      },
+      {
         path: 'logs',
         loadComponent: () => import('./features/logs/logs.component').then((m) => m.LogsComponent),
       },

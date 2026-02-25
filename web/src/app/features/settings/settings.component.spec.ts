@@ -9,6 +9,11 @@ import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
 import { FusionStoreService } from '../../core/services/stores/fusion-store.service';
+import { NodesApiService } from '../../core/services/api/nodes-api.service';
+import { StatusWebSocketService } from '../../core/services/status-websocket.service';
+import { ConfigApiService } from '../../core/services/api/config-api.service';
+import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
+import { signal } from '@angular/core';
 
 describe('SettingsComponent', () => {
   it('loads config on init and renders lidar name', async () => {
@@ -38,7 +43,7 @@ describe('SettingsComponent', () => {
           provide: LidarApiService,
           useFactory: (store: LidarStoreService) => ({
             getLidars: async () => {
-              const lidars: any[] = [{ id: 'l1', name: 'Front', launch_args: '', mode: 'real' }];
+              const lidars: any[] = [{ id: 'l1', name: 'Front', hostname: '', mode: 'real' }];
               store.setState({ lidars, availablePipelines: [], isLoading: false });
               return { lidars, available_pipelines: [] };
             },
@@ -63,6 +68,33 @@ describe('SettingsComponent', () => {
           }),
           deps: [FusionStoreService],
         },
+        {
+          provide: NodesApiService,
+          useValue: { getNodesStatus: async () => ({ lidars: [], fusions: [] }) },
+        },
+        {
+          provide: StatusWebSocketService,
+          useValue: {
+            status: signal(null),
+            connected: signal(false),
+            connect: () => {},
+            disconnect: () => {},
+          },
+        },
+        {
+          provide: ConfigApiService,
+          useValue: {
+            exportConfig: async () => ({}),
+            importConfig: async () => ({}),
+            validateConfig: async () => ({
+              valid: true,
+              errors: [],
+              warnings: [],
+              summary: { nodes: 0, edges: 0 },
+            }),
+          },
+        },
+        { provide: RecordingStoreService, useValue: { loadRecordings: async () => {} } },
       ],
     }).compileComponents();
 

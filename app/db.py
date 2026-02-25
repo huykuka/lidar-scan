@@ -6,28 +6,32 @@ These functions remain for older imports.
 
 from typing import Any, Dict, List
 
-from app.repositories import FusionRepository, LidarRepository
+from app.repositories import NodeRepository
 
 
 def get_lidars() -> List[Dict[str, Any]]:
-    return LidarRepository().list()
+    return [n for n in NodeRepository().list() if n.get("type") == "sensor"]
 
 
 def save_lidar(config: Dict[str, Any]) -> str:
-    return LidarRepository().upsert(config)
+    config["type"] = "sensor"
+    config["category"] = "Input"
+    return NodeRepository().upsert(config)
 
 
 def delete_lidar(lidar_id: str) -> None:
-    LidarRepository().delete(lidar_id)
+    NodeRepository().delete(lidar_id)
 
 
 def get_fusions() -> List[Dict[str, Any]]:
-    return FusionRepository().list()
+    return [n for n in NodeRepository().list() if n.get("type") == "fusion"]
 
 
 def save_fusion(config: Dict[str, Any]) -> str:
-    return FusionRepository().upsert(config)
+    config["type"] = "fusion"
+    config["category"] = "Input"
+    return NodeRepository().upsert(config)
 
 
 def delete_fusion(fusion_id: str) -> None:
-    FusionRepository().delete(fusion_id)
+    NodeRepository().delete(fusion_id)

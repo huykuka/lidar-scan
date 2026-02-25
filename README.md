@@ -128,24 +128,27 @@ Creates a distributable executable in `dist/lidar-standalone/`. See [docs/BUILD.
 
 ---
 
-## Sensor Setup
+## Node Setup
 
-**Note:** Sensors and fusions are now persisted in SQLite (`config/data.db`) and managed via the **Settings UI** (`http://localhost:8004/settings`) or REST API.
+**Note:** Sensors and processing nodes are persisted in SQLite (`config/data.db`) and managed via the **Flow Canvas UI** (`http://localhost:8004/settings`) or REST API.
 
-For programmatic setup, sensors are registered in `app/app.py` using `lidar_service.generate_lidar()`:
+For programmatic setup, nodes are created via the `/api/v1/nodes` REST endpoint:
 
-```python
-lidar_service.generate_lidar(
-    sensor_id="lidar_front",
-    name="Front Lidar",                 # Human-readable name
-    topic_prefix="front",               # WebSocket topic prefix (auto-slugified)
-    launch_args="./launch/sick_multiscan.launch hostname:=192.168.1.10 udp_receiver_ip:=192.168.1.1",
-    pipeline_name="advanced",           # optional — resolves via PipelineFactory
-    mode="real",                        # "real" or "sim"
-    # Physical pose in world space (meters / degrees):
-    x=0.0, y=0.0, z=0.5,
-    yaw=180.0, pitch=0.0, roll=0.0,
-)
+```bash
+curl -X POST http://localhost:8005/api/v1/nodes \
+-H "Content-Type: application/json" \
+-d '{
+  "name": "Front Lidar",
+  "type": "sensor",
+  "category": "Input",
+  "enabled": true,
+  "config": {
+    "topic_prefix": "front",
+    "launch_args": "./launch/sick_multiscan.launch hostname:=192.168.1.10",
+    "mode": "real",
+    "pose": {"x": 0.0, "y": 0.0, "z": 0.5, "yaw": 180.0, "pitch": 0.0, "roll": 0.0}
+  }
+}'
 ```
 
 Each sensor runs in its own subprocess. Points are automatically transformed into world space using the sensor's pose (angles in degrees) before broadcasting.
@@ -213,31 +216,22 @@ lidar_service.generate_lidar(sensor_id="lidar1", ..., pipeline_name="my_pipeline
 
 `FusionService` is an opt-in module that merges point clouds from multiple sensors into a single unified cloud, broadcast on a dedicated WebSocket topic.
 
-```python
-from app.services.lidar.fusion import FusionService
+**Note:** With the node architecture, fusion is modeled as just another node type (`type: "fusion"`) that accepts inputs from sensor nodes. The relationships between them are stored as Edges in the database.
 
-# Option 1: Fuse ALL registered sensors
-fusion = FusionService(lidar_service)
-fusion.enable()
+Example Fusion POST:
 
-# Option 2: Fuse only specific sensors
-fusion = FusionService(lidar_service, sensor_ids=["lidar_front", "lidar_rear"])
-fusion.enable()
-
-# Option 3: Multiple independent fusion groups on different topics
-top_fusion    = FusionService(lidar_service, topic="top_fused",    sensor_ids=["lidar_top_left", "lidar_top_right"])
-ground_fusion = FusionService(lidar_service, topic="ground_fused", sensor_ids=["lidar_front",    "lidar_rear"])
-top_fusion.enable()
-ground_fusion.enable()
-
-# Option 4: Fuse + run a named pipeline on the merged cloud (same API as generate_lidar)
-fusion = FusionService(
-    lidar_service,
-    topic="fused_reflectors",
-    sensor_ids=["lidar_front", "lidar_rear"],
-    pipeline_name="reflector",
-)
-fusion.enable()
+```json
+{
+  "name": "Global Fused Cloud",
+  "type": "fusion",
+  "category": "Processing",
+  "enabled": true,
+  "config": {
+    "topic": "fused_points",
+    "sensor_ids": ["lidar_front_id", "lidar_rear_id"],
+    "pipeline_name": "advanced"
+  }
+}
 ```
 
 Fusion only fires once **all expected sensors** have contributed at least one frame. Points are already in world space (transformation applied per-sensor) before merging.
@@ -274,20 +268,19 @@ Each sensor generates two topics (where `{prefix}` is the sensor's `topic_prefix
 
 All API endpoints are under the `/api/v1` prefix:
 
-| Method   | Path                               | Description                                                                      |
-| -------- | ---------------------------------- | -------------------------------------------------------------------------------- |
-| `GET`    | `/`                                | Serves the Angular SPA                                                           |
-| `GET`    | `/api/v1/status`                   | System status (version, running state)                                           |
-| `GET`    | `/api/v1/nodes/status`             | **Runtime status** of all lidars and fusions (process health, frame age, errors) |
-| `GET`    | `/api/v1/lidars`                   | List all lidars + available pipelines                                            |
-| `POST`   | `/api/v1/lidars`                   | Create or update a lidar configuration                                           |
-| `DELETE` | `/api/v1/lidars/{id}`              | Delete a lidar configuration                                                     |
-| `POST`   | `/api/v1/lidars/{id}/enabled`      | Enable/disable a lidar (`?enabled=true` or `false`)                              |
-| `POST`   | `/api/v1/lidars/{id}/topic_prefix` | Update topic prefix (`?topic_prefix=...`)                                        |
-| `POST`   | `/api/v1/lidars/reload`            | Reload config and restart all sensors/fusions                                    |
-| `GET`    | `/api/v1/fusions`                  | List all fusion configurations                                                   |
-| `POST`   | `/api/v1/fusions`                  | Create or update a fusion configuration                                          |
-| `DELETE` | `/api/v1/fusions/{id}`             | Delete a fusion configuration                                                    |
-| `POST`   | `/api/v1/fusions/{id}/enabled`     | Enable/disable a fusion (`?enabled=true` or `false`)                             |
-| `GET`    | `/api/v1/topics`                   | List available WebSocket topics                                                  |
-| `WS`     | `/api/v1/ws/{topic}`               | WebSocket streaming endpoint                                                     |
+| Method   | Path                         | Description                                                         |
+| -------- | ---------------------------- | ------------------------------------------------------------------- |
+| `GET`    | `/`                          | Serves the Angular SPA                                              |
+| `GET`    | `/api/v1/status`             | System status (version, running state)                              |
+| `GET`    | `/api/v1/nodes`              | List all nodes (sensors, fusions, etc)                              |
+| `POST`   | `/api/v1/nodes`              | Create or update a node configuration                               |
+| `DELETE` | `/api/v1/nodes/{id}`         | Delete a node configuration                                         |
+| `PUT`    | `/api/v1/nodes/{id}/enabled` | Enable/disable a node (JSON payload: `{"enabled": true}`)           |
+| `POST`   | `/api/v1/nodes/reload`       | Reload config and restart all nodes                                 |
+| `GET`    | `/api/v1/nodes/status/all`   | **Runtime status** of all nodes (process health, frame age, errors) |
+| `GET`    | `/api/v1/nodes/pipelines`    | List available processing pipelines                                 |
+| `GET`    | `/api/v1/edges`              | List all edges (connections between nodes)                          |
+| `POST`   | `/api/v1/edges/bulk`         | Save all edges (replaces existing graph layout)                     |
+| `GET`    | `/api/v1/topics`             | List available WebSocket topics                                     |
+| `WS`     | `/api/v1/ws/{topic}`         | WebSocket streaming endpoint                                        |
+| `GET`    | `/api/v1/topics/capture`     | HTTP endpoint to capture a single point cloud frame from a topic    |

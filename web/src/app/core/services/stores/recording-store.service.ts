@@ -43,30 +43,34 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
    */
   isRecording = computed(() => {
     const activeRecordings = this.activeRecordings();
-    return (topic: string) => {
-      return activeRecordings.some(r => r.topic === topic);
+    return (nodeId: string) => {
+      return activeRecordings.some((r) => {
+        return r.node_id === nodeId;
+      });
     };
   });
 
   /**
-   * Get active recording for a specific topic
+   * Get active recording for a specific node
    */
-  getActiveRecordingByTopic = computed(() => {
+  getActiveRecordingByNodeId = computed(() => {
     const activeRecordings = this.activeRecordings();
-    return (topic: string): ActiveRecording | undefined => {
-      return activeRecordings.find(r => r.topic === topic);
+    return (nodeId: string): ActiveRecording | undefined => {
+      return activeRecordings.find((r) => {
+        return r.node_id === nodeId;
+      });
     };
   });
 
   // Actions
 
   /**
-   * Load all recordings, optionally filtered by topic
+   * Load all recordings, optionally filtered by node_id
    */
-  loadRecordings(topic?: string): Promise<void> {
+  loadRecordings(nodeId?: string): Promise<void> {
     this.setState({ isLoading: true, error: null });
     return new Promise((resolve, reject) => {
-      this.recordingApi.listRecordings(topic).subscribe({
+      this.recordingApi.listRecordings(nodeId).subscribe({
         next: (data) => {
           this.setState({
             recordings: data.recordings,
@@ -87,15 +91,15 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
   }
 
   /**
-   * Start recording a topic
+   * Start recording a node graph
    */
-  startRecording(topic: string, name?: string): Observable<string> {
-    return this.recordingApi.startRecording({ topic, name }).pipe(
+  startRecording(nodeId: string, name?: string): Observable<string> {
+    return this.recordingApi.startRecording({ node_id: nodeId, name }).pipe(
       tap(() => {
         // Reload recordings to get updated active list
         this.loadRecordings();
       }),
-      map(response => response.recording_id)
+      map((response) => response.recording_id),
     );
   }
 
@@ -107,7 +111,7 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
       tap(() => {
         // Reload recordings
         this.loadRecordings();
-      })
+      }),
     );
   }
 
@@ -120,10 +124,10 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
         // Remove from state
         const recordings = this.recordings();
         this.setState({
-          recordings: recordings.filter(r => r.id !== recordingId),
+          recordings: recordings.filter((r) => r.id !== recordingId),
         });
       }),
-      map(() => void 0)
+      map(() => void 0),
     );
   }
 

@@ -34,65 +34,6 @@ def ensure_schema(engine: Engine) -> None:
     Base.metadata.create_all(bind=engine)
 
     with engine.begin() as conn:
-        # Additive migrations for existing DBs.
-        if "lidars" in conn.exec_driver_sql(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='lidars'"
-        ).fetchall():
-            pass
-
-        lidar_cols = _table_cols(conn, "lidars")
-        if "enabled" not in lidar_cols:
-            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN enabled BOOLEAN DEFAULT 1")
-        if "topic_prefix" not in lidar_cols:
-            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN topic_prefix TEXT")
-        if "imu_udp_port" not in lidar_cols:
-            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN imu_udp_port INTEGER")
-        
-        # Legacy playback fields (deprecated, kept for backwards compatibility with old DBs)
-        if "recording_file_path" not in lidar_cols:
-            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN recording_file_path TEXT")
-        if "playback_speed" not in lidar_cols:
-            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN playback_speed REAL DEFAULT 1.0")
-        if "playback_loop" not in lidar_cols:
-            conn.exec_driver_sql("ALTER TABLE lidars ADD COLUMN playback_loop BOOLEAN DEFAULT 0")
-
-        fusion_cols = _table_cols(conn, "fusions")
-        if "enabled" not in fusion_cols:
-            conn.exec_driver_sql("ALTER TABLE fusions ADD COLUMN enabled BOOLEAN DEFAULT 1")
-
-        # Backfill lidar.topic_prefix for existing rows (stable + collision-safe).
-        lrows = conn.exec_driver_sql(
-            "SELECT id, name, topic_prefix FROM lidars ORDER BY rowid ASC"
-        ).fetchall()
-
-        in_use: set[str] = set()
-        for r in lrows:
-            existing = (r[2] or "").strip()
-            if existing:
-                in_use.add(existing)
-
-        def _unique(desired: str, sensor_id: str) -> str:
-            base = _slugify(desired)
-            if base not in in_use:
-                in_use.add(base)
-                return base
-
-            suffix = _slugify(sensor_id)[:8]
-            candidate = f"{base}_{suffix}" if suffix else f"{base}_1"
-            i = 2
-            while candidate in in_use:
-                candidate = f"{base}_{suffix}_{i}" if suffix else f"{base}_{i}"
-                i += 1
-            in_use.add(candidate)
-            return candidate
-
-        for r in lrows:
-            if (r[2] or "").strip():
-                continue
-            sensor_id = r[0]
-            name = r[1] or sensor_id
-            topic_prefix = _unique(name, sensor_id=sensor_id)
-            conn.execute(
-                text("UPDATE lidars SET topic_prefix = :topic_prefix WHERE id = :id"),
-                {"topic_prefix": topic_prefix, "id": sensor_id},
-            )
+        # We start with a clean slate for the node architecture, so 
+        # legacy migrations for lidars and fusions have been removed.
+        pass

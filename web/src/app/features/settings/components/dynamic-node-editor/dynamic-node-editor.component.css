@@ -1,0 +1,8 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+syn-checkbox {
+  --syn-font-size-medium: 13px;
+}

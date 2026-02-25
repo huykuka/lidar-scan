@@ -79,3 +79,62 @@ def unpack_points_binary(data: bytes) -> tuple[np.ndarray, float]:
     points = np.frombuffer(points_data, dtype=np.float32).reshape(count, 3)
     
     return points, timestamp
+
+
+def pack_recording_binary(points: np.ndarray, timestamp: float) -> bytes:
+    """
+    Packs point cloud data into LIDR archive binary format, supporting N-dimensional fields.
+    
+    Args:
+        points: Numpy array of shape (N, M) where M is the number of fields (e.g. X, Y, Z, Intensity)
+        timestamp: Unix timestamp as float64
+    
+    Returns:
+        Binary data in LIDR format
+    """
+    count = len(points)
+    dims = points.shape[1] if len(points.shape) > 1 else 0
+    
+    # Pack header: magic (4), version (4), timestamp (8), count (4), dims (4)
+    # Version 2 allows arbitrary dimensions.
+    header = struct.pack('<4sIdII', b'LIDR', 2, timestamp, count, dims)
+    
+    points_float32 = points.astype(np.float32)
+    
+    return header + points_float32.tobytes()
+
+
+def unpack_recording_binary(data: bytes) -> tuple[np.ndarray, float]:
+    """
+    Unpacks point cloud data from LIDR archive binary format.
+    
+    Args:
+        data: Binary data in LIDR format
+    
+    Returns:
+        Tuple of (points, timestamp) where:
+            - points is numpy array of shape (N, M)
+            - timestamp is float64
+    """
+    # Unpack header (24 bytes total)
+    magic, version, timestamp, count, dims = struct.unpack('<4sIdII', data[:24])
+    
+    if magic != b'LIDR':
+        raise ValueError(f"Invalid magic bytes: {magic}")
+    
+    if version != 2:
+        raise ValueError(f"Unsupported recording version: {version}")
+    
+    # Extract points data
+    points_data = data[24:]
+    expected_size = count * dims * 4  # 4 bytes per float32
+    
+    if len(points_data) != expected_size:
+        raise ValueError(
+            f"Points data size mismatch: expected {expected_size} bytes, got {len(points_data)}"
+        )
+    
+    # Reshape into (N, M) array
+    points = np.frombuffer(points_data, dtype=np.float32).reshape(count, dims)
+    
+    return points, timestamp

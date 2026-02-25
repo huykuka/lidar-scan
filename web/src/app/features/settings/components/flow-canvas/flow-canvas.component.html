@@ -1,20 +1,37 @@
-<div class="flex h-full bg-syn-color-neutral-50">
+<div class="flex h-full bg-syn-color-neutral-50 relative">
+  @if (isCanvasLoading()) {
+    <div
+      class="absolute inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm"
+    >
+      <syn-spinner class="text-3xl text-syn-color-primary-600"></syn-spinner>
+    </div>
+  }
+
   <!-- Left Palette Sidebar -->
   <app-flow-canvas-palette
     [plugins]="availablePlugins()"
+    [isLoading]="isPaletteLoading()"
     [zoom]="zoom()"
-    (onAutoLayout)="autoLayoutNodes()"
-    (onClearPositions)="clearAllPositions()"
     (onResetView)="resetView()"
     (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
     (onPluginDragEnd)="onPaletteDragEnd()"
   ></app-flow-canvas-palette>
 
   <!-- Canvas Area -->
-  <div class="flex-1 relative overflow-hidden">
+  <div class="flex-1 relative overflow-auto syn-scrollbar">
     <div
-      class="w-full h-full relative"
-      [style.cursor]="isPanning() ? 'grabbing' : paletteDragType() ? 'copy' : 'default'"
+      class="relative"
+      [style.min-width]="canvasWidth()"
+      [style.min-height]="canvasHeight()"
+      [style.cursor]="
+        pendingConnection()
+          ? 'crosshair'
+          : isPanning()
+            ? 'grabbing'
+            : paletteDragType()
+              ? 'copy'
+              : 'default'
+      "
       (mousedown)="onCanvasMouseDown($event)"
       (mousemove)="onCanvasMouseMove($event)"
       (mouseup)="onCanvasMouseUp($event)"
@@ -41,15 +58,21 @@
         [style.transform-origin]="'0 0'"
       >
         <!-- Connection Lines Layer (below nodes) -->
-        <app-flow-canvas-connections [connections]="connections()"></app-flow-canvas-connections>
+        <app-flow-canvas-connections
+          [connections]="connections()"
+          [pendingPath]="pendingPath()"
+          (onDelete)="onDeleteEdge($event)"
+        ></app-flow-canvas-connections>
 
         <!-- Nodes Layer -->
-        @for (node of canvasNodes(); track node.id) {
+        @for (node of canvasNodes(); track $index) {
           <div
             class="absolute transition-shadow"
             [style.left.px]="node.position.x"
             [style.top.px]="node.position.y"
-            [style.cursor]="draggingNode()?.id === node.id ? 'grabbing' : 'grab'"
+            [style.cursor]="
+              draggingNode()?.id === node.id ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
+            "
             (mousedown)="onNodeMouseDown($event, node)"
           >
             <app-flow-canvas-node
@@ -60,6 +83,8 @@
               (onEdit)="onEditNode(node)"
               (onDelete)="onDeleteNode(node)"
               (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
+              (portDragStart)="onPortDragStart($event)"
+              (portDrop)="onPortDrop($event)"
             ></app-flow-canvas-node>
           </div>
         }

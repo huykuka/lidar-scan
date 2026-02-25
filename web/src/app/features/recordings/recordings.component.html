@@ -84,11 +84,12 @@
     } @else {
       <!-- Recordings Grid -->
       <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(500px, 1fr))">
-        @for (recording of sortedRecordings(); track recording.id) {
+        @for (recording of sortedRecordings(); track recording.id; let idx = $index) {
           <app-recording-card
             [recording]="recording"
             [selectable]="isSelectionMode()"
             [selected]="selectedRecordingIds().has(recording.id)"
+            [priority]="idx < 4"
             (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
             (select)="selectRecording($event)"
             (play)="loadForPlayback($event)"

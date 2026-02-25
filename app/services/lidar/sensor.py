@@ -1,294 +1,198 @@
-import asyncio
+"""
+LiDAR sensor model representing configuration and state.
+"""
+from typing import Dict, Optional, Any
 import multiprocessing as mp
-from typing import Any, Dict, List, Optional, cast
+import os
+import time
+
 import numpy as np
-from app.pipeline import PipelineFactory, PointCloudPipeline
+
 from app.services.websocket.manager import manager
-from .core import LidarSensor, transform_points, TopicRegistry
-from .protocol import pack_points_binary
 from app.core.logging_config import get_logger
+from app.services.lidar.core import create_transformation_matrix, pose_to_dict
 
 logger = get_logger(__name__)
 
-class LidarService:
-    def __init__(self):
-        self.sensors: List[LidarSensor] = []
-        self.fusions: List[Any] = []
-        self.processes: Dict[str, mp.Process] = {}
-        self.stop_events: Dict[str, Any] = {}
-        self.data_queue: Any = mp.Queue(maxsize=100)
-        self.is_running = False
-        self._loop: Any = None
-        self._listener_task: Any = None
-        self._topic_registry = TopicRegistry()
-        # Runtime tracking for status endpoint
-        self.lidar_runtime: Dict[str, Dict[str, Any]] = {}
-    def load_config(self):
-        """Loads sensor configurations from SQLite and registers them."""
-        from app.repositories import FusionRepository, LidarRepository
-        lidar_repo = LidarRepository()
-        fusion_repo = FusionRepository()
-        try:
-            configs = lidar_repo.list()
-            enabled_configs = [c for c in configs if bool(c.get("enabled", True))]
-            for item in enabled_configs:
-                sensor = self.generate_lidar(
-                    sensor_id=item["id"],
-                    name=item.get("name", item["id"]),
-                    topic_prefix=item.get("topic_prefix"),
-                    launch_args=item["launch_args"],
-                    pipeline_name=item.get("pipeline_name"),
-                    mode=item.get("mode", "real"),
-                    pcd_path=item.get("pcd_path"),
-                    x=item.get("x", 0),
-                    y=item.get("y", 0),
-                    z=item.get("z", 0),
-                    roll=item.get("roll", 0),
-                    pitch=item.get("pitch", 0),
-                    yaw=item.get("yaw", 0)
-                )
-            logger.info(f"Loaded {len(enabled_configs)} sensors from DB")
-        except Exception as e:
-            logger.error(f"Error loading lidars from DB: {e}", exc_info=True)
+class LidarSensor:
+    """Represents a single Lidar sensor and its processing pipeline configuration"""
 
-        # Load Fusions
-        try:
-            fusions_cfg = fusion_repo.list()
-            from app.services.lidar.fusion import FusionService
-            for item in fusions_cfg:
-                if not bool(item.get("enabled", True)):
-                    continue
-                fusion = FusionService(
-                    self,
-                    topic=item.get("topic", "fused_points"),
-                    sensor_ids=item.get("sensor_ids"),
-                    pipeline_name=item.get("pipeline_name"),
-                    fusion_id=item.get("id")
-                )
-                self.fusions.append(fusion)
-        except Exception as e:
-            logger.error(f"Error loading fusions from DB: {e}", exc_info=True)
+    name: str
+    topic_prefix: str
 
-    def reload_config(self, loop=None):
-        """Stops all services, reloads config, and restarts."""
-        was_running = self.is_running
+    def __init__(
+        self,
+        manager: Any,
+        sensor_id: str,
+        launch_args: str,
+        mode: str = "real",
+        pcd_path: Optional[str] = None,
+        transformation: Optional[np.ndarray] = None,
+        name: Optional[str] = None,
+        topic_prefix: Optional[str] = None
+    ):
+        self.manager = manager
+        self.id = sensor_id
+        self.name = name or sensor_id
+        self.topic_prefix = topic_prefix or self.name
+        self.launch_args = launch_args
+        self.mode = mode
+        self.pcd_path = pcd_path
+        
+        self.transformation = transformation if transformation is not None else np.eye(4)
+        self.pose_params: Dict[str, float] = {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+        
+        self._process = None
+        self._stop_event = None
 
-        self.stop()
-        self.sensors = []
-        self._topic_registry.clear()
-        for fusion in getattr(self, 'fusions', []):
-            fusion.disable()
-        self.fusions = []
-        manager.reset_active_connections()
-        self.load_config()
-
-        # Ensure fusions interpret their sensor filter as sensor IDs (mapped to topic_prefix)
-        for fusion in self.fusions:
-            try:
-                fusion.use_topic_prefix_filter(False)
-            except Exception:
-                pass
-        if was_running:
-            self.start(loop or self._loop)
-
-    def get_pipelines(self) -> List[str]:
-        """Returns available pipeline names from the factory."""
-        from app.pipeline.factory import _PIPELINE_MAP
-        return list(_PIPELINE_MAP.keys())
-
-    def add_sensor(self, sensor: LidarSensor):
-        self.sensors.append(sensor)
+    def set_pose(self, x: float, y: float, z: float, roll: float = 0, pitch: float = 0, yaw: float = 0) -> "LidarSensor":
+        self.transformation = create_transformation_matrix(x, y, z, roll, pitch, yaw)
+        self.pose_params = pose_to_dict(x, y, z, roll, pitch, yaw)
         return self
 
-    def generate_lidar(self, sensor_id: str, launch_args: str,
-                       name: Optional[str] = None,
-                       topic_prefix: Optional[str] = None,
-                       pipeline_name: Optional[str] = None,
-                       mode: str = "real", pcd_path: Optional[str] = None,
-                       x: float = 0, y: float = 0, z: float = 0,
-                       roll: float = 0, pitch: float = 0, yaw: float = 0):
-        """
-        Helper method to create and add a sensor with a specific pose in one call.
-        If pipeline_name is provided and pipeline is None, it creates the pipeline automatically.
-        """
-        sensor_name = name or sensor_id
-        desired_prefix = topic_prefix or sensor_name
-        topic_prefix = self._topic_registry.register(desired_prefix, sensor_id)
+    def get_pose_params(self) -> Dict[str, float]:
+        return self.pose_params.copy()
 
-        pipeline = None
-        if pipeline_name is not None:
-            # PipelineName is derived from the factory registry at import time.
-            # Some type checkers can't narrow/cast it cleanly, so we cast via Any.
-            pipeline = PipelineFactory.get(cast(Any, pipeline_name), lidar_id=sensor_id)
-            if pipeline:
-                manager.register_topic(f"{topic_prefix}_processed_points")
-
-        sensor = LidarSensor(
-            sensor_id=sensor_id,
-            name=sensor_name,
-            topic_prefix=topic_prefix,
-            launch_args=launch_args,
-            pipeline=pipeline,
-            pipeline_name=pipeline_name,
-            mode=mode,
-            pcd_path=pcd_path
-        )
-        sensor.set_pose(x, y, z, roll, pitch, yaw)
-        self.add_sensor(sensor)
-
-        # Register topics in the connection manager
-        manager.register_topic(f"{topic_prefix}_raw_points")
-
-        return sensor
-
-    def start(self, loop=None):
-        import time
-        import os
-        self._loop = loop or asyncio.get_event_loop()
-        self.is_running = True
-        # Recreate queue to ensure it's fresh after potential terminations
-        # This prevents "corrupted queue" issues if a worker was terminated while writing
-        self.data_queue = mp.Queue(maxsize=100)
-
-        for sensor in self.sensors:
-            stop_event = mp.Event()
-            # Initialize runtime state for this sensor
-            self.lidar_runtime[sensor.id] = {
-                "last_frame_at": None,
-                "last_error": None,
-                "process_alive": False,
-                "mode": sensor.mode,
-                "connection_status": "starting",
-            }
-            try:
-                if sensor.mode == "sim":
-                    # Validate PCD path before spawning
-                    if not sensor.pcd_path or not os.path.exists(sensor.pcd_path):
-                        error_msg = f"PCD file not found: {sensor.pcd_path or '(not specified)'}"
-                        logger.error(f"[{sensor.id}] {error_msg}")
-                        self.lidar_runtime[sensor.id]["last_error"] = error_msg
-                        continue
-                    # Lazy import: open3d might not be installed in all environments
-                    try:
-                        from .workers.pcd import pcd_worker_process
-                    except ImportError as e:
-                        error_msg = f"open3d not available: {e}"
-                        logger.error(f"[{sensor.id}] {error_msg}", exc_info=True)
-                        self.lidar_runtime[sensor.id]["last_error"] = error_msg
-                        continue
-                    p = mp.Process(
-                        target=pcd_worker_process,
-                        args=(sensor.id, sensor.pcd_path or "", sensor.pipeline, self.data_queue, stop_event),
-                        name=f"PcdWorker-{sensor.id}",
-                        daemon=True
-                    )
-                else:
-                    # Lazy import: sick_scan_api might not be installed in all environments
-                    from .workers.sick_scan import lidar_worker_process
-                    p = mp.Process(
-                        target=lidar_worker_process,
-                        args=(sensor.id, sensor.launch_args, sensor.pipeline, self.data_queue, stop_event),
-                        name=f"LidarWorker-{sensor.id}",
-                        daemon=True
-                    )
-                p.start()
-                self.processes[sensor.id] = p
-                self.stop_events[sensor.id] = stop_event
-                self.lidar_runtime[sensor.id]["process_alive"] = True
-                logger.info(f"Spawned worker for {sensor.id} (PID: {p.pid})")
-            except Exception as e:
-                error_msg = f"Failed to start worker: {e}"
-                logger.error(f"[{sensor.id}] {error_msg}", exc_info=True)
-                self.lidar_runtime[sensor.id]["last_error"] = error_msg
-        for fusion in self.fusions:
-            fusion.enable()
-        self._listener_task = asyncio.create_task(self._queue_listener())
+    def start(self, data_queue: mp.Queue, runtime_status: Dict[str, Any]):
+        """Starts the worker process for this sensor"""
+        self._stop_event = mp.Event()
+        
+        runtime_status[self.id] = {
+            "last_frame_at": None,
+            "last_error": None,
+            "process_alive": False,
+            "mode": self.mode,
+            "connection_status": "starting",
+        }
+        
+        try:
+            if self.mode == "sim":
+                if not self.pcd_path or not os.path.exists(self.pcd_path):
+                    error_msg = f"PCD file not found: {self.pcd_path or '(not specified)'}"
+                    logger.error(f"[{self.id}] {error_msg}")
+                    runtime_status[self.id]["last_error"] = error_msg
+                    return
+                try:
+                    from app.services.lidar.workers.pcd import pcd_worker_process
+                except ImportError as e:
+                    error_msg = f"open3d not available: {e}"
+                    logger.error(f"[{self.id}] {error_msg}", exc_info=True)
+                    runtime_status[self.id]["last_error"] = error_msg
+                    return
+                
+                self._process = mp.Process(
+                    target=pcd_worker_process,
+                    args=(self.id, self.pcd_path, data_queue, self._stop_event),
+                    name=f"PcdWorker-{self.id}",
+                    daemon=True
+                )
+            else:
+                from app.services.lidar.workers.real import lidar_worker_process
+                self._process = mp.Process(
+                    target=lidar_worker_process,
+                    args=(self.id, self.launch_args, data_queue, self._stop_event),
+                    name=f"LidarWorker-{self.id}",
+                    daemon=True
+                )
+            
+            self._process.start()
+            runtime_status[self.id]["process_alive"] = True
+            logger.info(f"Spawned worker for {self.id} (PID: {self._process.pid})")
+        except Exception as e:
+            error_msg = f"Failed to start worker: {e}"
+            logger.error(f"[{self.id}] {error_msg}", exc_info=True)
+            runtime_status[self.id]["last_error"] = error_msg
 
     def stop(self):
-        self.is_running = False
-        if self._listener_task:
-            self._listener_task.cancel()
-        for stop_event in self.stop_events.values():
-            stop_event.set()
-        for p in self.processes.values():
-            p.join(timeout=1.0)
-            if p.is_alive():
-                p.terminate()
-        logger.info("All Lidar services stopped.")
+        """Stops the worker process for this sensor"""
+        if self._stop_event:
+            self._stop_event.set()
+        if self._process:
+            self._process.join(timeout=1.0)
+            if self._process.is_alive():
+                self._process.terminate()
 
-    async def _queue_listener(self):
-        loop = asyncio.get_event_loop()
-        while self.is_running:
-            try:
-                if not self.data_queue.empty():
-                    payload = await loop.run_in_executor(None, self.data_queue.get)
-                    await self._handle_incoming_data(payload)
-                else:
-                    await asyncio.sleep(0.005)
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Listener error: {e}", exc_info=True)
-                await asyncio.sleep(0.1)
-
-    async def _handle_incoming_data(self, payload: Dict[str, Any]):
-        import time
+    async def handle_data(self, payload: Dict[str, Any], runtime_status: Dict[str, Any]):
+        """Handles incoming data explicitly for this Lidar node"""
+        from .core.transformations import transform_points
+        from .protocol import pack_points_binary
+        
         try:
-            lidar_id = payload["lidar_id"]
             timestamp = payload["timestamp"]
-            # Handle event-type messages (connection status, errors)
             event_type = payload.get("event_type")
+            
             if event_type:
-                if lidar_id in self.lidar_runtime:
+                if self.id in runtime_status:
                     if event_type == "connected":
-                        self.lidar_runtime[lidar_id]["last_error"] = None
-                        self.lidar_runtime[lidar_id]["connection_status"] = "connected"
-                        logger.info(f"[{lidar_id}] Connected: {payload.get('message', '')}")
+                        runtime_status[self.id]["last_error"] = None
+                        runtime_status[self.id]["connection_status"] = "connected"
+                        logger.info(f"[{self.id}] Connected: {payload.get('message', '')}")
                     elif event_type == "disconnected":
-                        self.lidar_runtime[lidar_id]["last_error"] = f"Disconnected: {payload.get('message', 'Connection lost')}"
-                        self.lidar_runtime[lidar_id]["connection_status"] = "disconnected"
-                        logger.warning(f"[{lidar_id}] Disconnected: {payload.get('message', '')}")
+                        runtime_status[self.id]["last_error"] = f"Disconnected: {payload.get('message', 'Connection lost')}"
+                        runtime_status[self.id]["connection_status"] = "disconnected"
+                        logger.warning(f"[{self.id}] Disconnected: {payload.get('message', '')}")
                     elif event_type == "error":
-                        self.lidar_runtime[lidar_id]["last_error"] = payload.get("message", "Unknown error")
-                        self.lidar_runtime[lidar_id]["connection_status"] = "error"
-                        logger.error(f"[{lidar_id}] Error: {payload.get('message', '')}")
-                return  # Event handled, no point cloud data to process
-            # Update runtime tracking for point cloud data
-            if lidar_id in self.lidar_runtime:
-                self.lidar_runtime[lidar_id]["last_frame_at"] = time.time()
-                self.lidar_runtime[lidar_id]["last_error"] = None
-                self.lidar_runtime[lidar_id]["connection_status"] = "connected"
-            # Find the sensor to get its transformation matrix
-            sensor = next((s for s in self.sensors if s.id == lidar_id), None)
-            transformation = sensor.transformation if sensor else np.eye(4)
-            topic_prefix = sensor.topic_prefix if sensor else lidar_id
-            if payload.get("processed"):
-                # Data already processed by the worker's pipeline
-                processed_data = payload["data"]
-                # Extract points (they should be numpy arrays now)
-                points = processed_data.get("points")
-                if points is None:
-                    # In case of some legacy or error
-                    return
-                # Apply transformation to bring points into world/global space
-                points = transform_points(points, transformation)
-                binary_data = pack_points_binary(points, timestamp)
-                await manager.broadcast(f"{topic_prefix}_processed_points", binary_data)
-                raw_points = payload.get("raw_points")
-                if raw_points is not None:
-                    raw_points = transform_points(raw_points, transformation)
-                    binary_raw = pack_points_binary(raw_points, timestamp)
-                    await manager.broadcast(f"{topic_prefix}_raw_points", binary_raw)
-            else:
-                # Unprocessed fallback
-                points = payload.get("points")
-                if points is not None:
-                    points = transform_points(points, transformation)
-                    binary_data = pack_points_binary(points, timestamp)
-                    await manager.broadcast(f"{topic_prefix}_raw_points", binary_data)
+                        runtime_status[self.id]["last_error"] = payload.get("message", "Unknown error")
+                        runtime_status[self.id]["connection_status"] = "error"
+                        logger.error(f"[{self.id}] Error: {payload.get('message', '')}")
+                return
+
+            if self.id in runtime_status:
+                runtime_status[self.id]["last_frame_at"] = time.time()
+                runtime_status[self.id]["last_error"] = None
+                runtime_status[self.id]["connection_status"] = "connected"
+                # Increment frame counter for debug logging
+                frame_count = runtime_status[self.id].get("frame_count", 0) + 1
+                runtime_status[self.id]["frame_count"] = frame_count
+
+            points = payload.get("points")
+            if points is not None:
+                # 1. Transform points to world space off the main thread
+                import asyncio
+                transformed_points = await asyncio.to_thread(transform_points, points, self.transformation)
+                # Update payload for downstream
+                payload["points"] = transformed_points
+
+                frame_count = runtime_status.get(self.id, {}).get("frame_count", 0)
+                if frame_count % 100 == 1:
+                    logger.debug(f"[{self.id}] Frame #{frame_count}: {len(transformed_points)} points after transform")
+
+                # 2. Forward to downstream nodes via Manager
+                await self.manager.forward_data(self.id, payload)
+
+                # 3. Handle on-demand WebSocket broadcast
+                topic = f"{self.topic_prefix}_raw_points"
+                if manager.has_subscribers(topic):
+                    import asyncio
+                    binary_data = await asyncio.to_thread(pack_points_binary, transformed_points, timestamp)
+                    await manager.broadcast(topic, binary_data)
+                else:
+                    if frame_count % 100 == 1:
+                        logger.debug(f"[{self.id}] No subscribers on topic '{topic}' — skipping WS broadcast")
+
         except Exception as e:
-            logger.error(f"Broadcasting error: {e}", exc_info=True)
-            # Track error in runtime state if we can identify the lidar
-            lidar_id = payload.get("lidar_id")
-            if lidar_id and lidar_id in self.lidar_runtime:
-                self.lidar_runtime[lidar_id]["last_error"] = str(e)
+            logger.error(f"Error handling data for {self.id}: {e}", exc_info=True)
+            if self.id in runtime_status:
+                runtime_status[self.id]["last_error"] = str(e)
+
+
+    def get_status(self, runtime_status: Dict[str, Any]) -> Dict[str, Any]:
+        """Returns standard status for this node"""
+        runtime = runtime_status.get(self.id, {}).copy()
+        last_frame_at = runtime.get("last_frame_at")
+        frame_age = time.time() - last_frame_at if last_frame_at else None
+        
+        status = {
+            "id": self.id,
+            "name": self.name,
+            "type": "sensor",
+            "mode": self.mode,
+            "topic_prefix": self.topic_prefix,
+            "raw_topic": f"{self.topic_prefix}_raw_points",
+            "running": (self._process.is_alive() if self._process else False),
+            "connection_status": runtime.get("connection_status", "unknown"),
+            "last_frame_at": last_frame_at,
+            "frame_age_seconds": frame_age,
+            "last_error": runtime.get("last_error"),
+        }
+        return status

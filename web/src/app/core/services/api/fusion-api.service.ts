@@ -15,18 +15,38 @@ export class FusionApiService {
   private store = inject(FusionStoreService);
 
   async getFusions(): Promise<{ fusions: FusionConfig[] }> {
-    const response = await firstValueFrom(
-      this.http.get<{ fusions: FusionConfig[] }>(`${environment.apiUrl}/fusions`),
-    );
-    this.store.setState({
-      fusions: response.fusions,
-    });
+    const nodes = await firstValueFrom(this.http.get<any[]>(`${environment.apiUrl}/nodes`));
+
+    const fusions = nodes
+      .filter((n) => n.type === 'fusion')
+      .map((n) => ({
+        id: n.id,
+        name: n.name,
+        enabled: n.enabled,
+        ...n.config,
+      })) as FusionConfig[];
+
+    const response = { fusions };
+    this.store.setState({ fusions });
     return response;
   }
 
   async saveFusion(config: any): Promise<any> {
+    const payload = {
+      id: config.id,
+      name: config.name,
+      type: 'fusion',
+      category: 'Processing',
+      enabled: config.enabled ?? true,
+      config: { ...config },
+    };
+
+    delete payload.config.id;
+    delete payload.config.name;
+    delete payload.config.enabled;
+
     const response = await firstValueFrom(
-      this.http.post<any>(`${environment.apiUrl}/fusions`, config),
+      this.http.post<any>(`${environment.apiUrl}/nodes`, payload),
     );
     await this.getFusions();
     return response;
@@ -34,7 +54,7 @@ export class FusionApiService {
 
   async deleteFusion(id: string): Promise<any> {
     const response = await firstValueFrom(
-      this.http.delete<any>(`${environment.apiUrl}/fusions/${id}`),
+      this.http.delete<any>(`${environment.apiUrl}/nodes/${id}`),
     );
     await this.getFusions();
     return response;
@@ -42,10 +62,9 @@ export class FusionApiService {
 
   async setEnabled(id: string, enabled: boolean): Promise<any> {
     return await firstValueFrom(
-      this.http.post(
-        `${environment.apiUrl}/fusions/${encodeURIComponent(id)}/enabled?enabled=${enabled}`,
-        {},
-      ),
+      this.http.put(`${environment.apiUrl}/nodes/${encodeURIComponent(id)}/enabled`, {
+        enabled: enabled,
+      }),
     );
   }
 }

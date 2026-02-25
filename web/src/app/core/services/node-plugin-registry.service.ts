@@ -1,160 +1,109 @@
-import { Injectable, Type, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { NodePlugin, NodeData } from '../models/node-plugin.model';
-import { LidarConfig } from '../models/lidar.model';
-import { FusionConfig } from '../models/fusion.model';
-import { LidarEditorComponent } from '../../features/settings/components/lidar-editor/lidar-editor';
-import { FusionEditorComponent } from '../../features/settings/components/fusion-editor/fusion-editor';
+import { NodesApiService } from './api/nodes-api.service';
+import { NodeStoreService } from './stores/node-store.service';
+import { NodeDefinition } from '../models/node.model';
+
+/** Visual metadata per category — used to style the palette and canvas nodes. */
+const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
+  sensor: { color: '#10b981', icon: 'sensors' },
+  fusion: { color: '#6366f1', icon: 'hub' },
+  operation: { color: '#f59e0b', icon: 'settings_input_component' },
+};
+
+function definitionToPlugin(def: NodeDefinition): NodePlugin {
+  const style = CATEGORY_STYLE[def.category] ?? { color: '#64748b', icon: 'extension' };
+
+  return {
+    type: def.type,
+    category: def.category,
+    displayName: def.display_name,
+    description: def.description ?? '',
+    icon: def.icon ?? style.icon,
+    style: { color: style.color },
+    ports: {
+      inputs:
+        def.inputs?.map((p: any) => ({
+          id: p.id,
+          label: p.label,
+          dataType: p.data_type ?? 'pointcloud',
+          multiple: p.multiple ?? false,
+        })) ?? [],
+      outputs:
+        def.outputs?.map((p: any) => ({
+          id: p.id,
+          label: p.label,
+          dataType: p.data_type ?? 'pointcloud',
+          multiple: p.multiple ?? false,
+        })) ?? [],
+    },
+    /** Default instance — type and category from backend, empty config. */
+    createInstance: () => ({
+      type: def.type,
+      category: def.category,
+      name: def.display_name,
+      enabled: true,
+      config: def.category === 'operation' ? { op_type: def.type } : {},
+    }),
+    renderBody: (data: NodeData) => ({ fields: [] }),
+  };
+}
 
 /**
- * Node Plugin Registry Service
- * 
- * Manages registration and retrieval of node plugins for the flow canvas.
- * Plugins can be registered at runtime to extend the system with new node types.
+ * NodePluginRegistry
+ *
+ * The palette and canvas use this service to know what node types are
+ * available. Types are loaded from the backend `/nodes/definitions` endpoint
+ * and stored in the NodeStore. No local hardcoding of schemas.
  */
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable({ providedIn: 'root' })
 export class NodePluginRegistry {
   private plugins = new Map<string, NodePlugin>();
 
-  constructor() {
-    // Register built-in node types
-    this.registerBuiltInPlugins();
-  }
+  constructor(
+    private nodesApi: NodesApiService,
+    private nodeStore: NodeStoreService,
+  ) {}
 
   /**
-   * Register a new node plugin
+   * Load all node types from the backend and populate the registry.
+   * Called once on app/component init.
    */
-  register(plugin: NodePlugin): void {
-    if (this.plugins.has(plugin.type)) {
-      console.warn(`Plugin type "${plugin.type}" is already registered. Overwriting.`);
+  async loadFromBackend(): Promise<void> {
+    try {
+      const definitions = await this.nodesApi.getNodeDefinitions();
+      this.nodeStore.set('nodeDefinitions', definitions);
+      this.plugins.clear();
+      definitions.forEach((def) => this.plugins.set(def.type, definitionToPlugin(def)));
+      console.log(
+        `NodePluginRegistry: Loaded ${definitions.length} definitions:`,
+        definitions.map((d) => d.type),
+      );
+    } catch (err) {
+      console.error('NodePluginRegistry: Failed to load definitions from backend', err);
     }
+  }
+
+  register(plugin: NodePlugin): void {
     this.plugins.set(plugin.type, plugin);
-    console.log(`Node plugin registered: ${plugin.type} (${plugin.displayName})`);
   }
 
-  /**
-   * Unregister a node plugin
-   */
-  unregister(type: string): boolean {
-    return this.plugins.delete(type);
-  }
-
-  /**
-   * Get a specific plugin by type
-   */
   get(type: string): NodePlugin | undefined {
     return this.plugins.get(type);
   }
 
-  /**
-   * Get all registered plugins
-   */
   getAll(): NodePlugin[] {
     return Array.from(this.plugins.values());
   }
 
-  /**
-   * Get plugins filtered by category/tag
-   */
-  getByCategory(category: string): NodePlugin[] {
-    // Future: Add category support to NodePlugin interface
-    return this.getAll();
-  }
-
-  /**
-   * Check if a plugin type is registered
-   */
   has(type: string): boolean {
     return this.plugins.has(type);
   }
 
-  /**
-   * Register built-in node types (Sensor and Fusion)
-   */
-  private registerBuiltInPlugins(): void {
-    // Sensor Node Plugin
-    this.register({
-      type: 'sensor',
-      displayName: 'Sensor Node',
-      description: 'Lidar hardware or simulated sensor',
-      icon: 'sensors',
-      style: {
-        color: '#10b981', // green
-        backgroundColor: '#ecfdf5',
-      },
-      ports: {
-        outputs: [
-          {
-            id: 'raw_points',
-            label: 'Raw Points',
-            dataType: 'pointcloud',
-            multiple: true,
-          },
-          {
-            id: 'processed_points',
-            label: 'Processed Points',
-            dataType: 'pointcloud',
-            multiple: true,
-          },
-        ],
-      },
-      createInstance: () => ({
-        type: 'sensor',
-        name: 'New Sensor',
-        enabled: false,
-      }),
-      renderBody: (data: NodeData) => ({
-        fields: [
-          { label: 'Type', value: (data as any).driver || 'N/A' },
-          { label: 'Topic', value: (data as any).topic_prefix || 'N/A', type: 'text' },
-        ],
-      }),
-      editorComponent: LidarEditorComponent,
-    });
-
-    // Fusion Node Plugin
-    this.register({
-      type: 'fusion',
-      displayName: 'Fusion Node',
-      description: 'Merge multiple sensors',
-      icon: 'hub',
-      style: {
-        color: '#6366f1', // indigo
-        backgroundColor: '#eef2ff',
-      },
-      ports: {
-        inputs: [
-          {
-            id: 'sensor_inputs',
-            label: 'Sensor Inputs',
-            dataType: 'pointcloud',
-            multiple: true,
-          },
-        ],
-        outputs: [
-          {
-            id: 'fused_output',
-            label: 'Fused Output',
-            dataType: 'pointcloud',
-            multiple: true,
-          },
-        ],
-      },
-      createInstance: () => ({
-        type: 'fusion',
-        name: 'New Fusion',
-        enabled: false,
-        sensor_ids: [],
-        pipeline: 'default',
-      }),
-      renderBody: (data: NodeData) => ({
-        fields: [
-          { label: 'Sensors', value: (data as any).sensor_ids?.length || 0, type: 'number' },
-          { label: 'Pipeline', value: (data as any).pipeline || 'default' },
-        ],
-      }),
-      editorComponent: FusionEditorComponent,
+  getByCategory(category: string): NodePlugin[] {
+    return this.getAll().filter((p) => {
+      const def = this.nodeStore.nodeDefinitions().find((d) => d.type === p.type);
+      return def?.category === category;
     });
   }
 }

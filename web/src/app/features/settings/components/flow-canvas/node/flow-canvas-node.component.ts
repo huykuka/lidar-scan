@@ -3,14 +3,18 @@ import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarConfig } from '../../../../../core/models/lidar.model';
 import { FusionConfig } from '../../../../../core/models/fusion.model';
-import { LidarNodeStatus, FusionNodeStatus } from '../../../../../core/services/api/nodes-api.service';
+import {
+  NodeConfig,
+  LidarNodeStatus,
+  FusionNodeStatus,
+} from '../../../../../core/models/node.model';
 import { RecordingStoreService } from '../../../../../core/services/stores/recording-store.service';
 import { RecordingApiService } from '../../../../../core/services/api/recording-api.service';
 
 export interface CanvasNode {
   id: string;
-  type: 'sensor' | 'fusion';
-  data: LidarConfig | FusionConfig;
+  type: 'sensor' | 'fusion' | 'operation';
+  data: NodeConfig;
   position: { x: number; y: number };
 }
 
@@ -34,30 +38,34 @@ export class FlowCanvasNodeComponent implements OnDestroy {
   onDelete = output<void>();
   onToggleEnabled = output<boolean>();
 
+  /** Fired when user starts dragging from a port. */
+  portDragStart = output<{ nodeId: string; portType: 'input' | 'output'; event: MouseEvent }>();
+  /** Fired when user releases on a port (potential drop target). */
+  portDrop = output<{ nodeId: string; portType: 'input' | 'output' }>();
+
   // Recording state
   protected isRecording = computed(() => {
-    const topic = this.getNodeTopicForRecording();
-    if (!topic) return false;
     const checkFn = this.recordingStore.isRecording();
-    return checkFn(topic);
+    return checkFn(this.node().id);
   });
 
   protected activeRecording = computed(() => {
-    const topic = this.getNodeTopicForRecording();
-    if (!topic) return null;
-    const getFn = this.recordingStore.getActiveRecordingByTopic();
-    return getFn(topic);
+    const getFn = this.recordingStore.getActiveRecordingByNodeId();
+    return getFn(this.node().id);
   });
 
   protected recordingDuration = signal<number>(0);
   private recordingInterval: any = null;
+
+  // UI state
+  isExpanded = signal<boolean>(false);
 
   statusBadge(): {
     variant: 'primary' | 'success' | 'neutral' | 'warning' | 'danger';
     label: string;
   } {
     const status = this.status();
-    const enabled = (this.node().data as any).enabled;
+    const enabled = this.node().data.enabled;
 
     if (!enabled) {
       return { variant: 'neutral', label: 'Disabled' };
@@ -97,65 +105,105 @@ export class FlowCanvasNodeComponent implements OnDestroy {
   }
 
   getNodeName(): string {
-    return (this.node().data as any).name || this.node().id;
+    return this.node().data.name || this.node().id;
   }
 
   getNodeDriver(): string {
-    return (this.node().data as any).driver || 'N/A';
-  }
-
-  getNodeTopicPrefix(): string {
-    return (this.node().data as any).topic_prefix || 'N/A';
-  }
-
-  getNodeSensorCount(): number {
-    return (this.node().data as any).sensor_ids?.length || 0;
-  }
-
-  getNodePipeline(): string {
-    return (this.node().data as any).pipeline || 'default';
+    return (this.node().data.config as any).driver || 'N/A';
   }
 
   isNodeEnabled(): boolean {
-    return (this.node().data as any).enabled || false;
+    return this.node().data.enabled || false;
   }
 
-  // Additional data extraction methods for sensor nodes
-  getNodeMode(): string {
-    return (this.node().data as any).mode || 'N/A';
+  getNodeIcon(): string {
+    if (this.node().type === 'sensor') return 'sensors';
+    if (this.node().type === 'fusion') return 'hub';
+
+    // Operation specific icons
+    const opType = (this.node().data.config as any).op_type;
+    if (opType === 'crop') return 'crop';
+    if (opType === 'downsample') return 'grid_view';
+    if (opType === 'outlier_removal') return 'auto_fix_normal';
+
+    return 'settings_input_component';
   }
 
-  getNodePipelineName(): string {
-    const pipeline = (this.node().data as any).pipeline_name;
-    return pipeline && pipeline !== 'none' ? pipeline : 'None';
-  }
+  getConfigProperties(): {
+    label: string;
+    value: string;
+    isBadge?: boolean;
+    badgeVariant?: 'primary' | 'success' | 'neutral' | 'warning' | 'danger';
+  }[] {
+    const dataConfig = this.node().data.config as any;
+    const config = dataConfig.op_config ? { ...dataConfig.op_config } : { ...dataConfig };
 
-  getNodePcdPath(): string | null {
-    return (this.node().data as any).pcd_path || null;
-  }
+    // Remove metadata/internal fields from display
+    delete config.op_type;
+    delete config.topic;
+    delete config.sensor_ids;
 
-  getNodePose(): { x: number; y: number; z: number } | null {
-    const pose = (this.node().data as any).pose;
-    if (pose) {
-      return {
-        x: pose.x || 0,
-        y: pose.y || 0,
-        z: pose.z || 0,
-      };
+    if (this.node().type === 'operation' && dataConfig.op_type) {
+      config['algorithm'] = dataConfig.op_type;
     }
-    return null;
-  }
 
-  getNodeImuUdpPort(): number | null {
-    const args = (this.node().data as any).launch_args || '';
-    const imuPortMatch = args.match(/imu_udp_port:=(\d+)/);
-    return imuPortMatch ? parseInt(imuPortMatch[1]) : null;
-  }
+    const params: {
+      label: string;
+      value: string;
+      isBadge?: boolean;
+      badgeVariant?: 'primary' | 'success' | 'neutral' | 'warning' | 'danger';
+    }[] = [];
 
-  getNodeHostname(): string | null {
-    const args = (this.node().data as any).launch_args || '';
-    const hostMatch = args.match(/hostname:=([\d\.]+)/);
-    return hostMatch ? hostMatch[1] : null;
+    const processValue = (key: string, val: any) => {
+      if (val === undefined || val === null || val === '') return;
+
+      if (typeof val === 'object' && !Array.isArray(val)) {
+        // Recursively unpack nested objects without hardcoding
+        Object.entries(val).forEach(([subKey, subVal]) => {
+          processValue(`${key}_${subKey}`, subVal);
+        });
+        return;
+      }
+
+      let displayVal = '';
+      if (Array.isArray(val)) {
+        displayVal = `[${val.map((v) => (typeof v === 'number' ? v.toFixed(1) : v)).join(',')}]`;
+      } else if (typeof val === 'number') {
+        if (key.toLowerCase().includes('port') || Number.isInteger(val)) {
+          displayVal = val.toString();
+        } else {
+          displayVal = val.toFixed(2);
+        }
+      } else {
+        displayVal = String(val);
+      }
+
+      // Special string formatting
+      if (key === 'pcd_path') {
+        displayVal = displayVal.split('/').pop() || displayVal;
+      }
+      if (key === 'pipeline_name' && displayVal === 'none') return;
+
+      let label = key.replace(/_/g, ' ');
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+
+      let isBadge = false;
+      let badgeVariant: 'primary' | 'success' | 'neutral' | 'warning' | 'danger' = 'primary';
+
+      if (key === 'mode') {
+        isBadge = true;
+        badgeVariant = val === 'real' ? 'primary' : 'neutral';
+        displayVal = val === 'real' ? 'Hardware' : 'Simulation';
+      }
+
+      params.push({ label, value: displayVal, isBadge, badgeVariant });
+    };
+
+    Object.entries(config).forEach(([key, val]) => {
+      processValue(key, val);
+    });
+
+    return params.slice(0, 20); // Show up to 20 params dynamically
   }
 
   getFrameAge(): string | null {
@@ -167,9 +215,9 @@ export class FlowCanvasNodeComponent implements OnDestroy {
     // Handle both lidar and fusion nodes
     let age: number | null = null;
     if ('frame_age_seconds' in status) {
-      age = (status as LidarNodeStatus).frame_age_seconds;
+      age = (status as LidarNodeStatus).frame_age_seconds ?? null;
     } else if ('broadcast_age_seconds' in status) {
-      age = (status as FusionNodeStatus).broadcast_age_seconds;
+      age = (status as FusionNodeStatus).broadcast_age_seconds ?? null;
     }
 
     if (age === null) {
@@ -194,9 +242,9 @@ export class FlowCanvasNodeComponent implements OnDestroy {
     // Handle both lidar and fusion nodes
     let age: number | null = null;
     if ('frame_age_seconds' in status) {
-      age = (status as LidarNodeStatus).frame_age_seconds;
+      age = (status as LidarNodeStatus).frame_age_seconds ?? null;
     } else if ('broadcast_age_seconds' in status) {
-      age = (status as FusionNodeStatus).broadcast_age_seconds;
+      age = (status as FusionNodeStatus).broadcast_age_seconds ?? null;
     }
 
     if (age === null) {
@@ -215,9 +263,9 @@ export class FlowCanvasNodeComponent implements OnDestroy {
     // Handle both lidar and fusion nodes
     let age: number | null = null;
     if ('frame_age_seconds' in status) {
-      age = (status as LidarNodeStatus).frame_age_seconds;
+      age = (status as LidarNodeStatus).frame_age_seconds ?? null;
     } else if ('broadcast_age_seconds' in status) {
-      age = (status as FusionNodeStatus).broadcast_age_seconds;
+      age = (status as FusionNodeStatus).broadcast_age_seconds ?? null;
     }
 
     if (age === null) {
@@ -229,24 +277,33 @@ export class FlowCanvasNodeComponent implements OnDestroy {
 
   // Recording functionality
   protected getNodeTopicForRecording(): string | null {
-    const data = this.node().data as any;
-    
+    const data = this.node().data;
+    const config = data.config as any;
+    const s = this.status() as any;
+
     if (this.node().type === 'sensor') {
       // For sensors, use processed_topic or raw_topic or construct from topic_prefix
-      return data.processed_topic || data.raw_topic || (data.topic_prefix ? `${data.topic_prefix}_raw_points` : null);
+      return (
+        s?.raw_topic ||
+        config.processed_topic ||
+        config.raw_topic ||
+        (config.topic_prefix ? `${config.topic_prefix}_raw_points` : null)
+      );
     } else if (this.node().type === 'fusion') {
       // For fusion nodes, use the topic field
-      return data.topic || null;
+      return s?.topic || config.topic || null;
+    } else if (this.node().type === 'operation') {
+      // For operation nodes, grab exactly the topic field we just added
+      // Need to handle both nested and flat config structures
+      return s?.topic || config.topic || (config.op_config && config.op_config.topic) || null;
     }
-    
+
     return null;
   }
 
   protected async toggleRecording(): Promise<void> {
-    const topic = this.getNodeTopicForRecording();
-    if (!topic) return;
-
-    const nodeData = this.node().data as any;
+    const data = this.node().data;
+    const config = data.config as any;
 
     if (this.isRecording()) {
       // Stop recording
@@ -264,26 +321,29 @@ export class FlowCanvasNodeComponent implements OnDestroy {
       // Start recording
       try {
         const metadata: any = {
-          node_name: nodeData.name,
+          node_name: data.name,
           node_type: this.node().type,
+          node_id: data.id,
         };
 
         if (this.node().type === 'sensor') {
-          metadata.sensor_id = nodeData.id;
-          metadata.mode = nodeData.mode;
-          metadata.pipeline = nodeData.pipeline_name;
-          metadata.pose = nodeData.pose;
+          metadata.sensor_id = data.id;
+          metadata.mode = config.mode;
+          metadata.pipeline = config.pipeline_name;
+          metadata.pose = config.pose;
         } else if (this.node().type === 'fusion') {
-          metadata.fusion_id = nodeData.id;
-          metadata.sensor_ids = nodeData.sensor_ids;
-          metadata.pipeline = nodeData.pipeline;
+          metadata.fusion_id = data.id;
+          metadata.sensor_ids = config.sensor_ids;
+          metadata.pipeline = config.pipeline;
         }
 
-        await this.recordingApi.startRecording({
-          topic,
-          name: `${nodeData.name} Recording`,
-          metadata,
-        }).toPromise();
+        await this.recordingApi
+          .startRecording({
+            node_id: data.id,
+            name: `${data.name} Recording`,
+            metadata,
+          })
+          .toPromise();
         await this.recordingStore.loadRecordings();
         this.startRecordingTimer();
       } catch (error) {
@@ -295,7 +355,7 @@ export class FlowCanvasNodeComponent implements OnDestroy {
   private startRecordingTimer(): void {
     this.recordingDuration.set(0);
     this.recordingInterval = setInterval(() => {
-      this.recordingDuration.update(d => d + 1);
+      this.recordingDuration.update((d) => d + 1);
     }, 1000);
   }
 

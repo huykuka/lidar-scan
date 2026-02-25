@@ -2,3 +2,32 @@
 
 @import "tailwindcss";
 
+
+/* Custom scrollbar class for smooth aesthetics */
+.syn-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.syn-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.syn-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.syn-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
+}
+
+.syn-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+.syn-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}
