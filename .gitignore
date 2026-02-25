@@ -20,7 +20,7 @@ app/static/*
 
 # Local dev database
 config/
-recordings/
+/recordings/
 
 # Web/frontend
 web/.env*
