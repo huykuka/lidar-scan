@@ -101,9 +101,13 @@ class NodeManager:
 
         for node_id, node_instance in self.nodes.items():
             if hasattr(node_instance, "start"):
+                logger.info(f"Starting node {node_id} (has start method)")
                 node_instance.start(self.data_queue, self.node_runtime_status)
             elif hasattr(node_instance, "enable"):
+                logger.info(f"Enabling node {node_id} (has enable method)")
                 node_instance.enable()
+            else:
+                logger.warning(f"Node {node_id} has neither start() nor enable() method")
                 
         self._listener_task = asyncio.create_task(self._queue_listener())
 
@@ -196,7 +200,7 @@ class NodeManager:
         topic = f"{node_name}_{source_id[:8]}"
         
         # 1. WebSocket Broadcasting (if anyone is listening)
-        if "points" in payload and self.has_subscribers(topic):
+        if "points" in payload and manager.has_subscribers(topic):
             try:
                 from app.services.shared.binary import pack_points_binary
                 import asyncio
@@ -229,20 +233,5 @@ class NodeManager:
                     await target_node.on_input(payload)
                 except Exception as e:
                     logger.error(f"Error forwarding data from {source_id} to {target_id}: {e}")
-
-    def has_subscribers(self, topic: str) -> bool:
-        """Checks if anyone is listening to this topic (WebSocket or Recorder)."""
-        from app.services.shared.recorder import get_recorder
-        
-        # Check active websocket connections
-        if topic in manager.active_connections and len(manager.active_connections[topic]) > 0:
-            return True
-        
-        # Check active recordings
-        recorder = get_recorder()
-        if recorder.is_recording(topic):
-            return True
-            
-        return False
 
 
