@@ -22,7 +22,6 @@ node_schema_registry.register(NodeDefinition(
     description="Interface for physical SICK sensors or PCD file simulations",
     icon="sensors",
     properties=[
-        PropertySchema(name="topic_prefix", label="Topic Prefix", type="string", default="sensor", help_text="Prefix for ROS topics"),
         PropertySchema(name="mode", label="Mode", type="select", default="real", options=[
             {"label": "Hardware (Real)", "value": "real"},
             {"label": "Simulation (PCD)", "value": "sim"}
