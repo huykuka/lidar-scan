@@ -10,6 +10,7 @@ def slugify_topic_prefix(name: str) -> str:
     Converts a name into a URL-friendly, stable topic prefix.
     
     Rules:
+    - Convert to lowercase for case-insensitive uniqueness
     - Replace non-alphanumeric characters (except _ and -) with underscore
     - Collapse multiple underscores into one
     - Strip leading/trailing underscores and hyphens
@@ -19,18 +20,23 @@ def slugify_topic_prefix(name: str) -> str:
         name: Raw name to convert
     
     Returns:
-        Slugified topic prefix
+        Lowercase slugified topic prefix
     
     Examples:
         >>> slugify_topic_prefix("Front Lidar #1")
-        'Front_Lidar_1'
+        'front_lidar_1'
+        >>> slugify_topic_prefix("Crop Filter")
+        'crop_filter'
         >>> slugify_topic_prefix("test__sensor--name")
         'test_sensor_name'
         >>> slugify_topic_prefix("")
         'sensor'
     """
-    # Replace non [A-Za-z0-9_-] with underscore
-    base = re.sub(r"[^A-Za-z0-9_-]+", "_", (name or "").strip())
+    # Convert to lowercase first
+    base = (name or "").strip().lower()
+    
+    # Replace non [a-z0-9_-] with underscore
+    base = re.sub(r"[^a-z0-9_-]+", "_", base)
     
     # Collapse repeats, strip edges
     base = re.sub(r"_+", "_", base).strip("_-")
@@ -47,24 +53,24 @@ def generate_unique_topic_prefix(
     Generates a unique topic prefix, adding suffixes if needed to avoid collisions.
     
     Strategy:
-    1. Try the slugified desired prefix
+    1. Try the slugified desired prefix (lowercase)
     2. If taken, append a shortened sensor_id suffix
     3. If still taken, append incrementing numbers
     
     Args:
-        desired: Desired topic prefix (will be slugified)
+        desired: Desired topic prefix (will be slugified to lowercase)
         sensor_id: Sensor ID to use for suffix generation
         existing_prefixes: Set of already-used topic prefixes
     
     Returns:
-        Unique topic prefix (not in existing_prefixes)
+        Unique lowercase topic prefix (not in existing_prefixes)
     
     Examples:
-        >>> generate_unique_topic_prefix("front", "abc123", {"rear"})
+        >>> generate_unique_topic_prefix("Front", "abc123", {"rear"})
         'front'
-        >>> generate_unique_topic_prefix("front", "abc123", {"front"})
+        >>> generate_unique_topic_prefix("Front", "abc123", {"front"})
         'front_abc123'
-        >>> generate_unique_topic_prefix("front", "abc123", {"front", "front_abc123"})
+        >>> generate_unique_topic_prefix("Front", "abc123", {"front", "front_abc123"})
         'front_abc123_2'
     """
     base = slugify_topic_prefix(desired)

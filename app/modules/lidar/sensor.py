@@ -176,17 +176,22 @@ class LidarSensor(ModuleNode):
 
     def get_status(self, runtime_status: Dict[str, Any]) -> Dict[str, Any]:
         """Returns standard status for this node"""
+        from app.services.shared.topics import slugify_topic_prefix
+        
         runtime = runtime_status.get(self.id, {}).copy()
         last_frame_at = runtime.get("last_frame_at")
         frame_age = time.time() - last_frame_at if last_frame_at else None
+        
+        # Generate topic using same format as orchestrator: {slugified_name}_{node_id[:8]}
+        safe_name = slugify_topic_prefix(self.name)
+        actual_topic = f"{safe_name}_{self.id[:8]}"
         
         status = {
             "id": self.id,
             "name": self.name,
             "type": "sensor",
             "mode": self.mode,
-            "topic_prefix": self.topic_prefix,
-            "raw_topic": f"{self.topic_prefix}_raw_points",
+            "topic": actual_topic,  # Match orchestrator format
             "running": (self._process.is_alive() if self._process else False),
             "connection_status": runtime.get("connection_status", "unknown"),
             "last_frame_at": last_frame_at,

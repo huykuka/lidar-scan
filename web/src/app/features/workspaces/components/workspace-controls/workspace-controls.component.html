@@ -15,9 +15,13 @@
           placeholder="Select topic to add..."
           class="w-full"
         >
-          <syn-option *ngFor="let topic of availableTopics()" [value]="topic">{{
-            topic
-          }}</syn-option>
+          <syn-option 
+            *ngFor="let topic of availableTopics()" 
+            [value]="topic"
+            [title]="topic"
+          >
+            {{ topic }}
+          </syn-option>
         </syn-select>
       </div>
 
@@ -50,7 +54,7 @@
             />
 
             <!-- Topic Name -->
-            <div class="flex-1 min-w-0">
+            <div class="flex-1 min-w-0" [title]="topicConfig.topic">
               <div class="text-sm font-medium text-syn-color-neutral-900 truncate">
                 {{ topicConfig.topic }}
               </div>
@@ -104,7 +108,13 @@
           placeholder="Select topic..."
           class="w-full"
         >
-          <syn-option *ngFor="let topic of topics()" [value]="topic">{{ topic }}</syn-option>
+          <syn-option 
+            *ngFor="let topic of topics()" 
+            [value]="topic"
+            [title]="topic"
+          >
+            {{ topic }}
+          </syn-option>
         </syn-select>
         
         <!-- Capture PCD for legacy mode -->

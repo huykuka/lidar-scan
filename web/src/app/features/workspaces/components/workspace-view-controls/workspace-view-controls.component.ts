@@ -10,7 +10,7 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
   imports: [CommonModule, SynergyComponentsModule, WorkspaceViewControlsButtonComponent],
   template: `
     <div
-      class="absolute left-4 top-0 bottom-0 flex flex-col justify-center items-start opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300 py-2 sm:py-4 pointer-events-none z-50"
+      class="absolute left-4 top-0 bottom-0 flex flex-col justify-center items-start transition-opacity duration-300 py-2 sm:py-4 pointer-events-none z-50"
     >
       <div
         class="flex flex-col items-center justify-center gap-1 bg-black/40 backdrop-blur-xl p-1.5 rounded-2xl border border-white/15 shadow-2xl pointer-events-auto max-h-full overflow-y-auto"
@@ -20,20 +20,6 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
           [icon]="showHud() ? 'visibility_off' : 'visibility'"
           [active]="showHud()"
           (clicked)="toggleHud()"
-        ></app-workspace-view-controls-button>
-
-        <app-workspace-view-controls-button
-          label="Grid"
-          icon="grid_on"
-          [active]="showGrid()"
-          (clicked)="toggleGrid()"
-        ></app-workspace-view-controls-button>
-
-        <app-workspace-view-controls-button
-          label="Axes"
-          icon="trip_origin"
-          [active]="showAxes()"
-          (clicked)="toggleAxes()"
         ></app-workspace-view-controls-button>
 
         <div class="h-px w-6 bg-white/15 my-1 hidden sm:block"></div>
@@ -118,13 +104,5 @@ export class WorkspaceViewControlsComponent {
 
   toggleHud() {
     this.store.set('showHud', !this.showHud());
-  }
-
-  toggleGrid() {
-    this.store.set('showGrid', !this.showGrid());
-  }
-
-  toggleAxes() {
-    this.store.set('showAxes', !this.showAxes());
   }
 }

@@ -54,6 +54,7 @@ class ActiveRecordingResponse(BaseModel):
     duration_seconds: float
     started_at: str
     metadata: dict | None = None
+    status: str = "recording"  # "recording" or "stopping"
 
 
 class ListRecordingsResponse(BaseModel):
@@ -131,17 +132,20 @@ async def start_recording(
 @router.post("/recordings/{recording_id}/stop")
 async def stop_recording(
     recording_id: str,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)]
 ):
     """
     Stop an active recording and save to database.
+    Returns immediately with 'stopping' status, finalization happens in background.
     
     Args:
         recording_id: Recording ID
+        background_tasks: FastAPI background tasks
         db: Database session
     
     Returns:
-        Recording information
+        Recording information with status='stopping'
     
     Raises:
         HTTPException: If recording not found
@@ -150,32 +154,60 @@ async def stop_recording(
     repo = RecordingRepository(db)
     
     try:
-        # Stop recording and get info
+        # Mark recording as stopping (returns immediately)
         info = await recorder.stop_recording(recording_id)
         
-        recording_data = {
-            "id": info["recording_id"],
-            "name": info["name"],
+        # Schedule finalization in background
+        async def finalize_and_save():
+            try:
+                # Finalize the recording (flush, compress, thumbnail)
+                final_info = await recorder.finalize_recording(recording_id)
+                
+                # Save to database
+                recording_data = {
+                    "id": final_info["recording_id"],
+                    "name": final_info["name"],
+                    "node_id": final_info["node_id"],
+                    "sensor_id": final_info["metadata"].get("sensor_id"),
+                    "file_path": final_info["file_path"],
+                    "file_size_bytes": final_info["file_size_bytes"],
+                    "frame_count": final_info["frame_count"],
+                    "duration_seconds": final_info["duration_seconds"],
+                    "recording_timestamp": final_info["metadata"].get("recording_timestamp", datetime.now(timezone.utc).isoformat()),
+                    "metadata": final_info["metadata"],
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                if final_info.get("thumbnail_path"):
+                    recording_data["thumbnail_path"] = final_info["thumbnail_path"]
+                
+                # Need a new DB session for background task
+                from app.db.models import get_db
+                db_gen = get_db()
+                bg_db = next(db_gen)
+                try:
+                    bg_repo = RecordingRepository(bg_db)
+                    bg_repo.create(recording_data)
+                    logger.info(f"Background: Saved recording {recording_id} to database")
+                finally:
+                    bg_db.close()
+                    
+            except Exception as e:
+                logger.error(f"Background: Error finalizing recording {recording_id}: {e}", exc_info=True)
+        
+        background_tasks.add_task(finalize_and_save)
+        
+        logger.info(f"Stopping recording {recording_id} (finalization in background)")
+        
+        # Return immediate response with stopping status
+        return {
+            "recording_id": info["recording_id"],
             "node_id": info["node_id"],
-            "sensor_id": info["metadata"].get("sensor_id"),
-            "file_path": info["file_path"],
-            "file_size_bytes": info["file_size_bytes"],
+            "status": info["status"],
             "frame_count": info["frame_count"],
             "duration_seconds": info["duration_seconds"],
-            "recording_timestamp": info["metadata"].get("recording_timestamp", datetime.now(timezone.utc).isoformat()),
-            "metadata": info["metadata"],
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "message": "Recording is stopping, finalization in progress..."
         }
-        
-        if info.get("thumbnail_path"):
-            recording_data["thumbnail_path"] = info["thumbnail_path"]
-            logger.info(f"Using recorder-generated thumbnail for {recording_id}")
-        
-        saved = repo.create(recording_data)
-        
-        logger.info(f"Stopped and saved recording {recording_id}")
-        
-        return saved
     
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")

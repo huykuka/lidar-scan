@@ -7,7 +7,7 @@ import re
 import asyncio
 import json
 
-LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config', 'logs', 'lidar_standalone.log')
+from app.core.logging import LOG_FILE
 
 router = APIRouter()
 
@@ -30,12 +30,12 @@ def get_logs(
     offset: int = Query(0, description="Starting row (0 is last/latest entry)"),
     limit: int = Query(100, description="Number of entries to return, max 500"),
 ) -> List[Dict[str, Any]]:
-    if not os.path.exists(LOG_PATH):
+    if not os.path.exists(LOG_FILE):
         return []
 
     results = []
     count = 0
-    with open(LOG_PATH, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()
     entries = (parse_log_line(l) for l in reversed(lines))
     

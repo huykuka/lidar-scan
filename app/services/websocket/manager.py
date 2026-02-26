@@ -19,6 +19,7 @@ class ConnectionManager:
 
     def register_topic(self, topic: str):
         """Pre-registers a topic so it appears in the topic list even with no active connections."""
+        topic = topic.lower()
         if topic not in self.active_connections:
             self.active_connections[topic] = []
 

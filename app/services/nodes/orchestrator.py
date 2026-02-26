@@ -1,12 +1,12 @@
 import asyncio
 import multiprocessing as mp
 from typing import Any, Dict, List, Optional, cast
+from collections import defaultdict
 
-
-from app.services.websocket.manager import manager
-from app.services.shared.topics import TopicRegistry
 from app.core.logging import get_logger
 from app.repositories import NodeRepository, EdgeRepository
+from app.services.websocket.manager import manager
+from app.services.shared.topics import TopicRegistry, slugify_topic_prefix
 
 from .node_factory import NodeFactory
 
@@ -16,7 +16,7 @@ class NodeManager:
     def __init__(self):
         self.nodes_data: List[Dict[str, Any]] = []
         self.edges_data: List[Dict[str, Any]] = []
-        self.data_queue: Any = mp.Queue(maxsize=100)
+        self.data_queue: Any = mp.Queue(maxsize=500)  # Increased from 100 to handle 25 FPS bursts
         self.is_running = False
         self._loop: Any = None
         self._listener_task: Any = None
@@ -53,7 +53,8 @@ class NodeManager:
                         
                         # Register WebSocket topic for this node
                         node_name = getattr(node_instance, "name", node["id"])
-                        topic = f"{node_name}_{node['id'][:8]}"
+                        safe_name = slugify_topic_prefix(node_name)
+                        topic = f"{safe_name}_{node['id'][:8]}"
                         manager.register_topic(topic)
                         
                         logger.debug(f"Created {group_name} node: {node['id']} with topic: {topic}")
@@ -97,7 +98,7 @@ class NodeManager:
     def start(self, loop=None):
         self._loop = loop or asyncio.get_event_loop()
         self.is_running = True
-        self.data_queue = mp.Queue(maxsize=100)
+        self.data_queue = mp.Queue(maxsize=500)  # Increased from 100 to handle 25 FPS bursts
 
         for node_id, node_instance in self.nodes.items():
             if hasattr(node_instance, "start"):
@@ -133,7 +134,8 @@ class NodeManager:
 
         # Unregister WebSocket topic for this node
         node_name = getattr(node_instance, "name", node_id)
-        topic = f"{node_name}_{node_id[:8]}"
+        safe_name = slugify_topic_prefix(node_name)
+        topic = f"{safe_name}_{node_id[:8]}"
         manager.unregister_topic(topic)
 
         # Cleanup topological maps
@@ -155,7 +157,8 @@ class NodeManager:
             try:
                 if not self.data_queue.empty():
                     payload = await loop.run_in_executor(None, self.data_queue.get)
-                    await self._handle_incoming_data(payload)
+                    # Process frame concurrently without waiting (fire-and-forget)
+                    asyncio.create_task(self._handle_incoming_data(payload))
                 else:
                     await asyncio.sleep(0.005)
             except asyncio.CancelledError:
@@ -191,9 +194,10 @@ class NodeManager:
             logger.warning(f"forward_data called for unknown node: {source_id}")
             return
         
-        # Generate topic name: {node_name}_{node_id[:8]}
+        # Generate topic name: {slugified_node_name}_{node_id[:8]}
         node_name = getattr(source_node, "name", source_id)
-        topic = f"{node_name}_{source_id[:8]}"
+        safe_name = slugify_topic_prefix(node_name)
+        topic = f"{safe_name}_{source_id[:8]}"
         
         # 1. WebSocket Broadcasting (if anyone is listening)
         if "points" in payload and manager.has_subscribers(topic):

@@ -7,6 +7,7 @@ from app.core.logging import get_logger
 from app.services.websocket.manager import manager
 from app.services.nodes.instance import node_manager
 from app.repositories import NodeRepository
+from app.services.shared.topics import slugify_topic_prefix
 
 logger = get_logger("status_broadcaster")
 
@@ -31,9 +32,10 @@ def _build_status_message() -> Dict[str, Any]:
             status.setdefault("category", config.get("category"))
             status.setdefault("enabled", config.get("enabled", True))
             
-            # Auto-generate topic: {node_name}_{node_id[:8]}
+            # Auto-generate topic: {slugified_node_name}_{node_id[:8]}
             node_name = getattr(node_instance, "name", node_id)
-            status["topic"] = f"{node_name}_{node_id[:8]}"
+            safe_name = slugify_topic_prefix(node_name)
+            status["topic"] = f"{safe_name}_{node_id[:8]}"
             
             nodes_status.append(status)
         else:

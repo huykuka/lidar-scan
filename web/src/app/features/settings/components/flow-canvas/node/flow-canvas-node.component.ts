@@ -309,10 +309,12 @@ export class FlowCanvasNodeComponent implements OnDestroy {
       // Stop recording
       const recording = this.activeRecording();
       if (recording) {
+        // Stop timer immediately when user clicks stop
+        this.stopRecordingTimer();
+        
         try {
           await this.recordingApi.stopRecording(recording.recording_id).toPromise();
           await this.recordingStore.loadRecordings();
-          this.stopRecordingTimer();
         } catch (error) {
           console.error('Failed to stop recording:', error);
         }
@@ -337,6 +339,9 @@ export class FlowCanvasNodeComponent implements OnDestroy {
           metadata.pipeline = config.pipeline;
         }
 
+        // Start timer immediately when user clicks record
+        this.startRecordingTimer();
+
         await this.recordingApi
           .startRecording({
             node_id: data.id,
@@ -345,9 +350,10 @@ export class FlowCanvasNodeComponent implements OnDestroy {
           })
           .toPromise();
         await this.recordingStore.loadRecordings();
-        this.startRecordingTimer();
       } catch (error) {
         console.error('Failed to start recording:', error);
+        // Stop timer if recording failed to start
+        this.stopRecordingTimer();
       }
     }
   }

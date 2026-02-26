@@ -20,7 +20,7 @@
         [alt]="recording.name + ' thumbnail'"
         (load)="onThumbnailLoad(recording.id)"
         (error)="onThumbnailError(recording.id)"
-        [width]="200"
+        [width]="140"
       />
       @if (isLoadingThumbnail(recording.id)) {
         <div class="absolute inset-0 flex items-center justify-center bg-slate-900/50">

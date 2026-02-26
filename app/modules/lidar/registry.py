@@ -85,12 +85,9 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     sensor_name = name or sensor_id
     desired_prefix = topic_prefix or sensor_name
     
-    # Avoid duplicate static prefixes by concatenating name and truncated ID
-    short_id = sensor_id[:6]
-    if short_id not in desired_prefix:
-        desired_prefix = f"{desired_prefix}_{short_id}"
-        
-    final_topic_prefix = service_context._topic_registry.register(desired_prefix, sensor_id)
+    # Register unique topic prefix using same format as orchestrator (8 chars of ID)
+    # The TopicRegistry will automatically slugify and ensure uniqueness
+    final_topic_prefix = service_context._topic_registry.register(desired_prefix, sensor_id[:8])
 
     sensor = LidarSensor(
         manager=service_context,

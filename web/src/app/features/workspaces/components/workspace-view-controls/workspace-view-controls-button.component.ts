@@ -29,10 +29,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
     `
       .wv-btn {
         --syn-button-color-text: white;
-      }
-
-      :host ::ng-deep .button--text {
-        color: #f2f0ed;
+        --syn-color-primary-600: white;
       }
 
       /* Icon-only button: make padding visually square/centered.
@@ -42,6 +39,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
       .wv-btn::part(control) {
         padding: 6px;
         min-width: 32px;
+        color: white;
       }
 
       .wv-btn syn-icon {
