@@ -21,7 +21,7 @@ export const pageTransition = trigger('routeAnimations', [
       [
         style({
           opacity: 0,
-          transform: 'translateX(-30px)',
+          transform: 'scale(0.95)',
         }),
       ],
       { optional: true },
@@ -31,10 +31,10 @@ export const pageTransition = trigger('routeAnimations', [
         ':leave',
         [
           animate(
-            '250ms ease-in',
+            '200ms ease-in',
             style({
               opacity: 0,
-              transform: 'translateX(30px)',
+              transform: 'scale(0.95)',
             }),
           ),
         ],
@@ -44,10 +44,10 @@ export const pageTransition = trigger('routeAnimations', [
         ':enter',
         [
           animate(
-            '350ms 100ms ease-out',
+            '300ms 100ms ease-out',
             style({
               opacity: 1,
-              transform: 'translateX(0)',
+              transform: 'scale(1)',
             }),
           ),
         ],
