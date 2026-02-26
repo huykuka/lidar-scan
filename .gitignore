@@ -23,6 +23,7 @@ app/static/*
 config/
 /recordings/
 app
+/logs/
 
 # Web/frontend
 web/.env*
