@@ -27,6 +27,9 @@ class NodeModel(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     # Store all configurations (like topic_prefix, xyz, args) in a JSON string
     config_json: Mapped[str] = mapped_column("config", String, default="{}")
+    # Canvas position
+    x: Mapped[float] = mapped_column(Float, default=100.0)
+    y: Mapped[float] = mapped_column(Float, default=100.0)
 
     def to_dict(self) -> dict:
         import json
@@ -37,6 +40,8 @@ class NodeModel(Base):
             "category": self.category,
             "enabled": self.enabled,
             "config": json.loads(self.config_json) if self.config_json else {},
+            "x": self.x,
+            "y": self.y,
         }
 
 class EdgeModel(Base):

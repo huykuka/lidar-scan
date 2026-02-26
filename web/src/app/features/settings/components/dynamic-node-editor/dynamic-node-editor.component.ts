@@ -139,6 +139,8 @@ export class DynamicNodeEditorComponent {
         def.category === 'operation'
           ? { op_type: def.type, ...config } // flat: op_type + all schema props
           : config,
+      x: data.x ?? 100,
+      y: data.y ?? 100,
     };
 
     try {

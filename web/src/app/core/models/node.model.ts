@@ -5,6 +5,8 @@ export interface NodeConfig {
   category: 'sensor' | 'fusion' | 'operation';
   enabled: boolean;
   config: Record<string, any>;
+  x: number;
+  y: number;
 }
 
 export interface Edge {

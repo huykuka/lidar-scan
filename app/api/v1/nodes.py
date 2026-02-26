@@ -16,6 +16,8 @@ class NodeCreateUpdate(BaseModel):
     category: str
     enabled: bool = True
     config: Dict[str, Any] = {}
+    x: Optional[float] = None
+    y: Optional[float] = None
 
 class NodeStatusToggle(BaseModel):
     enabled: bool

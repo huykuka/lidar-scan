@@ -53,6 +53,8 @@ class NodeRepository:
             record_id = data.get("id") or uuid.uuid4().hex
             config_str = json.dumps(data.get("config", {}))
             enabled = data.get("enabled", True)
+            x = data.get("x", 100.0)
+            y = data.get("y", 100.0)
             
             existing = session.query(NodeModel).filter(NodeModel.id == record_id).first()
             if existing:
@@ -62,6 +64,10 @@ class NodeRepository:
                 existing.enabled = data.get("enabled", existing.enabled)
                 if "config" in data:
                     existing.config_json = config_str
+                if "x" in data:
+                    existing.x = data["x"]
+                if "y" in data:
+                    existing.y = data["y"]
             else:
                 node = NodeModel(
                     id=record_id,
@@ -69,7 +75,9 @@ class NodeRepository:
                     type=data.get("type", ""),
                     category=data.get("category", ""),
                     enabled=enabled,
-                    config_json=config_str
+                    config_json=config_str,
+                    x=x,
+                    y=y
                 )
                 session.add(node)
                 

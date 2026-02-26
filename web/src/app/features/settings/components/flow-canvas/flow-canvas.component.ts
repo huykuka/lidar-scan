@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, OnDestroy, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
@@ -41,6 +41,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   private dialogService = inject(DialogService);
   private pluginRegistry = inject(NodePluginRegistry);
   private statusWs = inject(StatusWebSocketService);
+
+  // Output for unsaved changes
+  hasUnsavedChangesChange = output<boolean>();
 
   protected nodes = this.nodeStore.nodes;
   protected edges = this.nodeStore.edges;
@@ -85,6 +88,10 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   // Node status — driven by WebSocket instead of HTTP polling
   protected nodesStatus = this.statusWs.status;
+  
+  // Track unsaved position changes
+  private unsavedPositions = new Map<string, { x: number; y: number }>();
+  public hasUnsavedChanges = signal(false);
 
   // Loading states
   protected isPaletteLoading = signal(true);
@@ -146,23 +153,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
         id: node.id,
         type: node.category,
         data: node,
-        position: this.loadNodePosition(node.id) || {
-          x: 100 + (index % 4) * 300,
-          y: 100 + Math.floor(index / 4) * 250,
+        position: {
+          x: node.x ?? (100 + (index % 4) * 300),
+          y: node.y ?? (100 + Math.floor(index / 4) * 250),
         },
       });
     });
 
     this.canvasNodes.set(nodes);
-  }
-
-  private loadNodePosition(nodeId: string): { x: number; y: number } | null {
-    const stored = localStorage.getItem(`node-position-${nodeId}`);
-    return stored ? JSON.parse(stored) : null;
-  }
-
-  private saveNodePosition(nodeId: string, position: { x: number; y: number }) {
-    localStorage.setItem(`node-position-${nodeId}`, JSON.stringify(position));
   }
 
   private updateConnections(): void {
@@ -259,7 +257,10 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
     if (this.draggingNode()) {
       const node = this.draggingNode()!;
-      this.saveNodePosition(node.id, node.position);
+      // Mark position as unsaved
+      this.unsavedPositions.set(node.id, node.position);
+      this.hasUnsavedChanges.set(true);
+      this.hasUnsavedChangesChange.emit(true);
       this.draggingNode.set(null);
       this.updateConnections();
     }
@@ -277,6 +278,41 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
       this.createNodeAtPosition(this.paletteDragType()!, { x, y });
       this.paletteDragType.set(null);
+    }
+  }
+
+  /**
+   * Save all unsaved node positions to the backend
+   * Called explicitly by the parent component (e.g., Save & Reload button)
+   */
+  async saveAllPositions(): Promise<void> {
+    if (this.unsavedPositions.size === 0) {
+      return; // Nothing to save
+    }
+
+    const savePromises: Promise<void>[] = [];
+    
+    this.unsavedPositions.forEach((position, nodeId) => {
+      const node = this.nodes().find((n) => n.id === nodeId);
+      if (node) {
+        savePromises.push(
+          this.nodesApi.upsertNode({
+            ...node,
+            x: position.x,
+            y: position.y,
+          }).then(() => {})
+        );
+      }
+    });
+
+    try {
+      await Promise.all(savePromises);
+      this.unsavedPositions.clear();
+      this.hasUnsavedChanges.set(false);
+      this.hasUnsavedChangesChange.emit(false);
+    } catch (error) {
+      console.error('Failed to save node positions', error);
+      throw error; // Re-throw to let parent handle
     }
   }
 
@@ -388,7 +424,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
 
     const defaultData = plugin.createInstance();
-    this.nodeStore.set('selectedNode', defaultData);
+    // Store position for new node
+    this.nodeStore.set('selectedNode', { ...defaultData, x: position.x, y: position.y });
     this.dialogService.open(DynamicNodeEditorComponent, {
       label: `Add ${plugin.displayName}`,
     });
@@ -423,7 +460,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
         this.edges().filter((e) => e.source_node !== node.id && e.target_node !== node.id),
       );
 
-      localStorage.removeItem(`node-position-${node.id}`);
       this.toast.success(`${name} deleted.`);
     } catch (error) {
       console.error('Failed to delete node', error);

@@ -1,4 +1,4 @@
-import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationService } from '../../core/services/navigation.service';
@@ -34,6 +34,8 @@ import { ToastService } from '../../core/services/toast.service';
   ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
+  @ViewChild(FlowCanvasComponent) flowCanvas!: FlowCanvasComponent;
+  
   private navService = inject(NavigationService);
   private lidarApi = inject(LidarApiService);
   private fusionApi = inject(FusionApiService);
@@ -73,6 +75,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
   // Form State
   protected editMode = this.nodeStore.editMode;
   protected selectedNode = this.nodeStore.selectedNode;
+  
+  // Computed signal for unsaved changes
+  protected hasUnsavedChanges = signal(false);
 
   protected lidarNameById(id?: string): string {
     if (!id) return '';
@@ -314,11 +319,16 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   async onReloadConfig() {
     try {
+      // Save any unsaved node positions before reloading
+      if (this.flowCanvas && this.flowCanvas.hasUnsavedChanges()) {
+        await this.flowCanvas.saveAllPositions();
+      }
+      
       await this.nodesApi.reloadConfig();
       await this.loadConfig();
-      this.toast.success('Configuration reloaded.');
+      this.toast.success('Configuration saved and reloaded.');
     } catch (error) {
-      console.error('Failed to reload config', error);
+      console.error('Failed to reload config:', error);
       this.toast.danger('Failed to reload backend configuration.');
     }
   }

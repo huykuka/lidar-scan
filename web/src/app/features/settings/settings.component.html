@@ -27,7 +27,7 @@
             <syn-icon slot="prefix" name="upload"></syn-icon>Import
           </syn-button>
           <syn-button variant="outline" size="small" (click)="onReloadConfig()">
-            <syn-icon slot="prefix" name="refresh"></syn-icon>Reload
+            <syn-icon slot="prefix" name="save"></syn-icon>Save & Reload
           </syn-button>
 
           @if (isSystemRunning()) {
@@ -45,7 +45,7 @@
 
     <!-- Flow Canvas -->
     <div class="flex-1 overflow-hidden">
-      <app-flow-canvas />
+      <app-flow-canvas (hasUnsavedChangesChange)="hasUnsavedChanges.set($event)" />
     </div>
   </div>
 
