@@ -65,7 +65,7 @@ async def _status_broadcast_loop():
             await manager.broadcast("system_status", status)
         except Exception as e:
             logger.exception("[StatusBroadcaster] Error broadcasting status:")
-        # Wait 2 seconds before next broadcast
+        # Wait 0.5 seconds before next broadcast
         try:
             await asyncio.wait_for(_stop_event.wait(), timeout=0.5)
             break  # Stop event was set
