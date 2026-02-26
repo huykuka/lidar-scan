@@ -47,11 +47,13 @@ class FusionService(ModuleNode):
         self.name = f"Fusion ({self.id[:8]})"
         self._filter: Optional[Set[str]] = set(sensor_ids) if sensor_ids else None
         self._latest_frames: Dict[str, np.ndarray] = {}
-        self._enabled = False
+        self._enabled = True
 
         self.last_broadcast_at: Optional[float] = None
         self.last_broadcast_ts: Optional[float] = None
         self.last_error: Optional[str] = None
+        
+        print(f"[Fusion {self.id[:8]}] CREATED with sensor_ids={sensor_ids}, enabled={self._enabled}")
 
     async def on_input(self, payload: Dict[str, Any]):
         """Standard input port for the NodeManager to push data into."""
