@@ -3,7 +3,7 @@ Unit tests for topics module - topic prefix generation and management.
 """
 import pytest
 
-from app.services.lidar.core.topics import (
+from app.services.shared.topics import (
     slugify_topic_prefix,
     generate_unique_topic_prefix,
     TopicRegistry

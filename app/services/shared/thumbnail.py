@@ -156,7 +156,7 @@ def generate_thumbnail_from_file(
         True if successful, False otherwise
     """
     try:
-        from app.services.lidar.protocol.recording import RecordingReader
+        from app.services.modules.lidar.protocol.recording import RecordingReader
         
         recording_path = Path(recording_path)
         

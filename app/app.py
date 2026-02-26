@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.db.migrate import ensure_schema
 from app.db.session import init_engine
 from app.services.nodes.instance import node_manager
-from app.services.lidar.recorder import get_recorder
+from app.services.shared.recorder import get_recorder
 from app.services.status_broadcaster import start_status_broadcaster, stop_status_broadcaster
 from app.services.websocket.manager import manager
 

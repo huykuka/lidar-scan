@@ -1,7 +1,9 @@
 """
-Recording file format for LiDAR data archives.
+Recording file format for point cloud data archives.
 
-Implements a ZIP-based PCD archive format for compatibility and compression:
+Implements a ZIP-based PCD archive format for compatibility and compression.
+This format is generic and can be used by any node that produces point cloud data
+(LiDAR sensors, fusion nodes, processing operations, etc.).
 
 File Structure (ZIP):
     - metadata.json: Contains recording metadata, timestamps, and frame counts.

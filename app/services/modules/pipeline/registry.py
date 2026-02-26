@@ -1,57 +1,18 @@
+"""
+Node registry for the pipeline operations module.
+
+This module registers all Open3D point cloud operation node types with the
+DAG orchestrator. Loaded automatically via discover_modules() at application startup.
+"""
 from typing import Any, Dict, List
-from .node_factory import NodeFactory
-from .schema import NodeDefinition, PropertySchema, PortSchema, node_schema_registry
+from app.services.nodes.node_factory import NodeFactory
+from app.services.nodes.schema import (
+    NodeDefinition, PropertySchema, PortSchema, node_schema_registry
+)
+
 
 # --- Schema Definitions ---
-
-# Sensor Schema
-node_schema_registry.register(NodeDefinition(
-    type="sensor",
-    display_name="LiDAR Sensor",
-    category="sensor",
-    description="Interface for physical SICK sensors or PCD file simulations",
-    icon="sensors",
-    properties=[
-        PropertySchema(name="topic_prefix", label="Topic Prefix", type="string", default="sensor", help_text="Prefix for ROS topics"),
-        PropertySchema(name="mode", label="Mode", type="select", default="real", options=[
-            {"label": "Hardware (Real)", "value": "real"},
-            {"label": "Simulation (PCD)", "value": "sim"}
-        ]),
-        PropertySchema(name="hostname", label="Hostname", type="string", default="192.168.100.124", help_text="Lidar IP address"),
-        PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10", help_text="Host IP address receiving data"),
-        PropertySchema(name="udp_port", label="UDP Port", type="number", default=2667),
-        PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7511),
-        PropertySchema(name="pcd_path", label="PCD Path", type="string", default="", help_text="Path to .pcd file (simulation only)"),
-        PropertySchema(name="x", label="Pos X", type="number", default=0.0, step=0.01),
-        PropertySchema(name="y", label="Pos Y", type="number", default=0.0, step=0.01),
-        PropertySchema(name="z", label="Pos Z", type="number", default=0.0, step=0.01),
-        PropertySchema(name="roll", label="Roll", type="number", default=0.0, step=0.1),
-        PropertySchema(name="pitch", label="Pitch", type="number", default=0.0, step=0.1),
-        PropertySchema(name="yaw", label="Yaw", type="number", default=0.0, step=0.1),
-    ],
-    outputs=[
-        PortSchema(id="raw_points", label="Raw Points"),
-        PortSchema(id="processed_points", label="Processed Points")
-    ]
-))
-
-# Fusion Schema
-node_schema_registry.register(NodeDefinition(
-    type="fusion",
-    display_name="Multi-Sensor Fusion",
-    category="fusion",
-    description="Merges multiple point cloud streams into a unified coordinate system",
-    icon="hub",
-    properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="fused_points"),
-    ],
-    inputs=[
-        PortSchema(id="sensor_inputs", label="Inputs", multiple=True)
-    ],
-    outputs=[
-        PortSchema(id="fused_output", label="Fused")
-    ]
-))
+# Each operation defines how it appears in the Angular flow-canvas UI
 
 # Crop Operation Schema
 node_schema_registry.register(NodeDefinition(
@@ -207,88 +168,13 @@ node_schema_registry.register(NodeDefinition(
 ))
 
 
-@NodeFactory.register("sensor")
-def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
-    from app.services.lidar.sensor import LidarSensor  # lazy import avoids circular dep
-    from app.services.websocket.manager import manager
-    import os
-    config = node.get("config", {})
-    mode = config.get("mode", "real")
-
-    # Resolve pcd_path for sim mode: fall back to env var, then make absolute
-    pcd_path = config.get("pcd_path") or ""
-    if mode == "sim" and not pcd_path:
-        pcd_path = os.environ.get("LIDAR_PCD_PATH", "")
-    if pcd_path and not os.path.isabs(pcd_path):
-        # Resolve relative to the project root (two levels above this package)
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-        pcd_path = os.path.join(project_root, pcd_path.lstrip("./"))
-
-    hostname = config.get("hostname", "192.168.100.124")
-    udp_receiver_ip = config.get("udp_receiver_ip", "192.168.100.10")
-    udp_port = config.get("udp_port", 2667)
-    imu_udp_port = config.get("imu_udp_port", 7511)
-    
-    launch_args = f"./launch/sick_multiscan.launch hostname:={hostname} udp_receiver_ip:={udp_receiver_ip} udp_port:={udp_port} imu_udp_port:={imu_udp_port}"
-
-    sensor_id = node["id"]
-    name = node.get("name")
-    topic_prefix = config.get("topic_prefix")
-    x = config.get("x", 0)
-    y = config.get("y", 0)
-    z = config.get("z", 0)
-    roll = config.get("roll", 0)
-    pitch = config.get("pitch", 0)
-    yaw = config.get("yaw", 0)
-
-    sensor_name = name or sensor_id
-    desired_prefix = topic_prefix or sensor_name
-    
-    # Avoid duplicate static prefixes by concatenating name and truncated ID
-    short_id = sensor_id[:6]
-    if short_id not in desired_prefix:
-        desired_prefix = f"{desired_prefix}_{short_id}"
-        
-    final_topic_prefix = service_context._topic_registry.register(desired_prefix, sensor_id)
-
-    sensor = LidarSensor(
-        manager=service_context,
-        sensor_id=sensor_id,
-        name=sensor_name,
-        topic_prefix=final_topic_prefix,
-        launch_args=launch_args,
-        mode=mode,
-        pcd_path=pcd_path or None
-    )
-    sensor.set_pose(x, y, z, roll, pitch, yaw)
-    
-    manager.register_topic(f"{final_topic_prefix}_raw_points")
-    return sensor
-
-@NodeFactory.register("fusion")
-def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
-    from app.services.lidar.sensor import LidarSensor  # lazy import
-    from app.services.fusion.service import FusionService  # lazy import
-    config = node.get("config", {})
-
-    incoming_edges = [e for e in edges if e["target_node"] == node["id"]]
-    sensor_ids = []
-    for e in incoming_edges:
-        source_id = e["source_node"]
-        source_node = service_context.nodes.get(source_id)
-        if isinstance(source_node, LidarSensor):
-            sensor_ids.append(source_id)
-
-    return FusionService(
-        service_context,
-        topic=config.get("topic", f"fused_{node['id'][:8]}"),
-        sensor_ids=sensor_ids,
-        fusion_id=node["id"]
-    )
+# --- Factory Builder ---
 
 @NodeFactory.register("operation")
 def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
+    """Build an OperationNode instance from persisted node configuration."""
     from .operation_node import OperationNode  # lazy import
+    
     config = node.get("config", {})
     # op_type can come from config.op_type or fall back to the node's own type (e.g. "crop")
     op_type = config.get("op_type") or node.get("type", "crop")
@@ -317,7 +203,7 @@ def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict
     topic = config.get("topic")
     if op_type in ["debug_save"]:
         topic = None
-    elif topic and "_" not in topic: # Prevent infinite extending suffix on reloads/renders
+    elif topic and "_" not in topic:  # Prevent infinite extending suffix on reloads/renders
         topic = f"{topic}_{node['id'][:6]}"
 
     return OperationNode(
@@ -328,6 +214,7 @@ def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict
         name=node.get("name"),
         topic=topic
     )
+
 
 # Register all specific operation types so NodeFactory can find them by node.type
 _OPERATION_TYPES = [

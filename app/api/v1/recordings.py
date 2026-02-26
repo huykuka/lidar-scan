@@ -13,10 +13,10 @@ from sqlalchemy.orm import Session
 
 from app.db.models import get_db
 from app.repositories.recordings_orm import RecordingRepository
-from app.services.lidar.recorder import get_recorder
+from app.services.shared.recorder import get_recorder
 from app.services.nodes.instance import node_manager
-from app.services.lidar.protocol.recording import get_recording_info, RecordingReader
-from app.services.lidar.io.pcd import save_to_pcd
+from app.services.shared.recording import get_recording_info, RecordingReader
+from app.services.modules.lidar.io.pcd import save_to_pcd
 import tempfile
 
 router = APIRouter()
@@ -480,7 +480,7 @@ async def get_recording_thumbnail(
     file_path = Path(recording["file_path"])
     if file_path.exists():
         try:
-            from app.services.lidar.io.thumbnail import generate_thumbnail_from_file
+            from app.services.shared.thumbnail import generate_thumbnail_from_file
             
             thumbnail_path = file_path.with_suffix(".png")
             success = await asyncio.to_thread(

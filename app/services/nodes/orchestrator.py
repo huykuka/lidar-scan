@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, cast
 
 
 from app.services.websocket.manager import manager
-from app.services.lidar.core.topics import TopicRegistry
+from app.services.shared.topics import TopicRegistry
 from app.core.logging_config import get_logger
 from app.repositories import NodeRepository, EdgeRepository
 
@@ -167,10 +167,11 @@ class NodeManager:
         if node_id and node_id in self.nodes:
             node_instance = self.nodes[node_id]
             if hasattr(node_instance, "handle_data"):
-                # Initial node handling (e.g., coordinate transform, status update)
+                # Legacy handle_data method (LidarSensor specific)
                 await node_instance.handle_data(payload, self.node_runtime_status)
-            else:
-                pass
+            elif hasattr(node_instance, "on_input"):
+                # Standard on_input method (ModuleNode interface)
+                await node_instance.on_input(payload)
         else:
             logger.warning(f"Received data for unknown node: {node_id}")
 
@@ -179,7 +180,7 @@ class NodeManager:
         
         # 1. Native N-Dimensional Recording Interception
         # Bypasses the WebSockets strictly limited 3xFloat format (XYZ only)
-        from app.services.lidar.recorder import get_recorder
+        from app.services.shared.recorder import get_recorder
         recorder = get_recorder()
         if recorder.is_recording(source_id) and "points" in payload:
             try:
@@ -201,7 +202,7 @@ class NodeManager:
 
     def has_subscribers(self, topic: str) -> bool:
         """Checks if anyone is listening to this topic (WebSocket or Recorder)."""
-        from app.services.lidar.recorder import get_recorder
+        from app.services.shared.recorder import get_recorder
         
         # Check active websocket connections
         if topic in manager.active_connections and len(manager.active_connections[topic]) > 0:

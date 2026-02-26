@@ -6,7 +6,7 @@ import struct
 import numpy as np
 import pytest
 
-from app.services.lidar.protocol.binary import (
+from app.services.shared.binary import (
     pack_points_binary,
     unpack_points_binary,
     MAGIC_BYTES,

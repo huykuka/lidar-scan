@@ -10,11 +10,12 @@ import numpy as np
 
 from app.services.websocket.manager import manager
 from app.core.logging_config import get_logger
-from app.services.lidar.core import create_transformation_matrix, pose_to_dict
+from app.services.modules.lidar.core import create_transformation_matrix, pose_to_dict
+from app.services.nodes.base_module import ModuleNode
 
 logger = get_logger(__name__)
 
-class LidarSensor:
+class LidarSensor(ModuleNode):
     """Represents a single Lidar sensor and its processing pipeline configuration"""
 
     name: str
@@ -53,8 +54,16 @@ class LidarSensor:
     def get_pose_params(self) -> Dict[str, float]:
         return self.pose_params.copy()
 
-    def start(self, data_queue: mp.Queue, runtime_status: Dict[str, Any]):
+    async def on_input(self, payload: Dict[str, Any]):
+        """Standard ModuleNode interface - delegates to handle_data"""
+        # LidarSensor is a source node, so it doesn't receive input from upstream.
+        # This method exists to satisfy the ModuleNode interface.
+        pass
+
+    def start(self, data_queue: Optional[mp.Queue] = None, runtime_status: Optional[Dict[str, Any]] = None):
         """Starts the worker process for this sensor"""
+        if data_queue is None or runtime_status is None:
+            raise ValueError("LidarSensor requires data_queue and runtime_status")
         self._stop_event = mp.Event()
         
         runtime_status[self.id] = {
@@ -73,7 +82,7 @@ class LidarSensor:
                     runtime_status[self.id]["last_error"] = error_msg
                     return
                 try:
-                    from app.services.lidar.workers.pcd import pcd_worker_process
+                    from app.services.modules.lidar.workers.pcd import pcd_worker_process
                 except ImportError as e:
                     error_msg = f"open3d not available: {e}"
                     logger.error(f"[{self.id}] {error_msg}", exc_info=True)
@@ -87,7 +96,7 @@ class LidarSensor:
                     daemon=True
                 )
             else:
-                from app.services.lidar.workers.real import lidar_worker_process
+                from app.services.modules.lidar.workers.real import lidar_worker_process
                 self._process = mp.Process(
                     target=lidar_worker_process,
                     args=(self.id, self.launch_args, data_queue, self._stop_event),
@@ -115,7 +124,7 @@ class LidarSensor:
     async def handle_data(self, payload: Dict[str, Any], runtime_status: Dict[str, Any]):
         """Handles incoming data explicitly for this Lidar node"""
         from .core.transformations import transform_points
-        from .protocol import pack_points_binary
+        from app.services.shared.binary import pack_points_binary
         
         try:
             timestamp = payload["timestamp"]

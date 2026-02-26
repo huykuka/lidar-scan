@@ -7,12 +7,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from app.services.lidar.protocol.recording import (
+from app.services.shared.recording import (
     RecordingWriter,
     RecordingReader,
     get_recording_info,
-    RECORDING_MAGIC,
-    RECORDING_VERSION,
 )
 
 

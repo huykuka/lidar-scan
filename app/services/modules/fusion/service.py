@@ -2,7 +2,7 @@
 Point cloud fusion layer — opt-in, import only when needed.
 
 Usage in app.py:
-    from app.services.fusion.service import FusionService
+    from app.services.modules.fusion.service import FusionService
 
     # Fuse all sensors, no post-processing
     fusion = FusionService(node_manager)
@@ -26,11 +26,12 @@ import time
 import numpy as np
 
 from app.services.websocket.manager import manager
-from app.services.lidar.core import transform_points
-from app.services.lidar.protocol import pack_points_binary
+from app.services.modules.lidar.core import transform_points
+from app.services.shared.binary import pack_points_binary
+from app.services.nodes.base_module import ModuleNode
 
 
-class FusionService:
+class FusionService(ModuleNode):
     """
     Listens to transformed frames emitted by LidarService and merges them
     into a single unified point cloud broadcast on `topic`.
@@ -50,7 +51,9 @@ class FusionService:
         fusion_id: Optional[str] = None,
     ):
         self._service = node_manager
-        self.id = fusion_id
+        self.manager = node_manager
+        self.id = fusion_id or f"fusion_{id(self)}"
+        self.name = f"Fusion ({self.id[:8]})"
         self._topic = topic
         self._filter: Optional[Set[str]] = set(sensor_ids) if sensor_ids else None
         self._by_topic: bool = False

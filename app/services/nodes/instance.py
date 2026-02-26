@@ -1,5 +1,7 @@
 from .orchestrator import NodeManager
-# Import node_registry so all schema definitions are registered at startup
-from . import node_registry  # noqa: F401
+# Auto-discover and load all module registries at startup
+from app.services.modules import discover_modules
+
+discover_modules()
 
 node_manager = NodeManager()

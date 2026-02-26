@@ -3,12 +3,13 @@ import time
 import numpy as np
 from app.core.logging_config import get_logger
 from app.services.websocket.manager import manager as ws_manager
-from app.services.pipeline.factory import OperationFactory
-from app.services.lidar.protocol import pack_points_binary
+from app.services.modules.pipeline.factory import OperationFactory
+from app.services.shared.binary import pack_points_binary
+from app.services.nodes.base_module import ModuleNode
 
 logger = get_logger(__name__)
 
-class OperationNode:
+class OperationNode(ModuleNode):
     """
     A node that performs a single point cloud operation (e.g., Filtering, Downsampling).
     """
@@ -48,7 +49,7 @@ class OperationNode:
 
     async def on_input(self, payload: Dict[str, Any]):
         """Receives data, processes it, and forwards to downstream."""
-        from app.services.pipeline.base import PointConverter
+        from app.services.modules.pipeline.base import PointConverter
         
         self.last_input_at = time.time()
         start_time = time.time()

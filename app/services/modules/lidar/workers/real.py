@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from app.services.lidar.workers.api.sick_scan_api import *
+from app.services.modules.lidar.workers.api.sick_scan_api import *
 
 def parse_sick_scan_pointcloud(msg_contents):
     """

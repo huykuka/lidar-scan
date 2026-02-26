@@ -1,6 +1,6 @@
 from typing import Any, Dict, Type
-from app.services.pipeline.base import PipelineOperation
-from app.services.pipeline.operations import (
+from app.services.modules.pipeline.base import PipelineOperation
+from app.services.modules.pipeline.operations import (
     Crop,
     Downsample,
     UniformDownsample,

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.services.lidar.protocol.recording import RecordingWriter
+from app.services.shared.recording import RecordingWriter
 
 logger = logging.getLogger(__name__)
 
@@ -139,7 +139,7 @@ class RecordingService:
             thumbnail_path = None
             file_path = Path(info["file_path"])
             try:
-                from app.services.lidar.io.thumbnail import generate_thumbnail_from_file
+                from app.services.shared.thumbnail import generate_thumbnail_from_file
                 
                 thumbnail_output = file_path.with_suffix(".png")
                 success = await asyncio.to_thread(
