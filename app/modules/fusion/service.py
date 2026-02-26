@@ -10,16 +10,10 @@ Usage in app.py:
     # Fuse specific sensors only
     fusion = FusionService(node_manager, sensor_ids=["lidar_front", "lidar_rear"])
 
-    # Fuse + run a named pipeline on the merged cloud (same API as generate_lidar)
-    fusion = FusionService(
-        node_manager,
-        topic="fused_reflectors",
-        sensor_ids=["lidar_front", "lidar_rear"],
-        pipeline_name="reflector",
-    )
-
     # Fusion nodes are now enabled/disabled via the NodeManager and receive
     # data via the on_input(payload) method called by the manager.
+    
+    # WebSocket topic is auto-generated as: {node_name}_{node_id[:8]}
 """
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
 import time
@@ -52,10 +46,8 @@ class FusionService(ModuleNode):
         self.id = fusion_id or f"fusion_{id(self)}"
         self.name = f"Fusion ({self.id[:8]})"
         self._filter: Optional[Set[str]] = set(sensor_ids) if sensor_ids else None
-        self._by_topic: bool = False
         self._latest_frames: Dict[str, np.ndarray] = {}
         self._enabled = False
-        self._original_handle: Optional[Callable[[Any], Awaitable[None]]] = None
 
         self.last_broadcast_at: Optional[float] = None
         self.last_broadcast_ts: Optional[float] = None
@@ -65,46 +57,35 @@ class FusionService(ModuleNode):
         """Standard input port for the NodeManager to push data into."""
         await self._on_frame(payload)
 
-    @property
-    def topic_filter(self) -> Optional[Set[str]]:
-        if self._filter is None:
-            return None
-        if self._by_topic:
-            return self._filter
-        return {self._id_to_topic_prefix(sid) for sid in self._filter}
-
-    def _id_to_topic_prefix(self, sensor_id: str) -> str:
-        sensor = self._service.nodes.get(sensor_id)
-        return getattr(sensor, "topic_prefix", sensor_id)
-
-    def use_topic_prefix_filter(self, enabled: bool = True):
-        """Interpret `sensor_ids` as websocket topic prefixes (new behavior in service)."""
-        self._by_topic = enabled
-        return self
-
     def enable(self):
         """Activate fusion."""
         self._enabled = True
+        print(f"[Fusion {self.id[:8]}] ENABLED. Waiting for sensor data...")
 
     def disable(self):
         """Deactivate fusion."""
         self._enabled = False
+        print(f"[Fusion {self.id[:8]}] DISABLED.")
 
     async def _on_frame(self, payload):
         """Called after each sensor frame is handled. Extracts points and fuses."""
         if not self._enabled:
+            print(f"[Fusion {self.id[:8]}] Received frame but DISABLED. Ignoring.")
             return
 
-        lidar_id = payload.get("lidar_id")
+        # Accept either lidar_id (from workers) or node_id (from other nodes)
+        source_id = payload.get("lidar_id") or payload.get("node_id")
         timestamp = payload.get("timestamp", 0.0)
+        
+        if not source_id:
+            print(f"[Fusion {self.id[:8]}] Received frame with NO lidar_id or node_id. Payload keys: {list(payload.keys())}")
+            return
+        
+        print(f"[Fusion {self.id[:8]}] Received frame from source_id={source_id}, timestamp={timestamp}, points={len(payload.get('points', []))}")
 
-        # Resolve the emitting sensor's websocket topic prefix
-        sensor = self._service.nodes.get(lidar_id)
-        topic_prefix = getattr(sensor, "topic_prefix", lidar_id)
-
-        # Skip sensors not in the whitelist
-        active_filter = self.topic_filter
-        if active_filter and topic_prefix not in active_filter:
+        # Skip sensors not in the whitelist (if filter is set)
+        if self._filter and source_id not in self._filter:
+            print(f"[Fusion {self.id[:8]}] Skipping {source_id} - not in filter: {self._filter}")
             return
 
         # Get the points from the payload. 
@@ -114,25 +95,35 @@ class FusionService(ModuleNode):
         if points is None or len(points) == 0:
             return
 
-        self._latest_frames[topic_prefix] = points
+        # Store latest frame from this sensor
+        self._latest_frames[source_id] = points
+
+        # Determine which sensors we're waiting for
+        if self._filter:
+            # If filter is set, wait for those specific sensors
+            expected_sensors = self._filter
+        else:
+            # If no filter, wait for all LiDAR sensors in the system
+            expected_sensors = {
+                node_id for node_id, node in self._service.nodes.items()
+                if hasattr(node, "topic_prefix")  # LiDAR sensors have topic_prefix
+            }
 
         # Wait until all expected sensors have contributed at least once
-        expected: Set[str] = active_filter or {getattr(s, "topic_prefix", getattr(s, "id", k)) for k, s in self._service.nodes.items() if getattr(s, "topic_prefix", None)}
-        if not expected.issubset(self._latest_frames.keys()):
-            missing = expected - self._latest_frames.keys()
+        if not expected_sensors.issubset(self._latest_frames.keys()):
+            missing = expected_sensors - self._latest_frames.keys()
             # Only print at start or if it's been a while (to avoid spamming)
-            # For debugging, we'll print it once per unique missing set
             if not hasattr(self, '_last_missing') or self._last_missing != missing:
-                print(f"[Fusion] Waiting for sensors: {missing}. Have: {list(self._latest_frames.keys())}")
+                print(f"[Fusion {self.id[:8]}] Waiting for sensors: {missing}. Have: {list(self._latest_frames.keys())}")
                 self._last_missing = missing
             return
 
         if hasattr(self, '_last_missing'):
-            print(f"[Fusion] All sensors active: {list(expected)}. Starting fusion.")
+            print(f"[Fusion {self.id[:8]}] All sensors active: {list(expected_sensors)}. Starting fusion.")
             delattr(self, '_last_missing')
 
         # Collect frames for fusion
-        frames = [self._latest_frames[sid] for sid in expected]
+        frames = [self._latest_frames[sid] for sid in expected_sensors]
 
         # Check for column mismatch
         num_cols = {f.shape[1] for f in frames}
