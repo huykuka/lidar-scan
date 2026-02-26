@@ -52,8 +52,6 @@ class FusionService(ModuleNode):
         self.last_broadcast_at: Optional[float] = None
         self.last_broadcast_ts: Optional[float] = None
         self.last_error: Optional[str] = None
-        
-        print(f"[Fusion {self.id[:8]}] CREATED with sensor_ids={sensor_ids}, enabled={self._enabled}")
 
     async def on_input(self, payload: Dict[str, Any]):
         """Standard input port for the NodeManager to push data into."""
@@ -62,17 +60,14 @@ class FusionService(ModuleNode):
     def enable(self):
         """Activate fusion."""
         self._enabled = True
-        print(f"[Fusion {self.id[:8]}] ENABLED. Waiting for sensor data...")
 
     def disable(self):
         """Deactivate fusion."""
         self._enabled = False
-        print(f"[Fusion {self.id[:8]}] DISABLED.")
 
     async def _on_frame(self, payload):
         """Called after each sensor frame is handled. Extracts points and fuses."""
         if not self._enabled:
-            print(f"[Fusion {self.id[:8]}] Received frame but DISABLED. Ignoring.")
             return
 
         # Accept either lidar_id (from workers) or node_id (from other nodes)
@@ -80,14 +75,10 @@ class FusionService(ModuleNode):
         timestamp = payload.get("timestamp", 0.0)
         
         if not source_id:
-            print(f"[Fusion {self.id[:8]}] Received frame with NO lidar_id or node_id. Payload keys: {list(payload.keys())}")
             return
-        
-        print(f"[Fusion {self.id[:8]}] Received frame from source_id={source_id}, timestamp={timestamp}, points={len(payload.get('points', []))}")
 
         # Skip sensors not in the whitelist (if filter is set)
         if self._filter and source_id not in self._filter:
-            print(f"[Fusion {self.id[:8]}] Skipping {source_id} - not in filter: {self._filter}")
             return
 
         # Get the points from the payload. 
@@ -113,16 +104,7 @@ class FusionService(ModuleNode):
 
         # Wait until all expected sensors have contributed at least once
         if not expected_sensors.issubset(self._latest_frames.keys()):
-            missing = expected_sensors - self._latest_frames.keys()
-            # Only print at start or if it's been a while (to avoid spamming)
-            if not hasattr(self, '_last_missing') or self._last_missing != missing:
-                print(f"[Fusion {self.id[:8]}] Waiting for sensors: {missing}. Have: {list(self._latest_frames.keys())}")
-                self._last_missing = missing
             return
-
-        if hasattr(self, '_last_missing'):
-            print(f"[Fusion {self.id[:8]}] All sensors active: {list(expected_sensors)}. Starting fusion.")
-            delattr(self, '_last_missing')
 
         # Collect frames for fusion
         frames = [self._latest_frames[sid] for sid in expected_sensors]

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, cast
 
 from app.services.websocket.manager import manager
 from app.services.shared.topics import TopicRegistry
-from app.core.logging_config import get_logger
+from app.core.logging import get_logger
 from app.repositories import NodeRepository, EdgeRepository
 
 from .node_factory import NodeFactory
@@ -101,13 +101,9 @@ class NodeManager:
 
         for node_id, node_instance in self.nodes.items():
             if hasattr(node_instance, "start"):
-                logger.info(f"Starting node {node_id} (has start method)")
                 node_instance.start(self.data_queue, self.node_runtime_status)
             elif hasattr(node_instance, "enable"):
-                logger.info(f"Enabling node {node_id} (has enable method)")
                 node_instance.enable()
-            else:
-                logger.warning(f"Node {node_id} has neither start() nor enable() method")
                 
         self._listener_task = asyncio.create_task(self._queue_listener())
 

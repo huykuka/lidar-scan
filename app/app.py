@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from app.core.logging_config import get_logger
+from app.core.logging import get_logger
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles

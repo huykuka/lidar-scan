@@ -27,5 +27,4 @@ def save_to_pcd(points: np.ndarray, output_path: str, binary: bool = False):
     """Saves a (N, 3) numpy array to a PCD file."""
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points.astype(np.float64))
-    # print(f"[PCD] Saving {len(points)} points to {output_path} (binary={binary})")
     o3d.io.write_point_cloud(output_path, pcd, write_ascii=not binary)

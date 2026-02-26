@@ -1,9 +1,13 @@
 
+import logging
 import time
 from pathlib import Path
 from typing import Any
 
 from app.modules.lidar.workers.api.sick_scan_api import *
+
+# Configure logging for multiprocessing worker
+logger = logging.getLogger(__name__)
 
 def parse_sick_scan_pointcloud(msg_contents):
     """
@@ -117,7 +121,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
 
     sick_scan_library = SickScanApiLoadLibrary(search_paths, lib_name)
     if not sick_scan_library:
-        print(f"[{lidar_id}] Error: Could not load {lib_name}")
+        logger.error(f"[{lidar_id}] Could not load {lib_name}")
         return
 
     api_handle = SickScanApiCreate(sick_scan_library)
@@ -140,7 +144,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
                     parts[0] = str(candidate)
                     launch_args = " ".join(parts)
                 else:
-                    print(f"[{lidar_id}] Launch file not found: {launch_file} (cwd={os.getcwd()})")
+                    logger.warning(f"[{lidar_id}] Launch file not found: {launch_file} (cwd={os.getcwd()})")
     except Exception:
         pass
 
@@ -173,7 +177,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
                 pass
 
         except Exception as e:
-            print(f"[{lidar_id}] Callback error: {e}")
+            logger.error(f"[{lidar_id}] Callback error: {e}")
 
     # 2. Register Callbacks
     pc_callback = SickScanPointCloudMsgCallback(_py_pointcloud_cb)
@@ -196,7 +200,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
             
             # status_code: OK=0, WARN=1, ERROR=2, INIT=3, EXIT=4
             if status_code == 2:  # ERROR
-                print(f"[{lidar_id}] SICK_SCAN ERROR: {message_str}")
+                logger.error(f"[{lidar_id}] SICK_SCAN ERROR: {message_str}")
                 payload = {
                     "lidar_id": lidar_id,
                     "event_type": "error",
@@ -208,7 +212,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
                 except:
                     pass
             elif status_code == 4:  # EXIT
-                print(f"[{lidar_id}] SICK_SCAN EXIT: {message_str}")
+                logger.info(f"[{lidar_id}] SICK_SCAN EXIT: {message_str}")
                 payload = {
                     "lidar_id": lidar_id,
                     "event_type": "disconnected",
@@ -220,7 +224,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
                 except:
                     pass
             elif status_code == 3:  # INIT
-                print(f"[{lidar_id}] SICK_SCAN INIT: {message_str}")
+                logger.info(f"[{lidar_id}] SICK_SCAN INIT: {message_str}")
                 payload = {
                     "lidar_id": lidar_id,
                     "event_type": "connected",
@@ -233,7 +237,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
                     pass
                     
         except Exception as e:
-            print(f"[{lidar_id}] Diagnostic callback error: {e}")
+            logger.error(f"[{lidar_id}] Diagnostic callback error: {e}")
     
     diagnostic_callback = SickScanDiagnosticMsgCallback(_py_diagnostic_cb)
     SickScanApiRegisterDiagnosticMsg(sick_scan_library, api_handle, diagnostic_callback)

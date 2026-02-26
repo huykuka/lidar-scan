@@ -2,7 +2,7 @@
 import asyncio
 import time
 from typing import Any, Dict, List, Optional
-from app.core.logging_config import get_logger
+from app.core.logging import get_logger
 
 from app.services.websocket.manager import manager
 from app.services.nodes.instance import node_manager

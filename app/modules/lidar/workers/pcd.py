@@ -3,7 +3,7 @@ import time
 from typing import Any, Dict
 import numpy as np
 import open3d as o3d  # type: ignore
-from app.core.logging_config import get_logger
+from app.core.logging import get_logger
 from app.modules.pipeline.base import PointConverter
 
 logger = get_logger(__name__)

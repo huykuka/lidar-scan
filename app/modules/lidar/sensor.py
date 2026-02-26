@@ -8,7 +8,7 @@ import time
 
 import numpy as np
 
-from app.core.logging_config import get_logger
+from app.core.logging import get_logger
 from app.modules.lidar.core import create_transformation_matrix, pose_to_dict
 from app.services.nodes.base_module import ModuleNode
 
