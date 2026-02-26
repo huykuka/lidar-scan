@@ -8,6 +8,7 @@ server.log
 # Build artifacts
 build/
 dist/
+launch/
 requirements-frozen.txt
 
 # Runtime/debug data

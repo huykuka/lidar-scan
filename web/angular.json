@@ -67,6 +67,9 @@
           "defaultConfiguration": "production"
         },
         "serve": {
+          "options": {
+            "allowedHosts": ["fedora"]
+          },
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
