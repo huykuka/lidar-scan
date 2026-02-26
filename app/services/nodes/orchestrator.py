@@ -48,8 +48,15 @@ class NodeManager:
             for group_name, group in [("sensor", sensors), ("operation", operations), ("fusion", fusions), ("other", other)]:
                 for node in group:
                     try:
-                        self.nodes[node["id"]] = NodeFactory.create(node, self, self.edges_data)
-                        logger.debug(f"Created {group_name} node: {node['id']}")
+                        node_instance = NodeFactory.create(node, self, self.edges_data)
+                        self.nodes[node["id"]] = node_instance
+                        
+                        # Register WebSocket topic for this node
+                        node_name = getattr(node_instance, "name", node["id"])
+                        topic = f"{node_name}_{node['id'][:8]}"
+                        manager.register_topic(topic)
+                        
+                        logger.debug(f"Created {group_name} node: {node['id']} with topic: {topic}")
                     except Exception as e:
                         logger.error(f"Failed to create {group_name} node {node['id']}: {e}", exc_info=True)
 
@@ -123,6 +130,11 @@ class NodeManager:
 
         if hasattr(node_instance, "stop"):
             node_instance.stop()
+
+        # Unregister WebSocket topic for this node
+        node_name = getattr(node_instance, "name", node_id)
+        topic = f"{node_name}_{node_id[:8]}"
+        manager.unregister_topic(topic)
 
         # Cleanup topological maps
         if node_id in self.downstream_map:
