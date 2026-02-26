@@ -38,7 +38,7 @@ This happens **before** any application code runs, during Python module loading.
    │  │
    │  └─ instance.py loads
    │     │
-   │     ├─ Line 3: from app.services.modules import discover_modules
+   │     ├─ Line 3: from app.modules import discover_modules
    │     │
    │     ├─ Line 5: discover_modules()  ← TRIGGERS AUTO-DISCOVERY
    │     │  │
@@ -113,7 +113,7 @@ def register(cls, node_type: str):
 @NodeFactory.register("fusion")  # ← Decorator executes at import time
 def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """Build a FusionService instance from persisted node configuration."""
-    from app.services.modules.lidar.sensor import LidarSensor
+    from app.modules.lidar.sensor import LidarSensor
     from .service import FusionService
     
     config = node.get("config", {})
@@ -424,7 +424,7 @@ Builders import their node classes inside the function (not at module level).
 **Example from fusion/registry.py:40-41:**
 ```python
 def build_fusion(...):
-    from app.services.modules.lidar.sensor import LidarSensor  # lazy import
+    from app.modules.lidar.sensor import LidarSensor  # lazy import
     from .service import FusionService  # lazy import
 ```
 

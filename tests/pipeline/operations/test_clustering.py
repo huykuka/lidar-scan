@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import open3d as o3d
-from app.pipeline.operations.clustering import Clustering
+from app.modules.pipeline.operations.clustering import Clustering
 
 def test_clustering_legacy():
     pcd = o3d.geometry.PointCloud()

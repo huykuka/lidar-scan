@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import open3d as o3d
-from app.pipeline.operations.downsample import Downsample, UniformDownsample
+from app.modules.pipeline.operations.downsample import Downsample, UniformDownsample
 
 def test_downsample_legacy():
     pcd = o3d.geometry.PointCloud()

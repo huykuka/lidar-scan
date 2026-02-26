@@ -8,9 +8,8 @@ import time
 
 import numpy as np
 
-from app.services.websocket.manager import manager
 from app.core.logging_config import get_logger
-from app.services.modules.lidar.core import create_transformation_matrix, pose_to_dict
+from app.modules.lidar.core import create_transformation_matrix, pose_to_dict
 from app.services.nodes.base_module import ModuleNode
 
 logger = get_logger(__name__)
@@ -82,7 +81,7 @@ class LidarSensor(ModuleNode):
                     runtime_status[self.id]["last_error"] = error_msg
                     return
                 try:
-                    from app.services.modules.lidar.workers.pcd import pcd_worker_process
+                    from app.modules.lidar.workers.pcd import pcd_worker_process
                 except ImportError as e:
                     error_msg = f"open3d not available: {e}"
                     logger.error(f"[{self.id}] {error_msg}", exc_info=True)
@@ -96,7 +95,7 @@ class LidarSensor(ModuleNode):
                     daemon=True
                 )
             else:
-                from app.services.modules.lidar.workers.real import lidar_worker_process
+                from app.modules.lidar.workers.real import lidar_worker_process
                 self._process = mp.Process(
                     target=lidar_worker_process,
                     args=(self.id, self.launch_args, data_queue, self._stop_event),
@@ -124,7 +123,6 @@ class LidarSensor(ModuleNode):
     async def handle_data(self, payload: Dict[str, Any], runtime_status: Dict[str, Any]):
         """Handles incoming data explicitly for this Lidar node"""
         from .core.transformations import transform_points
-        from app.services.shared.binary import pack_points_binary
         
         try:
             timestamp = payload["timestamp"]
@@ -167,17 +165,8 @@ class LidarSensor(ModuleNode):
                     logger.debug(f"[{self.id}] Frame #{frame_count}: {len(transformed_points)} points after transform")
 
                 # 2. Forward to downstream nodes via Manager
+                # NodeManager will handle WebSocket broadcasting automatically
                 await self.manager.forward_data(self.id, payload)
-
-                # 3. Handle on-demand WebSocket broadcast
-                topic = f"{self.topic_prefix}_raw_points"
-                if manager.has_subscribers(topic):
-                    import asyncio
-                    binary_data = await asyncio.to_thread(pack_points_binary, transformed_points, timestamp)
-                    await manager.broadcast(topic, binary_data)
-                else:
-                    if frame_count % 100 == 1:
-                        logger.debug(f"[{self.id}] No subscribers on topic '{topic}' — skipping WS broadcast")
 
         except Exception as e:
             logger.error(f"Error handling data for {self.id}: {e}", exc_info=True)

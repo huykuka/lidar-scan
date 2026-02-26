@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import open3d as o3d
 import os
-from app.pipeline.operations.debug import DebugSave, SaveDataStructure
+from app.modules.pipeline.operations.debug import DebugSave, SaveDataStructure
 
 def test_debug_save_legacy(tmp_path):
     pcd = o3d.geometry.PointCloud()

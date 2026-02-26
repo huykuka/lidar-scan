@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import open3d as o3d
-from app.pipeline.operations.filter import Filter, FilterByKey
+from app.modules.pipeline.operations.filter import Filter, FilterByKey
 
 def test_filter_legacy():
     pcd = o3d.geometry.PointCloud()

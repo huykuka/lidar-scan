@@ -2,9 +2,7 @@ from typing import Any, Dict, Optional
 import time
 import numpy as np
 from app.core.logging_config import get_logger
-from app.services.websocket.manager import manager as ws_manager
-from app.services.modules.pipeline.factory import OperationFactory
-from app.services.shared.binary import pack_points_binary
+from app.modules.pipeline.factory import OperationFactory
 from app.services.nodes.base_module import ModuleNode
 
 logger = get_logger(__name__)
@@ -19,14 +17,12 @@ class OperationNode(ModuleNode):
         node_id: str,
         op_type: str,
         op_config: Dict[str, Any],
-        name: Optional[str] = None,
-        topic: Optional[str] = None
+        name: Optional[str] = None
     ):
         self.manager = manager
         self.id = node_id
         self.name = name or node_id
         self.op_type = op_type
-        self.topic = topic
         
         # Instantiate the operation
         try:
@@ -43,13 +39,9 @@ class OperationNode(ModuleNode):
         self.input_count: int = 0
         self.output_count: int = 0
 
-        # Register topic if provided
-        if self.topic:
-            ws_manager.register_topic(self.topic)
-
     async def on_input(self, payload: Dict[str, Any]):
         """Receives data, processes it, and forwards to downstream."""
-        from app.services.modules.pipeline.base import PointConverter
+        from app.modules.pipeline.base import PointConverter
         
         self.last_input_at = time.time()
         start_time = time.time()
@@ -99,20 +91,9 @@ class OperationNode(ModuleNode):
             new_payload["node_id"] = self.id
             new_payload["processed_by"] = self.id
             
-            # 4. Forward to downstream
+            # Forward to downstream nodes via Manager
+            # NodeManager will handle WebSocket broadcasting automatically
             await self.manager.forward_data(self.id, new_payload)
-            
-            # 5. Optional broadcast
-            if self.topic and ws_manager.has_subscribers(self.topic):
-                try:
-                    import asyncio
-                    binary = await asyncio.to_thread(pack_points_binary, processed_points, payload.get("timestamp", time.time()))
-                    await ws_manager.broadcast(self.topic, binary)
-                except ValueError as e:
-                    if "not in list" in str(e):
-                        logger.warning(f"[{self.id}] Connection closed, skipping broadcast")
-                    else:
-                        raise
 
         except Exception as e:
             self.last_error = str(e)
@@ -121,6 +102,8 @@ class OperationNode(ModuleNode):
     def get_status(self, runtime_status: Dict[str, Any]) -> Dict[str, Any]:
         """Returns standard status for this node"""
         frame_age = time.time() - self.last_output_at if self.last_output_at else None
+        # Auto-generate topic from node name and ID
+        topic = f"{self.name}_{self.id[:8]}"
         return {
             "id": self.id,
             "name": self.name,
@@ -134,5 +117,5 @@ class OperationNode(ModuleNode):
             "processing_time_ms": self.processing_time_ms,
             "input_count": self.input_count,
             "output_count": self.output_count,
-            "topic": self.topic
+            "topic": topic
         }

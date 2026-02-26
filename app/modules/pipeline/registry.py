@@ -22,7 +22,6 @@ node_schema_registry.register(NodeDefinition(
     description="Filter points within/outside bounding box",
     icon="crop",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="crop_out"),
         PropertySchema(name="min_bound", label="Min Bounds [X, Y, Z]", type="vec3", default=[-10.0, -10.0, -2.0]),
         PropertySchema(name="max_bound", label="Max Bounds [X, Y, Z]", type="vec3", default=[10.0, 10.0, 2.0]),
     ],
@@ -38,7 +37,6 @@ node_schema_registry.register(NodeDefinition(
     description="Subsamples points using a grid of voxels",
     icon="grid_view",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="downsampled"),
         PropertySchema(name="voxel_size", label="Voxel Size (m)", type="number", default=0.05, step=0.01, min=0.001),
     ],
     inputs=[PortSchema(id="in", label="Input")],
@@ -53,7 +51,6 @@ node_schema_registry.register(NodeDefinition(
     description="Removes noise from the point cloud using stats",
     icon="auto_fix_normal",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="filtered"),
         PropertySchema(name="nb_neighbors", label="Neighbors", type="number", default=20, min=1),
         PropertySchema(name="std_ratio", label="Std Ratio", type="number", default=2.0, step=0.1, min=0.1),
     ],
@@ -69,7 +66,6 @@ node_schema_registry.register(NodeDefinition(
     description="Removes points with too few neighbors in a sphere",
     icon="blur_on",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="radius_filtered"),
         PropertySchema(name="nb_points", label="Min Points", type="number", default=16, min=1),
         PropertySchema(name="radius", label="Search Radius (m)", type="number", default=0.05, step=0.01, min=0.01),
     ],
@@ -85,7 +81,6 @@ node_schema_registry.register(NodeDefinition(
     description="Segments a plane from the point cloud using RANSAC",
     icon="layers",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="segmented"),
         PropertySchema(name="distance_threshold", label="Distance Threshold", type="number", default=0.1, step=0.01),
         PropertySchema(name="ransac_n", label="RANSAC N", type="number", default=3, min=3),
         PropertySchema(name="num_iterations", label="Max Iterations", type="number", default=1000, step=10),
@@ -102,7 +97,6 @@ node_schema_registry.register(NodeDefinition(
     description="Clusters points using the DBSCAN algorithm",
     icon="scatter_plot",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="clustered"),
         PropertySchema(name="eps", label="Eps (Radius)", type="number", default=0.2, step=0.01),
         PropertySchema(name="min_points", label="Min Points", type="number", default=10, min=1),
     ],
@@ -118,7 +112,6 @@ node_schema_registry.register(NodeDefinition(
     description="Detects boundary points based on angle criteria",
     icon="timeline",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="boundary"),
         PropertySchema(name="radius", label="Radius", type="number", default=0.02, step=0.01),
         PropertySchema(name="max_nn", label="Max NN", type="number", default=30, min=1),
         PropertySchema(name="angle_threshold", label="Angle Threshold", type="number", default=90.0, step=1.0),
@@ -135,7 +128,6 @@ node_schema_registry.register(NodeDefinition(
     description="Filter points based on attribute values",
     icon="filter_alt",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="filtered"),
         PropertySchema(name="key", label="Attribute (e.g. intensity)", type="string", default="intensity"),
         PropertySchema(name="operator", label="Operator", type="select", default=">", options=[
             {"label": "Greater Than (>)", "value": ">"},
@@ -182,7 +174,6 @@ def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict
     # Remove config-level fields from op_config before passing to the operation class
     op_config = config.copy()
     op_config.pop("op_type", None)
-    op_config.pop("topic", None)
     
     # Backwards compatibility and schema mapping for Crop
     if op_type == "crop":
@@ -199,20 +190,12 @@ def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict
         if operator != "==":
             op_config["value"] = [operator, val]
 
-    # Operations that shouldn't broadcast payload over WebSockets
-    topic = config.get("topic")
-    if op_type in ["debug_save"]:
-        topic = None
-    elif topic and "_" not in topic:  # Prevent infinite extending suffix on reloads/renders
-        topic = f"{topic}_{node['id'][:6]}"
-
     return OperationNode(
         manager=service_context,
         node_id=node["id"],
         op_type=op_type,
         op_config=op_config,  # pass clean config so ops only receive their expected params
-        name=node.get("name"),
-        topic=topic
+        name=node.get("name")
     )
 
 

@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import open3d as o3d
-from app.pipeline.operations.builder import PipelineBuilder
+from app.modules.pipeline.operations.builder import PipelineBuilder
 
 def test_pipeline_builder_legacy():
     builder = PipelineBuilder(use_tensor=False)
@@ -17,5 +17,5 @@ def test_pipeline_builder_legacy():
     ])
     pcd.points = o3d.utility.Vector3dVector(points)
     
-    from app.pipeline.base import LegacyPointCloudPipeline
+    from app.modules.pipeline.base import LegacyPointCloudPipeline
     assert isinstance(pipeline, LegacyPointCloudPipeline)

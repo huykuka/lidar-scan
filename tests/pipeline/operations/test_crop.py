@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import open3d as o3d
-from app.pipeline.operations.crop import Crop
+from app.modules.pipeline.operations.crop import Crop
 
 def test_crop_legacy():
     pcd = o3d.geometry.PointCloud()

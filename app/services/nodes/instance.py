@@ -1,6 +1,6 @@
 from .orchestrator import NodeManager
 # Auto-discover and load all module registries at startup
-from app.services.modules import discover_modules
+from app.modules import discover_modules
 
 discover_modules()
 

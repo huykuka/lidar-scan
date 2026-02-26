@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import open3d as o3d
-from app.pipeline.operations.boundary import BoundaryDetection
+from app.modules.pipeline.operations.boundary import BoundaryDetection
 
 def test_boundary_detection_legacy():
     pcd = o3d.geometry.PointCloud()

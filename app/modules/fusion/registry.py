@@ -21,7 +21,7 @@ node_schema_registry.register(NodeDefinition(
     description="Merges multiple point cloud streams into a unified coordinate system",
     icon="hub",
     properties=[
-        PropertySchema(name="topic", label="Output Topic", type="string", default="fused_points"),
+        # Topic is now auto-generated as {node_name}_{node_id[:8]} by NodeManager
     ],
     inputs=[
         PortSchema(id="sensor_inputs", label="Inputs", multiple=True)
@@ -37,7 +37,7 @@ node_schema_registry.register(NodeDefinition(
 @NodeFactory.register("fusion")
 def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """Build a FusionService instance from persisted node configuration."""
-    from app.services.modules.lidar.sensor import LidarSensor  # lazy import
+    from app.modules.lidar.sensor import LidarSensor  # lazy import
     from .service import FusionService  # lazy import
     
     config = node.get("config", {})
@@ -52,7 +52,6 @@ def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
 
     return FusionService(
         service_context,
-        topic=config.get("topic", f"fused_{node['id'][:8]}"),
         sensor_ids=sensor_ids,
         fusion_id=node["id"]
     )

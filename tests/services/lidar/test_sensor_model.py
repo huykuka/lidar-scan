@@ -4,7 +4,7 @@ Unit tests for sensor_model module - LidarSensor class.
 import numpy as np
 import pytest
 
-from app.services.modules.lidar.sensor import LidarSensor
+from app.modules.lidar.sensor import LidarSensor
 
 
 class TestLidarSensorInitialization:

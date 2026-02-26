@@ -3,12 +3,12 @@ import numpy as np
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.modules.fusion.service import FusionService
+from app.modules.fusion.service import FusionService
 from app.services.websocket.manager import manager
 
 @pytest.fixture
 def mock_manager():
-    with patch("app.services.modules.fusion.service.manager", new_callable=MagicMock) as mock:
+    with patch("app.modules.fusion.service.manager", new_callable=MagicMock) as mock:
         mock.broadcast = AsyncMock()
         yield mock
 
@@ -68,7 +68,7 @@ async def test_on_frame_basic(mock_lidar_service, mock_manager):
     mock_manager.broadcast.assert_not_called()
     
     # Send second frame - should fuse and broadcast
-    with patch("app.services.modules.fusion.service.pack_points_binary", return_value=b"fused"):
+    with patch("app.modules.fusion.service.pack_points_binary", return_value=b"fused"):
         await fusion._on_frame(payload2)
     
     mock_manager.broadcast.assert_called_once_with("test_fusion", b"fused")
@@ -91,7 +91,7 @@ async def test_on_frame_filtered(mock_lidar_service, mock_manager):
     }
     
     # Only expecting sensor1, so this should broadcast immediately
-    with patch("app.services.modules.fusion.service.pack_points_binary", return_value=b"fused"):
+    with patch("app.modules.fusion.service.pack_points_binary", return_value=b"fused"):
         await fusion._on_frame(payload1)
         
     mock_manager.broadcast.assert_called_once()

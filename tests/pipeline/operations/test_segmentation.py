@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import open3d as o3d
-from app.pipeline.operations.segmentation import PlaneSegmentation
+from app.modules.pipeline.operations.segmentation import PlaneSegmentation
 
 def test_plane_segmentation_legacy():
     pcd = o3d.geometry.PointCloud()

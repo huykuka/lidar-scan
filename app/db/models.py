@@ -66,7 +66,7 @@ class RecordingModel(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    node_id: Mapped[str] = mapped_column("topic", String, nullable=False)
+    node_id: Mapped[str] = mapped_column(String, nullable=False)
     sensor_id: Mapped[str | None] = mapped_column(String)
     file_path: Mapped[str] = mapped_column(String, nullable=False)
     file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)

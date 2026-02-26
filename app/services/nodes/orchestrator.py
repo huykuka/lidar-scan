@@ -124,16 +124,6 @@ class NodeManager:
         if hasattr(node_instance, "stop"):
             node_instance.stop()
 
-        # Unregister topics
-        topic = getattr(node_instance, "topic", None)
-        if topic:
-            manager.unregister_topic(topic)
-            
-        topic_prefix = getattr(node_instance, "topic_prefix", None)
-        if topic_prefix:
-            manager.unregister_topic(f"{topic_prefix}_raw_points")
-            manager.unregister_topic(topic_prefix)
-
         # Cleanup topological maps
         if node_id in self.downstream_map:
             del self.downstream_map[node_id]
@@ -176,9 +166,37 @@ class NodeManager:
             logger.warning(f"Received data for unknown node: {node_id}")
 
     async def forward_data(self, source_id: str, payload: Any):
-        """Forwards data to all connected downstream nodes."""
+        """
+        Forwards data to all connected downstream nodes and handles WebSocket broadcasting.
         
-        # 1. Native N-Dimensional Recording Interception
+        This is the central routing method that:
+        1. Records data if recording is active
+        2. Broadcasts to WebSocket clients if subscribed
+        3. Forwards to downstream nodes in the DAG
+        """
+        source_node = self.nodes.get(source_id)
+        if not source_node:
+            logger.warning(f"forward_data called for unknown node: {source_id}")
+            return
+        
+        # Generate topic name: {node_name}_{node_id[:8]}
+        node_name = getattr(source_node, "name", source_id)
+        topic = f"{node_name}_{source_id[:8]}"
+        
+        # 1. WebSocket Broadcasting (if anyone is listening)
+        if "points" in payload and self.has_subscribers(topic):
+            try:
+                from app.services.shared.binary import pack_points_binary
+                import asyncio
+                
+                timestamp = payload.get("timestamp") or __import__('time').time()
+                binary = await asyncio.to_thread(pack_points_binary, payload["points"], timestamp)
+                await manager.broadcast(topic, binary)
+                logger.debug(f"Broadcasted {len(payload['points'])} points from {source_id} on topic '{topic}'")
+            except Exception as e:
+                logger.error(f"Error broadcasting from node '{source_id}': {e}", exc_info=True)
+        
+        # 2. Native N-Dimensional Recording Interception
         # Bypasses the WebSockets strictly limited 3xFloat format (XYZ only)
         from app.services.shared.recorder import get_recorder
         recorder = get_recorder()
@@ -190,7 +208,7 @@ class NodeManager:
             except Exception as e:
                 logger.error(f"Error intercepting recording payload for node '{source_id}': {e}", exc_info=True)
                 
-        # 2. Forward to downstream graph targets
+        # 3. Forward to downstream graph targets
         targets = self.downstream_map.get(source_id, [])
         for target_id in targets:
             target_node = self.nodes.get(target_id)

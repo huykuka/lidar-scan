@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import open3d as o3d
-from app.pipeline.operations.outliers import StatisticalOutlierRemoval, RadiusOutlierRemoval
+from app.modules.pipeline.operations.outliers import StatisticalOutlierRemoval, RadiusOutlierRemoval
 
 def test_statistical_outlier_removal_legacy():
     pcd = o3d.geometry.PointCloud()

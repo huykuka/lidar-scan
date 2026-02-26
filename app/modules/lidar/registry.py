@@ -104,5 +104,4 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     )
     sensor.set_pose(x, y, z, roll, pitch, yaw)
     
-    manager.register_topic(f"{final_topic_prefix}_raw_points")
     return sensor

@@ -145,7 +145,7 @@ def discover_modules():
     for module_info in pkgutil.iter_modules([modules_path]):
         if module_info.ispkg:
             # Import the registry.py to trigger side-effect registration
-            importlib.import_module(f"app.services.modules.{module_info.name}.registry")
+            importlib.import_module(f"app.modules.{module_info.name}.registry")
 ```
 
 This means **adding a new module requires zero changes to the orchestrator** - just create the folder structure and restart.
@@ -315,7 +315,7 @@ if self.manager.has_subscribers(topic):  # Recorder is a subscriber
 
 ### Step 8: Test the Module
 
-1. **Import test**: Verify `from app.services.modules.<module_name> import <NodeClass>` works
+1. **Import test**: Verify `from app.modules.<module_name> import <NodeClass>` works
 2. **Discovery test**: Check that `discover_modules()` loads the registry
 3. **Factory test**: Confirm the node type appears in `NodeFactory._registry`
 4. **Integration test**: Add a node via API and verify it appears in the DAG
@@ -569,7 +569,7 @@ import pytest
 import numpy as np
 from unittest.mock import MagicMock, AsyncMock
 
-from app.services.modules.<module_name>.<node_class> import <NodeClassName>
+from app.modules.<module_name>.<node_class> import <NodeClassName>
 
 @pytest.fixture
 def mock_manager():
@@ -617,7 +617,7 @@ When generating a module, ensure:
 - [ ] Type hints used throughout
 - [ ] Logger imported and used for debugging
 - [ ] Test file created with basic coverage
-- [ ] Module imports successfully: `from app.services.modules.<name> import <Node>`
+- [ ] Module imports successfully: `from app.modules.<name> import <Node>`
 - [ ] Discovery works: `discover_modules()` registers the node type
 - [ ] Factory creates instances: `NodeFactory.create()` works
 
