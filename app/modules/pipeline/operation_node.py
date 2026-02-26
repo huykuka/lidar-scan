@@ -102,8 +102,6 @@ class OperationNode(ModuleNode):
     def get_status(self, runtime_status: Dict[str, Any]) -> Dict[str, Any]:
         """Returns standard status for this node"""
         frame_age = time.time() - self.last_output_at if self.last_output_at else None
-        # Auto-generate topic from node name and ID
-        topic = f"{self.name}_{self.id[:8]}"
         return {
             "id": self.id,
             "name": self.name,
@@ -116,6 +114,5 @@ class OperationNode(ModuleNode):
             "last_error": self.last_error,
             "processing_time_ms": self.processing_time_ms,
             "input_count": self.input_count,
-            "output_count": self.output_count,
-            "topic": topic
+            "output_count": self.output_count
         }

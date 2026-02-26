@@ -30,6 +30,11 @@ def _build_status_message() -> Dict[str, Any]:
             # Ensure category and enabled are always present
             status.setdefault("category", config.get("category"))
             status.setdefault("enabled", config.get("enabled", True))
+            
+            # Auto-generate topic: {node_name}_{node_id[:8]}
+            node_name = getattr(node_instance, "name", node_id)
+            status["topic"] = f"{node_name}_{node_id[:8]}"
+            
             nodes_status.append(status)
         else:
             nodes_status.append({
@@ -62,7 +67,7 @@ async def _status_broadcast_loop():
             logger.exception("[StatusBroadcaster] Error broadcasting status:")
         # Wait 2 seconds before next broadcast
         try:
-            await asyncio.wait_for(_stop_event.wait(), timeout=2.0)
+            await asyncio.wait_for(_stop_event.wait(), timeout=0.5)
             break  # Stop event was set
         except asyncio.TimeoutError:
             continue  # Timeout is normal, continue loop

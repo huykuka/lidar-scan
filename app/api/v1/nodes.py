@@ -95,6 +95,11 @@ async def get_nodes_status():
             # Re-add category from DB if not in runtime status
             status["category"] = cnfg["category"]
             status["enabled"] = cnfg["enabled"]
+            
+            # Auto-generate topic: {node_name}_{node_id[:8]}
+            node_name = getattr(node_instance, "name", node_id)
+            status["topic"] = f"{node_name}_{node_id[:8]}"
+            
             nodes_status.append(status)
         else:
             nodes_status.append({

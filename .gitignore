@@ -22,7 +22,6 @@ app/static/*
 # Local dev database
 config/
 /recordings/
-app
 /logs/
 
 # Web/frontend
