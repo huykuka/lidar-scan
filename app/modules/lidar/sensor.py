@@ -29,7 +29,8 @@ class LidarSensor(ModuleNode):
         pcd_path: Optional[str] = None,
         transformation: Optional[np.ndarray] = None,
         name: Optional[str] = None,
-        topic_prefix: Optional[str] = None
+        topic_prefix: Optional[str] = None,
+        throttle_ms: float = 0
     ):
         self.manager = manager
         self.id = sensor_id
@@ -174,10 +175,11 @@ class LidarSensor(ModuleNode):
                 runtime_status[self.id]["last_error"] = str(e)
 
 
-    def get_status(self, runtime_status: Dict[str, Any]) -> Dict[str, Any]:
+    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Returns standard status for this node"""
         from app.services.shared.topics import slugify_topic_prefix
         
+        runtime_status = runtime_status or {}
         runtime = runtime_status.get(self.id, {}).copy()
         last_frame_at = runtime.get("last_frame_at")
         frame_age = time.time() - last_frame_at if last_frame_at else None

@@ -276,31 +276,6 @@ export class FlowCanvasNodeComponent implements OnDestroy {
   }
 
   // Recording functionality
-  protected getNodeTopicForRecording(): string | null {
-    const data = this.node().data;
-    const config = data.config as any;
-    const s = this.status() as any;
-
-    if (this.node().type === 'sensor') {
-      // For sensors, use processed_topic or raw_topic or construct from topic_prefix
-      return (
-        s?.raw_topic ||
-        config.processed_topic ||
-        config.raw_topic ||
-        (config.topic_prefix ? `${config.topic_prefix}_raw_points` : null)
-      );
-    } else if (this.node().type === 'fusion') {
-      // For fusion nodes, use the topic field
-      return s?.topic || config.topic || null;
-    } else if (this.node().type === 'operation') {
-      // For operation nodes, grab exactly the topic field we just added
-      // Need to handle both nested and flat config structures
-      return s?.topic || config.topic || (config.op_config && config.op_config.topic) || null;
-    }
-
-    return null;
-  }
-
   protected async toggleRecording(): Promise<void> {
     const data = this.node().data;
     const config = data.config as any;

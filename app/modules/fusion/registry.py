@@ -21,6 +21,7 @@ node_schema_registry.register(NodeDefinition(
     description="Merges multiple point cloud streams into a unified coordinate system",
     icon="hub",
     properties=[
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
         # Topic is now auto-generated as {node_name}_{node_id[:8]} by NodeManager
     ],
     inputs=[
@@ -41,6 +42,13 @@ def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     from .service import FusionService  # lazy import
     
     config = node.get("config", {})
+    
+    # Ensure throttle_ms is numeric
+    throttle_ms = config.get("throttle_ms", 0)
+    try:
+        throttle_ms = float(throttle_ms)
+    except (ValueError, TypeError):
+        throttle_ms = 0.0
 
     incoming_edges = [e for e in edges if e["target_node"] == node["id"]]
     sensor_ids = []
@@ -53,5 +61,6 @@ def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     return FusionService(
         service_context,
         sensor_ids=sensor_ids,
-        fusion_id=node["id"]
+        fusion_id=node["id"],
+        throttle_ms=throttle_ms
     )

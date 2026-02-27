@@ -29,6 +29,10 @@ export interface NodeStatus {
   connection_status?: 'connected' | 'disconnected' | 'starting' | 'error';
   frame_age_seconds?: number;
   broadcast_age_seconds?: number;
+  // Throttling stats
+  throttle_ms?: number;
+  throttled_count?: number;
+  last_process_time?: number;
   // Dynamic metrics
   metrics?: Record<string, any>;
 }
@@ -52,6 +56,7 @@ export interface PropertySchema {
   min?: number;
   max?: number;
   step?: number;
+  hidden?: boolean;
 }
 
 export interface PortSchema {

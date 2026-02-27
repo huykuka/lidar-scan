@@ -1,5 +1,6 @@
 import asyncio
 import multiprocessing as mp
+import time
 from typing import Any, Dict, List, Optional, cast
 from collections import defaultdict
 
@@ -26,6 +27,11 @@ class NodeManager:
         self.nodes: Dict[str, Any] = {}
         self.node_runtime_status: Dict[str, Dict[str, Any]] = {}
         self.downstream_map: Dict[str, List[str]] = {}
+        
+        # Throttling state per node
+        self._throttle_config: Dict[str, float] = {}  # node_id -> throttle_interval_ms
+        self._last_process_time: Dict[str, float] = {}  # node_id -> last_process_timestamp
+        self._throttled_count: Dict[str, int] = {}  # node_id -> count of throttled frames
 
     def load_config(self):
         """Loads node and edge configurations from SQLite and registers them."""
@@ -50,6 +56,16 @@ class NodeManager:
                     try:
                         node_instance = NodeFactory.create(node, self, self.edges_data)
                         self.nodes[node["id"]] = node_instance
+                        
+                        # Extract and store throttle configuration
+                        config = node.get("config", {})
+                        throttle_ms = config.get("throttle_ms", 0)
+                        try:
+                            self._throttle_config[node["id"]] = float(throttle_ms)
+                        except (ValueError, TypeError):
+                            self._throttle_config[node["id"]] = 0.0
+                        self._last_process_time[node["id"]] = 0.0
+                        self._throttled_count[node["id"]] = 0
                         
                         # Register WebSocket topic for this node
                         node_name = getattr(node_instance, "name", node["id"])
@@ -150,6 +166,11 @@ class NodeManager:
                     
         if node_id in self.node_runtime_status:
             del self.node_runtime_status[node_id]
+            
+        # Cleanup throttle state
+        self._throttle_config.pop(node_id, None)
+        self._last_process_time.pop(node_id, None)
+        self._throttled_count.pop(node_id, None)
 
     async def _queue_listener(self):
         loop = asyncio.get_event_loop()
@@ -179,15 +200,61 @@ class NodeManager:
                 await node_instance.on_input(payload)
         else:
             logger.warning(f"Received data for unknown node: {node_id}")
+    
+    def _should_process(self, node_id: str) -> bool:
+        """
+        Check if a node should process based on its throttle configuration.
+        
+        Args:
+            node_id: The node to check
+            
+        Returns:
+            True if the node should process, False if throttled
+        """
+        throttle_ms = self._throttle_config.get(node_id, 0.0)
+        
+        # No throttling configured
+        if throttle_ms <= 0:
+            return True
+        
+        current_time = time.time()
+        last_time = self._last_process_time.get(node_id, 0.0)
+        elapsed_ms = (current_time - last_time) * 1000.0
+        
+        # Check if enough time has passed
+        if elapsed_ms >= throttle_ms:
+            self._last_process_time[node_id] = current_time
+            return True
+        else:
+            # Increment throttled count
+            self._throttled_count[node_id] = self._throttled_count.get(node_id, 0) + 1
+            return False
+    
+    def get_throttle_stats(self, node_id: str) -> Dict[str, Any]:
+        """
+        Get throttling statistics for a node.
+        
+        Args:
+            node_id: The node ID
+            
+        Returns:
+            Dictionary with throttling metrics
+        """
+        return {
+            "throttle_ms": self._throttle_config.get(node_id, 0.0),
+            "throttled_count": self._throttled_count.get(node_id, 0),
+            "last_process_time": self._last_process_time.get(node_id, 0.0)
+        }
 
     async def forward_data(self, source_id: str, payload: Any):
         """
         Forwards data to all connected downstream nodes and handles WebSocket broadcasting.
         
         This is the central routing method that:
-        1. Records data if recording is active
-        2. Broadcasts to WebSocket clients if subscribed
-        3. Forwards to downstream nodes in the DAG
+        1. Checks throttling for each target node
+        2. Records data if recording is active
+        3. Broadcasts to WebSocket clients if subscribed
+        4. Forwards to downstream nodes in the DAG
         """
         source_node = self.nodes.get(source_id)
         if not source_node:
@@ -224,9 +291,14 @@ class NodeManager:
             except Exception as e:
                 logger.error(f"Error intercepting recording payload for node '{source_id}': {e}", exc_info=True)
                 
-        # 3. Forward to downstream graph targets
+        # 3. Forward to downstream graph targets (with throttling)
         targets = self.downstream_map.get(source_id, [])
         for target_id in targets:
+            # Check throttling for this target node
+            if not self._should_process(target_id):
+                logger.debug(f"Throttled forwarding from {source_id} to {target_id}")
+                continue
+                
             target_node = self.nodes.get(target_id)
             if target_node and hasattr(target_node, "on_input"):
                 try:

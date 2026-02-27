@@ -102,6 +102,10 @@ async def get_nodes_status():
             node_name = getattr(node_instance, "name", node_id)
             status["topic"] = f"{node_name}_{node_id[:8]}"
             
+            # Add throttling stats from NodeManager
+            throttle_stats = node_manager.get_throttle_stats(node_id)
+            status.update(throttle_stats)
+            
             nodes_status.append(status)
         else:
             nodes_status.append({

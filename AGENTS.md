@@ -417,12 +417,26 @@ Point cloud nodes do not send slow JSON arrays over network protocols. They pack
 
 ### Data Recording Subsystem
 
-The backend explicitly integrates with `WebSocket` binary broadcasts to cleanly multiplex Point Cloud dumps.
+The recording system operates **independently from WebSocket streaming** by intercepting node outputs directly at the DAG orchestrator level.
 
-1. **Frontend Initiation**: `flow-canvas-node.component.ts` strictly queries the realtime `s?.topic` or `s?.raw_topic` from the node status polling, not the raw input schema `config`. This is critical, as the graph builder generates secure short-hashes for overlapping nodes (e.g. `clustered_e13a49`) to prevent channel collisions.
-2. **Backend API Fallbacks**: `POST /api/v1/recordings/start` receives the topic. If the UI falls back to an unhashed string, the backend actively crawls `node_manager.nodes.values()` to natively auto-resolve prefix mismatches before mounting the file writer handle.
-3. **Lazy-Load Singleton Integration**: The `ConnectionManager` handling WebSocket payloads globally injects the `RecordingService` via a lazy-loaded method `_get_recorder()`. This averts circular startup dependencies while simultaneously ensuring `has_subscribers(topic)` detects active disk writes, stopping the backend hardware processes from blindly culling untethered network traffic dumps.
-4. Multiple isolated disk files can concurrently record identical topics without crashing due to unique UUID generation per node request.
+**Key Architecture Principles**:
+
+1. **Node-Based Recording**: Recording targets nodes by their `node_id`, not WebSocket topics. The frontend simply sends `POST /api/v1/recordings/start` with the node ID.
+
+2. **DAG-Level Interception**: When any node calls `manager.forward_data(node_id, payload)`, the orchestrator checks `recorder.is_recording(node_id)` and writes the full N-dimensional point cloud data directly to disk **before** WebSocket broadcast occurs.
+
+3. **Full Data Capture**: Recording captures complete numpy arrays (all dimensions, metadata, etc.), while WebSocket streaming only broadcasts XYZ coordinates for visualization. This separation ensures recordings preserve all processing data.
+
+4. **Concurrent Recording**: Multiple recordings can target the same node simultaneously without collision, each generating a unique UUID-based recording file.
+
+5. **Singleton Integration**: The `RecordingService` is a global singleton lazily loaded by the orchestrator, avoiding circular dependencies while ensuring recording handles are available wherever `forward_data()` is called.
+
+**Recording Flow**:
+- User clicks record button → `POST /api/v1/recordings/start` with `node_id`
+- Backend creates `RecordingHandle` and stores in `active_recordings` dict
+- As nodes process data, orchestrator intercepts via `recorder.record_node_payload(node_id, points, timestamp)`
+- Frames are batched and written to ZIP archive asynchronously
+- User clicks stop → frames flush, metadata written, thumbnail generated, saved to SQLite
 
 ### REST System Flow
 

@@ -12,6 +12,7 @@ class PropertySchema(BaseModel):
     min: Optional[float] = None
     max: Optional[float] = None
     step: Optional[float] = None
+    hidden: bool = False  # Hide from UI but keep in schema
 
 class PortSchema(BaseModel):
     id: str

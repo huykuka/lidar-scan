@@ -22,6 +22,7 @@ node_schema_registry.register(NodeDefinition(
     description="Interface for physical SICK sensors or PCD file simulations",
     icon="sensors",
     properties=[
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
         PropertySchema(name="mode", label="Mode", type="select", default="real", options=[
             {"label": "Hardware (Real)", "value": "real"},
             {"label": "Simulation (PCD)", "value": "sim"}
@@ -55,6 +56,13 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     
     config = node.get("config", {})
     mode = config.get("mode", "real")
+    
+    # Ensure throttle_ms is numeric
+    throttle_ms = config.get("throttle_ms", 0)
+    try:
+        throttle_ms = float(throttle_ms)
+    except (ValueError, TypeError):
+        throttle_ms = 0.0
 
     # Resolve pcd_path for sim mode: fall back to env var, then make absolute
     pcd_path = config.get("pcd_path") or ""
@@ -96,7 +104,8 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         topic_prefix=final_topic_prefix,
         launch_args=launch_args,
         mode=mode,
-        pcd_path=pcd_path or None
+        pcd_path=pcd_path or None,
+        throttle_ms=throttle_ms
     )
     sensor.set_pose(x, y, z, roll, pitch, yaw)
     

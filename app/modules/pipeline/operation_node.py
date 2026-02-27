@@ -17,14 +17,15 @@ class OperationNode(ModuleNode):
         node_id: str,
         op_type: str,
         op_config: Dict[str, Any],
-        name: Optional[str] = None
+        name: Optional[str] = None,
+        throttle_ms: float = 0  # Accepted but not used, handled by NodeManager
     ):
         self.manager = manager
         self.id = node_id
         self.name = name or node_id
         self.op_type = op_type
         
-        # Instantiate the operation
+        # Instantiate the operation (op_config should not contain throttle_ms)
         try:
             self.op = OperationFactory.create(op_type, op_config)
         except Exception as e:
@@ -99,7 +100,7 @@ class OperationNode(ModuleNode):
             self.last_error = str(e)
             logger.error(f"[{self.id}] Error processing data: {e}", exc_info=True)
 
-    def get_status(self, runtime_status: Dict[str, Any]) -> Dict[str, Any]:
+    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Returns standard status for this node"""
         frame_age = time.time() - self.last_output_at if self.last_output_at else None
         return {

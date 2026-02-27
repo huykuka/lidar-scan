@@ -40,6 +40,7 @@ class FusionService(ModuleNode):
         node_manager,
         sensor_ids: Optional[List[str]] = None,
         fusion_id: Optional[str] = None,
+        throttle_ms: float = 0
     ):
         self._service = node_manager
         self.manager = node_manager
@@ -141,12 +142,12 @@ class FusionService(ModuleNode):
         except Exception as e:
             self.last_error = str(e)
 
-    def get_status(self, runtime_status: Dict[str, Any]) -> Dict[str, Any]:
+    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Returns standard status for this node"""
         last_broadcast_at = self.last_broadcast_at
         broadcast_age = time.time() - last_broadcast_at if last_broadcast_at else None
         
-        return {
+        status = {
             "id": self.id,
             "name": self.name,
             "type": "fusion",
@@ -158,3 +159,4 @@ class FusionService(ModuleNode):
             "last_error": self.last_error,
             "input_count": len(self._latest_frames)
         }
+        return status

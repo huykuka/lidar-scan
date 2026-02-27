@@ -56,6 +56,13 @@ export class DynamicNodeEditorComponent {
 
     return def;
   });
+  
+  protected visibleProperties = computed(() => {
+    const def = this.definition();
+    if (!def) return [];
+    // Filter out hidden properties from UI display
+    return def.properties.filter(prop => !prop.hidden);
+  });
 
   protected form!: FormGroup;
   protected configForm!: FormGroup;

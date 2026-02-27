@@ -20,6 +20,8 @@ class ModuleNode(ABC):
         id (str): Unique identifier for this node instance
         name (str): Display name for this node
         manager (Any): Reference to the NodeManager orchestrator
+        
+    Note: Throttling is now handled centrally by the NodeManager, not individual nodes.
     """
 
     id: str
@@ -48,7 +50,7 @@ class ModuleNode(ABC):
         ...
 
     @abstractmethod
-    def get_status(self, runtime_status: Dict[str, Any]) -> Dict[str, Any]:
+    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Return a status dictionary for the status broadcaster / API.
         
@@ -75,7 +77,7 @@ class ModuleNode(ABC):
         """
         ...
 
-    def start(self, data_queue: Any = None, runtime_status: Dict[str, Any] = None) -> None:
+    def start(self, data_queue: Any = None, runtime_status: Optional[Dict[str, Any]] = None) -> None:
         """
         Called when the orchestrator starts.
         

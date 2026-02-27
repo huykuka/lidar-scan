@@ -37,7 +37,7 @@
 
     <!-- Dynamic Properties from Schema -->
     <div class="grid grid-cols-2 gap-x-4 gap-y-3" [formGroup]="configForm">
-      @for (prop of definition()?.properties; track prop.name) {
+      @for (prop of visibleProperties(); track prop.name) {
         <div
           class="flex flex-col"
           [class.col-span-2]="prop.type === 'vec3' || prop.type === 'string'"
