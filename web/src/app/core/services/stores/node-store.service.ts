@@ -44,4 +44,5 @@ export class NodeStoreService extends SignalsSimpleStoreService<NodeState> {
   sensorNodes = computed(() => this.nodes().filter((n) => n.category === 'sensor'));
   fusionNodes = computed(() => this.nodes().filter((n) => n.category === 'fusion'));
   operationNodes = computed(() => this.nodes().filter((n) => n.category === 'operation'));
+  calibrationNodes = computed(() => this.nodes().filter((n) => n.category === 'calibration'));
 }

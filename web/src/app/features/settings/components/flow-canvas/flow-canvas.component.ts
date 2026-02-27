@@ -151,7 +151,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.nodes().forEach((node, index) => {
       nodes.push({
         id: node.id,
-        type: node.category,
+        type: node.category as 'sensor' | 'fusion' | 'operation',
         data: node,
         position: {
           x: node.x ?? (100 + (index % 4) * 300),

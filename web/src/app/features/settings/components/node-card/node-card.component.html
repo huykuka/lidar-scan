@@ -19,7 +19,8 @@
         'bg-syn-color-success-500': isSensor() && node().config['mode'] !== 'sim',
         'bg-syn-color-neutral-300': isSensor() && node().config['mode'] === 'sim',
         'bg-syn-color-primary-500': isFusion(),
-        'bg-syn-color-neutral-500': !isSensor() && !isFusion(),
+        'bg-syn-color-warning-500': isCalibration(),
+        'bg-syn-color-neutral-500': !isSensor() && !isFusion() && !isCalibration(),
       }"
     ></div>
 
@@ -32,7 +33,8 @@
             [ngClass]="{
               'text-syn-color-success-700': isSensor(),
               'text-syn-color-primary-700': isFusion(),
-              'text-syn-color-neutral-700': !isSensor() && !isFusion(),
+              'text-syn-color-warning-700': isCalibration(),
+              'text-syn-color-neutral-700': !isSensor() && !isFusion() && !isCalibration(),
             }"
           >
             <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-base"></syn-icon>
@@ -53,13 +55,23 @@
                   ? 'success'
                   : isFusion()
                     ? 'primary'
-                    : 'neutral'
+                    : isCalibration()
+                      ? 'warning'
+                      : 'neutral'
                 : 'neutral'
             "
             pill
             size="small"
           >
-            {{ isSensor() ? 'Sensor' : isFusion() ? 'Fusion' : 'Operation' }}
+            {{
+              isSensor()
+                ? 'Sensor'
+                : isFusion()
+                  ? 'Fusion'
+                  : isCalibration()
+                    ? 'Calibration'
+                    : 'Operation'
+            }}
           </syn-badge>
 
           <syn-switch
@@ -151,9 +163,84 @@
     <div
       class="flex justify-between items-center px-3 py-2 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2"
     >
+      <!-- Calibration Controls (Calibration Node Only) -->
+      @if (isCalibration()) {
+        <div class="flex items-center gap-2 w-full">
+          @if (hasPendingCalibration()) {
+            <!-- Pending Calibration Results -->
+            <div class="flex flex-col gap-2 w-full">
+              <!-- Quality Summary -->
+              <div class="flex items-center gap-2 flex-wrap">
+                @for (entry of pendingResults() | keyvalue; track entry.key) {
+                  <syn-badge
+                    [variant]="getQualityBadgeVariant(entry.value.quality)"
+                    pill
+                    size="small"
+                  >
+                    <syn-icon
+                      slot="prefix"
+                      [attr.name]="getQualityIcon(entry.value.quality)"
+                    ></syn-icon>
+                    {{ entry.value.quality }} ({{ entry.value.fitness.toFixed(3) }})
+                  </syn-badge>
+                }
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-2">
+                <syn-button
+                  variant="filled"
+                  color="success"
+                  size="small"
+                  (click)="acceptCalibration(); $event.stopPropagation()"
+                  [disabled]="isCalibrating()"
+                >
+                  <syn-icon slot="prefix" name="check"></syn-icon>
+                  Accept & Save
+                </syn-button>
+                <syn-button
+                  variant="outline"
+                  color="danger"
+                  size="small"
+                  (click)="rejectCalibration(); $event.stopPropagation()"
+                  [disabled]="isCalibrating()"
+                >
+                  <syn-icon slot="prefix" name="close"></syn-icon>
+                  Reject
+                </syn-button>
+              </div>
+
+              @if (calibrationError()) {
+                <div class="text-syn-color-danger-600 text-xs">{{ calibrationError() }}</div>
+              }
+            </div>
+          } @else {
+            <!-- Trigger Calibration Button -->
+            <syn-button
+              variant="filled"
+              color="primary"
+              size="small"
+              (click)="triggerCalibration(); $event.stopPropagation()"
+              [disabled]="!node().enabled || isCalibrating()"
+            >
+              @if (isCalibrating()) {
+                <syn-spinner slot="prefix" style="font-size: 1em"></syn-spinner>
+              } @else {
+                <syn-icon slot="prefix" name="tune"></syn-icon>
+              }
+              {{ isCalibrating() ? 'Calibrating...' : 'Run Calibration' }}
+            </syn-button>
+
+            @if (calibrationError()) {
+              <div class="text-syn-color-danger-600 text-xs ml-2">{{ calibrationError() }}</div>
+            }
+          }
+        </div>
+      }
+
       <!-- Recording Controls (Sensor Only) -->
-      <div class="flex items-center gap-2">
-        @if (isSensor()) {
+      @if (isSensor()) {
+        <div class="flex items-center gap-2">
           @if (isRecording()) {
             <syn-button
               variant="filled"
@@ -175,8 +262,8 @@
               Record
             </syn-button>
           }
-        }
-      </div>
+        </div>
+      }
 
       <!-- Action Buttons -->
       <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">

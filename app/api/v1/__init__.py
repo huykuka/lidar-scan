@@ -6,6 +6,7 @@ from .edges import router as edges_router
 from .config import router as config_router
 from .recordings import router as recordings_router
 from .logs import router as logs_router
+from .calibration import router as calibration_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(system_router)
@@ -14,4 +15,5 @@ router.include_router(edges_router)
 router.include_router(config_router)
 router.include_router(recordings_router)
 router.include_router(logs_router)
+router.include_router(calibration_router)
 router.include_router(ws_router)

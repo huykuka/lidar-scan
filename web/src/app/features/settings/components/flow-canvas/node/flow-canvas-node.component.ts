@@ -7,9 +7,17 @@ import {
   NodeConfig,
   LidarNodeStatus,
   FusionNodeStatus,
+  NodeDefinition,
 } from '../../../../../core/models/node.model';
 import { RecordingStoreService } from '../../../../../core/services/stores/recording-store.service';
 import { RecordingApiService } from '../../../../../core/services/api/recording-api.service';
+import { NodeStoreService } from '../../../../../core/services/stores/node-store.service';
+import { CalibrationApiService } from '../../../../../core/services/api/calibration-api.service';
+import {
+  CalibrationNodeStatus,
+  CalibrationResult,
+} from '../../../../../core/models/calibration.model';
+import { ToastService } from '../../../../../core/services/toast.service';
 
 export interface CanvasNode {
   id: string;
@@ -28,11 +36,52 @@ export interface CanvasNode {
 export class FlowCanvasNodeComponent implements OnDestroy {
   private recordingStore = inject(RecordingStoreService);
   private recordingApi = inject(RecordingApiService);
+  private nodeStore = inject(NodeStoreService);
+  private calibrationApi = inject(CalibrationApiService);
+  private toast = inject(ToastService);
 
   node = input.required<CanvasNode>();
   status = input<LidarNodeStatus | FusionNodeStatus | null>(null);
   isLoading = input<boolean>(false);
   isDragging = input<boolean>(false);
+
+  // Computed property to get the node definition
+  protected nodeDefinition = computed(() => {
+    return this.nodeStore.nodeDefinitions().find((d) => d.type === this.node().data.type);
+  });
+
+  // Computed properties to check if node has input/output ports
+  protected hasInputPort = computed(() => {
+    const def = this.nodeDefinition();
+    return def && def.inputs && def.inputs.length > 0;
+  });
+
+  protected hasOutputPort = computed(() => {
+    const def = this.nodeDefinition();
+    return def && def.outputs && def.outputs.length > 0;
+  });
+
+  // Check if this is a calibration node
+  protected isCalibrationNode = computed(() => {
+    return this.node().data.type === 'calibration';
+  });
+
+  // Calibration state
+  protected calibrationStatus = computed(() => {
+    if (!this.isCalibrationNode()) return null;
+    return this.status() as CalibrationNodeStatus | null;
+  });
+
+  protected hasPendingCalibration = computed(() => {
+    return this.calibrationStatus()?.has_pending || false;
+  });
+
+  protected pendingResults = computed(() => {
+    return this.calibrationStatus()?.pending_results || {};
+  });
+
+  protected isCalibrating = signal<boolean>(false);
+  protected calibrationError = signal<string | null>(null);
 
   onEdit = output<void>();
   onDelete = output<void>();
@@ -352,6 +401,96 @@ export class FlowCanvasNodeComponent implements OnDestroy {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // Calibration Controls
+  protected async triggerCalibration(): Promise<void> {
+    if (!this.isCalibrationNode()) return;
+
+    this.isCalibrating.set(true);
+    this.calibrationError.set(null);
+
+    try {
+      const response = await this.calibrationApi.triggerCalibration(this.node().id);
+      
+      // Check if there are results
+      const resultCount = Object.keys(response.results || {}).length;
+      
+      if (resultCount === 0) {
+        this.toast.warning('No sensors to calibrate. Connect sensor nodes to the calibration node inputs and ensure they are running.');
+      } else if (response.pending_approval) {
+        this.toast.success(`Calibration complete! ${resultCount} sensor(s) pending approval.`);
+      } else {
+        this.toast.success(`Calibration complete and auto-saved for ${resultCount} sensor(s).`);
+      }
+      
+      // Status will update via WebSocket
+    } catch (error: any) {
+      console.error('Failed to trigger calibration:', error);
+      const errorMsg = error?.error?.detail || 'Calibration failed';
+      this.calibrationError.set(errorMsg);
+      this.toast.danger(`Calibration failed: ${errorMsg}`);
+    } finally {
+      this.isCalibrating.set(false);
+    }
+  }
+
+  protected async acceptCalibration(): Promise<void> {
+    if (!this.isCalibrationNode()) return;
+
+    this.isCalibrating.set(true);
+    this.calibrationError.set(null);
+
+    try {
+      const response = await this.calibrationApi.acceptCalibration(this.node().id);
+      const acceptedCount = response.accepted?.length || 0;
+      
+      this.toast.success(`Calibration accepted and saved for ${acceptedCount} sensor(s). Sensors will reload with new poses.`);
+      
+      // Reload will happen automatically via backend
+    } catch (error: any) {
+      console.error('Failed to accept calibration:', error);
+      const errorMsg = error?.error?.detail || 'Failed to accept calibration';
+      this.calibrationError.set(errorMsg);
+      this.toast.danger(`Failed to accept: ${errorMsg}`);
+    } finally {
+      this.isCalibrating.set(false);
+    }
+  }
+
+  protected async rejectCalibration(): Promise<void> {
+    if (!this.isCalibrationNode()) return;
+
+    this.isCalibrating.set(true);
+
+    try {
+      await this.calibrationApi.rejectCalibration(this.node().id);
+      this.toast.neutral('Calibration rejected. No changes were applied.');
+      
+      // Status will update via WebSocket
+    } catch (error: any) {
+      console.error('Failed to reject calibration:', error);
+      const errorMsg = error?.error?.detail || 'Failed to reject calibration';
+      this.calibrationError.set(errorMsg);
+      this.toast.danger(`Failed to reject: ${errorMsg}`);
+    } finally {
+      this.isCalibrating.set(false);
+    }
+  }
+
+  protected getQualityBadgeVariant(
+    quality: string
+  ): 'primary' | 'success' | 'neutral' | 'warning' | 'danger' {
+    if (quality === 'excellent' || quality === 'good') return 'success';
+    if (quality === 'fair') return 'warning';
+    return 'danger';
+  }
+
+  protected getQualityIcon(quality: string): string {
+    if (quality === 'excellent') return 'check_circle';
+    if (quality === 'good') return 'check';
+    if (quality === 'fair') return 'warning';
+    return 'error';
   }
 
   ngOnDestroy(): void {

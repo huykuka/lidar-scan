@@ -74,6 +74,8 @@
               draggingNode()?.id === node.id ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
             "
             (mousedown)="onNodeMouseDown($event, node)"
+            (dblclick)="onEditNode(node)"
+            title="Double-click to edit"
           >
             <app-flow-canvas-node
               [node]="node"

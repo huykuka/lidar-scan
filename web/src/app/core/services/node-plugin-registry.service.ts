@@ -8,7 +8,8 @@ import { NodeDefinition } from '../models/node.model';
 const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
   sensor: { color: '#10b981', icon: 'sensors' },
   fusion: { color: '#6366f1', icon: 'hub' },
-  operation: { color: '#f59e0b', icon: 'settings_input_component' },
+  calibration: { color: '#f59e0b', icon: 'tune' },
+  operation: { color: '#64748b', icon: 'settings_input_component' },
 };
 
 function definitionToPlugin(def: NodeDefinition): NodePlugin {

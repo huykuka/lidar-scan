@@ -104,22 +104,37 @@ class NodeManager:
         This method:
         1. Stops all running nodes
         2. Removes all nodes and cleans up resources
-        3. Reloads configuration from database
-        4. Restarts the system if it was running before
+        3. Waits for cleanup to complete
+        4. Reloads configuration from database
+        5. Restarts the system if it was running before
         
         Args:
             loop: Optional asyncio event loop to use
         """
+        import time
+        
         was_running = self.is_running
-
+        
+        logger.info("Starting config reload...")
         self.stop()
+        
+        logger.info("Cleaning up all nodes...")
         self._cleanup_all_nodes()
         self._topic_registry.clear()
-
+        
+        # Give processes time to fully terminate and release UDP ports
+        # UDP sockets can remain in kernel for a short period after process exit
+        logger.info("Waiting for process cleanup and port release...")
+        time.sleep(2.0)
+        
+        logger.info("Loading new config...")
         self.load_config()
-
+        
         if was_running:
+            logger.info("Restarting system...")
             self.start(loop or self._loop)
+        
+        logger.info("Config reload complete.")
 
     def _cleanup_all_nodes(self):
         """Remove all nodes and their resources during reload."""

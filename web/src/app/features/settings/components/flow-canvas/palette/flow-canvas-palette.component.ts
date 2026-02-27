@@ -24,8 +24,8 @@ export class FlowCanvasPaletteComponent {
       groups[cat].push(plugin);
     }
 
-    // Sort logic to put 'sensor' first, 'fusion' second, etc.
-    const order = ['sensor', 'fusion', 'operation', 'other'];
+    // Sort logic to put 'sensor' first, 'fusion' second, 'calibration' third, etc.
+    const order = ['sensor', 'fusion', 'calibration', 'operation', 'other'];
     return Object.keys(groups)
       .sort((a, b) => {
         const indexA = order.indexOf(a);

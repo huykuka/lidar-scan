@@ -1,0 +1,246 @@
+<div class="flex flex-col h-full bg-neutral-100">
+  <!-- Header -->
+  <header class="bg-white border-b border-neutral-300 px-6 py-3">
+    <div class="flex items-center gap-6">
+      <syn-button variant="text" size="small" (click)="goBack()">
+        <syn-icon slot="prefix" name="arrow_back"></syn-icon>
+        Back
+      </syn-button>
+
+      @if (calibrationNode()) {
+        <div class="flex items-center gap-3">
+          <syn-icon name="tune" class="text-3xl text-primary-600"></syn-icon>
+          <div>
+            <h1 class="text-xl font-semibold text-neutral-900 m-0">{{ calibrationNode()?.name }}</h1>
+            <p class="text-xs font-mono text-neutral-600 m-0">{{ nodeId() }}</p>
+          </div>
+        </div>
+      }
+    </div>
+  </header>
+
+  <!-- Content -->
+  <div class="flex-1 overflow-auto p-6">
+    @if (isLoading()) {
+      <!-- Loading State -->
+      <div class="flex flex-col items-center justify-center h-96 gap-4 text-neutral-600">
+        <syn-spinner size="large"></syn-spinner>
+        <p>Loading calibration node...</p>
+      </div>
+    } @else if (!calibrationNode()) {
+      <!-- Error State -->
+      <syn-alert variant="danger" open>
+        <syn-icon slot="icon" name="error"></syn-icon>
+        <strong>Node Not Found</strong>
+        <div>Calibration node {{ nodeId() }} does not exist.</div>
+      </syn-alert>
+    } @else {
+      <!-- Two Column Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
+        <!-- Left Column: Status & Results -->
+        <div class="flex flex-col gap-6">
+          <!-- Status Card -->
+          <syn-card>
+            <h2 class="text-base font-semibold text-neutral-900 m-0 mb-3">Status</h2>
+            <syn-divider></syn-divider>
+
+            <div class="flex flex-col gap-4 mt-4">
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-neutral-600 font-medium">Enabled</span>
+                <syn-badge [variant]="calibrationNode()!.enabled ? 'success' : 'neutral'">
+                  {{ calibrationNode()!.enabled ? 'Yes' : 'No' }}
+                </syn-badge>
+              </div>
+
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-neutral-600 font-medium">Buffered Sensors</span>
+                <span class="text-neutral-900">
+                  <syn-badge variant="primary">
+                    {{ calibrationNode()!.buffered_frames.length }}
+                  </syn-badge>
+                </span>
+              </div>
+
+              @if (calibrationNode()!.reference_sensor) {
+                <div class="flex justify-between items-start text-sm">
+                  <span class="text-neutral-600 font-medium">Reference Sensor</span>
+                  <span class="text-neutral-900 text-right">
+                    <div class="font-mono text-xs">
+                      {{ getSensorName(calibrationNode()!.reference_sensor!) }}
+                      <span class="text-neutral-500 ml-1">
+                        ({{ calibrationNode()!.reference_sensor!.slice(0, 8) }})
+                      </span>
+                    </div>
+                  </span>
+                </div>
+              }
+
+              @if (calibrationNode()!.source_sensors.length > 0) {
+                <div class="flex justify-between items-start text-sm">
+                  <span class="text-neutral-600 font-medium">Source Sensors</span>
+                  <div class="flex flex-col gap-1 items-end">
+                    @for (sensorId of calibrationNode()!.source_sensors; track sensorId) {
+                      <div class="text-sm">
+                        {{ getSensorName(sensorId) }}
+                        <span class="text-neutral-500 font-mono text-xs ml-1">
+                          ({{ sensorId.slice(0, 8) }})
+                        </span>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (calibrationNode()!.last_calibration_time) {
+                <div class="flex justify-between items-center text-sm">
+                  <span class="text-neutral-600 font-medium">Last Calibration</span>
+                  <span class="text-neutral-900">
+                    {{ formatDate(calibrationNode()!.last_calibration_time!) }}
+                  </span>
+                </div>
+              }
+            </div>
+          </syn-card>
+
+          <!-- Pending Results Card -->
+          @if (hasPendingResults()) {
+            <syn-card>
+              <div class="flex justify-between items-center mb-3">
+                <h2 class="text-base font-semibold text-neutral-900 m-0 flex items-center gap-2">
+                  <syn-icon name="check_circle" class="text-success-600"></syn-icon>
+                  Pending Results
+                </h2>
+                <syn-badge variant="warning">Needs Review</syn-badge>
+              </div>
+              <syn-divider></syn-divider>
+
+              <div class="flex flex-col gap-4 mt-4">
+                @for (result of pendingResultsList(); track result.sensorId) {
+                  <div class="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                    <div class="flex justify-between items-center mb-4">
+                      <div class="flex flex-col gap-0.5">
+                        <span class="text-sm font-semibold text-neutral-900">
+                          {{ getSensorName(result.sensorId) }}
+                        </span>
+                        <span class="text-xs font-mono text-neutral-500">
+                          {{ result.sensorId.slice(0, 8) }}
+                        </span>
+                      </div>
+                      <syn-badge [variant]="getQualityVariant(result.quality)">
+                        {{ result.quality }}
+                      </syn-badge>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                      <div class="flex gap-2 items-center">
+                        <span class="text-2xl">📊</span>
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-xs text-neutral-600">Fitness Score</span>
+                          <span class="text-base font-bold text-neutral-900">
+                            {{ (result.fitness * 100).toFixed(2) }}%
+                          </span>
+                        </div>
+                      </div>
+
+                      <div class="flex gap-2 items-center">
+                        <span class="text-2xl">📏</span>
+                        <div class="flex flex-col gap-0.5">
+                          <span class="text-xs text-neutral-600">RMSE</span>
+                          <span class="text-base font-bold text-neutral-900">
+                            {{ result.rmse.toFixed(4) }} m
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <div class="flex gap-2 mt-4">
+                <syn-button
+                  variant="filled"
+                  (click)="acceptCalibration()"
+                  [disabled]="isAccepting() || isRejecting()"
+                >
+                  @if (isAccepting()) {
+                    <syn-spinner slot="prefix" size="small"></syn-spinner>
+                  } @else {
+                    <syn-icon slot="prefix" name="check"></syn-icon>
+                  }
+                  Accept & Apply
+                </syn-button>
+
+                <syn-button
+                  variant="outline"
+                  (click)="rejectCalibration()"
+                  [disabled]="isAccepting() || isRejecting()"
+                >
+                  @if (isRejecting()) {
+                    <syn-spinner slot="prefix" size="small"></syn-spinner>
+                  } @else {
+                    <syn-icon slot="prefix" name="close"></syn-icon>
+                  }
+                  Reject
+                </syn-button>
+              </div>
+            </syn-card>
+          } @else {
+            <syn-alert variant="neutral" open>
+              <syn-icon slot="icon" name="info"></syn-icon>
+              <strong>No Pending Results</strong>
+              <div>Trigger calibration from the Settings page to see results here.</div>
+            </syn-alert>
+          }
+        </div>
+
+        <!-- Right Column: Buffered Frames Info -->
+        <div class="flex flex-col gap-6">
+          <syn-card>
+            <h2 class="text-base font-semibold text-neutral-900 m-0 mb-3">Buffered Frames</h2>
+            <syn-divider></syn-divider>
+
+            @if (calibrationNode()!.buffered_frames.length === 0) {
+              <div class="text-center py-12">
+                <syn-icon name="cloud_off" class="text-5xl text-neutral-400 mb-4"></syn-icon>
+                <p class="text-neutral-600 mb-1 m-0">No frames buffered yet</p>
+                <p class="text-sm text-neutral-500 m-0">
+                  Connect sensors to this calibration node and start the system
+                </p>
+              </div>
+            } @else {
+              <div class="flex flex-col gap-2 mt-4">
+                @for (sensorId of calibrationNode()!.buffered_frames; track sensorId) {
+                  <div class="flex items-center gap-2 p-2 bg-neutral-50 rounded-lg">
+                    <syn-icon name="sensors" class="text-primary-600"></syn-icon>
+                    <div class="flex-1 flex flex-col gap-0.5">
+                      <span class="text-sm font-medium text-neutral-900">
+                        {{ getSensorName(sensorId) }}
+                      </span>
+                      <span class="text-xs font-mono text-neutral-500">
+                        {{ sensorId.slice(0, 8) }}
+                      </span>
+                    </div>
+                    <syn-badge variant="success" size="small">
+                      <syn-icon slot="prefix" name="check_circle"></syn-icon>
+                      Ready
+                    </syn-badge>
+                  </div>
+                }
+              </div>
+
+              <syn-divider></syn-divider>
+
+              <div class="flex gap-2 p-2 bg-primary-50 rounded-lg mt-4">
+                <syn-icon name="info" class="text-primary-600 flex-shrink-0"></syn-icon>
+                <p class="text-sm text-neutral-700 m-0">
+                  {{ calibrationNode()!.buffered_frames.length }} sensor(s) have buffered point
+                  cloud data. You can trigger calibration from the Settings page.
+                </p>
+              </div>
+            }
+          </syn-card>
+        </div>
+      </div>
+    }
+  </div>
+</div>

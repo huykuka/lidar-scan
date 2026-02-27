@@ -5,6 +5,11 @@ import { NodeConfig, NodeStatus } from '../../../../core/models/node.model';
 import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
 import { RecordingStoreService } from '../../../../core/services/stores/recording-store.service';
 import { RecordingApiService } from '../../../../core/services/api/recording-api.service';
+import { CalibrationApiService } from '../../../../core/services/api/calibration-api.service';
+import {
+  CalibrationNodeStatus,
+  CalibrationResult,
+} from '../../../../core/models/calibration.model';
 
 @Component({
   selector: 'app-node-card',
@@ -16,6 +21,7 @@ export class NodeCardComponent implements OnDestroy {
   private nodeStore = inject(NodeStoreService);
   private recordingStore = inject(RecordingStoreService);
   private recordingApi = inject(RecordingApiService);
+  private calibrationApi = inject(CalibrationApiService);
 
   // Inputs
   node = input.required<NodeConfig>();
@@ -35,6 +41,29 @@ export class NodeCardComponent implements OnDestroy {
   // Category specific checks
   isSensor = computed(() => this.node().category === 'sensor');
   isFusion = computed(() => this.node().category === 'fusion');
+  isCalibration = computed(() => {
+    const node = this.node();
+    const result = node.type === 'calibration';
+    console.log('[NodeCard] isCalibration check:', { nodeId: node.id, type: node.type, category: node.category, result });
+    return result;
+  });
+
+  // Calibration state
+  protected calibrationStatus = computed(() => {
+    if (!this.isCalibration()) return null;
+    return this.status() as CalibrationNodeStatus | null;
+  });
+
+  protected hasPendingCalibration = computed(() => {
+    return this.calibrationStatus()?.has_pending || false;
+  });
+
+  protected pendingResults = computed(() => {
+    return this.calibrationStatus()?.pending_results || {};
+  });
+
+  protected isCalibrating = signal<boolean>(false);
+  protected calibrationError = signal<string | null>(null);
 
   // Recording state (Sensors only)
   protected isRecording = computed(() => {
@@ -135,6 +164,85 @@ export class NodeCardComponent implements OnDestroy {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  // Calibration Controls
+  protected async triggerCalibration(): Promise<void> {
+    if (!this.isCalibration()) return;
+
+    this.isCalibrating.set(true);
+    this.calibrationError.set(null);
+
+    try {
+      await this.calibrationApi.triggerCalibration(this.node().id);
+      // Status will update via WebSocket
+    } catch (error: any) {
+      console.error('Failed to trigger calibration:', error);
+      this.calibrationError.set(error?.error?.detail || 'Calibration failed');
+    } finally {
+      this.isCalibrating.set(false);
+    }
+  }
+
+  protected async acceptCalibration(): Promise<void> {
+    if (!this.isCalibration()) return;
+
+    this.isCalibrating.set(true);
+    this.calibrationError.set(null);
+
+    try {
+      await this.calibrationApi.acceptCalibration(this.node().id);
+      // Reload will happen automatically via backend
+    } catch (error: any) {
+      console.error('Failed to accept calibration:', error);
+      this.calibrationError.set(error?.error?.detail || 'Failed to accept calibration');
+    } finally {
+      this.isCalibrating.set(false);
+    }
+  }
+
+  protected async rejectCalibration(): Promise<void> {
+    if (!this.isCalibration()) return;
+
+    this.isCalibrating.set(true);
+
+    try {
+      await this.calibrationApi.rejectCalibration(this.node().id);
+      // Status will update via WebSocket
+    } catch (error: any) {
+      console.error('Failed to reject calibration:', error);
+      this.calibrationError.set(error?.error?.detail || 'Failed to reject calibration');
+    } finally {
+      this.isCalibrating.set(false);
+    }
+  }
+
+  protected getQualityBadgeVariant(
+    quality: string,
+  ): 'success' | 'warning' | 'danger' | 'neutral' {
+    switch (quality) {
+      case 'excellent':
+        return 'success';
+      case 'good':
+        return 'warning';
+      case 'poor':
+        return 'danger';
+      default:
+        return 'neutral';
+    }
+  }
+
+  protected getQualityIcon(quality: string): string {
+    switch (quality) {
+      case 'excellent':
+        return 'check_circle';
+      case 'good':
+        return 'warning';
+      case 'poor':
+        return 'error';
+      default:
+        return 'help';
+    }
   }
 
   ngOnDestroy(): void {

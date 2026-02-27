@@ -1,33 +1,52 @@
 <div class="flex flex-col w-full min-w-[420px]">
-  <!-- Header Card -->
+  <!-- Header with Actions -->
   <div
-    class="flex items-start gap-4 mb-6 p-4 bg-syn-color-neutral-50 rounded-xl border border-syn-color-neutral-200 shadow-sm"
+    class="flex items-center justify-between gap-3 mb-4 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
   >
-    <div
-      class="w-10 h-10 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 text-syn-color-primary-600 flex items-center justify-center shrink-0"
-    >
-      <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-xl"></syn-icon>
+    <div class="flex items-center gap-3 min-w-0 flex-1">
+      <div
+        class="w-8 h-8 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 text-syn-color-primary-600 flex items-center justify-center shrink-0"
+      >
+        <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-lg"></syn-icon>
+      </div>
+      <div class="flex flex-col min-w-0">
+        <h2 class="text-xs font-bold text-syn-color-neutral-900 truncate">
+          {{ definition()?.display_name }}
+        </h2>
+        <p class="text-[11px] text-syn-color-neutral-500 truncate">
+          {{ definition()?.description }}
+        </p>
+      </div>
     </div>
-    <div class="flex flex-col pt-0.5">
-      <h2 class="text-sm font-bold text-syn-color-neutral-900 tracking-tight">
-        {{ definition()?.display_name }}
-      </h2>
-      <p class="text-xs text-syn-color-neutral-500 leading-relaxed mt-1">
-        {{ definition()?.description }}
-      </p>
+    
+    <!-- Action Buttons -->
+    <div class="flex gap-2 shrink-0">
+      <syn-button variant="outline" size="small" (click)="onCancel()">
+        <syn-icon name="close"></syn-icon>
+        Cancel
+      </syn-button>
+      <syn-button
+        variant="filled"
+        size="small"
+        (click)="onSave()"
+        [disabled]="form.invalid || configForm.invalid || isSaving()"
+      >
+        <syn-icon name="save"></syn-icon>
+        Save
+      </syn-button>
     </div>
   </div>
 
-  <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col gap-5 text-sm">
+  <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col gap-3 text-sm">
     <!-- Header fields -->
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-2 gap-3">
       <!-- Display Name -->
       <div class="col-span-2">
         <syn-input
           label="Display Name"
           formControlName="name"
           placeholder="e.g. My Sensor"
-          [helpText]="'Friendly name for this node'"
+          size="small"
           ngDefaultControl
         ></syn-input>
       </div>
@@ -36,7 +55,7 @@
     <syn-divider class="my-0"></syn-divider>
 
     <!-- Dynamic Properties from Schema -->
-    <div class="grid grid-cols-2 gap-x-4 gap-y-3" [formGroup]="configForm">
+    <div class="grid grid-cols-2 gap-x-3 gap-y-2" [formGroup]="configForm">
       @for (prop of visibleProperties(); track prop.name) {
         <div
           class="flex flex-col"
@@ -48,6 +67,7 @@
               [label]="prop.label"
               [formControlName]="prop.name"
               [helpText]="prop.help_text || ''"
+              size="small"
               ngDefaultControl
             ></syn-input>
           }
@@ -62,6 +82,7 @@
               [attr.max]="prop.max"
               [formControlName]="prop.name"
               [helpText]="prop.help_text || ''"
+              size="small"
               ngDefaultControl
             ></syn-input>
           }
@@ -71,12 +92,12 @@
             <syn-checkbox
               [checked]="configForm.get(prop.name)?.value"
               (syn-change)="onCheckboxChange(prop.name, $event)"
-              class="mt-6"
+              class="mt-4"
             >
-              <span class="text-sm font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+              <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
             </syn-checkbox>
             @if (prop.help_text) {
-              <p class="text-[11px] text-syn-color-neutral-500 ml-7 mt-0.5">{{ prop.help_text }}</p>
+              <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
             }
           }
 
@@ -97,17 +118,17 @@
           <!-- Vec3 (X / Y / Z) -->
           @if (prop.type === 'vec3') {
             <div
-              class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50/50 rounded-lg border border-syn-color-neutral-200 mt-1"
+              class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border border-syn-color-neutral-200"
             >
               <div class="flex flex-col">
-                <label class="text-xs font-bold text-syn-color-neutral-900">{{ prop.label }}</label>
+                <label class="text-[11px] font-bold text-syn-color-neutral-900">{{ prop.label }}</label>
                 @if (prop.help_text) {
-                  <span class="text-[11px] text-syn-color-neutral-500 mt-0.5">{{
+                  <span class="text-[10px] text-syn-color-neutral-500 mt-0.5">{{
                     prop.help_text
                   }}</span>
                 }
               </div>
-              <div class="grid grid-cols-3 gap-2" [formGroupName]="prop.name">
+              <div class="grid grid-cols-3 gap-1.5" [formGroupName]="prop.name">
                 <syn-input
                   type="number"
                   [step]="0.1"
@@ -149,23 +170,6 @@
           }
         </div>
       }
-    </div>
-
-    <!-- Actions -->
-    <div class="flex justify-end gap-3 mt-6 pt-5 border-t border-syn-color-neutral-200">
-      <syn-button variant="outline" (click)="onCancel()" class="w-full sm:w-auto">
-        <syn-icon name="cancel"></syn-icon>
-        Cancel
-      </syn-button>
-      <syn-button
-        variant="filled"
-        type="submit"
-        [disabled]="form.invalid || configForm.invalid || isSaving()"
-        class="w-full sm:w-auto"
-      >
-        <syn-icon name="save"></syn-icon>
-        Save
-      </syn-button>
     </div>
   </form>
 </div>

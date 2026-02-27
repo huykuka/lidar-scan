@@ -101,6 +101,45 @@ class RecordingModel(Base):
         }
 
 
+class CalibrationHistoryModel(Base):
+    """SQLAlchemy model for calibration_history table."""
+
+    __tablename__ = "calibration_history"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    sensor_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    reference_sensor_id: Mapped[str] = mapped_column(String, nullable=False)
+    timestamp: Mapped[str] = mapped_column(String, nullable=False)
+    fitness: Mapped[float] = mapped_column(Float, nullable=False)
+    rmse: Mapped[float] = mapped_column(Float, nullable=False)
+    quality: Mapped[str] = mapped_column(String, nullable=False)  # "excellent", "good", "poor"
+    stages_used_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON array: ["global", "icp"]
+    pose_before_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON dict: {x, y, z, roll, pitch, yaw}
+    pose_after_json: Mapped[str] = mapped_column(String, nullable=False)   # JSON dict: {x, y, z, roll, pitch, yaw}
+    transformation_matrix_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON 4x4 matrix
+    accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str] = mapped_column(String, default="")
+
+    def to_dict(self) -> dict:
+        import json
+
+        return {
+            "id": self.id,
+            "sensor_id": self.sensor_id,
+            "reference_sensor_id": self.reference_sensor_id,
+            "timestamp": self.timestamp,
+            "fitness": self.fitness,
+            "rmse": self.rmse,
+            "quality": self.quality,
+            "stages_used": json.loads(self.stages_used_json),
+            "pose_before": json.loads(self.pose_before_json),
+            "pose_after": json.loads(self.pose_after_json),
+            "transformation_matrix": json.loads(self.transformation_matrix_json),
+            "accepted": self.accepted,
+            "notes": self.notes,
+        }
+
+
 def init_db() -> None:
     # Kept for backwards-compatibility; prefer `app.db.migrate.ensure_schema`.
     from app.db.session import get_engine

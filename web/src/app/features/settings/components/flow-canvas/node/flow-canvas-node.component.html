@@ -5,8 +5,8 @@
   [class.border-syn-color-warning-400]="node().type === 'operation'"
   [class.opacity-50]="isDragging()"
 >
-  <!-- Input Port (left side — fusion and operation) -->
-  @if (node().type === 'fusion' || node().type === 'operation') {
+  <!-- Input Port (left side — rendered if node definition has inputs) -->
+  @if (hasInputPort()) {
     <div
       class="absolute left-0 top-[44px] transform -translate-x-full -translate-y-1/2 w-4 h-6 rounded-sm border-2 border-white z-10 cursor-crosshair transition-transform after:absolute after:-inset-4 after:content-[''] bg-[#066fff]"
       title="Input port — drop connection here"
@@ -15,8 +15,8 @@
     ></div>
   }
 
-  <!-- Output Port (right side — sensor, fusion, and operation) -->
-  @if (node().type === 'sensor' || node().type === 'fusion' || node().type === 'operation') {
+  <!-- Output Port (right side — rendered if node definition has outputs) -->
+  @if (hasOutputPort()) {
     <div
       class="absolute right-0 top-[44px] transform translate-x-full -translate-y-1/2 w-4 h-6 rounded-sm border-2 border-white z-10 cursor-crosshair h transition-transform after:absolute after:-inset-4 after:content-[''] bg-[#066fff]"
       title="Output port — drag to connect"
@@ -29,30 +29,24 @@
   }
 
   <!-- Node Header -->
-  <div
-    class="p-3 flex items-start justify-between rounded-t-[6px]"
-    [class.bg-syn-color-success-50]="node().type === 'sensor'"
-    [class.bg-syn-color-primary-50]="node().type === 'fusion'"
-  >
-    <div class="flex items-start gap-2 min-w-0 flex-1">
+  <div class="p-3 flex items-center rounded-t-[6px]">
+    <div class="flex items-center gap-2 min-w-0 flex-1">
       <syn-icon
         [name]="getNodeIcon()"
-        class="text-xl shrink-0 mt-0.5"
+        class="text-xl shrink-0"
         [class.text-syn-color-success-600]="node().type === 'sensor'"
         [class.text-syn-color-primary-600]="node().type === 'fusion'"
         [class.text-syn-color-warning-600]="node().type === 'operation'"
       ></syn-icon>
-      <div class="flex flex-col min-w-0 flex-1 items-start">
-        <span class="font-semibold text-sm truncate w-full">{{ getNodeName() }}</span>
-        <syn-badge [variant]="statusBadge().variant" size="small" pill class="mt-0.5">
-          {{ statusBadge().label }}
-        </syn-badge>
+      <div class="flex flex-row min-w-0 items-center" [title]="statusBadge().label">
+        <span class="font-semibold text-sm truncate flex-1">{{ getNodeName() }} </span>
+        <syn-badge [variant]="statusBadge().variant" size="small" pill class="ml-2"> </syn-badge>
       </div>
     </div>
     <syn-button
       variant="text"
       size="small"
-      class="ml-2 shrink-0 h-6 min-h-0 min-w-0 px-1 mt-0.5"
+      class="ml-2 shrink-0 flex items-center"
       (click)="isExpanded.set(!isExpanded())"
     >
       <syn-icon
@@ -140,8 +134,53 @@
       }
     </div>
 
-    <!-- Recording Button -->
-    @if (isNodeEnabled()) {
+    <!-- Calibration Button (only for calibration nodes) -->
+    @if (isNodeEnabled() && isCalibrationNode()) {
+      @if (hasPendingCalibration()) {
+        <!-- Pending Calibration - Accept/Reject Buttons -->
+        <div class="flex gap-1">
+          <syn-button
+            variant="filled"
+            color="success"
+            size="small"
+            (click)="acceptCalibration(); $event.stopPropagation()"
+            [disabled]="isCalibrating()"
+            title="Accept & Save Calibration"
+          >
+            <syn-icon name="check"></syn-icon>
+          </syn-button>
+          <syn-button
+            variant="outline"
+            color="danger"
+            size="small"
+            (click)="rejectCalibration(); $event.stopPropagation()"
+            [disabled]="isCalibrating()"
+            title="Reject Calibration"
+          >
+            <syn-icon name="close"></syn-icon>
+          </syn-button>
+        </div>
+      } @else {
+        <!-- Trigger Calibration Button -->
+        <syn-button
+          variant="filled"
+          color="primary"
+          size="small"
+          (click)="triggerCalibration(); $event.stopPropagation()"
+          [disabled]="isCalibrating()"
+          title="Run Calibration"
+        >
+          @if (isCalibrating()) {
+            <syn-spinner size="small"></syn-spinner>
+          } @else {
+            <syn-icon name="tune"></syn-icon>
+          }
+        </syn-button>
+      }
+    }
+
+    <!-- Recording Button (only shown for nodes with outputs) -->
+    @if (isNodeEnabled() && hasOutputPort()) {
       @if (isRecording()) {
         <syn-button
           variant="filled"
@@ -164,10 +203,7 @@
       }
     }
 
-    <syn-button variant="text" size="small" (click)="onEdit.emit()">
-      <syn-icon name="edit"></syn-icon>
-    </syn-button>
-    <syn-button variant="text" size="small" (click)="onDelete.emit()">
+    <syn-button variant="text" size="small" (click)="onDelete.emit(); $event.stopPropagation()">
       <syn-icon name="delete" style="color: var(--syn-color-error-700)"></syn-icon>
     </syn-button>
   </div>
