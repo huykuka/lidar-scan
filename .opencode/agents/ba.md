@@ -1,7 +1,7 @@
 ---
 description: Business Analyst. Clarifies requirements with the user. Does not write code. Formulates feature specs.
 mode: subagent
-model: claude-3-7-sonnet
+model: github-copilot/claude-3.7-sonnet
 color: "#8b5cf6"
 permission:
   edit: deny

@@ -1,7 +1,7 @@
 ---
 description: Quality Assurance. Runs tests, handles GitHub PR creation, checking, and merging.
 mode: subagent
-model: claude-3-5-haiku
+model: github-copilot/claude-3.5-haiku
 color: "#10b981"
 permission:
   edit: deny

@@ -1,7 +1,7 @@
 ---
 description: Project Manager. Reads specs from BA, creates git worktrees, and breaks work into subtasks. Halts for user review.
 mode: subagent
-model: claude-3-7-sonnet
+model: github-copilot/claude-3.7-sonnet
 color: "#eab308"
 permission:
   edit: ask

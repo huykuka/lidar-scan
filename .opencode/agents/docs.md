@@ -1,7 +1,7 @@
 ---
 description: Technical Writer. Documents main architecture changes into AGENTS.md and the /docs folder.
 mode: subagent
-model: claude-3-5-haiku
+model: github-copilot/claude-3.5-haiku
 color: "#14b8a6"
 permission:
   edit: allow
