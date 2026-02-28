@@ -2,7 +2,7 @@ export interface NodeConfig {
   id: string;
   name: string;
   type: string;
-  category: 'sensor' | 'fusion' | 'operation';
+  category: string; // Dynamic from backend (sensor, fusion, operation, calibration, etc.)
   enabled: boolean;
   config: Record<string, any>;
   x: number;
@@ -69,7 +69,7 @@ export interface PortSchema {
 export interface NodeDefinition {
   type: string;
   display_name: string;
-  category: 'sensor' | 'fusion' | 'operation';
+  category: string; // Dynamic from backend (sensor, fusion, operation, calibration, etc.)
   description?: string;
   icon: string;
   properties: PropertySchema[];

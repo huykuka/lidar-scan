@@ -126,3 +126,20 @@ class NodeRepository:
         finally:
             if self._should_close():
                 session.close()
+    
+    def update_node_config(self, node_id: str, config: Dict[str, Any]) -> None:
+        """Update node configuration"""
+        session = self._get_session()
+        try:
+            node = session.query(NodeModel).filter(NodeModel.id == node_id).first()
+            if node:
+                node.config_json = json.dumps(config)
+                session.commit()
+            else:
+                raise ValueError(f"Node {node_id} not found")
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if self._should_close():
+                session.close()

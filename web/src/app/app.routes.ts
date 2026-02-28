@@ -42,6 +42,18 @@ export const routes: Routes = [
         path: 'logs',
         loadComponent: () => import('./features/logs/logs.component').then((m) => m.LogsComponent),
       },
+      {
+        path: 'calibration',
+        loadComponent: () =>
+          import('./features/calibration/calibration.component').then((m) => m.CalibrationComponent),
+      },
+      {
+        path: 'calibration/:id',
+        loadComponent: () =>
+          import('./features/calibration/components/calibration-viewer/calibration-viewer.component').then(
+            (m) => m.CalibrationViewerComponent,
+          ),
+      },
     ],
   },
   {

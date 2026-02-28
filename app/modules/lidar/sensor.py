@@ -64,6 +64,12 @@ class LidarSensor(ModuleNode):
         """Starts the worker process for this sensor"""
         if data_queue is None or runtime_status is None:
             raise ValueError("LidarSensor requires data_queue and runtime_status")
+        
+        # Check if process is already running
+        if self._process and self._process.is_alive():
+            logger.warning(f"[{self.id}] Worker process already running (PID: {self._process.pid}), skipping start")
+            return
+        
         self._stop_event = mp.Event()
         
         runtime_status[self.id] = {
@@ -116,10 +122,26 @@ class LidarSensor(ModuleNode):
         """Stops the worker process for this sensor"""
         if self._stop_event:
             self._stop_event.set()
-        if self._process:
-            self._process.join(timeout=1.0)
+        
+        if self._process and self._process.is_alive():
+            logger.info(f"[{self.id}] Stopping worker process (PID: {self._process.pid})...")
+            
+            # Give the process time to finish gracefully
+            self._process.join(timeout=2.0)
+            
             if self._process.is_alive():
+                logger.warning(f"[{self.id}] Worker didn't stop gracefully, terminating...")
                 self._process.terminate()
+                self._process.join(timeout=1.0)
+                
+                if self._process.is_alive():
+                    logger.error(f"[{self.id}] Worker still alive after terminate, killing...")
+                    self._process.kill()
+                    self._process.join(timeout=0.5)
+        
+        self._process = None
+        self._stop_event = None
+        logger.info(f"[{self.id}] Worker process stopped.")
 
     async def handle_data(self, payload: Dict[str, Any], runtime_status: Dict[str, Any]):
         """Handles incoming data explicitly for this Lidar node"""
