@@ -4,16 +4,25 @@ mode: subagent
 model: github-copilot/claude-sonnet-4
 color: "#3b82f6"
 permission:
+  read: allow
+  grep: allow
+  list: allow
+  glob: allow
   edit: allow
+  webfetch: allow
+  question: allow
   bash:
     "cd ../*": allow
     "cd *": allow
+    "curl *": allow
     "python -c *": allow
     "python -m *": allow
     "pytest *": allow
     "git add *": allow
     "git commit *": ask
     "*": deny
+tools:
+  chrome-devtools*: true
 ---
 
 **Global Context**: You MUST read `@AGENTS.md` to understand the overall architecture, tech stack, and SDLC flow of this project.

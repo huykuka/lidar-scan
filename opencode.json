@@ -3,7 +3,16 @@
   "instructions": ["AGENTS.md"],
   "agent": {
     "plan": {
-      "disable": true
+      "disable": true,
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "*": "allow"
+        }
+      }
     }
+  },
+  "tools": {
+    "chrome-devtools*": true
   }
 }

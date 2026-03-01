@@ -16,19 +16,6 @@ CRITICAL: When you need detailed API specifics or rules, use your Read tool on t
 - Frontend Rules: @.opencode/rules/frontend.md
 - Protocol Specs: @.opencode/rules/protocols.md
 
-## Agent SDLC Workflow
-
-This repository strictly enforces an 8-step SDLC process, utilizing specialized subagents located via `@.opencode/agents/`:
-
-1. **Requirements**: Use `@ba` to scope features with the user.
-2. **Architecture**: Use `@arch` to define technical direction, system design, and API contracts.
-3. **Planning**: Use `@pm` to break features into tracked tasks (`.opencode/plans/<feature>/`) and construct git worktrees.
-4. **Backend Dev**: Use `@be-dev` to implement Python code based on the generated plan.
-5. **Frontend Dev**: Use `@fe-dev` to implement Angular 20 UI.
-6. **Code Review**: Use `@cr` to review architecturally-compliant components.
-7. **Testing & PR**: Use `@qa` to verify automated tests and wrap the feature into a GitHub Pull Request.
-8. **Documentation**: Use `@docs` to update technical documentation via `AGENTS.md` and `/docs/`.
-
 ## Feature Tracking & Folders
 
 Features are tracked in dedicated subdirectories located in `.opencode/plans/<feature-name>/`.
@@ -38,3 +25,27 @@ Each folder contains:
 - `technical.md`: Technical implementation direction, DAG routing, UI logic (Arch, Devs).
 - `api-spec.md`: The API contract. Frontend (`@fe-dev`) MUST mock data from this while Backend (`@be-dev`) is working.
   All Dev and QA agents MUST update checkboxes (`[ ]` to `[x]`) in these files as steps complete.
+
+## Project Structure
+
+```text
+lidar-standalone/
+├── .opencode/           # OpenCode Agent workflows, rules, and task tracking
+│   ├── agents/          # Agent instructions (e.g., pm, ba, orchestrator)
+│   ├── plans/           # Feature planning and subtask breakdown directories
+│   └── rules/           # Technology specific rules (frontend, backend, protocols)
+├── app/                 # Backend codebase (Python, FastAPI, Open3D)
+│   ├── api/             # API routes
+│   ├── core/            # Core logic, configurations
+│   ├── models/          # DB & domain models
+│   ├── services/        # Business logic and DAG modules
+│   └── main.py          # Application entrypoint
+├── web/                 # Frontend codebase (Angular 20, Three.js, Tailwind CSS)
+│   ├── public/          # Static assets
+│   ├── src/             # Application source and UI components
+│   └── angular.json     # Angular CLI configuration
+├── tests/               # Python backend tests
+├── scripts/             # Useful build and run scripts
+├── requirements.txt     # Python dependencies
+└── AGENTS.md            # This file
+```
