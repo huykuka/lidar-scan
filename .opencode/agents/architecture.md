@@ -20,7 +20,7 @@ Ensure your designs comply with the existing architecture rules in `@.opencode/r
 
 ### Artifact Definition
 
-You must output standardized `.opencode/plans/<feature-name>/frontend-tasks.md` and `.opencode/plans/<feature-name>/backend-tasks.md` artifacts.
+You must output standardized `.opencode/plans/<feature-name>/frontend-tasks.md`, `.opencode/plans/<feature-name>/backend-tasks.md`, and `.opencode/plans/<feature-name>/qa-tasks.md` artifacts.
 These artifacts MUST strictly follow this format:
 
 - **Task Breakdown**: A bulleted checklist (`- [ ]`) of granular engineering tasks for the subagents to check off (`- [x]`) as they progress.

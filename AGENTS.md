@@ -26,11 +26,14 @@ Each folder contains:
 - `technical.md`: Technical implementation direction, DAG routing, UI logic (Arch, Devs).
 - `api-spec.md`: The API contract. Frontend (`@fe-dev`) MUST mock data from this while Backend (`@be-dev`) is working.
 - `backend-tasks.md` & `frontend-tasks.md`: Detailed implementation tasks per layer (Devs).
+- `qa-tasks.md`: Test plans, TDD checklists, and QA specific tasks (@qa).
+- `qa-report.md`: Final test report and coverage results (@qa).
   All Dev and QA agents MUST update checkboxes (`[ ]` to `[x]`) in these files as steps complete.
 
 ## Agent Responsibilities & Performance Monitoring
 
 ### Core Agent Ownership
+
 - **@be-dev**: Backend metrics collection, DAG node instrumentation, Open3D performance tracking, WebSocket protocol metrics, `/api/metrics` endpoint implementation
 - **@fe-dev**: Frontend performance metrics (Three.js FPS, Angular component responsiveness), metrics dashboard UI with Synergy UI components, WebSocket client performance tracking
 - **@qa**: Performance dashboard testing, metrics accuracy validation, load testing for <1% overhead requirement, integration testing of monitoring features
@@ -38,6 +41,7 @@ Each folder contains:
 - **@ba & @pm**: Performance requirements definition, acceptance criteria for monitoring features, developer workflow integration
 
 ### Performance Monitoring Documentation
+
 Performance monitoring specifications and implementation details are located in:
 
 - `.opencode/plans/performance-monitoring/requirements.md`: Feature requirements and acceptance criteria
@@ -49,16 +53,19 @@ Performance monitoring specifications and implementation details are located in:
 ### Performance Monitoring Integration in SDLC
 
 #### Planning Phase
+
 1. **@ba/@pm**: Define performance requirements and acceptance criteria in `requirements.md`
 2. **@architecture**: Design monitoring architecture, data collection points, and dashboard integration in `technical.md`
 3. **@architecture**: Define metrics API contracts in `api-spec.md`
 
 #### Development Phase
+
 1. **@be-dev**: Implement backend metrics collection following tasks in `backend-tasks.md`
 2. **@fe-dev**: Build Angular dashboard and frontend metrics using specifications in `frontend-tasks.md`
 3. Both devs MUST mock API data per `api-spec.md` during parallel development
 
 #### QA & Review Phase
+
 1. **@qa**: Validate metrics accuracy, dashboard functionality, and performance overhead requirements
 2. **@qa**: Conduct load testing to ensure <1% performance impact
 3. **@review**: Code review focusing on monitoring integration and performance impact
@@ -67,17 +74,20 @@ Performance monitoring specifications and implementation details are located in:
 ### Observable Artifacts & Commands
 
 #### Backend Monitoring Endpoints
+
 - `GET /api/metrics` - Real-time system metrics (JSON)
 - `GET /api/metrics/dag` - DAG node performance data
 - `GET /api/metrics/websocket` - WebSocket protocol performance
 - `GET /api/health/performance` - Performance health check
 
 #### Frontend Dashboard Access
+
 - `/dashboard/performance` - Developer performance monitoring dashboard
 - Real-time metrics visualization using Angular Signals and Synergy UI
 - Three.js rendering performance, WebSocket client metrics, Angular component responsiveness
 
 #### Development Commands
+
 - `npm run dev:monitor` - Start development with performance monitoring enabled
 - `python -m app.main --enable-metrics` - Backend with metrics collection
 - Performance monitoring logs available in console/dev tools for debugging
