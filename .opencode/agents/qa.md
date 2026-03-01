@@ -9,17 +9,6 @@ permission:
   list: allow
   glob: allow
   edit: allow
-  bash:
-    "cd ../*": allow
-    "cd *": allow
-    "pytest *": allow
-    "npm *": allow
-    "cd web && npm run lint": allow
-    "cd web && npm run test": allow
-    "gh pr create *": ask
-    "gh pr merge *": ask
-    "gh pr view *": allow
-    "*": ask
 ---
 
 **Global Context**: You MUST read `@AGENTS.md` to understand the overall architecture, tech stack, and SDLC flow of this project.
