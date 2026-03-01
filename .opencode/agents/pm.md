@@ -14,10 +14,6 @@ permission:
   edit:
     "*.md": allow
     "*": deny
-  bash:
-    "git worktree *": allow
-    "mkdir *": allow
-    "*": ask
 ---
 
 **Global Context**: You MUST read `AGENTS.md` to understand the overall architecture, tech stack, and SDLC flow of this project. You do NOT need to read or understand the codebase; that is only for engineering agents to do.

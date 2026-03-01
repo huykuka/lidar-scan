@@ -9,9 +9,7 @@ permission:
   list: allow
   glob: allow
   question: allow
-  edit:
-    "*.md": allow
-    "*": deny
+  edit: allow
   bash: deny
   webfetch: allow
 ---

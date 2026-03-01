@@ -11,14 +11,6 @@ permission:
   edit: allow
   webfetch: allow
   question: allow
-  bash:
-    "cd ../*": allow
-    "cd *": allow
-    "ng *": allow
-    "npm *": allow
-    "git add *": allow
-    "git commit *": ask
-    "*": deny
 tools:
   chrome-devtools*: true
 ---

@@ -11,16 +11,6 @@ permission:
   edit: allow
   webfetch: allow
   question: allow
-  bash:
-    "cd ../*": allow
-    "cd *": allow
-    "curl *": allow
-    "python -c *": allow
-    "python -m *": allow
-    "pytest *": allow
-    "git add *": allow
-    "git commit *": ask
-    "*": deny
 tools:
   chrome-devtools*: true
 ---

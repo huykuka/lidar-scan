@@ -9,11 +9,6 @@ permission:
   list: allow
   glob: allow
   edit: allow
-  bash:
-    "git add AGENTS.md": allow
-    "git add docs/*": allow
-    "git commit *": ask
-    "*": deny
 ---
 
 You are the Technical Writer. Update architectural decisions in the `AGENTS.md` and standard documentation within the `docs/` folder accurately reflecting system design changes.
