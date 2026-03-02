@@ -2,37 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { firstValueFrom } from 'rxjs';
-
-export interface LidarNodeStatus {
-  id: string;
-  name: string;
-  enabled: boolean;
-  mode: 'real' | 'sim';
-  topic_prefix: string;
-  raw_topic: string;
-  processed_topic: string | null;
-  running: boolean;
-  connection_status: 'starting' | 'connected' | 'disconnected' | 'error' | 'unknown';
-  last_frame_at: number | null;
-  frame_age_seconds: number | null;
-  last_error: string | null;
-}
-
-export interface FusionNodeStatus {
-  id: string;
-  topic: string;
-  sensor_ids: string[];
-  enabled: boolean;
-  running: boolean;
-  last_broadcast_at: number | null;
-  broadcast_age_seconds: number | null;
-  last_error: string | null;
-}
-
-export interface NodesStatusResponse {
-  lidars: LidarNodeStatus[];
-  fusions: FusionNodeStatus[];
-}
+import { NodeConfig, NodesStatusResponse, NodeDefinition } from '../../models/node.model';
 
 @Injectable({
   providedIn: 'root',
@@ -40,9 +10,43 @@ export interface NodesStatusResponse {
 export class NodesApiService {
   private http = inject(HttpClient);
 
+  async getNodes(): Promise<NodeConfig[]> {
+    return await firstValueFrom(this.http.get<NodeConfig[]>(`${environment.apiUrl}/nodes`));
+  }
+
+  async getNode(id: string): Promise<NodeConfig> {
+    return await firstValueFrom(this.http.get<NodeConfig>(`${environment.apiUrl}/nodes/${id}`));
+  }
+
+  async upsertNode(node: Partial<NodeConfig>): Promise<{ status: string; id: string }> {
+    return await firstValueFrom(
+      this.http.post<{ status: string; id: string }>(`${environment.apiUrl}/nodes`, node),
+    );
+  }
+
+  async setNodeEnabled(id: string, enabled: boolean): Promise<any> {
+    return await firstValueFrom(
+      this.http.put(`${environment.apiUrl}/nodes/${id}/enabled`, { enabled }),
+    );
+  }
+
+  async deleteNode(id: string): Promise<any> {
+    return await firstValueFrom(this.http.delete(`${environment.apiUrl}/nodes/${id}`));
+  }
+
+  async reloadConfig(): Promise<any> {
+    return await firstValueFrom(this.http.post(`${environment.apiUrl}/nodes/reload`, {}));
+  }
+
   async getNodesStatus(): Promise<NodesStatusResponse> {
     return await firstValueFrom(
-      this.http.get<NodesStatusResponse>(`${environment.apiUrl}/nodes/status`),
+      this.http.get<NodesStatusResponse>(`${environment.apiUrl}/nodes/status/all`),
+    );
+  }
+
+  async getNodeDefinitions(): Promise<NodeDefinition[]> {
+    return await firstValueFrom(
+      this.http.get<NodeDefinition[]>(`${environment.apiUrl}/nodes/definitions`),
     );
   }
 }

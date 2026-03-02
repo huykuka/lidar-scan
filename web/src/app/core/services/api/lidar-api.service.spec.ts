@@ -26,11 +26,22 @@ describe('LidarApiService', () => {
   it('getLidars() updates store', async () => {
     const p = service.getLidars();
 
-    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.endsWith('/lidars'));
-    req.flush({
-      lidars: [{ id: 'a', name: 'A', launch_args: '', mode: 'real' }],
-      available_pipelines: ['none'],
-    });
+    const reqNodes = httpMock.expectOne((r) => r.method === 'GET' && r.url.endsWith('/nodes'));
+    reqNodes.flush([
+      {
+        id: 'a',
+        name: 'A',
+        type: 'sensor',
+        category: 'Input',
+        enabled: true,
+        config: { hostname: '', mode: 'real' },
+      },
+    ]);
+
+    const reqPipelines = httpMock.expectOne(
+      (r) => r.method === 'GET' && r.url.endsWith('/nodes/pipelines'),
+    );
+    reqPipelines.flush({ pipelines: ['none'] });
 
     const res = await p;
     expect(res.lidars.length).toBe(1);
@@ -40,9 +51,11 @@ describe('LidarApiService', () => {
 
   it('setEnabled() calls enabled endpoint', async () => {
     const p = service.setEnabled('sensor-1', false);
-    const req = httpMock.expectOne((r) => r.method === 'POST' && r.url.includes('/lidars/') && r.url.includes('/enabled'));
-    expect(req.request.url).toContain('/lidars/');
-    expect(req.request.urlWithParams).toContain('enabled=false');
+    const req = httpMock.expectOne(
+      (r) => r.method === 'PUT' && r.url.includes('/nodes/') && r.url.includes('/enabled'),
+    );
+    expect(req.request.url).toContain('/nodes/');
+    expect(req.request.body).toEqual({ enabled: false });
     req.flush({ status: 'success' });
     await p;
   });

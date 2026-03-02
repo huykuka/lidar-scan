@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
-import { NodesStatusResponse } from './api/nodes-api.service';
+import { NodesStatusResponse } from '../models/node.model';
 
 @Injectable({
   providedIn: 'root',
@@ -22,9 +22,7 @@ export class StatusWebSocketService {
     }
 
     // Build WebSocket URL from HTTP API URL
-    const wsUrl = environment.apiUrl
-      .replace('http://', 'ws://')
-      .replace('https://', 'wss://');
+    const wsUrl = environment.apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
 
     try {
       this.ws = new WebSocket(`${wsUrl}/ws/system_status`);
@@ -77,15 +75,13 @@ export class StatusWebSocketService {
 
   private attemptReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error(
-        '[StatusWebSocket] Max reconnect attempts reached. Giving up.'
-      );
+      console.error('[StatusWebSocket] Max reconnect attempts reached. Giving up.');
       return;
     }
 
     this.reconnectAttempts++;
     console.log(
-      `[StatusWebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
+      `[StatusWebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`,
     );
 
     this.reconnectTimer = setTimeout(() => {

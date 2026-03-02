@@ -5,6 +5,7 @@ import pytest
 import os
 import tempfile
 import json
+import asyncio
 from pathlib import Path
 from unittest.mock import patch, mock_open
 from fastapi.testclient import TestClient
@@ -27,9 +28,9 @@ class TestLogsRestEndpoint:
     def test_logs_returns_parsed_entries(self):
         """Test /logs returns properly parsed log entries"""
         log_content = (
-            "2024-02-23 12:34:56,123 [INFO] app - Application started\n"
-            "2024-02-23 12:34:57,456 [WARNING] lidar.sensor - Sensor offline\n"
-            "2024-02-23 12:34:58,789 [ERROR] websocket.manager - Connection failed\n"
+            "2024-02-23 12:34:56,123 | INFO | app | Application started\n"
+            "2024-02-23 12:34:57,456 | WARNING | lidar.sensor | Sensor offline\n"
+            "2024-02-23 12:34:58,789 | ERROR | websocket.manager | Connection failed\n"
         )
         
         with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
@@ -51,9 +52,9 @@ class TestLogsRestEndpoint:
     def test_logs_filter_by_level(self):
         """Test /logs filters by log level"""
         log_content = (
-            "2024-02-23 12:34:56,123 [INFO] app - Info message\n"
-            "2024-02-23 12:34:57,456 [WARNING] app - Warning message\n"
-            "2024-02-23 12:34:58,789 [ERROR] app - Error message\n"
+            "2024-02-23 12:34:56,123 | INFO | app | Info message\n"
+            "2024-02-23 12:34:57,456 | WARNING | app | Warning message\n"
+            "2024-02-23 12:34:58,789 | ERROR | app | Error message\n"
         )
         
         with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
@@ -71,9 +72,9 @@ class TestLogsRestEndpoint:
     def test_logs_search_by_text(self):
         """Test /logs searches by text in message"""
         log_content = (
-            "2024-02-23 12:34:56,123 [INFO] app - Sensor initialized\n"
-            "2024-02-23 12:34:57,456 [INFO] app - Processing started\n"
-            "2024-02-23 12:34:58,789 [INFO] app - Sensor error detected\n"
+            "2024-02-23 12:34:56,123 | INFO | app | Sensor initialized\n"
+            "2024-02-23 12:34:57,456 | INFO | app | Processing started\n"
+            "2024-02-23 12:34:58,789 | INFO | app | Sensor error detected\n"
         )
         
         with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
@@ -90,10 +91,10 @@ class TestLogsRestEndpoint:
     def test_logs_pagination_offset(self):
         """Test /logs pagination with offset"""
         log_content = (
-            "2024-02-23 12:34:56,123 [INFO] app - Message 1\n"
-            "2024-02-23 12:34:57,456 [INFO] app - Message 2\n"
-            "2024-02-23 12:34:58,789 [INFO] app - Message 3\n"
-            "2024-02-23 12:34:59,000 [INFO] app - Message 4\n"
+            "2024-02-23 12:34:56,123 | INFO | app | Message 1\n"
+            "2024-02-23 12:34:57,456 | INFO | app | Message 2\n"
+            "2024-02-23 12:34:58,789 | INFO | app | Message 3\n"
+            "2024-02-23 12:34:59,000 | INFO | app | Message 4\n"
         )
         
         with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
@@ -112,7 +113,7 @@ class TestLogsRestEndpoint:
     def test_logs_respects_limit_max(self):
         """Test /logs respects maximum limit of 500"""
         # Create log with 600 lines
-        lines = [f"2024-02-23 12:34:56,{i:03d} [INFO] app - Message {i}\n" for i in range(600)]
+        lines = [f"2024-02-23 12:34:56,{i:03d} | INFO | app | Message {i}\n" for i in range(600)]
         log_content = "".join(lines)
         
         with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
@@ -129,9 +130,9 @@ class TestLogsRestEndpoint:
     def test_logs_combines_level_and_search_filters(self):
         """Test /logs applies both level and search filters"""
         log_content = (
-            "2024-02-23 12:34:56,123 [INFO] app - Sensor online\n"
-            "2024-02-23 12:34:57,456 [INFO] app - Device offline\n"
-            "2024-02-23 12:34:58,789 [ERROR] app - Sensor error\n"
+            "2024-02-23 12:34:56,123 | INFO | app | Sensor online\n"
+            "2024-02-23 12:34:57,456 | INFO | app | Device offline\n"
+            "2024-02-23 12:34:58,789 | ERROR | app | Sensor error\n"
         )
         
         with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
@@ -149,7 +150,7 @@ class TestLogsRestEndpoint:
     def test_logs_parse_log_line_with_special_chars(self):
         """Test parsing log lines with special characters"""
         log_content = (
-            "2024-02-23 12:34:56,123 [ERROR] fusion.service - Failed: 'config' not found\n"
+            "2024-02-23 12:34:56,123 | ERROR | fusion.service | Failed: 'config' not found\n"
         )
         
         with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
@@ -167,7 +168,7 @@ class TestLogsRestEndpoint:
         """Test /logs ignores lines that don't match log format"""
         log_content = (
             "This is an invalid line\n"
-            "2024-02-23 12:34:56,123 [INFO] app - Valid line\n"
+            "2024-02-23 12:34:56,123 | INFO | app | Valid line\n"
             "Another invalid line\n"
         )
         
@@ -201,9 +202,10 @@ class TestLogsWebSocketEndpoint:
         
         with patch('app.api.v1.logs.LOG_PATH', '/nonexistent/app.log'):
             with patch('os.path.exists', return_value=False):
-                with client.websocket_connect("/api/v1/logs/ws") as websocket:
-                    # Connection should succeed without error
-                    pass
+                with patch('asyncio.sleep', side_effect=Exception("stop")):
+                    with pytest.raises(Exception, match="stop"):
+                        with client.websocket_connect("/api/v1/logs/ws"):
+                            pass
     
     def test_logs_ws_accepts_filter_params(self):
         """Test WebSocket accepts level and search query parameters"""
@@ -211,15 +213,16 @@ class TestLogsWebSocketEndpoint:
         
         with patch('app.api.v1.logs.LOG_PATH', '/nonexistent/app.log'):
             with patch('os.path.exists', return_value=False):
-                # Should accept these params without error
-                with client.websocket_connect("/api/v1/logs/ws?level=ERROR&search=failed") as websocket:
-                    pass
+                with patch('asyncio.sleep', side_effect=Exception("stop")):
+                    with pytest.raises(Exception, match="stop"):
+                        with client.websocket_connect("/api/v1/logs/ws?level=ERROR&search=failed"):
+                            pass
     
     def test_logs_ws_streams_new_log_entries(self):
         """Test WebSocket streams new log entries as they are written"""
         log_content = (
-            "2024-02-23 12:34:56,123 [INFO] app - Entry 1\n"
-            "2024-02-23 12:34:57,456 [INFO] app - Entry 2\n"
+            "2024-02-23 12:34:56,123 | INFO | app | Entry 1\n"
+            "2024-02-23 12:34:57,456 | INFO | app | Entry 2\n"
         )
         
         client = TestClient(app)
@@ -233,10 +236,10 @@ class TestLogsWebSocketEndpoint:
                     file_content = iter(log_content.split('\n'))
                     
                     with patch('builtins.open', mock_open(read_data=log_content)):
-                        with client.websocket_connect("/api/v1/logs/ws") as websocket:
-                            # Just verify connection works
-                            # Full streaming test would require more complex setup
-                            pass
+                        with patch('asyncio.sleep', side_effect=Exception("stop")):
+                            with pytest.raises(Exception, match="stop"):
+                                with client.websocket_connect("/api/v1/logs/ws"):
+                                    pass
 
 
 class TestLogsParsingUtility:
@@ -246,7 +249,7 @@ class TestLogsParsingUtility:
         """Test parsing valid log line"""
         from app.api.v1.logs import parse_log_line
         
-        line = "2024-02-23 12:34:56,123 [INFO] app - Application started\n"
+        line = "2024-02-23 12:34:56,123 | INFO | app | Application started\n"
         result = parse_log_line(line)
         
         assert result is not None
@@ -261,7 +264,7 @@ class TestLogsParsingUtility:
         
         levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         for level in levels:
-            line = f"2024-02-23 12:34:56,123 [{level}] module - Test message\n"
+            line = f"2024-02-23 12:34:56,123 | {level} | module | Test message\n"
             result = parse_log_line(line)
             
             assert result is not None
@@ -271,7 +274,7 @@ class TestLogsParsingUtility:
         """Test parsing log line with dashes in message"""
         from app.api.v1.logs import parse_log_line
         
-        line = "2024-02-23 12:34:56,123 [INFO] app - Failed to connect - timeout after 30s\n"
+        line = "2024-02-23 12:34:56,123 | INFO | app | Failed to connect - timeout after 30s\n"
         result = parse_log_line(line)
         
         assert result is not None
@@ -283,7 +286,7 @@ class TestLogsParsingUtility:
         
         invalid_lines = [
             "This is not a log line\n",
-            "2024-02-23 [INFO] incomplete line\n",
+            "2024-02-23 | INFO | incomplete line\n",
             "",
             "   \n",
         ]
@@ -296,7 +299,7 @@ class TestLogsParsingUtility:
         """Test parsing log line with JSON data in message"""
         from app.api.v1.logs import parse_log_line
         
-        line = '2024-02-23 12:34:56,123 [ERROR] api - Request failed: {"error": "timeout"}\n'
+        line = '2024-02-23 12:34:56,123 | ERROR | api | Request failed: {"error": "timeout"}\n'
         result = parse_log_line(line)
         
         assert result is not None

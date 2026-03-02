@@ -3,8 +3,7 @@ from typing import List, Dict, Any, TYPE_CHECKING
 
 from fastapi import WebSocket
 
-if TYPE_CHECKING:
-    from app.services.lidar.recorder import RecordingService
+
 
 
 # System topics that should not be listed in the /topics endpoint
@@ -17,12 +16,26 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self._interceptors: Dict[str, List[asyncio.Future]] = {}
-        self.recorder: "RecordingService | None" = None  # Will be set later to avoid circular imports
 
     def register_topic(self, topic: str):
         """Pre-registers a topic so it appears in the topic list even with no active connections."""
+        topic = topic.lower()
         if topic not in self.active_connections:
             self.active_connections[topic] = []
+
+    def unregister_topic(self, topic: str):
+        """Removes a topic completely and cleans up any tracking."""
+        if topic in self.active_connections:
+            del self.active_connections[topic]
+        if topic in self._interceptors:
+            del self._interceptors[topic]
+
+    def has_subscribers(self, topic: str) -> bool:
+        """Returns True if there are active websocket connections OR active interceptors listening to this topic."""
+        has_ws = bool(self.active_connections.get(topic))
+        has_interceptors = bool(self._interceptors.get(topic))
+        
+        return has_ws or has_interceptors
 
 
     def reset_active_connections(self):
@@ -43,29 +56,32 @@ class ConnectionManager:
                 pass
 
     async def broadcast(self, topic: str, message: Any):
-        # Handle recording if active
-        if self.recorder and isinstance(message, bytes):
-            try:
-                await self.recorder.record_frame(topic, message)
-            except Exception as e:
-                # Don't let recording errors break broadcasts
-                import logging
-                logging.getLogger(__name__).error(f"Recording error for topic '{topic}': {e}")
         
         # Handle active websocket connections
         if topic in self.active_connections:
-            dead_connections = []
             for connection in self.active_connections[topic]:
-                try:
-                    if isinstance(message, bytes):
-                        await connection.send_bytes(message)
-                    else:
-                        await connection.send_json(message)
-                except Exception:
-                    dead_connections.append(connection)
-
-            for dead in dead_connections:
-                self.active_connections[topic].remove(dead)
+                if getattr(connection, '_is_sending', False):
+                    # Drop this frame for this specific client to avoid blocking the backend 
+                    # and prevent Starlette "Concurrent call to send" RuntimeError.
+                    continue
+                    
+                async def _send(conn=connection, msg=message):
+                    conn._is_sending = True
+                    try:
+                        if isinstance(msg, bytes):
+                            await conn.send_bytes(msg)
+                        else:
+                            await conn.send_json(msg)
+                    except Exception:
+                        try:
+                            self.active_connections[topic].remove(conn)
+                        except ValueError:
+                            pass
+                    finally:
+                        conn._is_sending = False
+                            
+                # Fire and forget instead of awaiting sequentially
+                asyncio.create_task(_send())
 
         # Handle pending interceptors (for HTTP capture etc)
         if topic in self._interceptors:

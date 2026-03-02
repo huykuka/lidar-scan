@@ -447,7 +447,7 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     context.fillStyle = 'rgba(0,0,0,0)';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.font = 'bold 24px Arial';
+    context.font = 'bold 20px ';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillStyle = color;

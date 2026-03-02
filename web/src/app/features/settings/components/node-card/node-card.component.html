@@ -1,0 +1,277 @@
+<div class="relative">
+  <!-- Loading Overlay -->
+  @if (isLoading()) {
+    <div
+      class="absolute inset-0 z-10 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center"
+    >
+      <syn-spinner></syn-spinner>
+    </div>
+  }
+
+  <div
+    class="bg-white rounded-xl shadow-sm border border-syn-color-neutral-200 flex flex-col justify-between hover:border-syn-color-primary-300 hover:shadow-md transition-all group overflow-hidden"
+    [class.opacity-60]="node().enabled === false"
+  >
+    <!-- Top indicator bar: Constant height, variable color -->
+    <div
+      class="h-1 w-full"
+      [ngClass]="{
+        'bg-syn-color-success-500': isSensor() && node().config['mode'] !== 'sim',
+        'bg-syn-color-neutral-300': isSensor() && node().config['mode'] === 'sim',
+        'bg-syn-color-primary-500': isFusion(),
+        'bg-syn-color-warning-500': isCalibration(),
+        'bg-syn-color-neutral-500': !isSensor() && !isFusion() && !isCalibration(),
+      }"
+    ></div>
+
+    <div class="p-3">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <!-- Constant structure: Icon + Name -->
+          <div
+            class="p-1.5 rounded-md bg-syn-color-neutral-100"
+            [ngClass]="{
+              'text-syn-color-success-700': isSensor(),
+              'text-syn-color-primary-700': isFusion(),
+              'text-syn-color-warning-700': isCalibration(),
+              'text-syn-color-neutral-700': !isSensor() && !isFusion() && !isCalibration(),
+            }"
+          >
+            <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-base"></syn-icon>
+          </div>
+          <span
+            class="font-black text-syn-typography-color-text text-sm truncate"
+            [title]="node().name"
+            >{{ node().name }}</span
+          >
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Constant Badge position: Dynamic text -->
+          <syn-badge
+            [variant]="
+              node().enabled
+                ? isSensor()
+                  ? 'success'
+                  : isFusion()
+                    ? 'primary'
+                    : isCalibration()
+                      ? 'warning'
+                      : 'neutral'
+                : 'neutral'
+            "
+            pill
+            size="small"
+          >
+            {{
+              isSensor()
+                ? 'Sensor'
+                : isFusion()
+                  ? 'Fusion'
+                  : isCalibration()
+                    ? 'Calibration'
+                    : 'Operation'
+            }}
+          </syn-badge>
+
+          <syn-switch
+            size="small"
+            [checked]="node().enabled"
+            (syn-change)="
+              toggleEnabled.emit({ node: node(), enabled: $any($event.target).checked });
+              $event.stopPropagation()
+            "
+          >
+            {{ node().enabled ? 'Enabled' : 'Disabled' }}
+          </syn-switch>
+        </div>
+      </div>
+
+      <!-- Constant structure: Subtitle (Topic) -->
+      <div
+        class="mt-2 text-[11px] text-syn-color-neutral-600 font-mono truncate"
+        [title]="getTopic()"
+      >
+        {{ getTopic() || 'No active topic' }}
+      </div>
+
+      <div class="mt-2 flex items-center gap-2 flex-wrap">
+        <!-- Generic Property Badges -->
+        @if (isSensor()) {
+          <syn-badge
+            [variant]="node().config['mode'] === 'sim' ? 'neutral' : 'success'"
+            pill
+            size="small"
+          >
+            {{ node().config['mode'] === 'sim' ? 'Sim' : 'HW' }}
+          </syn-badge>
+        }
+
+        @if (isFusion()) {
+          <syn-badge variant="neutral" pill size="small">
+            {{ node().config['sensor_ids']?.length || '0' }} Sensors
+          </syn-badge>
+        }
+
+        <syn-badge variant="neutral" pill size="small">{{
+          node().config['pipeline_name'] || node().type
+        }}</syn-badge>
+
+        <!-- Constant Status indicator block -->
+        @if (status(); as s) {
+          <div class="ml-auto">
+            @if (s.last_error) {
+              <div class="text-syn-color-danger-600 text-xl" [title]="'Error: ' + s.last_error">
+                <syn-icon name="error"></syn-icon>
+              </div>
+            } @else if (s.running) {
+              @if (
+                (s.frame_age_seconds !== undefined && s.frame_age_seconds < 5) ||
+                (s.broadcast_age_seconds !== undefined && s.broadcast_age_seconds < 5)
+              ) {
+                <div class="text-syn-color-success-600 text-xl" title="Running">
+                  <syn-icon name="check_circle"></syn-icon>
+                </div>
+              } @else if (
+                s.frame_age_seconds !== undefined || s.broadcast_age_seconds !== undefined
+              ) {
+                <div
+                  class="text-syn-color-warning-600 text-xl"
+                  [title]="
+                    'Stale: ' +
+                    (s.frame_age_seconds ?? s.broadcast_age_seconds ?? 0).toFixed(1) +
+                    's ago'
+                  "
+                >
+                  <syn-icon name="schedule"></syn-icon>
+                </div>
+              } @else {
+                <div class="text-syn-color-warning-600 text-xl" title="Starting">
+                  <syn-icon name="pending"></syn-icon>
+                </div>
+              }
+            } @else if (s.enabled) {
+              <div class="text-syn-color-neutral-500 text-xl" title="Stopped">
+                <syn-icon name="stop_circle"></syn-icon>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div
+      class="flex justify-between items-center px-3 py-2 bg-syn-color-neutral-50 border-t border-syn-color-neutral-100 gap-2"
+    >
+      <!-- Calibration Controls (Calibration Node Only) -->
+      @if (isCalibration()) {
+        <div class="flex items-center gap-2 w-full">
+          @if (hasPendingCalibration()) {
+            <!-- Pending Calibration Results -->
+            <div class="flex flex-col gap-2 w-full">
+              <!-- Quality Summary -->
+              <div class="flex items-center gap-2 flex-wrap">
+                @for (entry of pendingResults() | keyvalue; track entry.key) {
+                  <syn-badge
+                    [variant]="getQualityBadgeVariant(entry.value.quality)"
+                    pill
+                    size="small"
+                  >
+                    <syn-icon
+                      slot="prefix"
+                      [attr.name]="getQualityIcon(entry.value.quality)"
+                    ></syn-icon>
+                    {{ entry.value.quality }} ({{ entry.value.fitness.toFixed(3) }})
+                  </syn-badge>
+                }
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-2">
+                <syn-button
+                  variant="filled"
+                  color="success"
+                  size="small"
+                  (click)="acceptCalibration(); $event.stopPropagation()"
+                  [disabled]="isCalibrating()"
+                >
+                  <syn-icon slot="prefix" name="check"></syn-icon>
+                  Accept & Save
+                </syn-button>
+                <syn-button
+                  variant="outline"
+                  color="danger"
+                  size="small"
+                  (click)="rejectCalibration(); $event.stopPropagation()"
+                  [disabled]="isCalibrating()"
+                >
+                  <syn-icon slot="prefix" name="close"></syn-icon>
+                  Reject
+                </syn-button>
+              </div>
+
+              @if (calibrationError()) {
+                <div class="text-syn-color-danger-600 text-xs">{{ calibrationError() }}</div>
+              }
+            </div>
+          } @else {
+            <!-- Trigger Calibration Button -->
+            <syn-button
+              variant="filled"
+              color="primary"
+              size="small"
+              (click)="triggerCalibration(); $event.stopPropagation()"
+              [disabled]="!node().enabled || isCalibrating()"
+            >
+              @if (isCalibrating()) {
+                <syn-spinner slot="prefix" style="font-size: 1em"></syn-spinner>
+              } @else {
+                <syn-icon slot="prefix" name="tune"></syn-icon>
+              }
+              {{ isCalibrating() ? 'Calibrating...' : 'Run Calibration' }}
+            </syn-button>
+
+            @if (calibrationError()) {
+              <div class="text-syn-color-danger-600 text-xs ml-2">{{ calibrationError() }}</div>
+            }
+          }
+        </div>
+      }
+
+      <!-- Recording Controls (Sensor Only) -->
+      @if (isSensor()) {
+        <div class="flex items-center gap-2">
+          @if (isRecording()) {
+            <syn-button
+              variant="filled"
+              color="danger"
+              size="small"
+              (click)="toggleRecording(); $event.stopPropagation()"
+            >
+              <syn-icon slot="prefix" name="stop" class="animate-pulse"></syn-icon>
+              {{ formatDuration(recordingDuration()) }}
+            </syn-button>
+          } @else {
+            <syn-button
+              variant="outline"
+              size="small"
+              (click)="toggleRecording(); $event.stopPropagation()"
+              [disabled]="!node().enabled"
+            >
+              <syn-icon slot="prefix" name="fiber_manual_record"></syn-icon>
+              Record
+            </syn-button>
+          }
+        </div>
+      }
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+        <syn-button variant="outline" size="small" (click)="edit.emit(node())">Edit</syn-button>
+        <syn-button variant="outline" color="danger" size="small" (click)="delete.emit(node().id)"
+          >Delete</syn-button
+        >
+      </div>
+    </div>
+  </div>
+</div>

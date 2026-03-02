@@ -4,7 +4,7 @@ Unit tests for transformations module - transformation and mathematical utilitie
 import numpy as np
 import pytest
 
-from app.services.lidar.core.transformations import (
+from app.modules.lidar.core.transformations import (
     create_transformation_matrix,
     transform_points,
     pose_to_dict

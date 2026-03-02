@@ -1,21 +1,14 @@
-import { Component, inject, signal, computed, effect, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, OnDestroy, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { LidarStoreService } from '../../../../core/services/stores/lidar-store.service';
-import { FusionStoreService } from '../../../../core/services/stores/fusion-store.service';
-import { LidarConfig } from '../../../../core/models/lidar.model';
-import { FusionConfig } from '../../../../core/models/fusion.model';
-import {
-  NodesApiService,
-  NodesStatusResponse,
-} from '../../../../core/services/api/nodes-api.service';
-import { LidarApiService } from '../../../../core/services/api/lidar-api.service';
-import { FusionApiService } from '../../../../core/services/api/fusion-api.service';
+import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
+import { NodeConfig, Edge } from '../../../../core/models/node.model';
+import { NodesApiService } from '../../../../core/services/api/nodes-api.service';
+import { EdgesApiService } from '../../../../core/services/api/edges-api.service';
 import { ToastService } from '../../../../core/services/toast.service';
 import { DialogService } from '../../../../core/services';
-import { LidarEditorComponent } from '../lidar-editor/lidar-editor';
-import { FusionEditorComponent } from '../fusion-editor/fusion-editor';
 import { NodePluginRegistry } from '../../../../core/services/node-plugin-registry.service';
+import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
 import { NodePlugin } from '../../../../core/models/node-plugin.model';
 import { FlowCanvasNodeComponent, CanvasNode } from './node/flow-canvas-node.component';
 import { FlowCanvasPaletteComponent } from './palette/flow-canvas-palette.component';
@@ -24,6 +17,7 @@ import {
   Connection,
 } from './connections/flow-canvas-connections.component';
 import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-state.component';
+import { StatusWebSocketService } from '../../../../core/services/status-websocket.service';
 
 @Component({
   selector: 'app-flow-canvas',
@@ -40,17 +34,19 @@ import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-s
   styleUrl: './flow-canvas.component.css',
 })
 export class FlowCanvasComponent implements OnInit, OnDestroy {
-  private lidarStore = inject(LidarStoreService);
-  private fusionStore = inject(FusionStoreService);
+  private nodeStore = inject(NodeStoreService);
   private nodesApi = inject(NodesApiService);
-  private lidarApi = inject(LidarApiService);
-  private fusionApi = inject(FusionApiService);
+  private edgesApi = inject(EdgesApiService);
   private toast = inject(ToastService);
   private dialogService = inject(DialogService);
   private pluginRegistry = inject(NodePluginRegistry);
+  private statusWs = inject(StatusWebSocketService);
 
-  protected lidars = this.lidarStore.lidars;
-  protected fusions = this.fusionStore.fusions;
+  // Output for unsaved changes
+  hasUnsavedChangesChange = output<boolean>();
+
+  protected nodes = this.nodeStore.nodes;
+  protected edges = this.nodeStore.edges;
   protected availablePlugins = signal<NodePlugin[]>([]);
 
   // Canvas state
@@ -64,76 +60,102 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected draggingNode = signal<CanvasNode | null>(null);
   protected dragOffset = signal({ x: 0, y: 0 });
 
+  // Canvas bounds for scrolling
+  protected canvasWidth = computed(() => {
+    const nodes = this.canvasNodes();
+    if (!nodes.length) return '100%';
+    const maxX = Math.max(...nodes.map((n) => n.position.x + 350));
+    return `calc(max(100%, ${maxX}px) * ${this.zoom()})`;
+  });
+
+  protected canvasHeight = computed(() => {
+    const nodes = this.canvasNodes();
+    if (!nodes.length) return '100%';
+    const maxY = Math.max(...nodes.map((n) => n.position.y + 250));
+    return `calc(max(100%, ${maxY}px) * ${this.zoom()})`;
+  });
+
   // Palette drag state (dragging from sidebar)
   protected paletteDragType = signal<string | null>(null);
 
-  // Node status
-  protected nodesStatus = signal<NodesStatusResponse | null>(null);
-  private statusPollInterval: any = null;
+  // Port-to-port connection drag state
+  protected pendingConnection = signal<{
+    fromNodeId: string;
+    cursorX: number;
+    cursorY: number;
+  } | null>(null);
+  protected pendingPath = signal<string | null>(null);
+
+  // Node status — driven by WebSocket instead of HTTP polling
+  protected nodesStatus = this.statusWs.status;
+  
+  // Track unsaved position changes
+  private unsavedPositions = new Map<string, { x: number; y: number }>();
+  public hasUnsavedChanges = signal(false);
 
   // Loading states
+  protected isPaletteLoading = signal(true);
+  protected isCanvasLoading = signal(true);
   protected nodeLoadingStates = signal<Record<string, boolean>>({});
 
   constructor() {
-    // Watch for changes in lidar and fusion stores
+    // Watch for changes in node store
     effect(() => {
-      // Trigger on any change to lidars or fusions
-      const lidars = this.lidars();
-      const fusions = this.fusions();
+      const nodes = this.nodes();
+      const edges = this.edges();
 
       // Re-initialize canvas nodes when data changes
-      // Use setTimeout to avoid signal update during effect
       setTimeout(() => {
         this.initializeCanvasNodes();
         this.updateConnections();
+        // Delay slightly so layout engine resolves DOM before removing loader
+        setTimeout(() => this.isCanvasLoading.set(false), 50);
       }, 0);
     });
   }
+
   ngOnInit(): void {
-    this.loadAvailablePlugins();
-
-    // Initialize after data is loaded
-    setTimeout(() => {
-      this.initializeCanvasNodes();
-      this.updateConnections();
-    }, 100);
-
-    this.startStatusPolling();
+    this.loadGraphData();
+    this.statusWs.connect(); // subscribe to live status via WebSocket
   }
 
   ngOnDestroy(): void {
-    this.stopStatusPolling();
+    this.statusWs.disconnect();
   }
 
-  private loadAvailablePlugins() {
-    this.availablePlugins.set(this.pluginRegistry.getAll());
+  private async loadGraphData() {
+    this.isPaletteLoading.set(true);
+    this.isCanvasLoading.set(true);
+    try {
+      const [nodes, edges] = await Promise.all([
+        this.nodesApi.getNodes(),
+        this.edgesApi.getEdges(),
+      ]);
+      // loadFromBackend fetches definitions AND populates NodeStore + registry
+      await this.pluginRegistry.loadFromBackend();
+      this.availablePlugins.set(this.pluginRegistry.getAll());
+      this.isPaletteLoading.set(false); // Palette has fetched its templates
+
+      this.nodeStore.setState({ nodes, edges });
+    } catch (error) {
+      console.error('Failed to load graph data', error);
+      this.toast.danger('Failed to load infrastructure graph.');
+      this.isPaletteLoading.set(false);
+      this.isCanvasLoading.set(false);
+    }
   }
 
   private initializeCanvasNodes() {
     const nodes: CanvasNode[] = [];
 
-    // Add lidars
-    this.lidars().forEach((lidar, index) => {
+    this.nodes().forEach((node, index) => {
       nodes.push({
-        id: lidar.id || `lidar-${index}`,
-        type: 'sensor',
-        data: lidar,
-        position: this.loadNodePosition(lidar.id || `lidar-${index}`) || {
-          x: 100 + (index % 3) * 300,
-          y: 100 + Math.floor(index / 3) * 200,
-        },
-      });
-    });
-
-    // Add fusions
-    this.fusions().forEach((fusion, index) => {
-      nodes.push({
-        id: fusion.id || `fusion-${index}`,
-        type: 'fusion',
-        data: fusion,
-        position: this.loadNodePosition(fusion.id || `fusion-${index}`) || {
-          x: 100 + (index % 3) * 300,
-          y: 400 + Math.floor(index / 3) * 200,
+        id: node.id,
+        type: node.category as 'sensor' | 'fusion' | 'operation',
+        data: node,
+        position: {
+          x: node.x ?? (100 + (index % 4) * 300),
+          y: node.y ?? (100 + Math.floor(index / 4) * 250),
         },
       });
     });
@@ -141,39 +163,25 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.canvasNodes.set(nodes);
   }
 
-  private loadNodePosition(nodeId: string): { x: number; y: number } | null {
-    const stored = localStorage.getItem(`node-position-${nodeId}`);
-    return stored ? JSON.parse(stored) : null;
-  }
-
-  private saveNodePosition(nodeId: string, position: { x: number; y: number }) {
-    localStorage.setItem(`node-position-${nodeId}`, JSON.stringify(position));
-  }
-
   private updateConnections(): void {
     const connections: Connection[] = [];
     const nodes = this.canvasNodes();
+    const edges = this.edges();
 
-    // Create a map for fast lookups
+    // Create a map for fast lookup of node instances by ID
     const nodeMap = new Map(nodes.map((n) => [n.id, n]));
 
-    // Find all fusion nodes and their sensor connections
-    nodes.forEach((node) => {
-      if (node.type === 'fusion') {
-        const fusion = node.data as FusionConfig;
-        const sensorIds = fusion.sensor_ids || [];
+    edges.forEach((edge) => {
+      const sourceNode = nodeMap.get(edge.source_node);
+      const targetNode = nodeMap.get(edge.target_node);
 
-        // Create connections from each sensor to this fusion
-        sensorIds.forEach((sensorId) => {
-          const sensorNode = nodeMap.get(sensorId);
-          if (sensorNode && sensorNode.type === 'sensor') {
-            const path = this.calculatePath(sensorNode, node);
-            connections.push({
-              from: sensorId,
-              to: node.id,
-              path,
-            });
-          }
+      if (sourceNode && targetNode) {
+        const path = this.calculatePath(sourceNode, targetNode);
+        connections.push({
+          id: edge.id,
+          from: edge.source_node,
+          to: edge.target_node,
+          path,
         });
       }
     });
@@ -181,20 +189,13 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.connections.set(connections);
   }
 
-  // Calculate connection path (cached in connection object)
   private calculatePath(fromNode: CanvasNode, toNode: CanvasNode): string {
-    // Node card dimensions
-    const nodeWidth = 256; // w-64 = 16rem = 256px
-    const nodeHeight = 200; // approximate height
+    const fromX = fromNode.position.x + 296; // 288 (node width) + 8 (half port width outside)
+    const fromY = fromNode.position.y + 44;
+    const toX = toNode.position.x - 8;
+    const toY = toNode.position.y + 44;
 
-    // Calculate port positions (right side of sensor, left side of fusion)
-    const fromX = fromNode.position.x + nodeWidth;
-    const fromY = fromNode.position.y + nodeHeight / 2;
-    const toX = toNode.position.x;
-    const toY = toNode.position.y + nodeHeight / 2;
-
-    // Create smooth cubic bezier curve
-    const controlPointOffset = Math.abs(toX - fromX) * 0.5;
+    const controlPointOffset = Math.max(Math.abs(toX - fromX) * 0.5, 40);
     const cp1x = fromX + controlPointOffset;
     const cp1y = fromY;
     const cp2x = toX - controlPointOffset;
@@ -203,33 +204,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     return `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
   }
 
-  private startStatusPolling() {
-    this.statusPollInterval = setInterval(async () => {
-      try {
-        const status = await this.nodesApi.getNodesStatus();
-        this.nodesStatus.set(status);
-      } catch (error) {
-        console.error('Failed to fetch node status', error);
-      }
-    }, 2000);
-
-    this.nodesApi
-      .getNodesStatus()
-      .then((status) => this.nodesStatus.set(status))
-      .catch(console.error);
-  }
-
-  private stopStatusPolling() {
-    if (this.statusPollInterval) {
-      clearInterval(this.statusPollInterval);
-      this.statusPollInterval = null;
-    }
-  }
-
-  // Canvas interaction handlers
   onCanvasMouseDown(event: MouseEvent) {
     if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
-      // Middle mouse or Shift+Left mouse for panning
       this.isPanning.set(true);
       event.preventDefault();
     }
@@ -242,7 +218,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
         y: offset.y + event.movementY,
       }));
     } else if (this.draggingNode()) {
-      // Update dragging node position
       const node = this.draggingNode()!;
       const newPosition = {
         x: node.position.x + event.movementX / this.zoom(),
@@ -254,9 +229,24 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       );
 
       this.draggingNode.set({ ...node, position: newPosition });
-
-      // Update connections while dragging (throttled)
       this.updateConnections();
+    } else if (this.pendingConnection()) {
+      // Update the live pending bezier path as the cursor moves
+      const pending = this.pendingConnection()!;
+      const canvasEl = event.currentTarget as HTMLElement;
+      const rect = canvasEl.getBoundingClientRect();
+      const toX = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
+      const toY = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
+
+      const fromNode = this.canvasNodes().find((n) => n.id === pending.fromNodeId);
+      if (fromNode) {
+        const fromX = fromNode.position.x + 296;
+        const fromY = fromNode.position.y + 44;
+        const cp = Math.max(Math.abs(toX - fromX) * 0.5, 40);
+        this.pendingPath.set(
+          `M ${fromX} ${fromY} C ${fromX + cp} ${fromY} ${toX - cp} ${toY} ${toX} ${toY}`,
+        );
+      }
     }
   }
 
@@ -267,22 +257,114 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
     if (this.draggingNode()) {
       const node = this.draggingNode()!;
-      this.saveNodePosition(node.id, node.position);
+      // Mark position as unsaved
+      this.unsavedPositions.set(node.id, node.position);
+      this.hasUnsavedChanges.set(true);
+      this.hasUnsavedChangesChange.emit(true);
       this.draggingNode.set(null);
-      // Final connection update after drag ends
       this.updateConnections();
     }
 
-    // Handle palette drop
+    // Cancel any pending port connection if released on empty canvas
+    if (this.pendingConnection()) {
+      this.pendingConnection.set(null);
+      this.pendingPath.set(null);
+    }
+
     if (this.paletteDragType()) {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       const x = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
       const y = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
 
-      const type = this.paletteDragType()!;
-      this.createNodeAtPosition(type, { x, y });
-
+      this.createNodeAtPosition(this.paletteDragType()!, { x, y });
       this.paletteDragType.set(null);
+    }
+  }
+
+  /**
+   * Save all unsaved node positions to the backend
+   * Called explicitly by the parent component (e.g., Save & Reload button)
+   */
+  async saveAllPositions(): Promise<void> {
+    if (this.unsavedPositions.size === 0) {
+      return; // Nothing to save
+    }
+
+    const savePromises: Promise<void>[] = [];
+    
+    this.unsavedPositions.forEach((position, nodeId) => {
+      const node = this.nodes().find((n) => n.id === nodeId);
+      if (node) {
+        savePromises.push(
+          this.nodesApi.upsertNode({
+            ...node,
+            x: position.x,
+            y: position.y,
+          }).then(() => {})
+        );
+      }
+    });
+
+    try {
+      await Promise.all(savePromises);
+      this.unsavedPositions.clear();
+      this.hasUnsavedChanges.set(false);
+      this.hasUnsavedChangesChange.emit(false);
+    } catch (error) {
+      console.error('Failed to save node positions', error);
+      throw error; // Re-throw to let parent handle
+    }
+  }
+
+  /** Called when user starts dragging from an output port on a node. */
+  onPortDragStart(event: { nodeId: string; portType: 'input' | 'output'; event: MouseEvent }) {
+    if (event.portType !== 'output') return;
+    this.pendingConnection.set({ fromNodeId: event.nodeId, cursorX: 0, cursorY: 0 });
+  }
+
+  /** Called when user releases on an input port on a node. */
+  async onPortDrop(event: { nodeId: string; portType: 'input' | 'output' }) {
+    const pending = this.pendingConnection();
+    if (!pending || event.portType !== 'input') {
+      this.pendingConnection.set(null);
+      this.pendingPath.set(null);
+      return;
+    }
+
+    const sourceId = pending.fromNodeId;
+    const targetId = event.nodeId;
+
+    if (sourceId === targetId) {
+      this.pendingConnection.set(null);
+      this.pendingPath.set(null);
+      return;
+    }
+
+    // Check for duplicate edge
+    const exists = this.edges().some(
+      (e) => e.source_node === sourceId && e.target_node === targetId,
+    );
+    if (exists) {
+      this.toast.danger('Connection already exists.');
+      this.pendingConnection.set(null);
+      this.pendingPath.set(null);
+      return;
+    }
+
+    try {
+      await this.edgesApi.createEdge({ source_node: sourceId, target_node: targetId });
+      const [nodes, edges] = await Promise.all([
+        this.nodesApi.getNodes(),
+        this.edgesApi.getEdges(),
+      ]);
+      this.nodeStore.setState({ nodes, edges });
+      this.toast.success('Connection created.');
+    } catch (err) {
+      console.error('Failed to create edge', err);
+      this.toast.danger('Failed to create connection.');
+    } finally {
+      this.pendingConnection.set(null);
+      this.pendingPath.set(null);
     }
   }
 
@@ -292,17 +374,12 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.zoom.update((z) => Math.max(0.1, Math.min(3, z * delta)));
   }
 
-  // Node interaction handlers
   onNodeMouseDown(event: MouseEvent, node: CanvasNode) {
     event.stopPropagation();
     this.draggingNode.set(node);
-    this.dragOffset.set({
-      x: event.offsetX,
-      y: event.offsetY,
-    });
+    this.dragOffset.set({ x: event.offsetX, y: event.offsetY });
   }
 
-  // Palette drag handlers
   onPluginDragStart(type: string, event: DragEvent) {
     this.paletteDragType.set(type);
     if (event.dataTransfer) {
@@ -311,7 +388,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
-  onPaletteDragStart(type: 'sensor' | 'fusion', event: DragEvent) {
+  onPaletteDragStart(type: 'sensor' | 'fusion' | string, event: DragEvent) {
     this.onPluginDragStart(type, event);
   }
 
@@ -339,64 +416,50 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.paletteDragType.set(null);
   }
 
-  // Create new nodes
   private createNodeAtPosition(type: string, position: { x: number; y: number }) {
-    if (type === 'sensor') {
-      this.createSensorAtPosition(position);
-    } else if (type === 'fusion') {
-      this.createFusionAtPosition(position);
-    } else {
-      // Handle custom plugin types
-      this.toast.warning(`Custom node type "${type}" not yet implemented in backend.`);
+    const plugin = this.pluginRegistry.get(type);
+    if (!plugin) {
+      this.toast.danger(`Unknown node type: ${type}`);
+      return;
     }
-  }
 
-  private createSensorAtPosition(position: { x: number; y: number }) {
-    this.lidarStore.set('selectedLidar', {});
-    this.lidarStore.set('editMode', false);
-    this.dialogService.open(LidarEditorComponent, {
-      label: 'Add Sensor',
+    const defaultData = plugin.createInstance();
+    // Store position for new node
+    this.nodeStore.set('selectedNode', { ...defaultData, x: position.x, y: position.y });
+    this.dialogService.open(DynamicNodeEditorComponent, {
+      label: `Add ${plugin.displayName}`,
     });
   }
 
-  private createFusionAtPosition(position: { x: number; y: number }) {
-    this.fusionStore.set('selectedFusion', {});
-    this.fusionStore.set('editMode', false);
-    this.dialogService.open(FusionEditorComponent, {
-      label: 'Add Fusion',
-    });
-  }
-
-  // Node actions
   onEditNode(node: CanvasNode) {
-    if (node.type === 'sensor') {
-      this.lidarStore.set('selectedLidar', node.data as LidarConfig);
-      this.lidarStore.set('editMode', true);
-      this.dialogService.open(LidarEditorComponent, {
-        label: 'Edit Sensor',
-      });
-    } else {
-      this.fusionStore.set('selectedFusion', node.data as FusionConfig);
-      this.fusionStore.set('editMode', true);
-      this.dialogService.open(FusionEditorComponent, {
-        label: 'Edit Fusion',
-      });
-    }
+    this.nodeStore.set('selectedNode', node.data);
+    this.nodeStore.set('editMode', true);
+    const plugin = this.pluginRegistry.get(node.data.type);
+    const label = plugin?.displayName ?? node.data.name ?? node.data.type;
+    this.dialogService.open(DynamicNodeEditorComponent, {
+      label: `Edit ${label}`,
+    });
   }
 
   async onDeleteNode(node: CanvasNode) {
-    const name = (node.data as any).name || node.id;
+    const name = node.data.name || node.id;
     if (!confirm(`Are you sure you want to delete ${name}?`)) return;
 
     try {
-      if (node.type === 'sensor') {
-        await this.lidarApi.deleteLidar(node.id);
-      } else {
-        await this.fusionApi.deleteFusion(node.id);
-      }
+      await this.nodesApi.deleteNode(node.id);
 
-      this.canvasNodes.update((nodes) => nodes.filter((n) => n.id !== node.id));
-      localStorage.removeItem(`node-position-${node.id}`);
+      // Remove node from local state
+      this.nodeStore.set(
+        'nodes',
+        this.nodes().filter((n) => n.id !== node.id),
+      );
+
+      // Backend automatically deletes attached edges, we must also remove them locally
+      this.nodeStore.set(
+        'edges',
+        this.edges().filter((e) => e.source_node !== node.id && e.target_node !== node.id),
+      );
+
       this.toast.success(`${name} deleted.`);
     } catch (error) {
       console.error('Failed to delete node', error);
@@ -404,23 +467,30 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
+  async onDeleteEdge(edgeId: string) {
+    if (!confirm('Are you sure you want to delete this connection?')) return;
+    try {
+      await this.edgesApi.deleteEdge(edgeId);
+      this.nodeStore.set(
+        'edges',
+        this.edges().filter((e) => e.id !== edgeId),
+      );
+      this.updateConnections();
+      this.toast.success('Connection removed.');
+    } catch (error) {
+      console.error('Failed to delete connection', error);
+      this.toast.danger('Failed to delete connection.');
+    }
+  }
+
   async onToggleNodeEnabled(node: CanvasNode, enabled: boolean) {
     this.nodeLoadingStates.update((states) => ({ ...states, [node.id]: true }));
 
     try {
-      if (node.type === 'sensor') {
-        await this.lidarApi.setEnabled(node.id, enabled);
-      } else {
-        await this.fusionApi.setEnabled(node.id, enabled);
-      }
-
-      const name = (node.data as any).name || node.id;
+      await this.nodesApi.setNodeEnabled(node.id, enabled);
+      const name = node.data.name || node.id;
       this.toast.success(`${name} ${enabled ? 'enabled' : 'disabled'}.`);
-
-      // Refresh data
-      await Promise.all([this.lidarApi.getLidars(), this.fusionApi.getFusions()]);
-      this.initializeCanvasNodes();
-      this.updateConnections();
+      await this.loadGraphData();
     } catch (error) {
       console.error('Failed to toggle node', error);
       this.toast.danger(`Failed to update node.`);
@@ -436,78 +506,15 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   getNodeStatus(node: CanvasNode) {
     const status = this.nodesStatus();
     if (!status) return null;
-
-    if (node.type === 'sensor') {
-      return status.lidars.find((l) => l.id === node.id) || null;
-    } else {
-      return status.fusions.find((f) => f.id === node.id) || null;
-    }
+    return status.nodes.find((n: any) => n.id === node.id) || null;
   }
 
   isNodeLoading(nodeId: string): boolean {
     return this.nodeLoadingStates()[nodeId] || false;
   }
 
-  // Reset view
   resetView() {
     this.panOffset.set({ x: 0, y: 0 });
     this.zoom.set(1);
-  }
-
-  // Auto layout nodes
-  autoLayoutNodes() {
-    const nodes = this.canvasNodes();
-    const sensorNodes = nodes.filter((n) => n.type === 'sensor');
-    const fusionNodes = nodes.filter((n) => n.type === 'fusion');
-
-    // Layout sensors in a grid at the top
-    const sensorColumns = 3;
-    sensorNodes.forEach((node, index) => {
-      const col = index % sensorColumns;
-      const row = Math.floor(index / sensorColumns);
-      const newPosition = {
-        x: 100 + col * 300,
-        y: 100 + row * 220,
-      };
-
-      this.canvasNodes.update((nodes) =>
-        nodes.map((n) => (n.id === node.id ? { ...n, position: newPosition } : n)),
-      );
-      this.saveNodePosition(node.id, newPosition);
-    });
-
-    // Layout fusions below sensors
-    const fusionColumns = 3;
-    fusionNodes.forEach((node, index) => {
-      const col = index % fusionColumns;
-      const row = Math.floor(index / fusionColumns);
-      const newPosition = {
-        x: 100 + col * 300,
-        y: 400 + row * 220,
-      };
-
-      this.canvasNodes.update((nodes) =>
-        nodes.map((n) => (n.id === node.id ? { ...n, position: newPosition } : n)),
-      );
-      this.saveNodePosition(node.id, newPosition);
-    });
-
-    this.updateConnections();
-    this.toast.success('Nodes arranged automatically');
-  }
-
-  // Clear all saved positions and re-initialize
-  clearAllPositions() {
-    if (!confirm('Reset all node positions? This will clear your custom layout.')) return;
-
-    const nodes = this.canvasNodes();
-    nodes.forEach((node) => {
-      localStorage.removeItem(`node-position-${node.id}`);
-    });
-
-    this.initializeCanvasNodes();
-    this.updateConnections();
-    this.resetView();
-    this.toast.success('Layout reset to default');
   }
 }

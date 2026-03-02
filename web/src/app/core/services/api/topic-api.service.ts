@@ -22,7 +22,7 @@ export class TopicApiService {
   }
 
   downloadPcd(topic: string): void {
-    const url = `${environment.apiUrl}/lidars/capture?topic=${encodeURIComponent(topic)}`;
+    const url = `${environment.apiUrl}/topics/capture?topic=${encodeURIComponent(topic)}`;
     window.open(url, '_blank');
   }
 }

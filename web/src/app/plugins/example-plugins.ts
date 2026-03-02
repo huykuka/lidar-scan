@@ -2,7 +2,7 @@ import { NodePlugin } from '../core/models/node-plugin.model';
 
 /**
  * Example: Transform Node Plugin
- * 
+ *
  * This plugin demonstrates how to create a custom node that applies
  * transformations to point cloud data.
  */
@@ -11,6 +11,7 @@ export const transformNodePlugin: NodePlugin = {
   displayName: 'Transform Node',
   description: 'Apply transformations to point clouds',
   icon: 'transform',
+  category: 'transform',
   style: {
     color: '#f59e0b', // amber
     backgroundColor: '#fffbeb',
@@ -45,18 +46,18 @@ export const transformNodePlugin: NodePlugin = {
     const transformData = data as any;
     return {
       fields: [
-        { 
-          label: 'Translation', 
-          value: `(${transformData.translation?.x || 0}, ${transformData.translation?.y || 0}, ${transformData.translation?.z || 0})` 
+        {
+          label: 'Translation',
+          value: `(${transformData.translation?.x || 0}, ${transformData.translation?.y || 0}, ${transformData.translation?.z || 0})`,
         },
-        { 
-          label: 'Rotation', 
-          value: `(${transformData.rotation?.roll || 0}, ${transformData.rotation?.pitch || 0}, ${transformData.rotation?.yaw || 0})` 
+        {
+          label: 'Rotation',
+          value: `(${transformData.rotation?.roll || 0}, ${transformData.rotation?.pitch || 0}, ${transformData.rotation?.yaw || 0})`,
         },
-        { 
-          label: 'Scale', 
-          value: transformData.scale || 1.0, 
-          type: 'number' 
+        {
+          label: 'Scale',
+          value: transformData.scale || 1.0,
+          type: 'number',
         },
       ],
     };
@@ -64,15 +65,15 @@ export const transformNodePlugin: NodePlugin = {
   validate: (data) => {
     const errors = [];
     const transformData = data as any;
-    
+
     if (!transformData.name) {
       errors.push('Name is required');
     }
-    
+
     if (transformData.scale && transformData.scale <= 0) {
       errors.push('Scale must be positive');
     }
-    
+
     return {
       valid: errors.length === 0,
       errors,
@@ -84,12 +85,13 @@ export const transformNodePlugin: NodePlugin = {
 
 /**
  * Example: Filter Node Plugin
- * 
+ *
  * This plugin demonstrates a statistical outlier filter node.
  */
 export const filterNodePlugin: NodePlugin = {
   type: 'filter',
   displayName: 'Filter Node',
+  category: 'filter',
   description: 'Filter outliers from point clouds',
   icon: 'filter_alt',
   style: {
@@ -135,19 +137,19 @@ export const filterNodePlugin: NodePlugin = {
   validate: (data) => {
     const errors = [];
     const filterData = data as any;
-    
+
     if (!filterData.name) {
       errors.push('Name is required');
     }
-    
+
     if (filterData.neighbors && filterData.neighbors < 1) {
       errors.push('Neighbors must be at least 1');
     }
-    
+
     if (filterData.stdRatio && filterData.stdRatio <= 0) {
       errors.push('Standard deviation ratio must be positive');
     }
-    
+
     return {
       valid: errors.length === 0,
       errors,
@@ -157,13 +159,14 @@ export const filterNodePlugin: NodePlugin = {
 
 /**
  * Example: Recording Node Plugin
- * 
+ *
  * Records point cloud data to disk.
  */
 export const recordingNodePlugin: NodePlugin = {
   type: 'recording',
   displayName: 'Recording Node',
   description: 'Record point clouds to disk',
+  category: 'recording',
   icon: 'fiber_manual_record',
   style: {
     color: '#ef4444', // red
@@ -200,19 +203,19 @@ export const recordingNodePlugin: NodePlugin = {
   validate: (data) => {
     const errors = [];
     const recordData = data as any;
-    
+
     if (!recordData.name) {
       errors.push('Name is required');
     }
-    
+
     if (!recordData.outputPath) {
       errors.push('Output path is required');
     }
-    
+
     if (recordData.maxFiles && recordData.maxFiles < 1) {
       errors.push('Max files must be at least 1');
     }
-    
+
     return {
       valid: errors.length === 0,
       errors,

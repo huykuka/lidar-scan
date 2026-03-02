@@ -12,17 +12,14 @@ class TestStatusBroadcaster:
     
     def test_build_status_message_structure(self):
         """Test _build_status_message returns correct structure"""
-        with patch('app.services.status_broadcaster.LidarRepository') as MockLidarRepo, \
-             patch('app.services.status_broadcaster.FusionRepository') as MockFusionRepo, \
+        with patch('app.services.status_broadcaster.NodeRepository') as MockNodeRepo, \
              patch('app.services.status_broadcaster.lidar_service') as mock_service:
             
             # Setup mocks
-            MockLidarRepo.return_value.list.return_value = []
-            MockFusionRepo.return_value.list.return_value = []
-            mock_service.lidar_runtime = {}
+            MockNodeRepo.return_value.list.return_value = []
+            mock_service.node_runtime_status = {}
             mock_service.processes = {}
-            mock_service.sensors = []
-            mock_service.fusions = []
+            mock_service.nodes = {}
             
             result = status_broadcaster._build_status_message()
             
@@ -33,30 +30,31 @@ class TestStatusBroadcaster:
     
     def test_build_status_message_with_lidar(self):
         """Test _build_status_message includes lidar data"""
-        with patch('app.services.status_broadcaster.LidarRepository') as MockLidarRepo, \
-             patch('app.services.status_broadcaster.FusionRepository') as MockFusionRepo, \
+        with patch('app.services.status_broadcaster.NodeRepository') as MockNodeRepo, \
              patch('app.services.status_broadcaster.lidar_service') as mock_service, \
              patch('app.services.status_broadcaster.time') as mock_time:
             
             # Setup time
             mock_time.time.return_value = 100.0
             
-            # Setup lidar config
-            MockLidarRepo.return_value.list.return_value = [{
+            # Setup node config
+            MockNodeRepo.return_value.list.return_value = [{
                 "id": "lidar1",
                 "name": "Test Lidar",
+                "type": "sensor",
                 "enabled": True,
-                "mode": "real",
-                "topic_prefix": "test_lidar",
-                "pipeline_name": "downsample",
+                "config": {
+                    "mode": "real",
+                    "topic_prefix": "test_lidar",
+                    "pipeline_name": "downsample",
+                }
             }]
-            MockFusionRepo.return_value.list.return_value = []
             
             # Setup runtime
             mock_process = Mock()
             mock_process.is_alive.return_value = True
             mock_service.processes = {"lidar1": mock_process}
-            mock_service.lidar_runtime = {
+            mock_service.node_runtime_status = {
                 "lidar1": {
                     "last_frame_at": 95.0,  # 5 seconds ago
                     "last_error": None,
@@ -64,12 +62,11 @@ class TestStatusBroadcaster:
                 }
             }
             
-            # Setup sensor
+            # Setup node instance
             mock_sensor = Mock()
             mock_sensor.id = "lidar1"
             mock_sensor.topic_prefix = "test_lidar"
-            mock_service.sensors = [mock_sensor]
-            mock_service.fusions = []
+            mock_service.nodes = {"lidar1": mock_sensor}
             
             result = status_broadcaster._build_status_message()
             
@@ -84,34 +81,35 @@ class TestStatusBroadcaster:
     
     def test_build_status_message_with_fusion(self):
         """Test _build_status_message includes fusion data"""
-        with patch('app.services.status_broadcaster.LidarRepository') as MockLidarRepo, \
-             patch('app.services.status_broadcaster.FusionRepository') as MockFusionRepo, \
+        with patch('app.services.status_broadcaster.NodeRepository') as MockNodeRepo, \
              patch('app.services.status_broadcaster.lidar_service') as mock_service, \
              patch('app.services.status_broadcaster.time') as mock_time:
             
             # Setup time
             mock_time.time.return_value = 200.0
             
-            # Setup fusion config
-            MockLidarRepo.return_value.list.return_value = []
-            MockFusionRepo.return_value.list.return_value = [{
+            # Setup node config
+            MockNodeRepo.return_value.list.return_value = [{
                 "id": "fusion1",
-                "topic": "fused_points",
-                "sensor_ids": ["lidar1", "lidar2"],
+                "name": "Test Fusion",
+                "type": "fusion",
                 "enabled": True,
+                "config": {
+                    "topic": "fused_points",
+                    "sensor_ids": ["lidar1", "lidar2"],
+                }
             }]
             
-            # Setup fusion service
+            # Setup fusion service instance inside nodes dict
             mock_fusion = Mock()
             mock_fusion.id = "fusion1"
             mock_fusion.enabled = True
             mock_fusion.last_broadcast_at = 195.0  # 5 seconds ago
             mock_fusion.last_error = None
             
-            mock_service.lidar_runtime = {}
+            mock_service.node_runtime_status = {}
             mock_service.processes = {}
-            mock_service.sensors = []
-            mock_service.fusions = [mock_fusion]
+            mock_service.nodes = {"fusion1": mock_fusion}
             
             result = status_broadcaster._build_status_message()
             

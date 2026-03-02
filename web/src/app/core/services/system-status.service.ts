@@ -6,6 +6,7 @@ import { catchError, interval, of, switchMap, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ToastService } from './toast.service';
 import { TOAST_ON_ERROR } from '../interceptors/http-toast.interceptor';
+import { firstValueFrom } from 'rxjs';
 
 export type SystemNoticeLevel = 'info' | 'warning' | 'error';
 
@@ -38,12 +39,27 @@ export class SystemStatusService {
   readonly activeSensors = signal<string[]>([]);
   readonly unreadCount = signal<number>(0);
   readonly lastNotice = signal<SystemNotice | null>(null);
+  readonly isRunning = signal<boolean>(false);
 
   readonly backendLabel = computed(() => {
     const online = this.backendOnline();
     if (online === null) return 'Checking';
     return online ? 'Online' : 'Offline';
   });
+
+  async startSystem(): Promise<void> {
+    const res = await firstValueFrom(
+      this.http.post<BackendStatusResponse>(`${environment.apiUrl}/start`, {}),
+    );
+    if (res) this.isRunning.set(res.is_running ?? true);
+  }
+
+  async stopSystem(): Promise<void> {
+    const res = await firstValueFrom(
+      this.http.post<BackendStatusResponse>(`${environment.apiUrl}/stop`, {}),
+    );
+    if (res) this.isRunning.set(res.is_running ?? false);
+  }
 
   start(pollMs: number = 10000): void {
     if (this.started) return;
@@ -76,25 +92,28 @@ export class SystemStatusService {
   private fetchStatus$() {
     // Avoid showing HTTP interceptor toasts for this health check.
     const ctx = new HttpContext().set(TOAST_ON_ERROR, false);
-    return this.http.get<BackendStatusResponse>(`${environment.apiUrl}/status`, { context: ctx }).pipe(
-      tap((res) => {
-        const wasOnline = this.backendOnline();
-        this.backendOnline.set(true);
-        this.backendVersion.set(res?.version ?? null);
-        this.activeSensors.set(Array.isArray(res?.active_sensors) ? res.active_sensors : []);
+    return this.http
+      .get<BackendStatusResponse>(`${environment.apiUrl}/status`, { context: ctx })
+      .pipe(
+        tap((res) => {
+          const wasOnline = this.backendOnline();
+          this.backendOnline.set(true);
+          this.backendVersion.set(res?.version ?? null);
+          this.activeSensors.set(Array.isArray(res?.active_sensors) ? res.active_sensors : []);
+          this.isRunning.set(res?.is_running ?? false);
 
-        if (wasOnline === false) this.maybeToastOnline();
-      }),
-      catchError(() => {
-        const wasOnline = this.backendOnline();
-        this.backendOnline.set(false);
-        this.backendVersion.set(null);
-        this.activeSensors.set([]);
+          if (wasOnline === false) this.maybeToastOnline();
+        }),
+        catchError(() => {
+          const wasOnline = this.backendOnline();
+          this.backendOnline.set(false);
+          this.backendVersion.set(null);
+          this.activeSensors.set([]);
 
-        if (wasOnline !== false) this.maybeToastOffline();
-        return of(null);
-      }),
-    );
+          if (wasOnline !== false) this.maybeToastOffline();
+          return of(null);
+        }),
+      );
   }
 
   private maybeToastOnline(): void {

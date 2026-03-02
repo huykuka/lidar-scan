@@ -1,106 +1,219 @@
-<!-- Container: flex column, h-[75vh], gap-4 -->
-<div class="flex flex-col h-[75vh] gap-4 bg-gray-50 r">
-  <!-- 3D Canvas Container: relative, flex-1, bg-[#2a2a2b], rounded-lg, overflow-hidden, min-h-0, flex -->
-  <div
-    class="relative flex-1 bg-[#1e293b] rounded-lg overflow-hidden min-h-0 h-[1000px] shadow-md border border-gray-600"
-  >
-    <div #container class="w-full h-full min-h-0 bg-transparent"></div>
+<div
+  class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500 relative bg-syn-page-background-color-muted"
+>
+  <!-- Local Action Bar -->
+  <div class="absolute -top-11 right-2 z-30 flex gap-2">
+    <button
+      (click)="goBack()"
+      class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercasetext-syn-color-neutral-600 hover:text-syn-color-primary-600 transition-colors"
+    >
+      <syn-icon name="arrow_back"></syn-icon>
+      Back
+    </button>
+    <div class="h-4 w-px bg-syn-color-neutral-300 self-center"></div>
+    <syn-button
+      variant="text"
+      size="small"
+      (click)="toggleCockpit()"
+      class="text-syn-color-primary-600"
+    >
+      <syn-icon slot="prefix" [name]="showCockpit() ? 'visibility_off' : 'visibility'"></syn-icon>
+      {{ showCockpit() ? 'Hide Settings' : 'Show Settings' }}
+    </syn-button>
+  </div>
 
-    <!-- Loading Overlay: absolute inset-0, flex items-center justify-center, bg-black/70, z-10 -->
-    @if (isLoading()) {
-      <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10 rounded-lg">
-        <div class="flex flex-col items-center gap-4">
-          <syn-spinner></syn-spinner>
-          <div class="text-white text-lg font-semibold">Initializing recording...</div>
+  <div class="flex flex-col lg:flex-row gap-4 flex-1 h-full w-full min-h-0">
+    <!-- View Container (Main Area) -->
+    <div
+      class="relative flex-1 min-h-[400px] bg-[#2a2a2b] rounded-2xl overflow-hidden border border-syn-color-neutral-300"
+    >
+      <!-- 3D Canvas -->
+      <div #container class="h-full w-full bg-transparent"></div>
+
+      <!-- Playback HUD (Inside 3D View) -->
+      <div
+        class="sticky px-4 pointer-events-none rounded-xl bottom-24"
+        style="bottom: 1rem; width: 100%"
+      >
+        <div
+          class="flex items-center gap-4 w-full bg-white pointer-events-auto rounded-xl px-4 py-2"
+        >
+          <!-- Play Button -->
+          <syn-button
+            variant="outline"
+            size="small"
+            (click)="onPlay()"
+            [disabled]="frameCount() === 0 || isLoading()"
+          >
+            <syn-icon [name]="isPlaying() ? 'pause' : 'play_arrow'" slot="prefix"></syn-icon>
+            {{ isPlaying() ? 'Pause' : 'Play' }}
+          </syn-button>
+
+          <!-- Time + Scrubber -->
+          <div class="flex items-center gap-3 flex-1 min-w-0">
+            <span class="text-[11px] font-mono text-black w-14 text-right tabular-nums shrink-0">
+              {{ formatTime(currentTime()) }}
+            </span>
+
+            <syn-range
+              class="flex-1 min-w-0"
+              [min]="0"
+              [max]="frameCount() - 1"
+              [value]="currentFrame().toString()"
+              (syn-input)="onSeek($event)"
+              [disabled]="frameCount() === 0"
+            ></syn-range>
+
+            <span class="text-[11px] font-mono text-black w-14 tabular-nums shrink-0">
+              {{ formatTime(duration()) }}
+            </span>
+          </div>
+
+          <!-- Speed Buttons -->
+          <syn-button-group size="small" variant="outline">
+            @for (s of [0.5, 1.0, 2.0]; track s) {
+              <syn-button
+                [variant]="playbackSpeed() === s ? 'filled' : 'outline'"
+                size="small"
+                (click)="onSpeedChange(s)"
+              >
+                {{ s }}x
+              </syn-button>
+            }
+          </syn-button-group>
         </div>
       </div>
-    }
+    </div>
+    <!-- Sidebar Cockpit -->
+    <div
+      class="hidden lg:block overflow-hidden transition-all duration-500 ease-in-out shrink-0"
+      [ngClass]="showCockpit() ? 'w-[360px] opacity-100' : 'w-0 opacity-0 -ml-4'"
+    >
+      <div class="flex flex-col gap-4 w-[360px] h-full overflow-y-auto pr-1">
+        <!-- Metadata -->
+        <div class="bg-white p-6 rounded-2xl border border-syn-color-neutral-200 shadow-sm">
+          <div class="flex items-center gap-2 mb-4">
+            <syn-icon name="info" class="text-syn-color-primary-600"></syn-icon>
+            <h3 class="text-[12px] font-black uppercase tracking-widest">Metadata</h3>
+          </div>
+          <div class="space-y-3">
+            <div class="flex justify-between border-b border-syn-color-neutral-50 pb-2">
+              <span
+                class="text-[11px] font-bold text-syn-color-neutral-400 uppercase tracking-tight"
+                >Name</span
+              >
+              <span
+                class="text-[11px] font-black text-syn-color-neutral-900 truncate max-w-[180px]"
+                >{{ recordingName() }}</span
+              >
+            </div>
+            <div class="flex justify-between border-b border-syn-color-neutral-50 pb-2">
+              <span
+                class="text-[11px] font-bold text-syn-color-neutral-400 uppercase tracking-tight"
+                >Timeline</span
+              >
+              <span class="text-[11px] font-black text-syn-color-neutral-900"
+                >{{ duration().toFixed(1) }}s</span
+              >
+            </div>
+            <div class="flex justify-between">
+              <span
+                class="text-[11px] font-bold text-syn-color-neutral-400 uppercase tracking-tight"
+                >Capacity</span
+              >
+              <span class="text-[11px] font-black text-syn-color-neutral-900"
+                >{{ frameCount() }} frames</span
+              >
+            </div>
+          </div>
+        </div>
 
-    <!-- Error Overlay -->
-    @if (error()) {
-      <div class="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
-        <syn-alert variant="danger" open>
-          {{ error() }}
-        </syn-alert>
+        <!-- Appearance -->
+        <div class="bg-white p-6 rounded-2xl border border-syn-color-neutral-200 shadow-sm">
+          <div class="flex items-center gap-2 mb-6">
+            <syn-icon name="blur_on" class="text-syn-color-primary-600"></syn-icon>
+            <h3 class="text-[12px] font-black uppercase tracking-widest">Appearance</h3>
+          </div>
+
+          <div class="flex flex-col space-y-6">
+            <div class="space-y-2">
+              <div class="flex justify-between">
+                <label class="text-[11px] font-bold text-syn-color-neutral-500 uppercase"
+                  >Point Size</label
+                >
+                <syn-badge size="small" pill variant="neutral">{{
+                  pointSize() | number: '1.2-2'
+                }}</syn-badge>
+              </div>
+              <syn-range
+                [min]="0.01"
+                [max]="0.3"
+                [step]="0.01"
+                [value]="pointSize().toString()"
+                (syn-input)="pointSize.set(+$any($event.target).value)"
+              ></syn-range>
+            </div>
+
+            <div
+              class="flex items-center justify-between p-3 bg-syn-color-neutral-50 rounded-xl border border-syn-color-neutral-100"
+            >
+              <span class="text-[11px] font-bold text-syn-color-neutral-500 uppercase"
+                >Render Color</span
+              >
+              <div
+                class="relative w-8 h-8 rounded-lg overflow-hidden border border-syn-color-neutral-200 shadow-sm"
+              >
+                <input
+                  type="color"
+                  [value]="pointColor()"
+                  (input)="pointColor.set($any($event.target).value)"
+                  class="absolute inset-0 w-full h-full p-0 border-0 bg-transparent cursor-pointer scale-150"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    }
+    </div>
   </div>
 
-  <!-- Media Controls: flex flex-col gap-3, p-4, bg-syn-color-neutral-50, rounded-lg -->
-  <div class="flex flex-col gap-3 bg-syn-color-neutral-50 rounded-lg">
-    <!-- Timeline Scrubber: flex items-center gap-3 -->
-    <div class="flex items-center gap-3 p-2 bg-gray-100 rounded shadow-sm">
-      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[4rem]">{{
-        formatTime(currentTime())
-      }}</span>
-      <syn-range
-        class="flex-1"
-        [min]="0"
-        [max]="frameCount() - 1"
-        [value]="currentFrame().toString()"
-        (syn-input)="onSeek($event)"
-        [disabled]="frameCount() === 0"
-      ></syn-range>
-      <span class="text-sm text-syn-color-neutral-600 font-mono min-w-[4rem]">{{
-        formatTime(duration())
-      }}</span>
-    </div>
-
-    <!-- Control Buttons: flex items-center justify-between gap-4 -->
-    <div class="flex items-center justify-between gap-4 p-3 bg-gray-200 rounded-lg">
-      <div class="flex items-center gap-2">
-        <!-- Step Backward -->
-        <syn-icon-button
-          name="skip_previous"
-          label="Previous Frame"
-          (click)="onStepBackward()"
-          [disabled]="currentFrame() === 0"
-        ></syn-icon-button>
-
-        <!-- Play/Pause -->
-        <syn-icon-button
-          [name]="isPlaying() ? 'pause' : 'play_arrow'"
-          [label]="isPlaying() ? 'Pause' : 'Play'"
-          (click)="onPlay()"
-          [disabled]="frameCount() === 0 || isLoading()"
-        ></syn-icon-button>
-
-        <!-- Step Forward -->
-        <syn-icon-button
-          name="skip_next"
-          label="Next Frame"
-          (click)="onStepForward()"
-          [disabled]="currentFrame() >= frameCount() - 1"
-        ></syn-icon-button>
-      </div>
-
-      <!-- Frame Counter: text-sm font-medium text-syn-color-neutral-700 font-mono -->
-      <div class="text-sm font-medium text-syn-color-neutral-700 font-mono">
-        Frame {{ currentFrame() + 1 }} / {{ frameCount() }}
-      </div>
-
-      <!-- Speed Control: flex items-center gap-2 -->
-      <div class="flex items-center gap-2">
-        <span class="text-sm text-syn-color-neutral-800 font-medium">Playback Speed:</span>
-        <syn-button
-          size="small"
-          [variant]="playbackSpeed() === 0.5 ? 'filled' : 'outline'"
-          (click)="onSpeedChange(0.5)"
-          >0.5x</syn-button
-        >
-        <syn-button
-          size="small"
-          [variant]="playbackSpeed() === 1.0 ? 'filled' : 'outline'"
-          (click)="onSpeedChange(1.0)"
-          >1x</syn-button
-        >
-        <syn-button
-          size="small"
-          [variant]="playbackSpeed() === 2.0 ? 'filled' : 'outline'"
-          (click)="onSpeedChange(2.0)"
-          >2x</syn-button
-        >
+  <!-- Mobile Settings -->
+  <syn-drawer
+    label="Playback Settings"
+    [open]="showCockpit()"
+    class="lg:hidden"
+    placement="end"
+    (syn-hide)="closeCockpit()"
+  >
+    <div class="p-6 space-y-6">
+      <div class="space-y-2">
+        <label class="text-xs font-bold text-syn-color-neutral-500 uppercase">Point size</label>
+        <syn-range
+          [min]="0.01"
+          [max]="0.3"
+          [step]="0.01"
+          [value]="pointSize().toString()"
+          (syn-input)="pointSize.set(+$any($event.target).value)"
+        ></syn-range>
       </div>
     </div>
-  </div>
+  </syn-drawer>
+
+  <!-- Error Alerts -->
+  @if (error()) {
+    <div
+      class="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+    >
+      <syn-alert
+        variant="danger"
+        open
+        closable
+        (syn-hide)="error.set(null)"
+        class="max-w-sm shadow-2xl"
+      >
+        <syn-icon slot="icon" name="error"></syn-icon>
+        <strong>Decoding interrupt</strong><br />{{ error() }}
+      </syn-alert>
+    </div>
+  }
 </div>

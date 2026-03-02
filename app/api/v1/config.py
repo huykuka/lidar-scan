@@ -4,47 +4,46 @@ Allows exporting the entire system configuration (lidars + fusions) to JSON
 and importing it back.
 """
 import json
-from typing import Dict, Any
+from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 
-from app.repositories import LidarRepository, FusionRepository
-
+from app.repositories import NodeRepository, EdgeRepository
 
 router = APIRouter()
 
 
 class ConfigurationExport(BaseModel):
     """Configuration export model"""
-    version: str = "1.0"
-    lidars: list
-    fusions: list
+    version: str = "2.0"
+    nodes: list
+    edges: list
 
 
 class ConfigurationImport(BaseModel):
     """Configuration import model"""
-    lidars: list = []
-    fusions: list = []
+    nodes: list = []
+    edges: list = []
     merge: bool = False  # If False, replaces all configs. If True, merges with existing.
 
 
 @router.get("/config/export")
 def export_configuration():
     """
-    Export all lidar and fusion configurations as JSON.
+    Export all node and edge configurations as JSON.
     
     Returns:
-        JSON object containing all lidars and fusions
+        JSON object containing the node graph
     """
-    lidar_repo = LidarRepository()
-    fusion_repo = FusionRepository()
+    node_repo = NodeRepository()
+    edge_repo = EdgeRepository()
     
-    lidars = lidar_repo.list()
-    fusions = fusion_repo.list()
+    nodes = node_repo.list()
+    edges = edge_repo.list()
     
     config = ConfigurationExport(
-        lidars=lidars,
-        fusions=fusions
+        nodes=nodes,
+        edges=edges
     )
     
     # Return as downloadable JSON file
@@ -60,53 +59,37 @@ def export_configuration():
 @router.post("/config/import")
 def import_configuration(config: ConfigurationImport):
     """
-    Import lidar and fusion configurations from JSON.
-    
-    Args:
-        config: Configuration to import
-    
-    Returns:
-        Summary of import operation
-    
-    The import can work in two modes:
-    - merge=False (default): Deletes all existing configs and imports new ones
-    - merge=True: Keeps existing configs and adds/updates from import
+    Import node and edge configurations from JSON.
     """
-    lidar_repo = LidarRepository()
-    fusion_repo = FusionRepository()
+    node_repo = NodeRepository()
+    edge_repo = EdgeRepository()
     
     try:
         # If not merging, delete all existing configurations
         if not config.merge:
-            existing_lidars = lidar_repo.list()
-            for lidar in existing_lidars:
-                lidar_repo.delete(lidar["id"])
+            existing_nodes = node_repo.list()
+            for node in existing_nodes:
+                node_repo.delete(node["id"])
+            # Edge logic is handled by deleting nodes (cascade) or via save_all
+        
+        # Import nodes
+        imported_nodes = []
+        for node_config in config.nodes:
+            node_id = node_repo.upsert(node_config)
+            imported_nodes.append(node_id)
             
-            existing_fusions = fusion_repo.list()
-            for fusion in existing_fusions:
-                fusion_repo.delete(fusion["id"])
-        
-        # Import lidars
-        imported_lidars = []
-        for lidar_config in config.lidars:
-            lidar_id = lidar_repo.upsert(lidar_config)
-            imported_lidars.append(lidar_id)
-        
-        # Import fusions
-        imported_fusions = []
-        for fusion_config in config.fusions:
-            fusion_id = fusion_repo.upsert(fusion_config)
-            imported_fusions.append(fusion_id)
+        # Recreate edges if we are replacing entirely
+        if not config.merge:
+             edge_repo.save_all(config.edges)
         
         return {
             "success": True,
             "mode": "merge" if config.merge else "replace",
             "imported": {
-                "lidars": len(imported_lidars),
-                "fusions": len(imported_fusions)
+                "nodes": len(imported_nodes),
+                "edges": len(config.edges) if not config.merge else 0
             },
-            "lidar_ids": imported_lidars,
-            "fusion_ids": imported_fusions
+            "node_ids": imported_nodes
         }
     
     except Exception as e:
@@ -119,57 +102,23 @@ def import_configuration(config: ConfigurationImport):
 @router.post("/config/validate")
 def validate_configuration(config: ConfigurationImport):
     """
-    Validate a configuration without importing it.
-    
-    Args:
-        config: Configuration to validate
-    
-    Returns:
-        Validation results with any errors or warnings
+    Validate a node configuration without importing it.
     """
     errors = []
     warnings = []
     
-    # Validate lidars
     seen_ids = set()
-    seen_topics = set()
     
-    for i, lidar in enumerate(config.lidars):
-        # Check required fields
-        if not lidar.get("name"):
-            errors.append(f"Lidar #{i}: missing 'name'")
-        if not lidar.get("launch_args"):
-            errors.append(f"Lidar #{i}: missing 'launch_args'")
-        
-        # Check for duplicate IDs
-        if "id" in lidar:
-            if lidar["id"] in seen_ids:
-                errors.append(f"Lidar #{i}: duplicate ID '{lidar['id']}'")
-            seen_ids.add(lidar["id"])
-        
-        # Check for duplicate topic_prefix
-        if "topic_prefix" in lidar:
-            if lidar["topic_prefix"] in seen_topics:
-                warnings.append(f"Lidar #{i}: duplicate topic_prefix '{lidar['topic_prefix']}' (will be auto-resolved)")
-            seen_topics.add(lidar["topic_prefix"])
-    
-    # Validate fusions
-    seen_fusion_ids = set()
-    
-    for i, fusion in enumerate(config.fusions):
-        # Check required fields
-        if not fusion.get("name"):
-            errors.append(f"Fusion #{i}: missing 'name'")
-        if not fusion.get("topic"):
-            errors.append(f"Fusion #{i}: missing 'topic'")
-        if not fusion.get("sensor_ids"):
-            warnings.append(f"Fusion #{i}: empty sensor_ids array")
-        
-        # Check for duplicate IDs
-        if "id" in fusion:
-            if fusion["id"] in seen_fusion_ids:
-                errors.append(f"Fusion #{i}: duplicate ID '{fusion['id']}'")
-            seen_fusion_ids.add(fusion["id"])
+    for i, node in enumerate(config.nodes):
+        if not node.get("name"):
+            errors.append(f"Node #{i}: missing 'name'")
+        if not node.get("type"):
+            errors.append(f"Node #{i}: missing 'type'")
+            
+        if "id" in node:
+            if node["id"] in seen_ids:
+                errors.append(f"Node #{i}: duplicate ID '{node['id']}'")
+            seen_ids.add(node["id"])
     
     is_valid = len(errors) == 0
     
@@ -178,7 +127,7 @@ def validate_configuration(config: ConfigurationImport):
         "errors": errors,
         "warnings": warnings,
         "summary": {
-            "lidars": len(config.lidars),
-            "fusions": len(config.fusions)
+            "nodes": len(config.nodes),
+            "edges": len(config.edges)
         }
     }

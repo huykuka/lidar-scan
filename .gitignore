@@ -8,6 +8,7 @@ server.log
 # Build artifacts
 build/
 dist/
+launch/
 requirements-frozen.txt
 
 # Runtime/debug data
@@ -20,7 +21,8 @@ app/static/*
 
 # Local dev database
 config/
-recordings/
+/recordings/
+/logs/
 
 # Web/frontend
 web/.env*

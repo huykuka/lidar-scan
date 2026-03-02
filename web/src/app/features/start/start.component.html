@@ -1,21 +1,257 @@
-<div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-  <div class="max-w-3xl">
-    <h2 class="text-2xl font-black text-syn-typography-color-text mb-4">Welcome to the Cockpit</h2>
-    <p class="text-lg text-syn-color-neutral-600 leading-relaxed mb-8">
-      This is your central LiDAR processing hub. From here, you can manage sensor streams, 
-      view real-time point cloud data, and configure processing pipelines.
+<div
+  class="w-full bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 animate-in fade-in slide-in-from-bottom-4 duration-500"
+>
+  <div class="w-full max-w-7xl mx-auto">
+    <p class="text-base sm:text-lg text-syn-color-neutral-600 leading-relaxed mb-6 sm:mb-8">
+      Your complete LiDAR processing platform. Configure sensors, design processing pipelines,
+      visualize point clouds in real-time, and manage recordings - all from a unified interface.
     </p>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 transition-colors">
-        <syn-icon name="visibility" class="text-syn-color-primary-600 text-2xl mb-3"></syn-icon>
-        <h3 class="font-bold text-syn-typography-color-text mb-1">Live View</h3>
-        <p class="text-sm text-syn-color-neutral-500">Interactively explore 3D point cloud data in real-time.</p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+      <!-- Workspaces Card -->
+      <div
+        (click)="navigateTo('/workspaces')"
+        class="p-4 sm:p-5 md:p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 transition-all cursor-pointer group"
+      >
+        <syn-icon
+          name="spoke"
+          class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
+        ></syn-icon>
+        <h3 class="font-bold text-syn-typography-color-text mb-1 sm:mb-2 text-sm sm:text-base">
+          Workspaces
+        </h3>
+        <p class="text-xs sm:text-sm text-syn-color-neutral-600 mb-2 sm:mb-3 leading-relaxed">
+          Visualize live point cloud streams in interactive 3D workspaces with real-time rendering.
+        </p>
+        <div
+          class="flex items-center text-syn-color-primary-600 text-xs sm:text-sm font-medium group-hover:gap-2 transition-all"
+        >
+          <span>Open Workspace</span>
+          <syn-icon name="arrow_forward" class="text-sm sm:text-base ml-1"></syn-icon>
+        </div>
       </div>
-      <div class="p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 transition-colors">
-        <syn-icon name="settings_suggest" class="text-syn-color-primary-600 text-2xl mb-3"></syn-icon>
-        <h3 class="font-bold text-syn-typography-color-text mb-1">Configuration</h3>
-        <p class="text-sm text-syn-color-neutral-500">Tune sensor parameters and pipeline algorithms.</p>
+
+      <!-- Settings Card -->
+      <div
+        (click)="navigateTo('/settings')"
+        class="p-4 sm:p-5 md:p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 transition-all cursor-pointer group"
+      >
+        <syn-icon
+          name="settings"
+          class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
+        ></syn-icon>
+        <h3 class="font-bold text-syn-typography-color-text mb-1 sm:mb-2 text-sm sm:text-base">
+          Settings
+        </h3>
+        <p class="text-xs sm:text-sm text-syn-color-neutral-600 mb-2 sm:mb-3 leading-relaxed">
+          Build processing graphs with drag-and-drop nodes. Configure sensors, fusion, and pipeline
+          operations.
+        </p>
+        <div
+          class="flex items-center text-syn-color-primary-600 text-xs sm:text-sm font-medium group-hover:gap-2 transition-all"
+        >
+          <span>Configure System</span>
+          <syn-icon name="arrow_forward" class="text-sm sm:text-base ml-1"></syn-icon>
+        </div>
+      </div>
+
+      <!-- Recordings Card -->
+      <div
+        (click)="navigateTo('/recordings')"
+        class="p-4 sm:p-5 md:p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 transition-all cursor-pointer group"
+      >
+        <syn-icon
+          name="video_library"
+          class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
+        ></syn-icon>
+        <h3 class="font-bold text-syn-typography-color-text mb-1 sm:mb-2 text-sm sm:text-base">
+          Recordings
+        </h3>
+        <p class="text-xs sm:text-sm text-syn-color-neutral-600 mb-2 sm:mb-3 leading-relaxed">
+          Manage recorded point cloud sessions. Play back, export, and analyze historical data.
+        </p>
+        <div
+          class="flex items-center text-syn-color-primary-600 text-xs sm:text-sm font-medium group-hover:gap-2 transition-all"
+        >
+          <span>View Recordings</span>
+          <syn-icon name="arrow_forward" class="text-sm sm:text-base ml-1"></syn-icon>
+        </div>
+      </div>
+
+      <!-- Logs Card -->
+      <div
+        (click)="navigateTo('/logs')"
+        class="p-4 sm:p-5 md:p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 transition-all cursor-pointer group"
+      >
+        <syn-icon
+          name="description"
+          class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
+        ></syn-icon>
+        <h3 class="font-bold text-syn-typography-color-text mb-1 sm:mb-2 text-sm sm:text-base">
+          Logs
+        </h3>
+        <p class="text-xs sm:text-sm text-syn-color-neutral-600 mb-2 sm:mb-3 leading-relaxed">
+          Monitor system logs and debug information. Track errors, warnings, and performance
+          metrics.
+        </p>
+        <div
+          class="flex items-center text-syn-color-primary-600 text-xs sm:text-sm font-medium group-hover:gap-2 transition-all"
+        >
+          <span>View Logs</span>
+          <syn-icon name="arrow_forward" class="text-sm sm:text-base ml-1"></syn-icon>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key Features Section -->
+    <div class="mt-8 sm:mt-10 md:mt-12 pt-6 sm:pt-8 border-t border-syn-color-neutral-200">
+      <h3 class="text-base sm:text-lg font-bold text-syn-typography-color-text mb-3 sm:mb-4">
+        Key Features
+      </h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div class="flex items-start gap-2 sm:gap-3">
+          <syn-icon
+            name="hub"
+            class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
+          ></syn-icon>
+          <div>
+            <h4
+              class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
+            >
+              Node-Based Processing
+            </h4>
+            <p class="text-xs text-syn-color-neutral-600 leading-relaxed">
+              Create complex processing pipelines with modular nodes: sensors, fusion, filtering,
+              segmentation, and more.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-2 sm:gap-3">
+          <syn-icon
+            name="3d_rotation"
+            class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
+          ></syn-icon>
+          <div>
+            <h4
+              class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
+            >
+              Real-Time 3D Visualization
+            </h4>
+            <p class="text-xs text-syn-color-neutral-600 leading-relaxed">
+              High-performance WebGL rendering with Three.js. Handle dense point clouds at 60+ FPS.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-2 sm:gap-3">
+          <syn-icon
+            name="merge"
+            class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
+          ></syn-icon>
+          <div>
+            <h4
+              class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
+            >
+              Multi-Sensor Fusion
+            </h4>
+            <p class="text-xs text-syn-color-neutral-600 leading-relaxed">
+              Combine data from multiple LiDAR sensors with automatic synchronization and
+              transformation.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-2 sm:gap-3">
+          <syn-icon
+            name="save"
+            class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
+          ></syn-icon>
+          <div>
+            <h4
+              class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
+            >
+              Advanced Recording
+            </h4>
+            <p class="text-xs text-syn-color-neutral-600 leading-relaxed">
+              Record full N-dimensional point cloud data in compressed PCD format. Preserve
+              intensity, reflector, and all fields.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-2 sm:gap-3">
+          <syn-icon
+            name="filter_alt"
+            class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
+          ></syn-icon>
+          <div>
+            <h4
+              class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
+            >
+              Pipeline Operations
+            </h4>
+            <p class="text-xs text-syn-color-neutral-600 leading-relaxed">
+              Crop, downsample, filter outliers, segment planes, cluster objects, detect boundaries,
+              and more.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-2 sm:gap-3">
+          <syn-icon
+            name="speed"
+            class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
+          ></syn-icon>
+          <div>
+            <h4
+              class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
+            >
+              WebSocket Streaming
+            </h4>
+            <p class="text-xs text-syn-color-neutral-600 leading-relaxed">
+              Low-latency binary protocol for efficient point cloud transmission over WebSockets.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Getting Started Section -->
+    <div
+      class="mt-6 sm:mt-8 p-4 sm:p-5 md:p-6 rounded-xl bg-gradient-to-br from-syn-color-primary-50 to-syn-color-primary-100 border border-syn-color-primary-200"
+    >
+      <div class="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+        <syn-icon
+          name="lightbulb"
+          class="text-syn-color-primary-700 text-2xl sm:text-3xl flex-shrink-0"
+        ></syn-icon>
+        <div class="flex-1">
+          <h3 class="text-base sm:text-lg font-bold text-syn-color-primary-900 mb-2 sm:mb-3">
+            Getting Started
+          </h3>
+          <ol class="space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-syn-color-primary-800">
+            <li class="flex items-start gap-2">
+              <span class="font-bold flex-shrink-0">1.</span>
+              <span>Configure your LiDAR sensors in <strong>Settings</strong></span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="font-bold flex-shrink-0">2.</span>
+              <span>Build processing pipelines by connecting nodes in the graph editor</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="font-bold flex-shrink-0">3.</span>
+              <span
+                >Visualize live streams in <strong>Workspaces</strong> with multi-topic
+                support</span
+              >
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="font-bold flex-shrink-0">4.</span>
+              <span>Record sessions and analyze data in <strong>Recordings</strong></span>
+            </li>
+          </ol>
+        </div>
       </div>
     </div>
   </div>

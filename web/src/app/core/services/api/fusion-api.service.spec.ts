@@ -26,10 +26,16 @@ describe('FusionApiService', () => {
   it('getFusions() updates store', async () => {
     const p = service.getFusions();
 
-    const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.endsWith('/fusions'));
-    req.flush({
-      fusions: [{ id: 'f1', name: 'F1', topic: 'fused_points', sensor_ids: [] }],
-    });
+    const reqNodes = httpMock.expectOne((r) => r.method === 'GET' && r.url.endsWith('/nodes'));
+    reqNodes.flush([
+      {
+        id: 'f1',
+        name: 'F1',
+        type: 'fusion',
+        category: 'Processing',
+        config: { topic: 'fused_points', sensor_ids: [] },
+      },
+    ]);
 
     const res = await p;
     expect(res.fusions.length).toBe(1);
@@ -38,8 +44,10 @@ describe('FusionApiService', () => {
 
   it('setEnabled() calls enabled endpoint', async () => {
     const p = service.setEnabled('fusion-1', true);
-    const req = httpMock.expectOne((r) => r.method === 'POST' && r.url.includes('/fusions/') && r.url.includes('/enabled'));
-    expect(req.request.urlWithParams).toContain('enabled=true');
+    const req = httpMock.expectOne(
+      (r) => r.method === 'PUT' && r.url.includes('/nodes/') && r.url.includes('/enabled'),
+    );
+    expect(req.request.body).toEqual({ enabled: true });
     req.flush({ status: 'success' });
     await p;
   });

@@ -1,0 +1,105 @@
+<div
+  class="rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex flex-row relative"
+  (click)="selectable ? toggleSelection.emit(!selected) : select.emit(recording)"
+>
+  @if (selectable) {
+    <div
+      class="h-full flex items-center justify-center bg-neutral-50 border-r border-neutral-200 px-3 z-10"
+      (click)="$event.stopPropagation()"
+    >
+      <syn-checkbox
+        [checked]="selected"
+        (syn-change)="toggleSelection.emit($any($event.target).checked)"
+      ></syn-checkbox>
+    </div>
+  }
+  <div class="flex-shrink-0 h-full bg-slate-900 flex items-center justify-center relative">
+    @if (recording.thumbnail_path && !thumbnailLoadFailed(recording.id)) {
+      <img
+        [src]="getThumbnailUrl(recording)"
+        [alt]="recording.name + ' thumbnail'"
+        (load)="onThumbnailLoad(recording.id)"
+        (error)="onThumbnailError(recording.id)"
+        [width]="140"
+      />
+      @if (isLoadingThumbnail(recording.id)) {
+        <div class="absolute inset-0 flex items-center justify-center bg-slate-900/50">
+          <syn-spinner size="small"></syn-spinner>
+        </div>
+      }
+    } @else {
+      <div
+        class="h-14 w-14 sm:h-16 sm:w-16 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700"
+      >
+        <syn-icon name="videocam" class="text-2xl text-white/20"></syn-icon>
+      </div>
+    }
+  </div>
+
+  <!-- Info Area -->
+  <div class="flex-1 flex flex-col justify-between p-3 sm:p-4 min-w-0">
+    <div class="flex flex-col min-w-0">
+      <div class="flex items-center justify-between gap-2 mb-0.5">
+        <h3
+          class="font-semibold text-sm sm:text-base text-neutral-800 truncate"
+          [title]="recording.name"
+        >
+          {{ recording.name }}
+        </h3>
+        <span class="text-[10px] sm:text-xs text-neutral-500 flex items-center gap-1 flex-shrink-0">
+          <syn-icon name="calendar_today" class="text-[10px] sm:text-xs"></syn-icon>
+          {{ recording.created_at | date: 'yyyy-MM-dd HH:mm:ss' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Badges / Metadata -->
+    <div class="flex items-center gap-3 sm:gap-6 text-[11px] sm:text-xs text-neutral-600 mt-auto">
+      <div class="flex items-center gap-1.5" title="Frames">
+        <syn-icon name="layers" class="text-neutral-400"></syn-icon>
+        <span class="font-medium">{{ recording.frame_count }}</span>
+      </div>
+      <div class="flex items-center gap-1.5" title="Duration">
+        <syn-icon name="timer" class="text-neutral-400"></syn-icon>
+        <span class="font-medium">{{ formatDuration(recording.duration_seconds) }}</span>
+      </div>
+      <div class="flex items-center gap-1.5" title="File Size">
+        <syn-icon name="sd" class="text-neutral-400"></syn-icon>
+        <span class="font-medium">{{ formatFileSize(recording.file_size_bytes) }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions Column -->
+  <div
+    class="flex flex-col justify-center gap-2 px-3 py-2 bg-neutral-50 border-l border-neutral-100 flex-shrink-0"
+  >
+    <syn-button
+      variant="filled"
+      title="Play Recording"
+      size="small"
+      (click)="play.emit(recording); $event.stopPropagation()"
+    >
+      <syn-icon name="play_arrow"></syn-icon>
+    </syn-button>
+
+    <syn-button
+      variant="outline"
+      title="Download ZIP"
+      size="small"
+      (click)="download.emit(recording); $event.stopPropagation()"
+    >
+      <syn-icon name="download"></syn-icon>
+    </syn-button>
+
+    <syn-button
+      variant="outline"
+      title="Delete"
+      size="small"
+      style="color: var(--syn-color-error-700); border-color: var(--syn-color-error-700)"
+      (click)="delete.emit(recording); $event.stopPropagation()"
+    >
+      <syn-icon name="delete"></syn-icon>
+    </syn-button>
+  </div>
+</div>

@@ -1,70 +1,72 @@
 <div class="h-full flex flex-col">
   <!-- Toolbar -->
-  <div class="bg-white rounded-lg border border-syn-color-neutral-200 p-4 mb-4">
-    <div class="flex items-center justify-between gap-4">
-      <!-- Search Bar -->
-      <syn-input
-        type="search"
-        placeholder="Search recordings by name, topic, or sensor..."
-        size="medium"
-        [value]="searchQuery()"
-        (input)="searchQuery.set($any($event.target).value)"
-        class="flex-1 max-w-md"
-      >
-        <syn-icon slot="prefix" name="search"></syn-icon>
-      </syn-input>
+  <div class="bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200 mb-6 shadow-sm">
+    <div class="p-4">
+      <div class="flex items-center justify-between gap-6">
+        <!-- Search Bar -->
+        <syn-input
+          type="search"
+          placeholder="Search recordings by name, topic, or sensor..."
+          size="medium"
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+          class="flex-1 max-w-lg"
+>
+          <syn-icon slot="prefix" name="search"></syn-icon>
+        </syn-input>
 
-      <!-- Actions -->
-      <div class="flex items-center gap-2">
-        @if (isSelectionMode()) {
-          <syn-button
-            variant="outline"
-            size="medium"
-            (click)="selectAllFiltered()"
-            [disabled]="isLoading() || filteredRecordings().length === 0"
-          >
-            <syn-icon slot="prefix" name="done_all"></syn-icon>
-            Select All
-          </syn-button>
-          <syn-button
-            variant="outline"
-            size="medium"
-            style="color: var(--syn-color-error-700); border-color: var(--syn-color-error-700)"
-            (click)="confirmBulkDelete()"
-            [disabled]="selectedRecordingIds().size === 0"
-          >
-            <syn-icon slot="prefix" name="delete"></syn-icon>
-            Delete ({{ selectedRecordingIds().size }})
-          </syn-button>
-          <syn-button variant="text" size="medium" (click)="toggleSelectionMode()">
-            Cancel
-          </syn-button>
-        } @else {
-          <syn-button
-            variant="outline"
-            size="medium"
-            (click)="toggleSelectionMode()"
-            [disabled]="isLoading() || filteredRecordings().length === 0"
-          >
-            <syn-icon slot="prefix" name="checklist"></syn-icon>
-            Select
-          </syn-button>
-          <syn-button
-            variant="outline"
-            size="medium"
-            (click)="refreshRecordings()"
-            [disabled]="isLoading()"
-          >
-            <syn-icon slot="prefix" name="refresh"></syn-icon>
-            Refresh
-          </syn-button>
-        }
+        <!-- Actions -->
+        <div class="flex items-center gap-3">
+          @if (isSelectionMode()) {
+            <syn-button
+              variant="outline"
+              size="medium"
+              (click)="selectAllFiltered()"
+              [disabled]="isLoading() || filteredRecordings().length === 0"
+            >
+              <syn-icon slot="prefix" name="done_all"></syn-icon>
+              Select All
+            </syn-button>
+            <syn-button
+              variant="outline"
+              size="medium"
+              style="color: var(--syn-color-error-700); border-color: var(--syn-color-error-700)"
+              (click)="confirmBulkDelete()"
+              [disabled]="selectedRecordingIds().size === 0"
+            >
+              <syn-icon slot="prefix" name="delete"></syn-icon>
+              Delete ({{ selectedRecordingIds().size }})
+            </syn-button>
+            <syn-button variant="text" size="medium" (click)="toggleSelectionMode()">
+              Cancel
+            </syn-button>
+          } @else {
+            <syn-button
+              variant="outline"
+              size="medium"
+              (click)="toggleSelectionMode()"
+              [disabled]="isLoading() || filteredRecordings().length === 0"
+            >
+              <syn-icon slot="prefix" name="checklist"></syn-icon>
+              Select
+            </syn-button>
+            <syn-button
+              variant="outline"
+              size="medium"
+              (click)="refreshRecordings()"
+              [disabled]="isLoading()"
+            >
+              <syn-icon slot="prefix" name="refresh"></syn-icon>
+              Refresh
+            </syn-button>
+          }
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Content -->
-  <div class="flex-1 overflow-auto">
+  <!-- Content Area -->
+  <div class="flex-1 overflow-auto bg-white rounded-lg border border-syn-color-neutral-200 p-6">
     @if (isLoading()) {
       <div class="flex items-center justify-center h-64">
         <syn-spinner></syn-spinner>
@@ -83,12 +85,13 @@
       </div>
     } @else {
       <!-- Recordings Grid -->
-      <div class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(500px, 1fr))">
-        @for (recording of sortedRecordings(); track recording.id) {
+      <div class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(520px, 1fr))">
+        @for (recording of sortedRecordings(); track recording.id; let idx = $index) {
           <app-recording-card
             [recording]="recording"
             [selectable]="isSelectionMode()"
             [selected]="selectedRecordingIds().has(recording.id)"
+            [priority]="idx < 4"
             (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
             (select)="selectRecording($event)"
             (play)="loadForPlayback($event)"

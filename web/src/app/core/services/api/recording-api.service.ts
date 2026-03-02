@@ -8,11 +8,11 @@ import {
   ListRecordingsResponse,
   StartRecordingRequest,
   StartRecordingResponse,
-  RecordingViewerInfo
+  RecordingViewerInfo,
 } from '../../models/recording.model';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class RecordingApiService {
   private http = inject(HttpClient);
@@ -55,11 +55,18 @@ export class RecordingApiService {
   }
 
   /**
-   * Download a recording file
+   * Download a recording zip as a Blob
+   */
+  getRecordingZip(recordingId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${recordingId}/download`, { responseType: 'blob' });
+  }
+
+  /**
+   * Download a recording file via browser download
    */
   downloadRecording(recordingId: string, filename: string): void {
     const url = `${this.baseUrl}/${recordingId}/download`;
-    
+
     // Use window location to trigger browser download
     const link = document.createElement('a');
     link.href = url;
@@ -80,9 +87,8 @@ export class RecordingApiService {
    * Get a specific frame as PCD data
    */
   getFrameAsPcd(recordingId: string, frameIndex: number): Observable<Blob> {
-    return this.http.get(
-      `${this.baseUrl}/${recordingId}/frame/${frameIndex}`,
-      { responseType: 'blob' }
-    );
+    return this.http.get(`${this.baseUrl}/${recordingId}/frame/${frameIndex}`, {
+      responseType: 'blob',
+    });
   }
 }

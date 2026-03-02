@@ -4,24 +4,25 @@
 export interface NodePlugin {
   /** Unique identifier for this node type */
   type: string;
-  
+
+  /** Category grouping (e.g. sensor, fusion, operation) */
+  category: string;
+
   /** Display name shown in the palette */
   displayName: string;
-  
+
   /** Description shown in the palette */
   description: string;
-  
+
   /** Icon name (Synergy Design System icon) */
   icon: string;
-  
+
   /** Visual styling */
   style: {
-    /** Border and accent color */
     color: string;
-    /** Background color */
-    backgroundColor: string;
+    backgroundColor?: string;
   };
-  
+
   /** Port configuration */
   ports?: {
     /** Input ports (left side) */
@@ -29,16 +30,16 @@ export interface NodePlugin {
     /** Output ports (right side) */
     outputs?: PortDefinition[];
   };
-  
+
   /** Factory function to create a new instance */
   createInstance: () => NodeData;
-  
+
   /** Renderer for the node body content */
   renderBody?: (data: NodeData) => NodeBodyTemplate;
-  
+
   /** Validator for node data */
   validate?: (data: NodeData) => ValidationResult;
-  
+
   /** Editor component for node configuration */
   editorComponent?: any; // Angular component class
 }
@@ -49,13 +50,13 @@ export interface NodePlugin {
 export interface PortDefinition {
   /** Port identifier */
   id: string;
-  
+
   /** Display label */
   label: string;
-  
+
   /** Data type for validation */
   dataType: string;
-  
+
   /** Whether multiple connections are allowed */
   multiple?: boolean;
 }

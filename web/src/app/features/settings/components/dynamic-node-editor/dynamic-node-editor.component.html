@@ -1,0 +1,175 @@
+<div class="flex flex-col w-full min-w-[420px]">
+  <!-- Header with Actions -->
+  <div
+    class="flex items-center justify-between gap-3 mb-4 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
+  >
+    <div class="flex items-center gap-3 min-w-0 flex-1">
+      <div
+        class="w-8 h-8 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 text-syn-color-primary-600 flex items-center justify-center shrink-0"
+      >
+        <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-lg"></syn-icon>
+      </div>
+      <div class="flex flex-col min-w-0">
+        <h2 class="text-xs font-bold text-syn-color-neutral-900 truncate">
+          {{ definition()?.display_name }}
+        </h2>
+        <p class="text-[11px] text-syn-color-neutral-500 truncate">
+          {{ definition()?.description }}
+        </p>
+      </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="flex gap-2 shrink-0">
+      <syn-button variant="outline" size="small" (click)="onCancel()">
+        <syn-icon name="close"></syn-icon>
+        Cancel
+      </syn-button>
+      <syn-button
+        variant="filled"
+        size="small"
+        (click)="onSave()"
+        [disabled]="form.invalid || configForm.invalid || isSaving()"
+      >
+        <syn-icon name="save"></syn-icon>
+        Save
+      </syn-button>
+    </div>
+  </div>
+
+  <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col gap-3 text-sm">
+    <!-- Header fields -->
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Display Name -->
+      <div class="col-span-2">
+        <syn-input
+          label="Display Name"
+          formControlName="name"
+          placeholder="e.g. My Sensor"
+          size="small"
+          ngDefaultControl
+        ></syn-input>
+      </div>
+    </div>
+
+    <syn-divider class="my-0"></syn-divider>
+
+    <!-- Dynamic Properties from Schema -->
+    <div class="grid grid-cols-2 gap-x-3 gap-y-2" [formGroup]="configForm">
+      @for (prop of visibleProperties(); track prop.name) {
+        <div
+          class="flex flex-col"
+          [class.col-span-2]="prop.type === 'vec3' || prop.type === 'string'"
+        >
+          <!-- String -->
+          @if (prop.type === 'string') {
+            <syn-input
+              [label]="prop.label"
+              [formControlName]="prop.name"
+              [helpText]="prop.help_text || ''"
+              size="small"
+              ngDefaultControl
+            ></syn-input>
+          }
+
+          <!-- Number -->
+          @if (prop.type === 'number') {
+            <syn-input
+              [label]="prop.label"
+              type="number"
+              [step]="prop.step || 1"
+              [attr.min]="prop.min"
+              [attr.max]="prop.max"
+              [formControlName]="prop.name"
+              [helpText]="prop.help_text || ''"
+              size="small"
+              ngDefaultControl
+            ></syn-input>
+          }
+
+          <!-- Boolean -->
+          @if (prop.type === 'boolean') {
+            <syn-checkbox
+              [checked]="configForm.get(prop.name)?.value"
+              (syn-change)="onCheckboxChange(prop.name, $event)"
+              class="mt-4"
+            >
+              <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+            </syn-checkbox>
+            @if (prop.help_text) {
+              <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
+            }
+          }
+
+          <!-- Select -->
+          @if (prop.type === 'select') {
+            <syn-select
+              [label]="prop.label"
+              [value]="configForm.get(prop.name)?.value"
+              [helpText]="prop.help_text || ''"
+              (syn-change)="onSelectChange(prop.name, $event)"
+            >
+              @for (opt of prop.options; track opt.value) {
+                <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
+              }
+            </syn-select>
+          }
+
+          <!-- Vec3 (X / Y / Z) -->
+          @if (prop.type === 'vec3') {
+            <div
+              class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border border-syn-color-neutral-200"
+            >
+              <div class="flex flex-col">
+                <label class="text-[11px] font-bold text-syn-color-neutral-900">{{ prop.label }}</label>
+                @if (prop.help_text) {
+                  <span class="text-[10px] text-syn-color-neutral-500 mt-0.5">{{
+                    prop.help_text
+                  }}</span>
+                }
+              </div>
+              <div class="grid grid-cols-3 gap-1.5" [formGroupName]="prop.name">
+                <syn-input
+                  type="number"
+                  [step]="0.1"
+                  formControlName="0"
+                  placeholder="X"
+                  ngDefaultControl
+                  size="small"
+                >
+                  <span slot="prefix" class="text-xs font-bold text-syn-color-neutral-400 pl-2"
+                    >X</span
+                  >
+                </syn-input>
+                <syn-input
+                  type="number"
+                  [step]="0.1"
+                  formControlName="1"
+                  placeholder="Y"
+                  ngDefaultControl
+                  size="small"
+                >
+                  <span slot="prefix" class="text-xs font-bold text-syn-color-neutral-400 pl-2"
+                    >Y</span
+                  >
+                </syn-input>
+                <syn-input
+                  type="number"
+                  [step]="0.1"
+                  formControlName="2"
+                  placeholder="Z"
+                  ngDefaultControl
+                  size="small"
+                >
+                  <span slot="prefix" class="text-xs font-bold text-syn-color-neutral-400 pl-2"
+                    >Z</span
+                  >
+                </syn-input>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </form>
+</div>

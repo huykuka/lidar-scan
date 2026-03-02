@@ -7,7 +7,7 @@ import re
 import asyncio
 import json
 
-LOG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'config', 'logs', 'lidar_standalone.log')
+from app.core.logging import LOG_FILE
 
 router = APIRouter()
 
@@ -30,12 +30,12 @@ def get_logs(
     offset: int = Query(0, description="Starting row (0 is last/latest entry)"),
     limit: int = Query(100, description="Number of entries to return, max 500"),
 ) -> List[Dict[str, Any]]:
-    if not os.path.exists(LOG_PATH):
+    if not os.path.exists(LOG_FILE):
         return []
 
     results = []
     count = 0
-    with open(LOG_PATH, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()
     entries = (parse_log_line(l) for l in reversed(lines))
     
@@ -61,11 +61,11 @@ def download_logs(
     level: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
 ):
-    if not os.path.exists(LOG_PATH):
+    if not os.path.exists(LOG_FILE):
         raise HTTPException(status_code=404, detail="Log file not found")
 
     def generate():
-        with open(LOG_PATH, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
             for line in f:
                 entry = parse_log_line(line)
                 if not entry:
@@ -93,21 +93,21 @@ async def logs_websocket_endpoint(websocket: WebSocket, level: Optional[str] = N
     logf = None
     try:
         # Seek to end initially if position is 0 to avoid streaming history
-        if os.path.exists(LOG_PATH):
-            position = os.path.getsize(LOG_PATH)
+        if os.path.exists(LOG_FILE):
+            position = os.path.getsize(LOG_FILE)
             
         while True:
-            if not os.path.exists(LOG_PATH):
+            if not os.path.exists(LOG_FILE):
                 await asyncio.sleep(1)
                 continue
                 
-            stat = os.stat(LOG_PATH)
+            stat = os.stat(LOG_FILE)
             inode = stat.st_ino
             
             if logf is None or inode != last_inode:
                 if logf:
                     logf.close()
-                logf = open(LOG_PATH, "r", encoding="utf-8", errors="ignore")
+                logf = open(LOG_FILE, "r", encoding="utf-8", errors="ignore")
                 if last_inode is not None and inode != last_inode:
                     # If rotated, start from beginning
                     position = 0

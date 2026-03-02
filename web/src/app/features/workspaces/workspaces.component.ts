@@ -222,7 +222,6 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
         console.error('JSON parse error:', e);
       }
     }
-    this.cdr.detectChanges();
   }
 
   private parseBinaryPointCloud(buffer: ArrayBuffer) {

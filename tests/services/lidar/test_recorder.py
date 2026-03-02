@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch, AsyncMock
 import numpy as np
 import pytest
 
-from app.services.lidar.recorder import RecordingService, RecordingHandle
-from app.services.lidar.protocol.binary import pack_points_binary
+from app.services.shared.recorder import RecordingService, RecordingHandle
+from app.services.shared.binary import pack_points_binary
 
 
 class TestRecordingHandle:
@@ -18,7 +18,7 @@ class TestRecordingHandle:
     
     def test_create_handle(self, tmp_path):
         """Test creating a recording handle"""
-        from app.services.lidar.protocol.recording import RecordingWriter
+        from app.services.shared.recording import RecordingWriter
         
         file_path = tmp_path / "test.lidr"
         metadata = {"sensor_id": "test_sensor"}
@@ -37,7 +37,7 @@ class TestRecordingHandle:
     
     def test_get_info(self, tmp_path):
         """Test getting recording info from handle"""
-        from app.services.lidar.protocol.recording import RecordingWriter
+        from app.services.shared.recording import RecordingWriter
         
         file_path = tmp_path / "test.lidr"
         metadata = {"sensor_id": "test_sensor"}
@@ -81,7 +81,7 @@ class TestRecordingService:
         """Test service initialization with default directory"""
         service = RecordingService()
         
-        assert service.recordings_dir == Path("config") / "recordings"
+        assert service.recordings_dir == Path("recordings")
         assert service.recordings_dir.exists()
     
     @pytest.mark.asyncio
@@ -454,7 +454,7 @@ class TestRecordingServiceSingleton:
     
     def test_get_recorder_singleton(self):
         """Test that get_recorder returns same instance"""
-        from app.services.lidar.recorder import get_recorder
+        from app.services.shared.recorder import get_recorder
         
         recorder1 = get_recorder()
         recorder2 = get_recorder()
@@ -463,9 +463,9 @@ class TestRecordingServiceSingleton:
     
     def test_get_recorder_creates_default_dir(self):
         """Test that get_recorder creates default directory"""
-        from app.services.lidar.recorder import get_recorder
+        from app.services.shared.recorder import get_recorder
         
         recorder = get_recorder()
         
-        assert recorder.recordings_dir == Path("config") / "recordings"
+        assert recorder.recordings_dir == Path("recordings")
         assert recorder.recordings_dir.exists()

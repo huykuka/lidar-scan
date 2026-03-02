@@ -82,7 +82,6 @@ export class LogsComponent implements OnInit, OnDestroy {
       subtitle: 'Monitor and analyze system events and logs',
     });
     this.loadInitialLogs();
-    this.setupAutoRefresh();
   }
 
   ngOnDestroy() {
@@ -103,20 +102,10 @@ export class LogsComponent implements OnInit, OnDestroy {
     }
   }
 
-  private setupAutoRefresh() {
-    // Auto-refresh logs every 5 seconds when not streaming
-    const interval = setInterval(async () => {
-      if (!this.isStreaming()) {
-        try {
-          const logs = await this.api.getLogs({ limit: 200 });
-          this.store.setEntries(logs);
-        } catch (error) {
-          console.error('Auto-refresh failed:', error);
-        }
-      }
-    }, 5000);
-
-    this.destroy$.subscribe(() => clearInterval(interval));
+  refreshLogs() {
+    // Reset offset when refreshing
+    this.store.setOffset(0);
+    this.loadInitialLogs();
   }
 
   onFilterChange() {

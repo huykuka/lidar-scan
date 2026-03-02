@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from app.core.logging_config import get_logger
+from app.core.logging import get_logger
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -15,8 +15,8 @@ from app.api.v1 import router as api_router
 from app.core.config import settings
 from app.db.migrate import ensure_schema
 from app.db.session import init_engine
-from app.services.lidar.instance import lidar_service
-from app.services.lidar.recorder import get_recorder
+from app.services.nodes.instance import node_manager
+from app.services.shared.recorder import get_recorder
 from app.services.status_broadcaster import start_status_broadcaster, stop_status_broadcaster
 from app.services.websocket.manager import manager
 
@@ -45,8 +45,8 @@ async def lifespan(_: FastAPI):
     recorder = get_recorder()
     manager.recorder = recorder
 
-    lidar_service.load_config()
-    lidar_service.start(asyncio.get_running_loop())
+    node_manager.load_config()
+    node_manager.start(asyncio.get_running_loop())
     
     # Start status broadcaster
     start_status_broadcaster()
@@ -59,7 +59,7 @@ async def lifespan(_: FastAPI):
     # Stop all active recordings
     await recorder.stop_all_recordings()
     
-    lidar_service.stop()
+    node_manager.stop()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

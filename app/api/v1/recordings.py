@@ -12,11 +12,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
-from app.repositories.recordings_orm import RecordingsRepository
-from app.services.lidar.recorder import get_recorder
-from app.services.lidar.instance import lidar_service
-from app.services.lidar.protocol.recording import get_recording_info, RecordingReader
-from app.services.lidar.io.pcd import save_to_pcd
+from app.repositories.recordings_orm import RecordingRepository
+from app.services.shared.recorder import get_recorder
+from app.services.nodes.instance import node_manager
+from app.services.shared.recording import get_recording_info, RecordingReader
+from app.modules.lidar.io.pcd import save_to_pcd
 import tempfile
 
 router = APIRouter()
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 class StartRecordingRequest(BaseModel):
     """Request body for starting a recording."""
-    topic: str
+    node_id: str
     name: str | None = None
     metadata: dict | None = None
 
@@ -34,7 +34,7 @@ class RecordingResponse(BaseModel):
     """Recording information response."""
     id: str
     name: str
-    topic: str
+    node_id: str
     sensor_id: str | None
     file_path: str
     file_size_bytes: int
@@ -49,10 +49,12 @@ class RecordingResponse(BaseModel):
 class ActiveRecordingResponse(BaseModel):
     """Active recording status response."""
     recording_id: str
-    topic: str
+    node_id: str
     frame_count: int
     duration_seconds: float
     started_at: str
+    metadata: dict | None = None
+    status: str = "recording"  # "recording" or "stopping"
 
 
 class ListRecordingsResponse(BaseModel):
@@ -81,43 +83,38 @@ async def start_recording(
     """
     recorder = get_recorder()
     
-    # Extract sensor_id from topic if it follows pattern
-    sensor_id = None
-    found_sensor = None
-    for sensor in lidar_service.sensors:
-        if request.topic.startswith(sensor.topic_prefix):
-            sensor_id = sensor.id
-            found_sensor = sensor
-            break
+    found_node = node_manager.nodes.get(request.node_id)
     
+    if not found_node:
+        raise HTTPException(status_code=404, detail=f"Node {request.node_id} not found in active graph")
+        
     # Prepare metadata - merge with user-provided metadata
     metadata = {
-        "sensor_id": sensor_id,
-        "topic": request.topic,
-        "name": request.name or request.topic,
+        "node_id": request.node_id,
+        "name": request.name or request.node_id,
     }
     
     # Merge user-provided metadata if present
     if request.metadata:
         metadata.update(request.metadata)
     
-    # Add sensor metadata if found (and not already in user metadata)
-    if found_sensor:
-        if "mode" not in metadata:
-            metadata["mode"] = found_sensor.mode
-        if "pipeline_name" not in metadata:
-            metadata["pipeline_name"] = found_sensor.pipeline_name
-        if "pose" not in metadata:
-            metadata["pose"] = found_sensor.pose_params
+    # Add node metadata if found (and not already in user metadata)
+    if found_node:
+        if hasattr(found_node, "mode") and "mode" not in metadata:
+            metadata["mode"] = getattr(found_node, "mode", None)
+        if hasattr(found_node, "pipeline_name") and "pipeline_name" not in metadata:
+            metadata["pipeline_name"] = getattr(found_node, "pipeline_name", None)
+        if hasattr(found_node, "pose_params") and "pose" not in metadata:
+            metadata["pose"] = getattr(found_node, "pose_params", None)
     
     try:
         recording_id, file_path = await recorder.start_recording(
-            topic=request.topic,
+            node_id=request.node_id,
             name=request.name,
             metadata=metadata
         )
         
-        logger.info(f"Started recording {recording_id} for topic {request.topic}")
+        logger.info(f"Started recording {recording_id} for node {request.node_id}")
         
         return {
             "recording_id": recording_id,
@@ -135,52 +132,82 @@ async def start_recording(
 @router.post("/recordings/{recording_id}/stop")
 async def stop_recording(
     recording_id: str,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)]
 ):
     """
     Stop an active recording and save to database.
+    Returns immediately with 'stopping' status, finalization happens in background.
     
     Args:
         recording_id: Recording ID
+        background_tasks: FastAPI background tasks
         db: Database session
     
     Returns:
-        Recording information
+        Recording information with status='stopping'
     
     Raises:
         HTTPException: If recording not found
     """
     recorder = get_recorder()
-    repo = RecordingsRepository(db)
+    repo = RecordingRepository(db)
     
     try:
-        # Stop recording and get info
+        # Mark recording as stopping (returns immediately)
         info = await recorder.stop_recording(recording_id)
         
-        # Save to database
-        recording_data = {
-            "id": info["recording_id"],
-            "name": info["name"],
-            "topic": info["topic"],
-            "sensor_id": info["metadata"].get("sensor_id"),
-            "file_path": info["file_path"],
-            "file_size_bytes": info["file_size_bytes"],
+        # Schedule finalization in background
+        async def finalize_and_save():
+            try:
+                # Finalize the recording (flush, compress, thumbnail)
+                final_info = await recorder.finalize_recording(recording_id)
+                
+                # Save to database
+                recording_data = {
+                    "id": final_info["recording_id"],
+                    "name": final_info["name"],
+                    "node_id": final_info["node_id"],
+                    "sensor_id": final_info["metadata"].get("sensor_id"),
+                    "file_path": final_info["file_path"],
+                    "file_size_bytes": final_info["file_size_bytes"],
+                    "frame_count": final_info["frame_count"],
+                    "duration_seconds": final_info["duration_seconds"],
+                    "recording_timestamp": final_info["metadata"].get("recording_timestamp", datetime.now(timezone.utc).isoformat()),
+                    "metadata": final_info["metadata"],
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                if final_info.get("thumbnail_path"):
+                    recording_data["thumbnail_path"] = final_info["thumbnail_path"]
+                
+                # Need a new DB session for background task
+                from app.db.models import get_db
+                db_gen = get_db()
+                bg_db = next(db_gen)
+                try:
+                    bg_repo = RecordingRepository(bg_db)
+                    bg_repo.create(recording_data)
+                    logger.info(f"Background: Saved recording {recording_id} to database")
+                finally:
+                    bg_db.close()
+                    
+            except Exception as e:
+                logger.error(f"Background: Error finalizing recording {recording_id}: {e}", exc_info=True)
+        
+        background_tasks.add_task(finalize_and_save)
+        
+        logger.info(f"Stopping recording {recording_id} (finalization in background)")
+        
+        # Return immediate response with stopping status
+        return {
+            "recording_id": info["recording_id"],
+            "node_id": info["node_id"],
+            "status": info["status"],
             "frame_count": info["frame_count"],
             "duration_seconds": info["duration_seconds"],
-            "recording_timestamp": info["metadata"].get("recording_timestamp", datetime.now(timezone.utc).isoformat()),
-            "metadata": info["metadata"],
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "message": "Recording is stopping, finalization in progress..."
         }
-        
-        if info.get("thumbnail_path"):
-            recording_data["thumbnail_path"] = info["thumbnail_path"]
-            logger.info(f"Using recorder-generated thumbnail for {recording_id}")
-        
-        saved = repo.create(recording_data)
-        
-        logger.info(f"Stopped and saved recording {recording_id}")
-        
-        return saved
     
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
@@ -191,7 +218,7 @@ async def stop_recording(
 
 @router.get("/recordings", response_model=ListRecordingsResponse)
 async def list_recordings(
-    topic: str | None = Query(None, description="Filter by topic"),
+    node_id: str | None = Query(None, description="Filter by node_id"),
     db: Session = Depends(get_db)
 ):
     """
@@ -205,17 +232,17 @@ async def list_recordings(
         List of recordings and active recordings
     """
     recorder = get_recorder()
-    repo = RecordingsRepository(db)
+    repo = RecordingRepository(db)
     
     # Get saved recordings
-    recordings = repo.list(topic=topic)
+    recordings = repo.list(node_id=node_id)
     
     # Get active recordings
     active = recorder.get_active_recordings()
     
-    # Filter active recordings by topic if specified
-    if topic:
-        active = [r for r in active if r["topic"] == topic]
+    # Filter active recordings by node_id if specified
+    if node_id:
+        active = [r for r in active if r.get("node_id") == node_id]
     
     return {
         "recordings": recordings,
@@ -241,7 +268,7 @@ async def get_recording(
     Raises:
         HTTPException: If recording not found
     """
-    repo = RecordingsRepository(db)
+    repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
     
     if not recording:
@@ -270,7 +297,7 @@ async def delete_recording(
     Raises:
         HTTPException: If recording not found
     """
-    repo = RecordingsRepository(db)
+    repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
     
     if not recording:
@@ -317,7 +344,7 @@ async def download_recording(
     Raises:
         HTTPException: If recording not found or file doesn't exist
     """
-    repo = RecordingsRepository(db)
+    repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
     
     if not recording:
@@ -358,7 +385,7 @@ async def get_recording_viewer_info(
     Raises:
         HTTPException: If recording not found or file doesn't exist
     """
-    repo = RecordingsRepository(db)
+    repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
     
     if not recording:
@@ -372,7 +399,7 @@ async def get_recording_viewer_info(
     return {
         "id": recording["id"],
         "name": recording["name"],
-        "topic": recording["topic"],
+        "node_id": recording["node_id"],
         "frame_count": recording["frame_count"],
         "duration_seconds": recording["duration_seconds"],
         "metadata": recording["metadata"],
@@ -401,7 +428,7 @@ async def get_recording_frame_as_pcd(
     Raises:
         HTTPException: If recording not found, file doesn't exist, or frame index invalid
     """
-    repo = RecordingsRepository(db)
+    repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
     
     if not recording:
@@ -467,7 +494,7 @@ async def get_recording_thumbnail(
     Returns:
         PNG thumbnail image or placeholder
     """
-    repo = RecordingsRepository(db)
+    repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
     
     if not recording:
@@ -485,7 +512,7 @@ async def get_recording_thumbnail(
     file_path = Path(recording["file_path"])
     if file_path.exists():
         try:
-            from app.services.lidar.io.thumbnail import generate_thumbnail_from_file
+            from app.services.shared.thumbnail import generate_thumbnail_from_file
             
             thumbnail_path = file_path.with_suffix(".png")
             success = await asyncio.to_thread(

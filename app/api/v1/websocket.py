@@ -14,6 +14,16 @@ async def list_topics():
         }
     }
 
+@router.get("/topics/capture")
+async def capture_frame(topic: str):
+    import asyncio
+    from fastapi import Response, HTTPException
+    try:
+        data = await manager.wait_for_next(topic, timeout=5.0)
+        return Response(content=data, media_type="application/octet-stream")
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Timeout waiting for frame")
+
 @router.websocket("/ws/{topic}")
 async def websocket_endpoint(websocket: WebSocket, topic: str):
     await manager.connect(websocket, topic)

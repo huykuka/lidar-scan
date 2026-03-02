@@ -15,46 +15,54 @@ class Base(DeclarativeBase):
     pass
 
 
-class LidarModel(Base):
-    """SQLAlchemy model for lidars table."""
+class NodeModel(Base):
+    """SQLAlchemy model for nodes table."""
 
-    __tablename__ = "lidars"
+    __tablename__ = "nodes"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    topic_prefix: Mapped[str | None] = mapped_column(String)
-    launch_args: Mapped[str] = mapped_column(String, nullable=False)
-    pipeline_name: Mapped[str | None] = mapped_column(String)
-    mode: Mapped[str] = mapped_column(String, default="real")
-    pcd_path: Mapped[str | None] = mapped_column(String)
-    x: Mapped[float] = mapped_column(Float, default=0.0)
-    y: Mapped[float] = mapped_column(Float, default=0.0)
-    z: Mapped[float] = mapped_column(Float, default=0.0)
-    roll: Mapped[float] = mapped_column(Float, default=0.0)
-    pitch: Mapped[float] = mapped_column(Float, default=0.0)
-    yaw: Mapped[float] = mapped_column(Float, default=0.0)
-    imu_udp_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)
+    category: Mapped[str] = mapped_column(String, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Store all configurations (like topic_prefix, xyz, args) in a JSON string
+    config_json: Mapped[str] = mapped_column("config", String, default="{}")
+    # Canvas position
+    x: Mapped[float] = mapped_column(Float, default=100.0)
+    y: Mapped[float] = mapped_column(Float, default=100.0)
+
+    def to_dict(self) -> dict:
+        import json
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.type,
+            "category": self.category,
+            "enabled": self.enabled,
+            "config": json.loads(self.config_json) if self.config_json else {},
+            "x": self.x,
+            "y": self.y,
+        }
+
+class EdgeModel(Base):
+    """SQLAlchemy model for edges table."""
+
+    __tablename__ = "edges"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    source_node: Mapped[str] = mapped_column(String, nullable=False)
+    source_port: Mapped[str] = mapped_column(String, nullable=False)
+    target_node: Mapped[str] = mapped_column(String, nullable=False)
+    target_port: Mapped[str] = mapped_column(String, nullable=False)
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
-            "name": self.name,
-            "topic_prefix": self.topic_prefix,
-            "launch_args": self.launch_args,
-            "pipeline_name": self.pipeline_name,
-            "mode": self.mode,
-            "pcd_path": self.pcd_path,
-            "x": self.x,
-            "y": self.y,
-            "z": self.z,
-            "roll": self.roll,
-            "pitch": self.pitch,
-            "yaw": self.yaw,
-            "imu_udp_port": self.imu_udp_port,
-            "enabled": self.enabled,
+            "source_node": self.source_node,
+            "source_port": self.source_port,
+            "target_node": self.target_node,
+            "target_port": self.target_port,
         }
-
 
 class RecordingModel(Base):
     """SQLAlchemy model for recordings table."""
@@ -63,7 +71,7 @@ class RecordingModel(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    topic: Mapped[str] = mapped_column(String, nullable=False)
+    node_id: Mapped[str] = mapped_column(String, nullable=False)
     sensor_id: Mapped[str | None] = mapped_column(String)
     file_path: Mapped[str] = mapped_column(String, nullable=False)
     file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -80,7 +88,7 @@ class RecordingModel(Base):
         return {
             "id": self.id,
             "name": self.name,
-            "topic": self.topic,
+            "node_id": self.node_id,
             "sensor_id": self.sensor_id,
             "file_path": self.file_path,
             "file_size_bytes": self.file_size_bytes,
@@ -93,30 +101,42 @@ class RecordingModel(Base):
         }
 
 
-class FusionModel(Base):
-    """SQLAlchemy model for fusions table."""
+class CalibrationHistoryModel(Base):
+    """SQLAlchemy model for calibration_history table."""
 
-    __tablename__ = "fusions"
+    __tablename__ = "calibration_history"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    topic: Mapped[str] = mapped_column(String, nullable=False)
-    _sensor_ids: Mapped[str] = mapped_column("sensor_ids", String, nullable=False)  # JSON array string
-    pipeline_name: Mapped[str | None] = mapped_column(String)
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    sensor_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    reference_sensor_id: Mapped[str] = mapped_column(String, nullable=False)
+    timestamp: Mapped[str] = mapped_column(String, nullable=False)
+    fitness: Mapped[float] = mapped_column(Float, nullable=False)
+    rmse: Mapped[float] = mapped_column(Float, nullable=False)
+    quality: Mapped[str] = mapped_column(String, nullable=False)  # "excellent", "good", "poor"
+    stages_used_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON array: ["global", "icp"]
+    pose_before_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON dict: {x, y, z, roll, pitch, yaw}
+    pose_after_json: Mapped[str] = mapped_column(String, nullable=False)   # JSON dict: {x, y, z, roll, pitch, yaw}
+    transformation_matrix_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON 4x4 matrix
+    accepted: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str] = mapped_column(String, default="")
 
     def to_dict(self) -> dict:
         import json
 
-        sensor_ids = cast(str, self._sensor_ids)
-
         return {
             "id": self.id,
-            "name": self.name,
-            "topic": self.topic,
-            "sensor_ids": json.loads(sensor_ids) if sensor_ids else [],
-            "pipeline_name": self.pipeline_name,
-            "enabled": self.enabled,
+            "sensor_id": self.sensor_id,
+            "reference_sensor_id": self.reference_sensor_id,
+            "timestamp": self.timestamp,
+            "fitness": self.fitness,
+            "rmse": self.rmse,
+            "quality": self.quality,
+            "stages_used": json.loads(self.stages_used_json),
+            "pose_before": json.loads(self.pose_before_json),
+            "pose_after": json.loads(self.pose_after_json),
+            "transformation_matrix": json.loads(self.transformation_matrix_json),
+            "accepted": self.accepted,
+            "notes": self.notes,
         }
 
 

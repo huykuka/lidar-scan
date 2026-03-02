@@ -1,61 +1,78 @@
 <div class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500 relative">
   <!-- Local Action Bar (Absolute positioned to align with title area on ALL screens) -->
   <div class="absolute -top-11 right-2 z-20">
-    <syn-button variant="text" size="small" (click)="toggleCockpit()" class="text-syn-color-primary-600 lg:hidden">
+    <syn-button
+      variant="text"
+      size="small"
+      (click)="toggleCockpit()"
+      class="text-syn-color-primary-600 lg:hidden"
+    >
       <syn-icon slot="prefix" name="tune"></syn-icon>
       Controls
     </syn-button>
-    <syn-button variant="text" size="small" (click)="toggleCockpit()" class="text-syn-color-primary-600 hidden lg:flex">
+    <syn-button
+      variant="text"
+      size="small"
+      (click)="toggleCockpit()"
+      class="text-syn-color-primary-600 hidden lg:flex"
+    >
       <syn-icon slot="prefix" [name]="showCockpit() ? 'visibility_off' : 'visibility'"></syn-icon>
       {{ showCockpit() ? 'Hide Controls' : 'Show Controls' }}
     </syn-button>
   </div>
 
   <div class="flex flex-col lg:flex-row gap-4 flex-1 h-full w-full min-h-0">
-  
-  <!-- Live View Container (Main Area) -->
-  <div class="flex-1 h-full relative bg-[#2a2a2b] rounded-2xl overflow-hidden shadow-2xl border border-syn-color-neutral-300 group">
-    <app-point-cloud
-      #pointCloud
-      [pointSize]="pointSize()"
-      [showGrid]="showGrid()"
-      [showAxes]="showAxes()"
-      class="w-full h-full"
-    ></app-point-cloud>
-    
-    <!-- Stats Overlay (Floating inside the view) -->
-    <app-workspace-telemetry></app-workspace-telemetry>
+    <!-- Live View Container (Main Area) -->
+    <div
+      class="flex-1 h-full relative bg-[#2a2a2b] rounded-2xl overflow-hidden border border-syn-color-neutral-300 group"
+    >
+      <app-point-cloud
+        #pointCloud
+        [pointSize]="pointSize()"
+        [showGrid]="showGrid()"
+        [showAxes]="showAxes()"
+        class="w-full h-full"
+      ></app-point-cloud>
 
-    <!-- UI Controls Overlay (Bottom Center) -->
-    <app-workspace-view-controls
-      (onResetCamera)="resetCamera()"
-      (onTopView)="setTopView()"
-      (onFrontView)="setFrontView()"
-      (onSideView)="setSideView()"
-      (onIsometricView)="setIsometricView()"
-      (onFitToPoints)="fitToPoints()"
-      (onScreenshot)="captureScreenshot()"
-      (onToggleGrid)="toggleGrid()"
-      (onToggleAxes)="toggleAxes()"
-      (onClearPoints)="clearPoints()"
-    ></app-workspace-view-controls>
+      <!-- Stats Overlay (Floating inside the view) -->
+      <app-workspace-telemetry></app-workspace-telemetry>
+
+      <!-- UI Controls Overlay (Bottom Center) -->
+      <app-workspace-view-controls
+        (onResetCamera)="resetCamera()"
+        (onTopView)="setTopView()"
+        (onFrontView)="setFrontView()"
+        (onSideView)="setSideView()"
+        (onIsometricView)="setIsometricView()"
+        (onFitToPoints)="fitToPoints()"
+        (onScreenshot)="captureScreenshot()"
+        (onToggleGrid)="toggleGrid()"
+        (onToggleAxes)="toggleAxes()"
+        (onClearPoints)="clearPoints()"
+      ></app-workspace-view-controls>
+    </div>
+
+    <!-- Control Cockpit (Desktop View) -->
+    <div
+      class="hidden lg:block overflow-hidden transition-all duration-500 ease-in-out shrink-0"
+      [ngClass]="showCockpit() ? 'w-[360px] opacity-100' : 'w-0 opacity-0 -ml-4'"
+    >
+      <app-workspace-controls
+        class="block w-[360px] h-full transition-opacity duration-300"
+        [class.opacity-0]="!showCockpit()"
+      >
+      </app-workspace-controls>
+    </div>
+
+    <!-- Control Cockpit (Mobile View using Drawer) -->
+    <syn-drawer
+      label="Workspace Controls"
+      [open]="showCockpit()"
+      class="lg:hidden"
+      placement="end"
+      (syn-hide)="closeCockpit()"
+    >
+      <app-workspace-controls class="block w-full h-full bg-white"></app-workspace-controls>
+    </syn-drawer>
   </div>
-
-  <!-- Control Cockpit (Desktop View) -->
-  <div class="hidden lg:block overflow-hidden transition-all duration-500 ease-in-out shrink-0"
-       [ngClass]="showCockpit() ? 'w-[360px] opacity-100' : 'w-0 opacity-0 -ml-4'">
-    <app-workspace-controls class="block w-[360px] h-full transition-opacity duration-300"
-                            [class.opacity-0]="!showCockpit()">
-    </app-workspace-controls>
-  </div>
-
-  <!-- Control Cockpit (Mobile View using Drawer) -->
-  <syn-drawer 
-    label="Workspace Controls" 
-    [open]="showCockpit()" 
-    class="lg:hidden" 
-    placement="end"
-    (syn-hide)="closeCockpit()">
-    <app-workspace-controls class="block w-full h-full bg-white"></app-workspace-controls>
-  </syn-drawer>
 </div>

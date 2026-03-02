@@ -16,4 +16,6 @@ echo "Starting Simulation Mode with PCD: $LIDAR_PCD_PATH"
 echo "Frontend available at: http://localhost:$PORT/static/index.html"
 echo "----------------------------------------------------------------"
 
+export WAYLAND_DISPLAY=
 python3 main.py
+export WAYLAND_DISPLAY=
