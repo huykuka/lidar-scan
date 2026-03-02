@@ -1,0 +1,87 @@
+<syn-card>
+  <div slot="header" class="flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-white">Frontend Rendering</h2>
+  </div>
+
+  @if (frontendMetrics() === null) {
+    <!-- Empty state -->
+    <div class="text-gray-400 text-center py-8">
+      Metrics available when workspace is open.
+    </div>
+  } @else {
+    <div class="space-y-6">
+      <!-- FPS and render performance -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <!-- FPS Display with Badge -->
+        <div class="text-center">
+          <div class="text-sm text-gray-400 mb-2">Frames Per Second</div>
+          <div class="text-3xl font-bold mb-1 text-white">
+            {{ frontendMetrics()!.fps | number:'1.0-0' }}
+          </div>
+          <syn-badge [variant]="getFpsBadgeVariant()" class="text-xs">{{ getFpsStatusText() }}</syn-badge>
+        </div>
+
+        <!-- Render Time -->
+        <div class="text-center">
+          <div class="text-sm text-gray-400 mb-2">Avg Render Time</div>
+          <div class="text-xl font-medium text-white mb-1">
+            {{ frontendMetrics()!.avg_render_ms | number:'1.2-2' }} ms
+          </div>
+          <div class="text-xs text-gray-400">per frame</div>
+        </div>
+
+        <!-- Buffer Mutation Time -->
+        <div class="text-center">
+          <div class="text-sm text-gray-400 mb-2">Avg Buffer Update</div>
+          <div class="text-xl font-medium text-white mb-1">
+            {{ frontendMetrics()!.avg_buffer_mutation_ms | number:'1.2-2' }} ms
+          </div>
+          <div class="text-xs text-gray-400">per update</div>
+        </div>
+      </div>
+
+      <!-- Long Tasks Warning -->
+      @if (frontendMetrics()!.long_task_count > 0) {
+        <syn-alert variant="warning" open>
+          <strong>Long Tasks Detected</strong><br>
+          {{ frontendMetrics()!.long_task_count }} long tasks 
+          ({{ frontendMetrics()!.long_task_total_ms | number:'1.0-0' }} ms blocked)
+        </syn-alert>
+      } @else {
+        <syn-alert variant="success" open>
+          <strong>No long tasks detected</strong>
+        </syn-alert>
+      }
+
+      <!-- WebSocket Client Performance -->
+      @if (hasWebSocketMetrics()) {
+        <div class="border-t border-gray-700 pt-6">
+          <h3 class="text-md font-medium text-white mb-4">WebSocket Client Performance</h3>
+          <div class="space-y-3">
+            @for (topic of getWebSocketTopics(); track topic.name) {
+              <syn-card class="border border-gray-600">
+                <div class="flex items-center justify-between mb-2">
+                  <div class="text-white font-medium text-sm">{{ topic.name }}</div>
+                </div>
+                <div class="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <div class="text-xs text-gray-400 mb-1">Parse Latency</div>
+                    <div class="text-white">{{ topic.parseLatency | number:'1.2-2' }} ms</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-gray-400 mb-1">Frames/sec</div>
+                    <div class="text-white">{{ topic.framesPerSec | number:'1.1-1' }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-gray-400 mb-1">Bandwidth</div>
+                    <div class="text-white">{{ formatBandwidth(topic.bytesPerSec) }}</div>
+                  </div>
+                </div>
+              </syn-card>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</syn-card>

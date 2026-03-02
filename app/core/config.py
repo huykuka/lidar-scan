@@ -15,6 +15,9 @@ class Settings:
     LIDAR_LAUNCH: str = os.getenv("LIDAR_LAUNCH", "./launch/sick_multiscan.launch")
     LIDAR_PCD_PATH: str = os.getenv("LIDAR_PCD_PATH", "./test.pcd")
 
+    # Performance Metrics Settings
+    LIDAR_ENABLE_METRICS: bool = os.getenv("LIDAR_ENABLE_METRICS", "true").lower() == "true"
+
     # Directory Settings
     DEBUG_OUTPUT_DIR: str = "debug_data"
 

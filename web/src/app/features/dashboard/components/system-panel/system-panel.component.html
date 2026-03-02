@@ -1,0 +1,79 @@
+<syn-card>
+  <div slot="header" class="flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-white">System Resources</h2>
+  </div>
+
+  @if (systemMetrics() === null) {
+    <!-- Loading skeleton -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      @for (i of [1,2,3,4]; track i) {
+        <div class="space-y-3">
+          <div class="h-4 bg-gray-700 rounded animate-pulse"></div>
+          <div class="h-6 bg-gray-700 rounded animate-pulse"></div>
+          <div class="h-3 bg-gray-700 rounded animate-pulse"></div>
+        </div>
+      }
+    </div>
+  } @else {
+    <!-- System metrics grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <!-- CPU Usage -->
+      <div class="space-y-3">
+        <div class="text-sm text-gray-400 font-medium">CPU Usage</div>
+        <div class="space-y-2">
+          <!-- Progress bar using Synergy -->
+          <syn-progress-bar 
+            [value]="systemMetrics()!.cpu_percent"
+            [style.--indicator-color]="getCpuColor()"
+          ></syn-progress-bar>
+          <!-- Value -->
+          <div class="flex items-center justify-between">
+            <span class="text-white font-medium text-lg">{{ systemMetrics()!.cpu_percent | number:'1.1-1' }}%</span>
+            <syn-badge [variant]="getCpuBadgeVariant()" class="text-xs">{{ getCpuStatusText() }}</syn-badge>
+          </div>
+        </div>
+      </div>
+
+      <!-- Memory Usage -->
+      <div class="space-y-3">
+        <div class="text-sm text-gray-400 font-medium">Memory Usage</div>
+        <div class="space-y-2">
+          <!-- Progress bar using Synergy -->
+          <syn-progress-bar 
+            [value]="systemMetrics()!.memory_percent"
+            [style.--indicator-color]="getMemoryColor()"
+          ></syn-progress-bar>
+          <!-- Value -->
+          <div class="flex items-center justify-between">
+            <span class="text-white font-medium text-lg">{{ systemMetrics()!.memory_percent | number:'1.1-1' }}%</span>
+            <span class="text-xs text-gray-400">{{ formatMemoryUsage() }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thread Count -->
+      <div class="space-y-3">
+        <div class="text-sm text-gray-400 font-medium">Active Threads</div>
+        <div class="space-y-2">
+          <div class="text-white font-medium text-lg">{{ systemMetrics()!.thread_count }}</div>
+          <div class="text-xs text-gray-400">Python threads</div>
+        </div>
+      </div>
+
+      <!-- Queue Depth -->
+      <div class="space-y-3">
+        <div class="text-sm text-gray-400 font-medium">Queue Depth</div>
+        <div class="space-y-2">
+          <div class="font-medium text-lg">
+            <syn-badge [variant]="getQueueBadgeVariant()">
+              {{ systemMetrics()!.queue_depth }}
+            </syn-badge>
+          </div>
+          <div class="text-xs text-gray-400">
+            {{ getQueueStatusText() }}
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</syn-card>

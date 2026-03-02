@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { MainLayoutComponent } from './layout/main-layout/main-layout.component';
+import { DevOnlyGuard } from './core/guards/dev-only.guard';
 
 export const routes: Routes = [
   {
@@ -53,6 +54,12 @@ export const routes: Routes = [
           import('./features/calibration/components/calibration-viewer/calibration-viewer.component').then(
             (m) => m.CalibrationViewerComponent,
           ),
+      },
+      {
+        path: 'dashboard/performance',
+        loadComponent: () =>
+          import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+        canActivate: [DevOnlyGuard],
       },
     ],
   },

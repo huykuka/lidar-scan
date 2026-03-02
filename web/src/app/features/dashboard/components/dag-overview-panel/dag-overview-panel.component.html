@@ -1,0 +1,65 @@
+<syn-card>
+  <!-- Header with node count and status badge -->
+  <div slot="header" class="flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-white">DAG Processing</h2>
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-gray-300">{{ runningNodes() }} / {{ totalNodes() }} running</span>
+      <syn-badge 
+        [variant]="runningNodes() > 0 ? 'success' : 'neutral'"
+      >
+        {{ runningNodes() > 0 ? 'ACTIVE' : 'IDLE' }}
+      </syn-badge>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  @if (nodes().length === 0) {
+    <div class="text-gray-400 text-center py-8">
+      No DAG nodes reporting metrics yet.
+    </div>
+  } @else {
+    <!-- Node metrics table -->
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-gray-400 border-b border-gray-700">
+            <th class="pb-2 font-medium">Node Name</th>
+            <th class="pb-2 font-medium">Type</th>
+            <th class="pb-2 font-medium">Avg Exec (ms)</th>
+            <th class="pb-2 font-medium">Last Exec (ms)</th>
+            <th class="pb-2 font-medium">Throughput (pts/s)</th>
+            <th class="pb-2 font-medium">Points (last)</th>
+            <th class="pb-2 font-medium">Throttled</th>
+            <th class="pb-2 font-medium">Last Seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (node of nodes(); track node.node_id) {
+            <tr 
+              class="border-b border-gray-800 hover:bg-gray-800 cursor-pointer transition-colors"
+              [class.bg-amber-950/30]="node.avg_exec_ms > 20"
+              (click)="onNodeClick(node)"
+            >
+              <td class="py-3 text-white font-medium">{{ node.node_name }}</td>
+              <td class="py-3 text-gray-300">
+                <syn-badge variant="neutral" class="text-xs">{{ node.node_type }}</syn-badge>
+              </td>
+              <td class="py-3 text-gray-300">{{ node.avg_exec_ms | number:'1.2-2' }}</td>
+              <td class="py-3 text-gray-300">{{ node.last_exec_ms | number:'1.2-2' }}</td>
+              <td class="py-3 text-gray-300">{{ formatThroughput(node.throughput_pps) }}</td>
+              <td class="py-3 text-gray-300">{{ node.last_point_count | number }}</td>
+              <td class="py-3">
+                @if (node.throttled_count > 0) {
+                  <syn-badge variant="warning">{{ node.throttled_count }}</syn-badge>
+                } @else {
+                  <span class="text-gray-500">0</span>
+                }
+              </td>
+              <td class="py-3 text-gray-400 text-xs">{{ formatLastSeen(node.last_seen_ts) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</syn-card>

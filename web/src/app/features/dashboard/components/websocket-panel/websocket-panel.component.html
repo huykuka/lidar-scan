@@ -1,0 +1,52 @@
+<syn-card>
+  <!-- Header with total connections -->
+  <div slot="header" class="flex items-center justify-between">
+    <h2 class="text-lg font-semibold text-white">WebSocket Streams</h2>
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-gray-300">{{ wsMetrics()?.total_connections || 0 }} active connections</span>
+      <syn-badge [variant]="getConnectionBadgeVariant()">
+        {{ getConnectionStatusText() }}
+      </syn-badge>
+    </div>
+  </div>
+
+  <!-- Empty state or topic list -->
+  @if (!hasTopics()) {
+    <div class="text-gray-400 text-center py-8">
+      No active WebSocket topics.
+    </div>
+  } @else {
+    <!-- Topics table -->
+    <div class="space-y-3">
+      @for (topic of getTopicEntries(); track topic.name) {
+        <syn-card class="border border-gray-700">
+          <!-- Topic name -->
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-white font-medium text-sm">{{ topic.name }}</h3>
+            <syn-badge variant="neutral" class="text-xs">{{ topic.metrics.active_connections }} client(s)</syn-badge>
+          </div>
+
+          <!-- Topic stats grid -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <div class="text-xs text-gray-400 mb-1">Messages/sec</div>
+              <div class="text-white font-medium">{{ topic.metrics.messages_per_sec | number:'1.1-1' }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-400 mb-1">Bandwidth</div>
+              <div class="text-white font-medium">{{ formatBandwidth(topic.metrics.bytes_per_sec) }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-400 mb-1">Total Messages</div>
+              <div class="text-white font-medium">{{ topic.metrics.total_messages | number }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-400 mb-1">Total Data</div>
+              <div class="text-white font-medium">{{ formatBytes(topic.metrics.total_bytes) }}</div>
+            </div>
+          </div>
+        </syn-card>
+      }
+    </div>
+  }
+</syn-card>

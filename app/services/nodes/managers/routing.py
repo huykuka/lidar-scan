@@ -182,6 +182,25 @@ class DataRouter:
             return
 
         try:
+            # Instrumentation: Record execution start time
+            t0 = time.monotonic_ns()
+            
             await target_node.on_input(payload)
+            
+            # Instrumentation: Record execution metrics
+            try:
+                from app.services.metrics.instance import get_metrics_collector
+                
+                exec_ms = (time.monotonic_ns() - t0) / 1_000_000.0
+                node_name = getattr(target_node, 'name', target_id)
+                node_type = getattr(target_node, 'type', 'unknown')
+                point_count = len(payload.get('points', [])) if 'points' in payload else 0
+                
+                get_metrics_collector().record_node_exec(
+                    target_id, node_name, node_type, exec_ms, point_count
+                )
+            except Exception as metrics_error:
+                logger.debug(f"Metrics instrumentation error for node {target_id}: {metrics_error}")
+                
         except Exception as e:
             logger.error(f"Error forwarding data from {source_id} to {target_id}: {e}")

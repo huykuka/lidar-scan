@@ -13,7 +13,7 @@
       #rla="routerLinkActive"
       [current]="rla.isActive"
       [routerLinkActiveOptions]="{ exact: true }"
-      [attr.divider]="item.divider ? '' : null"
+      [divider]="item.divider"
     >
       <syn-icon [name]="item.icon" slot="prefix"></syn-icon>
       {{ item.label }}
@@ -27,7 +27,7 @@
       routerLinkActive="current"
       #rlaFooter="routerLinkActive"
       [current]="rlaFooter.isActive"
-      [attr.divider]="item.divider ? '' : null"
+      [divider]="item.divider"
     >
       <syn-icon [name]="item.icon" slot="prefix"></syn-icon>
       {{ item.label }}

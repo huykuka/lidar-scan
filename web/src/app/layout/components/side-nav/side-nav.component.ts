@@ -1,14 +1,16 @@
-import { Component, EventEmitter, Output, input, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Output, input, ViewChild, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
-import { SynergyComponentsModule, SynSideNavComponent } from '@synergy-design-system/angular';
+import { SynSideNavComponent } from '@synergy-design-system/angular';
 import { NavItem, NAVIGATION_CONFIG } from '../../../core/models/navigation.model';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-side-nav',
   standalone: true,
-  imports: [CommonModule, RouterModule, SynergyComponentsModule],
+  imports: [CommonModule, RouterModule, SynSideNavComponent],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './side-nav.component.html',
   styleUrl: './side-nav.component.css',
 })
@@ -32,7 +34,16 @@ export class SideNavComponent {
     if (el?.hide) el.hide();
   }
 
-  protected readonly mainNavItems = NAVIGATION_CONFIG.filter((item) => !item.footer);
+  protected readonly mainNavItems = NAVIGATION_CONFIG.filter((item) => {
+    if (!item.footer) {
+      // Hide Performance dashboard in production builds
+      if (environment.production && item.route === '/dashboard/performance') {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  });
   protected readonly footerNavItems = NAVIGATION_CONFIG.filter((item) => item.footer);
 
   constructor(private router: Router) {

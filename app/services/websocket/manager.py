@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import List, Dict, Any, TYPE_CHECKING
 
 from fastapi import WebSocket
@@ -9,6 +10,7 @@ from fastapi import WebSocket
 # System topics that should not be listed in the /topics endpoint
 SYSTEM_TOPICS = {
     "system_status",  # Real-time node status updates
+    "system_metrics",  # Performance metrics updates
 }
 
 
@@ -47,6 +49,13 @@ class ConnectionManager:
         if topic not in self.active_connections:
             self.active_connections[topic] = []
         self.active_connections[topic].append(websocket)
+        
+        # Instrumentation: Record WebSocket connection count
+        try:
+            from app.services.metrics.instance import get_metrics_collector
+            get_metrics_collector().record_ws_connections(topic, len(self.active_connections[topic]))
+        except Exception:
+            pass  # Don't let metrics errors affect WebSocket functionality
 
     def disconnect(self, websocket: WebSocket, topic: str):
         if topic in self.active_connections:
@@ -54,6 +63,14 @@ class ConnectionManager:
                 self.active_connections[topic].remove(websocket)
             except ValueError:
                 pass
+                
+        # Instrumentation: Record WebSocket connection count after disconnect
+        try:
+            from app.services.metrics.instance import get_metrics_collector
+            connection_count = len(self.active_connections.get(topic, []))
+            get_metrics_collector().record_ws_connections(topic, connection_count)
+        except Exception:
+            pass  # Don't let metrics errors affect WebSocket functionality
 
     async def broadcast(self, topic: str, message: Any):
         
@@ -70,8 +87,20 @@ class ConnectionManager:
                     try:
                         if isinstance(msg, bytes):
                             await conn.send_bytes(msg)
+                            # Instrumentation: Record WebSocket message
+                            byte_size = len(msg)
                         else:
                             await conn.send_json(msg)
+                            # Instrumentation: Record WebSocket message
+                            byte_size = len(json.dumps(msg).encode())
+                            
+                        # Record the message metrics
+                        try:
+                            from app.services.metrics.instance import get_metrics_collector
+                            get_metrics_collector().record_ws_message(topic, byte_size)
+                        except Exception:
+                            pass  # Don't let metrics errors affect broadcast delivery
+                            
                     except Exception:
                         try:
                             self.active_connections[topic].remove(conn)

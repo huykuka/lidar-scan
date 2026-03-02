@@ -15,9 +15,13 @@ from app.api.v1 import router as api_router
 from app.core.config import settings
 from app.db.migrate import ensure_schema
 from app.db.session import init_engine
+from app.middleware.metrics_middleware import MetricsMiddleware
 from app.services.nodes.instance import node_manager
 from app.services.shared.recorder import get_recorder
 from app.services.status_broadcaster import start_status_broadcaster, stop_status_broadcaster
+from app.services.metrics.broadcaster import start_metrics_broadcaster, stop_metrics_broadcaster
+from app.services.metrics.system_probe import start_system_probe, stop_system_probe
+from app.services.metrics import MetricsRegistry, MetricsCollector, NullMetricsCollector, set_metrics_collector
 from app.services.websocket.manager import manager
 
 logger = get_logger("app")
@@ -48,13 +52,34 @@ async def lifespan(_: FastAPI):
     node_manager.load_config()
     node_manager.start(asyncio.get_running_loop())
     
-    # Start status broadcaster
+    # Initialize metrics collection based on configuration
+    metrics_enabled = settings.LIDAR_ENABLE_METRICS
+    if metrics_enabled:
+        logger.info("Metrics collection enabled")
+        registry = MetricsRegistry()
+        set_metrics_collector(MetricsCollector(registry))
+        
+        # Start metrics background tasks
+        start_system_probe(registry)
+        start_metrics_broadcaster()
+        logger.info("Metrics services started")
+    else:
+        logger.info("Metrics collection disabled")
+        set_metrics_collector(NullMetricsCollector())
+
+    # Start status broadcaster (after metrics broadcaster)
     start_status_broadcaster()
 
     yield
 
-    # Shutdown
+    # Shutdown (reverse order)
     stop_status_broadcaster()
+    
+    # Stop metrics services if they were started
+    if metrics_enabled:
+        stop_metrics_broadcaster()
+        stop_system_probe()
+        logger.info("Metrics services stopped")
     
     # Stop all active recordings
     await recorder.stop_all_recordings()
@@ -67,6 +92,9 @@ app = FastAPI(
     version=settings.VERSION,
     lifespan=lifespan,
 )
+
+# Add metrics middleware BEFORE CORS
+app.add_middleware(MetricsMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

@@ -10,6 +10,73 @@ import {
 } from '@angular/core';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { FrontendMetricsPayload } from '../../../../core/models/metrics.model';
+
+/**
+ * Lightweight metrics collector for Three.js rendering performance
+ * Tracks frame times, render times, and buffer mutation times
+ * NOT exported - internal to PointCloudComponent only
+ */
+class ThreeJsMetricsCollector {
+  private frameTimes: number[] = [];           // maxlen 60
+  private renderTimes: number[] = [];          // maxlen 60
+  private bufferMutationTimes: number[] = [];  // maxlen 60
+  private lastFrameAt: number = performance.now();
+  public frameCount: number = 0;  // Make public for access in animate()
+
+  recordFrame(renderMs: number): void {
+    const now = performance.now();
+    const frameTime = now - this.lastFrameAt;
+    this.lastFrameAt = now;
+    
+    // Maintain ring buffer of 60 samples
+    this.frameTimes.push(frameTime);
+    if (this.frameTimes.length > 60) {
+      this.frameTimes.shift();
+    }
+    
+    this.renderTimes.push(renderMs);
+    if (this.renderTimes.length > 60) {
+      this.renderTimes.shift();
+    }
+    
+    this.frameCount++;
+  }
+
+  recordBufferMutation(ms: number): void {
+    this.bufferMutationTimes.push(ms);
+    if (this.bufferMutationTimes.length > 60) {
+      this.bufferMutationTimes.shift();
+    }
+  }
+
+  getSnapshot(): FrontendMetricsPayload {
+    const avgFrameTime = this.frameTimes.length > 0 
+      ? this.frameTimes.reduce((sum, t) => sum + t, 0) / this.frameTimes.length
+      : 0;
+    
+    const avgRenderTime = this.renderTimes.length > 0
+      ? this.renderTimes.reduce((sum, t) => sum + t, 0) / this.renderTimes.length
+      : 0;
+    
+    const avgBufferMutation = this.bufferMutationTimes.length > 0
+      ? this.bufferMutationTimes.reduce((sum, t) => sum + t, 0) / this.bufferMutationTimes.length
+      : 0;
+
+    return {
+      fps: avgFrameTime > 0 ? 1000 / avgFrameTime : 0,
+      avg_render_ms: avgRenderTime,
+      avg_buffer_mutation_ms: avgBufferMutation,
+      collected_at: Date.now(),
+      // These will be populated by other services (ComponentPerfService, MultiWebsocketService)
+      long_task_count: 0,
+      long_task_total_ms: 0,
+      ws_frames_per_sec: {},
+      ws_parse_latency_ms: {},
+      ws_bytes_per_sec: {}
+    };
+  }
+}
 
 @Component({
   selector: 'app-point-cloud',
@@ -36,11 +103,17 @@ export class PointCloudComponent implements OnInit, OnDestroy {
   showGrid = input<boolean>(true);
   showAxes = input<boolean>(true);
 
+  // Output signal for metrics emission
+  metricsEmit = output<FrontendMetricsPayload>();
+
   // Three.js instances
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
   private renderer!: THREE.WebGLRenderer;
   private controls!: OrbitControls;
+
+  // Metrics collector instance
+  private metricsCollector = new ThreeJsMetricsCollector();
 
   // Multiple point clouds support
   private pointClouds: Map<
@@ -237,7 +310,11 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     const limit = Math.min(count * 3, this.MAX_POINTS * 3);
 
     if (count > 0) {
+      // Record buffer mutation time for metrics
+      const bufferStart = performance.now();
       positions.set(positionsArray.subarray(0, limit));
+      const bufferMs = performance.now() - bufferStart;
+      this.metricsCollector.recordBufferMutation(bufferMs);
     }
 
     cloud.geometry.setDrawRange(0, count);
@@ -385,6 +462,9 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     this.animationId = requestAnimationFrame(() => this.animate());
     this.controls.update();
 
+    // Record frame start time for metrics
+    const frameStart = performance.now();
+
     // Dynamically scale text sprites based on camera distance
     const spritesToScale = [...this.gridLabels, ...this.axesLabels];
     spritesToScale.forEach((label) => {
@@ -395,7 +475,18 @@ export class PointCloudComponent implements OnInit, OnDestroy {
       label.scale.set(scaleBase * 2, scaleBase, 1);
     });
 
+    // Render and record render time for metrics
     this.renderer.render(this.scene, this.camera);
+    const renderMs = performance.now() - frameStart;
+    
+    // Record frame metrics
+    this.metricsCollector.recordFrame(renderMs);
+    
+    // Emit metrics every 60th frame (~1 second at 60 FPS)
+    if (this.metricsCollector.frameCount % 60 === 0) {
+      const snapshot = this.metricsCollector.getSnapshot();
+      this.metricsEmit.emit(snapshot);
+    }
   }
 
   private rebuildGrid() {

@@ -528,12 +528,12 @@ Unit tests for the core services and a basic smoke test for the dashboard route.
 | FE-06 | ThreeJsMetricsCollector (in PointCloudComponent) | - [ ] |
 | FE-07 | ComponentPerfService (PerformanceObserver) | - [ ] |
 | FE-08 | MultiWebsocketService client metrics extension | - [ ] |
-| FE-09 | Dashboard route + smart DashboardComponent | - [ ] |
-| FE-10 | DagOverviewPanel (dumb) | - [ ] |
-| FE-11 | DagNodeDetailPanel (dumb) | - [ ] |
-| FE-12 | WebsocketPanel (dumb) | - [ ] |
-| FE-13 | SystemPanel (dumb) | - [ ] |
-| FE-14 | RenderingPanel (dumb) | - [ ] |
-| FE-15 | MetricGauge reusable component | - [ ] |
+| FE-09 | Dashboard route + smart DashboardComponent | - [x] |
+| FE-10 | DagOverviewPanel (dumb) | - [x] |
+| FE-11 | DagNodeDetailPanel (dumb) | - [x] |
+| FE-12 | WebsocketPanel (dumb) | - [x] |
+| FE-13 | SystemPanel (dumb) | - [x] |
+| FE-14 | RenderingPanel (dumb) | - [x] |
+| FE-15 | MetricGauge reusable component | - [x] |
 | FE-16 | Nav link + DevOnlyGuard | - [ ] |
 | FE-17 | Unit & smoke tests | - [ ] |

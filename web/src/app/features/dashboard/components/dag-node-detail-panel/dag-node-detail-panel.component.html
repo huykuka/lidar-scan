@@ -1,0 +1,87 @@
+<syn-card>
+  @if (node() === null) {
+    <!-- Empty state -->
+    <div class="text-center py-12">
+      <div class="text-gray-400 mb-2">
+        <svg class="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-gray-300 mb-2">Node Details</h3>
+      <p class="text-gray-500">Select a node from the overview to see details.</p>
+    </div>
+  } @else {
+    <!-- Node details -->
+    <div>
+      <!-- Header with close button -->
+      <div slot="header" class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h3 class="text-lg font-semibold text-white">{{ node()!.node_name }}</h3>
+          <syn-badge variant="primary">
+            {{ node()!.node_type }}
+          </syn-badge>
+        </div>
+        <syn-icon-button
+          (click)="onClose()"
+          name="x-lg"
+          library="system"
+          class="text-gray-400 hover:text-white transition-colors"
+          title="Close details"
+        ></syn-icon-button>
+      </div>
+
+      <!-- Key-value grid -->
+      <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-4">
+          <div>
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Execution Time</div>
+            <div class="text-white font-medium">{{ node()!.avg_exec_ms | number:'1.2-2' }} ms avg</div>
+            <div class="text-sm text-gray-400">{{ node()!.last_exec_ms | number:'1.2-2' }} ms last</div>
+          </div>
+
+          <div>
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Throughput</div>
+            <div class="text-white font-medium">{{ formatThroughput(node()!.throughput_pps) }}</div>
+            <div class="text-sm text-gray-400">{{ node()!.last_point_count | number }} points last</div>
+          </div>
+
+          <div>
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Total Calls</div>
+            <div class="text-white font-medium">{{ node()!.calls_total | number }}</div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Queue Status</div>
+            <div class="text-white font-medium">{{ node()!.queue_depth }} items</div>
+          </div>
+
+          <div>
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Throttling</div>
+            @if (node()!.throttled_count > 0) {
+              <syn-badge variant="warning" class="font-medium">
+                {{ node()!.throttled_count }} dropped
+              </syn-badge>
+            } @else {
+              <syn-badge variant="success" class="font-medium">No throttling</syn-badge>
+            }
+          </div>
+
+          <div>
+            <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Last Seen</div>
+            <div class="text-white font-medium">{{ formatLastSeen(node()!.last_seen_ts) }}</div>
+            <div class="text-sm text-gray-400">{{ formatAbsoluteTime(node()!.last_seen_ts) }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Node ID (technical info) -->
+      <div class="mt-6 pt-4 border-t border-gray-700">
+        <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Node ID</div>
+        <div class="text-xs text-gray-500 font-mono">{{ node()!.node_id }}</div>
+      </div>
+    </div>
+  }
+</syn-card>

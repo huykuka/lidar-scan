@@ -12,13 +12,13 @@ Implement comprehensive performance monitoring for the LiDAR Standalone applicat
 ## Acceptance Criteria
 
 ### Backend Monitoring
-- [ ] Track DAG node execution time, throughput, queue depth
-- [ ] Monitor Open3D operation times, point cloud sizes
-- [ ] Monitor WebSocket (LIDR) message rates, payload sizes, connection status
-- [ ] Track FastAPI endpoint latency and throughput
-- [ ] Monitor system CPU, memory, thread pool usage
-- [ ] Metrics endpoint or API for external tools (JSON)
-- [ ] Collection must introduce <1% overhead
+- [x] Track DAG node execution time, throughput, queue depth
+- [x] Monitor Open3D operation times, point cloud sizes
+- [x] Monitor WebSocket (LIDR) message rates, payload sizes, connection status
+- [x] Track FastAPI endpoint latency and throughput
+- [x] Monitor system CPU, memory, thread pool usage
+- [x] Metrics endpoint or API for external tools (JSON)
+- [x] Collection must introduce <1% overhead
 
 ### Frontend Monitoring
 - [ ] Track Three.js FPS, frame/block render times, buffer mutation timings
