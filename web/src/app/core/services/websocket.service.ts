@@ -28,9 +28,7 @@ export class WebsocketService {
       console.error('WebSocket error:', error);
     };
 
-    this.socket.onclose = () => {
-      console.log('WebSocket connection closed');
-    };
+    this.socket.onclose = () => {};
   }
 
   disconnect(): void {

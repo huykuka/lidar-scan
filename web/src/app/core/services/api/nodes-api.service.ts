@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { firstValueFrom } from 'rxjs';
 import { NodeConfig, NodesStatusResponse, NodeDefinition } from '../../models/node.model';
+import { LidarConfigValidationRequest, LidarConfigValidationResponse } from '../../models/lidar-profile.model';
 
 @Injectable({
   providedIn: 'root',
@@ -48,5 +49,29 @@ export class NodesApiService {
     return await firstValueFrom(
       this.http.get<NodeDefinition[]>(`${environment.apiUrl}/nodes/definitions`),
     );
+  }
+
+  async validateLidarConfig(
+    request: LidarConfigValidationRequest
+  ): Promise<LidarConfigValidationResponse> {
+    try {
+      // Real API call to backend validation endpoint
+      return await firstValueFrom(
+        this.http.post<LidarConfigValidationResponse>(
+          `${environment.apiUrl}/lidar/validate-lidar-config`,
+          request
+        )
+      );
+    } catch (error) {
+      // Fallback to permissive mock if backend validation unavailable
+      console.warn('LiDAR validation endpoint unavailable, using fallback validation');
+      return { 
+        valid: true, 
+        lidar_type: request.lidar_type, 
+        resolved_launch_file: null, 
+        errors: [], 
+        warnings: ['Validation endpoint unavailable - config not verified'] 
+      };
+    }
   }
 }

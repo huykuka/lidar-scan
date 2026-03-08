@@ -76,10 +76,6 @@ export class NodePluginRegistry {
       this.nodeStore.set('nodeDefinitions', definitions);
       this.plugins.clear();
       definitions.forEach((def) => this.plugins.set(def.type, definitionToPlugin(def)));
-      console.log(
-        `NodePluginRegistry: Loaded ${definitions.length} definitions:`,
-        definitions.map((d) => d.type),
-      );
     } catch (err) {
       console.error('NodePluginRegistry: Failed to load definitions from backend', err);
     }

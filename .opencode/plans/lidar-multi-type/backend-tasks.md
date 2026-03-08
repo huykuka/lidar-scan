@@ -31,8 +31,8 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
 
 ### TASK-B1 — Create `app/modules/lidar/profiles.py`
 
-- [ ] Create `app/modules/lidar/profiles.py` as a **pure data module** (stdlib only — no FastAPI, no I/O, no Open3D imports).
-- [ ] Define `@dataclass SickLidarProfile` with fields:
+- [x] Create `app/modules/lidar/profiles.py` as a **pure data module** (stdlib only — no FastAPI, no I/O, no Open3D imports).
+- [x] Define `@dataclass SickLidarProfile` with fields:
   - `model_id: str` — canonical key used as the `lidar_type` config value
   - `display_name: str` — shown in UI dropdown label
   - `launch_file: str` — relative path from repo root, e.g. `"launch/sick_tim_5xx.launch"`
@@ -42,7 +42,19 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
   - `has_udp_receiver: bool` — True only for multiScan (controls `udp_receiver_ip` arg emission)
   - `has_imu_udp_port: bool` — True only for multiScan (controls `imu_udp_port` arg emission)
   - `scan_layers: int` — informational: 1 = 2D, >1 = multi-layer
-- [ ] Populate `_PROFILES` registry dict with all 10 models. Use **real launch filenames from the `/launch/` directory**:
+- [x] Populate `_PROFILES` registry dict with all **25 SICK models**. Use **real launch filenames from the `/launch/` directory**:
+
+  **COMPREHENSIVE SICK CATALOG IMPLEMENTED** (25 models total):
+  - ✅ **multiScan Series**: multiScan100 (3D + UDP + IMU)
+  - ✅ **TiM Series**: TiM240, TiM5xx, TiM7xx, TiM7xxS (2D + Port config)
+  - ✅ **LMS Series**: LMS1xx, LMS1104 v1/v2, LMS5xx, LMS4000 (2D TCP)
+  - ✅ **MRS Series**: MRS1104, MRS6124 (3D multi-layer)
+  - ✅ **LRS Series**: LRS4000, LRS36x0/x1 + upside-down variants (3D radar)
+  - ✅ **Legacy**: LD-MRS family (multi-layer)  
+  - ✅ **OEM**: LD-OEM15xx series
+  - ✅ **Navigation**: NAV210/245, NAV310, NAV350
+  - ✅ **Radar**: RMS1009/RMS2000
+  - ✅ **picoScan**: picoScan120/150 (3D + UDP)
 
   | `model_id`  | `launch_file`                       | `port_arg`  | `default_port` | `has_udp_receiver` | `has_imu_udp_port` | `scan_layers` |
   |-------------|-------------------------------------|-------------|----------------|--------------------|--------------------|---------------|
@@ -57,38 +69,37 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
   | `mrs_1xxx`  | `launch/sick_mrs_1xxx.launch`       | `""`        | 0              | False              | False              | 4             |
   | `mrs_6xxx`  | `launch/sick_mrs_6xxx.launch`       | `""`        | 0              | False              | False              | 24            |
 
-- [ ] Implement `get_all_profiles() -> List[SickLidarProfile]` returning profiles in display order (multiScan first, then TiM ascending, then LMS ascending, then MRS ascending).
-- [ ] Implement `get_profile(model_id: str) -> SickLidarProfile` raising `KeyError` with a descriptive message listing valid model IDs.
-- [ ] Implement `build_launch_args(model_id, hostname, port, udp_receiver_ip, imu_udp_port, add_transform_xyz_rpy) -> str`:
+- [x] Implement `get_all_profiles() -> List[SickLidarProfile]` returning profiles in display order (multiScan first, then TiM ascending, then LMS ascending, then MRS ascending).
+- [x] Implement `get_profile(model_id: str) -> SickLidarProfile` raising `KeyError` with a descriptive message listing valid model IDs.
+- [x] Implement `build_launch_args(model_id, hostname, port, udp_receiver_ip, imu_udp_port, add_transform_xyz_rpy) -> str`:
   - Calls `get_profile(model_id)`.
   - Base string: `"{profile.launch_file} hostname:={hostname} add_transform_xyz_rpy:={add_transform_xyz_rpy}"`
   - If `profile.port_arg` is non-empty and `port` is not None: append `{profile.port_arg}:={port}`
   - If `profile.has_udp_receiver` is True and `udp_receiver_ip` is not None: append `udp_receiver_ip:={udp_receiver_ip}`
   - If `profile.has_imu_udp_port` is True and `imu_udp_port` is not None: append `imu_udp_port:={imu_udp_port}`
   - Return the assembled string.
-- [ ] Add strict Python type hints (`Optional[int]`, `Optional[str]`, etc.) on all public functions.
-- [ ] Verify all imports in this file are stdlib-only (`dataclasses`, `typing`).
+- [x] Add strict Python type hints (`Optional[int]`, `Optional[str]`, etc.) on all public functions.
+- [x] Verify all imports in this file are stdlib-only (`dataclasses`, `typing`).
 
 ---
 
 ### TASK-B2 — Extend `PropertySchema` in `app/services/nodes/schema.py`
 
-- [ ] Add `depends_on: Optional[Dict[str, List[Any]]] = None` to the `PropertySchema` Pydantic model.
-- [ ] Confirm the field defaults to `None` — all existing `PropertySchema` instantiations continue to work without modification.
-- [ ] Add a docstring comment: `"Property is shown in UI only when ALL key-value constraints in depends_on are satisfied (AND relationship). Each list contains the allowed values for that key."`.
-- [ ] Ensure `Any` is imported from `typing` (it already is in the existing imports).
+- [x] Add `depends_on: Optional[Dict[str, List[Any]]] = None` to the `PropertySchema` Pydantic model.
+- [x] Confirm the field defaults to `None` — all existing `PropertySchema` instantiations continue to work without modification.
+- [x] Add a docstring comment: `"Property is shown in UI only when ALL key-value constraints in depends_on are satisfied (AND relationship). Each list contains the allowed values for that key."`.
 
 ---
 
 ### TASK-B3 — Update `app/modules/lidar/registry.py`
 
-- [ ] Add imports at the top: `from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args`.
-- [ ] **Compute helper lists** at module load time (after importing profiles):
+- [x] Add imports at the top: `from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args`.
+- [x] **Compute helper lists** at module load time (after importing profiles):
   ```python
   _port_capable_models = [p.model_id for p in get_all_profiles() if p.port_arg]
   # Result: ["multiscan", "tim_2xx", "tim_4xx", "tim_5xx", "tim_7xx"]
   ```
-- [ ] **Add `lidar_type` property as the FIRST entry** in the `properties` list:
+- [x] **Add `lidar_type` property as the FIRST entry** in the `properties` list:
   ```python
   PropertySchema(
       name="lidar_type",
@@ -100,13 +111,13 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
       options=[{"label": p.display_name, "value": p.model_id} for p in get_all_profiles()]
   )
   ```
-- [ ] **Update `hostname` property**: add `depends_on={"mode": ["real"]}`.
-- [ ] **Rename `udp_port` property to `port`** (name, label, default=2112) and add:
+- [x] **Update `hostname` property**: add `depends_on={"mode": ["real"]}`.
+- [x] **Rename `udp_port` property to `port`** (name, label, default=2112) and add:
   `depends_on={"mode": ["real"], "lidar_type": _port_capable_models}`
-- [ ] **Update `udp_receiver_ip` property**: add `depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}`.
-- [ ] **Update `imu_udp_port` property**: change default to `7503` and add `depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}`.
-- [ ] **Update `pcd_path` property**: add `depends_on={"mode": ["sim"]}`.
-- [ ] In `build_sensor()`:
+- [x] **Update `udp_receiver_ip` property**: add `depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}`.
+- [x] **Update `imu_udp_port` property**: change default to `7503` and add `depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}`.
+- [x] **Update `pcd_path` property**: add `depends_on={"mode": ["sim"]}`.
+- [x] In `build_sensor()`:
   - Read `lidar_type = config.get("lidar_type", "multiscan")`.
   - Read `port = config.get("port")` (replaces `udp_port`).
   - Read `udp_receiver_ip = config.get("udp_receiver_ip")`.
@@ -126,7 +137,7 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
     )
     ```
   - After `LidarSensor` instantiation, set: `sensor.lidar_type = profile.model_id` and `sensor.lidar_display_name = profile.display_name`.
-- [ ] **Regression check**: For a node with no `lidar_type` and all-zero pose, confirm the generated `launch_args` is functionally equivalent to the current hardcoded value (multiScan defaults, `add_transform_xyz_rpy=0,0,0,0,0,0`).
+- [x] **Regression check**: For a node with no `lidar_type` and all-zero pose, confirm the generated `launch_args` is functionally equivalent to the current hardcoded value (multiScan defaults, `add_transform_xyz_rpy=0,0,0,0,0,0`).
   - Old: `./launch/sick_multiscan.launch hostname:=192.168.100.124 udp_receiver_ip:=192.168.100.10 udp_port:=2667 imu_udp_port:=7511`
   - New (from profiles defaults): `launch/sick_multiscan.launch hostname:=<configured> udp_port:=2115 udp_receiver_ip:=<configured> imu_udp_port:=<configured> add_transform_xyz_rpy:=0,0,0,0,0,0`
   - The `./` prefix difference and exact ports/IPs are **user-configured**; only the overall pattern must match. The `lidar_worker_process` already handles both relative and absolute launch file path resolution.
@@ -135,30 +146,30 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
 
 ### TASK-B4 — Extend `app/modules/lidar/sensor.py`
 
-- [ ] Add `self.lidar_type: str = "multiscan"` and `self.lidar_display_name: str = "SICK multiScan"` as instance attributes in `LidarSensor.__init__` (with their default values).
-- [ ] In `get_status()`, add to the returned `status` dict:
+- [x] Add `self.lidar_type: str = "multiscan"` and `self.lidar_display_name: str = "SICK multiScan"` as instance attributes in `LidarSensor.__init__` (with their default values).
+- [x] In `get_status()`, add to the returned `status` dict:
   ```python
   status["lidar_type"] = self.lidar_type
   status["lidar_display_name"] = self.lidar_display_name
   ```
   These must be added after the `status` dict is constructed and before the `return` statement.
-- [ ] Do **not** change `__init__` signature — attributes are set externally by `build_sensor()` after instantiation (no constructor coupling needed).
-- [ ] Confirm all existing tests for `LidarSensor` still pass.
+- [x] Do **not** change `__init__` signature — attributes are set externally by `build_sensor()` after instantiation (no constructor coupling needed).
+- [x] Confirm all existing tests for `LidarSensor` still pass.
 
 ---
 
 ### TASK-B5 — Create `app/api/v1/lidar.py` Router
 
-- [ ] Create `app/api/v1/lidar.py` with `router = APIRouter(prefix="/lidar", tags=["lidar"])`.
-- [ ] Define Pydantic models (in this file or a shared `app/modules/lidar/models.py`):
+- [x] Create `app/api/v1/lidar.py` with `router = APIRouter(prefix="/lidar", tags=["lidar"])`.
+- [x] Define Pydantic models (in this file or a shared `app/modules/lidar/models.py`):
   - `SickLidarProfileResponse` (see `api-spec.md` §8) — map from `SickLidarProfile` dataclass, include `port_arg`, `has_udp_receiver`, `has_imu_udp_port`.
   - `ProfilesListResponse` wrapping `List[SickLidarProfileResponse]`.
   - `LidarConfigValidationRequest` — `lidar_type: str`, `hostname: str`, `udp_receiver_ip: Optional[str] = None`, `port: Optional[int] = Field(None, ge=1024, le=65535)`, `imu_udp_port: Optional[int] = Field(None, ge=1024, le=65535)`.
   - `LidarConfigValidationResponse` — `valid: bool`, `lidar_type: str`, `resolved_launch_file: Optional[str]`, `errors: List[str] = []`, `warnings: List[str] = []`.
-- [ ] Implement `GET /lidar/profiles`:
+- [x] Implement `GET /lidar/profiles`:
   - Returns `ProfilesListResponse` from `get_all_profiles()`.
   - No authentication, no DB access. Fully in-memory.
-- [ ] Implement `POST /lidar/validate-lidar-config`:
+- [x] Implement `POST /lidar/validate-lidar-config`:
   - Calls `get_profile(req.lidar_type)` — if `KeyError`, add to `errors` and return `valid=False` immediately.
   - Validates `hostname` is non-empty — if not, add to `errors`.
   - If `profile.has_udp_receiver` and `req.udp_receiver_ip` is None or empty — add to `errors`.
@@ -167,21 +178,21 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
   - If any `errors`, return `LidarConfigValidationResponse(valid=False, ...)`.
   - Otherwise return `valid=True` with any collected `warnings` and `resolved_launch_file=profile.launch_file`.
   - Use `HTTPException(422)` **only** for malformed request bodies (Pydantic handles this automatically). Do not raise 422 for semantic validation failures — use `valid=False` in the response body.
-- [ ] Add strict type hints on all endpoint functions.
+- [x] Add strict type hints on all endpoint functions.
 
 ---
 
 ### TASK-B6 — Mount New Router in `app/api/v1/__init__.py`
 
-- [ ] Import: `from .lidar import router as lidar_router`.
-- [ ] Add: `router.include_router(lidar_router)`.
-- [ ] Confirm `GET /api/v1/lidar/profiles` and `POST /api/v1/lidar/validate-lidar-config` both appear in the FastAPI OpenAPI docs at `/docs`.
+- [x] Import: `from .lidar import router as lidar_router`.
+- [x] Add: `router.include_router(lidar_router)`.
+- [x] Confirm `GET /api/v1/lidar/profiles` and `POST /api/v1/lidar/validate-lidar-config` both appear in the FastAPI OpenAPI docs at `/docs`.
 
 ---
 
 ### TASK-B7 — Extend Config Validator in `app/api/v1/config.py`
 
-- [ ] In `validate_configuration()`, after the existing `name`/`type`/`id` duplicate checks, add a sensor-specific block:
+- [x] In `validate_configuration()`, after the existing `name`/`type`/`id` duplicate checks, add a sensor-specific block:
   ```python
   from app.modules.lidar.profiles import get_profile  # import inside function to avoid circular
   for i, node in enumerate(config.nodes):
@@ -200,7 +211,7 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
                       f"Node '{node_name}': lidar_type '{lidar_type}' is not a recognized SICK model."
                   )
   ```
-- [ ] Confirm this does **not** change the response shape (`valid`, `errors`, `warnings`, `summary` remain identical).
+- [x] Confirm this does **not** change the response shape (`valid`, `errors`, `warnings`, `summary` remain identical).
 
 ---
 

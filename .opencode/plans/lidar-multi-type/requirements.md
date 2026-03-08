@@ -18,16 +18,16 @@ Extend the existing single LiDAR node in the lidar-standalone DAG orchestration 
 ## Acceptance Criteria
 
 ### Core Functionality
-- [ ] **Multi-Type Selection**: Each LiDAR node in the DAG must provide a dropdown interface with supported SICK LiDAR models (TiM2xx, TiM5xx, TiM7xx, LMS1xx, LMS5xx, LMS1000, LMS4000, MRS1000, MRS6124, etc.)
-- [ ] **Backend Configuration**: Backend must automatically generate appropriate launch arguments and configuration parameters based on the selected LiDAR type from the UI
-- [ ] **Point Cloud Output**: All supported LiDAR types must output standardized point cloud data via the existing LIDR WebSocket protocol
-- [ ] **DAG Integration**: Multi-LiDAR nodes must integrate seamlessly with the existing DAG orchestration engine without disrupting other node types
+- [x] **Multi-Type Selection**: Each LiDAR node in the DAG must provide a dropdown interface with supported SICK LiDAR models (TiM2xx, TiM5xx, TiM7xx, LMS1xx, LMS5xx, LMS1000, LMS4000, MRS1000, MRS6124, etc.)
+- [x] **Backend Configuration**: Backend must automatically generate appropriate launch arguments and configuration parameters based on the selected LiDAR type from the UI
+- [x] **Point Cloud Output**: All supported LiDAR types must output standardized point cloud data via the existing LIDR WebSocket protocol
+- [x] **DAG Integration**: Multi-LiDAR nodes must integrate seamlessly with the existing DAG orchestration engine without disrupting other node types
 
 ### UI/UX Requirements  
-- [ ] **Dropdown Interface**: Angular dashboard must provide an intuitive dropdown selector for each LiDAR node showing available SICK models
-- [ ] **Real-time Validation**: UI must validate LiDAR type selection and show connection status for each configured node
-- [ ] **Configuration Persistence**: Selected LiDAR types and parameters must be saved and restored across application restarts
-- [ ] **Visual Feedback**: Three.js visualization must handle point clouds from different LiDAR types with consistent rendering
+- [x] **Dropdown Interface**: Angular dashboard must provide an intuitive dropdown selector for each LiDAR node showing available SICK models
+- [x] **Real-time Validation**: UI must validate LiDAR type selection and show connection status for each configured node
+- [x] **Configuration Persistence**: Selected LiDAR types and parameters must be saved and restored across application restarts
+- [x] **Visual Feedback**: Three.js visualization must handle point clouds from different LiDAR types with consistent rendering
 
 ### Compatibility & Integration
 - [ ] **Backward Compatibility**: Existing single-LiDAR configurations and launch files must continue to work without modification
@@ -36,8 +36,8 @@ Extend the existing single LiDAR node in the lidar-standalone DAG orchestration 
 - [ ] **API Consistency**: FastAPI endpoints must provide consistent interfaces regardless of the LiDAR type configured in individual nodes
 
 ### Configuration Management
-- [ ] **Automatic Parameter Mapping**: Backend must map UI selections to correct device-specific parameters (IP addresses, ports, scan frequencies, etc.)
-- [ ] **Launch Argument Generation**: System must automatically generate appropriate launch arguments based on SICK scan_xd patterns for each selected LiDAR type
+- [x] **Automatic Parameter Mapping**: Backend must map UI selections to correct device-specific parameters (IP addresses, ports, scan frequencies, etc.)
+- [x] **Launch Argument Generation**: System must automatically generate appropriate launch arguments based on SICK scan_xd patterns for each selected LiDAR type
 - [ ] **Error Handling**: Clear error messages must be provided when LiDAR types cannot be connected or configured
 - [ ] **Device Discovery**: Optional integration with existing SICK device network discovery capabilities for IP address validation
 

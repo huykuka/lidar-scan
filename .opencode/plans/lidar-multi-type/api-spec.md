@@ -31,7 +31,10 @@ Returns the full catalog of supported SICK LiDAR device profiles. Called once by
       "default_port": 2115,
       "has_udp_receiver": true,
       "has_imu_udp_port": true,
-      "scan_layers": 16
+      "scan_layers": 16,
+      "thumbnail_url": "/api/v1/assets/lidar/multiscan.png",
+      "icon_name": "device_hub",
+      "icon_color": "#0066CC"
     },
     {
       "model_id": "tim_5xx",
@@ -42,7 +45,10 @@ Returns the full catalog of supported SICK LiDAR device profiles. Called once by
       "default_port": 2112,
       "has_udp_receiver": false,
       "has_imu_udp_port": false,
-      "scan_layers": 1
+      "scan_layers": 1,
+      "thumbnail_url": "/api/v1/assets/lidar/tim5xx.png",
+      "icon_name": "sensors",
+      "icon_color": "#FF6B35"
     },
     {
       "model_id": "tim_7xx",
@@ -498,6 +504,10 @@ class SickLidarProfileResponse(BaseModel):
     has_udp_receiver: bool
     has_imu_udp_port: bool
     scan_layers: int
+    # Backend-controlled UI elements
+    thumbnail_url: Optional[str] = None     # URL to device thumbnail image
+    icon_name: Optional[str] = None         # Synergy UI icon name
+    icon_color: Optional[str] = None        # Hex color for icon (e.g., "#FF6B35")
 ```
 
 ### `ProfilesListResponse`

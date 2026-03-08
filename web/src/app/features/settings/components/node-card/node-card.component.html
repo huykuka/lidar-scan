@@ -27,23 +27,47 @@
     <div class="p-3">
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2 min-w-0">
-          <!-- Constant structure: Icon + Name -->
+          <!-- Backend-Controlled Icon/Thumbnail -->
           <div
-            class="p-1.5 rounded-md bg-syn-color-neutral-100"
+            class="p-1.5 rounded-md bg-syn-color-neutral-100 flex items-center justify-center"
             [ngClass]="{
               'text-syn-color-success-700': isSensor(),
               'text-syn-color-primary-700': isFusion(),
               'text-syn-color-warning-700': isCalibration(),
               'text-syn-color-neutral-700': !isSensor() && !isFusion() && !isCalibration(),
             }"
+            [style.color]="nodeIconColor()"
           >
-            <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-base"></syn-icon>
+            @if (nodeThumbnail(); as thumbnailUrl) {
+              <!-- Backend-provided thumbnail image -->
+              <img 
+                [src]="thumbnailUrl" 
+                [alt]="node().name + ' thumbnail'"
+                class="w-4 h-4 object-contain"
+                (error)="handleImageError($event)"
+              />
+              <!-- Fallback icon if image fails to load -->
+              <syn-icon 
+                [attr.name]="nodeIcon()" 
+                class="text-base hidden"
+              ></syn-icon>
+            } @else {
+              <!-- Backend-controlled or fallback icon -->
+              <syn-icon [attr.name]="nodeIcon()" class="text-base"></syn-icon>
+            }
           </div>
-          <span
-            class="font-black text-syn-typography-color-text text-sm truncate"
-            [title]="node().name"
-            >{{ node().name }}</span
-          >
+          <div class="flex flex-col">
+            <span
+              class="font-black text-syn-typography-color-text text-sm truncate"
+              [title]="node().name"
+              >{{ node().name }}</span
+            >
+            @if (status()?.lidar_display_name) {
+              <span class="block text-[10px] text-syn-color-neutral-500 font-medium tracking-wide uppercase leading-tight">
+                {{ status()!.lidar_display_name }}
+              </span>
+            }
+          </div>
         </div>
 
         <div class="flex items-center gap-2">

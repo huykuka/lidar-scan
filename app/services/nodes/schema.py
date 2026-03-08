@@ -2,6 +2,12 @@ from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, Field
 
 class PropertySchema(BaseModel):
+    """
+    Schema definition for a configurable property in a node.
+    
+    Property is shown in UI only when ALL key-value constraints in depends_on are satisfied 
+    (AND relationship). Each list contains the allowed values for that key.
+    """
     name: str
     label: str
     type: str  # "string", "number", "boolean", "select", "vec3", "list"
@@ -13,6 +19,7 @@ class PropertySchema(BaseModel):
     max: Optional[float] = None
     step: Optional[float] = None
     hidden: bool = False  # Hide from UI but keep in schema
+    depends_on: Optional[Dict[str, List[Any]]] = None
 
 class PortSchema(BaseModel):
     id: str

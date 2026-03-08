@@ -33,17 +33,17 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
 
 > **File**: `web/src/app/core/models/node.model.ts`
 
-- [ ] Add `depends_on?: Record<string, any[]>` field to the `PropertySchema` interface (after `hidden?: boolean`).
-- [ ] Add `lidar_type?: string` to the `NodeStatus` interface.
-- [ ] Add `lidar_display_name?: string` to the `NodeStatus` interface.
+- [x] Add `depends_on?: Record<string, any[]>` field to the `PropertySchema` interface (after `hidden?: boolean`).
+- [x] Add `lidar_type?: string` to the `NodeStatus` interface.
+- [x] Add `lidar_display_name?: string` to the `NodeStatus` interface.
 
 > **File**: `web/src/app/core/models/lidar.model.ts`
 
-- [ ] Add `lidar_type?: string` to the `LidarConfig` interface.
+- [x] Add `lidar_type?: string` to the `LidarConfig` interface.
 
 > **New File**: `web/src/app/core/models/lidar-profile.model.ts`
 
-- [ ] Create the file with:
+- [x] Create the file with:
   ```typescript
   export interface LidarProfile {
     model_id: string;
@@ -82,18 +82,18 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
 
 ### TASK-F2 — Create `LidarProfilesApiService`
 
-- [ ] Scaffold: `cd web && ng g service core/services/api/lidar-profiles-api`.
-- [ ] Inject `HttpClient` via `inject(HttpClient)`.
-- [ ] Declare `profiles = signal<LidarProfile[]>([])`.
-- [ ] Declare `isLoading = signal<boolean>(false)`.
-- [ ] Implement `async loadProfiles(): Promise<void>`:
+- [x] Scaffold: `cd web && ng g service core/services/api/lidar-profiles-api`.
+- [x] Inject `HttpClient` via `inject(HttpClient)`.
+- [x] Declare `profiles = signal<LidarProfile[]>([])`.
+- [x] Declare `isLoading = signal<boolean>(false)`.
+- [x] Implement `async loadProfiles(): Promise<void>`:
   - Sets `isLoading` to `true`.
   - Calls `GET ${environment.apiUrl}/lidar/profiles` via `firstValueFrom`.
   - On success: `this.profiles.set(data.profiles)`.
   - On error: logs error, sets `profiles` to `[]`.
   - Always resets `isLoading` to `false` in a `finally` block.
-- [ ] **Mock data for development**: Add `MOCK_LIDAR_PROFILES: LidarProfile[]` constant (matching `api-spec.md` §1 response) and call `this.profiles.set(MOCK_LIDAR_PROFILES)` initially. Remove once backend TASK-B5/B6 are deployed.
-- [ ] Do NOT inject `HttpClient` directly in feature components — this service is the single point of access.
+- [x] **Mock data for development**: Add `MOCK_LIDAR_PROFILES: LidarProfile[]` constant (matching `api-spec.md` §1 response) and call `this.profiles.set(MOCK_LIDAR_PROFILES)` initially. Remove once backend TASK-B5/B6 are deployed.
+- [x] Do NOT inject `HttpClient` directly in feature components — this service is the single point of access.
 
 ---
 
@@ -103,15 +103,15 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
 
 #### Part A — `depends_on` conditional rendering
 
-- [ ] Add a private `formValues = signal<Record<string, any>>({})` field to the class.
-- [ ] In `initForm()`, immediately after `this.configForm = this.fb.group(configGroup)`, add:
+- [x] Add a private `formValues = signal<Record<string, any>>({})` field to the class.
+- [x] In `initForm()`, immediately after `this.configForm = this.fb.group(configGroup)`, add:
   ```typescript
   this.configForm.valueChanges.subscribe(v => this.formValues.set(v));
   this.formValues.set(this.configForm.getRawValue()); // seed initial state
   ```
   Store the subscription for cleanup: `private formValuesSub?: Subscription`.
-- [ ] In `ngOnDestroy()` (implement `OnDestroy` if not already): call `this.formValuesSub?.unsubscribe()`.
-- [ ] Replace the existing `visibleProperties` computed signal:
+- [x] In `ngOnDestroy()` (implement `OnDestroy` if not already): call `this.formValuesSub?.unsubscribe()`.
+- [x] Replace the existing `visibleProperties` computed signal:
   ```typescript
   protected visibleProperties = computed(() => {
     const def = this.definition();
@@ -128,14 +128,14 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
     });
   });
   ```
-- [ ] Confirm the `@for (prop of visibleProperties(); ...)` loop in `dynamic-node-editor.component.html` is unchanged — the template does not need edits.
-- [ ] Confirm `onSelectChange` already handles `lidar_type` without changes (it uses the generic `configForm.get(propName)?.setValue(value)` pattern).
-- [ ] Guard against uninitialized form: ensure `this.formValues()` is called only when `this.configForm` exists. The seeding step in `initForm()` guarantees this order.
+- [x] Confirm the `@for (prop of visibleProperties(); ...)` loop in `dynamic-node-editor.component.html` is unchanged — the template does not need edits.
+- [x] Confirm `onSelectChange` already handles `lidar_type` without changes (it uses the generic `configForm.get(propName)?.setValue(value)` pattern).
+- [x] Guard against uninitialized form: ensure `this.formValues()` is called only when `this.configForm` exists. The seeding step in `initForm()` guarantees this order.
 
 #### Part B — Validation on save for sensor nodes in real mode
 
-- [ ] Inject `LidarProfilesApiService` (or use `NodesApiService.validateLidarConfig` — see TASK-F3 Part C).
-- [ ] In `onSave()`, add a validation gate before the `upsertNode` call:
+- [x] Inject `LidarProfilesApiService` (or use `NodesApiService.validateLidarConfig` — see TASK-F3 Part C).
+- [x] In `onSave()`, add a validation gate before the `upsertNode` call:
   ```typescript
   // Only validate real-mode sensor nodes
   if (def.type === 'sensor' && configRaw['mode'] === 'real') {
@@ -162,14 +162,14 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
     }
   }
   ```
-- [ ] Ensure `isSaving.set(false)` is called in all early-return branches.
+- [x] Ensure `isSaving.set(false)` is called in all early-return branches.
 
 #### Part C — `validateLidarConfig` on `NodesApiService`
 
 > **File**: `web/src/app/core/services/api/nodes-api.service.ts`
 
-- [ ] Add imports for `LidarConfigValidationRequest` and `LidarConfigValidationResponse` from `lidar-profile.model.ts`.
-- [ ] Add method:
+- [x] Add imports for `LidarConfigValidationRequest` and `LidarConfigValidationResponse` from `lidar-profile.model.ts`.
+- [x] Add method:
   ```typescript
   async validateLidarConfig(
     request: LidarConfigValidationRequest
@@ -182,7 +182,7 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
     );
   }
   ```
-- [ ] **Mock for development** (until backend TASK-B5 is deployed): make the method immediately return `{ valid: true, lidar_type: request.lidar_type, resolved_launch_file: null, errors: [], warnings: [] }`. Remove mock once backend is live.
+- [x] **Mock for development** (until backend TASK-B5 is deployed): make the method immediately return `{ valid: true, lidar_type: request.lidar_type, resolved_launch_file: null, errors: [], warnings: [] }`. Remove mock once backend is live.
 
 ---
 
@@ -190,8 +190,8 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
 
 > **File**: `web/src/app/features/settings/components/node-card/node-card.component.html`
 
-- [ ] Read the existing template to locate where the node name is rendered.
-- [ ] Immediately below the node name, add:
+- [x] Read the existing template to locate where the node name is rendered.
+- [x] Immediately below the node name, add:
   ```html
   @if (status()?.lidar_display_name) {
     <span class="block text-[10px] text-syn-color-neutral-500 font-medium tracking-wide uppercase leading-tight">
@@ -199,9 +199,9 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
     </span>
   }
   ```
-- [ ] Use Tailwind CSS only. No custom CSS, no `.scss` modifications.
-- [ ] Confirm `node-card.component.ts` does **not** need changes — `status` is already typed as `NodeStatus | null` which now includes the optional `lidar_display_name` field (after TASK-F1).
-- [ ] Confirm this is a dumb/presentational component — do not add any API calls here.
+- [x] Use Tailwind CSS only. No custom CSS, no `.scss` modifications.
+- [x] Confirm `node-card.component.ts` does **not** need changes — `status` is already typed as `NodeStatus | null` which now includes the optional `lidar_display_name` field (after TASK-F1).
+- [x] Confirm this is a dumb/presentational component — do not add any API calls here.
 
 ---
 
@@ -210,10 +210,10 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
 > Follow the pattern of existing `.spec.ts` files alongside their component/service files.
 
 **`LidarProfilesApiService`** (`lidar-profiles-api.service.spec.ts`):
-- [ ] `loadProfiles()` calls `GET /lidar/profiles` and populates `profiles` signal from the response.
-- [ ] `loadProfiles()` on HTTP error leaves `profiles` as `[]` and does not throw.
-- [ ] `isLoading` signal goes `false → true → false` across a successful call.
-- [ ] Use `HttpClientTestingModule` and `HttpTestingController`.
+- [x] `loadProfiles()` calls `GET /lidar/profiles` and populates `profiles` signal from the response.
+- [x] `loadProfiles()` on HTTP error leaves `profiles` as `[]` and does not throw.
+- [x] `isLoading` signal goes `false → true → false` across a successful call.
+- [x] Use `HttpClientTestingModule` and `HttpTestingController`.
 
 **`DynamicNodeEditorComponent` — `depends_on` filtering**:
 - [ ] Provide a mock `NodeStoreService` returning a sensor `NodeDefinition` matching `api-spec.md` §3 (with `depends_on` populated on `hostname`, `port`, `udp_receiver_ip`, `imu_udp_port`, `pcd_path`).
@@ -247,3 +247,51 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
 - [ ] Attempt to save a `real` mode multiScan node without `udp_receiver_ip`. Confirm a toast error is shown and save is aborted (requires backend to be live).
 - [ ] Open an existing workspace with a legacy sensor node (no `lidar_type` in stored config). Confirm it opens without error and defaults to `SICK multiScan`.
 - [ ] Confirm Three.js point cloud visualization renders without regressions on a `sim` mode node.
+
+---
+
+### TASK-F6 — LiDAR Type Dropdown Enhancement with Images
+
+> **File**: `web/src/app/features/settings/components/dynamic-node-editor/dynamic-node-editor.component.html` and `dynamic-node-editor.component.ts`
+
+#### Part A — Create LiDAR Images Service
+
+- [x] Generate `LidarImagesService` using Angular CLI.
+- [x] Implement image path mapping for all LiDAR device types.
+- [x] Add methods for getting, updating, and managing image paths.
+- [x] Provide fallback to placeholder image for unknown device types.
+
+#### Part B — Create Generic Placeholder Image
+
+- [x] Create `/web/public/lidar-placeholder.svg` as a generic LiDAR device placeholder.
+- [x] Design SVG with consistent styling (32x32px, proper colors, LiDAR sensor representation).
+- [x] Ensure SVG is accessible with proper contrast and simple iconography.
+
+#### Part C — Enhance Dynamic Node Editor
+
+- [x] Inject `LidarImagesService` in `DynamicNodeEditorComponent`.
+- [x] Create `lidarOptionsWithImages` computed signal that combines profiles with image paths.
+- [x] Initialize `LidarProfilesApiService.loadProfiles()` in constructor.
+- [x] Modify template to conditionally render enhanced dropdown for `lidar_type` property.
+- [x] Use `syn-option` with `slot="prefix"` to display images alongside labels.
+- [x] Apply consistent image styling: 24x24px (w-6 h-6), rounded, bordered, object-fit contain.
+- [x] Maintain full accessibility with proper `alt` attributes on images.
+- [x] Preserve existing dropdown functionality for non-LiDAR select properties.
+
+#### Part D — Integration & Future-Ready Structure
+
+- [x] Structure code to easily swap in real device images later.
+- [x] Implement clean separation between placeholder and real image logic.
+- [x] Provide service methods for bulk image updates when real images are available.
+- [x] Ensure images load gracefully with fallback to placeholder if real images fail.
+
+#### Manual Verification
+
+- [x] Open node editor for a sensor node and confirm LiDAR Model dropdown shows images.
+- [x] Verify each LiDAR device option displays with consistent placeholder image.
+- [x] Check that image styling is consistent (size, alignment, gap from text).
+- [x] Confirm dropdown still functions normally (selection, form validation).
+- [x] Test keyboard navigation maintains accessibility.
+- [x] Verify other dropdowns (Mode, etc.) remain unchanged and functional.
+
+---

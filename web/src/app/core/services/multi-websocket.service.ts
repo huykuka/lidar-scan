@@ -46,7 +46,6 @@ export class MultiWebsocketService {
     };
 
     socket.onclose = () => {
-      console.log(`WebSocket connection closed for topic: ${topic}`);
       this.connections.delete(topic);
       subject.complete();
     };
