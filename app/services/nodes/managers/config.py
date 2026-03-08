@@ -114,6 +114,12 @@ class ConfigLoader:
         safe_name = slugify_topic_prefix(node_name)
         topic = f"{safe_name}_{node['id'][:8]}"
         manager.register_topic(topic)
+        
+        # Canonical WS topic key stored at registration time. LifecycleManager 
+        # reads this during teardown to guarantee key consistency.
+        node_instance._ws_topic = topic
+        
+        logger.debug(f"Registered WS topic '{topic}' for node {node['id']}")
     
     def build_downstream_map(self, edges_data: List[Dict[str, Any]]) -> Dict[str, List[str]]:
         """

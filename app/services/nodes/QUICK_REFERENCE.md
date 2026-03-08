@@ -23,14 +23,16 @@ app/services/nodes/
 - Load node/edge data from SQLite
 - Create node instances via factory
 - Initialize throttling configurations
-- Register WebSocket topics
+- **Register WebSocket topics** with `_ws_topic` attribute storage on nodes
 - Build downstream routing map
 
 ### managers/lifecycle.py (LifecycleManager)
 - Start/enable all nodes
 - Stop/disable all nodes
 - Remove individual nodes
+- **Async node removal** (`remove_node_async()`) for proper WebSocket cleanup
 - Cleanup resources (topics, routing, state)
+- **WebSocket topic cleanup** - automatically closes connections during removal
 
 ### managers/routing.py (DataRouter)
 - Route incoming data to nodes
@@ -75,12 +77,13 @@ All public methods remain the same:
 ```python
 # Configuration
 node_manager.load_config()
-node_manager.reload_config(loop=None)
+await node_manager.reload_config()  # Now async! (concurrency-safe with lock)
 
 # Lifecycle
 node_manager.start(loop=None)
 node_manager.stop()
-node_manager.remove_node(node_id)
+node_manager.remove_node(node_id)           # Sync version (deprecated)
+await node_manager.remove_node_async(node_id)  # Preferred for FastAPI routes
 
 # Data Flow
 await node_manager.forward_data(source_id, payload)
@@ -98,7 +101,29 @@ stats = node_manager.get_throttle_stats(node_id)
 ✅ **Extensibility** - Easy to add new managers  
 ✅ **Backward Compatible** - No breaking changes  
 
-## Migration Notes
+## WebSocket Topic Cleanup
+
+### Node `_ws_topic` Attribute Convention
+
+When nodes are registered, they automatically receive a `_ws_topic` attribute that stores the exact WebSocket topic key used for registration. This enables reliable cleanup:
+
+```python
+# During node registration (automatic)
+node._ws_topic = topic_key  # e.g., "lidar_sensor_abc123"
+
+# During node removal (automatic cleanup)
+if hasattr(node, '_ws_topic'):
+    await websocket_manager.unregister_topic(node._ws_topic)
+```
+
+### Async Methods for WebSocket Safety
+
+- **`reload_config()`** is now async - handles concurrent calls with a lock
+- **`remove_node_async()`** is the preferred method for FastAPI route handlers
+- Both methods properly close WebSocket connections and cancel pending futures
+- Orphaned topic sweep in reload automatically cleans up stale topics
+
+### Migration Notes
 
 **No code changes required!** The refactoring is internal only.
 

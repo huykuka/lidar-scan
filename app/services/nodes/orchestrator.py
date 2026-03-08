@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional
 
 from app.core.logging import get_logger
 from app.services.shared.topics import TopicRegistry
+from app.services.websocket.manager import manager as websocket_manager, SYSTEM_TOPICS
 
 from .managers import ConfigLoader, LifecycleManager, DataRouter, ThrottleManager
 
@@ -57,6 +58,7 @@ class NodeManager:
         self._loop: Any = None
         self._listener_task: Any = None
         self._topic_registry = TopicRegistry()
+        self._reload_lock: asyncio.Lock = asyncio.Lock()  # Prevent concurrent reloads
         
         # Runtime tracking instances
         self.nodes: Dict[str, Any] = {}  # node_id -> node_instance
@@ -97,49 +99,78 @@ class NodeManager:
         except Exception as e:
             logger.error(f"Error loading graph from DB: {e}", exc_info=True)
 
-    def reload_config(self, loop=None):
+    async def reload_config(self, loop=None) -> None:
         """
-        Reload the entire configuration from database.
+        Reload the entire configuration from database with proper WebSocket cleanup.
         
         This method:
         1. Stops all running nodes
-        2. Removes all nodes and cleans up resources
-        3. Waits for cleanup to complete
-        4. Reloads configuration from database
-        5. Restarts the system if it was running before
+        2. Removes all nodes and cleans up resources (including WebSocket connections)
+        3. Sweeps orphaned topics that might have been left behind
+        4. Waits for cleanup to complete
+        5. Reloads configuration from database
+        6. Restarts the system if it was running before
         
         Args:
             loop: Optional asyncio event loop to use
         """
-        import time
-        
-        was_running = self.is_running
-        
-        logger.info("Starting config reload...")
-        self.stop()
-        
-        logger.info("Cleaning up all nodes...")
-        self._cleanup_all_nodes()
-        self._topic_registry.clear()
-        
-        # Give processes time to fully terminate and release UDP ports
-        # UDP sockets can remain in kernel for a short period after process exit
-        logger.info("Waiting for process cleanup and port release...")
-        time.sleep(2.0)
-        
-        logger.info("Loading new config...")
-        self.load_config()
-        
-        if was_running:
-            logger.info("Restarting system...")
-            self.start(loop or self._loop)
-        
-        logger.info("Config reload complete.")
+        async with self._reload_lock:
+            logger.info("Config reload started (lock acquired)")
+            
+            was_running = self.is_running
+            
+            logger.info("Starting config reload...")
+            self.stop()
+            
+            # Snapshot all topics registered BEFORE cleanup
+            topics_before: set[str] = set(websocket_manager.active_connections.keys())
+            
+            logger.info("Cleaning up all nodes...")
+            await self._cleanup_all_nodes_async()
+            self._topic_registry.clear()
+            
+            logger.info("Waiting for process cleanup and port release...")
+            await asyncio.sleep(2.0)  # replaced time.sleep — must not block the event loop
+            
+            # Sweep ALL topics that don't belong to the current configuration
+            # This includes both topics that failed cleanup AND phantom topics from previous deployments
+            logger.info("Loading new config...")
+            self.load_config()
+            
+            # Collect all valid topics that should exist based on current config
+            valid_topics: set[str] = set()
+            for node_instance in self.nodes.values():
+                if hasattr(node_instance, '_ws_topic'):
+                    valid_topics.add(node_instance._ws_topic)
+            
+            # Find ALL topics that shouldn't exist (phantom + orphaned)
+            current_topics: set[str] = set(websocket_manager.active_connections.keys())
+            invalid_topics: set[str] = current_topics - valid_topics - SYSTEM_TOPICS
+            
+            if invalid_topics:
+                logger.warning(f"reload_config: sweeping {len(invalid_topics)} invalid topic(s): {invalid_topics}")
+                for invalid_topic in invalid_topics:
+                    await websocket_manager.unregister_topic(invalid_topic)
+            
+            if was_running:
+                logger.info("Restarting system...")
+                self.start(loop or self._loop)
+            
+            logger.info("Config reload complete.")
 
     def _cleanup_all_nodes(self):
-        """Remove all nodes and their resources during reload."""
+        """
+        Remove all nodes and their resources during reload.
+        
+        # DEPRECATED: Use _cleanup_all_nodes_async() for proper async WebSocket cleanup
+        """
         for node_id in list(self.nodes.keys()):
             self.remove_node(node_id)
+    
+    async def _cleanup_all_nodes_async(self) -> None:
+        """Async remove all nodes and their resources during reload."""
+        for node_id in list(self.nodes.keys()):
+            await self.remove_node_async(node_id)
 
     # ========================================
     # Lifecycle Management
@@ -189,10 +220,24 @@ class NodeManager:
         This is useful for runtime reconfiguration without full restart.
         Cleans up all resources including WebSocket topics, routing, and state.
         
+        For async contexts (FastAPI routes), prefer remove_node_async().
+        
         Args:
             node_id: The ID of the node to remove
         """
         self._lifecycle_manager.remove_node(node_id)
+    
+    async def remove_node_async(self, node_id: str):
+        """
+        Async dynamically remove a node from the running pipeline with proper cleanup.
+        
+        This is useful for runtime reconfiguration without full restart.
+        Cleans up all resources including WebSocket connections, topics, routing, and state.
+        
+        Args:
+            node_id: The ID of the node to remove
+        """
+        await self._lifecycle_manager.remove_node_async(node_id)
 
     # ========================================
     # Data Flow Management

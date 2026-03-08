@@ -60,7 +60,7 @@ async def delete_node(node_id: str):
     edge_repo = EdgeRepository()
     
     # Delete the node dynamically from orchestrator
-    node_manager.remove_node(node_id)
+    await node_manager.remove_node_async(node_id)
     node_repo.delete(node_id)
     
     # Delete any edges connected to this node
@@ -76,7 +76,10 @@ async def delete_node(node_id: str):
 
 @router.post("/nodes/reload")
 async def reload_all_config():
-    node_manager.reload_config()
+    if node_manager._reload_lock.locked():
+        raise HTTPException(status_code=409, detail="A configuration reload is already in progress. Please wait and retry.")
+    
+    await node_manager.reload_config()
     return {"status": "success"}
 
 @router.get("/nodes/status/all")
