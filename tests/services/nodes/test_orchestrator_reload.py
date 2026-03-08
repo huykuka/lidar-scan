@@ -17,41 +17,36 @@ class TestNodeManagerReload:
     
     @pytest.mark.asyncio
     async def test_reload_config_sweeps_orphaned_topics(self, node_manager):
-        """Test reload_config sweeps orphaned topics"""
+        """Test reload_config sweeps invalid topics (orphaned + phantom)"""
         
         with patch('app.services.nodes.orchestrator.websocket_manager') as mock_websocket_manager, \
              patch('app.services.nodes.orchestrator.SYSTEM_TOPICS', {'system_status'}):
             
-            # Setup initial connections - simulate a topic that will "disappear" during cleanup
-            # According to the current implementation, "orphaned" means topics that were
-            # present before cleanup but missing after cleanup (and aren't system topics)
-            initial_connections = {
-                "orphan_topic_00000000": [],  # This topic will "disappear" during cleanup
-                "system_status": []           # System topic that should NOT be swept
+            # Setup: ConnectionManager has a phantom topic that doesn't belong to any node
+            mock_websocket_manager.active_connections = {
+                "orphan_topic_00000000": [],  # Invalid topic - no corresponding node
+                "system_status": [],          # System topic that should NOT be swept  
+                "valid_sensor_12345678": []   # Valid topic that will be created by load_config
             }
-            
-            # Create a mock that behaves like a dict  
-            mock_websocket_manager.active_connections = initial_connections
             mock_websocket_manager.unregister_topic = AsyncMock()
+            
+            # Mock load_config to create a node with valid topic
+            def mock_load_config():
+                # Create a mock node with a valid _ws_topic
+                mock_node = Mock()
+                mock_node._ws_topic = "valid_sensor_12345678"
+                node_manager.nodes = {"valid_node_id": mock_node}
             
             # Mock the other manager methods
             node_manager.stop = Mock()
-            node_manager.load_config = Mock()
+            node_manager.load_config = mock_load_config
             node_manager.start = Mock()
-            
-            # Mock _cleanup_all_nodes_async to "remove" the topic (simulate it disappearing)
-            async def mock_cleanup():
-                # After cleanup, the orphan topic is gone but system topic remains
-                # This simulates the orphan being "removed" during cleanup
-                mock_websocket_manager.active_connections = {
-                    "system_status": []  # Only system topic remains
-                }
-            
-            node_manager._cleanup_all_nodes_async = AsyncMock(side_effect=mock_cleanup)
+            node_manager._cleanup_all_nodes_async = AsyncMock()
+            node_manager.is_running = False
             
             await node_manager.reload_config()
             
-            # Assert orphaned topic was swept
+            # Assert invalid topic was swept (but not system or valid topics)
             mock_websocket_manager.unregister_topic.assert_called_once_with("orphan_topic_00000000")
     
     @pytest.mark.asyncio

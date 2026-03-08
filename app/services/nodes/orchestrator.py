@@ -129,19 +129,28 @@ class NodeManager:
             await self._cleanup_all_nodes_async()
             self._topic_registry.clear()
             
-            # Sweep any topics that survived cleanup (orphaned from prior failed inits)
-            topics_after: set[str] = set(websocket_manager.active_connections.keys())
-            orphaned: set[str] = topics_before - topics_after - SYSTEM_TOPICS
-            if orphaned:
-                logger.warning(f"reload_config: sweeping {len(orphaned)} orphaned topic(s): {orphaned}")
-                for orphan_topic in orphaned:
-                    await websocket_manager.unregister_topic(orphan_topic)
-            
             logger.info("Waiting for process cleanup and port release...")
             await asyncio.sleep(2.0)  # replaced time.sleep — must not block the event loop
             
+            # Sweep ALL topics that don't belong to the current configuration
+            # This includes both topics that failed cleanup AND phantom topics from previous deployments
             logger.info("Loading new config...")
             self.load_config()
+            
+            # Collect all valid topics that should exist based on current config
+            valid_topics: set[str] = set()
+            for node_instance in self.nodes.values():
+                if hasattr(node_instance, '_ws_topic'):
+                    valid_topics.add(node_instance._ws_topic)
+            
+            # Find ALL topics that shouldn't exist (phantom + orphaned)
+            current_topics: set[str] = set(websocket_manager.active_connections.keys())
+            invalid_topics: set[str] = current_topics - valid_topics - SYSTEM_TOPICS
+            
+            if invalid_topics:
+                logger.warning(f"reload_config: sweeping {len(invalid_topics)} invalid topic(s): {invalid_topics}")
+                for invalid_topic in invalid_topics:
+                    await websocket_manager.unregister_topic(invalid_topic)
             
             if was_running:
                 logger.info("Restarting system...")
@@ -150,7 +159,11 @@ class NodeManager:
             logger.info("Config reload complete.")
 
     def _cleanup_all_nodes(self):
-        """Remove all nodes and their resources during reload."""
+        """
+        Remove all nodes and their resources during reload.
+        
+        # DEPRECATED: Use _cleanup_all_nodes_async() for proper async WebSocket cleanup
+        """
         for node_id in list(self.nodes.keys()):
             self.remove_node(node_id)
     
