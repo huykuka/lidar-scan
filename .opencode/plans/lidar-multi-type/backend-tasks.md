@@ -42,7 +42,19 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
   - `has_udp_receiver: bool` — True only for multiScan (controls `udp_receiver_ip` arg emission)
   - `has_imu_udp_port: bool` — True only for multiScan (controls `imu_udp_port` arg emission)
   - `scan_layers: int` — informational: 1 = 2D, >1 = multi-layer
-- [x] Populate `_PROFILES` registry dict with all 10 models. Use **real launch filenames from the `/launch/` directory**:
+- [x] Populate `_PROFILES` registry dict with all **25 SICK models**. Use **real launch filenames from the `/launch/` directory**:
+
+  **COMPREHENSIVE SICK CATALOG IMPLEMENTED** (25 models total):
+  - ✅ **multiScan Series**: multiScan100 (3D + UDP + IMU)
+  - ✅ **TiM Series**: TiM240, TiM5xx, TiM7xx, TiM7xxS (2D + Port config)
+  - ✅ **LMS Series**: LMS1xx, LMS1104 v1/v2, LMS5xx, LMS4000 (2D TCP)
+  - ✅ **MRS Series**: MRS1104, MRS6124 (3D multi-layer)
+  - ✅ **LRS Series**: LRS4000, LRS36x0/x1 + upside-down variants (3D radar)
+  - ✅ **Legacy**: LD-MRS family (multi-layer)  
+  - ✅ **OEM**: LD-OEM15xx series
+  - ✅ **Navigation**: NAV210/245, NAV310, NAV350
+  - ✅ **Radar**: RMS1009/RMS2000
+  - ✅ **picoScan**: picoScan120/150 (3D + UDP)
 
   | `model_id`  | `launch_file`                       | `port_arg`  | `default_port` | `has_udp_receiver` | `has_imu_udp_port` | `scan_layers` |
   |-------------|-------------------------------------|-------------|----------------|--------------------|--------------------|---------------|
