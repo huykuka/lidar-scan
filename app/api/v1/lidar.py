@@ -96,8 +96,9 @@ async def validate_lidar_config(request: LidarConfigValidationRequest):
     try:
         profile = get_profile(request.lidar_type)
         resolved_launch_file = profile.launch_file
-    except KeyError:
-        errors.append(f"Unknown lidar_type '{request.lidar_type}'. Valid options: multiscan, tim_2xx, tim_4xx, tim_5xx, tim_7xx, lms_1xx, lms_5xx, lms_4xxx, mrs_1xxx, mrs_6xxx")
+    except KeyError as e:
+        # Use the detailed error message from get_profile which includes all valid models
+        errors.append(str(e))
         return LidarConfigValidationResponse(
             valid=False,
             lidar_type=request.lidar_type,

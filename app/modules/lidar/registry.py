@@ -14,7 +14,13 @@ from app.modules.lidar.profiles import get_all_profiles, get_profile, build_laun
 
 # Compute helper lists at module load time
 _port_capable_models = [p.model_id for p in get_all_profiles() if p.port_arg]
-# Result: ["multiscan", "tim_2xx", "tim_4xx", "tim_5xx", "tim_7xx"]
+# Result: ["tim_240", "tim_5xx", "tim_7xx", "tim_7xxs"] - TiM series with configurable ports
+
+_udp_receiver_models = [p.model_id for p in get_all_profiles() if p.has_udp_receiver]
+# Result: ["multiscan", "picoscan_120", "picoscan_150"] - Models requiring UDP receiver
+
+_imu_capable_models = [p.model_id for p in get_all_profiles() if p.has_imu_udp_port]
+# Result: ["multiscan"] - Only multiScan supports IMU data currently
 
 
 # --- Schema Definition ---
@@ -43,8 +49,8 @@ node_schema_registry.register(NodeDefinition(
         ]),
         PropertySchema(name="hostname", label="Hostname", type="string", default="192.168.100.124", help_text="Lidar IP address", depends_on={"mode": ["real"]}),
         PropertySchema(name="port", label="Port", type="number", default=2112, help_text="Device communication port", depends_on={"mode": ["real"], "lidar_type": _port_capable_models}),
-        PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10", help_text="Host IP address receiving data", depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}),
-        PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7503, help_text="UDP port for IMU data", depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}),
+        PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10", help_text="Host IP address receiving data", depends_on={"mode": ["real"], "lidar_type": _udp_receiver_models}),
+        PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7503, help_text="UDP port for IMU data", depends_on={"mode": ["real"], "lidar_type": _imu_capable_models}),
         PropertySchema(name="pcd_path", label="PCD Path", type="string", default="", help_text="Path to .pcd file (simulation only)", depends_on={"mode": ["sim"]}),
         PropertySchema(name="x", label="Pos X", type="number", default=0.0, step=0.01),
         PropertySchema(name="y", label="Pos Y", type="number", default=0.0, step=0.01),
