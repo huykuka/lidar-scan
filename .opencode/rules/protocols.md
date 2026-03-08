@@ -12,6 +12,37 @@ Point cloud nodes do not send slow JSON arrays over network protocols. They pack
 | 16     | 4     | uint32  | Point count               |
 | 20     | N\*12 | float32 | Points (x, y, z) \* count |
 
+## WebSocket Topic Lifecycle & Cleanup
+
+WebSocket topics are managed through a complete lifecycle to ensure clean resource management and prevent ghost connections:
+
+### Topic Registration
+- Each DAG node registers a unique WebSocket topic when created: `{slugified_name}_{node_id_prefix}`
+- Topics are stored canonically on node instances as `_ws_topic` attribute to guarantee cleanup consistency
+- Registration creates connection tracking structures in `ConnectionManager.active_connections`
+
+### Topic Cleanup Protocol
+- **Graceful Disconnect**: Clients receive WebSocket close frame with code `1001 Going Away` when topics are removed
+- **Future Cancellation**: Pending interceptor futures are cancelled to prevent memory leaks
+- **Orphan Sweep**: Configuration reloads detect and clean up topics from failed node initializations
+- **Concurrent Protection**: Re-entrant locks prevent parallel reload operations from corrupting topic state
+
+### Client Handling
+Frontend clients must handle `WebSocket.onclose` events with code `1001` as intentional topic removal (not network failure). The recommended pattern:
+
+```typescript
+socket.onclose = (event) => {
+    if (event.code === 1001) {
+        // Topic removed - complete stream, don't reconnect
+        this.connections.delete(topic);
+        subject.complete();
+    } else {
+        // Network error - attempt reconnection
+        this.scheduleReconnect(topic);
+    }
+};
+```
+
 ## Data Recording Subsystem
 
 The recording system operates **independently from WebSocket streaming** by intercepting node outputs directly at the DAG orchestrator level.
