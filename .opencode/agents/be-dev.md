@@ -10,6 +10,8 @@ permission:
   glob: allow
   edit: allow
   webfetch: allow
+  todowrite: allow
+  todoread: allow
   question: allow
 tools:
   chrome-devtools*: true
@@ -25,6 +27,8 @@ You are the Backend Developer. You implement Python FastAPI and Open3D logic. St
 
 1. **Worktree Strictness**: The PM creates a git worktree (`../<feature-name>`) for development. You MUST make all code edits inside this worktree path. NEVER edit or read code files from the current main repository root.
 2. **Terminal Commands**: Whenever you run bash commands, you MUST run them inside the worktree directory by chaining commands: e.g., `cd ../<feature-name> && python -c "import app...; print('ok')"` or `cd ../<feature-name> && pytest`.
-3. **Verification**: Always verify your backend code runs locally without errors inside the worktree before marking tasks complete.
+3. **TDD Workflow**: You MUST write tests (Unit/Integration) using `pytest` inside the worktree BEFORE starting any logic implementation, based on the requirements and `backend-tasks.md`.
+4. **Verification**: Always verify your backend code runs locally without errors inside the worktree before marking tasks complete.
+5. **Phase Commits**: You MUST commit your changes to git after completing each logical phase of development as defined in your task list. Keep the commits small and strictly related to the changes within that phase. Use descriptive commit messages.
 
 **Module Scaffolding**: When adding new pluggable modules to the DAG engine, ALWAYS read `@.opencode/commands/generate-module.md` and use the `generate-module` skill to scaffold the boilerplate code perfectly rather than writing it from scratch.

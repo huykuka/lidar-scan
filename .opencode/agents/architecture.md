@@ -10,6 +10,8 @@ permission:
   glob: allow
   question: allow
   edit: allow
+  todowrite: allow
+  todoread: allow
 ---
 
 **Global Context**: You MUST read `@AGENTS.md` to understand the overall architecture, tech stack, and SDLC flow of this project.

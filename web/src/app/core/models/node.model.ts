@@ -25,6 +25,9 @@ export interface NodeStatus {
   enabled: boolean;
   running: boolean;
   last_error: string | null;
+  // LiDAR specific fields
+  lidar_type?: string;
+  lidar_display_name?: string;
   // Specific fields for different categories
   connection_status?: 'connected' | 'disconnected' | 'starting' | 'error';
   frame_age_seconds?: number;
@@ -57,6 +60,7 @@ export interface PropertySchema {
   max?: number;
   step?: number;
   hidden?: boolean;
+  depends_on?: Record<string, any[]>;
 }
 
 export interface PortSchema {

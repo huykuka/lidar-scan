@@ -10,6 +10,17 @@ from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition, PropertySchema, PortSchema, node_schema_registry
 )
+from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args
+
+# Compute helper lists at module load time
+_port_capable_models = [p.model_id for p in get_all_profiles() if p.port_arg]
+# Result: ["tim_240", "tim_5xx", "tim_7xx", "tim_7xxs"] - TiM series with configurable ports
+
+_udp_receiver_models = [p.model_id for p in get_all_profiles() if p.has_udp_receiver]
+# Result: ["multiscan", "picoscan_120", "picoscan_150"] - Models requiring UDP receiver
+
+_imu_capable_models = [p.model_id for p in get_all_profiles() if p.has_imu_udp_port]
+# Result: ["multiscan"] - Only multiScan supports IMU data currently
 
 
 # --- Schema Definition ---
@@ -22,16 +33,25 @@ node_schema_registry.register(NodeDefinition(
     description="Interface for physical SICK sensors or PCD file simulations",
     icon="sensors",
     properties=[
+        PropertySchema(
+            name="lidar_type",
+            label="LiDAR Model",
+            type="select",
+            default="multiscan",
+            required=True,
+            help_text="Select the SICK LiDAR hardware model for this node",
+            options=[{"label": p.display_name, "value": p.model_id} for p in get_all_profiles()]
+        ),
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
         PropertySchema(name="mode", label="Mode", type="select", default="real", options=[
             {"label": "Hardware (Real)", "value": "real"},
             {"label": "Simulation (PCD)", "value": "sim"}
         ]),
-        PropertySchema(name="hostname", label="Hostname", type="string", default="192.168.100.124", help_text="Lidar IP address"),
-        PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10", help_text="Host IP address receiving data"),
-        PropertySchema(name="udp_port", label="UDP Port", type="number", default=2667),
-        PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7511),
-        PropertySchema(name="pcd_path", label="PCD Path", type="string", default="", help_text="Path to .pcd file (simulation only)"),
+        PropertySchema(name="hostname", label="Hostname", type="string", default="192.168.100.124", help_text="Lidar IP address", depends_on={"mode": ["real"]}),
+        PropertySchema(name="port", label="Port", type="number", default=2112, help_text="Device communication port", depends_on={"mode": ["real"], "lidar_type": _port_capable_models}),
+        PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10", help_text="Host IP address receiving data", depends_on={"mode": ["real"], "lidar_type": _udp_receiver_models}),
+        PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7503, help_text="UDP port for IMU data", depends_on={"mode": ["real"], "lidar_type": _imu_capable_models}),
+        PropertySchema(name="pcd_path", label="PCD Path", type="string", default="", help_text="Path to .pcd file (simulation only)", depends_on={"mode": ["sim"]}),
         PropertySchema(name="x", label="Pos X", type="number", default=0.0, step=0.01),
         PropertySchema(name="y", label="Pos Y", type="number", default=0.0, step=0.01),
         PropertySchema(name="z", label="Pos Z", type="number", default=0.0, step=0.01),
@@ -73,22 +93,39 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
         pcd_path = os.path.join(project_root, pcd_path.lstrip("./"))
 
+    # Read multi-model configuration
+    lidar_type = config.get("lidar_type", "multiscan")
     hostname = config.get("hostname", "192.168.100.124")
-    udp_receiver_ip = config.get("udp_receiver_ip", "192.168.100.10")
-    udp_port = config.get("udp_port", 2667)
-    imu_udp_port = config.get("imu_udp_port", 7511)
+    port = config.get("port")  # replaces udp_port
+    udp_receiver_ip = config.get("udp_receiver_ip")
+    imu_udp_port = config.get("imu_udp_port")
     
-    launch_args = f"./launch/sick_multiscan.launch hostname:={hostname} udp_receiver_ip:={udp_receiver_ip} udp_port:={udp_port} imu_udp_port:={imu_udp_port}"
-
-    sensor_id = node["id"]
-    name = node.get("name")
-    topic_prefix = config.get("topic_prefix")
+    # Build transformation string
     x = config.get("x", 0)
     y = config.get("y", 0)
     z = config.get("z", 0)
     roll = config.get("roll", 0)
     pitch = config.get("pitch", 0)
     yaw = config.get("yaw", 0)
+    add_transform_xyz_rpy = f"{x},{y},{z},{roll},{pitch},{yaw}"
+    
+    # Build launch arguments using profile system
+    try:
+        profile = get_profile(lidar_type)
+        launch_args = build_launch_args(
+            model_id=lidar_type,
+            hostname=hostname,
+            port=port,
+            udp_receiver_ip=udp_receiver_ip,
+            imu_udp_port=imu_udp_port,
+            add_transform_xyz_rpy=add_transform_xyz_rpy
+        )
+    except KeyError:
+        raise ValueError(f"Unknown lidar_type: '{lidar_type}'")
+
+    sensor_id = node["id"]
+    name = node.get("name")
+    topic_prefix = config.get("topic_prefix")
 
     sensor_name = name or sensor_id
     desired_prefix = topic_prefix or sensor_name
@@ -108,5 +145,9 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         throttle_ms=throttle_ms
     )
     sensor.set_pose(x, y, z, roll, pitch, yaw)
+    
+    # Set LiDAR type information on the sensor instance
+    sensor.lidar_type = profile.model_id
+    sensor.lidar_display_name = profile.display_name
     
     return sensor
