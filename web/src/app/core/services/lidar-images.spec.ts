@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { LidarImages } from './lidar-images';
+import { LidarImagesService } from './lidar-images';
 
 describe('LidarImages', () => {
-  let service: LidarImages;
+  let service: LidarImagesService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(LidarImages);
+    service = TestBed.inject(LidarImagesService);
   });
 
   it('should be created', () => {
