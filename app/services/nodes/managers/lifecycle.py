@@ -97,16 +97,39 @@ class LifecycleManager:
     
     def _unregister_node_websocket_topic(self, node_id: str, node_instance: Any):
         """
-        Unregister WebSocket topic for a node.
+        Unregister WebSocket topic for a node (sync fallback - deprecated).
+        
+        NOTE: This sync version cannot properly close WebSocket connections.
+        Use _unregister_node_websocket_topic_async() for proper cleanup.
         
         Args:
             node_id: The node ID
             node_instance: The node instance
         """
-        node_name = getattr(node_instance, "name", node_id)
-        safe_name = slugify_topic_prefix(node_name)
-        topic = f"{safe_name}_{node_id[:8]}"
-        manager.unregister_topic(topic)
+        import asyncio
+        
+        # Use stored topic if available to guarantee key match with registration
+        if hasattr(node_instance, "_ws_topic"):
+            topic = node_instance._ws_topic
+        else:
+            node_name = getattr(node_instance, "name", node_id)
+            safe_name = slugify_topic_prefix(node_name)
+            topic = f"{safe_name}_{node_id[:8]}"
+        
+        logger.warning(f"Sync unregister_topic called for {topic} - WebSocket connections may not be properly closed")
+        
+        # Try to schedule the async version if we're in an async context
+        try:
+            loop = asyncio.get_running_loop()
+            # Schedule the async cleanup but don't wait for it
+            asyncio.create_task(manager.unregister_topic(topic))
+        except RuntimeError:
+            # No running event loop - can only remove from dicts (unsafe)
+            logger.error(f"No event loop available to properly unregister topic {topic} - potential connection leaks")
+            if topic in manager.active_connections:
+                del manager.active_connections[topic]
+            if topic in manager._interceptors:
+                del manager._interceptors[topic]
     
     async def _unregister_node_websocket_topic_async(self, node_id: str, node_instance: Any) -> None:
         """

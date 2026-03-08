@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 
 from app.repositories import NodeRepository, EdgeRepository
+from app.services.nodes.instance import node_manager
 
 router = APIRouter()
 
@@ -57,7 +58,7 @@ def export_configuration():
 
 
 @router.post("/config/import")
-def import_configuration(config: ConfigurationImport):
+async def import_configuration(config: ConfigurationImport):
     """
     Import node and edge configurations from JSON.
     """
@@ -82,6 +83,12 @@ def import_configuration(config: ConfigurationImport):
         if not config.merge:
              edge_repo.save_all(config.edges)
         
+        # Auto-trigger reload for replace mode to sync in-memory DAG
+        reloaded = False
+        if not config.merge:
+            await node_manager.reload_config()
+            reloaded = True
+        
         return {
             "success": True,
             "mode": "merge" if config.merge else "replace",
@@ -89,7 +96,8 @@ def import_configuration(config: ConfigurationImport):
                 "nodes": len(imported_nodes),
                 "edges": len(config.edges) if not config.merge else 0
             },
-            "node_ids": imported_nodes
+            "node_ids": imported_nodes,
+            "reloaded": reloaded
         }
     
     except Exception as e:

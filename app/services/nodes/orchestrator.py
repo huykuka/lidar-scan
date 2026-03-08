@@ -26,6 +26,7 @@ from typing import Any, Dict, List, Optional
 
 from app.core.logging import get_logger
 from app.services.shared.topics import TopicRegistry
+from app.services.websocket.manager import manager as websocket_manager, SYSTEM_TOPICS
 
 from .managers import ConfigLoader, LifecycleManager, DataRouter, ThrottleManager
 
@@ -122,20 +123,19 @@ class NodeManager:
             self.stop()
             
             # Snapshot all topics registered BEFORE cleanup
-            from app.services.websocket.manager import manager, SYSTEM_TOPICS
-            topics_before: set[str] = set(manager.active_connections.keys())
+            topics_before: set[str] = set(websocket_manager.active_connections.keys())
             
             logger.info("Cleaning up all nodes...")
             await self._cleanup_all_nodes_async()
             self._topic_registry.clear()
             
             # Sweep any topics that survived cleanup (orphaned from prior failed inits)
-            topics_after: set[str] = set(manager.active_connections.keys())
+            topics_after: set[str] = set(websocket_manager.active_connections.keys())
             orphaned: set[str] = topics_before - topics_after - SYSTEM_TOPICS
             if orphaned:
                 logger.warning(f"reload_config: sweeping {len(orphaned)} orphaned topic(s): {orphaned}")
                 for orphan_topic in orphaned:
-                    await manager.unregister_topic(orphan_topic)
+                    await websocket_manager.unregister_topic(orphan_topic)
             
             logger.info("Waiting for process cleanup and port release...")
             await asyncio.sleep(2.0)  # replaced time.sleep — must not block the event loop

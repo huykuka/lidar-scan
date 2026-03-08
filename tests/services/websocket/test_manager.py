@@ -312,3 +312,93 @@ class TestSystemTopicsFiltering:
         assert len(public_topics) == 3
         assert "system_status" not in public_topics
         assert all(t in public_topics for t in ["lidar1_raw_points", "lidar2_raw_points", "fused_points"])
+
+
+class TestUnregisterTopic:
+    """Test suite for async unregister_topic functionality"""
+    
+    @pytest.mark.asyncio
+    async def test_unregister_topic_closes_websocket_connections(self):
+        """Test unregister_topic closes WebSocket connections with 1001 code"""
+        manager = ConnectionManager()
+        manager.register_topic("test_topic")
+        
+        # Add two mock WebSocket objects
+        ws1 = AsyncMock()
+        ws2 = AsyncMock()
+        manager.active_connections["test_topic"] = [ws1, ws2]
+        
+        await manager.unregister_topic("test_topic")
+        
+        # Assert close called with 1001 for each WebSocket
+        ws1.close.assert_called_once_with(code=1001)
+        ws2.close.assert_called_once_with(code=1001)
+        
+        # Assert topic is absent from active_connections
+        assert "test_topic" not in manager.active_connections
+    
+    @pytest.mark.asyncio
+    async def test_unregister_topic_cancels_pending_futures(self):
+        """Test unregister_topic cancels pending interceptor futures"""
+        manager = ConnectionManager()
+        manager.register_topic("test_topic")
+        
+        # Add two futures to interceptors
+        loop = asyncio.get_running_loop()
+        future1 = loop.create_future()
+        future2 = loop.create_future()
+        manager._interceptors["test_topic"] = [future1, future2]
+        
+        await manager.unregister_topic("test_topic")
+        
+        # Assert both futures are cancelled
+        assert future1.cancelled()
+        assert future2.cancelled()
+        
+        # Assert topic is absent from interceptors
+        assert "test_topic" not in manager._interceptors
+    
+    @pytest.mark.asyncio
+    async def test_unregister_topic_idempotent_on_missing_topic(self):
+        """Test unregister_topic doesn't raise on non-existent topic"""
+        manager = ConnectionManager()
+        
+        # Should not raise any exception
+        await manager.unregister_topic("does_not_exist")
+    
+    @pytest.mark.asyncio
+    async def test_unregister_topic_with_already_cancelled_future(self):
+        """Test unregister_topic handles pre-cancelled futures gracefully"""
+        manager = ConnectionManager()
+        manager.register_topic("test_topic")
+        
+        # Add a pre-cancelled future
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        future.cancel()
+        manager._interceptors["test_topic"] = [future]
+        
+        # Should not raise any exception
+        await manager.unregister_topic("test_topic")
+    
+    @pytest.mark.asyncio
+    async def test_unregister_topic_ws_close_error_does_not_abort_others(self):
+        """Test that one failed WebSocket close doesn't prevent others from closing"""
+        manager = ConnectionManager()
+        manager.register_topic("test_topic")
+        
+        # Add two WebSocket mocks where first raises RuntimeError on close
+        ws1 = AsyncMock()
+        ws1.close.side_effect = RuntimeError("Connection already closed")
+        ws2 = AsyncMock()
+        
+        manager.active_connections["test_topic"] = [ws1, ws2]
+        
+        await manager.unregister_topic("test_topic")
+        
+        # Both close methods should have been called
+        ws1.close.assert_called_once_with(code=1001)
+        ws2.close.assert_called_once_with(code=1001)
+        
+        # Topic should still be cleaned up
+        assert "test_topic" not in manager.active_connections
