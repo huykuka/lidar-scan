@@ -1,6 +1,8 @@
 name: opencode-merge
 
 on:
+  pull_request_review:
+    types: [submitted]
   pull_request_review_comment:
     types: [created]
   issue_comment:
@@ -8,9 +10,11 @@ on:
 
 jobs:
   merge:
-    # Trigger if it's a PR comment and looks like an approval
+    # Trigger if it's a PR comment or review
     if: |
-      github.event.issue.pull_request || github.event.pull_request
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
+      (github.event_name == 'pull_request_review') ||
+      (github.event_name == 'pull_request_review_comment')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -19,7 +23,7 @@ jobs:
       issues: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -31,8 +35,8 @@ jobs:
         with:
           model: openai/gpt-4o
           prompt: |
-            Analyze the following comment: "${{ github.event.comment.body }}"
-            If the comment semantically means "it looks good", "approved", or "LGTM", then:
+            Analyze the following content: "${{ github.event.comment.body || github.event.review.body }}"
+            If the content semantically means "it looks good", "approved", or "LGTM", then:
             1. Merge the Pull Request.
             2. Comment on the PR that it has been merged.
-            If the comment is NOT an approval, simply stop execution without taking any action.
+            If the content is NOT an approval, simply stop execution without taking any action.
