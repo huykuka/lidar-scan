@@ -22,8 +22,21 @@ Ensure your designs comply with the existing architecture rules in `@.opencode/r
 
 ### Artifact Definition
 
-You must output standardized `.opencode/plans/<feature-name>/frontend-tasks.md`, `.opencode/plans/<feature-name>/backend-tasks.md`, and `.opencode/plans/<feature-name>/qa-tasks.md` artifacts.
-These artifacts MUST strictly follow this format:
+You must output standardized artifacts inside the worktree at `../<feature-name>/.opencode/plans/<feature-name>/`.
+
+#### 1. `qa-tasks.md` (Execution Tracking)
+
+This artifact is designed by the **Architect**. The QA agent is responsible for checking off these tasks as they are executed:
+
+- **TDD Preparation**: Execution of failing tests before development starts.
+- **Test Categories**: Execution of Unit, Integration, and E2E tests.
+- **Linter Verification**: Running frontend and backend linters.
+- **Developer Coordination**: Verifying feature completion with `@be-dev` and `@fe-dev`.
+- **Pre-PR Verification**: Execution of linting, type-checking, and final test suite.
+
+#### 2. `frontend-tasks.md` & `backend-tasks.md` (Development Tracking)
+
+Standardized task breakdown for development subagents:
 
 - **Task Breakdown**: A bulleted checklist (`- [ ]`) of granular engineering tasks for the subagents to check off (`- [x]`) as they progress.
 - **Dependencies**: Any blocked tasks or order-of-operation constraints between frontend and backend.

@@ -8,7 +8,7 @@ The `lidar-standalone` project is a high-performance Point Cloud Processing syst
 - **Backend Architecture**: A dynamic Directed Acyclic Graph (DAG) orchestration engine mapping physical data flows entirely through decoupled, pluggable _nodes_ (Modules). Heavy Open3D operations run on threadpools to prevent blocking the async FastAPI event loop.
 - **Frontend Stack**: Angular 20 (Signals, Standalone Components exclusively), Tailwind CSS, Synergy UI, Three.js.
 - **Frontend Architecture**: Directly manipulates WebGL `BufferGeometry` arrays for 60FPS parsing of 100k+ dense point clouds.
-- **Protocols**: Fast binary WebSocket streaming (the `LIDR` protocol) overriding standard HTTP JSON parsing for real-time sensor data.
+- **Protocols**: Fast binary WebSocket streaming (the `LIDR` protocol) overriding standard HTTP JSON parsing for real-time sensor data. WebSocket topics include automatic cleanup and duplicate prevention during node lifecycle changes.
 - **Performance Monitoring**: Low-overhead (<1%) real-time metrics collection covering DAG nodes, Open3D operations, WebSocket performance, and Three.js rendering metrics with Angular dashboard visualization.
 
 CRITICAL: When you need detailed API specifics or rules, use your Read tool on these references:
@@ -34,11 +34,11 @@ Each folder contains:
 
 ### Core Agent Ownership
 
-- **@be-dev**: Backend metrics collection, DAG node instrumentation, Open3D performance tracking, WebSocket protocol metrics, `/api/metrics` endpoint implementation
-- **@fe-dev**: Frontend performance metrics (Three.js FPS, Angular component responsiveness), metrics dashboard UI with Synergy UI components, WebSocket client performance tracking
-- **@qa**: Performance dashboard testing, metrics accuracy validation, load testing for <1% overhead requirement, integration testing of monitoring features
-- **@architecture**: Performance monitoring system design, metrics data flow architecture, integration points between frontend/backend monitoring
-- **@ba & @pm**: Performance requirements definition, acceptance criteria for monitoring features, developer workflow integration
+- **@be-dev**: Backend metrics collection, DAG node instrumentation, Open3D performance tracking, WebSocket protocol metrics, `/api/metrics` endpoint implementation, WebSocket topic lifecycle management and cleanup
+- **@fe-dev**: Frontend performance metrics (Three.js FPS, Angular component responsiveness), metrics dashboard UI with Synergy UI components, WebSocket client performance tracking, handling topic cleanup notifications
+- **@qa**: Performance dashboard testing, metrics accuracy validation, load testing for <1% overhead requirement, integration testing of monitoring features, WebSocket topic cleanup edge-case testing
+- **@architecture**: Performance monitoring system design, metrics data flow architecture, integration points between frontend/backend monitoring, WebSocket topic cleanup architecture design
+- **@ba & @pm**: Performance requirements definition, acceptance criteria for monitoring features, developer workflow integration, WebSocket topic cleanup acceptance criteria
 
 ### Performance Monitoring Documentation
 
@@ -49,6 +49,45 @@ Performance monitoring specifications and implementation details are located in:
 - `.opencode/plans/performance-monitoring/api-spec.md`: Metrics API contracts and data schemas
 - `.opencode/plans/performance-monitoring/backend-tasks.md`: Backend implementation tasks and progress
 - `.opencode/plans/performance-monitoring/frontend-tasks.md`: Frontend dashboard and metrics tasks
+
+### WebSocket Topic Cleanup Architecture
+
+The system implements robust WebSocket topic lifecycle management to prevent ghost topics and ensure consistent DAG-to-topic mapping.
+
+#### Core Cleanup Features
+
+- **Canonical Topic Storage**: Each node instance stores its WebSocket topic (`_ws_topic`) at registration to guarantee consistent cleanup
+- **Async Teardown**: Topic unregistration properly closes WebSocket connections with `1001 Going Away` and cancels pending futures
+- **Orphan Sweep**: Configuration reloads detect and clean up topics from failed node initializations
+- **Duplicate Prevention**: Re-entrant locks prevent concurrent reloads from causing topic corruption
+- **Edge-Case Handling**: Comprehensive coverage of node removal during active WebSocket operations
+
+#### WebSocket Topic Cleanup Documentation
+
+Specifications and implementation details are located in:
+
+- `.opencode/plans/websocket-topic-cleanup/technical.md`: Architecture, async flows, and edge-case handling
+- `.opencode/plans/websocket-topic-cleanup/api-spec.md`: API contract changes and protocol behavior
+- `.opencode/plans/websocket-topic-cleanup/backend-tasks.md`: Implementation tasks and test coverage
+
+#### Manual Testing & Developer Tools
+
+Developers can manually test topic cleanup behavior using:
+
+1. **Topic Inspection**: `GET /api/v1/topics` - View current registered topics
+2. **Node Removal**: `DELETE /api/v1/nodes/{node_id}` - Trigger single-node cleanup
+3. **Full Reload**: `POST /api/v1/nodes/reload` - Test complete cleanup cycle
+4. **WebSocket Monitoring**: Browser DevTools Network tab to observe `1001 Going Away` close frames
+5. **Backend Logs**: Search for `"orphaned topic"` and `"unregister topic"` messages
+6. **Performance Metrics**: `/api/metrics/websocket` endpoint shows topic cleanup statistics
+
+#### Testing Edge Cases
+
+- **Concurrent Operations**: Multiple reload requests (should block with `409 Conflict`)
+- **Pending Futures**: Topics removed while `/api/v1/topics/capture` is waiting (should return `503`)
+- **Failed Initializations**: Nodes that partially registered topics but failed to start
+- **System Topic Protection**: Verify system topics (e.g., `system_status`) are never swept
+- **Client Reconnection**: Frontend handling of unexpected WebSocket closures
 
 ### Performance Monitoring Integration in SDLC
 
