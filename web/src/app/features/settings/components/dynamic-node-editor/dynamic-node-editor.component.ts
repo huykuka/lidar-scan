@@ -247,4 +247,26 @@ export class DynamicNodeEditorComponent implements OnDestroy {
     const checked = (event.target as any).checked;
     this.configForm.get(propName)?.setValue(checked);
   }
+
+  /**
+   * Get the selected LiDAR option with thumbnail for dropdown display
+   */
+  getSelectedLidarOption(propName: string): { value: string; label: string; imageSrc?: string } | null {
+    if (propName !== 'lidar_type') return null;
+    
+    const selectedValue = this.configForm.get(propName)?.value;
+    if (!selectedValue) return null;
+    
+    return this.lidarOptionsWithImages().find(opt => opt.value === selectedValue) || null;
+  }
+
+  /**
+   * Handle thumbnail image loading errors with fallback
+   */
+  handleImageError(event: Event) {
+    const imgElement = event.target as HTMLImageElement;
+    // Hide the image on error to prevent broken image icons
+    imgElement.style.display = 'none';
+    console.warn('Failed to load LiDAR thumbnail:', imgElement.src);
+  }
 }

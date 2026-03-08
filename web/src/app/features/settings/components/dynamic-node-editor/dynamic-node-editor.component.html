@@ -112,6 +112,19 @@
             >
               <!-- Enhanced LiDAR type dropdown with images -->
               @if (prop.name === 'lidar_type') {
+                <!-- Selected value display with thumbnail -->
+                @if (getSelectedLidarOption(prop.name); as selectedOption) {
+                  <div slot="prefix" class="flex items-center">
+                    <img 
+                      [src]="selectedOption.imageSrc" 
+                      [alt]="selectedOption.label + ' LiDAR device'"
+                      class="w-5 h-5 rounded-md border border-syn-color-neutral-200 bg-white flex-shrink-0"
+                      style="object-fit: contain; padding: 1px; margin-right: 6px;"
+                      (error)="handleImageError($event)"
+                    />
+                  </div>
+                }
+                
                 @for (opt of lidarOptionsWithImages(); track opt.value) {
                   <syn-option [value]="opt.value">
                     <img 
@@ -120,6 +133,7 @@
                       [alt]="opt.label + ' LiDAR device'"
                       class="w-6 h-6 rounded-md border border-syn-color-neutral-200 bg-white flex-shrink-0"
                       style="object-fit: contain; padding: 2px; margin-right: 8px;"
+                      (error)="handleImageError($event)"
                     />
                     {{ opt.label }}
                   </syn-option>
