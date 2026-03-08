@@ -148,16 +148,16 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
 
 ### TASK-B5 — Create `app/api/v1/lidar.py` Router
 
-- [ ] Create `app/api/v1/lidar.py` with `router = APIRouter(prefix="/lidar", tags=["lidar"])`.
-- [ ] Define Pydantic models (in this file or a shared `app/modules/lidar/models.py`):
+- [x] Create `app/api/v1/lidar.py` with `router = APIRouter(prefix="/lidar", tags=["lidar"])`.
+- [x] Define Pydantic models (in this file or a shared `app/modules/lidar/models.py`):
   - `SickLidarProfileResponse` (see `api-spec.md` §8) — map from `SickLidarProfile` dataclass, include `port_arg`, `has_udp_receiver`, `has_imu_udp_port`.
   - `ProfilesListResponse` wrapping `List[SickLidarProfileResponse]`.
   - `LidarConfigValidationRequest` — `lidar_type: str`, `hostname: str`, `udp_receiver_ip: Optional[str] = None`, `port: Optional[int] = Field(None, ge=1024, le=65535)`, `imu_udp_port: Optional[int] = Field(None, ge=1024, le=65535)`.
   - `LidarConfigValidationResponse` — `valid: bool`, `lidar_type: str`, `resolved_launch_file: Optional[str]`, `errors: List[str] = []`, `warnings: List[str] = []`.
-- [ ] Implement `GET /lidar/profiles`:
+- [x] Implement `GET /lidar/profiles`:
   - Returns `ProfilesListResponse` from `get_all_profiles()`.
   - No authentication, no DB access. Fully in-memory.
-- [ ] Implement `POST /lidar/validate-lidar-config`:
+- [x] Implement `POST /lidar/validate-lidar-config`:
   - Calls `get_profile(req.lidar_type)` — if `KeyError`, add to `errors` and return `valid=False` immediately.
   - Validates `hostname` is non-empty — if not, add to `errors`.
   - If `profile.has_udp_receiver` and `req.udp_receiver_ip` is None or empty — add to `errors`.
@@ -166,7 +166,7 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
   - If any `errors`, return `LidarConfigValidationResponse(valid=False, ...)`.
   - Otherwise return `valid=True` with any collected `warnings` and `resolved_launch_file=profile.launch_file`.
   - Use `HTTPException(422)` **only** for malformed request bodies (Pydantic handles this automatically). Do not raise 422 for semantic validation failures — use `valid=False` in the response body.
-- [ ] Add strict type hints on all endpoint functions.
+- [x] Add strict type hints on all endpoint functions.
 
 ---
 
