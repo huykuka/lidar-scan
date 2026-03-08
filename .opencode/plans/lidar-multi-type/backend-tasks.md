@@ -73,10 +73,9 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
 
 ### TASK-B2 — Extend `PropertySchema` in `app/services/nodes/schema.py`
 
-- [ ] Add `depends_on: Optional[Dict[str, List[Any]]] = None` to the `PropertySchema` Pydantic model.
-- [ ] Confirm the field defaults to `None` — all existing `PropertySchema` instantiations continue to work without modification.
-- [ ] Add a docstring comment: `"Property is shown in UI only when ALL key-value constraints in depends_on are satisfied (AND relationship). Each list contains the allowed values for that key."`.
-- [ ] Ensure `Any` is imported from `typing` (it already is in the existing imports).
+- [x] Add `depends_on: Optional[Dict[str, List[Any]]] = None` to the `PropertySchema` Pydantic model.
+- [x] Confirm the field defaults to `None` — all existing `PropertySchema` instantiations continue to work without modification.
+- [x] Add a docstring comment: `"Property is shown in UI only when ALL key-value constraints in depends_on are satisfied (AND relationship). Each list contains the allowed values for that key."`.
 
 ---
 
