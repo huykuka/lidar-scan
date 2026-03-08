@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { StatusWebSocketService } from '../../core/services/status-websocket.service';
 import { CalibrationNodeStatus } from '../../core/models/calibration.model';
+import { NavigationService } from '../../core/services';
 
 @Component({
   selector: 'app-calibration',
@@ -13,12 +14,20 @@ import { CalibrationNodeStatus } from '../../core/models/calibration.model';
 })
 export class CalibrationComponent {
   private statusWs = inject(StatusWebSocketService);
+  private navigationService = inject(NavigationService);
   private router = inject(Router);
+
+  constructor() {
+    this.navigationService.setPageConfig({
+      title: 'Calibration',
+      subtitle: 'Manage and monitor calibration nodes',
+    });
+  }
 
   calibrationNodes = computed(() => {
     const statusResponse = this.statusWs.status();
     if (!statusResponse) return [];
-    
+
     return statusResponse.nodes
       .filter((status: any) => status.type === 'calibration')
       .map((status: any) => status as unknown as CalibrationNodeStatus);
@@ -30,7 +39,7 @@ export class CalibrationComponent {
 
   getPendingResultsList(node: CalibrationNodeStatus) {
     if (!node.pending_results) return [];
-    
+
     return Object.entries(node.pending_results).map(([sensorId, result]) => ({
       sensorId,
       ...result,
@@ -58,13 +67,13 @@ export class CalibrationComponent {
       const now = new Date();
       const diff = now.getTime() - date.getTime();
       const minutes = Math.floor(diff / 60000);
-      
+
       if (minutes < 1) return 'Just now';
       if (minutes < 60) return `${minutes}m ago`;
-      
+
       const hours = Math.floor(minutes / 60);
       if (hours < 24) return `${hours}h ago`;
-      
+
       const days = Math.floor(hours / 24);
       return `${days}d ago`;
     } catch {
