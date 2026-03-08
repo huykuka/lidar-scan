@@ -172,9 +172,9 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
 
 ### TASK-B6 — Mount New Router in `app/api/v1/__init__.py`
 
-- [ ] Import: `from .lidar import router as lidar_router`.
-- [ ] Add: `router.include_router(lidar_router)`.
-- [ ] Confirm `GET /api/v1/lidar/profiles` and `POST /api/v1/lidar/validate-lidar-config` both appear in the FastAPI OpenAPI docs at `/docs`.
+- [x] Import: `from .lidar import router as lidar_router`.
+- [x] Add: `router.include_router(lidar_router)`.
+- [x] Confirm `GET /api/v1/lidar/profiles` and `POST /api/v1/lidar/validate-lidar-config` both appear in the FastAPI OpenAPI docs at `/docs`.
 
 ---
 
