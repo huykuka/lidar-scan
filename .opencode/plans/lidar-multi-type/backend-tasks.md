@@ -81,13 +81,13 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
 
 ### TASK-B3 — Update `app/modules/lidar/registry.py`
 
-- [ ] Add imports at the top: `from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args`.
-- [ ] **Compute helper lists** at module load time (after importing profiles):
+- [x] Add imports at the top: `from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args`.
+- [x] **Compute helper lists** at module load time (after importing profiles):
   ```python
   _port_capable_models = [p.model_id for p in get_all_profiles() if p.port_arg]
   # Result: ["multiscan", "tim_2xx", "tim_4xx", "tim_5xx", "tim_7xx"]
   ```
-- [ ] **Add `lidar_type` property as the FIRST entry** in the `properties` list:
+- [x] **Add `lidar_type` property as the FIRST entry** in the `properties` list:
   ```python
   PropertySchema(
       name="lidar_type",
@@ -99,13 +99,13 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
       options=[{"label": p.display_name, "value": p.model_id} for p in get_all_profiles()]
   )
   ```
-- [ ] **Update `hostname` property**: add `depends_on={"mode": ["real"]}`.
-- [ ] **Rename `udp_port` property to `port`** (name, label, default=2112) and add:
+- [x] **Update `hostname` property**: add `depends_on={"mode": ["real"]}`.
+- [x] **Rename `udp_port` property to `port`** (name, label, default=2112) and add:
   `depends_on={"mode": ["real"], "lidar_type": _port_capable_models}`
-- [ ] **Update `udp_receiver_ip` property**: add `depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}`.
-- [ ] **Update `imu_udp_port` property**: change default to `7503` and add `depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}`.
-- [ ] **Update `pcd_path` property**: add `depends_on={"mode": ["sim"]}`.
-- [ ] In `build_sensor()`:
+- [x] **Update `udp_receiver_ip` property**: add `depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}`.
+- [x] **Update `imu_udp_port` property**: change default to `7503` and add `depends_on={"mode": ["real"], "lidar_type": ["multiscan"]}`.
+- [x] **Update `pcd_path` property**: add `depends_on={"mode": ["sim"]}`.
+- [x] In `build_sensor()`:
   - Read `lidar_type = config.get("lidar_type", "multiscan")`.
   - Read `port = config.get("port")` (replaces `udp_port`).
   - Read `udp_receiver_ip = config.get("udp_receiver_ip")`.
@@ -125,7 +125,7 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
     )
     ```
   - After `LidarSensor` instantiation, set: `sensor.lidar_type = profile.model_id` and `sensor.lidar_display_name = profile.display_name`.
-- [ ] **Regression check**: For a node with no `lidar_type` and all-zero pose, confirm the generated `launch_args` is functionally equivalent to the current hardcoded value (multiScan defaults, `add_transform_xyz_rpy=0,0,0,0,0,0`).
+- [x] **Regression check**: For a node with no `lidar_type` and all-zero pose, confirm the generated `launch_args` is functionally equivalent to the current hardcoded value (multiScan defaults, `add_transform_xyz_rpy=0,0,0,0,0,0`).
   - Old: `./launch/sick_multiscan.launch hostname:=192.168.100.124 udp_receiver_ip:=192.168.100.10 udp_port:=2667 imu_udp_port:=7511`
   - New (from profiles defaults): `launch/sick_multiscan.launch hostname:=<configured> udp_port:=2115 udp_receiver_ip:=<configured> imu_udp_port:=<configured> add_transform_xyz_rpy:=0,0,0,0,0,0`
   - The `./` prefix difference and exact ports/IPs are **user-configured**; only the overall pattern must match. The `lidar_worker_process` already handles both relative and absolute launch file path resolution.
