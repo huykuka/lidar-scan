@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { firstValueFrom } from 'rxjs';
 import { NodeConfig, NodesStatusResponse, NodeDefinition } from '../../models/node.model';
+import { LidarConfigValidationRequest, LidarConfigValidationResponse } from '../../models/lidar-profile.model';
 
 @Injectable({
   providedIn: 'root',
@@ -48,5 +49,26 @@ export class NodesApiService {
     return await firstValueFrom(
       this.http.get<NodeDefinition[]>(`${environment.apiUrl}/nodes/definitions`),
     );
+  }
+
+  async validateLidarConfig(
+    request: LidarConfigValidationRequest
+  ): Promise<LidarConfigValidationResponse> {
+    // Mock for development (until backend TASK-B5 is deployed)
+    return { 
+      valid: true, 
+      lidar_type: request.lidar_type, 
+      resolved_launch_file: null, 
+      errors: [], 
+      warnings: [] 
+    };
+    
+    // TODO: Uncomment when backend is ready
+    // return await firstValueFrom(
+    //   this.http.post<LidarConfigValidationResponse>(
+    //     `${environment.apiUrl}/lidar/validate-lidar-config`,
+    //     request
+    //   )
+    // );
   }
 }

@@ -22,6 +22,7 @@ export interface LidarConfig {
   mode: 'real' | 'sim';
   pcd_path?: string;
   pose: LidarPose;
+  lidar_type?: string;
 }
 
 export interface LidarListResponse {

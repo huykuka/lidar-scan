@@ -7,15 +7,18 @@ import {
   Output,
   EventEmitter,
   CUSTOM_ELEMENTS_SCHEMA,
+  OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
 import { NodesApiService } from '../../../../core/services/api/nodes-api.service';
 import { DialogService } from '../../../../core/services';
 import { ToastService } from '../../../../core/services/toast.service';
 import { NodeConfig, Edge } from '../../../../core/models/node.model';
+import { LidarConfigValidationRequest } from '../../../../core/models/lidar-profile.model';
 import { EdgesApiService } from '../../../../core/services/api/edges-api.service';
 
 @Component({
@@ -26,7 +29,7 @@ import { EdgesApiService } from '../../../../core/services/api/edges-api.service
   templateUrl: './dynamic-node-editor.component.html',
   styleUrl: './dynamic-node-editor.component.css',
 })
-export class DynamicNodeEditorComponent {
+export class DynamicNodeEditorComponent implements OnDestroy {
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
   private nodesApi = inject(NodesApiService);
@@ -38,6 +41,8 @@ export class DynamicNodeEditorComponent {
 
   protected editMode = this.nodeStore.editMode;
   protected isSaving = signal(false);
+  private formValues = signal<Record<string, any>>({});
+  private formValuesSub?: Subscription;
 
   protected definition = computed(() => {
     const data = this.nodeStore.selectedNode();
@@ -60,8 +65,16 @@ export class DynamicNodeEditorComponent {
   protected visibleProperties = computed(() => {
     const def = this.definition();
     if (!def) return [];
-    // Filter out hidden properties from UI display
-    return def.properties.filter(prop => !prop.hidden);
+    const vals = this.formValues();
+    return def.properties.filter(prop => {
+      if (prop.hidden) return false;
+      if (prop.depends_on) {
+        return Object.entries(prop.depends_on).every(
+          ([key, allowed]) => (allowed as any[]).includes(vals[key])
+        );
+      }
+      return true;
+    });
   });
 
   protected form!: FormGroup;
@@ -76,7 +89,14 @@ export class DynamicNodeEditorComponent {
     });
   }
 
+  ngOnDestroy() {
+    this.formValuesSub?.unsubscribe();
+  }
+
   private initForm() {
+    // Cleanup existing subscription
+    this.formValuesSub?.unsubscribe();
+    
     const data = this.nodeStore.selectedNode();
     const def = this.definition();
 
@@ -103,6 +123,9 @@ export class DynamicNodeEditorComponent {
     }
 
     this.configForm = this.fb.group(configGroup);
+    this.formValuesSub = this.configForm.valueChanges.subscribe(v => this.formValues.set(v));
+    this.formValues.set(this.configForm.getRawValue()); // seed initial state
+    
     this.form = this.fb.group({
       name: [data.name || def?.display_name || '', [Validators.required]],
     });
@@ -121,6 +144,31 @@ export class DynamicNodeEditorComponent {
       this.toast.danger('No definition found for node type.');
       this.isSaving.set(false);
       return;
+    }
+
+    // Only validate real-mode sensor nodes
+    if (def.type === 'sensor' && configRaw['mode'] === 'real') {
+      const validationReq: LidarConfigValidationRequest = {
+        lidar_type: configRaw['lidar_type'],
+        hostname: configRaw['hostname'],
+        udp_receiver_ip: configRaw['udp_receiver_ip'] || undefined,
+        port: configRaw['port'] || undefined,
+        imu_udp_port: configRaw['imu_udp_port'] || undefined,
+      };
+      try {
+        const result = await this.nodesApi.validateLidarConfig(validationReq);
+        if (!result.valid) {
+          this.toast.danger(result.errors[0] ?? 'Invalid LiDAR configuration.');
+          this.isSaving.set(false);
+          return;
+        }
+        if (result.warnings.length > 0) {
+          this.toast.warning(result.warnings[0]);
+          // Do not abort save on warnings — proceed.
+        }
+      } catch {
+        // If validation endpoint is unavailable, proceed with save (graceful degradation).
+      }
     }
 
     const config: any = { ...configRaw };
