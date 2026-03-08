@@ -134,15 +134,15 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
 
 ### TASK-B4 — Extend `app/modules/lidar/sensor.py`
 
-- [ ] Add `self.lidar_type: str = "multiscan"` and `self.lidar_display_name: str = "SICK multiScan"` as instance attributes in `LidarSensor.__init__` (with their default values).
-- [ ] In `get_status()`, add to the returned `status` dict:
+- [x] Add `self.lidar_type: str = "multiscan"` and `self.lidar_display_name: str = "SICK multiScan"` as instance attributes in `LidarSensor.__init__` (with their default values).
+- [x] In `get_status()`, add to the returned `status` dict:
   ```python
   status["lidar_type"] = self.lidar_type
   status["lidar_display_name"] = self.lidar_display_name
   ```
   These must be added after the `status` dict is constructed and before the `return` statement.
-- [ ] Do **not** change `__init__` signature — attributes are set externally by `build_sensor()` after instantiation (no constructor coupling needed).
-- [ ] Confirm all existing tests for `LidarSensor` still pass.
+- [x] Do **not** change `__init__` signature — attributes are set externally by `build_sensor()` after instantiation (no constructor coupling needed).
+- [x] Confirm all existing tests for `LidarSensor` still pass.
 
 ---
 

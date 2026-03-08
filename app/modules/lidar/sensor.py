@@ -40,6 +40,10 @@ class LidarSensor(ModuleNode):
         self.mode = mode
         self.pcd_path = pcd_path
         
+        # LiDAR model information (set externally by build_sensor after instantiation)
+        self.lidar_type: str = "multiscan"
+        self.lidar_display_name: str = "SICK multiScan"
+        
         self.transformation = transformation if transformation is not None else np.eye(4)
         self.pose_params: Dict[str, float] = {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
         
@@ -221,5 +225,7 @@ class LidarSensor(ModuleNode):
             "last_frame_at": last_frame_at,
             "frame_age_seconds": frame_age,
             "last_error": runtime.get("last_error"),
+            "lidar_type": self.lidar_type,
+            "lidar_display_name": self.lidar_display_name,
         }
         return status
