@@ -23,6 +23,8 @@ async def capture_frame(topic: str):
         return Response(content=data, media_type="application/octet-stream")
     except asyncio.TimeoutError:
         raise HTTPException(status_code=504, detail="Timeout waiting for frame")
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=503, detail="Topic was removed while waiting for frame. Please retry.")
 
 @router.websocket("/ws/{topic}")
 async def websocket_endpoint(websocket: WebSocket, topic: str):

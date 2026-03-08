@@ -103,11 +103,9 @@ Complete test coverage has been implemented and is passing. See `qa-report.md` f
 #### Test Execution Results
 
 ```
-============================= test session starts ==============================
 tests/modules/test_lidar_profiles.py      PASSED [34 tests]
 tests/modules/test_lidar_registry.py      PASSED [30 tests]
 tests/modules/test_lidar_sensor.py        PASSED [17 tests]
-============================== 80 passed in 0.20s ==============================
 ```
 
 #### Coverage Breakdown

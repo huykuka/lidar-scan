@@ -48,6 +48,8 @@ class LifecycleManager:
         This stops the node and cleans up all associated resources including
         WebSocket topics, routing maps, and runtime state.
         
+        For async contexts (FastAPI routes), prefer remove_node_async().
+        
         Args:
             node_id: The ID of the node to remove
         """
@@ -59,6 +61,27 @@ class LifecycleManager:
 
         self._stop_node(node_instance)
         self._unregister_node_websocket_topic(node_id, node_instance)
+        self._cleanup_node_routing(node_id)
+        self._cleanup_node_state(node_id)
+    
+    async def remove_node_async(self, node_id: str) -> None:
+        """
+        Async counterpart of remove_node with proper WebSocket teardown.
+        
+        This stops the node and cleans up all associated resources including
+        WebSocket topics (with proper connection closing), routing maps, and runtime state.
+        
+        Args:
+            node_id: The ID of the node to remove
+        """
+        node_instance = self.manager.nodes.pop(node_id, None)
+        if not node_instance:
+            return
+
+        logger.info(f"Removing node {node_id} dynamically from running orchestrator (async)")
+
+        self._stop_node(node_instance)
+        await self._unregister_node_websocket_topic_async(node_id, node_instance)
         self._cleanup_node_routing(node_id)
         self._cleanup_node_state(node_id)
     
@@ -74,16 +97,60 @@ class LifecycleManager:
     
     def _unregister_node_websocket_topic(self, node_id: str, node_instance: Any):
         """
-        Unregister WebSocket topic for a node.
+        Unregister WebSocket topic for a node (sync fallback - deprecated).
+        
+        NOTE: This sync version cannot properly close WebSocket connections.
+        Use _unregister_node_websocket_topic_async() for proper cleanup.
         
         Args:
             node_id: The node ID
             node_instance: The node instance
         """
-        node_name = getattr(node_instance, "name", node_id)
-        safe_name = slugify_topic_prefix(node_name)
-        topic = f"{safe_name}_{node_id[:8]}"
-        manager.unregister_topic(topic)
+        import asyncio
+        
+        # Use stored topic if available to guarantee key match with registration
+        if hasattr(node_instance, "_ws_topic"):
+            topic = node_instance._ws_topic
+        else:
+            node_name = getattr(node_instance, "name", node_id)
+            safe_name = slugify_topic_prefix(node_name)
+            topic = f"{safe_name}_{node_id[:8]}"
+        
+        logger.warning(f"Sync unregister_topic called for {topic} - WebSocket connections may not be properly closed")
+        
+        # Try to schedule the async version if we're in an async context
+        try:
+            loop = asyncio.get_running_loop()
+            # Schedule the async cleanup but don't wait for it
+            asyncio.create_task(manager.unregister_topic(topic))
+        except RuntimeError:
+            # No running event loop - can only remove from dicts (unsafe)
+            logger.error(f"No event loop available to properly unregister topic {topic} - potential connection leaks")
+            if topic in manager.active_connections:
+                del manager.active_connections[topic]
+            if topic in manager._interceptors:
+                del manager._interceptors[topic]
+    
+    async def _unregister_node_websocket_topic_async(self, node_id: str, node_instance: Any) -> None:
+        """
+        Async unregister WebSocket topic for a node with proper cleanup.
+        
+        Reads node_instance._ws_topic first (if present) to guarantee key consistency;
+        falls back to re-deriving via slugify_topic_prefix if the attribute is absent.
+        
+        Args:
+            node_id: The node ID
+            node_instance: The node instance
+        """
+        # Use stored topic if available to guarantee key match with registration
+        if hasattr(node_instance, "_ws_topic"):
+            topic = node_instance._ws_topic
+        else:
+            node_name = getattr(node_instance, "name", node_id)
+            safe_name = slugify_topic_prefix(node_name)
+            topic = f"{safe_name}_{node_id[:8]}"
+        
+        await manager.unregister_topic(topic)
     
     def _cleanup_node_routing(self, node_id: str):
         """

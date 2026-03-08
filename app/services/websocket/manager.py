@@ -23,12 +23,35 @@ class ConnectionManager:
         if topic not in self.active_connections:
             self.active_connections[topic] = []
 
-    def unregister_topic(self, topic: str):
-        """Removes a topic completely and cleans up any tracking."""
-        if topic in self.active_connections:
-            del self.active_connections[topic]
-        if topic in self._interceptors:
-            del self._interceptors[topic]
+    async def unregister_topic(self, topic: str) -> None:
+        """
+        Fully unregisters a topic:
+        - Closes all active WebSocket connections with a 1001 Going Away code.
+        - Resolves (cancels) all pending interceptor futures with cancellation.
+        - Removes the topic from all tracking dicts.
+        - Method is idempotent when called on non-existent topics.
+        """
+        # 1. Gracefully close all live WebSocket connections
+        connections = self.active_connections.pop(topic, [])
+        if connections:
+            close_coros = []
+            for ws in connections:
+                async def close_ws(websocket=ws):
+                    try:
+                        await websocket.close(code=1001)
+                    except Exception:
+                        # Already closed or errored — ignore
+                        pass
+                close_coros.append(close_ws())
+            
+            # Close all connections in parallel
+            await asyncio.gather(*close_coros, return_exceptions=True)
+
+        # 2. Cancel/resolve all pending interceptors for this topic
+        futures = self._interceptors.pop(topic, [])
+        for future in futures:
+            if not future.done():
+                future.cancel()  # CancelledError propagates to the awaiter
 
     def has_subscribers(self, topic: str) -> bool:
         """Returns True if there are active websocket connections OR active interceptors listening to this topic."""
