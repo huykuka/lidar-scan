@@ -10,11 +10,14 @@ on:
 
 jobs:
   merge:
-    # Trigger if it's a PR comment or review
     if: |
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
-      (github.event_name == 'pull_request_review') ||
-      (github.event_name == 'pull_request_review_comment')
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        github.event.issue.pull_request.url != ''
+      ) ||
+      github.event_name == 'pull_request_review' ||
+      github.event_name == 'pull_request_review_comment'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
