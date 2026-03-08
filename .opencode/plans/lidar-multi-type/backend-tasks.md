@@ -180,7 +180,7 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
 
 ### TASK-B7 — Extend Config Validator in `app/api/v1/config.py`
 
-- [ ] In `validate_configuration()`, after the existing `name`/`type`/`id` duplicate checks, add a sensor-specific block:
+- [x] In `validate_configuration()`, after the existing `name`/`type`/`id` duplicate checks, add a sensor-specific block:
   ```python
   from app.modules.lidar.profiles import get_profile  # import inside function to avoid circular
   for i, node in enumerate(config.nodes):
@@ -199,7 +199,7 @@ TASK-B1 and TASK-B2 are the critical path blockers. TASK-B4, TASK-B5, TASK-B7 ca
                       f"Node '{node_name}': lidar_type '{lidar_type}' is not a recognized SICK model."
                   )
   ```
-- [ ] Confirm this does **not** change the response shape (`valid`, `errors`, `warnings`, `summary` remain identical).
+- [x] Confirm this does **not** change the response shape (`valid`, `errors`, `warnings`, `summary` remain identical).
 
 ---
 

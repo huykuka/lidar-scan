@@ -120,6 +120,24 @@ def validate_configuration(config: ConfigurationImport):
                 errors.append(f"Node #{i}: duplicate ID '{node['id']}'")
             seen_ids.add(node["id"])
     
+    # Sensor-specific validation
+    from app.modules.lidar.profiles import get_profile  # import inside function to avoid circular
+    for i, node in enumerate(config.nodes):
+        if node.get("type") == "sensor":
+            node_name = node.get("name", f"#{i}")
+            lidar_type = node.get("config", {}).get("lidar_type")
+            if lidar_type is None:
+                warnings.append(
+                    f"Node '{node_name}': no lidar_type specified; defaulting to 'multiscan' (backward compat)."
+                )
+            else:
+                try:
+                    get_profile(lidar_type)
+                except KeyError:
+                    errors.append(
+                        f"Node '{node_name}': lidar_type '{lidar_type}' is not a recognized SICK model."
+                    )
+    
     is_valid = len(errors) == 0
     
     return {
