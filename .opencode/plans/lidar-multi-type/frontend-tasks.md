@@ -210,10 +210,10 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
 > Follow the pattern of existing `.spec.ts` files alongside their component/service files.
 
 **`LidarProfilesApiService`** (`lidar-profiles-api.service.spec.ts`):
-- [ ] `loadProfiles()` calls `GET /lidar/profiles` and populates `profiles` signal from the response.
-- [ ] `loadProfiles()` on HTTP error leaves `profiles` as `[]` and does not throw.
-- [ ] `isLoading` signal goes `false → true → false` across a successful call.
-- [ ] Use `HttpClientTestingModule` and `HttpTestingController`.
+- [x] `loadProfiles()` calls `GET /lidar/profiles` and populates `profiles` signal from the response.
+- [x] `loadProfiles()` on HTTP error leaves `profiles` as `[]` and does not throw.
+- [x] `isLoading` signal goes `false → true → false` across a successful call.
+- [x] Use `HttpClientTestingModule` and `HttpTestingController`.
 
 **`DynamicNodeEditorComponent` — `depends_on` filtering**:
 - [ ] Provide a mock `NodeStoreService` returning a sensor `NodeDefinition` matching `api-spec.md` §3 (with `depends_on` populated on `hostname`, `port`, `udp_receiver_ip`, `imu_udp_port`, `pcd_path`).
