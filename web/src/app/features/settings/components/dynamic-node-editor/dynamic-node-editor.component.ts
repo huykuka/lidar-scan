@@ -16,11 +16,10 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
 import { NodesApiService } from '../../../../core/services/api/nodes-api.service';
 import { LidarProfilesApiService } from '../../../../core/services/api/lidar-profiles-api';
-import { LidarImagesService } from '../../../../core/services/lidar-images';
 import { DialogService } from '../../../../core/services';
 import { ToastService } from '../../../../core/services/toast.service';
 import { NodeConfig, Edge } from '../../../../core/models/node.model';
-import { LidarConfigValidationRequest } from '../../../../core/models/lidar-profile.model';
+import { LidarConfigValidationRequest, LidarProfile } from '../../../../core/models/lidar-profile.model';
 import { EdgesApiService } from '../../../../core/services/api/edges-api.service';
 
 @Component({
@@ -37,7 +36,6 @@ export class DynamicNodeEditorComponent implements OnDestroy {
   private nodesApi = inject(NodesApiService);
   private edgesApi = inject(EdgesApiService);
   private lidarProfilesApi = inject(LidarProfilesApiService);
-  private lidarImagesService = inject(LidarImagesService);
   private dialogService = inject(DialogService);
   private toast = inject(ToastService);
 
@@ -84,10 +82,10 @@ export class DynamicNodeEditorComponent implements OnDestroy {
   // Enhanced LiDAR options with images for the lidar_type dropdown
   protected lidarOptionsWithImages = computed(() => {
     const profiles = this.lidarProfilesApi.profiles();
-    return profiles.map(profile => ({
+    return profiles.map((profile: LidarProfile) => ({
       value: profile.model_id,
       label: profile.display_name,
-      imageSrc: this.lidarImagesService.getImagePath(profile.model_id)
+      imageSrc: profile.thumbnail_url
     }));
   });
 

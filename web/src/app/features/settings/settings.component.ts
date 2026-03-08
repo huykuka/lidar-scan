@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { NavigationService } from '../../core/services/navigation.service';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarApiService } from '../../core/services/api/lidar-api.service';
-import { LidarProfilesApiService } from '../../core/services/api/lidar-profiles-api.service';
 import { FusionApiService } from '../../core/services/api/fusion-api.service';
 import { NodesApiService } from '../../core/services/api/nodes-api.service';
 import { StatusWebSocketService } from '../../core/services/status-websocket.service';
@@ -20,6 +19,7 @@ import { NodeStoreService } from '../../core/services/stores/node-store.service'
 import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
 import { DialogService } from '../../core/services';
 import { ToastService } from '../../core/services/toast.service';
+import { LidarProfilesApiService } from '../../core/services/api/lidar-profiles-api';
 
 @Component({
   selector: 'app-settings',
@@ -36,7 +36,7 @@ import { ToastService } from '../../core/services/toast.service';
 })
 export class SettingsComponent implements OnInit, OnDestroy {
   @ViewChild(FlowCanvasComponent) flowCanvas!: FlowCanvasComponent;
-  
+
   private navService = inject(NavigationService);
   private lidarApi = inject(LidarApiService);
   private lidarProfilesApi = inject(LidarProfilesApiService);
@@ -77,7 +77,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   // Form State
   protected editMode = this.nodeStore.editMode;
   protected selectedNode = this.nodeStore.selectedNode;
-  
+
   // Computed signal for unsaved changes
   protected hasUnsavedChanges = signal(false);
 
@@ -325,7 +325,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
       if (this.flowCanvas && this.flowCanvas.hasUnsavedChanges()) {
         await this.flowCanvas.saveAllPositions();
       }
-      
+
       await this.nodesApi.reloadConfig();
       // Refresh LiDAR profiles to get any backend updates
       await this.lidarProfilesApi.loadProfiles();

@@ -10,6 +10,7 @@ import {
   CalibrationNodeStatus,
   CalibrationResult,
 } from '../../../../core/models/calibration.model';
+import { LidarProfilesApiService } from '../../../../core/services/api/lidar-profiles-api';
 
 @Component({
   selector: 'app-node-card',
@@ -22,6 +23,7 @@ export class NodeCardComponent implements OnDestroy {
   private recordingStore = inject(RecordingStoreService);
   private recordingApi = inject(RecordingApiService);
   private calibrationApi = inject(CalibrationApiService);
+  private lidarProfilesApi = inject(LidarProfilesApiService);
 
   // Inputs
   node = input.required<NodeConfig>();
@@ -44,8 +46,42 @@ export class NodeCardComponent implements OnDestroy {
   isCalibration = computed(() => {
     const node = this.node();
     const result = node.type === 'calibration';
-    console.log('[NodeCard] isCalibration check:', { nodeId: node.id, type: node.type, category: node.category, result });
+    console.log('[NodeCard] isCalibration check:', {
+      nodeId: node.id,
+      type: node.type,
+      category: node.category,
+      result,
+    });
     return result;
+  });
+
+  // LiDAR Profile for backend-controlled icons/thumbnails
+  lidarProfile = computed(() => {
+    if (!this.isSensor()) return null;
+    const lidarType = this.status()?.lidar_type || this.node().config?.['lidar_type'];
+    if (!lidarType) return null;
+    return this.lidarProfilesApi.getProfileByModelId(lidarType);
+  });
+
+  // Dynamic icon from backend or fallback to definition
+  nodeIcon = computed(() => {
+    const profile = this.lidarProfile();
+    if (profile?.icon_name) {
+      return profile.icon_name;
+    }
+    return this.definition()?.icon || 'settings';
+  });
+
+  // Dynamic icon color from backend
+  nodeIconColor = computed(() => {
+    const profile = this.lidarProfile();
+    return profile?.icon_color || null;
+  });
+
+  // Thumbnail URL from backend
+  nodeThumbnail = computed(() => {
+    const profile = this.lidarProfile();
+    return profile?.thumbnail_url || null;
   });
 
   // Calibration state
@@ -111,7 +147,7 @@ export class NodeCardComponent implements OnDestroy {
       if (recording) {
         // Stop timer immediately when user clicks stop
         this.stopRecordingTimer();
-        
+
         try {
           await this.recordingApi.stopRecording(recording.recording_id).toPromise();
           await this.recordingStore.loadRecordings();
@@ -217,9 +253,7 @@ export class NodeCardComponent implements OnDestroy {
     }
   }
 
-  protected getQualityBadgeVariant(
-    quality: string,
-  ): 'success' | 'warning' | 'danger' | 'neutral' {
+  protected getQualityBadgeVariant(quality: string): 'success' | 'warning' | 'danger' | 'neutral' {
     switch (quality) {
       case 'excellent':
         return 'success';
@@ -242,6 +276,15 @@ export class NodeCardComponent implements OnDestroy {
         return 'error';
       default:
         return 'help';
+    }
+  }
+
+  protected handleImageError(event: any): void {
+    const img = event.target as HTMLImageElement;
+    const iconElement = img.nextElementSibling as HTMLElement;
+    if (img && iconElement) {
+      img.style.display = 'none';
+      iconElement.style.display = 'inline';
     }
   }
 

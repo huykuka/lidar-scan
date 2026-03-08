@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { LidarProfile, LidarProfilesResponse } from '../../models/lidar-profile.model';
 
-// Mock data matching api-spec.md §1 response
+// Mock data matching api-spec.md §1 response with backend-controlled thumbnails
 const MOCK_LIDAR_PROFILES: LidarProfile[] = [
   {
     model_id: 'multiscan',
@@ -15,7 +15,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 2115,
     has_udp_receiver: true,
     has_imu_udp_port: true,
-    scan_layers: 16
+    scan_layers: 16,
+    thumbnail_url: '/api/v1/assets/lidar/multiscan.png',
+    icon_name: 'device_hub',
+    icon_color: '#0066CC'
   },
   {
     model_id: 'tim_5xx',
@@ -26,7 +29,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 2112,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 1
+    scan_layers: 1,
+    thumbnail_url: '/api/v1/assets/lidar/tim5xx.png',
+    icon_name: 'sensors',
+    icon_color: '#FF6B35'
   },
   {
     model_id: 'tim_7xx',
@@ -37,7 +43,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 2112,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 1
+    scan_layers: 1,
+    thumbnail_url: '/api/v1/assets/lidar/tim7xx.png',
+    icon_name: 'sensors',
+    icon_color: '#FF6B35'
   },
   {
     model_id: 'tim_4xx',
@@ -48,7 +57,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 2112,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 1
+    scan_layers: 1,
+    thumbnail_url: '/api/v1/assets/lidar/tim4xx.png',
+    icon_name: 'sensors',
+    icon_color: '#FF6B35'
   },
   {
     model_id: 'tim_2xx',
@@ -59,7 +71,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 2112,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 1
+    scan_layers: 1,
+    thumbnail_url: '/api/v1/assets/lidar/tim2xx.png',
+    icon_name: 'sensors',
+    icon_color: '#FF6B35'
   },
   {
     model_id: 'lms_1xx',
@@ -70,7 +85,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 0,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 1
+    scan_layers: 1,
+    thumbnail_url: '/api/v1/assets/lidar/lms1xx.png',
+    icon_name: 'radar',
+    icon_color: '#00AA44'
   },
   {
     model_id: 'lms_5xx',
@@ -81,7 +99,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 0,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 1
+    scan_layers: 1,
+    thumbnail_url: '/api/v1/assets/lidar/lms5xx.png',
+    icon_name: 'radar',
+    icon_color: '#00AA44'
   },
   {
     model_id: 'lms_4xxx',
@@ -92,7 +113,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 0,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 1
+    scan_layers: 1,
+    thumbnail_url: '/api/v1/assets/lidar/lms4xxx.png',
+    icon_name: 'radar',
+    icon_color: '#00AA44'
   },
   {
     model_id: 'mrs_1xxx',
@@ -103,7 +127,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 0,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 4
+    scan_layers: 4,
+    thumbnail_url: '/api/v1/assets/lidar/mrs1xxx.png',
+    icon_name: 'settings_input_antenna',
+    icon_color: '#AA00FF'
   },
   {
     model_id: 'mrs_6xxx',
@@ -114,7 +141,10 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     default_port: 0,
     has_udp_receiver: false,
     has_imu_udp_port: false,
-    scan_layers: 24
+    scan_layers: 24,
+    thumbnail_url: '/api/v1/assets/lidar/mrs6xxx.png',
+    icon_name: 'settings_input_antenna',
+    icon_color: '#AA00FF'
   }
 ];
 
@@ -130,6 +160,13 @@ export class LidarProfilesApiService {
   constructor() {
     // Load profiles from backend API on initialization
     this.loadProfiles();
+  }
+
+  /**
+   * Get specific LiDAR profile by model ID
+   */
+  getProfileByModelId(modelId: string): LidarProfile | null {
+    return this.profiles().find(profile => profile.model_id === modelId) || null;
   }
 
   async loadProfiles(): Promise<void> {
