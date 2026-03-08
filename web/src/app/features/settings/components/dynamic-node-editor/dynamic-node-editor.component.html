@@ -1,4 +1,4 @@
-<div class="flex flex-col w-full min-w-[420px]">
+<div class="flex flex-col w-full min-w-[420px] mb-4">
   <!-- Header with Actions -->
   <div
     class="flex items-center justify-between gap-3 mb-4 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
@@ -18,7 +18,7 @@
         </p>
       </div>
     </div>
-    
+
     <!-- Action Buttons -->
     <div class="flex gap-2 shrink-0">
       <syn-button variant="outline" size="small" (click)="onCancel()">
@@ -104,13 +104,32 @@
           <!-- Select -->
           @if (prop.type === 'select') {
             <syn-select
+              size="small"
               [label]="prop.label"
               [value]="configForm.get(prop.name)?.value"
               [helpText]="prop.help_text || ''"
               (syn-change)="onSelectChange(prop.name, $event)"
             >
-              @for (opt of prop.options; track opt.value) {
-                <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
+              <!-- Enhanced LiDAR type dropdown with images -->
+              @if (prop.name === 'lidar_type') {
+                @for (opt of lidarOptionsWithImages(); track opt.value) {
+                  <syn-option [value]="opt.value">
+                    <img 
+                      slot="prefix"
+                      [src]="opt.imageSrc" 
+                      [alt]="opt.label + ' LiDAR device'"
+                      class="w-6 h-6 rounded-md border border-syn-color-neutral-200 bg-white flex-shrink-0"
+                      style="object-fit: contain; padding: 2px;"
+                    />
+                    {{ opt.label }}
+                  </syn-option>
+                }
+              }
+              <!-- Standard dropdown options for other selects -->
+              @else {
+                @for (opt of prop.options; track opt.value) {
+                  <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
+                }
               }
             </syn-select>
           }
@@ -121,7 +140,9 @@
               class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border border-syn-color-neutral-200"
             >
               <div class="flex flex-col">
-                <label class="text-[11px] font-bold text-syn-color-neutral-900">{{ prop.label }}</label>
+                <label class="text-[11px] font-bold text-syn-color-neutral-900">{{
+                  prop.label
+                }}</label>
                 @if (prop.help_text) {
                   <span class="text-[10px] text-syn-color-neutral-500 mt-0.5">{{
                     prop.help_text

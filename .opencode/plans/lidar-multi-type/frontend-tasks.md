@@ -247,3 +247,51 @@ TASK-F3 `depends_on` filtering logic operates on schema returned by `GET /nodes/
 - [ ] Attempt to save a `real` mode multiScan node without `udp_receiver_ip`. Confirm a toast error is shown and save is aborted (requires backend to be live).
 - [ ] Open an existing workspace with a legacy sensor node (no `lidar_type` in stored config). Confirm it opens without error and defaults to `SICK multiScan`.
 - [ ] Confirm Three.js point cloud visualization renders without regressions on a `sim` mode node.
+
+---
+
+### TASK-F6 — LiDAR Type Dropdown Enhancement with Images
+
+> **File**: `web/src/app/features/settings/components/dynamic-node-editor/dynamic-node-editor.component.html` and `dynamic-node-editor.component.ts`
+
+#### Part A — Create LiDAR Images Service
+
+- [x] Generate `LidarImagesService` using Angular CLI.
+- [x] Implement image path mapping for all LiDAR device types.
+- [x] Add methods for getting, updating, and managing image paths.
+- [x] Provide fallback to placeholder image for unknown device types.
+
+#### Part B — Create Generic Placeholder Image
+
+- [x] Create `/web/public/lidar-placeholder.svg` as a generic LiDAR device placeholder.
+- [x] Design SVG with consistent styling (32x32px, proper colors, LiDAR sensor representation).
+- [x] Ensure SVG is accessible with proper contrast and simple iconography.
+
+#### Part C — Enhance Dynamic Node Editor
+
+- [x] Inject `LidarImagesService` in `DynamicNodeEditorComponent`.
+- [x] Create `lidarOptionsWithImages` computed signal that combines profiles with image paths.
+- [x] Initialize `LidarProfilesApiService.loadProfiles()` in constructor.
+- [x] Modify template to conditionally render enhanced dropdown for `lidar_type` property.
+- [x] Use `syn-option` with `slot="prefix"` to display images alongside labels.
+- [x] Apply consistent image styling: 24x24px (w-6 h-6), rounded, bordered, object-fit contain.
+- [x] Maintain full accessibility with proper `alt` attributes on images.
+- [x] Preserve existing dropdown functionality for non-LiDAR select properties.
+
+#### Part D — Integration & Future-Ready Structure
+
+- [x] Structure code to easily swap in real device images later.
+- [x] Implement clean separation between placeholder and real image logic.
+- [x] Provide service methods for bulk image updates when real images are available.
+- [x] Ensure images load gracefully with fallback to placeholder if real images fail.
+
+#### Manual Verification
+
+- [x] Open node editor for a sensor node and confirm LiDAR Model dropdown shows images.
+- [x] Verify each LiDAR device option displays with consistent placeholder image.
+- [x] Check that image styling is consistent (size, alignment, gap from text).
+- [x] Confirm dropdown still functions normally (selection, form validation).
+- [x] Test keyboard navigation maintains accessibility.
+- [x] Verify other dropdowns (Mode, etc.) remain unchanged and functional.
+
+---
