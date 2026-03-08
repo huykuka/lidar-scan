@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { NavigationService } from '../../core/services/navigation.service';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LidarApiService } from '../../core/services/api/lidar-api.service';
+import { LidarProfilesApiService } from '../../core/services/api/lidar-profiles-api.service';
 import { FusionApiService } from '../../core/services/api/fusion-api.service';
 import { NodesApiService } from '../../core/services/api/nodes-api.service';
 import { StatusWebSocketService } from '../../core/services/status-websocket.service';
@@ -38,6 +39,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   
   private navService = inject(NavigationService);
   private lidarApi = inject(LidarApiService);
+  private lidarProfilesApi = inject(LidarProfilesApiService);
   private fusionApi = inject(FusionApiService);
   private nodesApi = inject(NodesApiService);
   private statusWs = inject(StatusWebSocketService);
@@ -325,8 +327,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
       }
       
       await this.nodesApi.reloadConfig();
+      // Refresh LiDAR profiles to get any backend updates
+      await this.lidarProfilesApi.loadProfiles();
       await this.loadConfig();
-      this.toast.success('Configuration saved and reloaded.');
+      this.toast.success('Configuration and LiDAR profiles reloaded.');
     } catch (error) {
       console.error('Failed to reload config:', error);
       this.toast.danger('Failed to reload backend configuration.');

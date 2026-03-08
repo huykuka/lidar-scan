@@ -54,21 +54,24 @@ export class NodesApiService {
   async validateLidarConfig(
     request: LidarConfigValidationRequest
   ): Promise<LidarConfigValidationResponse> {
-    // Mock for development (until backend TASK-B5 is deployed)
-    return { 
-      valid: true, 
-      lidar_type: request.lidar_type, 
-      resolved_launch_file: null, 
-      errors: [], 
-      warnings: [] 
-    };
-    
-    // TODO: Uncomment when backend is ready
-    // return await firstValueFrom(
-    //   this.http.post<LidarConfigValidationResponse>(
-    //     `${environment.apiUrl}/lidar/validate-lidar-config`,
-    //     request
-    //   )
-    // );
+    try {
+      // Real API call to backend validation endpoint
+      return await firstValueFrom(
+        this.http.post<LidarConfigValidationResponse>(
+          `${environment.apiUrl}/lidar/validate-lidar-config`,
+          request
+        )
+      );
+    } catch (error) {
+      // Fallback to permissive mock if backend validation unavailable
+      console.warn('LiDAR validation endpoint unavailable, using fallback validation');
+      return { 
+        valid: true, 
+        lidar_type: request.lidar_type, 
+        resolved_launch_file: null, 
+        errors: [], 
+        warnings: ['Validation endpoint unavailable - config not verified'] 
+      };
+    }
   }
 }

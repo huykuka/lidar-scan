@@ -128,25 +128,26 @@ export class LidarProfilesApiService {
   isLoading = signal<boolean>(false);
 
   constructor() {
-    // Initialize with mock data for development
-    this.profiles.set(MOCK_LIDAR_PROFILES);
+    // Load profiles from backend API on initialization
+    this.loadProfiles();
   }
 
   async loadProfiles(): Promise<void> {
     this.isLoading.set(true);
     try {
-      // TODO: Replace with real API call once backend TASK-B5/B6 are deployed
-      // const data = await firstValueFrom(
-      //   this.http.get<LidarProfilesResponse>(`${environment.apiUrl}/lidar/profiles`)
-      // );
-      // this.profiles.set(data.profiles);
+      // Real API call to get updated profiles from backend
+      const data = await firstValueFrom(
+        this.http.get<LidarProfilesResponse>(`${environment.apiUrl}/lidar/profiles`)
+      );
+      this.profiles.set(data.profiles);
       
-      // Mock implementation for development
-      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API delay
-      this.profiles.set(MOCK_LIDAR_PROFILES);
+      // Remove mock implementation - now using real backend data
+      // await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API delay
+      // this.profiles.set(MOCK_LIDAR_PROFILES);
     } catch (error) {
       console.error('Failed to load LiDAR profiles:', error);
-      this.profiles.set([]);
+      // Fallback to mock data if backend is unavailable
+      this.profiles.set(MOCK_LIDAR_PROFILES);
     } finally {
       this.isLoading.set(false);
     }

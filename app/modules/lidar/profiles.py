@@ -399,7 +399,6 @@ def build_launch_args(
         port: Port number (ignored for models without port_arg)
         udp_receiver_ip: UDP receiver IP (for multiScan and picoScan series)
         imu_udp_port: IMU UDP port (only for multiScan)
-        add_transform_xyz_rpy: Transform string in format "x,y,z,roll,pitch,yaw"
     
     Returns:
         Complete launch arguments string
@@ -410,7 +409,7 @@ def build_launch_args(
     profile = get_profile(model_id)
     
     # Base arguments
-    args = f"{profile.launch_file} hostname:={hostname} add_transform_xyz_rpy:={add_transform_xyz_rpy}"
+    args = f"{profile.launch_file} hostname:={hostname}"
     
     # Add port argument if the model supports it and port is provided
     if profile.port_arg and port is not None:
