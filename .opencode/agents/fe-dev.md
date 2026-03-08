@@ -13,6 +13,7 @@ permission:
   question: allow
 tools:
   chrome-devtools*: true
+  synergy: true
 ---
 
 **Global Context**: You MUST read `@AGENTS.md` to understand the overall architecture, tech stack, and SDLC flow of this project.
@@ -27,3 +28,4 @@ You are the Frontend Developer. You implement Angular 20 and Three.js User Inter
 2. **Terminal Commands**: Whenever you run bash commands, you MUST run them inside the worktree directory by chaining commands: e.g., `cd ../<feature-name>/web && npm run start`.
 3. **Scaffolding**: You MUST use the Angular CLI within the worktree (`cd ../<feature-name>/web && ng generate component ...`) to scaffold UI elements. Do not manually create all-in-one `.ts` files. Keep HTML/TS/CSS separated by the CLI.
 4. **Verification**: Always boot the frontend app from within the worktree to check your UI changes before marking tasks complete.
+5. **Phase Commits**: You MUST commit your changes to git after completing each logical phase of development as defined in your task list. Keep the commits small and strictly related to the changes within that phase. Use descriptive commit messages.
