@@ -25,6 +25,10 @@ class SickLidarProfileResponse(BaseModel):
     has_udp_receiver: bool
     has_imu_udp_port: bool
     scan_layers: int
+    # Backend-controlled UI elements
+    thumbnail_url: Optional[str] = None     # URL to device thumbnail image
+    icon_name: Optional[str] = None         # Synergy UI icon name
+    icon_color: Optional[str] = None        # Hex color for icon (e.g., "#FF6B35")
 
 
 class ProfilesListResponse(BaseModel):
@@ -72,7 +76,10 @@ async def get_lidar_profiles():
             default_port=profile.default_port,
             has_udp_receiver=profile.has_udp_receiver,
             has_imu_udp_port=profile.has_imu_udp_port,
-            scan_layers=profile.scan_layers
+            scan_layers=profile.scan_layers,
+            thumbnail_url=profile.thumbnail_url,
+            icon_name=profile.icon_name,
+            icon_color=profile.icon_color
         )
         for profile in profiles
     ]

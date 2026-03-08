@@ -8,6 +8,7 @@ from .recordings import router as recordings_router
 from .logs import router as logs_router
 from .calibration import router as calibration_router
 from .lidar import router as lidar_router
+from .assets import router as assets_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(system_router)
@@ -18,4 +19,5 @@ router.include_router(recordings_router)
 router.include_router(logs_router)
 router.include_router(calibration_router)
 router.include_router(lidar_router)
+router.include_router(assets_router)
 router.include_router(ws_router)

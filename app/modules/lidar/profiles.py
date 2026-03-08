@@ -20,6 +20,10 @@ class SickLidarProfile:
     has_udp_receiver: bool  # True for models requiring udp_receiver_ip
     has_imu_udp_port: bool  # True for models supporting IMU data
     scan_layers: int  # informational: 1 = 2D, >1 = multi-layer
+    # Backend-controlled UI elements
+    thumbnail_url: Optional[str] = None  # URL to device thumbnail image
+    icon_name: Optional[str] = None  # Synergy UI icon name  
+    icon_color: Optional[str] = None  # Hex color for icon (e.g., "#FF6B35")
 
 
 # Registry of all supported SICK LiDAR models
@@ -35,7 +39,10 @@ _PROFILES = {
         default_port=2115,
         has_udp_receiver=True,
         has_imu_udp_port=True,
-        scan_layers=16
+        scan_layers=16,
+        thumbnail_url="/api/v1/assets/lidar/multiscan.png",
+        icon_name="device_hub",
+        icon_color="#0066CC"
     ),
     
     # --- TiM Series (2D Time-of-Flight) ---
@@ -48,7 +55,10 @@ _PROFILES = {
         default_port=2112,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/tim240.png",
+        icon_name="sensors",
+        icon_color="#FF6B35"
     ),
     "tim_5xx": SickLidarProfile(
         model_id="tim_5xx",
@@ -59,7 +69,10 @@ _PROFILES = {
         default_port=2112,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/tim5xx.png",
+        icon_name="sensors",
+        icon_color="#FF6B35"
     ),
     "tim_7xx": SickLidarProfile(
         model_id="tim_7xx",
@@ -70,7 +83,10 @@ _PROFILES = {
         default_port=2112,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/tim7xx.png",
+        icon_name="sensors",
+        icon_color="#FF6B35"
     ),
     "tim_7xxs": SickLidarProfile(
         model_id="tim_7xxs",
@@ -81,7 +97,10 @@ _PROFILES = {
         default_port=2112,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/tim7xxs.png",
+        icon_name="verified_user",
+        icon_color="#FF4444"
     ),
     
     # --- LMS Series (2D Laser Measurement) ---
@@ -94,7 +113,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lms1xx.png",
+        icon_name="track_changes",
+        icon_color="#00AA44"
     ),
     "lms_1xxx": SickLidarProfile(
         model_id="lms_1xxx",
@@ -105,7 +127,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lms1xxx.png",
+        icon_name="track_changes",
+        icon_color="#00AA44"
     ),
     "lms_1xxx_v2": SickLidarProfile(
         model_id="lms_1xxx_v2",
@@ -116,7 +141,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lms1xxx_v2.png",
+        icon_name="track_changes",
+        icon_color="#00AA44"
     ),
     "lms_5xx": SickLidarProfile(
         model_id="lms_5xx",
@@ -127,7 +155,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lms5xx.png",
+        icon_name="track_changes",
+        icon_color="#00AA44"
     ),
     "lms_4xxx": SickLidarProfile(
         model_id="lms_4xxx",
@@ -138,7 +169,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lms4xxx.png",
+        icon_name="track_changes",
+        icon_color="#00AA44"
     ),
     
     # --- MRS Series (3D Multi-Layer) ---
@@ -151,7 +185,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=4
+        scan_layers=4,
+        thumbnail_url="/api/v1/assets/lidar/mrs1xxx.png",
+        icon_name="3d_rotation",
+        icon_color="#9C27B0"
     ),
     "mrs_6xxx": SickLidarProfile(
         model_id="mrs_6xxx",
@@ -162,7 +199,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=24
+        scan_layers=24,
+        thumbnail_url="/api/v1/assets/lidar/mrs6xxx.png",
+        icon_name="360",
+        icon_color="#8A2BE2"
     ),
     
     # --- LRS Series (3D Radar) ---
@@ -175,7 +215,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lrs4xxx.png",
+        icon_name="radar",
+        icon_color="#FF9800"
     ),
     "lrs_36x0": SickLidarProfile(
         model_id="lrs_36x0",
@@ -186,7 +229,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lrs36x0.png",
+        icon_name="radar",
+        icon_color="#FF9800"
     ),
     "lrs_36x0_upside_down": SickLidarProfile(
         model_id="lrs_36x0_upside_down",
@@ -197,7 +243,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lrs36x0.png",
+        icon_name="flip",
+        icon_color="#FF9800"
     ),
     "lrs_36x1": SickLidarProfile(
         model_id="lrs_36x1",
@@ -208,7 +257,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lrs36x1.png",
+        icon_name="radar",
+        icon_color="#FF9800"
     ),
     "lrs_36x1_upside_down": SickLidarProfile(
         model_id="lrs_36x1_upside_down",
@@ -219,7 +271,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/lrs36x1.png",
+        icon_name="flip",
+        icon_color="#FF9800"
     ),
     
     # --- LD-MRS Series (Legacy Multi-Layer) ---
@@ -232,7 +287,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=4
+        scan_layers=4,
+        thumbnail_url="/api/v1/assets/lidar/ldmrs.png",
+        icon_name="memory",
+        icon_color="#795548"
     ),
     
     # --- OEM Series ---
@@ -245,7 +303,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/oem15xx.png",
+        icon_name="precision_manufacturing",
+        icon_color="#607D8B"
     ),
     
     # --- NAV Series (Navigation) ---
@@ -258,7 +319,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/nav2xx.png",
+        icon_name="navigation",
+        icon_color="#2196F3"
     ),
     "nav_31x": SickLidarProfile(
         model_id="nav_31x",
@@ -269,7 +333,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/nav31x.png",
+        icon_name="navigation",
+        icon_color="#2196F3"
     ),
     "nav_350": SickLidarProfile(
         model_id="nav_350",
@@ -280,7 +347,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/nav350.png",
+        icon_name="navigation",
+        icon_color="#2196F3"
     ),
     
     # --- RMS Series (Radar Multi-Sensor) ---
@@ -293,7 +363,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=False,
         has_imu_udp_port=False,
-        scan_layers=1
+        scan_layers=1,
+        thumbnail_url="/api/v1/assets/lidar/rms.png",
+        icon_name="settings_input_antenna",
+        icon_color="#E91E63"
     ),
     
     # --- picoScan Series (Compact 3D) ---
@@ -306,7 +379,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=True,  # Requires UDP receiver like multiScan
         has_imu_udp_port=False,
-        scan_layers=3
+        scan_layers=3,
+        thumbnail_url="/api/v1/assets/lidar/picoscan120.png",
+        icon_name="settings_overscan",
+        icon_color="#4CAF50"
     ),
     "picoscan_150": SickLidarProfile(
         model_id="picoscan_150",
@@ -317,7 +393,10 @@ _PROFILES = {
         default_port=0,
         has_udp_receiver=True,  # Requires UDP receiver like multiScan
         has_imu_udp_port=False,
-        scan_layers=3
+        scan_layers=3,
+        thumbnail_url="/api/v1/assets/lidar/picoscan150.png",
+        icon_name="settings_overscan",
+        icon_color="#4CAF50"
     ),
 }
 

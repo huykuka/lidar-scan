@@ -4,8 +4,13 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { LidarProfile, LidarProfilesResponse } from '../../models/lidar-profile.model';
 
+// Helper function to generate backend asset URLs
+const getBackendAssetUrl = (assetPath: string): string => {
+  return `${environment.apiUrl}/assets/lidar/${assetPath}`;
+};
+
 // Mock data matching api-spec.md §1 response with backend-controlled thumbnails
-const MOCK_LIDAR_PROFILES: LidarProfile[] = [
+const getMockLidarProfiles = (): LidarProfile[] => [
   {
     model_id: 'multiscan',
     display_name: 'SICK multiScan',
@@ -16,7 +21,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: true,
     has_imu_udp_port: true,
     scan_layers: 16,
-    thumbnail_url: '/api/v1/assets/lidar/multiscan.png',
+    thumbnail_url: getBackendAssetUrl('multiscan.png'),
     icon_name: 'device_hub',
     icon_color: '#0066CC'
   },
@@ -30,7 +35,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 1,
-    thumbnail_url: '/api/v1/assets/lidar/tim5xx.png',
+    thumbnail_url: getBackendAssetUrl('tim5xx.png'),
     icon_name: 'sensors',
     icon_color: '#FF6B35'
   },
@@ -44,7 +49,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 1,
-    thumbnail_url: '/api/v1/assets/lidar/tim7xx.png',
+    thumbnail_url: getBackendAssetUrl('tim7xx.png'),
     icon_name: 'sensors',
     icon_color: '#FF6B35'
   },
@@ -58,7 +63,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 1,
-    thumbnail_url: '/api/v1/assets/lidar/tim4xx.png',
+    thumbnail_url: getBackendAssetUrl('tim4xx.png'),
     icon_name: 'sensors',
     icon_color: '#FF6B35'
   },
@@ -72,7 +77,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 1,
-    thumbnail_url: '/api/v1/assets/lidar/tim2xx.png',
+    thumbnail_url: getBackendAssetUrl('tim2xx.png'),
     icon_name: 'sensors',
     icon_color: '#FF6B35'
   },
@@ -86,7 +91,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 1,
-    thumbnail_url: '/api/v1/assets/lidar/lms1xx.png',
+    thumbnail_url: getBackendAssetUrl('lms1xx.png'),
     icon_name: 'radar',
     icon_color: '#00AA44'
   },
@@ -100,7 +105,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 1,
-    thumbnail_url: '/api/v1/assets/lidar/lms5xx.png',
+    thumbnail_url: getBackendAssetUrl('lms5xx.png'),
     icon_name: 'radar',
     icon_color: '#00AA44'
   },
@@ -114,7 +119,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 1,
-    thumbnail_url: '/api/v1/assets/lidar/lms4xxx.png',
+    thumbnail_url: getBackendAssetUrl('lms4xxx.png'),
     icon_name: 'radar',
     icon_color: '#00AA44'
   },
@@ -128,7 +133,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 4,
-    thumbnail_url: '/api/v1/assets/lidar/mrs1xxx.png',
+    thumbnail_url: getBackendAssetUrl('mrs1xxx.png'),
     icon_name: 'settings_input_antenna',
     icon_color: '#AA00FF'
   },
@@ -142,7 +147,7 @@ const MOCK_LIDAR_PROFILES: LidarProfile[] = [
     has_udp_receiver: false,
     has_imu_udp_port: false,
     scan_layers: 24,
-    thumbnail_url: '/api/v1/assets/lidar/mrs6xxx.png',
+    thumbnail_url: getBackendAssetUrl('mrs6xxx.png'),
     icon_name: 'settings_input_antenna',
     icon_color: '#AA00FF'
   }
@@ -184,7 +189,7 @@ export class LidarProfilesApiService {
     } catch (error) {
       console.error('Failed to load LiDAR profiles:', error);
       // Fallback to mock data if backend is unavailable
-      this.profiles.set(MOCK_LIDAR_PROFILES);
+      this.profiles.set(getMockLidarProfiles());
     } finally {
       this.isLoading.set(false);
     }
