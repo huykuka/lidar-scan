@@ -1,0 +1,38 @@
+name: opencode-merge
+
+on:
+  pull_request_review_comment:
+    types: [created]
+  issue_comment:
+    types: [created]
+
+jobs:
+  merge:
+    # Trigger if it's a PR comment and looks like an approval
+    if: |
+      github.event.issue.pull_request || github.event.pull_request
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run OpenCode Auto-Merge
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          model: openai/gpt-4o
+          prompt: |
+            Analyze the following comment: "${{ github.event.comment.body }}"
+            If the comment semantically means "it looks good", "approved", or "LGTM", then:
+            1. Merge the Pull Request.
+            2. Comment on the PR that it has been merged.
+            If the comment is NOT an approval, simply stop execution without taking any action.
