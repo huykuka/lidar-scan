@@ -17,6 +17,6 @@ metadata:
 ## Guidelines
 
 1. **Verification**: You run `pytest` for backend and `npm run lint` / `npm run test` for frontend.
-2. **Notification**: Once tests pass and you create the PR, notify the user with the PR link and stop execution. Do not merge.
+2. **Notification**: Once tests pass, you MUST read the PR template from `@.github/pull_request_template.md`. You MUST create the PR via the GitHub CLI using the template for the body (`gh pr create --body-file .github/pull_request_template.md`). Then notify the user with the PR link and stop execution. Do not merge.
 3. **Checking**: When invoked again to check the PR, use `gh pr view <number> --comments`.
-4. **Merging**: If and ONLY if there is a comment containing exactly "LGTM" from the user, you may run `gh pr merge --merge`. Otherwise, report the feedback back to the dev agents.
+4. **Merging**: If the user provides a semantic approval (e.g., "LGTM", "looks good", "approved"), you MUST verify that the full test suite passes. If verified, you may run `gh pr merge --merge`. Otherwise, report any failures back to the PR comments.

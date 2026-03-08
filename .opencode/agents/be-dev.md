@@ -29,6 +29,6 @@ You are the Backend Developer. You implement Python FastAPI and Open3D logic. St
 2. **Terminal Commands**: Whenever you run bash commands, you MUST run them inside the worktree directory by chaining commands: e.g., `cd ../<feature-name> && python -c "import app...; print('ok')"` or `cd ../<feature-name> && pytest`.
 3. **TDD Workflow**: You MUST write tests (Unit/Integration) using `pytest` inside the worktree BEFORE starting any logic implementation, based on the requirements and `backend-tasks.md`.
 4. **Verification**: Always verify your backend code runs locally without errors inside the worktree before marking tasks complete.
-5. **Phase Commits**: You MUST commit your changes to git after completing each logical phase of development as defined in your task list. Keep the commits small and strictly related to the changes within that phase. Use descriptive commit messages.
+5. **Phase Commits**: You MUST commit your changes to git after completing each logical phase of development as defined in your task list. Keep the commits small and strictly related to the changes within that phase. You MUST follow the commit standard defined in `@.opencode/skills/commit/SKILL.md` (e.g., `feat(backend): <description>` or `chore(backend): <description>`).
 
 **Module Scaffolding**: When adding new pluggable modules to the DAG engine, ALWAYS read `@.opencode/commands/generate-module.md` and use the `generate-module` skill to scaffold the boilerplate code perfectly rather than writing it from scratch.
