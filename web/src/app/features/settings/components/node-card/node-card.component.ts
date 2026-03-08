@@ -46,12 +46,6 @@ export class NodeCardComponent implements OnDestroy {
   isCalibration = computed(() => {
     const node = this.node();
     const result = node.type === 'calibration';
-    console.log('[NodeCard] isCalibration check:', {
-      nodeId: node.id,
-      type: node.type,
-      category: node.category,
-      result,
-    });
     return result;
   });
 

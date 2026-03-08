@@ -11,10 +11,10 @@ To enable the example plugins (Transform, Filter, Recording), add them to your a
 ```typescript
 import { APP_INITIALIZER } from '@angular/core';
 import { NodePluginRegistry } from './core/services/node-plugin-registry.service';
-import { 
-  transformNodePlugin, 
-  filterNodePlugin, 
-  recordingNodePlugin 
+import {
+  transformNodePlugin,
+  filterNodePlugin,
+  recordingNodePlugin,
 } from './plugins/example-plugins';
 
 export const appConfig: ApplicationConfig = {
@@ -81,9 +81,7 @@ export const myPlugin: NodePlugin = {
     // Your custom properties
   }),
   renderBody: (data) => ({
-    fields: [
-      { label: 'Property', value: data.myProperty },
-    ],
+    fields: [{ label: 'Property', value: data.myProperty }],
   }),
 };
 ```
@@ -101,15 +99,15 @@ class MyCustomNode:
     def __init__(self, config):
         self.config = config
         self.enabled = config.get('enabled', False)
-    
+
     def start(self):
         # Start processing
         pass
-    
+
     def process(self, data):
         # Process data
         return modified_data
-    
+
     def stop(self):
         # Cleanup
         pass

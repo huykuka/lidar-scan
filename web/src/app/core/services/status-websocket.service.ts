@@ -10,7 +10,7 @@ export class StatusWebSocketService {
   private reconnectTimer: any = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
-  private reconnectDelay = 2000; // 2 seconds
+  private reconnectDelay = 1000; // 2 seconds
 
   // Signal to expose status updates
   public status = signal<NodesStatusResponse | null>(null);
@@ -28,7 +28,6 @@ export class StatusWebSocketService {
       this.ws = new WebSocket(`${wsUrl}/ws/system_status`);
 
       this.ws.onopen = () => {
-        console.log('[StatusWebSocket] Connected to system_status');
         this.connected.set(true);
         this.reconnectAttempts = 0;
       };
@@ -47,7 +46,6 @@ export class StatusWebSocketService {
       };
 
       this.ws.onclose = () => {
-        console.log('[StatusWebSocket] Connection closed');
         this.connected.set(false);
         this.ws = null;
         this.attemptReconnect();
@@ -80,10 +78,6 @@ export class StatusWebSocketService {
     }
 
     this.reconnectAttempts++;
-    console.log(
-      `[StatusWebSocket] Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`,
-    );
-
     this.reconnectTimer = setTimeout(() => {
       this.connect();
     }, this.reconnectDelay);

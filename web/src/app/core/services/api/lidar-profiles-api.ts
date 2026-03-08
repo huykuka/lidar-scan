@@ -22,7 +22,8 @@ export class LidarProfilesApiService {
    * Helper function to generate backend asset URLs using current environment
    */
   private getBackendAssetUrl(assetPath: string): string {
-    return `${environment.apiUrl}/assets/lidar/${assetPath}`;
+    const url = `${environment.apiUrl}/assets/lidar/${assetPath}`;
+    return url;
   }
 
   /**
@@ -187,7 +188,16 @@ export class LidarProfilesApiService {
       const data = await firstValueFrom(
         this.http.get<LidarProfilesResponse>(`${environment.apiUrl}/lidar/profiles`),
       );
-      this.profiles.set(data.profiles);
+
+      // Convert relative thumbnail URLs to absolute backend URLs
+      const processedProfiles = data.profiles.map((profile) => ({
+        ...profile,
+        thumbnail_url: profile.thumbnail_url?.startsWith('/')
+          ? `${environment.apiUrl.replace('/api/v1', '')}${profile.thumbnail_url}`
+          : profile.thumbnail_url,
+      }));
+
+      this.profiles.set(processedProfiles);
 
       // Remove mock implementation - now using real backend data
       // await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API delay
