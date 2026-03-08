@@ -24,6 +24,8 @@ class SickLidarProfile:
     thumbnail_url: Optional[str] = None  # URL to device thumbnail image
     icon_name: Optional[str] = None  # Synergy UI icon name  
     icon_color: Optional[str] = None  # Hex color for icon (e.g., "#FF6B35")
+    # Model availability
+    disabled: bool = False  # True to hide from frontend dropdown
 
 
 # Registry of all supported SICK LiDAR models
@@ -290,11 +292,13 @@ _PROFILES = {
         scan_layers=4,
         thumbnail_url="/api/v1/assets/lidar/ldmrs.png",
         icon_name="memory",
-        icon_color="#795548"
+        icon_color="#795548",
+        disabled=True  # LD-MRS models are disabled - not shown in frontend
     ),
     
     # --- OEM Series ---
     "oem_15xx": SickLidarProfile(
+        disabled=True,
         model_id="oem_15xx",
         display_name="SICK LD-OEM15xx",
         launch_file="launch/sick_oem_15xx.launch",
@@ -407,6 +411,9 @@ def get_all_profiles() -> List[SickLidarProfile]:
     
     Order: multiScan first, then TiM series, LMS series, MRS series,
     LRS series, legacy/specialty models, NAV series, RMS, and picoScan.
+    
+    Note: This includes disabled profiles. Use get_enabled_profiles() 
+    for frontend dropdown display.
     """
     # Define the desired display order
     ordered_keys = [
@@ -414,7 +421,7 @@ def get_all_profiles() -> List[SickLidarProfile]:
         "multiscan",
         
         # TiM series (2D Time-of-Flight)
-        "tim_240", "tim_5xx", "tim_7xx", "tim_7xxs",
+        "tim_240", "tim_5xx", "tim_7xx", "tim_7xxs",  "picoscan_120", "picoscan_150",
         
         # LMS series (2D Laser Measurement)
         "lms_1xx", "lms_1xxx", "lms_1xxx_v2", "lms_5xx", "lms_4xxx",
@@ -434,11 +441,18 @@ def get_all_profiles() -> List[SickLidarProfile]:
         # Radar multi-sensor
         "rms_xxxx",
         
-        # picoScan series (compact 3D)
-        "picoscan_120", "picoscan_150",
     ]
     
     return [_PROFILES[key] for key in ordered_keys]
+
+
+def get_enabled_profiles() -> List[SickLidarProfile]:
+    """
+    Returns only enabled LiDAR profiles for frontend dropdown display.
+    
+    Filters out disabled models (like LD-MRS) that should not appear in UI.
+    """
+    return [profile for profile in get_all_profiles() if not profile.disabled]
 
 
 def get_profile(model_id: str) -> SickLidarProfile:

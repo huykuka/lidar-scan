@@ -1,7 +1,8 @@
 """
-Static assets API endpoints for LiDAR thumbnails and images.
+Static assets API endpoints for self-contained LiDAR module.
 
-Serves device thumbnails and related static assets for the LiDAR multi-model interface.
+Serves device thumbnails directly from the LiDAR module assets directory,
+maintaining a clean self-contained modular architecture.
 """
 import os
 from typing import Optional
@@ -43,11 +44,11 @@ async def get_lidar_thumbnail(filename: str):
         )
     
     # Construct the file path
-    # Assets are stored in app/static/assets/lidar/
+    # Assets are stored in app/modules/lidar/assets/
     assets_dir = os.path.join(
         os.path.dirname(__file__),  # app/api/v1/
         "..", "..",                 # app/
-        "static", "assets", "lidar"
+        "modules", "lidar", "assets"
     )
     assets_dir = os.path.abspath(assets_dir)
     file_path = os.path.join(assets_dir, filename)
@@ -97,7 +98,7 @@ async def list_lidar_thumbnails():
     assets_dir = os.path.join(
         os.path.dirname(__file__),
         "..", "..", 
-        "static", "assets", "lidar"
+        "modules", "lidar", "assets"
     )
     assets_dir = os.path.abspath(assets_dir)
     

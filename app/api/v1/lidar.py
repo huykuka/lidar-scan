@@ -7,7 +7,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.modules.lidar.profiles import get_all_profiles, get_profile
+from app.modules.lidar.profiles import get_enabled_profiles, get_profile
 
 router = APIRouter(prefix="/lidar", tags=["lidar"])
 
@@ -59,12 +59,12 @@ class LidarConfigValidationResponse(BaseModel):
 @router.get("/profiles", response_model=ProfilesListResponse)
 async def get_lidar_profiles():
     """
-    Get all supported SICK LiDAR device profiles.
+    Get all enabled SICK LiDAR device profiles for frontend dropdown.
     
-    Returns the complete catalog of supported models with their configuration parameters.
+    Returns only enabled models (excludes disabled models like LD-MRS).
     This is a pure in-memory operation with no database or file system access.
     """
-    profiles = get_all_profiles()
+    profiles = get_enabled_profiles()
     
     profile_responses = [
         SickLidarProfileResponse(
