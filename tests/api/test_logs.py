@@ -17,7 +17,7 @@ class TestLogsRestEndpoint:
     
     def test_logs_empty_when_file_not_exists(self):
         """Test /logs returns empty list when log file doesn't exist"""
-        with patch('app.api.v1.logs.LOG_PATH', '/nonexistent/path/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/nonexistent/path/app.log'):
             client = TestClient(app)
             response = client.get("/api/v1/logs")
             
@@ -33,7 +33,7 @@ class TestLogsRestEndpoint:
             "2024-02-23 12:34:58,789 | ERROR | websocket.manager | Connection failed\n"
         )
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('builtins.open', mock_open(read_data=log_content)):
                 with patch('os.path.exists', return_value=True):
                     client = TestClient(app)
@@ -57,7 +57,7 @@ class TestLogsRestEndpoint:
             "2024-02-23 12:34:58,789 | ERROR | app | Error message\n"
         )
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('builtins.open', mock_open(read_data=log_content)):
                 with patch('os.path.exists', return_value=True):
                     client = TestClient(app)
@@ -77,7 +77,7 @@ class TestLogsRestEndpoint:
             "2024-02-23 12:34:58,789 | INFO | app | Sensor error detected\n"
         )
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('builtins.open', mock_open(read_data=log_content)):
                 with patch('os.path.exists', return_value=True):
                     client = TestClient(app)
@@ -97,7 +97,7 @@ class TestLogsRestEndpoint:
             "2024-02-23 12:34:59,000 | INFO | app | Message 4\n"
         )
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('builtins.open', mock_open(read_data=log_content)):
                 with patch('os.path.exists', return_value=True):
                     client = TestClient(app)
@@ -116,7 +116,7 @@ class TestLogsRestEndpoint:
         lines = [f"2024-02-23 12:34:56,{i:03d} | INFO | app | Message {i}\n" for i in range(600)]
         log_content = "".join(lines)
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('builtins.open', mock_open(read_data=log_content)):
                 with patch('os.path.exists', return_value=True):
                     client = TestClient(app)
@@ -135,7 +135,7 @@ class TestLogsRestEndpoint:
             "2024-02-23 12:34:58,789 | ERROR | app | Sensor error\n"
         )
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('builtins.open', mock_open(read_data=log_content)):
                 with patch('os.path.exists', return_value=True):
                     client = TestClient(app)
@@ -153,7 +153,7 @@ class TestLogsRestEndpoint:
             "2024-02-23 12:34:56,123 | ERROR | fusion.service | Failed: 'config' not found\n"
         )
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('builtins.open', mock_open(read_data=log_content)):
                 with patch('os.path.exists', return_value=True):
                     client = TestClient(app)
@@ -172,7 +172,7 @@ class TestLogsRestEndpoint:
             "Another invalid line\n"
         )
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('builtins.open', mock_open(read_data=log_content)):
                 with patch('os.path.exists', return_value=True):
                     client = TestClient(app)
@@ -200,7 +200,7 @@ class TestLogsWebSocketEndpoint:
         """Test WebSocket can connect to /logs/ws"""
         client = TestClient(app)
         
-        with patch('app.api.v1.logs.LOG_PATH', '/nonexistent/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/nonexistent/app.log'):
             with patch('os.path.exists', return_value=False):
                 with patch('asyncio.sleep', side_effect=Exception("stop")):
                     with pytest.raises(Exception, match="stop"):
@@ -211,7 +211,7 @@ class TestLogsWebSocketEndpoint:
         """Test WebSocket accepts level and search query parameters"""
         client = TestClient(app)
         
-        with patch('app.api.v1.logs.LOG_PATH', '/nonexistent/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/nonexistent/app.log'):
             with patch('os.path.exists', return_value=False):
                 with patch('asyncio.sleep', side_effect=Exception("stop")):
                     with pytest.raises(Exception, match="stop"):
@@ -227,7 +227,7 @@ class TestLogsWebSocketEndpoint:
         
         client = TestClient(app)
         
-        with patch('app.api.v1.logs.LOG_PATH', '/test/app.log'):
+        with patch('app.core.logging.LOG_FILE', '/test/app.log'):
             with patch('os.path.exists', return_value=True):
                 with patch('os.stat') as mock_stat:
                     mock_stat.return_value.st_ino = 12345
