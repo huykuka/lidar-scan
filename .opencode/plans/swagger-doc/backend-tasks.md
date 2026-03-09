@@ -17,7 +17,7 @@ This document outlines the specific implementation tasks required to add compreh
 
 ## Phase 0 — Scaffolding
 
-- [ ] **0.1** Create the `app/api/v1/schemas/` package directory with an empty `__init__.py`
+- [x] **0.1** Create the `app/api/v1/schemas/` package directory with an empty `__init__.py`
 - [ ] **0.2** Verify `app/api/v1/__init__.py` does not need changes (router assembly is already correct)
 
 ---
@@ -26,34 +26,34 @@ This document outlines the specific implementation tasks required to add compreh
 
 > All new files land in `app/api/v1/schemas/`.
 
-- [ ] **1.1** Create `app/api/v1/schemas/common.py`
+- [x] **1.1** Create `app/api/v1/schemas/common.py`
   - `StatusResponse(BaseModel)` — `status: str`
   - `UpsertResponse(BaseModel)` — `status: str`, `id: str`
   - `DeleteEdgeResponse(BaseModel)` — `status: str`, `id: str`
 
-- [ ] **1.2** Create `app/api/v1/schemas/nodes.py`
+- [x] **1.2** Create `app/api/v1/schemas/nodes.py`
   - `NodeRecord(BaseModel)` — `id`, `name`, `type`, `category`, `enabled`, `config: Dict[str, Any]`, `x: Optional[float]`, `y: Optional[float]`
   - `NodeStatusItem(BaseModel)` — `id`, `name`, `type`, `category`, `enabled`, `running`, `topic: Optional[str]`, `last_frame_at: Optional[float]`, `frame_age_seconds: Optional[float]`, `last_error: Optional[str]`, `throttle_ms: float = 0.0`, `throttled_count: int = 0`
   - `NodesStatusResponse(BaseModel)` — `nodes: List[NodeStatusItem]`
   - Add `model_config` with `json_schema_extra` example on `NodeRecord`
 
-- [ ] **1.3** Create `app/api/v1/schemas/edges.py`
+- [x] **1.3** Create `app/api/v1/schemas/edges.py`
   - `EdgeRecord(BaseModel)` — `id: str`, `source_node: str`, `source_port: str`, `target_node: str`, `target_port: str`
 
-- [ ] **1.4** Create `app/api/v1/schemas/system.py`
+- [x] **1.4** Create `app/api/v1/schemas/system.py`
   - `SystemStatusResponse(BaseModel)` — `is_running: bool`, `active_sensors: List[str]`, `version: str`
   - `SystemControlResponse(BaseModel)` — `status: str`, `is_running: bool`
 
-- [ ] **1.5** Create `app/api/v1/schemas/config.py`
+- [x] **1.5** Create `app/api/v1/schemas/config.py`
   - `ImportSummary(BaseModel)` — `nodes: int`, `edges: int`
   - `ImportResponse(BaseModel)` — `success: bool`, `mode: str`, `imported: ImportSummary`, `node_ids: List[str]`, `reloaded: bool`
   - `ConfigValidationSummary(BaseModel)` — `nodes: int`, `edges: int`
   - `ValidationResponse(BaseModel)` — `valid: bool`, `errors: List[str]`, `warnings: List[str]`, `summary: ConfigValidationSummary`
 
-- [ ] **1.6** Create `app/api/v1/schemas/logs.py`
+- [x] **1.6** Create `app/api/v1/schemas/logs.py`
   - `LogEntry(BaseModel)` — `timestamp: str`, `level: str`, `module: str`, `message: str`
 
-- [ ] **1.7** Create `app/api/v1/schemas/calibration.py`
+- [x] **1.7** Create `app/api/v1/schemas/calibration.py`
   - `CalibrationResult(BaseModel)` — `fitness: Optional[float]`, `rmse: Optional[float]`, `quality: Optional[str]`
   - `CalibrationTriggerResponse(BaseModel)` — `success: bool`, `results: Dict[str, CalibrationResult]`, `pending_approval: bool`
   - `AcceptResponse(BaseModel)` — `success: bool`, `accepted: List[str]`
@@ -62,7 +62,7 @@ This document outlines the specific implementation tasks required to add compreh
   - `CalibrationHistoryResponse(BaseModel)` — `sensor_id: str`, `history: List[CalibrationRecord]`
   - `CalibrationStatsResponse(BaseModel)` — `sensor_id: str`, `total_attempts: int`, `accepted_count: int`, `avg_fitness: Optional[float]`, `avg_rmse: Optional[float]`
 
-- [ ] **1.8** Populate `app/api/v1/schemas/__init__.py` to re-export all public models from the sub-modules above
+- [x] **1.8** Populate `app/api/v1/schemas/__init__.py` to re-export all public models from the sub-modules above
 
 ---
 
