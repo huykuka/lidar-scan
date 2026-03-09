@@ -23,68 +23,24 @@
 - [x] Service integration with Angular signals for reactive updates
 
 ## Flow Canvas ML Node Integration
-- [ ] Add ML category to existing node palette
-- [ ] Register ml_semantic_segmentation node definition
-- [ ] Register ml_object_detection node definition  
-- [ ] Set node icons: "psychology" for segmentation, "view_in_ar" for detection
-- [ ] Node property panels with model/dataset selection dropdowns
-- [ ] Device selection dropdown (CPU/CUDA) in node inspector
-- [ ] Throttle and confidence threshold controls
-- [ ] Node status indicator showing loading/ready/error states
-
-## WebSocket LIDR v2 Protocol
-- [x] Extend existing WebSocket service for v2 frame decoding
-- [x] Implement decodeLidrV2() function with DataView parsing
-- [x] Parse magic bytes, version=2, timestamp, point_count, flags
-- [x] Extract XYZ positions from Float32Array view
-- [x] Extract semantic labels from Int32Array view (conditional)
-- [x] Parse JSON bounding boxes blob with length prefix
-- [x] Maintain backward compatibility with v1 frames
-- [x] Add TypeScript interfaces for v2 frame structure
-
-## Point Cloud Rendering with Semantic Labels
-- [x] Extend PointCloudRenderer service for color-by-label support
-- [x] Implement SEMANTIC_COLOR_MAP (SemanticKITTI 20-class palette)
-- [x] Map label_index → RGB using static color lookup
-- [x] Write RGB values to BufferGeometry color attribute array in-place
-- [x] Set vertexColors: true on PointsMaterial when labels present
-- [x] Performance optimization: avoid geometry recreation
-- [x] Color blending and fallback for unlabeled points
-- [x] Toggle between original colors and semantic label colors
-
-## Bounding Box Rendering System
-- [x] Create new BoundingBoxRenderer service
-- [x] Allocate fixed pool of LineSegments for box wireframes (max 256)
-- [x] Implement 12-line cube wireframe geometry generation
-- [x] Update box positions/visibility in-place per frame (no allocations)
-- [x] Color-code boxes by detection class using color_map
-- [x] Handle box transformation: center, size, yaw rotation
-- [x] Integrate with existing Three.js scene management
-- [x] Optimize for 60fps with large numbers of boxes
-
-## Angular UI Components
-- [x] Create MlLabelLegendComponent (dumb component)
-- [x] Color-to-class-name mapping display panel
-- [x] Collapsible legend with toggle visibility
-- [x] Legend positioning and responsive design
-- [x] Create BoundingBoxOverlayComponent (dumb component)  
-- [x] CSS overlay for box labels positioned with Vector3.project()
-- [x] Label text: class name + confidence percentage
-- [x] Create MlNodeStatusComponent (smart component)
-- [x] Model loading progress indicator
-- [x] Inference latency display (ms per frame)
-- [x] Model name and device status
-- [x] Error state handling and user feedback
+- [x] Add ML category to existing node palette
+- [x] Register ml_semantic_segmentation node definition
+- [x] Register ml_object_detection node definition  
+- [x] Set node icons: "psychology" for segmentation, "view_in_ar" for detection
+- [x] Node property panels with model/dataset selection dropdowns
+- [x] Device selection dropdown (CPU/CUDA) in node inspector
+- [x] Throttle and confidence threshold controls
+- [x] Node status indicator showing loading/ready/error states
 
 ## Node Inspector ML Extensions
-- [ ] Extend existing node inspector for ML-specific properties
-- [ ] Model selection dropdown populated from MLApiService.getModels()
-- [ ] Dataset selection dropdown with filtered options per model type
-- [ ] Real-time model status updates (loading progress)
-- [ ] Pre-load model button for performance optimization
-- [ ] Inference metrics display in node status panel
-- [ ] Device utilization indicators (CPU/GPU usage)
-- [ ] Configuration validation and user feedback
+- [x] Extend existing node inspector for ML-specific properties
+- [x] Model selection dropdown populated from MLApiService.getModels()
+- [x] Dataset selection dropdown with filtered options per model type
+- [x] Real-time model status updates (loading progress)
+- [x] Pre-load model button for performance optimization
+- [x] Inference metrics display in node status panel
+- [x] Device utilization indicators (CPU/GPU usage)
+- [x] Configuration validation and user feedback
 
 ## Three.js Scene Integration
 - [ ] Integrate bounding box rendering with existing scene graph

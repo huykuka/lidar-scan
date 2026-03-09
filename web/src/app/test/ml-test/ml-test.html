@@ -1,0 +1,150 @@
+<!-- ML Test Component Template -->
+<div class="ml-test-container">
+  
+  <!-- Header -->
+  <div class="test-header">
+    <h2>Open3D-ML Frontend Integration Test</h2>
+    <p>Testing ML API services, mock data generation, and UI components</p>
+  </div>
+  
+  <!-- API Test Section -->
+  <div class="test-section">
+    <h3>ML API Tests</h3>
+    
+    <div class="test-buttons">
+      <syn-button variant="filled" (click)="generateMockFrame()">
+        <syn-icon slot="prefix" name="science"></syn-icon>
+        Generate Mock Frame
+      </syn-button>
+      
+      <syn-button variant="outline" (click)="testPerformanceMetrics()">
+        <syn-icon slot="prefix" name="speed"></syn-icon>
+        Test Performance API
+      </syn-button>
+    </div>
+    
+  </div>
+  
+  <!-- Available Models Section -->
+  <div class="test-section">
+    <h3>Available ML Models ({{ availableModels().length }})</h3>
+    
+    <div class="models-grid">
+      @for (model of availableModels(); track model.model_key) {
+        <div class="model-card">
+          <div class="model-header">
+            <h4>{{ model.model_name }}</h4>
+            <syn-badge size="small" [variant]="model.task === 'semantic_segmentation' ? 'primary' : 'success'">
+              {{ model.task }}
+            </syn-badge>
+          </div>
+          
+          <div class="model-info">
+            <p><strong>Dataset:</strong> {{ model.dataset_name }}</p>
+            <p><strong>Classes:</strong> {{ model.num_classes }}</p>
+            <p><strong>Weight Size:</strong> {{ model.weight_size_mb }} MB</p>
+          </div>
+          
+          <div class="model-actions">
+            <syn-button size="small" variant="outline" (click)="testModelStatus(model.model_key)">
+              Status
+            </syn-button>
+            <syn-button size="small" variant="filled" (click)="testModelLoading(model.model_key)">
+              Load
+            </syn-button>
+          </div>
+          
+        </div>
+      }
+    </div>
+    
+  </div>
+  
+  <!-- Model Status Test -->
+  <div class="test-section">
+    <h3>Model Status Component Test</h3>
+    
+    @if (currentModelKey(); as modelKey) {
+      <div class="status-test">
+        <p>Testing status for: <code>{{ modelKey }}</code></p>
+        <app-ml-node-status [modelKey]="modelKey"></app-ml-node-status>
+      </div>
+    }
+    
+  </div>
+  
+  <!-- Mock Frame Data Display -->
+  @if (mockFrame(); as frame) {
+    <div class="test-section">
+      <h3>Mock Frame Data</h3>
+      
+      <div class="frame-info">
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="label">Points:</span>
+            <span class="value">{{ frame.point_count }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Version:</span>
+            <span class="value">{{ frame.version }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Labels:</span>
+            <span class="value">{{ frame.has_labels ? 'Yes' : 'No' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Boxes:</span>
+            <span class="value">{{ frame.has_boxes ? frame.boxes?.length || 0 : 'No' }}</span>
+          </div>
+        </div>
+        
+        <!-- Bounding Boxes -->
+        @if (frame.boxes && frame.boxes.length > 0) {
+          <div class="boxes-section">
+            <h4>Detected Objects</h4>
+            <div class="boxes-list">
+              @for (box of frame.boxes; track box.id) {
+                <div class="box-item">
+                  <div class="box-label" [style.color]="'rgb(' + box.color.join(',') + ')'">
+                    {{ box.label }}
+                  </div>
+                  <div class="box-confidence">{{ (box.confidence * 100).toFixed(0) }}%</div>
+                  <div class="box-coords">
+                    [{{ box.center[0].toFixed(1) }}, {{ box.center[1].toFixed(1) }}, {{ box.center[2].toFixed(1) }}]
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+        
+      </div>
+      
+    </div>
+  }
+  
+  <!-- Semantic Legend Test -->
+  @if (getCurrentModel(); as model) {
+    <div class="test-section">
+      <h3>Semantic Label Legend Test</h3>
+      
+      <div class="legend-container">
+        <app-ml-label-legend
+          [classNames]="model.class_names"
+          [colorMap]="model.color_map">
+        </app-ml-label-legend>
+      </div>
+      
+    </div>
+  }
+  
+  <!-- Debug Output -->
+  <div class="test-section">
+    <h3>Debug Console Output</h3>
+    <p class="debug-note">
+      Open browser console to see detailed API responses and generated data.
+      All ML API calls and mock data generation logs are visible in the console.
+    </p>
+  </div>
+  
+</div>

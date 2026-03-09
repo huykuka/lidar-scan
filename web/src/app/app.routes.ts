@@ -54,6 +54,20 @@ export const routes: Routes = [
             (m) => m.CalibrationViewerComponent,
           ),
       },
+      {
+        path: 'ml',
+        loadComponent: () =>
+          import('./ml/components/ml-dashboard/ml-dashboard.ts').then(
+            (m) => m.MlDashboardComponent,
+          ),
+      },
+      {
+        path: 'test/ml',
+        loadComponent: () =>
+          import('./test/ml-test/ml-test').then(
+            (m) => m.MlTestComponent,
+          ),
+      },
     ],
   },
   {
