@@ -502,7 +502,7 @@ def build_launch_args(
     profile = get_profile(model_id)
     
     # Base arguments
-    args = f"{profile.launch_file} hostname:={hostname}"
+    args = f"{profile.launch_file} hostname:={hostname} cloud_topic:=cloud_all_fields_fullframe"
     
     # Add port argument if the model supports it and port is provided
     if profile.port_arg and port is not None:
