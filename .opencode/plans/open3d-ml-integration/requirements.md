@@ -42,6 +42,13 @@
 - [x] ML nodes honor existing throttle_ms mechanism (Backend: NodeManager integration)
 - [x] System gracefully handles missing torch installation (Backend: Conditional imports)
 - [x] Node status panel shows inference latency, model name, and device (Backend: Status reporting)
+- [x] LOD system for bounding boxes at distance (Frontend: Implemented with 4-level LOD)
+- [x] Frustum culling for off-screen bounding boxes (Frontend: Implemented with Three.js frustum testing)
+- [x] Real-time performance warnings for heavy inference (Frontend: MLPerformanceWarningService)
+- [x] Cross-browser compatibility testing and fallbacks (Frontend: MLCrossBrowserCompatibilityService)
+- [x] Progressive loading for large model datasets (Frontend: MLProgressiveLoadingService)
+- [x] Background processing for non-critical ML UI updates (Frontend: MLBackgroundProcessingService)
+- [x] Context menus for ML-specific actions (Frontend: MLContextMenuService with bounding box and node interactions)
 
 ### Compatibility Requirements
 - [x] System starts without errors when torch is NOT installed (Backend: Graceful degradation)
