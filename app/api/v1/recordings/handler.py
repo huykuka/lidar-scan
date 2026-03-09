@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 
 from app.db.models import get_db
 from app.api.v1.schemas.common import StatusResponse
+from .dto import (
+    StartRecordingRequest, RecordingResponse, ListRecordingsResponse
+)
 from .service import (
     start_recording, stop_recording, list_recordings, get_recording,
     delete_recording, download_recording, get_recording_viewer_info,
-    get_recording_frame_as_pcd, get_recording_thumbnail,
-    StartRecordingRequest, RecordingResponse, ListRecordingsResponse
+    get_recording_frame_as_pcd, get_recording_thumbnail
 )
 
 

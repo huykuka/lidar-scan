@@ -1,4 +1,4 @@
-"""Recordings endpoint handlers - Pure business logic without routing configuration."""
+"""Recordings business logic services - Pure business logic without routing configuration."""
 
 import logging
 import os
@@ -6,11 +6,9 @@ import tempfile
 import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Annotated
 
-from fastapi import BackgroundTasks, Depends, HTTPException, Query
+from fastapi import BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
@@ -19,63 +17,12 @@ from app.services.shared.recorder import get_recorder
 from app.services.nodes.instance import node_manager
 from app.services.shared.recording import get_recording_info, RecordingReader
 from app.modules.lidar.io.pcd import save_to_pcd
+from .dto import (
+    StartRecordingRequest, RecordingResponse, ActiveRecordingResponse, 
+    ListRecordingsResponse
+)
 
 logger = logging.getLogger(__name__)
-
-
-class StartRecordingRequest(BaseModel):
-    """Request body for starting a recording."""
-    model_config = ConfigDict(
-        json_schema_extra={
-            "examples": [
-                {
-                    "node_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
-                    "name": "outdoor-test-run-01",
-                    "metadata": {
-                        "environment": "outdoor",
-                        "weather": "clear"
-                    }
-                }
-            ]
-        }
-    )
-    
-    node_id: str
-    name: str | None = None
-    metadata: dict | None = None
-
-
-class RecordingResponse(BaseModel):
-    """Recording information response."""
-    id: str
-    name: str
-    node_id: str
-    sensor_id: str | None
-    file_path: str
-    file_size_bytes: int
-    frame_count: int
-    duration_seconds: float
-    recording_timestamp: str
-    metadata: dict
-    thumbnail_path: str | None = None
-    created_at: str
-
-
-class ActiveRecordingResponse(BaseModel):
-    """Active recording status response."""
-    recording_id: str
-    node_id: str
-    frame_count: int
-    duration_seconds: float
-    started_at: str
-    metadata: dict | None = None
-    status: str = "recording"  # "recording" or "stopping"
-
-
-class ListRecordingsResponse(BaseModel):
-    """Response for listing recordings."""
-    recordings: list[RecordingResponse]
-    active_recordings: list[ActiveRecordingResponse]
 
 
 async def start_recording(request: StartRecordingRequest, db: Session):

@@ -2,7 +2,6 @@
 
 from typing import List, Optional
 from fastapi import HTTPException, Depends
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
@@ -10,35 +9,10 @@ from app.repositories import calibration_orm
 from app.repositories.node_orm import NodeRepository
 from app.services.nodes.instance import node_manager
 from app.modules.calibration.calibration_node import CalibrationNode
+from .dto import TriggerCalibrationRequest, AcceptCalibrationRequest, RollbackRequest
 
 
-class TriggerCalibrationRequest(BaseModel):
-    """Request body for triggering calibration."""
-    model_config = ConfigDict(
-        json_schema_extra={
-            "examples": [
-                {
-                    "reference_sensor_id": "sensor-uuid-ref",
-                    "source_sensor_ids": ["sensor-uuid-a", "sensor-uuid-b"], 
-                    "sample_frames": 5
-                }
-            ]
-        }
-    )
-    
-    reference_sensor_id: Optional[str] = None
-    source_sensor_ids: Optional[List[str]] = None
-    sample_frames: int = 1
 
-
-class AcceptCalibrationRequest(BaseModel):
-    """Request body for accepting calibration."""
-    sensor_ids: Optional[List[str]] = None  # None = all pending
-
-
-class RollbackRequest(BaseModel):
-    """Request body for rollback operation."""
-    timestamp: str
 
 
 async def trigger_calibration(node_id: str, request: TriggerCalibrationRequest):
