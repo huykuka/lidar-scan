@@ -78,45 +78,45 @@ This document outlines the specific implementation tasks required to add compreh
 
 ## Phase 3 — `system.py` Router Annotations
 
-- [ ] **3.1** Add `tags=["System"]` to `router = APIRouter()`
-- [ ] **3.2** `GET /status` — add `response_model=SystemStatusResponse`
-- [ ] **3.3** `POST /start` — add `response_model=SystemControlResponse` and a one-line docstring
-- [ ] **3.4** `POST /stop` — add `response_model=SystemControlResponse` and a one-line docstring
+- [x] **3.1** Add `tags=["System"]` to `router = APIRouter()`
+- [x] **3.2** `GET /status` — add `response_model=SystemStatusResponse`
+- [x] **3.3** `POST /start` — add `response_model=SystemControlResponse` and a one-line docstring
+- [x] **3.4** `POST /stop` — add `response_model=SystemControlResponse` and a one-line docstring
 
 ---
 
 ## Phase 4 — `nodes.py` Router Annotations
 
-- [ ] **4.1** Add `tags=["Nodes"]` to `router = APIRouter()`
-- [ ] **4.2** `GET /nodes` — add `response_model=list[NodeRecord]` and docstring
-- [ ] **4.3** `GET /nodes/definitions` — add `response_model=list[NodeDefinition]` (already imported from `services.nodes.schema`)
-- [ ] **4.4** `GET /nodes/{node_id}` — add `response_model=NodeRecord`, `responses={404: {"description": "Node not found"}}`, and docstring
-- [ ] **4.5** `POST /nodes` — add `response_model=UpsertResponse`
-- [ ] **4.6** `PUT /nodes/{node_id}/enabled` — add `response_model=StatusResponse` and docstring
-- [ ] **4.7** `DELETE /nodes/{node_id}` — add `response_model=StatusResponse`, `responses={404: {"description": "Node not found"}}`
-- [ ] **4.8** `POST /nodes/reload` — add `response_model=StatusResponse`, `responses={409: {"description": "Reload in progress"}}`
-- [ ] **4.9** `GET /nodes/status/all` — add `response_model=NodesStatusResponse`
-- [ ] **4.10** Add `model_config` example to `NodeCreateUpdate` (one sensor example, one fusion example per `technical.md §9`)
+- [x] **4.1** Add `tags=["Nodes"]` to `router = APIRouter()`
+- [x] **4.2** `GET /nodes` — add `response_model=list[NodeRecord]` and docstring
+- [x] **4.3** `GET /nodes/definitions` — add `response_model=list[NodeDefinition]` (already imported from `services.nodes.schema`)
+- [x] **4.4** `GET /nodes/{node_id}` — add `response_model=NodeRecord`, `responses={404: {"description": "Node not found"}}`, and docstring
+- [x] **4.5** `POST /nodes` — add `response_model=UpsertResponse`
+- [x] **4.6** `PUT /nodes/{node_id}/enabled` — add `response_model=StatusResponse` and docstring
+- [x] **4.7** `DELETE /nodes/{node_id}` — add `response_model=StatusResponse`, `responses={404: {"description": "Node not found"}}`
+- [x] **4.8** `POST /nodes/reload` — add `response_model=StatusResponse`, `responses={409: {"description": "Reload in progress"}}`
+- [x] **4.9** `GET /nodes/status/all` — add `response_model=NodesStatusResponse`
+- [x] **4.10** Add `model_config` example to `NodeCreateUpdate` (one sensor example, one fusion example per `technical.md §9`)
 
 ---
 
 ## Phase 5 — `edges.py` Router Annotations
 
-- [ ] **5.1** Add `tags=["Edges"]` to `router = APIRouter()`
-- [ ] **5.2** `GET /edges` — add `response_model=list[EdgeRecord]` and docstring
-- [ ] **5.3** `POST /edges` — add `response_model=EdgeRecord`
-- [ ] **5.4** `DELETE /edges/{edge_id}` — add `response_model=DeleteEdgeResponse` and docstring
-- [ ] **5.5** `POST /edges/bulk` — add `response_model=StatusResponse`
+- [x] **5.1** Add `tags=["Edges"]` to `router = APIRouter()`
+- [x] **5.2** `GET /edges` — add `response_model=list[EdgeRecord]` and docstring
+- [x] **5.3** `POST /edges` — add `response_model=EdgeRecord`
+- [x] **5.4** `DELETE /edges/{edge_id}` — add `response_model=DeleteEdgeResponse` and docstring
+- [x] **5.5** `POST /edges/bulk` — add `response_model=StatusResponse`
 
 ---
 
 ## Phase 6 — `config.py` Router Annotations
 
-- [ ] **6.1** Add `tags=["Configuration"]` to `router = APIRouter()`
-- [ ] **6.2** `GET /config/export` — annotate with `responses={200: {"description": "Downloadable JSON file", "content": {"application/json": {}}}}` (raw `Response` — no Pydantic `response_model`)
-- [ ] **6.3** `POST /config/import` — add `response_model=ImportResponse`, `responses={400: {"description": "Invalid configuration"}}`
-- [ ] **6.4** `POST /config/validate` — add `response_model=ValidationResponse`
-- [ ] **6.5** Add `model_config` example to `ConfigurationImport` (2-node, 1-edge example per `api-spec.md`)
+- [x] **6.1** Add `tags=["Configuration"]` to `router = APIRouter()`
+- [x] **6.2** `GET /config/export` — annotate with `responses={200: {"description": "Downloadable JSON file", "content": {"application/json": {}}}}` (raw `Response` — no Pydantic `response_model`)
+- [x] **6.3** `POST /config/import` — add `response_model=ImportResponse`, `responses={400: {"description": "Invalid configuration"}}`
+- [x] **6.4** `POST /config/validate` — add `response_model=ValidationResponse`
+- [x] **6.5** Add `model_config` example to `ConfigurationImport` (2-node, 1-edge example per `api-spec.md`)
 
 ---
 

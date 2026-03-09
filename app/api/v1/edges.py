@@ -4,8 +4,10 @@ from pydantic import BaseModel
 
 from app.repositories import EdgeRepository
 from app.services.nodes.instance import node_manager
+from app.api.v1.schemas.edges import EdgeRecord
+from app.api.v1.schemas.common import StatusResponse, DeleteEdgeResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Edges"])
 
 class EdgeCreateUpdate(BaseModel):
     id: Optional[str] = None
@@ -14,12 +16,13 @@ class EdgeCreateUpdate(BaseModel):
     target_node: str
     target_port: str = "in"
 
-@router.get("/edges")
+@router.get("/edges", response_model=list[EdgeRecord])
 async def list_edges():
+    """List all DAG edges."""
     repo = EdgeRepository()
     return repo.list()
 
-@router.post("/edges")
+@router.post("/edges", response_model=EdgeRecord)
 async def create_edge(edge: EdgeCreateUpdate):
     """Creates a single edge."""
     import uuid
@@ -36,7 +39,7 @@ async def create_edge(edge: EdgeCreateUpdate):
     repo.save_all(existing)
     return data
 
-@router.delete("/edges/{edge_id}")
+@router.delete("/edges/{edge_id}", response_model=DeleteEdgeResponse)
 async def delete_edge(edge_id: str):
     """Deletes a single edge by id."""
     repo = EdgeRepository()
@@ -44,7 +47,7 @@ async def delete_edge(edge_id: str):
     repo.save_all(edges)
     return {"status": "deleted", "id": edge_id}
 
-@router.post("/edges/bulk")
+@router.post("/edges/bulk", response_model=StatusResponse)
 async def save_edges_bulk(edges: List[EdgeCreateUpdate]):
     """Saves the entire graph of edges sent from the front-end canvas"""
     repo = EdgeRepository()

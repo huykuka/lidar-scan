@@ -6,12 +6,13 @@ and importing it back.
 import json
 from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.repositories import NodeRepository, EdgeRepository
 from app.services.nodes.instance import node_manager
+from app.api.v1.schemas.config import ImportResponse, ValidationResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Configuration"])
 
 
 class ConfigurationExport(BaseModel):
@@ -23,12 +24,49 @@ class ConfigurationExport(BaseModel):
 
 class ConfigurationImport(BaseModel):
     """Configuration import model"""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "nodes": [
+                        {
+                            "name": "Sensor A",
+                            "type": "sensor",
+                            "category": "sensor",
+                            "enabled": True,
+                            "config": {
+                                "lidar_type": "multiscan",
+                                "hostname": "192.168.1.10"
+                            }
+                        },
+                        {
+                            "name": "Fusion Node",
+                            "type": "fusion",
+                            "category": "fusion",
+                            "enabled": True,
+                            "config": {}
+                        }
+                    ],
+                    "edges": [
+                        {
+                            "source_node": "sensor-id-1",
+                            "source_port": "out",
+                            "target_node": "fusion-id-1", 
+                            "target_port": "in"
+                        }
+                    ],
+                    "merge": False
+                }
+            ]
+        }
+    )
+    
     nodes: list = []
     edges: list = []
     merge: bool = False  # If False, replaces all configs. If True, merges with existing.
 
 
-@router.get("/config/export")
+@router.get("/config/export", responses={200: {"description": "Downloadable JSON file", "content": {"application/json": {}}}})
 def export_configuration():
     """
     Export all node and edge configurations as JSON.
@@ -57,7 +95,7 @@ def export_configuration():
     )
 
 
-@router.post("/config/import")
+@router.post("/config/import", response_model=ImportResponse, responses={400: {"description": "Invalid configuration"}})
 async def import_configuration(config: ConfigurationImport):
     """
     Import node and edge configurations from JSON.
@@ -107,7 +145,7 @@ async def import_configuration(config: ConfigurationImport):
         )
 
 
-@router.post("/config/validate")
+@router.post("/config/validate", response_model=ValidationResponse)
 def validate_configuration(config: ConfigurationImport):
     """
     Validate a node configuration without importing it.
