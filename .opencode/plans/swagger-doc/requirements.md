@@ -22,40 +22,40 @@ Add comprehensive Swagger/OpenAPI documentation to the LiDAR Standalone backend 
 - [x] Swagger UI available at `/docs` route with interactive endpoint testing
 - [x] ReDoc documentation available at `/redoc` route with clean, printable format
 - [x] All REST API endpoints in `/api/v1/` are automatically documented
-- [ ] Request/response schemas are properly documented using Pydantic models
-- [ ] HTTP status codes and error responses are documented for each endpoint
-- [ ] API versioning is clearly indicated in the documentation
+- [x] Request/response schemas are properly documented using Pydantic models
+- [x] HTTP status codes and error responses are documented for each endpoint
+- [x] API versioning is clearly indicated in the documentation
 
 ### Technical Requirements
-- [ ] Use FastAPI's default Swagger UI without custom branding or themes
-- [ ] Document only standard Python types (int, str, dict, list) and Pydantic models
-- [ ] Exclude specialized Open3D types from detailed schema documentation
-- [ ] No authentication required - documentation publicly accessible
-- [ ] Documentation automatically updates when API code changes
+- [x] Use FastAPI's default Swagger UI without custom branding or themes
+- [x] Document only standard Python types (int, str, dict, list) and Pydantic models
+- [x] Exclude specialized Open3D types from detailed schema documentation
+- [x] No authentication required - documentation publicly accessible
+- [x] Documentation automatically updates when API code changes
 
 ### API Coverage
-- [ ] Node management endpoints (`/api/v1/nodes/*`)
-- [ ] System status endpoints (`/api/v1/system/*`)
-- [ ] Configuration endpoints (`/api/v1/config/*`)
-- [ ] LiDAR device endpoints (`/api/v1/lidar/*`)
-- [ ] Recording endpoints (`/api/v1/recordings/*`)
-- [ ] Asset management endpoints (`/api/v1/assets/*`)
-- [ ] Calibration endpoints (`/api/v1/calibration/*`)
-- [ ] Logging endpoints (`/api/v1/logs/*`)
+- [x] Node management endpoints (`/api/v1/nodes/*`)
+- [x] System status endpoints (`/api/v1/system/*`)
+- [x] Configuration endpoints (`/api/v1/config/*`)
+- [x] LiDAR device endpoints (`/api/v1/lidar/*`)
+- [x] Recording endpoints (`/api/v1/recordings/*`)
+- [x] Asset management endpoints (`/api/v1/assets/*`)
+- [x] Calibration endpoints (`/api/v1/calibration/*`)
+- [x] Logging endpoints (`/api/v1/logs/*`)
 - [ ] Performance metrics endpoints (`/api/metrics/*`)
 
 ### Documentation Quality
-- [ ] Each endpoint has a clear summary and description
-- [ ] Request parameters are documented with types and constraints
-- [ ] Response models show expected data structures
-- [ ] Example request/response payloads are provided where helpful
-- [ ] API tags are used to group related endpoints logically
+- [x] Each endpoint has a clear summary and description
+- [x] Request parameters are documented with types and constraints
+- [x] Response models show expected data structures
+- [x] Example request/response payloads are provided where helpful
+- [x] API tags are used to group related endpoints logically
 
 ### Performance & Integration
-- [ ] Documentation generation adds minimal overhead (<1ms) to API startup
-- [ ] Documentation remains functional with existing CORS and middleware setup
-- [ ] Static file serving for Angular SPA is not affected
-- [ ] WebSocket endpoints are excluded from REST documentation (separate protocol)
+- [x] Documentation generation adds minimal overhead (<1ms) to API startup
+- [x] Documentation remains functional with existing CORS and middleware setup
+- [x] Static file serving for Angular SPA is not affected
+- [x] WebSocket endpoints are excluded from REST documentation (separate protocol)
 
 ## Out of Scope
 
