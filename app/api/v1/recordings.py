@@ -78,7 +78,11 @@ class ListRecordingsResponse(BaseModel):
     active_recordings: list[ActiveRecordingResponse]
 
 
-@router.post("/recordings/start")
+@router.post("/recordings/start", responses={
+    400: {"description": "Invalid request or node already being recorded"},
+    404: {"description": "Node not found"},
+    500: {"description": "Internal server error"}
+})
 async def start_recording(
     request: StartRecordingRequest,
     db: Annotated[Session, Depends(get_db)]
@@ -144,7 +148,10 @@ async def start_recording(
         raise HTTPException(status_code=500, detail=f"Failed to start recording: {str(e)}")
 
 
-@router.post("/recordings/{recording_id}/stop")
+@router.post("/recordings/{recording_id}/stop", responses={
+    404: {"description": "Recording not found"},
+    500: {"description": "Internal server error"}
+})
 async def stop_recording(
     recording_id: str,
     background_tasks: BackgroundTasks,
@@ -265,7 +272,9 @@ async def list_recordings(
     }
 
 
-@router.get("/recordings/{recording_id}", response_model=RecordingResponse)
+@router.get("/recordings/{recording_id}", response_model=RecordingResponse, responses={
+    404: {"description": "Recording not found"}
+})
 async def get_recording(
     recording_id: str,
     db: Session = Depends(get_db)
@@ -292,7 +301,9 @@ async def get_recording(
     return recording
 
 
-@router.delete("/recordings/{recording_id}")
+@router.delete("/recordings/{recording_id}", responses={
+    404: {"description": "Recording not found"}
+})
 async def delete_recording(
     recording_id: str,
     background_tasks: BackgroundTasks,
@@ -341,7 +352,10 @@ async def delete_recording(
     return {"message": f"Recording {recording_id} deleted successfully"}
 
 
-@router.get("/recordings/{recording_id}/download")
+@router.get("/recordings/{recording_id}/download", responses={
+    200: {"description": "Downloadable recording file", "content": {"application/octet-stream": {}}},
+    404: {"description": "Recording or file not found"}
+})
 async def download_recording(
     recording_id: str,
     db: Session = Depends(get_db)
@@ -422,7 +436,12 @@ async def get_recording_viewer_info(
     }
 
 
-@router.get("/recordings/{recording_id}/frame/{frame_index}")
+@router.get("/recordings/{recording_id}/frame/{frame_index}", responses={
+    200: {"description": "PCD file for the requested frame", "content": {"application/octet-stream": {}}},
+    400: {"description": "Invalid frame index or request parameters"},
+    404: {"description": "Recording or file not found"},
+    500: {"description": "Internal server error"}
+})
 async def get_recording_frame_as_pcd(
     recording_id: str,
     frame_index: int,
@@ -494,7 +513,10 @@ async def get_recording_frame_as_pcd(
         raise HTTPException(status_code=500, detail=f"Failed to read frame: {str(e)}")
 
 
-@router.get("/recordings/{recording_id}/thumbnail")
+@router.get("/recordings/{recording_id}/thumbnail", responses={
+    200: {"description": "PNG thumbnail image", "content": {"image/png": {}}},
+    404: {"description": "Recording not found or thumbnail not available"}
+})
 async def get_recording_thumbnail(
     recording_id: str,
     db: Session = Depends(get_db)

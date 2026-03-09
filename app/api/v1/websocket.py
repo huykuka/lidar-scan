@@ -1,21 +1,44 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.services.websocket.manager import manager
+from typing import List, Dict
+from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(tags=["Topics"])
 
-@router.get("/topics")
+
+class TopicsResponse(BaseModel):
+    """Response for listing available WebSocket topics."""
+    topics: List[str]
+    description: Dict[str, str]
+
+
+@router.get("/topics", response_model=TopicsResponse)
 async def list_topics():
     """Returns available websocket topics (excluding system topics)"""
-    return {
-        "topics": manager.get_public_topics(),
-        "description": {
+    return TopicsResponse(
+        topics=manager.get_public_topics(),
+        description={
             "raw_points": "Stream of raw point cloud data (sub-sampled for performance)",
             "processed_points": "Stream of preprocessed data with algorithm results"
         }
-    }
+    )
 
-@router.get("/topics/capture")
+
+@router.get("/topics/capture", responses={
+    200: {"description": "Binary frame data", "content": {"application/octet-stream": {}}},
+    503: {"description": "Topic was removed while waiting for frame"},
+    504: {"description": "Timeout waiting for frame"}
+})
 async def capture_frame(topic: str):
+    """
+    Capture a single frame from a WebSocket topic.
+    
+    Args:
+        topic: WebSocket topic to capture from
+    
+    Returns:
+        Binary frame data as application/octet-stream
+    """
     import asyncio
     from fastapi import Response, HTTPException
     try:
@@ -25,6 +48,7 @@ async def capture_frame(topic: str):
         raise HTTPException(status_code=504, detail="Timeout waiting for frame")
     except asyncio.CancelledError:
         raise HTTPException(status_code=503, detail="Topic was removed while waiting for frame. Please retry.")
+
 
 @router.websocket("/ws/{topic}")
 async def websocket_endpoint(websocket: WebSocket, topic: str):

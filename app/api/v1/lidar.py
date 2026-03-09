@@ -5,11 +5,11 @@ Provides device profile information and configuration validation for SICK LiDAR 
 """
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.modules.lidar.profiles import get_enabled_profiles, get_profile
 
-router = APIRouter(prefix="/lidar", tags=["lidar"])
+router = APIRouter(prefix="/lidar", tags=["LiDAR"])
 
 
 # --- Pydantic Models ---
@@ -38,6 +38,25 @@ class ProfilesListResponse(BaseModel):
 
 class LidarConfigValidationRequest(BaseModel):
     """Request model for LiDAR configuration validation"""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "lidar_type": "multiScan100",
+                    "hostname": "192.168.1.10",
+                    "udp_receiver_ip": "192.168.1.100",
+                    "port": 2112,
+                    "imu_udp_port": 7503
+                },
+                {
+                    "lidar_type": "tiM-5xx",
+                    "hostname": "192.168.1.11",
+                    "port": 2112
+                }
+            ]
+        }
+    )
+    
     lidar_type: str
     hostname: str
     udp_receiver_ip: Optional[str] = None
@@ -87,7 +106,7 @@ async def get_lidar_profiles():
     return ProfilesListResponse(profiles=profile_responses)
 
 
-@router.post("/validate-lidar-config", response_model=LidarConfigValidationResponse)
+@router.post("/validate-lidar-config", response_model=LidarConfigValidationResponse, responses={400: {"description": "Invalid LiDAR configuration"}, 404: {"description": "LiDAR type not found"}})
 async def validate_lidar_config(request: LidarConfigValidationRequest):
     """
     Validate a proposed LiDAR sensor configuration.

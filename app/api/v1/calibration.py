@@ -106,7 +106,7 @@ async def trigger_calibration(
         raise HTTPException(status_code=500, detail=f"Calibration failed: {str(e)}")
 
 
-@router.post("/calibration/{node_id}/accept")
+@router.post("/calibration/{node_id}/accept", response_model=AcceptResponse, responses={400: {"description": "Invalid request or no pending calibration"}, 404: {"description": "Node not found"}})
 async def accept_calibration(
     node_id: str,
     request: AcceptCalibrationRequest,
@@ -153,7 +153,7 @@ async def accept_calibration(
         raise HTTPException(status_code=500, detail=f"Failed to accept calibration: {str(e)}")
 
 
-@router.post("/calibration/{node_id}/reject")
+@router.post("/calibration/{node_id}/reject", response_model=StatusResponse, responses={404: {"description": "Node not found"}})
 async def reject_calibration(node_id: str):
     """
     Reject pending calibration (discard results).
@@ -179,10 +179,10 @@ async def reject_calibration(node_id: str):
     # Reject calibration
     await node.reject_calibration()
     
-    return {"success": True}
+    return {"status": "success"}
 
 
-@router.get("/calibration/history/{sensor_id}")
+@router.get("/calibration/history/{sensor_id}", response_model=CalibrationHistoryResponse, responses={500: {"description": "Database error"}})
 async def get_calibration_history(
     sensor_id: str,
     limit: int = 10,
@@ -215,7 +215,7 @@ async def get_calibration_history(
         raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")
 
 
-@router.post("/calibration/rollback/{sensor_id}")
+@router.post("/calibration/rollback/{sensor_id}", response_model=RollbackResponse, responses={400: {"description": "Invalid rollback request or non-accepted calibration"}, 404: {"description": "Sensor or calibration record not found"}, 500: {"description": "Rollback operation failed"}})
 async def rollback_calibration(
     sensor_id: str,
     request: RollbackRequest,
@@ -294,7 +294,7 @@ async def rollback_calibration(
         raise HTTPException(status_code=500, detail=f"Rollback failed: {str(e)}")
 
 
-@router.get("/calibration/statistics/{sensor_id}")
+@router.get("/calibration/statistics/{sensor_id}", response_model=CalibrationStatsResponse, responses={500: {"description": "Database error"}})
 async def get_calibration_statistics(
     sensor_id: str,
     db: Session = Depends(get_db)

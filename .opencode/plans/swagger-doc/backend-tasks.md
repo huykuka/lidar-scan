@@ -122,62 +122,62 @@ This document outlines the specific implementation tasks required to add compreh
 
 ## Phase 7 — `recordings.py` Router Annotations
 
-- [ ] **7.1** Add `tags=["Recordings"]` to `router = APIRouter()`
-- [ ] **7.2** `POST /recordings/start` — add `responses={400: ..., 404: ..., 500: ...}`; add example to `StartRecordingRequest` model
-- [ ] **7.3** `POST /recordings/{recording_id}/stop` — add `responses={404: ..., 500: ...}`
-- [ ] **7.4** `GET /recordings` — already has `response_model=ListRecordingsResponse` ✓; confirm `responses={}` documented
-- [ ] **7.5** `GET /recordings/{recording_id}` — already has `response_model=RecordingResponse` ✓; add `responses={404: ...}`
-- [ ] **7.6** `DELETE /recordings/{recording_id}` — add `responses={404: ...}`
-- [ ] **7.7** `GET /recordings/{recording_id}/download` — add `responses={200: {"content": {"application/octet-stream": {}}}, 404: ...}`
-- [ ] **7.8** `GET /recordings/{recording_id}/info` — confirm docstring is present ✓
-- [ ] **7.9** `GET /recordings/{recording_id}/frame/{frame_index}` — add `responses={400: ..., 404: ..., 500: ...}`
-- [ ] **7.10** `GET /recordings/{recording_id}/thumbnail` — add `responses={200: {"content": {"image/png": {}}}, 404: ...}`
+- [x] **7.1** Add `tags=["Recordings"]` to `router = APIRouter()`
+- [x] **7.2** `POST /recordings/start` — add `responses={400: ..., 404: ..., 500: ...}`; add example to `StartRecordingRequest` model
+- [x] **7.3** `POST /recordings/{recording_id}/stop` — add `responses={404: ..., 500: ...}`
+- [x] **7.4** `GET /recordings` — already has `response_model=ListRecordingsResponse` ✓; confirm `responses={}` documented
+- [x] **7.5** `GET /recordings/{recording_id}` — already has `response_model=RecordingResponse` ✓; add `responses={404: ...}`
+- [x] **7.6** `DELETE /recordings/{recording_id}` — add `responses={404: ...}`
+- [x] **7.7** `GET /recordings/{recording_id}/download` — add `responses={200: {"content": {"application/octet-stream": {}}}, 404: ...}`
+- [x] **7.8** `GET /recordings/{recording_id}/info` — confirm docstring is present ✓
+- [x] **7.9** `GET /recordings/{recording_id}/frame/{frame_index}` — add `responses={400: ..., 404: ..., 500: ...}`
+- [x] **7.10** `GET /recordings/{recording_id}/thumbnail` — add `responses={200: {"content": {"image/png": {}}}, 404: ...}`
 
 ---
 
 ## Phase 8 — `logs.py` Router Annotations
 
-- [ ] **8.1** Add `tags=["Logs"]` to `router = APIRouter()`
-- [ ] **8.2** `GET /logs` — add `response_model=list[LogEntry]` and verify return type annotation
-- [ ] **8.3** `GET /download` — add docstring and `responses={200: {"content": {"text/plain": {}}}, 404: ...}`
-- [ ] **8.4** Ensure `@router.websocket("/logs/ws")` has **no** `tags` kwarg (exclude from REST docs)
+- [x] **8.1** Add `tags=["Logs"]` to `router = APIRouter()`
+- [x] **8.2** `GET /logs` — add `response_model=list[LogEntry]` and verify return type annotation
+- [x] **8.3** `GET /download` — add docstring and `responses={200: {"content": {"text/plain": {}}}, 404: ...}`
+- [x] **8.4** Ensure `@router.websocket("/logs/ws")` has **no** `tags` kwarg (exclude from REST docs)
 
 ---
 
 ## Phase 9 — `calibration.py` Router Annotations
 
-- [ ] **9.1** Add `tags=["Calibration"]` to `router = APIRouter()`
-- [ ] **9.2** `POST /calibration/{node_id}/trigger` — add `response_model=CalibrationTriggerResponse`, `responses={400: ..., 404: ..., 500: ...}`
-- [ ] **9.3** `POST /calibration/{node_id}/accept` — add `response_model=AcceptResponse`, `responses={400: ..., 404: ...}`
-- [ ] **9.4** `POST /calibration/{node_id}/reject` — add `response_model=StatusResponse`, `responses={404: ...}`
-- [ ] **9.5** `GET /calibration/history/{sensor_id}` — add `response_model=CalibrationHistoryResponse`, `responses={500: ...}`
-- [ ] **9.6** `POST /calibration/rollback/{sensor_id}` — add `response_model=RollbackResponse`, `responses={400: ..., 404: ..., 500: ...}`
-- [ ] **9.7** `GET /calibration/statistics/{sensor_id}` — add `response_model=CalibrationStatsResponse`, `responses={500: ...}`
-- [ ] **9.8** Add example to `TriggerCalibrationRequest` model (per `api-spec.md`)
+- [x] **9.1** Add `tags=["Calibration"]` to `router = APIRouter()`
+- [x] **9.2** `POST /calibration/{node_id}/trigger` — add `response_model=CalibrationTriggerResponse`, `responses={400: ..., 404: ..., 500: ...}`
+- [x] **9.3** `POST /calibration/{node_id}/accept` — add `response_model=AcceptResponse`, `responses={400: ..., 404: ...}`
+- [x] **9.4** `POST /calibration/{node_id}/reject` — add `response_model=StatusResponse`, `responses={404: ...}`
+- [x] **9.5** `GET /calibration/history/{sensor_id}` — add `response_model=CalibrationHistoryResponse`, `responses={500: ...}`
+- [x] **9.6** `POST /calibration/rollback/{sensor_id}` — add `response_model=RollbackResponse`, `responses={400: ..., 404: ..., 500: ...}`
+- [x] **9.7** `GET /calibration/statistics/{sensor_id}` — add `response_model=CalibrationStatsResponse`, `responses={500: ...}`
+- [x] **9.8** Add example to `TriggerCalibrationRequest` model (per `api-spec.md`)
 
 ---
 
 ## Phase 10 — `lidar.py` Router Annotations
 
-- [ ] **10.1** Rename `tags=["lidar"]` → `tags=["LiDAR"]` on `router = APIRouter(...)` (capitalisation matches tag definition)
-- [ ] **10.2** Both endpoints already have `response_model` ✓; add `responses={400: ..., 404: ...}` where applicable
-- [ ] **10.3** Add `model_config` example to `LidarConfigValidationRequest` (show multiScan vs tiM-5xx shape)
+- [x] **10.1** Rename `tags=["lidar"]` → `tags=["LiDAR"]` on `router = APIRouter(...)` (capitalisation matches tag definition)
+- [x] **10.2** Both endpoints already have `response_model` ✓; add `responses={400: ..., 404: ...}` where applicable
+- [x] **10.3** Add `model_config` example to `LidarConfigValidationRequest` (show multiScan vs tiM-5xx shape)
 
 ---
 
 ## Phase 11 — `assets.py` Router Annotations
 
-- [ ] **11.1** Rename `tags=["assets"]` → `tags=["Assets"]` on `router = APIRouter(...)`
-- [ ] **11.2** `GET /assets/lidar/` — add inline `ThumbnailItem` and `ThumbnailListResponse` models; add `response_model=ThumbnailListResponse`, `responses={500: ...}`
-- [ ] **11.3** `GET /assets/lidar/{filename}` — add `responses={200: {"content": {"image/png": {}}}, 400: ..., 404: ...}`
+- [x] **11.1** Rename `tags=["assets"]` → `tags=["Assets"]` on `router = APIRouter(...)`
+- [x] **11.2** `GET /assets/lidar/` — add inline `ThumbnailItem` and `ThumbnailListResponse` models; add `response_model=ThumbnailListResponse`, `responses={500: ...}`
+- [x] **11.3** `GET /assets/lidar/{filename}` — add `responses={200: {"content": {"image/png": {}}}, 400: ..., 404: ...}`
 
 ---
 
 ## Phase 12 — `websocket.py` REST Route Annotations
 
-- [ ] **12.1** Add `tags=["Topics"]` to `router = APIRouter()` — only REST routes receive this tag; `@router.websocket(...)` is unaffected
-- [ ] **12.2** `GET /topics` — add inline `TopicsResponse` model and `response_model=TopicsResponse`
-- [ ] **12.3** `GET /topics/capture` — add docstring, `responses={200: {"content": {"application/octet-stream": {}}}, 503: ..., 504: ...}`
+- [x] **12.1** Add `tags=["Topics"]` to `router = APIRouter()` — only REST routes receive this tag; `@router.websocket(...)` is unaffected
+- [x] **12.2** `GET /topics` — add inline `TopicsResponse` model and `response_model=TopicsResponse`
+- [x] **12.3** `GET /topics/capture` — add docstring, `responses={200: {"content": {"application/octet-stream": {}}}, 503: ..., 504: ...}`
 
 ---
 

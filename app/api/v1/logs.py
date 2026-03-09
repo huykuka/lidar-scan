@@ -78,7 +78,7 @@ def download_logs(
                 if search and search.lower() not in entry['message'].lower():
                     continue
                 # Format: [2024-02-23 10:30:45] [INFO    ] [app.services] Message
-                formatted = f"[{entry['timestamp']}] [{entry['level'].marker_padding if hasattr(entry['level'], 'marker_padding') else entry['level'].ljust(8)}] [{entry['module'].ljust(20)}] {entry['message']}\n"
+                formatted = f"[{entry['timestamp']}] [{entry['level'].ljust(8)}] [{entry['module'].ljust(20)}] {entry['message']}\n"
                 yield formatted
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
