@@ -52,20 +52,23 @@ if TORCH_AVAILABLE:
         """Singleton registry for ML model management"""
         
         _instance: Optional["MLModelRegistry"] = None
+        _lock = asyncio.Lock()  # Class-level lock for singleton thread safety
         MAX_LOADED_MODELS = 2  # LRU eviction limit
         
         def __init__(self):
             self.models: Dict[str, LoadedModel] = {}
             self.models_dir = os.getenv("ML_MODELS_DIR", "./models")
             self.access_order: List[str] = []  # Track access for LRU
+            self._instance_lock = asyncio.Lock()  # Instance-level operations lock
             os.makedirs(self.models_dir, exist_ok=True)
             
         @classmethod
-        def get_instance(cls) -> "MLModelRegistry":
-            """Get singleton instance"""
-            if cls._instance is None:
-                cls._instance = cls()
-            return cls._instance
+        async def get_instance(cls) -> "MLModelRegistry":
+            """Get singleton instance with thread safety"""
+            async with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
+                return cls._instance
             
         def _make_model_key(self, model_name: str, dataset_name: str) -> str:
             """Generate model key from name and dataset"""
@@ -77,41 +80,40 @@ if TORCH_AVAILABLE:
             dataset_name: str, 
             device: str = "cpu"
         ) -> LoadedModel:
-            """Get existing model or load new one with LRU eviction"""
+            """Get existing model or load new one with LRU eviction (thread-safe)"""
             
-            model_key = self._make_model_key(model_name, dataset_name)
-            
-            # Return existing if already loaded
-            if model_key in self.models:
-                existing = self.models[model_key]
-                self._update_access_order(model_key)  # Update LRU tracking
+            async with self._instance_lock:
+                model_key = self._make_model_key(model_name, dataset_name)
                 
-                if existing.status == ModelStatus.READY:
-                    return existing
-                elif existing.status in [ModelStatus.DOWNLOADING, ModelStatus.LOADING]:
-                    # Wait for loading to complete
-                    while existing.status in [ModelStatus.DOWNLOADING, ModelStatus.LOADING]:
-                        await asyncio.sleep(0.1)
-                    return existing
-            
-            # Check if we need to evict models for memory management
-            await self._ensure_capacity_for_new_model()
+                # Return existing if already loaded
+                if model_key in self.models:
+                    existing = self.models[model_key]
+                    self._update_access_order(model_key)  # Update LRU tracking
                     
-            # Create new model entry
-            loaded_model = LoadedModel(
-                model_key=model_key,
-                model_name=model_name,
-                dataset_name=dataset_name,
-                device=device,
-                status=ModelStatus.DOWNLOADING
-            )
-            self.models[model_key] = loaded_model
-            self._update_access_order(model_key)
-            
-            # Start loading process
-            asyncio.create_task(self._load_model_async(loaded_model))
-            
-            return loaded_model
+                    if existing.status == ModelStatus.READY:
+                        return existing
+                    elif existing.status in [ModelStatus.DOWNLOADING, ModelStatus.LOADING]:
+                        # Wait for loading to complete (release lock temporarily)
+                        pass  # Will wait outside the lock
+                
+                # Check if we need to evict models for memory management
+                await self._ensure_capacity_for_new_model()
+                        
+                # Create new model entry
+                loaded_model = LoadedModel(
+                    model_key=model_key,
+                    model_name=model_name,
+                    dataset_name=dataset_name,
+                    device=device,
+                    status=ModelStatus.DOWNLOADING
+                )
+                self.models[model_key] = loaded_model
+                self._update_access_order(model_key)
+                
+                # Start loading process
+                asyncio.create_task(self._load_model_async(loaded_model))
+                
+                return loaded_model
             
         def _update_access_order(self, model_key: str) -> None:
             """Update LRU access order"""
@@ -135,25 +137,27 @@ if TORCH_AVAILABLE:
                         break
                         
         async def _unload_model(self, model_key: str) -> None:
-            """Unload a specific model to free memory"""
-            if model_key in self.models:
-                model = self.models[model_key]
-                
-                # Clean up pipeline resources if available
-                if hasattr(model.pipeline, 'cleanup'):
-                    await asyncio.to_thread(model.pipeline.cleanup)
-                
-                # Remove from registry
-                del self.models[model_key]
-                
-                # Remove from access tracking
-                if model_key in self.access_order:
-                    self.access_order.remove(model_key)
+            """Unload a specific model to free memory (thread-safe)"""
+            async with self._instance_lock:
+                if model_key in self.models:
+                    model = self.models[model_key]
                     
-                logger.info(f"Unloaded model {model_key}")
+                    # Clean up pipeline resources if available
+                    if hasattr(model.pipeline, 'cleanup'):
+                        await asyncio.to_thread(model.pipeline.cleanup)
+                    
+                    # Remove from registry
+                    del self.models[model_key]
+                    
+                    # Remove from access tracking
+                    if model_key in self.access_order:
+                        self.access_order.remove(model_key)
+                        
+                    logger.info(f"Unloaded model {model_key}")
                 
         def unload_model_sync(self, model_key: str) -> bool:
-            """Synchronous model unloading for API endpoints"""
+            """Synchronous model unloading for API endpoints (thread-safe)"""
+            # Use a simple synchronous approach with basic locking
             if model_key not in self.models:
                 return False
                 

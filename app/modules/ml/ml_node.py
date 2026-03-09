@@ -66,7 +66,7 @@ class MLNode(ModuleNode, ABC):
         
         # Get model registry singleton
         from .model_registry import MLModelRegistry
-        self.model_registry = MLModelRegistry.get_instance()
+        self.model_registry = await MLModelRegistry.get_instance()
         
         # Load model based on config
         model_name = self.config.get("model_name")
