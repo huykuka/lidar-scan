@@ -183,18 +183,18 @@ This document outlines the specific implementation tasks required to add compreh
 
 ## Phase 13 — Verification & Smoke Test
 
-- [ ] **13.1** Start the development server: `python main.py` (or `uvicorn app.app:app --reload`)
-- [ ] **13.2** Navigate to `http://localhost:8005/docs` — verify Swagger UI loads with all 10 tag groups visible
-- [ ] **13.3** Navigate to `http://localhost:8005/redoc` — verify ReDoc renders all endpoints
-- [ ] **13.4** Navigate to `http://localhost:8005/openapi.json` — verify JSON schema is valid (no 404 or SPA redirect)
-- [ ] **13.5** For each tag group, verify at least one endpoint shows a correct request/response schema in Swagger UI
-- [ ] **13.6** Confirm `GET /api/v1/nodes/status/all` shows `NodesStatusResponse` schema (not `{}`)
-- [ ] **13.7** Confirm `POST /api/v1/nodes/reload` shows `409` in the Responses section
-- [ ] **13.8** Confirm `GET /api/v1/recordings/{id}/frame/{frame_index}` does **not** expose any Open3D type in its schema
-- [ ] **13.9** Confirm `GET /api/v1/logs/ws` does **not** appear under any tag in Swagger UI
-- [ ] **13.10** Confirm `GET /api/v1/ws/{topic}` does **not** appear under any tag in Swagger UI
-- [ ] **13.11** Run existing test suite — confirm zero regressions: `pytest tests/ -q`
-- [ ] **13.12** Check that the SPA still loads at `/` in a browser (static mount not broken)
+- [x] **13.1** Start the development server: `python main.py` (or `uvicorn app.app:app --reload`)
+- [x] **13.2** Navigate to `http://localhost:8005/docs` — verify Swagger UI loads with all 10 tag groups visible
+- [x] **13.3** Navigate to `http://localhost:8005/redoc` — verify ReDoc renders all endpoints
+- [x] **13.4** Navigate to `http://localhost:8005/openapi.json` — verify JSON schema is valid (no 404 or SPA redirect)
+- [x] **13.5** For each tag group, verify at least one endpoint shows a correct request/response schema in Swagger UI
+- [x] **13.6** Confirm `GET /api/v1/nodes/status/all` shows `NodesStatusResponse` schema (not `{}`)
+- [x] **13.7** Confirm `POST /api/v1/nodes/reload` shows `409` in the Responses section
+- [x] **13.8** Confirm `GET /api/v1/recordings/{id}/frame/{frame_index}` does **not** expose any Open3D type in its schema
+- [x] **13.9** Confirm `GET /api/v1/logs/ws` does **not** appear under any tag in Swagger UI
+- [x] **13.10** Confirm `GET /api/v1/ws/{topic}` does **not** appear under any tag in Swagger UI
+- [x] **13.11** Run existing test suite — confirm zero regressions: `pytest tests/ -q`
+- [x] **13.12** Check that the SPA still loads at `/` in a browser (static mount not broken)
 
 ---
 
@@ -214,10 +214,10 @@ Phase 0
 
 ## Pre-PR Checklist
 
-- [ ] All `response_model` annotations compile without `ImportError`
-- [ ] `GET /openapi.json` returns HTTP 200 with valid JSON
-- [ ] No new Pyright/mypy errors introduced by schema models
-- [ ] `pytest tests/ -q` passes with 0 failures
-- [ ] Swagger UI (`/docs`) and ReDoc (`/redoc`) both load and show all 10 tag groups
-- [ ] No Open3D types appear in any generated schema
-- [ ] WebSocket endpoints absent from REST documentation
+- [x] All `response_model` annotations compile without `ImportError`
+- [x] `GET /openapi.json` returns HTTP 200 with valid JSON
+- [x] No new Pyright/mypy errors introduced by schema models
+- [x] `pytest tests/ -q` passes with 0 failures
+- [x] Swagger UI (`/docs`) and ReDoc (`/redoc`) both load and show all 10 tag groups
+- [x] No Open3D types appear in any generated schema
+- [x] WebSocket endpoints absent from REST documentation
