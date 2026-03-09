@@ -103,7 +103,7 @@ class DataRouter:
             from app.services.shared.binary import pack_points_binary
             
             timestamp = payload.get("timestamp") or time.time()
-            binary = await asyncio.to_thread(pack_points_binary, payload["points"], timestamp)
+            binary = await asyncio.to_thread(pack_points_binary, payload["points"], timestamp, payload)
             await manager.broadcast(topic, binary)
             logger.debug(f"Broadcasted {len(payload['points'])} points from {source_id} on topic '{topic}'")
         except Exception as e:
