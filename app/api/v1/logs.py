@@ -8,8 +8,9 @@ import asyncio
 import json
 
 from app.core.logging import LOG_FILE
+from app.api.v1.schemas.logs import LogEntry
 
-router = APIRouter()
+router = APIRouter(tags=["Logs"])
 
 def parse_log_line(line: str) -> Optional[Dict[str, Any]]:
     # New format: "2024-02-23 10:30:45 | INFO     | app.services | Message"
@@ -23,13 +24,14 @@ def parse_log_line(line: str) -> Optional[Dict[str, Any]]:
         }
     return None
 
-@router.get("/logs")
+@router.get("/logs", response_model=list[LogEntry])
 def get_logs(
     level: Optional[str] = Query(None, description="Log level to filter by (INFO, WARNING, ERROR, DEBUG)"),
     search: Optional[str] = Query(None, description="Free text to search for in log message"),
     offset: int = Query(0, description="Starting row (0 is last/latest entry)"),
     limit: int = Query(100, description="Number of entries to return, max 500"),
 ) -> List[Dict[str, Any]]:
+    """Get paginated application log entries."""
     if not os.path.exists(LOG_FILE):
         return []
 
@@ -56,11 +58,12 @@ def get_logs(
 
     return results
 
-@router.get("/download")
+@router.get("/download", responses={200: {"content": {"text/plain": {}}}, 404: {"description": "Log file not found"}})
 def download_logs(
     level: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
 ):
+    """Download filtered log entries as a plain-text file."""
     if not os.path.exists(LOG_FILE):
         raise HTTPException(status_code=404, detail="Log file not found")
 

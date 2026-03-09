@@ -8,7 +8,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
@@ -19,12 +19,27 @@ from app.services.shared.recording import get_recording_info, RecordingReader
 from app.modules.lidar.io.pcd import save_to_pcd
 import tempfile
 
-router = APIRouter()
+router = APIRouter(tags=["Recordings"])
 logger = logging.getLogger(__name__)
 
 
 class StartRecordingRequest(BaseModel):
     """Request body for starting a recording."""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "node_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+                    "name": "outdoor-test-run-01",
+                    "metadata": {
+                        "environment": "outdoor",
+                        "weather": "clear"
+                    }
+                }
+            ]
+        }
+    )
+    
     node_id: str
     name: str | None = None
     metadata: dict | None = None

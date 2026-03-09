@@ -7,7 +7,7 @@ viewing history, and rollback functionality.
 
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
@@ -15,14 +15,34 @@ from app.repositories import calibration_orm
 from app.repositories.node_orm import NodeRepository
 from app.services.nodes.instance import node_manager
 from app.modules.calibration.calibration_node import CalibrationNode
+from app.api.v1.schemas.calibration import (
+    CalibrationTriggerResponse, 
+    AcceptResponse, 
+    RollbackResponse, 
+    CalibrationHistoryResponse, 
+    CalibrationStatsResponse
+)
+from app.api.v1.schemas.common import StatusResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Calibration"])
 
 
 # --- Request/Response Models ---
 
 class TriggerCalibrationRequest(BaseModel):
     """Request body for triggering calibration."""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "reference_sensor_id": "sensor-uuid-ref",
+                    "source_sensor_ids": ["sensor-uuid-a", "sensor-uuid-b"], 
+                    "sample_frames": 5
+                }
+            ]
+        }
+    )
+    
     reference_sensor_id: Optional[str] = None
     source_sensor_ids: Optional[List[str]] = None
     sample_frames: int = 1
@@ -40,7 +60,7 @@ class RollbackRequest(BaseModel):
 
 # --- Endpoints ---
 
-@router.post("/calibration/{node_id}/trigger")
+@router.post("/calibration/{node_id}/trigger", response_model=CalibrationTriggerResponse, responses={400: {"description": "Invalid parameters or insufficient data"}, 404: {"description": "Node not found"}, 500: {"description": "Calibration algorithm error"}})
 async def trigger_calibration(
     node_id: str,
     request: TriggerCalibrationRequest
