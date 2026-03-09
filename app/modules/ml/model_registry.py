@@ -52,10 +52,12 @@ if TORCH_AVAILABLE:
         """Singleton registry for ML model management"""
         
         _instance: Optional["MLModelRegistry"] = None
+        MAX_LOADED_MODELS = 2  # LRU eviction limit
         
         def __init__(self):
             self.models: Dict[str, LoadedModel] = {}
             self.models_dir = os.getenv("ML_MODELS_DIR", "./models")
+            self.access_order: List[str] = []  # Track access for LRU
             os.makedirs(self.models_dir, exist_ok=True)
             
         @classmethod
@@ -75,13 +77,15 @@ if TORCH_AVAILABLE:
             dataset_name: str, 
             device: str = "cpu"
         ) -> LoadedModel:
-            """Get existing model or load new one"""
+            """Get existing model or load new one with LRU eviction"""
             
             model_key = self._make_model_key(model_name, dataset_name)
             
             # Return existing if already loaded
             if model_key in self.models:
                 existing = self.models[model_key]
+                self._update_access_order(model_key)  # Update LRU tracking
+                
                 if existing.status == ModelStatus.READY:
                     return existing
                 elif existing.status in [ModelStatus.DOWNLOADING, ModelStatus.LOADING]:
@@ -89,6 +93,9 @@ if TORCH_AVAILABLE:
                     while existing.status in [ModelStatus.DOWNLOADING, ModelStatus.LOADING]:
                         await asyncio.sleep(0.1)
                     return existing
+            
+            # Check if we need to evict models for memory management
+            await self._ensure_capacity_for_new_model()
                     
             # Create new model entry
             loaded_model = LoadedModel(
@@ -99,11 +106,67 @@ if TORCH_AVAILABLE:
                 status=ModelStatus.DOWNLOADING
             )
             self.models[model_key] = loaded_model
+            self._update_access_order(model_key)
             
             # Start loading process
             asyncio.create_task(self._load_model_async(loaded_model))
             
             return loaded_model
+            
+        def _update_access_order(self, model_key: str) -> None:
+            """Update LRU access order"""
+            if model_key in self.access_order:
+                self.access_order.remove(model_key)
+            self.access_order.append(model_key)
+            
+        async def _ensure_capacity_for_new_model(self) -> None:
+            """Evict oldest models if at capacity limit"""
+            ready_models = [
+                key for key, model in self.models.items() 
+                if model.status == ModelStatus.READY
+            ]
+            
+            if len(ready_models) >= self.MAX_LOADED_MODELS:
+                # Evict oldest ready model
+                for model_key in self.access_order:
+                    if model_key in ready_models:
+                        await self._unload_model(model_key)
+                        logger.info(f"Evicted model {model_key} for capacity management")
+                        break
+                        
+        async def _unload_model(self, model_key: str) -> None:
+            """Unload a specific model to free memory"""
+            if model_key in self.models:
+                model = self.models[model_key]
+                
+                # Clean up pipeline resources if available
+                if hasattr(model.pipeline, 'cleanup'):
+                    await asyncio.to_thread(model.pipeline.cleanup)
+                
+                # Remove from registry
+                del self.models[model_key]
+                
+                # Remove from access tracking
+                if model_key in self.access_order:
+                    self.access_order.remove(model_key)
+                    
+                logger.info(f"Unloaded model {model_key}")
+                
+        def unload_model_sync(self, model_key: str) -> bool:
+            """Synchronous model unloading for API endpoints"""
+            if model_key not in self.models:
+                return False
+                
+            model = self.models[model_key]
+            
+            # Basic cleanup - no async cleanup for simplicity
+            del self.models[model_key]
+            
+            if model_key in self.access_order:
+                self.access_order.remove(model_key)
+                
+            logger.info(f"Synchronously unloaded model {model_key}")
+            return True
             
         async def _load_model_async(self, loaded_model: LoadedModel):
             """Async model loading process"""
@@ -129,21 +192,36 @@ if TORCH_AVAILABLE:
                 
         async def _ensure_weights_downloaded(self, loaded_model: LoadedModel) -> str:
             """Ensure model weights are cached locally"""
-            # This would implement actual weight downloading
-            # For now, return placeholder path
             weight_filename = f"{loaded_model.model_key.lower()}.pth"
             weight_path = os.path.join(self.models_dir, weight_filename)
             
             if not os.path.exists(weight_path):
-                # Mock download - in real implementation would download from URL
-                logger.info(f"Mock downloading weights for {loaded_model.model_key}")
-                await asyncio.sleep(1.0)  # Simulate download time
+                logger.info(f"Downloading weights for {loaded_model.model_key}")
                 
-                # Create empty file as placeholder
-                with open(weight_path, 'w') as f:
-                    f.write("# Mock weight file\n")
+                # Run download in thread pool to avoid blocking async event loop
+                await asyncio.to_thread(self._download_weights, loaded_model, weight_path)
                     
             return weight_path
+            
+        def _download_weights(self, loaded_model: LoadedModel, weight_path: str) -> None:
+            """Download model weights (runs in thread pool)"""
+            try:
+                # Mock download - in real implementation would use urllib.request.urlretrieve
+                # or requests with progress callback
+                import time
+                time.sleep(1.0)  # Simulate download time
+                
+                # Create mock weight file
+                with open(weight_path, 'w') as f:
+                    f.write(f"# Mock weight file for {loaded_model.model_key}\n")
+                    f.write(f"# Model: {loaded_model.model_name}\n")
+                    f.write(f"# Dataset: {loaded_model.dataset_name}\n")
+                    
+                logger.info(f"Downloaded weights to {weight_path}")
+                
+            except Exception as e:
+                logger.error(f"Failed to download weights for {loaded_model.model_key}: {e}")
+                raise
             
         def _load_pipeline(self, loaded_model: LoadedModel, weight_path: str):
             """Load ml3d pipeline (runs in thread pool)"""

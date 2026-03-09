@@ -265,10 +265,13 @@ async def unload_model(model_key: str):
                 detail=f"Model '{model_key}' is not currently loaded"
             )
         
-        # TODO: Implement model unloading in registry
-        # For now, just remove from registry dict
-        if hasattr(registry, 'models') and model_key in registry.models:
-            del registry.models[model_key]
+        # TODO: Use proper model unloading method
+        success = registry.unload_model_sync(model_key)
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model '{model_key}' is not currently loaded"
+            )
         
         return {"message": f"Model '{model_key}' unloaded successfully"}
         
