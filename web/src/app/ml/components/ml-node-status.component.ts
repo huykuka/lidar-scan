@@ -3,7 +3,8 @@
 
 import { Component, computed, input, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MLApiService, MLModelStatus } from '../services/ml-api.service';
+import { MLApiService } from '../services/ml-api.service';
+import { MLModelStatus } from '../../core/models/ml.model';
 
 @Component({
   selector: 'app-ml-node-status',

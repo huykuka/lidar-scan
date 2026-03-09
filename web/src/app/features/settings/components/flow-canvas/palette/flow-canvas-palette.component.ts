@@ -25,7 +25,7 @@ export class FlowCanvasPaletteComponent {
     }
 
     // Sort logic to put 'sensor' first, 'fusion' second, 'calibration' third, etc.
-    const order = ['sensor', 'fusion', 'calibration', 'operation', 'other'];
+    const order = ['sensor', 'fusion', 'calibration', 'ml', 'operation', 'other'];
     return Object.keys(groups)
       .sort((a, b) => {
         const indexA = order.indexOf(a);

@@ -10,6 +10,7 @@ const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
   fusion: { color: '#6366f1', icon: 'hub' },
   calibration: { color: '#f59e0b', icon: 'tune' },
   operation: { color: '#64748b', icon: 'settings_input_component' },
+  ml: { color: '#8b5cf6', icon: 'psychology' }, // Purple for ML nodes
 };
 
 function definitionToPlugin(def: NodeDefinition): NodePlugin {

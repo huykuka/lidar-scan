@@ -1,7 +1,7 @@
 // ML Label Legend Component
 // Displays semantic class color-to-name mapping for ML segmentation
 
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export interface LabelLegendItem {
@@ -115,8 +115,8 @@ export class MlLabelLegendComponent {
   classNames = input<string[]>([]);
   colorMap = input<number[][]>([]);
   
-  // Internal state
-  private _isCollapsed = false;
+  // Internal state - use signal for reactive UI
+  private _isCollapsed = signal<boolean>(false);
   
   // Computed legend items
   legendItems = computed(() => {
@@ -130,10 +130,10 @@ export class MlLabelLegendComponent {
     }));
   });
   
-  isCollapsed = computed(() => this._isCollapsed);
+  isCollapsed = computed(() => this._isCollapsed());
   
   toggleCollapsed(): void {
-    this._isCollapsed = !this._isCollapsed;
+    this._isCollapsed.set(!this._isCollapsed());
   }
   
   getRgbColor(rgb: number[]): string {
