@@ -1,8 +1,8 @@
 # Open3D-ML Integration — Requirements Checklist
 
 **Feature:** Open3D-ML DAG Node Integration  
-**Status:** Backend Implementation Complete  
-**Date:** 2026-03-09  
+**Status:** Backend Implementation Complete — Frontend Integration Pending  
+**Date:** 2026-03-09 (Backend completed)  
 **Author:** @architecture
 
 ## BA/PM Acceptance Criteria
@@ -53,7 +53,7 @@
 ### Compatibility Requirements
 - [x] System starts without errors when torch is NOT installed (Backend: Graceful degradation)
 - [ ] All existing pipeline tests pass unchanged (QA: Testing needed)
-- [ ] LIDR v1 clients remain unaffected by v2 protocol extension (Backend: Protocol design ready)
+- [x] LIDR v1 clients remain unaffected by v2 protocol extension (Backend: Implemented v1/v2 detection)
 - [x] 14-column numpy payload schema unchanged for non-ML nodes (Backend: Pass-through design)
 
 ## Final Acceptance Tests
