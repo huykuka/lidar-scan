@@ -53,14 +53,14 @@
 - [ ] Z-fighting prevention between boxes and points
 
 ## User Experience Enhancements
-- [ ] Smooth transitions when enabling/disabling label colors
-- [ ] Loading spinners during model warm-up periods
-- [ ] Toast notifications for model loading completion
-- [ ] Keyboard shortcuts for toggling ML visualizations
+- [x] Smooth transitions when enabling/disabling label colors
+- [x] Loading spinners during model warm-up periods
+- [x] Toast notifications for model loading completion
+- [x] Keyboard shortcuts for toggling ML visualizations
 - [ ] Context menus for ML-specific actions
-- [ ] Help tooltips explaining ML node functionality
+- [x] Help tooltips explaining ML node functionality
 - [ ] Performance warnings for heavy inference operations
-- [ ] Accessibility support for colorblind users
+- [x] Accessibility support for colorblind users
 
 ## Mock Data Generation
 - [x] Synthetic WebSocket v2 frame generation service
