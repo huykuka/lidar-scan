@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter
 from app.api.v1.schemas.edges import EdgeRecord
 from app.api.v1.schemas.common import StatusResponse, DeleteEdgeResponse
-from .handlers import list_edges, create_edge, delete_edge, save_edges_bulk, EdgeCreateUpdate
+from .service import list_edges, create_edge, delete_edge, save_edges_bulk, EdgeCreateUpdate
 
 
 # Router configuration

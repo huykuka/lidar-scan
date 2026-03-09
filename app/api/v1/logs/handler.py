@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query, WebSocket
 from typing import Optional
 from app.api.v1.schemas.logs import LogEntry
-from .handlers import get_logs, download_logs, logs_websocket_endpoint
+from .service import get_logs, download_logs, logs_websocket_endpoint
 
 
 # Router configuration

@@ -1,7 +1,7 @@
 """LiDAR router configuration and endpoint metadata."""
 
 from fastapi import APIRouter
-from .handlers import (
+from .service import (
     get_lidar_profiles, validate_lidar_config,
     ProfilesListResponse, LidarConfigValidationRequest, LidarConfigValidationResponse
 )

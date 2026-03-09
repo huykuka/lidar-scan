@@ -11,7 +11,7 @@ from app.api.v1.schemas.calibration import (
     CalibrationStatsResponse
 )
 from app.api.v1.schemas.common import StatusResponse
-from .handlers import (
+from .service import (
     trigger_calibration, accept_calibration, reject_calibration,
     get_calibration_history, rollback_calibration, get_calibration_statistics,
     TriggerCalibrationRequest, AcceptCalibrationRequest, RollbackRequest

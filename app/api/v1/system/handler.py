@@ -1,8 +1,8 @@
-"""System router configuration and endpoint metadata."""
+"""System HTTP handlers - FastAPI routing configuration and endpoint metadata."""
 
 from fastapi import APIRouter
 from app.api.v1.schemas.system import SystemStatusResponse, SystemControlResponse
-from .handlers import get_status, start_system, stop_system
+from .service import get_status, start_system, stop_system
 
 
 # Router configuration

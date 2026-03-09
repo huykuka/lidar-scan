@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 from app.api.v1.schemas.config import ImportResponse, ValidationResponse
-from .handlers import export_configuration, import_configuration, validate_configuration, ConfigurationImport
+from .service import export_configuration, import_configuration, validate_configuration, ConfigurationImport
 
 
 # Router configuration

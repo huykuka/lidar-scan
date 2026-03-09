@@ -4,7 +4,7 @@ from fastapi import APIRouter
 from app.services.nodes.schema import NodeDefinition
 from app.api.v1.schemas.nodes import NodeRecord, NodesStatusResponse
 from app.api.v1.schemas.common import StatusResponse, UpsertResponse
-from .handlers import (
+from .service import (
     list_nodes, list_node_definitions, get_node, upsert_node,
     set_node_enabled, delete_node, reload_all_config, get_nodes_status,
     NodeCreateUpdate, NodeStatusToggle

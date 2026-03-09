@@ -1,7 +1,7 @@
 """Assets router configuration and endpoint metadata."""
 
 from fastapi import APIRouter
-from .handlers import get_lidar_thumbnail, list_lidar_thumbnails, ThumbnailListResponse
+from .service import get_lidar_thumbnail, list_lidar_thumbnails, ThumbnailListResponse
 
 
 # Router configuration

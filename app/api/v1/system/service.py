@@ -1,4 +1,4 @@
-"""System endpoint handlers - Pure business logic without routing configuration."""
+"""System business logic services - Pure business logic without routing configuration."""
 
 from app.core.config import settings
 from app.services.nodes.instance import node_manager

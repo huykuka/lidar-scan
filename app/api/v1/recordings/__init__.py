@@ -1,5 +1,5 @@
 """Recordings router module."""
 
-from .config import router
+from .handler import router
 
 __all__ = ["router"]
