@@ -89,11 +89,11 @@
 - [ ] GPU unavailability graceful fallback to CPU
 
 ## Testing and Integration
-- [ ] Unit tests for MLModelRegistry singleton behavior
-- [ ] Unit tests for node data processing pipelines
-- [ ] Integration tests with mock ml3d pipelines
+- [x] Unit tests for MLModelRegistry singleton behavior
+- [x] Unit tests for node data processing pipelines
+- [x] Integration tests with mock ml3d pipelines
 - [ ] WebSocket v2 protocol serialization/deserialization tests
-- [ ] API endpoint tests with FastAPI TestClient
-- [ ] Error condition testing (missing torch, failed downloads, etc.)
+- [x] API endpoint tests with FastAPI TestClient
+- [x] Error condition testing (missing torch, failed downloads, etc.)
 - [ ] Performance testing: inference latency, memory usage
 - [ ] Compatibility testing with existing pipeline nodes
