@@ -26,21 +26,25 @@ if TORCH_AVAILABLE:
         async def process_ml_inference(self, data: Dict[str, Any]) -> Dict[str, Any]:
             """Process point cloud through object detection model"""
             
-            # Extract point cloud from 14-column numpy array
-            point_cloud = data.get("point_cloud") 
-            if point_cloud is None:
-                logger.error("No point_cloud in data payload")
+            # Extract point cloud from payload
+            points = data.get("points")  # Should be (N, 14) numpy array
+            if points is None:
+                logger.error("No points in data payload")
                 return data
                 
             # Convert to ml3d input format  
             # Extract only XYZ (columns 0-2) for object detection
-            xyz = point_cloud[:, :3].astype(np.float32)
+            xyz = points[:, :3].astype(np.float32)
             
             ml_input = {
                 "point": xyz,  # (N, 3)
             }
             
             # Run inference via model registry
+            if not self.model_registry or not self.loaded_model:
+                logger.error("Model registry or loaded model not available")
+                return data
+                
             result = await self.model_registry.run_inference(
                 self.loaded_model.model_key, ml_input
             )

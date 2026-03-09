@@ -62,6 +62,10 @@ if TORCH_AVAILABLE:
             self.input_count: int = 0
             self.output_count: int = 0
             
+            # Initialize ML model loading
+            # Note: This needs to be called after construction for async to work
+            self._initialization_pending = True
+            
         async def initialize(self):
             """Initialize ML node and load model"""
             
@@ -146,6 +150,11 @@ if TORCH_AVAILABLE:
         async def on_input(self, payload: Dict[str, Any]) -> None:
             """Handle input data and forward processed results"""
             import time
+            
+            # Initialize ML model on first input if needed
+            if self._initialization_pending:
+                await self.initialize()
+                self._initialization_pending = False
             
             self.last_input_at = time.time()
             start_time = time.time()

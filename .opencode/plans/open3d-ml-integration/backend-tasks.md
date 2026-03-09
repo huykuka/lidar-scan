@@ -16,50 +16,30 @@
 - [x] Create `app/modules/ml/__init__.py` with module imports
 - [x] Create `app/modules/ml/registry.py` for NodeFactory.register() calls
 - [x] Implement `app/modules/ml/ml_node.py` - MLNode(ModuleNode) base class
-- [ ] Implement `app/modules/ml/segmentation_node.py` - SemanticSegmentationNode
-- [ ] Implement `app/modules/ml/detection_node.py` - ObjectDetectionNode  
+- [x] Implement `app/modules/ml/segmentation_node.py` - SemanticSegmentationNode
+- [x] Implement `app/modules/ml/detection_node.py` - ObjectDetectionNode  
 - [x] Implement `app/modules/ml/model_registry.py` - MLModelRegistry singleton
-- [ ] Register ml_semantic_segmentation and ml_object_detection with NodeFactory
-
-## MLModelRegistry Implementation
-- [x] Singleton pattern with _instance class variable
-- [x] Dict storage: {model_key: LoadedModel} for pipeline instances
-- [x] get_or_load() method with async model loading
-- [x] download_weights() wrapped in asyncio.to_thread()
-- [x] pipeline.load_ckpt() initialization in threadpool
-- [x] Status tracking: downloading, loading, ready, error states
-- [x] run_inference() wrapper for threadpool execution
-- [ ] LRU eviction policy for max 2 concurrent models
-- [ ] Proper cleanup and memory management
-
-## MLNode Base Class
-- [x] Inherit from ModuleNode with ML-specific initialization
-- [x] Torch availability check in __init__() with ImportError handling
-- [x] Reference to LoadedModel from MLModelRegistry.get_or_load()
-- [x] Warm-up pass-through pattern when model status != "ready"
-- [x] get_status() override with inference_latency_ms, model_name, device
-- [x] Error handling integration with existing OperationNode pattern
-- [x] Throttling mechanism integration with existing throttle_ms config
+- [x] Register ml_semantic_segmentation and ml_object_detection with NodeFactory
 
 ## SemanticSegmentationNode Implementation
-- [ ] process_data() method with XYZ + intensity extraction
-- [ ] Convert 14-column numpy to {"point": (N,3), "feat": (N,1)} format
-- [ ] Call registry.run_inference() via asyncio.to_thread()
-- [ ] Process {"predict_labels": (N,), "predict_scores": (N,C)} result
-- [ ] Append semantic_label as column 14 (int32 cast to float32)
-- [ ] Add ml_labels, ml_scores, ml_num_classes to payload dict
-- [ ] Forward augmented (N,15) numpy array to manager.forward_data()
-- [ ] Handle model loading states with appropriate fallbacks
+- [x] process_data() method with XYZ + intensity extraction
+- [x] Convert 14-column numpy to {"point": (N,3), "feat": (N,1)} format
+- [x] Call registry.run_inference() via asyncio.to_thread()
+- [x] Process {"predict_labels": (N,), "predict_scores": (N,C)} result
+- [x] Append semantic_label as column 14 (int32 cast to float32)
+- [x] Add ml_labels, ml_scores, ml_num_classes to payload dict
+- [x] Forward augmented (N,15) numpy array to manager.forward_data()
+- [x] Handle model loading states with appropriate fallbacks
 
 ## ObjectDetectionNode Implementation  
-- [ ] process_data() method with XYZ-only extraction
-- [ ] Convert 14-column numpy to {"point": (N,3)} format for inference
-- [ ] Call registry.run_inference() via asyncio.to_thread()
-- [ ] Process {"predict_boxes": [...]} result into BoundingBox3D objects
-- [ ] Pass-through original (N,14) numpy array UNCHANGED
-- [ ] Add bounding_boxes list to payload metadata
-- [ ] Forward original point cloud + detection metadata
-- [ ] Confidence threshold filtering based on node config
+- [x] process_data() method with XYZ-only extraction
+- [x] Convert 14-column numpy to {"point": (N,3)} format for inference
+- [x] Call registry.run_inference() via asyncio.to_thread()
+- [x] Process {"predict_boxes": [...]} result into BoundingBox3D objects
+- [x] Pass-through original (N,14) numpy array UNCHANGED
+- [x] Add bounding_boxes list to payload metadata
+- [x] Forward original point cloud + detection metadata
+- [x] Confidence threshold filtering based on node config
 
 ## REST API Endpoints
 - [ ] Create `app/api/v1/ml/` router module
