@@ -1,0 +1,173 @@
+/* ML Node Inspector Styles */
+.ml-node-inspector {
+  padding: 16px;
+  max-width: 400px;
+  background: var(--synergy-surface);
+  border-radius: 8px;
+  border: 1px solid var(--synergy-border);
+}
+
+.inspector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--synergy-border);
+}
+
+.inspector-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--synergy-text-primary);
+}
+
+.config-section {
+  margin-bottom: 24px;
+}
+
+.config-section:last-child {
+  margin-bottom: 0;
+}
+
+.config-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--synergy-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-field {
+  margin-bottom: 16px;
+}
+
+.form-field:last-child {
+  margin-bottom: 0;
+}
+
+.form-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--synergy-text-secondary);
+}
+
+.form-field small {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--synergy-text-muted);
+  font-style: italic;
+}
+
+.model-info {
+  background: var(--synergy-gray-50);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.info-row:not(:last-child) {
+  border-bottom: 1px solid var(--synergy-gray-200);
+}
+
+.info-row .label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--synergy-text-secondary);
+}
+
+.info-row .value {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--synergy-text-primary);
+  text-align: right;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.config-summary {
+  background: var(--synergy-gray-900);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 11px;
+  color: var(--synergy-green-400);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.config-summary pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Form Control Overrides */
+syn-select,
+syn-input {
+  width: 100%;
+}
+
+syn-range {
+  width: 100%;
+  margin: 8px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .ml-node-inspector {
+    padding: 12px;
+    max-width: 100%;
+  }
+  
+  .inspector-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .inspector-header h3 {
+    font-size: 14px;
+  }
+  
+  .form-field label {
+    font-size: 12px;
+  }
+  
+  .form-field small {
+    font-size: 10px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .model-info {
+    background: var(--synergy-gray-800);
+  }
+  
+  .info-row:not(:last-child) {
+    border-bottom-color: var(--synergy-gray-700);
+  }
+  
+  .config-summary {
+    background: var(--synergy-gray-950);
+    color: var(--synergy-green-300);
+  }
+}

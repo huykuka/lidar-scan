@@ -1,0 +1,201 @@
+<!-- ML Dashboard Template -->
+<div class="ml-dashboard">
+  
+  <!-- Header with controls -->
+  <div class="dashboard-header">
+    <div class="title-section">
+      <h2>Open3D-ML Dashboard</h2>
+      <syn-badge [variant]="isConnected() ? 'success' : 'neutral'">
+        {{ isConnected() ? 'Connected' : 'Disconnected' }}
+      </syn-badge>
+    </div>
+    
+    <div class="header-controls">
+      <!-- Connection Controls -->
+      <div class="control-group">
+        @if (!isConnected()) {
+          <syn-button variant="filled" size="small" (click)="connectToStream()">
+            <syn-icon slot="prefix" name="play_arrow"></syn-icon>
+            Connect Stream
+          </syn-button>
+        } @else {
+          <syn-button variant="outline" size="small" (click)="disconnectFromStream()">
+            <syn-icon slot="prefix" name="stop"></syn-icon>
+            Disconnect
+          </syn-button>
+        }
+      </div>
+      
+      <!-- Mock Data for Testing -->
+      <div class="control-group">
+        <syn-button variant="outline" size="small" (click)="generateMockData()">
+          <syn-icon slot="prefix" name="science"></syn-icon>
+          Mock Data
+        </syn-button>
+      </div>
+      
+      <!-- Visualization Controls -->
+      <div class="control-group">
+        <syn-switch 
+          [checked]="showSemanticColors()"
+          (syn-change)="toggleSemanticColors()">
+          Semantic Colors
+        </syn-switch>
+        
+        <syn-switch 
+          [checked]="showBoundingBoxes()"
+          (syn-change)="toggleBoundingBoxes()">
+          Bounding Boxes
+        </syn-switch>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Main Content Area -->
+  <div class="dashboard-content">
+    
+    <!-- Left Sidebar - Models and Controls -->
+    <div class="sidebar">
+      
+      <!-- Model Selection -->
+      <div class="sidebar-section">
+        <h3>ML Models</h3>
+        
+        <div class="model-list">
+          @for (model of availableModels(); track model.model_key) {
+            <div 
+              class="model-card"
+              [class.selected]="selectedModel() === model.model_key"
+              (click)="selectModel(model.model_key)">
+              
+              <div class="model-header">
+                <h4>{{ model.model_name }}</h4>
+                <syn-badge size="small" variant="neutral">{{ model.task }}</syn-badge>
+              </div>
+              
+              <div class="model-details">
+                <span class="dataset">{{ model.dataset_name }}</span>
+                <span class="classes">{{ model.num_classes }} classes</span>
+              </div>
+              
+              <!-- Model Status -->
+              @if (selectedModel() === model.model_key) {
+                <app-ml-node-status [modelKey]="model.model_key"></app-ml-node-status>
+              }
+              
+            </div>
+          }
+        </div>
+        
+      </div>
+      
+      <!-- Performance Metrics -->
+      @if (performanceMetrics(); as metrics) {
+        <div class="sidebar-section">
+          <h3>Performance Metrics</h3>
+          
+          <div class="metrics-grid">
+            <div class="metric">
+              <span class="label">Inference FPS</span>
+              <span class="value">{{ metrics.inference_fps.toFixed(1) }}</span>
+            </div>
+            <div class="metric">
+              <span class="label">Avg Latency</span>
+              <span class="value">{{ metrics.avg_inference_ms.toFixed(0) }}ms</span>
+            </div>
+            <div class="metric">
+              <span class="label">GPU Usage</span>
+              <span class="value">{{ metrics.gpu_utilization_pct.toFixed(0) }}%</span>
+            </div>
+            <div class="metric">
+              <span class="label">Points/sec</span>
+              <span class="value">{{ (metrics.points_processed_per_sec / 1000).toFixed(0) }}k</span>
+            </div>
+          </div>
+          
+        </div>
+      }
+      
+      <!-- Stream Status -->
+      <div class="sidebar-section">
+        <h3>Stream Status</h3>
+        
+        <div class="stream-info">
+          <div class="info-row">
+            <span class="label">Frames Received:</span>
+            <span class="value">{{ frameCount() }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Semantic Labels:</span>
+            <syn-icon 
+              [name]="hasSemanticLabels() ? 'check_circle' : 'cancel'"
+              [class]="hasSemanticLabels() ? 'success-icon' : 'error-icon'">
+            </syn-icon>
+          </div>
+          <div class="info-row">
+            <span class="label">Bounding Boxes:</span>
+            <syn-icon 
+              [name]="hasBoundingBoxes() ? 'check_circle' : 'cancel'"
+              [class]="hasBoundingBoxes() ? 'success-icon' : 'error-icon'">
+            </syn-icon>
+          </div>
+        </div>
+        
+      </div>
+      
+    </div>
+    
+    <!-- Main Visualization Area -->
+    <div class="visualization-area">
+      
+      <!-- Point Cloud Viewer -->
+      <div class="point-cloud-container">
+        <app-point-cloud
+          [pointSize]="0.1"
+          [showGrid]="true"
+          [showAxes]="true">
+        </app-point-cloud>
+        
+        <!-- Overlays -->
+        @if (currentFrame() && hasBoundingBoxes()) {
+          <app-bounding-box-overlay
+            [boxes]="currentFrame()!.boxes || []"
+            [camera]="camera || null"
+            [canvasSize]="canvasSize()">
+          </app-bounding-box-overlay>
+        }
+        
+        @if (currentModelData() && hasSemanticLabels()) {
+          <app-ml-label-legend
+            [classNames]="currentModelData()!.class_names"
+            [colorMap]="currentModelData()!.color_map">
+          </app-ml-label-legend>
+        }
+        
+      </div>
+      
+    </div>
+    
+  </div>
+  
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-left">
+      @if (currentFrame(); as frame) {
+        <span>{{ frame.point_count }} points</span>
+        <span>Version {{ frame.version }}</span>
+        @if (frame.inference_time_ms) {
+          <span>{{ frame.inference_time_ms.toFixed(1) }}ms inference</span>
+        }
+      }
+    </div>
+    
+    <div class="status-right">
+      <span>{{ frameCount() }} frames received</span>
+      @if (isConnected()) {
+        <syn-icon name="wifi" class="connected-icon"></syn-icon>
+      }
+    </div>
+  </div>
+  
+</div>

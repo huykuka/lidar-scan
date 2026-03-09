@@ -81,7 +81,7 @@ export class MLApiService {
   /**
    * Load available models and update signal
    */
-  private loadAvailableModels(): void {
+  loadAvailableModels(): void {
     this.getModels().subscribe(models => {
       this.availableModels.set(models);
     });
