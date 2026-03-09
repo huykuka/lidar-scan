@@ -1,0 +1,21 @@
+# Optional ML Dependencies for Open3D-ML Integration
+# Install with: pip install -r requirements-ml.txt
+
+# Core ML framework
+torch>=2.0.0            # PyTorch CPU or CUDA
+torchvision>=0.15.0      # For some Open3D-ML model dependencies
+
+# Scientific computing and preprocessing
+scikit-learn>=0.21       # KDTree for RandLA-Net preprocessing  
+pandas>=1.0              # Used internally by ml3d datasets
+numpy>=1.21              # Already in base requirements.txt, but ensure compatibility
+
+# Configuration and utilities
+pyyaml>=5.4.1           # Config file loading for ml3d pipelines
+addict                  # Config dict utility used by Open3D-ML
+tqdm                    # Progress bars during model loading
+pyquaternion            # 3D rotation utilities for bounding box handling
+
+# Optional accelerations (uncomment if needed)
+# ninja                 # Faster PyTorch compilation
+# wheel                 # For faster installs
