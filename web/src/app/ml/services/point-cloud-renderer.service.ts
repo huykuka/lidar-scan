@@ -200,4 +200,23 @@ export class PointCloudRendererService {
   setColorMode(mode: 'original' | 'semantic' | 'mixed'): void {
     this.renderingOptions.colorMode = mode;
   }
+  
+  /**
+   * Apply original colors to point cloud (public method)
+   */
+  applyOriginalColors(
+    geometry: THREE.BufferGeometry,
+    material: THREE.PointsMaterial,
+    originalColors?: Float32Array,
+    count?: number
+  ): void {
+    if (!originalColors) {
+      // Fallback to material color
+      material.vertexColors = false;
+      return;
+    }
+    
+    const actualCount = count || (originalColors.length / 3);
+    this.updateOriginalColors(geometry, material, originalColors, actualCount);
+  }
 }

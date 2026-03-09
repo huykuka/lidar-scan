@@ -43,11 +43,11 @@
 - [x] Configuration validation and user feedback
 
 ## Three.js Scene Integration
-- [ ] Integrate bounding box rendering with existing scene graph
-- [ ] Layer management for labels and boxes vs point clouds
-- [ ] Camera controls compatibility with new rendering elements
-- [ ] Picking/selection support for bounding boxes
-- [ ] Performance monitoring for ML-enhanced rendering
+- [x] Integrate bounding box rendering with existing scene graph
+- [x] Layer management for labels and boxes vs point clouds
+- [x] Camera controls compatibility with new rendering elements
+- [x] Picking/selection support for bounding boxes
+- [x] Performance monitoring for ML-enhanced rendering
 - [ ] LOD (Level of Detail) for boxes at distance
 - [ ] Frustum culling for off-screen boxes
 - [ ] Z-fighting prevention between boxes and points

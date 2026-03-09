@@ -7,16 +7,23 @@ import {
   input,
   effect,
   output,
+  inject,
+  HostListener,
 } from '@angular/core';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { PointCloudRendererService } from '../../../../ml/services/point-cloud-renderer.service';
+import { BoundingBoxRendererService } from '../../../../ml/services/bounding-box-renderer.service';
+import { BoundingBox3D } from '../../../../core/models/ml.model';
 
 @Component({
   selector: 'app-point-cloud',
   standalone: true,
   template: `<div
     #container
-    class="w-full h-full min-h-0 bg-transparent rounded-lg overflow-hidden"
+    class="w-full h-full min-h-0 bg-transparent rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500"
+    tabindex="0"
+    title="ML Controls: M=toggle ML, L=labels, B=boxes, 1/2/3=color modes"
   ></div>`,
   styles: [
     `
@@ -35,6 +42,12 @@ export class PointCloudComponent implements OnInit, OnDestroy {
   pointSize = input<number>(0.1);
   showGrid = input<boolean>(true);
   showAxes = input<boolean>(true);
+  enableMLRendering = input<boolean>(false);
+  semanticColorMode = input<'original' | 'semantic' | 'mixed'>('original');
+
+  // ML Services
+  private pointCloudRenderer = inject(PointCloudRendererService);
+  private boundingBoxRenderer = inject(BoundingBoxRendererService);
 
   // Three.js instances
   private scene!: THREE.Scene;
@@ -42,7 +55,7 @@ export class PointCloudComponent implements OnInit, OnDestroy {
   private renderer!: THREE.WebGLRenderer;
   private controls!: OrbitControls;
 
-  // Multiple point clouds support
+  // Multiple point clouds support with ML capabilities
   private pointClouds: Map<
     string,
     {
@@ -50,6 +63,8 @@ export class PointCloudComponent implements OnInit, OnDestroy {
       geometry: THREE.BufferGeometry;
       material: THREE.PointsMaterial;
       lastCount: number;
+      semanticLabels?: Int32Array;
+      originalColors?: Float32Array;
     }
   > = new Map();
 
@@ -85,6 +100,25 @@ export class PointCloudComponent implements OnInit, OnDestroy {
         const isVisible = !!this.showAxes();
         this.axesHelper.visible = isVisible;
         this.axesLabels.forEach((l) => (l.visible = isVisible));
+      }
+    });
+
+    // ML rendering effects
+    effect(() => {
+      const colorMode = this.semanticColorMode();
+      this.pointCloudRenderer.setColorMode(colorMode);
+      this.updateAllPointCloudsWithML();
+    });
+
+    effect(() => {
+      const enableML = this.enableMLRendering();
+      this.pointCloudRenderer.setRenderingOptions({ enableSemanticColors: enableML });
+      if (!enableML) {
+        // Switch back to original rendering when ML is disabled
+        this.updateAllPointCloudsWithOriginalColors();
+        this.boundingBoxRenderer.clearBoundingBoxes();
+      } else {
+        this.updateAllPointCloudsWithML();
       }
     });
   }
@@ -158,6 +192,9 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     this.axesLabels = [axisX, axisY, axisZ];
     this.scene.add(...this.axesLabels);
 
+    // Initialize ML services
+    this.boundingBoxRenderer.initialize(this.scene);
+
     // Resize observer
     const resizeObserver = new ResizeObserver(() => {
       this.camera.aspect = container.clientWidth / container.clientHeight;
@@ -183,11 +220,14 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     // Create new point cloud
     const geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(this.MAX_POINTS * 3);
+    const colors = new Float32Array(this.MAX_POINTS * 3);
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
       size: this.pointSize(),
       color: color,
+      vertexColors: true, // Enable per-vertex coloring for ML
     });
 
     const pointsObj = new THREE.Points(geometry, material);
@@ -204,6 +244,8 @@ export class PointCloudComponent implements OnInit, OnDestroy {
       geometry,
       material,
       lastCount: 0,
+      semanticLabels: undefined,
+      originalColors: undefined,
     });
   }
 
@@ -379,6 +421,169 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     this.pointClouds.forEach((cloud, topic) => {
       this.updatePointsForTopic(topic, new Float32Array(0), 0);
     });
+  }
+
+  /**
+   * Update points with ML data (semantic labels and/or bounding boxes)
+   * @param topic Topic identifier
+   * @param positionsArray Point positions as Float32Array
+   * @param count Number of points
+   * @param semanticLabels Optional semantic labels for each point
+   * @param originalColors Optional original RGB colors for points
+   */
+  updatePointsWithMLData(
+    topic: string,
+    positionsArray: Float32Array,
+    count: number,
+    semanticLabels?: Int32Array,
+    originalColors?: Float32Array
+  ) {
+    const cloud = this.pointClouds.get(topic);
+    if (!cloud) return;
+
+    cloud.lastCount = count;
+    cloud.semanticLabels = semanticLabels;
+    cloud.originalColors = originalColors;
+
+    // Use ML renderer if enabled, otherwise use standard update
+    if (this.enableMLRendering() && semanticLabels) {
+      this.pointCloudRenderer.updatePointCloudWithLabels(
+        cloud.geometry,
+        cloud.material,
+        positionsArray,
+        count,
+        semanticLabels,
+        originalColors
+      );
+    } else {
+      // Standard point cloud update
+      this.updatePointsForTopic(topic, positionsArray, count);
+    }
+  }
+
+  /**
+   * Update bounding boxes for current frame
+   * @param boxes Array of 3D bounding boxes
+   */
+  updateBoundingBoxes(boxes: BoundingBox3D[]) {
+    if (this.enableMLRendering()) {
+      this.boundingBoxRenderer.updateBoundingBoxes(boxes);
+    }
+  }
+
+  /**
+   * Toggle ML rendering capabilities
+   * @param enabled Enable or disable ML features
+   */
+  setMLRenderingEnabled(enabled: boolean) {
+    if (enabled) {
+      this.updateAllPointCloudsWithML();
+    } else {
+      this.updateAllPointCloudsWithOriginalColors();
+      this.boundingBoxRenderer.clearBoundingBoxes();
+    }
+  }
+
+  /**
+   * Set semantic color mode for point cloud rendering
+   * @param mode Color mode: 'original', 'semantic', or 'mixed'
+   */
+  setSemanticColorMode(mode: 'original' | 'semantic' | 'mixed') {
+    this.pointCloudRenderer.setColorMode(mode);
+    this.updateAllPointCloudsWithML();
+  }
+
+  /**
+   * Update all point clouds with ML rendering
+   */
+  private updateAllPointCloudsWithML() {
+    if (!this.enableMLRendering()) return;
+
+    this.pointClouds.forEach((cloud) => {
+      if (cloud.semanticLabels && cloud.lastCount > 0) {
+        this.pointCloudRenderer.updatePointCloudWithLabels(
+          cloud.geometry,
+          cloud.material,
+          cloud.geometry.getAttribute('position').array as Float32Array,
+          cloud.lastCount,
+          cloud.semanticLabels,
+          cloud.originalColors
+        );
+      }
+    });
+  }
+
+  /**
+   * Revert all point clouds to original colors
+   */
+  private updateAllPointCloudsWithOriginalColors() {
+    this.pointClouds.forEach((cloud) => {
+      this.pointCloudRenderer.applyOriginalColors(
+        cloud.geometry,
+        cloud.material,
+        cloud.originalColors,
+        cloud.lastCount
+      );
+    });
+  }
+
+  /**
+   * Keyboard shortcuts for ML features
+   */
+  @HostListener('window:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    // Only process when component has focus
+    if (!this.containerRef?.nativeElement.contains(document.activeElement)) {
+      return;
+    }
+
+    switch (event.key.toLowerCase()) {
+      case 'm':
+        // Toggle ML rendering
+        if (!event.ctrlKey && !event.altKey) {
+          // This would be handled by parent component
+          event.preventDefault();
+        }
+        break;
+      case 'l':
+        // Toggle semantic labels
+        if (!event.ctrlKey && !event.altKey) {
+          this.pointCloudRenderer.toggleSemanticColors();
+          this.updateAllPointCloudsWithML();
+          event.preventDefault();
+        }
+        break;
+      case 'b':
+        // Toggle bounding boxes
+        if (!event.ctrlKey && !event.altKey) {
+          const currentVisibility = this.boundingBoxRenderer.getActiveBoxCount() > 0;
+          this.boundingBoxRenderer.setVisible(!currentVisibility);
+          event.preventDefault();
+        }
+        break;
+      case '1':
+        this.pointCloudRenderer.setColorMode('original');
+        this.updateAllPointCloudsWithML();
+        event.preventDefault();
+        break;
+      case '2':
+        this.pointCloudRenderer.setColorMode('semantic');
+        this.updateAllPointCloudsWithML();
+        event.preventDefault();
+        break;
+      case '3':
+        this.pointCloudRenderer.setColorMode('mixed');
+        this.updateAllPointCloudsWithML();
+        event.preventDefault();
+        break;
+    }
+  }
+
+  /**
+   * Add focus handling for keyboard shortcuts
+   */
+  focusComponent() {
+    this.containerRef.nativeElement.focus();
   }
 
   private animate() {

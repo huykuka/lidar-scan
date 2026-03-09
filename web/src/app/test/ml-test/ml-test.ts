@@ -9,7 +9,6 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { MLApiService } from '../../ml/services/ml-api.service';
 import { MlLabelLegendComponent } from '../../ml/components/ml-label-legend.component';
 import { MlNodeStatusComponent } from '../../ml/components/ml-node-status.component';
-import { BoundingBoxOverlayComponent } from '../../ml/components/bounding-box-overlay.component';
 
 @Component({
   selector: 'app-ml-test',
@@ -17,8 +16,7 @@ import { BoundingBoxOverlayComponent } from '../../ml/components/bounding-box-ov
     CommonModule,
     SynergyComponentsModule,
     MlLabelLegendComponent,
-    MlNodeStatusComponent,
-    BoundingBoxOverlayComponent
+    MlNodeStatusComponent
   ],
   templateUrl: './ml-test.html',
   styleUrl: './ml-test.css',

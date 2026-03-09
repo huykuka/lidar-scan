@@ -57,7 +57,7 @@ export const routes: Routes = [
       {
         path: 'ml',
         loadComponent: () =>
-          import('./ml/components/ml-dashboard/ml-dashboard.ts').then(
+          import('./ml/components/ml-dashboard/ml-dashboard').then(
             (m) => m.MlDashboardComponent,
           ),
       },

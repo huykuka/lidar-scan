@@ -240,17 +240,25 @@ export class BoundingBoxRendererService {
   }
   
   /**
-   * Cleanup resources
+   * Dispose of all resources
    */
   dispose(): void {
-    for (const boxData of this.boxPool) {
+    this.boxPool.forEach(box => {
       if (this.scene) {
-        this.scene.remove(boxData.mesh);
+        this.scene.remove(box.mesh);
       }
-      boxData.geometry.dispose();
-      boxData.material.dispose();
-    }
+      box.geometry.dispose();
+      box.material.dispose();
+    });
     this.boxPool = [];
+    this.activeBoxCount = 0;
+  }
+  
+  /**
+   * Clear all bounding boxes from scene
+   */
+  clearBoundingBoxes(): void {
+    this.hideAllBoxes();
     this.activeBoxCount = 0;
   }
 }
