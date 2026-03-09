@@ -1,13 +1,7 @@
-"""
-Calibration API endpoints.
-
-Provides REST API for triggering calibrations, accepting/rejecting results,
-viewing history, and rollback functionality.
-"""
+"""Calibration endpoint handlers - Pure business logic without routing configuration."""
 
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
@@ -15,36 +9,13 @@ from app.repositories import calibration_orm
 from app.repositories.node_orm import NodeRepository
 from app.services.nodes.instance import node_manager
 from app.modules.calibration.calibration_node import CalibrationNode
-
-router = APIRouter()
-
-
-# --- Request/Response Models ---
-
-class TriggerCalibrationRequest(BaseModel):
-    """Request body for triggering calibration."""
-    reference_sensor_id: Optional[str] = None
-    source_sensor_ids: Optional[List[str]] = None
-    sample_frames: int = 1
+from .dto import TriggerCalibrationRequest, AcceptCalibrationRequest, RollbackRequest
 
 
-class AcceptCalibrationRequest(BaseModel):
-    """Request body for accepting calibration."""
-    sensor_ids: Optional[List[str]] = None  # None = all pending
 
 
-class RollbackRequest(BaseModel):
-    """Request body for rollback operation."""
-    timestamp: str
 
-
-# --- Endpoints ---
-
-@router.post("/calibration/{node_id}/trigger")
-async def trigger_calibration(
-    node_id: str,
-    request: TriggerCalibrationRequest
-):
+async def trigger_calibration(node_id: str, request: TriggerCalibrationRequest):
     """
     Trigger ICP calibration on buffered sensor data.
     
@@ -86,12 +57,7 @@ async def trigger_calibration(
         raise HTTPException(status_code=500, detail=f"Calibration failed: {str(e)}")
 
 
-@router.post("/calibration/{node_id}/accept")
-async def accept_calibration(
-    node_id: str,
-    request: AcceptCalibrationRequest,
-    db: Session = Depends(get_db)
-):
+async def accept_calibration(node_id: str, request: AcceptCalibrationRequest, db: Session):
     """
     Accept pending calibration and apply to sensors.
     
@@ -133,7 +99,6 @@ async def accept_calibration(
         raise HTTPException(status_code=500, detail=f"Failed to accept calibration: {str(e)}")
 
 
-@router.post("/calibration/{node_id}/reject")
 async def reject_calibration(node_id: str):
     """
     Reject pending calibration (discard results).
@@ -159,15 +124,10 @@ async def reject_calibration(node_id: str):
     # Reject calibration
     await node.reject_calibration()
     
-    return {"success": True}
+    return {"status": "success"}
 
 
-@router.get("/calibration/history/{sensor_id}")
-async def get_calibration_history(
-    sensor_id: str,
-    limit: int = 10,
-    db: Session = Depends(get_db)
-):
+async def get_calibration_history(sensor_id: str, limit: int, db: Session):
     """
     Retrieve calibration history for a sensor.
     
@@ -195,12 +155,7 @@ async def get_calibration_history(
         raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")
 
 
-@router.post("/calibration/rollback/{sensor_id}")
-async def rollback_calibration(
-    sensor_id: str,
-    request: RollbackRequest,
-    db: Session = Depends(get_db)
-):
+async def rollback_calibration(sensor_id: str, request: RollbackRequest, db: Session):
     """
     Rollback sensor to a previous calibration state.
     
@@ -262,7 +217,7 @@ async def rollback_calibration(
         )
         
         # Trigger DAG reload
-        node_manager.reload_config()
+        await node_manager.reload_config()
         
         return {
             "success": True,
@@ -274,11 +229,7 @@ async def rollback_calibration(
         raise HTTPException(status_code=500, detail=f"Rollback failed: {str(e)}")
 
 
-@router.get("/calibration/statistics/{sensor_id}")
-async def get_calibration_statistics(
-    sensor_id: str,
-    db: Session = Depends(get_db)
-):
+async def get_calibration_statistics(sensor_id: str, db: Session):
     """
     Get statistical summary of calibration attempts for a sensor.
     

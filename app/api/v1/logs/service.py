@@ -1,17 +1,18 @@
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, StreamingResponse
+"""Logs endpoint handlers - Pure business logic without routing configuration."""
+
+from fastapi import HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import os
-import re
-import asyncio
 import json
+import asyncio
 
 from app.core.logging import LOG_FILE
 
-router = APIRouter()
 
 def parse_log_line(line: str) -> Optional[Dict[str, Any]]:
+    """Parse a log line into structured components."""
     # New format: "2024-02-23 10:30:45 | INFO     | app.services | Message"
     parts = line.split(' | ', 3)
     if len(parts) >= 4:
@@ -23,13 +24,9 @@ def parse_log_line(line: str) -> Optional[Dict[str, Any]]:
         }
     return None
 
-@router.get("/logs")
-def get_logs(
-    level: Optional[str] = Query(None, description="Log level to filter by (INFO, WARNING, ERROR, DEBUG)"),
-    search: Optional[str] = Query(None, description="Free text to search for in log message"),
-    offset: int = Query(0, description="Starting row (0 is last/latest entry)"),
-    limit: int = Query(100, description="Number of entries to return, max 500"),
-) -> List[Dict[str, Any]]:
+
+def get_logs(level: Optional[str], search: Optional[str], offset: int, limit: int) -> List[Dict[str, Any]]:
+    """Get paginated application log entries."""
     if not os.path.exists(LOG_FILE):
         return []
 
@@ -56,11 +53,9 @@ def get_logs(
 
     return results
 
-@router.get("/download")
-def download_logs(
-    level: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-):
+
+def download_logs(level: Optional[str], search: Optional[str]):
+    """Download filtered log entries as a plain-text file."""
     if not os.path.exists(LOG_FILE):
         raise HTTPException(status_code=404, detail="Log file not found")
 
@@ -75,7 +70,7 @@ def download_logs(
                 if search and search.lower() not in entry['message'].lower():
                     continue
                 # Format: [2024-02-23 10:30:45] [INFO    ] [app.services] Message
-                formatted = f"[{entry['timestamp']}] [{entry['level'].marker_padding if hasattr(entry['level'], 'marker_padding') else entry['level'].ljust(8)}] [{entry['module'].ljust(20)}] {entry['message']}\n"
+                formatted = f"[{entry['timestamp']}] [{entry['level'].ljust(8)}] [{entry['module'].ljust(20)}] {entry['message']}\n"
                 yield formatted
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
@@ -85,8 +80,9 @@ def download_logs(
         headers={"Content-Disposition": f"attachment; filename=lidar_logs_{timestamp}.txt"}
     )
 
-@router.websocket("/logs/ws")
+
 async def logs_websocket_endpoint(websocket: WebSocket, level: Optional[str] = None, search: Optional[str] = None):
+    """WebSocket endpoint for real-time log streaming."""
     await websocket.accept()
     last_inode = None
     position = 0

@@ -1,23 +1,40 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+"""WebSocket endpoint handlers - Pure business logic without routing configuration."""
+
+import asyncio
+from fastapi import WebSocket, WebSocketDisconnect, Response, HTTPException
+from typing import List, Dict
+from pydantic import BaseModel
+
 from app.services.websocket.manager import manager
 
-router = APIRouter()
 
-@router.get("/topics")
+class TopicsResponse(BaseModel):
+    """Response for listing available WebSocket topics."""
+    topics: List[str]
+    description: Dict[str, str]
+
+
 async def list_topics():
     """Returns available websocket topics (excluding system topics)"""
-    return {
-        "topics": manager.get_public_topics(),
-        "description": {
+    return TopicsResponse(
+        topics=manager.get_public_topics(),
+        description={
             "raw_points": "Stream of raw point cloud data (sub-sampled for performance)",
             "processed_points": "Stream of preprocessed data with algorithm results"
         }
-    }
+    )
 
-@router.get("/topics/capture")
+
 async def capture_frame(topic: str):
-    import asyncio
-    from fastapi import Response, HTTPException
+    """
+    Capture a single frame from a WebSocket topic.
+    
+    Args:
+        topic: WebSocket topic to capture from
+    
+    Returns:
+        Binary frame data as application/octet-stream
+    """
     try:
         data = await manager.wait_for_next(topic, timeout=5.0)
         return Response(content=data, media_type="application/octet-stream")
@@ -26,8 +43,9 @@ async def capture_frame(topic: str):
     except asyncio.CancelledError:
         raise HTTPException(status_code=503, detail="Topic was removed while waiting for frame. Please retry.")
 
-@router.websocket("/ws/{topic}")
+
 async def websocket_endpoint(websocket: WebSocket, topic: str):
+    """WebSocket endpoint for real-time data streaming."""
     await manager.connect(websocket, topic)
     try:
         while True:

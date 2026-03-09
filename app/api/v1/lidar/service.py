@@ -1,18 +1,11 @@
-"""
-LiDAR-specific API endpoints.
+"""LiDAR endpoint handlers - Pure business logic without routing configuration."""
 
-Provides device profile information and configuration validation for SICK LiDAR models.
-"""
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from fastapi import HTTPException
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.modules.lidar.profiles import get_enabled_profiles, get_profile
 
-router = APIRouter(prefix="/lidar", tags=["lidar"])
-
-
-# --- Pydantic Models ---
 
 class SickLidarProfileResponse(BaseModel):
     """Response model for a single SICK LiDAR device profile"""
@@ -38,6 +31,25 @@ class ProfilesListResponse(BaseModel):
 
 class LidarConfigValidationRequest(BaseModel):
     """Request model for LiDAR configuration validation"""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "lidar_type": "multiScan100",
+                    "hostname": "192.168.1.10",
+                    "udp_receiver_ip": "192.168.1.100",
+                    "port": 2112,
+                    "imu_udp_port": 7503
+                },
+                {
+                    "lidar_type": "tiM-5xx",
+                    "hostname": "192.168.1.11",
+                    "port": 2112
+                }
+            ]
+        }
+    )
+    
     lidar_type: str
     hostname: str
     udp_receiver_ip: Optional[str] = None
@@ -54,9 +66,6 @@ class LidarConfigValidationResponse(BaseModel):
     warnings: List[str] = []
 
 
-# --- API Endpoints ---
-
-@router.get("/profiles", response_model=ProfilesListResponse)
 async def get_lidar_profiles():
     """
     Get all enabled SICK LiDAR device profiles for frontend dropdown.
@@ -87,7 +96,6 @@ async def get_lidar_profiles():
     return ProfilesListResponse(profiles=profile_responses)
 
 
-@router.post("/validate-lidar-config", response_model=LidarConfigValidationResponse)
 async def validate_lidar_config(request: LidarConfigValidationRequest):
     """
     Validate a proposed LiDAR sensor configuration.

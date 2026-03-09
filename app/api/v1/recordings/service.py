@@ -1,14 +1,14 @@
-"""REST API endpoints for recording management."""
+"""Recordings business logic services - Pure business logic without routing configuration."""
+
 import logging
 import os
+import tempfile
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
-import asyncio
-from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
@@ -17,57 +17,15 @@ from app.services.shared.recorder import get_recorder
 from app.services.nodes.instance import node_manager
 from app.services.shared.recording import get_recording_info, RecordingReader
 from app.modules.lidar.io.pcd import save_to_pcd
-import tempfile
+from .dto import (
+    StartRecordingRequest, RecordingResponse, ActiveRecordingResponse, 
+    ListRecordingsResponse
+)
 
-router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-class StartRecordingRequest(BaseModel):
-    """Request body for starting a recording."""
-    node_id: str
-    name: str | None = None
-    metadata: dict | None = None
-
-
-class RecordingResponse(BaseModel):
-    """Recording information response."""
-    id: str
-    name: str
-    node_id: str
-    sensor_id: str | None
-    file_path: str
-    file_size_bytes: int
-    frame_count: int
-    duration_seconds: float
-    recording_timestamp: str
-    metadata: dict
-    thumbnail_path: str | None = None
-    created_at: str
-
-
-class ActiveRecordingResponse(BaseModel):
-    """Active recording status response."""
-    recording_id: str
-    node_id: str
-    frame_count: int
-    duration_seconds: float
-    started_at: str
-    metadata: dict | None = None
-    status: str = "recording"  # "recording" or "stopping"
-
-
-class ListRecordingsResponse(BaseModel):
-    """Response for listing recordings."""
-    recordings: list[RecordingResponse]
-    active_recordings: list[ActiveRecordingResponse]
-
-
-@router.post("/recordings/start")
-async def start_recording(
-    request: StartRecordingRequest,
-    db: Annotated[Session, Depends(get_db)]
-):
+async def start_recording(request: StartRecordingRequest, db: Session):
     """
     Start recording a topic.
     
@@ -129,12 +87,7 @@ async def start_recording(
         raise HTTPException(status_code=500, detail=f"Failed to start recording: {str(e)}")
 
 
-@router.post("/recordings/{recording_id}/stop")
-async def stop_recording(
-    recording_id: str,
-    background_tasks: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db)]
-):
+async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, db: Session):
     """
     Stop an active recording and save to database.
     Returns immediately with 'stopping' status, finalization happens in background.
@@ -216,16 +169,12 @@ async def stop_recording(
         raise HTTPException(status_code=500, detail=f"Failed to stop recording: {str(e)}")
 
 
-@router.get("/recordings", response_model=ListRecordingsResponse)
-async def list_recordings(
-    node_id: str | None = Query(None, description="Filter by node_id"),
-    db: Session = Depends(get_db)
-):
+async def list_recordings(node_id: str | None, db: Session):
     """
     List all recordings, optionally filtered by topic.
     
     Args:
-        topic: Optional topic filter
+        node_id: Optional node ID filter
         db: Database session
     
     Returns:
@@ -250,11 +199,7 @@ async def list_recordings(
     }
 
 
-@router.get("/recordings/{recording_id}", response_model=RecordingResponse)
-async def get_recording(
-    recording_id: str,
-    db: Session = Depends(get_db)
-):
+async def get_recording(recording_id: str, db: Session):
     """
     Get detailed information about a recording.
     
@@ -277,12 +222,7 @@ async def get_recording(
     return recording
 
 
-@router.delete("/recordings/{recording_id}")
-async def delete_recording(
-    recording_id: str,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
+async def delete_recording(recording_id: str, background_tasks: BackgroundTasks, db: Session):
     """
     Delete a recording (removes file and database entry).
     
@@ -326,11 +266,7 @@ async def delete_recording(
     return {"message": f"Recording {recording_id} deleted successfully"}
 
 
-@router.get("/recordings/{recording_id}/download")
-async def download_recording(
-    recording_id: str,
-    db: Session = Depends(get_db)
-):
+async def download_recording(recording_id: str, db: Session):
     """
     Download a recording file.
     
@@ -367,11 +303,7 @@ async def download_recording(
     )
 
 
-@router.get("/recordings/{recording_id}/info")
-async def get_recording_viewer_info(
-    recording_id: str,
-    db: Annotated[Session, Depends(get_db)]
-):
+async def get_recording_viewer_info(recording_id: str, db: Session):
     """
     Get recording information for viewer (frame count, duration, metadata).
     
@@ -407,19 +339,14 @@ async def get_recording_viewer_info(
     }
 
 
-@router.get("/recordings/{recording_id}/frame/{frame_index}")
-async def get_recording_frame_as_pcd(
-    recording_id: str,
-    frame_index: int,
-    background_tasks: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db)]
-):
+async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, background_tasks: BackgroundTasks, db: Session):
     """
     Get a specific frame from a recording as PCD file.
     
     Args:
         recording_id: Recording ID
         frame_index: Frame index (0-based)
+        background_tasks: FastAPI background tasks
         db: Database session
     
     Returns:
@@ -479,11 +406,7 @@ async def get_recording_frame_as_pcd(
         raise HTTPException(status_code=500, detail=f"Failed to read frame: {str(e)}")
 
 
-@router.get("/recordings/{recording_id}/thumbnail")
-async def get_recording_thumbnail(
-    recording_id: str,
-    db: Session = Depends(get_db)
-):
+async def get_recording_thumbnail(recording_id: str, db: Session):
     """
     Get thumbnail image for a recording.
     

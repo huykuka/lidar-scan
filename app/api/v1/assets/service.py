@@ -1,18 +1,26 @@
-"""
-Static assets API endpoints for self-contained LiDAR module.
+"""Assets endpoint handlers - Pure business logic without routing configuration."""
 
-Serves device thumbnails directly from the LiDAR module assets directory,
-maintaining a clean self-contained modular architecture.
-"""
 import os
-from typing import Optional
-from fastapi import APIRouter, HTTPException
+from typing import Optional, List
+from fastapi import HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-router = APIRouter(prefix="/assets", tags=["assets"])
+
+class ThumbnailItem(BaseModel):
+    """Individual thumbnail file information."""
+    filename: str
+    url: str
+    size: int
 
 
-@router.get("/lidar/{filename}")
+class ThumbnailListResponse(BaseModel):
+    """Response for listing thumbnail files."""
+    thumbnails: List[ThumbnailItem]
+    count: int
+    assets_dir: str
+
+
 async def get_lidar_thumbnail(filename: str):
     """
     Serve LiDAR device thumbnail images.
@@ -46,8 +54,8 @@ async def get_lidar_thumbnail(filename: str):
     # Construct the file path
     # Assets are stored in app/modules/lidar/assets/
     assets_dir = os.path.join(
-        os.path.dirname(__file__),  # app/api/v1/
-        "..", "..",                 # app/
+        os.path.dirname(__file__),  # app/api/v1/assets/
+        "..", "..", "..",          # app/
         "modules", "lidar", "assets"
     )
     assets_dir = os.path.abspath(assets_dir)
@@ -87,7 +95,6 @@ async def get_lidar_thumbnail(filename: str):
     )
 
 
-@router.get("/lidar/")
 async def list_lidar_thumbnails():
     """
     List available LiDAR thumbnail files.
@@ -97,13 +104,17 @@ async def list_lidar_thumbnails():
     """
     assets_dir = os.path.join(
         os.path.dirname(__file__),
-        "..", "..", 
+        "..", "..", "..", 
         "modules", "lidar", "assets"
     )
     assets_dir = os.path.abspath(assets_dir)
     
     if not os.path.exists(assets_dir):
-        return {"thumbnails": [], "message": "Assets directory not found"}
+        return ThumbnailListResponse(
+            thumbnails=[],
+            count=0,
+            assets_dir=assets_dir
+        )
     
     allowed_extensions = {'.png', '.jpg', '.jpeg', '.svg', '.webp'}
     thumbnails = []
@@ -113,19 +124,19 @@ async def list_lidar_thumbnails():
             if os.path.splitext(filename)[1].lower() in allowed_extensions:
                 file_path = os.path.join(assets_dir, filename)
                 if os.path.isfile(file_path):
-                    thumbnails.append({
-                        "filename": filename,
-                        "url": f"/api/v1/assets/lidar/{filename}",
-                        "size": os.path.getsize(file_path)
-                    })
+                    thumbnails.append(ThumbnailItem(
+                        filename=filename,
+                        url=f"/api/v1/assets/lidar/{filename}",
+                        size=os.path.getsize(file_path)
+                    ))
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Error reading thumbnails directory: {str(e)}"
         )
     
-    return {
-        "thumbnails": sorted(thumbnails, key=lambda x: x["filename"]),
-        "count": len(thumbnails),
-        "assets_dir": assets_dir
-    }
+    return ThumbnailListResponse(
+        thumbnails=sorted(thumbnails, key=lambda x: x.filename),
+        count=len(thumbnails),
+        assets_dir=assets_dir
+    )

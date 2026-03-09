@@ -20,3 +20,4 @@ The backend is a dynamic Directed Acyclic Graph (DAG) orchestration engine. It r
 - **Data Transfer**: Do not serialize full point clouds to JSON over REST. Only metadata. Actual XYZ point clouds MUST be broadcast over binary WebSockets (`LIDR` protocol).
 - **Error Handling**: Use explicit FastAPI `HTTPException` raises in the `/api/v1/` routing layer, not deep inside module services.
 - **Node Implementation**: When building new processing nodes, inherit from `ModuleNode` and ensure you implement `async def on_input(self, payload)`.
+- **Swagger**: Use Swagger annotations to document API endpoints and models.
