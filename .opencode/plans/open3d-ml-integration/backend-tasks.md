@@ -42,14 +42,14 @@
 - [x] Confidence threshold filtering based on node config
 
 ## REST API Endpoints
-- [ ] Create `app/api/v1/ml/` router module
-- [ ] Implement GET /api/v1/ml/models with hardcoded model catalog
-- [ ] Implement GET /api/v1/ml/models/{model_key}/status
-- [ ] Implement POST /api/v1/ml/models/{model_key}/load
-- [ ] Implement DELETE /api/v1/ml/models/{model_key}
-- [ ] Return proper HTTP status codes and error handling
-- [ ] Include router in main FastAPI app
-- [ ] Add request/response validation with Pydantic models
+- [x] Create `app/api/v1/ml/` router module
+- [x] Implement GET /api/v1/ml/models with hardcoded model catalog
+- [x] Implement GET /api/v1/ml/models/{model_key}/status
+- [x] Implement POST /api/v1/ml/models/{model_key}/load
+- [x] Implement DELETE /api/v1/ml/models/{model_key}
+- [x] Return proper HTTP status codes and error handling
+- [x] Include router in main FastAPI app
+- [x] Add request/response validation with Pydantic models
 
 ## WebSocket Protocol Extension
 - [ ] Extend LIDR broadcaster with v2 frame format support
