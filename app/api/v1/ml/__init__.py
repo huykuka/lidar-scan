@@ -115,7 +115,7 @@ async def get_models():
         )
     
     try:
-        registry = MLModelRegistry.get_instance()
+        registry = await MLModelRegistry.get_instance()
         
         # Update status from registry
         models = []
@@ -158,7 +158,7 @@ async def get_model_status(model_key: str):
         )
     
     try:
-        registry = MLModelRegistry.get_instance()
+        registry = await MLModelRegistry.get_instance()
         status_info = registry.get_model_status(model_key)
         
         return MLModelStatus(
@@ -203,7 +203,7 @@ async def load_model(model_key: str, request: MLLoadRequest):
         )
     
     try:
-        registry = MLModelRegistry.get_instance()
+        registry = await MLModelRegistry.get_instance()
         
         # Check if already loaded
         current_status = registry.get_model_status(model_key)
@@ -255,7 +255,7 @@ async def unload_model(model_key: str):
         )
     
     try:
-        registry = MLModelRegistry.get_instance()
+        registry = await MLModelRegistry.get_instance()
         
         # Check if model is loaded
         current_status = registry.get_model_status(model_key)
