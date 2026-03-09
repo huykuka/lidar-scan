@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { MlNodeInspector } from './ml-node-inspector';
+import { MlNodeInspectorComponent } from './ml-node-inspector';
 
-describe('MlNodeInspector', () => {
-  let component: MlNodeInspector;
-  let fixture: ComponentFixture<MlNodeInspector>;
+describe('MlNodeInspectorComponent', () => {
+  let component: MlNodeInspectorComponent;
+  let fixture: ComponentFixture<MlNodeInspectorComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MlNodeInspector]
+      imports: [MlNodeInspectorComponent]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(MlNodeInspector);
+    fixture = TestBed.createComponent(MlNodeInspectorComponent);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });
