@@ -8,6 +8,7 @@ from .recordings import router as recordings_router
 from .logs import router as logs_router
 from .calibration import router as calibration_router
 from .ml import router as ml_router
+from .metrics import router as metrics_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(system_router)
@@ -18,4 +19,5 @@ router.include_router(recordings_router)
 router.include_router(logs_router)
 router.include_router(calibration_router)
 router.include_router(ml_router)
+router.include_router(metrics_router)
 router.include_router(ws_router)

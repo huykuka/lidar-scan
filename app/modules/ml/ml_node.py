@@ -57,6 +57,11 @@ class MLNode(ModuleNode, ABC):
         self.input_count: int = 0
         self.output_count: int = 0
         
+        # ML-specific performance metrics
+        self.thread_pool_wait_ms: float = 0.0
+        self.inference_queue_depth: int = 0
+        self.memory_usage_mb: float = 0.0
+        
         # Initialize ML model loading
         # Note: This needs to be called after construction for async to work
         self._initialization_pending = True
@@ -107,6 +112,8 @@ class MLNode(ModuleNode, ABC):
                 "model_device": self.loaded_model.device,
                 "model_status": self.loaded_model.status.value,
                 "inference_latency_ms": self.last_inference_ms,
+                "thread_pool_wait_ms": self.thread_pool_wait_ms,
+                "memory_usage_mb": self.memory_usage_mb,
             })
         else:
             status.update({
@@ -114,6 +121,8 @@ class MLNode(ModuleNode, ABC):
                 "model_device": "N/A",
                 "model_status": "not_loaded",
                 "inference_latency_ms": 0.0,
+                "thread_pool_wait_ms": 0.0,
+                "memory_usage_mb": 0.0,
             })
             
         return status
@@ -131,11 +140,18 @@ class MLNode(ModuleNode, ABC):
             logger.debug(f"ML model not ready, passing through data unchanged")
             return data
             
-        # Run ML inference
+        # Run ML inference with thread pool timing
         start_time = asyncio.get_event_loop().time()
+        thread_start = asyncio.get_event_loop().time()
+        
         try:
             result = await self.process_ml_inference(data)
-            self.last_inference_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+            
+            # Calculate threading metrics
+            total_time = (asyncio.get_event_loop().time() - start_time) * 1000
+            self.last_inference_ms = total_time
+            self.thread_pool_wait_ms = (thread_start - start_time) * 1000
+            
             return result
         except Exception as e:
             logger.error(f"ML inference failed: {e}")
