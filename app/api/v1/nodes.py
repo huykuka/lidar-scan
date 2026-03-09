@@ -44,39 +44,71 @@ async def get_node(node_id: str):
 
 @router.post("/nodes")
 async def upsert_node(req: NodeCreateUpdate):
-    repo = NodeRepository()
-    node_id = repo.upsert(req.model_dump())
-    return {"status": "success", "id": node_id}
+    """Create or update a node with proper error handling"""
+    try:
+        repo = NodeRepository()
+        node_id = repo.upsert(req.model_dump())
+        return {"status": "success", "id": node_id}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid node configuration: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create/update node: {str(e)}")
 
 @router.put("/nodes/{node_id}/enabled")
 async def set_node_enabled(node_id: str, req: NodeStatusToggle):
-    repo = NodeRepository()
-    repo.set_enabled(node_id, req.enabled)
-    return {"status": "success"}
+    """Enable/disable a node with error handling"""
+    try:
+        repo = NodeRepository()
+        node = repo.get_by_id(node_id)
+        if not node:
+            raise HTTPException(status_code=404, detail="Node not found")
+        
+        repo.set_enabled(node_id, req.enabled)
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update node status: {str(e)}")
 
 @router.delete("/nodes/{node_id}")
 async def delete_node(node_id: str):
-    node_repo = NodeRepository()
-    edge_repo = EdgeRepository()
-    
-    # Delete the node dynamically from orchestrator
-    node_manager.remove_node(node_id)
-    node_repo.delete(node_id)
-    
-    # Delete any edges connected to this node
-    all_edges = edge_repo.list()
-    filtered_edges = [
-        e for e in all_edges 
-        if e.get("source_node") != node_id and e.get("target_node") != node_id
-    ]
-    if len(filtered_edges) < len(all_edges):
-        edge_repo.save_all(filtered_edges)
+    """Delete a node with proper error handling"""
+    try:
+        node_repo = NodeRepository()
+        edge_repo = EdgeRepository()
         
-    return {"status": "success"}
+        # Check if node exists
+        node = node_repo.get_by_id(node_id)
+        if not node:
+            raise HTTPException(status_code=404, detail="Node not found")
+        
+        # Delete the node dynamically from orchestrator
+        node_manager.remove_node(node_id)
+        node_repo.delete(node_id)
+        
+        # Delete any edges connected to this node
+        all_edges = edge_repo.list()
+        filtered_edges = [
+            e for e in all_edges 
+            if e.get("source_node") != node_id and e.get("target_node") != node_id
+        ]
+        if len(filtered_edges) < len(all_edges):
+            edge_repo.save_all(filtered_edges)
+            
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete node: {str(e)}")
 
 @router.post("/nodes/reload")
 async def reload_all_config():
-    node_manager.reload_config()
+    """Reload all node configurations with error handling"""
+    try:
+        node_manager.reload_config()
+        return {"status": "success", "message": "Configuration reloaded"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reload configuration: {str(e)}")
     return {"status": "success"}
 
 @router.get("/nodes/status/all")
