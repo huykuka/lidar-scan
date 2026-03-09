@@ -22,6 +22,78 @@ from app.services.websocket.manager import manager
 
 logger = get_logger("app")
 
+# OpenAPI tag definitions for Swagger documentation
+OPENAPI_TAGS: list[dict] = [
+    {
+        "name": "System",
+        "description": "Lifecycle control and health checks for the pipeline engine.",
+    },
+    {
+        "name": "Nodes",
+        "description": (
+            "CRUD operations for DAG processing nodes. "
+            "Node configurations are persisted in SQLite; "
+            "the live engine reflects changes after reload."
+        ),
+    },
+    {
+        "name": "Edges",
+        "description": (
+            "Manage directed connections between DAG nodes. "
+            "Edges define the data-flow topology of the processing pipeline."
+        ),
+    },
+    {
+        "name": "Configuration",
+        "description": (
+            "Full-graph import/export and validation. "
+            "Allows backup and restore of the entire node-edge topology."
+        ),
+    },
+    {
+        "name": "Recordings",
+        "description": (
+            "Start, stop, list, and download point-cloud recordings. "
+            "Recordings capture raw numpy point arrays from any active DAG node."
+        ),
+    },
+    {
+        "name": "Logs",
+        "description": (
+            "Access and stream application logs. "
+            "REST endpoint returns paginated log entries; "
+            "live streaming is available via the `GET /api/v1/logs/ws` WebSocket (not in REST docs)."
+        ),
+    },
+    {
+        "name": "Calibration",
+        "description": (
+            "ICP multi-sensor calibration. "
+            "Trigger alignment computation, accept/reject results, "
+            "and rollback to a previous calibration state."
+        ),
+    },
+    {
+        "name": "LiDAR",
+        "description": (
+            "SICK LiDAR device profiles and configuration validation. "
+            "Pure in-memory operations — no database or file-system access."
+        ),
+    },
+    {
+        "name": "Assets",
+        "description": "Static image assets served directly from the lidar module bundle.",
+    },
+    {
+        "name": "Topics",
+        "description": (
+            "Introspection of registered WebSocket topics. "
+            "Use `GET /api/v1/topics/capture` for a single-frame HTTP snapshot. "
+            "Live streaming requires the `ws://` WebSocket endpoints (not in REST docs)."
+        ),
+    },
+]
+
 def get_static_path():
     """Get the correct static files path for both development and PyInstaller builds."""
     if getattr(sys, 'frozen', False):
@@ -62,9 +134,28 @@ async def lifespan(_: FastAPI):
     node_manager.stop()
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    description="Backend with Modular Pipeline Registry",
+    title="LiDAR Standalone API",
+    description="""
+## LiDAR Standalone REST API
+
+Real-time point-cloud processing pipeline REST interface.
+
+> **Binary streaming** (point cloud XYZ data) is served over the `LIDR` binary WebSocket
+> protocol documented separately. Only metadata and control operations are available here.
+
+### Quick-start
+1. Check system health: `GET /api/v1/status`
+2. List available nodes: `GET /api/v1/nodes`
+3. Start a recording: `POST /api/v1/recordings/start`
+    """,
     version=settings.VERSION,
+    openapi_tags=OPENAPI_TAGS,
+    contact={
+        "name": "LiDAR Standalone Team",
+    },
+    license_info={
+        "name": "Proprietary",
+    },
     lifespan=lifespan,
 )
 
@@ -88,11 +179,14 @@ static_dir = get_static_path()
 if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="spa")
 
+    # Protected prefixes that should not fall through to SPA
+    PROTECTED_PREFIXES = ("/api/", "/recordings/", "/docs", "/redoc", "/openapi.json")
+
     @app.exception_handler(StarletteHTTPException)
     async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
         if exc.status_code == 404:
-            # If the request is not for the API or recordings, return the SPA index.html
-            if not request.url.path.startswith("/api/") and not request.url.path.startswith("/recordings/"):
+            # If the request is not for protected paths, return the SPA index.html
+            if not any(request.url.path.startswith(p) for p in PROTECTED_PREFIXES):
                 index_path = Path(static_dir) / "index.html"
                 if index_path.exists():
                     return FileResponse(index_path)

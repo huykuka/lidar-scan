@@ -19,9 +19,9 @@ Add comprehensive Swagger/OpenAPI documentation to the LiDAR Standalone backend 
 ## Acceptance Criteria
 
 ### Core Documentation Features
-- [ ] Swagger UI available at `/docs` route with interactive endpoint testing
-- [ ] ReDoc documentation available at `/redoc` route with clean, printable format
-- [ ] All REST API endpoints in `/api/v1/` are automatically documented
+- [x] Swagger UI available at `/docs` route with interactive endpoint testing
+- [x] ReDoc documentation available at `/redoc` route with clean, printable format
+- [x] All REST API endpoints in `/api/v1/` are automatically documented
 - [ ] Request/response schemas are properly documented using Pydantic models
 - [ ] HTTP status codes and error responses are documented for each endpoint
 - [ ] API versioning is clearly indicated in the documentation

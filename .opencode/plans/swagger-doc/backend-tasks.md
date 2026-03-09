@@ -18,7 +18,7 @@ This document outlines the specific implementation tasks required to add compreh
 ## Phase 0 — Scaffolding
 
 - [x] **0.1** Create the `app/api/v1/schemas/` package directory with an empty `__init__.py`
-- [ ] **0.2** Verify `app/api/v1/__init__.py` does not need changes (router assembly is already correct)
+- [x] **0.2** Verify `app/api/v1/__init__.py` does not need changes (router assembly is already correct)
 
 ---
 
@@ -68,11 +68,11 @@ This document outlines the specific implementation tasks required to add compreh
 
 ## Phase 2 — `app/app.py` — FastAPI Metadata & 404 Fix
 
-- [ ] **2.1** Define `OPENAPI_TAGS: list[dict]` constant at module level (before `FastAPI(...)`) with all 10 tag objects per `technical.md §3.2`
-- [ ] **2.2** Enrich `FastAPI(...)` constructor:
+- [x] **2.1** Define `OPENAPI_TAGS: list[dict]` constant at module level (before `FastAPI(...)`) with all 10 tag objects per `technical.md §3.2`
+- [x] **2.2** Enrich `FastAPI(...)` constructor:
   - Set `title`, `description` (multi-line markdown with quick-start), `version`, `openapi_tags`, `contact`, `license_info`
   - Keep `lifespan=lifespan` — do **not** set `openapi_url=None` (preserve default docs)
-- [ ] **2.3** Add `PROTECTED_PREFIXES` tuple and update `custom_http_exception_handler` so 404s for `/docs`, `/redoc`, and `/openapi.json` fall through to the JSON error response instead of serving the SPA
+- [x] **2.3** Add `PROTECTED_PREFIXES` tuple and update `custom_http_exception_handler` so 404s for `/docs`, `/redoc`, and `/openapi.json` fall through to the JSON error response instead of serving the SPA
 
 ---
 
