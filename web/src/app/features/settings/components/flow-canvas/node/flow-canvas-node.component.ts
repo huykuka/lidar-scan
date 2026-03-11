@@ -1,8 +1,8 @@
 import {Component, computed, inject, input, output, signal} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {FusionNodeStatus, LidarNodeStatus, NodeConfig, PropertySchema,} from '../../../../../core/models/node.model';
-import {NodeStoreService} from '../../../../../core/services/stores/node-store.service';
+import {FusionNodeStatus, LidarNodeStatus, NodeConfig, PropertySchema,} from '@core/models/node.model';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
 import {NodeCalibrationControls} from './node-calibration-controls/node-calibration-controls';
 
@@ -102,10 +102,7 @@ export class FlowCanvasNodeComponent {
   getNodeName(): string {
     return this.node().data.name || this.node().id;
   }
-
-  getNodeDriver(): string {
-    return (this.node().data.config as any).driver || 'N/A';
-  }
+  
 
   isNodeEnabled(): boolean {
     return this.node().data.enabled || false;

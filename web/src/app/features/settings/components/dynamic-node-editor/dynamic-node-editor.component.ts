@@ -25,7 +25,6 @@ export class DynamicNodeEditorComponent implements OnDestroy {
   protected configForm!: FormGroup;
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
-  protected editMode = this.nodeStore.editMode;
   protected definition = computed(() => {
     const data = this.nodeStore.selectedNode();
     const type = data.type === 'operation' ? (data.config as any)?.op_type : data.type;

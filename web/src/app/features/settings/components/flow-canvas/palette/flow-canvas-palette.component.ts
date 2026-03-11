@@ -1,7 +1,7 @@
 import {Component, computed, input, output, signal} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodePlugin} from '../../../../../core/models/node-plugin.model';
+import {NodePlugin} from '@core/models';
 
 @Component({
   selector: 'app-flow-canvas-palette',

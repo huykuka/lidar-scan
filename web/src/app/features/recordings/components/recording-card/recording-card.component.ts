@@ -1,8 +1,8 @@
 import {Component, EventEmitter, Input, Output, signal} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {Recording} from '../../../../core/models/recording.model';
-import {environment} from '../../../../../environments/environment';
+import {Recording} from '@core/models';
+import {environment} from '@env/environment';
 
 @Component({
   selector: 'app-recording-card',

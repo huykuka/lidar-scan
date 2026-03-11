@@ -13,9 +13,9 @@ import {
 import {CommonModule} from '@angular/common';
 import {ActivatedRoute, Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {RecordingApiService} from '../../../../core/services/api/recording-api.service';
-import {NavigationService} from '../../../../core/services/navigation.service';
-import {RecordingViewerInfo} from '../../../../core/models/recording.model';
+import {RecordingApiService} from '@core/services/api/recording-api.service';
+import {NavigationService} from '@core/services';
+import {RecordingViewerInfo} from '@core/models';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {FormsModule} from '@angular/forms';
@@ -45,7 +45,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   isLoading = signal(false);
   playbackSpeed = signal(1.0);
   error = signal<string | null>(null);
-  zipProgress = signal(0);
   isDownloading = signal(false);
   // Display Settings
   pointSize = signal(0.05);
@@ -119,7 +118,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
       const color = this.pointColor();
       const grid = this.showGrid();
       const axes = this.showAxes();
-      const threshold = this.minIntensity();
 
       if (this.pointCloud) {
         (this.pointCloud.material as THREE.PointsMaterial).size = size;
@@ -190,14 +188,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
       this.stopPlayback();
       this.startPlayback();
     }
-  }
-
-  onStepForward() {
-    this.currentFrame.set(Math.min(this.currentFrame() + 1, this.frameCount() - 1));
-  }
-
-  onStepBackward() {
-    this.currentFrame.set(Math.max(this.currentFrame() - 1, 0));
   }
 
   goBack() {

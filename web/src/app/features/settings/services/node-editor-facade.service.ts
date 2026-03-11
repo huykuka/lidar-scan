@@ -1,11 +1,11 @@
 import {inject, Injectable} from '@angular/core';
-import {NodesApiService} from '../../../core/services/api/nodes-api.service';
-import {EdgesApiService} from '../../../core/services/api/edges-api.service';
+import {NodesApiService} from '@core/services/api/nodes-api.service';
+import {EdgesApiService} from '@core/services/api/edges-api.service';
 
-import {NodeStoreService} from '../../../core/services/stores/node-store.service';
-import {ToastService} from '../../../core/services/toast.service';
-import {NodeConfig, NodeDefinition, PropertySchema,} from '../../../core/models/node.model';
-import {LidarConfigValidationRequest,} from '../../../core/models/lidar-profile.model';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {ToastService} from '@core/services';
+import {NodeConfig, NodeDefinition, PropertySchema,} from '@core/models/node.model';
+import {LidarConfigValidationRequest,} from '@core/models';
 
 export interface NodeSavePayload {
   name: string;

@@ -1,22 +1,17 @@
 import {Component, inject, OnDestroy, OnInit, signal, ViewChild} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
-import {NavigationService} from '@core/services';
+import {NavigationService, ToastService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {LidarApiService} from '@core/services';
-import {FusionApiService} from '@core/services/api/fusion-api.service';
 import {NodesApiService} from '@core/services/api/nodes-api.service';
 import {StatusWebSocketService} from '@core/services/status-websocket.service';
 import {SystemStatusService} from '@core/services/system-status.service';
 import {ConfigApiService} from '@core/services/api/config-api.service';
-import {ConfigExport, ConfigValidationResponse} from '@core/models/config.model';
-import {NodeConfig} from '@core/models/node.model';
+import {ConfigExport, ConfigValidationResponse,} from '@core/models/config.model';
 import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
 import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {RecordingStoreService} from '@core/services/stores/recording-store.service';
-import {ToastService} from '@core/services';
-import {DialogService} from '@core/services';
 import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api';
 
 @Component({
@@ -36,15 +31,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
   protected lidars = this.nodeStore.sensorNodes;
-  protected pipelines = this.nodeStore.availablePipelines;
   protected isLoading = this.nodeStore.isLoading;
   protected fusions = this.nodeStore.fusionNodes;
   protected operations = this.nodeStore.operationNodes;
   protected isSystemRunning = this.systemStatus.isRunning;
   // Loading state for individual nodes
-  protected lidarLoadingStates = signal<Record<string, boolean>>({});
-  protected fusionLoadingStates = signal<Record<string, boolean>>({});
-  protected operationLoadingStates = signal<Record<string, boolean>>({});
+
   // Import/Export state
   protected isExporting = signal(false);
   protected isImporting = signal(false);
@@ -52,24 +44,16 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected validationResult = signal<ConfigValidationResponse | null>(null);
   protected pendingImportConfig = signal<ConfigExport | null>(null);
   protected importMergeMode = signal(false);
-  // Form State
-  protected editMode = this.nodeStore.editMode;
-  protected selectedNode = this.nodeStore.selectedNode;
+
   // Computed signal for unsaved changes
   protected hasUnsavedChanges = signal(false);
   private navService = inject(NavigationService);
-  private lidarApi = inject(LidarApiService);
   private lidarProfilesApi = inject(LidarProfilesApiService);
-  private fusionApi = inject(FusionApiService);
   private nodesApi = inject(NodesApiService);
   private statusWs = inject(StatusWebSocketService);
-  // Node status (from WebSocket)
-  protected nodesStatus = this.statusWs.status;
-  protected statusConnected = this.statusWs.connected;
   private configApi = inject(ConfigApiService);
   private recordingStore = inject(RecordingStoreService);
   private toast = inject(ToastService);
-  private dialog = inject(DialogService);
 
   async ngOnInit() {
     this.navService.setPageConfig({
@@ -102,74 +86,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
       console.error('Failed to load configuration', error);
       this.toast.warning('Unable to load configuration.');
       this.nodeStore.set('isLoading', false);
-    }
-  }
-
-  onAddLidar() {
-    this.flowCanvas.openNodeEditor({type: 'sensor'});
-  }
-
-  onEditLidar(lidar: NodeConfig) {
-    this.flowCanvas.openNodeEditor(lidar, true);
-  }
-
-  async onDeleteLidar(id?: string) {
-    if (!id) return;
-    const name = this.lidarNameById(id);
-    if (!await this.dialog.confirm(`Are you sure you want to delete ${name}?`)) return;
-    try {
-      await this.nodesApi.deleteNode(id);
-      await this.onReloadConfig();
-      this.toast.success(`${name} deleted.`);
-    } catch (error) {
-      console.error('Failed to delete lidar', error);
-      this.toast.danger(`Failed to delete ${name}.`);
-    }
-  }
-
-  onAddFusion() {
-    this.flowCanvas.openNodeEditor({type: 'fusion'});
-  }
-
-  onEditFusion(fusion: NodeConfig) {
-    this.flowCanvas.openNodeEditor(fusion, true);
-  }
-
-  async onDeleteFusion(id?: string) {
-    if (!id) return;
-    const node = this.fusions().find((f: any) => f.id === id);
-    const label = node?.name || id;
-    if (!await this.dialog.confirm(`Are you sure you want to delete fusion ${label}?`)) return;
-    try {
-      await this.nodesApi.deleteNode(id);
-      await this.onReloadConfig();
-      this.toast.success(`Fusion ${label} deleted.`);
-    } catch (error) {
-      console.error('Failed to delete fusion', error);
-      this.toast.danger(`Failed to delete fusion ${label}.`);
-    }
-  }
-
-  onAddOperation() {
-    this.flowCanvas.openNodeEditor({type: 'crop', category: 'operation'});
-  }
-
-  onEditOperation(node: NodeConfig) {
-    this.flowCanvas.openNodeEditor(node, true);
-  }
-
-  async onDeleteOperation(id?: string) {
-    if (!id) return;
-    const node = this.operations().find((o: any) => o.id === id);
-    const label = node?.name || id;
-    if (!await this.dialog.confirm(`Are you sure you want to delete operation ${label}?`)) return;
-    try {
-      await this.nodesApi.deleteNode(id);
-      await this.onReloadConfig();
-      this.toast.success(`Operation ${label} deleted.`);
-    } catch (error) {
-      console.error('Failed to delete operation', error);
-      this.toast.danger(`Failed to delete operation ${label}.`);
     }
   }
 
@@ -234,15 +150,15 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
   }
 
-  onImportConfigClick() {
+    onImportConfigClick() {
     // Trigger file input
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = (event: any) => {
+    input.onchange = async (event: any) => {
       const file = event.target.files?.[0];
       if (file) {
-        this.readAndValidateConfigFile(file);
+        await this.readAndValidateConfigFile(file);
       }
     };
     input.click();
@@ -276,118 +192,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
       this.toast.danger('Failed to import configuration.');
     } finally {
       this.isImporting.set(false);
-    }
-  }
-
-  protected lidarNameById(id?: string): string {
-    if (!id) return '';
-    const lidar = this.lidars().find((l: any) => l.id === id);
-    return lidar?.name || id;
-  }
-
-  protected fusionSensorsLabel(sensorIds?: string[]): string {
-    if (!sensorIds || sensorIds.length === 0) return 'All';
-    return sensorIds.map((id) => this.lidarNameById(id)).join(', ');
-  }
-
-  protected getNodeStatus(lidarId: string) {
-    const status = this.nodesStatus();
-    if (!status) return null;
-    return status.nodes.find((l: any) => l.id === lidarId);
-  }
-
-  protected getFusionStatus(fusionId: string) {
-    const status = this.nodesStatus();
-    if (!status) return null;
-    return status.nodes.find((f: any) => f.id === fusionId);
-  }
-
-  protected getOperationStatus(opId: string) {
-    const status = this.nodesStatus();
-    if (!status) return null;
-    return status.nodes.find((o: any) => o.id === opId);
-  }
-
-  protected isLidarLoading(lidarId: string): boolean {
-    return this.lidarLoadingStates()[lidarId] || false;
-  }
-
-  protected isFusionLoading(fusionId: string): boolean {
-    return this.fusionLoadingStates()[fusionId] || false;
-  }
-
-  protected isOperationLoading(opId: string): boolean {
-    return this.operationLoadingStates()[opId] || false;
-  }
-
-  protected async onToggleLidarEnabled(lidar: NodeConfig, enabled: boolean) {
-    if (!lidar?.id) return;
-    const next = enabled;
-
-    // Set loading state for this specific lidar
-    this.lidarLoadingStates.update((states) => ({...states, [lidar.id!]: true}));
-
-    try {
-      await this.nodesApi.setNodeEnabled(lidar.id, next);
-      await this.loadConfig();
-      this.toast.success(`${lidar.name} ${next ? 'enabled' : 'disabled'}.`);
-    } catch (error) {
-      console.error('Failed to toggle lidar', error);
-      this.toast.danger(`Failed to update ${lidar.name}.`);
-    } finally {
-      // Clear loading state
-      this.lidarLoadingStates.update((states) => {
-        const newStates = {...states};
-        delete newStates[lidar.id!];
-        return newStates;
-      });
-    }
-  }
-
-  protected async onToggleFusionEnabled(fusion: NodeConfig, enabled: boolean) {
-    if (!fusion?.id) return;
-    const next = enabled;
-
-    // Set loading state for this specific fusion
-    this.fusionLoadingStates.update((states) => ({...states, [fusion.id!]: true}));
-
-    try {
-      await this.nodesApi.setNodeEnabled(fusion.id, next);
-      await this.loadConfig();
-      this.toast.success(`${fusion.name} ${next ? 'enabled' : 'disabled'}.`);
-    } catch (error) {
-      console.error('Failed to toggle fusion', error);
-      this.toast.danger(`Failed to update ${fusion.name}.`);
-    } finally {
-      // Clear loading state
-      this.fusionLoadingStates.update((states) => {
-        const newStates = {...states};
-        delete newStates[fusion.id!];
-        return newStates;
-      });
-    }
-  }
-
-  protected async onToggleOperationEnabled(node: NodeConfig, enabled: boolean) {
-    if (!node?.id) return;
-    const next = enabled;
-
-    // Set loading state
-    this.operationLoadingStates.update((states) => ({...states, [node.id!]: true}));
-
-    try {
-      await this.nodesApi.setNodeEnabled(node.id, next);
-      await this.loadConfig();
-      this.toast.success(`${node.name} ${next ? 'enabled' : 'disabled'}.`);
-    } catch (error) {
-      console.error('Failed to toggle operation', error);
-      this.toast.danger(`Failed to update ${node.name}.`);
-    } finally {
-      this.operationLoadingStates.update((states) => {
-        const newStates = {...states};
-        delete newStates[node.id!];
-        return newStates;
-      });
     }
   }
 

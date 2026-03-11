@@ -1,6 +1,6 @@
 import {Component, input, output} from '@angular/core';
 
-import {LogEntry} from '../../../core/models/log.model';
+import {LogEntry} from '@core/models';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({

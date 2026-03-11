@@ -1,6 +1,6 @@
 import {Component, input, output} from '@angular/core';
 
-import {LogEntry} from '../../../core/models/log.model';
+import {LogEntry} from '@core/models';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
@@ -10,7 +10,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   template: `
     @if (entry()) {
       <div
-        class="h-[300px] border-t border-syn-color-neutral-200 flex flex-col bg-white animate-in slide-in-from-bottom duration-300"
+        class="h-75 border-t border-syn-color-neutral-200 flex flex-col bg-white animate-in slide-in-from-bottom duration-300"
       >
         <div
           class="flex justify-between items-center px-6 py-2 bg-syn-color-neutral-50 border-b border-syn-color-neutral-100"
@@ -26,7 +26,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           ></syn-icon-button>
         </div>
         <div class="flex-1 overflow-y-auto p-4 flex gap-6">
-          <div class="flex flex-col gap-3 min-w-[200px]">
+          <div class="flex flex-col gap-3 min-w-50">
             <div class="flex flex-col">
               <span class="text-[10px] font-bold text-syn-color-neutral-400 uppercase"
                 >Timestamp</span
