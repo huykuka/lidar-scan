@@ -1,9 +1,9 @@
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import {TestBed} from '@angular/core/testing';
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 
-import { FusionApiService } from './fusion-api.service';
-import { FusionStoreService } from '../stores/fusion-store.service';
+import {FusionApiService} from './fusion-api.service';
+import {FusionStoreService} from '../stores/fusion-store.service';
 
 describe('FusionApiService', () => {
   let service: FusionApiService;
@@ -33,7 +33,7 @@ describe('FusionApiService', () => {
         name: 'F1',
         type: 'fusion',
         category: 'Processing',
-        config: { topic: 'fused_points', sensor_ids: [] },
+        config: {topic: 'fused_points', sensor_ids: []},
       },
     ]);
 
@@ -47,8 +47,8 @@ describe('FusionApiService', () => {
     const req = httpMock.expectOne(
       (r) => r.method === 'PUT' && r.url.includes('/nodes/') && r.url.includes('/enabled'),
     );
-    expect(req.request.body).toEqual({ enabled: true });
-    req.flush({ status: 'success' });
+    expect(req.request.body).toEqual({enabled: true});
+    req.flush({status: 'success'});
     await p;
   });
 });

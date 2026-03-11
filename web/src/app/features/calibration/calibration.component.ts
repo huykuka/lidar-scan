@@ -1,19 +1,27 @@
-import { Component, computed, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { StatusWebSocketService } from '../../core/services/status-websocket.service';
-import { CalibrationNodeStatus } from '../../core/models/calibration.model';
-import { NavigationService } from '../../core/services';
+import {Component, computed, inject} from '@angular/core';
+
+import {Router} from '@angular/router';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {StatusWebSocketService} from '../../core/services/status-websocket.service';
+import {CalibrationNodeStatus} from '../../core/models/calibration.model';
+import {NavigationService} from '../../core/services';
 
 @Component({
   selector: 'app-calibration',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule],
   templateUrl: './calibration.component.html',
 })
 export class CalibrationComponent {
   private statusWs = inject(StatusWebSocketService);
+  calibrationNodes = computed(() => {
+    const statusResponse = this.statusWs.status();
+    if (!statusResponse) return [];
+
+    return statusResponse.nodes
+      .filter((status: any) => status.type === 'calibration')
+      .map((status: any) => status as unknown as CalibrationNodeStatus);
+  });
   private navigationService = inject(NavigationService);
   private router = inject(Router);
 
@@ -23,15 +31,6 @@ export class CalibrationComponent {
       subtitle: 'Manage and monitor calibration nodes',
     });
   }
-
-  calibrationNodes = computed(() => {
-    const statusResponse = this.statusWs.status();
-    if (!statusResponse) return [];
-
-    return statusResponse.nodes
-      .filter((status: any) => status.type === 'calibration')
-      .map((status: any) => status as unknown as CalibrationNodeStatus);
-  });
 
   hasPendingResults(node: CalibrationNodeStatus): boolean {
     return node.pending_results && Object.keys(node.pending_results).length > 0;

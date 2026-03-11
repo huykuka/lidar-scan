@@ -19,7 +19,7 @@ class DebugSave(PipelineOperation):
     def __init__(self, output_dir: str = "debug_output", prefix: str = "pcd", max_keeps: int = 10):
         self.output_dir = output_dir
         self.prefix = prefix
-        self.max_keeps = max_keeps
+        self.max_keeps = int(max_keeps)
         self.counter = 0
         self.saved_files = []
         if not os.path.exists(output_dir):

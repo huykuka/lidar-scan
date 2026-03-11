@@ -1,4 +1,4 @@
-import { computed, Injectable, signal, Signal } from '@angular/core';
+import {computed, Injectable, signal, Signal} from '@angular/core';
 
 @Injectable({
   providedIn: 'root',
@@ -28,7 +28,7 @@ export class SignalsSimpleStoreService<T> {
    * @param data - the new data to be saved
    */
   public set<K extends keyof T>(key: K, data: T[K]) {
-    this.state.update((currentValue: any) => ({ ...currentValue, [key]: data }));
+    this.state.update((currentValue: any) => ({...currentValue, [key]: data}));
   }
 
   /**
@@ -40,6 +40,14 @@ export class SignalsSimpleStoreService<T> {
    *                      the new value to be saved
    */
   public setState(partialState: Partial<T>): void {
-    this.state.update((currentValue: any) => ({ ...currentValue, ...partialState }));
+    this.state.update((currentValue: any) => ({...currentValue, ...partialState}));
+  }
+
+  public resetState(): void {
+    this.state.set({} as T);
+  }
+
+  public reset<K extends keyof T>(key: K): void {
+    this.state.update((currentValue: any) => ({...currentValue, [key]: undefined}));
   }
 }

@@ -1,12 +1,8 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { firstValueFrom } from 'rxjs';
-import {
-  ConfigExport,
-  ConfigValidationResponse,
-  ConfigImportResponse,
-} from '../../models/config.model';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {firstValueFrom} from 'rxjs';
+import {ConfigExport, ConfigImportResponse, ConfigValidationResponse,} from '../../models/config.model';
 
 @Injectable({
   providedIn: 'root',

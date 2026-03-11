@@ -27,9 +27,8 @@
   stroke-dasharray: 8 16;
   stroke-dashoffset: 0;
   opacity: 0;
-  animation:
-    edge-draw-in 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards,
-    edge-flow 0.9s linear 0.45s infinite;
+  animation: edge-draw-in 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+  edge-flow 0.9s linear 0.45s infinite;
   animation-fill-mode: forwards;
 }
 

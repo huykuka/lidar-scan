@@ -18,8 +18,8 @@ class StatisticalOutlierRemoval(PipelineOperation):
     """
 
     def __init__(self, nb_neighbors: int = 20, std_ratio: float = 2.0):
-        self.nb_neighbors = nb_neighbors
-        self.std_ratio = std_ratio
+        self.nb_neighbors = int(nb_neighbors)
+        self.std_ratio = float(std_ratio)
 
     def apply(self, pcd: Any):
         if isinstance(pcd, o3d.t.geometry.PointCloud):
@@ -61,8 +61,8 @@ class RadiusOutlierRemoval(PipelineOperation):
     """
 
     def __init__(self, nb_points: int = 16, radius: float = 0.05):
-        self.nb_points = nb_points
-        self.radius = radius
+        self.nb_points = int(nb_points)
+        self.radius = float(radius)
 
     def apply(self, pcd: Any):
         if isinstance(pcd, o3d.t.geometry.PointCloud):

@@ -1,27 +1,26 @@
 <div
-  class="bg-white border-r h-full border-syn-color-neutral-200 flex flex-col relative transition-all duration-300 z-10"
-  [class.w-64]="!isCollapsed()"
-  [class.w-0]="isCollapsed()"
   [class.border-none]="isCollapsed()"
+  [class.w-0]="isCollapsed()"
+  [class.w-64]="!isCollapsed()"
+  class="bg-white border-r h-full border-syn-color-neutral-200 flex flex-col relative transition-all duration-300 z-10"
 >
   <!-- Toggle button -->
   <button
-    class="absolute top-4 z-20 w-6 h-6 bg-white border border-syn-color-neutral-200 rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
-    [class.-right-3]="!isCollapsed()"
-    [class.-right-10]="isCollapsed()"
     (click)="isCollapsed.set(!isCollapsed())"
+    [class.-right-10]="isCollapsed()"
+    [class.-right-3]="!isCollapsed()"
+    class="absolute top-4 z-20 w-6 h-6 bg-white border border-syn-color-neutral-200 rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
   >
-    <syn-icon
-      [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'"
+    <syn-icon [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'"
       class="text-sm text-syn-color-neutral-600"
-    ></syn-icon>
+     />
   </button>
 
   <div
-    class="flex-1 flex flex-col overflow-hidden w-64 transition-opacity duration-300"
     [class.opacity-0]="isCollapsed()"
     [class.opacity-100]="!isCollapsed()"
     [class.pointer-events-none]="isCollapsed()"
+    class="flex-1 flex flex-col overflow-hidden w-64 transition-opacity duration-300"
   >
     <div class="p-4 border-b border-syn-color-neutral-200">
       <h3 class="text-xs font-black uppercase tracking-widest text-syn-color-neutral-600">
@@ -56,53 +55,54 @@
             </div>
           </div>
           <div class="flex justify-center p-4">
-            <syn-spinner></syn-spinner>
+            <syn-spinner />
           </div>
         </div>
       }
 
       @if (!isLoading()) {
         @for (group of groupedPlugins(); track group.category) {
-        <div class="space-y-2">
-          <h4
-            class="text-[10px] font-bold uppercase tracking-wider text-syn-color-neutral-400 pl-1"
-          >
-            {{ group.category }}
-          </h4>
           <div class="space-y-2">
-            @for (plugin of group.plugins; track plugin.type) {
-              <syn-tooltip [content]="plugin.description" placement="right">
-                <div
-                  draggable="true"
-                  (dragstart)="onPluginDragStart.emit({ plugin: plugin.type, event: $event })"
-                  (dragend)="onPluginDragEnd.emit()"
-                  class="group flex items-center gap-3 p-2 border border-transparent rounded-lg cursor-grab hover:bg-neutral-50 hover:shadow-sm hover:border-neutral-200 transition-all duration-200"
-                >
+            <h4
+              class="text-[10px] font-bold uppercase tracking-wider text-syn-color-neutral-400 pl-1"
+            >
+              {{ group.category }}
+            </h4>
+            <div class="space-y-2">
+              @for (plugin of group.plugins; track plugin.type) {
+                <syn-tooltip [content]="plugin.description" placement="right">
                   <div
-                    class="w-8 h-8 rounded-md flex items-center justify-center bg-opacity-10 transition-colors duration-200"
-                    [style.background-color]="plugin.style.color + '20'"
-                    [style.color]="plugin.style.color"
+                    (dragend)="onPluginDragEnd.emit()"
+                    (dragstart)="onPluginDragStart.emit({ plugin: plugin.type, event: $event })"
+                    class="group flex items-center gap-3 p-2 border border-transparent rounded-lg cursor-grab hover:bg-neutral-50 hover:shadow-sm hover:border-neutral-200 transition-all duration-200"
+                    draggable="true"
                   >
-                    <syn-icon [name]="plugin.icon" class="text-lg"></syn-icon>
-                  </div>
-                  <span
-                    class="text-sm font-medium text-syn-color-neutral-700 group-hover:text-syn-color-neutral-900 transition-colors"
-                  >
+                    <div
+                      [style.background-color]="plugin.style.color + '20'"
+                      [style.color]="plugin.style.color"
+                      class="w-8 h-8 rounded-md flex items-center justify-center bg-opacity-10 transition-colors duration-200"
+                    >
+                      <syn-icon [name]="plugin.icon" class="text-lg" />
+                    </div>
+                    <span
+                      class="text-sm font-medium text-syn-color-neutral-700 group-hover:text-syn-color-neutral-900 transition-colors"
+                    >
                     {{ plugin.displayName }}
                   </span>
-                </div>
-              </syn-tooltip>
-            }
+                  </div>
+                </syn-tooltip>
+              }
+            </div>
           </div>
-        </div>
         }
       }
     </div>
 
     <!-- Canvas Controls -->
     <div class="p-4 border-t border-syn-color-neutral-200 space-y-2">
-      <syn-button variant="outline" size="small" (click)="onResetView.emit()" class="w-full">
-        <syn-icon slot="prefix" name="center_focus_strong"></syn-icon>Reset View
+      <syn-button (click)="onResetView.emit()" class="w-full" size="small" variant="outline">
+        <syn-icon name="center_focus_strong" slot="prefix" />
+        Reset View
       </syn-button>
       <div class="text-xs text-syn-color-neutral-500 text-center">
         Zoom: {{ (zoom() * 100).toFixed(0) }}%

@@ -1,9 +1,9 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { LidarListResponse, LidarConfig } from '../../models/lidar.model';
-import { firstValueFrom } from 'rxjs';
-import { LidarStoreService } from '../stores/lidar-store.service';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {LidarConfig, LidarListResponse} from '../../models/lidar.model';
+import {firstValueFrom} from 'rxjs';
+import {LidarStoreService} from '../stores/lidar-store.service';
 
 @Injectable({
   providedIn: 'root',
@@ -37,33 +37,6 @@ export class LidarApiService {
       availablePipelines: response.available_pipelines,
     });
     return response;
-  }
-
-  async saveLidar(config: any): Promise<any> {
-    const payload = {
-      id: config.id,
-      name: config.name,
-      type: 'sensor',
-      category: 'Input',
-      enabled: config.enabled ?? true,
-      config: { ...config },
-    };
-
-    delete payload.config.id;
-    delete payload.config.name;
-    delete payload.config.enabled;
-
-    const response = await firstValueFrom(this.http.post(`${environment.apiUrl}/nodes`, payload));
-    return response;
-  }
-
-  async deleteLidar(id: string): Promise<any> {
-    const response = await firstValueFrom(this.http.delete(`${environment.apiUrl}/nodes/${id}`));
-    return response;
-  }
-
-  async reloadConfig(): Promise<any> {
-    return await firstValueFrom(this.http.post(`${environment.apiUrl}/nodes/reload`, {}));
   }
 
   async setEnabled(id: string, enabled: boolean): Promise<any> {

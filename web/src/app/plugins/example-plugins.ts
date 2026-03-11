@@ -1,4 +1,4 @@
-import { NodePlugin } from '../core/models/node-plugin.model';
+import {NodePlugin} from '@core/models';
 
 /**
  * Example: Transform Node Plugin
@@ -38,8 +38,8 @@ export const transformNodePlugin: NodePlugin = {
     type: 'transform',
     name: 'New Transform',
     enabled: false,
-    translation: { x: 0, y: 0, z: 0 },
-    rotation: { roll: 0, pitch: 0, yaw: 0 },
+    translation: {x: 0, y: 0, z: 0},
+    rotation: {roll: 0, pitch: 0, yaw: 0},
     scale: 1.0,
   }),
   renderBody: (data) => {
@@ -128,9 +128,9 @@ export const filterNodePlugin: NodePlugin = {
     const filterData = data as any;
     return {
       fields: [
-        { label: 'Type', value: filterData.filterType || 'statistical' },
-        { label: 'Neighbors', value: filterData.neighbors || 50, type: 'number' },
-        { label: 'Std Ratio', value: filterData.stdRatio || 2.0, type: 'number' },
+        {label: 'Type', value: filterData.filterType || 'statistical'},
+        {label: 'Neighbors', value: filterData.neighbors || 50, type: 'number'},
+        {label: 'Std Ratio', value: filterData.stdRatio || 2.0, type: 'number'},
       ],
     };
   },
@@ -194,9 +194,9 @@ export const recordingNodePlugin: NodePlugin = {
     const recordData = data as any;
     return {
       fields: [
-        { label: 'Path', value: recordData.outputPath || '/recordings' },
-        { label: 'Format', value: recordData.format || 'pcd' },
-        { label: 'Max Files', value: recordData.maxFiles || 1000, type: 'number' },
+        {label: 'Path', value: recordData.outputPath || '/recordings'},
+        {label: 'Format', value: recordData.format || 'pcd'},
+        {label: 'Max Files', value: recordData.maxFiles || 1000, type: 'number'},
       ],
     };
   },

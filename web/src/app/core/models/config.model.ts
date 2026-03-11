@@ -1,5 +1,5 @@
-import { LidarConfig } from './lidar.model';
-import { FusionConfig } from './fusion.model';
+import {LidarConfig} from './lidar.model';
+import {FusionConfig} from './fusion.model';
 
 export interface ConfigExport {
   version: string;

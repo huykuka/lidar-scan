@@ -1,16 +1,16 @@
-import { Component, input, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { LogEntry } from '../../../core/models/log.model';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {Component, input, output} from '@angular/core';
+
+import {LogEntry} from '@core/models';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs-detail',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule],
   template: `
     @if (entry()) {
       <div
-        class="h-[300px] border-t border-syn-color-neutral-200 flex flex-col bg-white animate-in slide-in-from-bottom duration-300"
+        class="h-75 border-t border-syn-color-neutral-200 flex flex-col bg-white animate-in slide-in-from-bottom duration-300"
       >
         <div
           class="flex justify-between items-center px-6 py-2 bg-syn-color-neutral-50 border-b border-syn-color-neutral-100"
@@ -18,15 +18,14 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
           <h3 class="text-sm font-bold uppercase tracking-wider text-syn-color-neutral-600">
             Log Details
           </h3>
-          <syn-icon-button
-            name="close"
+          <syn-icon-button name="close"
             label="Close"
             size="small"
             (click)="close.emit()"
-          ></syn-icon-button>
+           />
         </div>
         <div class="flex-1 overflow-y-auto p-4 flex gap-6">
-          <div class="flex flex-col gap-3 min-w-[200px]">
+          <div class="flex flex-col gap-3 min-w-50">
             <div class="flex flex-col">
               <span class="text-[10px] font-bold text-syn-color-neutral-400 uppercase"
                 >Timestamp</span
@@ -56,7 +55,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
                 >Message</span
               >
               <syn-button variant="outline" size="small" (click)="onCopy()">
-                <syn-icon slot="prefix" name="content_copy"></syn-icon>
+                <syn-icon slot="prefix" name="content_copy" />
                 Copy Message
               </syn-button>
             </div>

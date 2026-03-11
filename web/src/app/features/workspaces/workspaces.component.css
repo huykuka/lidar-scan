@@ -13,6 +13,7 @@
 .backdrop-blur-md {
   backdrop-filter: blur(12px);
 }
+
 .text-white {
   --syn-button-color-outline: #ffffff;
   --syn-button-color-text: #ffffff;

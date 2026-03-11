@@ -1,13 +1,8 @@
-import {
-  HttpContextToken,
-  HttpErrorResponse,
-  HttpInterceptorFn,
-  HttpResponse,
-} from '@angular/common/http';
-import { inject } from '@angular/core';
-import { catchError, tap, throwError } from 'rxjs';
-import { ToastService } from '../services/toast.service';
-import { SystemStatusService } from '../services/system-status.service';
+import {HttpContextToken, HttpErrorResponse, HttpInterceptorFn, HttpResponse,} from '@angular/common/http';
+import {inject} from '@angular/core';
+import {catchError, tap, throwError} from 'rxjs';
+import {ToastService} from '@core/services';
+import {SystemStatusService} from '../services/system-status.service';
 
 const SILENT_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 

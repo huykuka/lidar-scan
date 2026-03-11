@@ -1,5 +1,5 @@
-import { Component, input, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import {Component, input, output} from '@angular/core';
+
 
 export interface Connection {
   id?: string;
@@ -16,7 +16,7 @@ export interface PendingConnection {
 @Component({
   selector: 'app-flow-canvas-connections',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './flow-canvas-connections.component.html',
   styleUrl: './flow-canvas-connections.component.css',
 })

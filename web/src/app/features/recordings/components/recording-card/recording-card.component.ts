@@ -1,27 +1,27 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import { CommonModule, NgOptimizedImage } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { Recording } from '../../../../core/models/recording.model';
-import { environment } from '../../../../../environments/environment';
+import {Component, Input, signal, input, output} from '@angular/core';
+import {DatePipe} from '@angular/common';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {Recording} from '@core/models';
+import {environment} from '@env/environment';
 
 @Component({
   selector: 'app-recording-card',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule, DatePipe],
   templateUrl: './recording-card.component.html',
   styleUrl: './recording-card.component.css',
 })
 export class RecordingCardComponent {
-  @Input({ required: true }) recording!: Recording;
-  @Input() selectable = false;
-  @Input() selected = false;
-  @Input() priority = false;
+  @Input({required: true}) recording!: Recording;
+  readonly selectable = input(false);
+  readonly selected = input(false);
+  readonly priority = input(false);
 
-  @Output() select = new EventEmitter<Recording>();
-  @Output() toggleSelection = new EventEmitter<boolean>();
-  @Output() play = new EventEmitter<Recording>();
-  @Output() download = new EventEmitter<Recording>();
-  @Output() delete = new EventEmitter<Recording>();
+  readonly select = output<Recording>();
+  readonly toggleSelection = output<boolean>();
+  readonly play = output<Recording>();
+  readonly download = output<Recording>();
+  readonly delete = output<Recording>();
 
   // Thumbnail state
   private failedThumbnails = signal<Set<string>>(new Set());

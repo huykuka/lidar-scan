@@ -16,7 +16,7 @@ class Downsample(PipelineOperation):
     """
 
     def __init__(self, voxel_size: float):
-        self.voxel_size = voxel_size
+        self.voxel_size = float(voxel_size)
 
     def apply(self, pcd: Any):
         if self.voxel_size > 0:
@@ -36,7 +36,7 @@ class UniformDownsample(PipelineOperation):
     """
 
     def __init__(self, every_k_points: int = 5):
-        self.every_k_points = every_k_points
+        self.every_k_points = int(every_k_points)
 
     def apply(self, pcd: Any):
         if self.every_k_points > 1:

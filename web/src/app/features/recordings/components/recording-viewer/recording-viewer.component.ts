@@ -1,24 +1,24 @@
 import {
+  AfterViewInit,
   Component,
   computed,
   effect,
+  ElementRef,
   inject,
+  OnDestroy,
   OnInit,
   signal,
-  ViewChild,
-  ElementRef,
-  AfterViewInit,
-  OnDestroy,
+  viewChild
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { RecordingApiService } from '../../../../core/services/api/recording-api.service';
-import { NavigationService } from '../../../../core/services/navigation.service';
-import { RecordingViewerInfo } from '../../../../core/models/recording.model';
+import {NgClass, DecimalPipe} from '@angular/common';
+import {ActivatedRoute, Router} from '@angular/router';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {RecordingApiService} from '@core/services/api/recording-api.service';
+import {NavigationService} from '@core/services';
+import {RecordingViewerInfo} from '@core/models';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { FormsModule } from '@angular/forms';
+import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
+import {FormsModule} from '@angular/forms';
 import JSZip from 'jszip';
 
 interface PCDData {
@@ -30,18 +30,12 @@ interface PCDData {
 @Component({
   selector: 'app-recording-viewer',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule, FormsModule],
+  imports: [SynergyComponentsModule, FormsModule, DecimalPipe, NgClass],
   templateUrl: './recording-viewer.component.html',
   styleUrl: './recording-viewer.component.css',
 })
 export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('container', { static: true }) containerRef!: ElementRef<HTMLDivElement>;
-
-  private recordingApi = inject(RecordingApiService);
-  private navService = inject(NavigationService);
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-
+  readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
   // State
   recordingId = signal<string | null>(null);
   recordingName = signal<string>('Loading...');
@@ -51,9 +45,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   isLoading = signal(false);
   playbackSpeed = signal(1.0);
   error = signal<string | null>(null);
-  zipProgress = signal(0);
   isDownloading = signal(false);
-
   // Display Settings
   pointSize = signal(0.05);
   pointColor = signal('#3b82f6');
@@ -61,15 +53,18 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   showAxes = signal(true);
   minIntensity = signal(0);
   showCockpit = signal(true);
-
-  toggleCockpit() {
-    this.showCockpit.set(!this.showCockpit());
-  }
-
-  closeCockpit() {
-    this.showCockpit.set(false);
-  }
-
+  // Computed
+  frameCount = computed(() => this.info()?.frame_count ?? 0);
+  duration = computed(() => this.info()?.duration_seconds ?? 0);
+  currentTime = computed(() => {
+    const fc = this.frameCount();
+    const dur = this.duration();
+    return fc > 0 ? (this.currentFrame() / fc) * dur : 0;
+  });
+  private recordingApi = inject(RecordingApiService);
+  private navService = inject(NavigationService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
   // Archive handle
   private zip: JSZip | null = null;
   private decodingWorker: Worker | null = null;
@@ -77,7 +72,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   private readonly MAX_CACHE_SIZE = 200;
   private framesLoading = new Set<number>();
   private lastPCDData: PCDData | null = null;
-
   // Three.js objects
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
@@ -88,15 +82,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   private axesHelper: THREE.AxesHelper | null = null;
   private animationFrameId: number | null = null;
   private playbackInterval: number | null = null;
-
-  // Computed
-  frameCount = computed(() => this.info()?.frame_count ?? 0);
-  duration = computed(() => this.info()?.duration_seconds ?? 0);
-  currentTime = computed(() => {
-    const fc = this.frameCount();
-    const dur = this.duration();
-    return fc > 0 ? (this.currentFrame() / fc) * dur : 0;
-  });
 
   constructor() {
     // Initialize Web Worker for PCD decoding
@@ -133,7 +118,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
       const color = this.pointColor();
       const grid = this.showGrid();
       const axes = this.showAxes();
-      const threshold = this.minIntensity();
 
       if (this.pointCloud) {
         (this.pointCloud.material as THREE.PointsMaterial).size = size;
@@ -148,6 +132,14 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
         this.updatePointCloud(this.lastPCDData);
       }
     });
+  }
+
+  toggleCockpit() {
+    this.showCockpit.set(!this.showCockpit());
+  }
+
+  closeCockpit() {
+    this.showCockpit.set(false);
   }
 
   ngOnInit() {
@@ -182,6 +174,32 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     this.frameCache.clear();
   }
 
+  onPlay() {
+    this.isPlaying() ? this.stopPlayback() : this.startPlayback();
+  }
+
+  onSeek(e: any) {
+    this.currentFrame.set(parseInt(e.target.value, 10));
+  }
+
+  onSpeedChange(s: number) {
+    this.playbackSpeed.set(s);
+    if (this.isPlaying()) {
+      this.stopPlayback();
+      this.startPlayback();
+    }
+  }
+
+  goBack() {
+    this.router.navigate(['/recordings']);
+  }
+
+  formatTime(s: number): string {
+    const m = Math.floor(s / 60);
+    const r = Math.floor(s % 60);
+    return `${m}:${r.toString().padStart(2, '0')}`;
+  }
+
   private cleanupThreeJS() {
     if (this.pointCloud) {
       this.pointCloud.geometry.dispose();
@@ -204,7 +222,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private initThreeJS() {
-    const container = this.containerRef.nativeElement;
+    const container = this.containerRef().nativeElement;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a0b); // Deeper dark
@@ -216,7 +234,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     this.camera.position.set(20, 20, 20);
     this.camera.lookAt(0, 0, 0);
 
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(this.renderer.domElement);
@@ -347,7 +365,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
         }
       };
       this.decodingWorker?.addEventListener('message', onMessage);
-      this.decodingWorker?.postMessage({ action: 'decode', payload: { buffer, frameIndex } }, [
+      this.decodingWorker?.postMessage({action: 'decode', payload: {buffer, frameIndex}}, [
         buffer.buffer,
       ]);
     });
@@ -397,10 +415,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     this.scene.add(this.pointCloud);
   }
 
-  onPlay() {
-    this.isPlaying() ? this.stopPlayback() : this.startPlayback();
-  }
-
   private startPlayback() {
     this.isPlaying.set(true);
     const fps = this.frameCount() > 0 ? this.frameCount() / this.duration() : 20;
@@ -420,34 +434,5 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   private stopPlayback() {
     this.isPlaying.set(false);
     if (this.playbackInterval) clearInterval(this.playbackInterval);
-  }
-
-  onSeek(e: any) {
-    this.currentFrame.set(parseInt(e.target.value, 10));
-  }
-
-  onSpeedChange(s: number) {
-    this.playbackSpeed.set(s);
-    if (this.isPlaying()) {
-      this.stopPlayback();
-      this.startPlayback();
-    }
-  }
-
-  onStepForward() {
-    this.currentFrame.set(Math.min(this.currentFrame() + 1, this.frameCount() - 1));
-  }
-  onStepBackward() {
-    this.currentFrame.set(Math.max(this.currentFrame() - 1, 0));
-  }
-
-  goBack() {
-    this.router.navigate(['/recordings']);
-  }
-
-  formatTime(s: number): string {
-    const m = Math.floor(s / 60);
-    const r = Math.floor(s % 60);
-    return `${m}:${r.toString().padStart(2, '0')}`;
   }
 }

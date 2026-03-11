@@ -1,88 +1,96 @@
-import { Component, inject, signal, computed, effect, untracked, OnInit, OnDestroy, output, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
-import { NodeConfig, Edge } from '../../../../core/models/node.model';
-import { NodesApiService } from '../../../../core/services/api/nodes-api.service';
-import { EdgesApiService } from '../../../../core/services/api/edges-api.service';
-import { ToastService } from '../../../../core/services/toast.service';
-import { DialogService } from '../../../../core/services/dialog.service';
-import { NodePluginRegistry } from '../../../../core/services/node-plugin-registry.service';
-import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
-import { NodePlugin } from '../../../../core/models/node-plugin.model';
-import { FlowCanvasNodeComponent, CanvasNode } from './node/flow-canvas-node.component';
-import { FlowCanvasPaletteComponent } from './palette/flow-canvas-palette.component';
 import {
-  FlowCanvasConnectionsComponent,
+  Component,
+  computed,
+  effect,
+  HostListener,
+  inject,
+  OnDestroy,
+  OnInit,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
+
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {FlowCanvasDragService} from '@features/settings/components/flow-canvas/flow-canvas-drag';
+import {
+  CanvasNode,
+  FlowCanvasNodeComponent
+} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
+import {
+  FlowCanvasPaletteComponent
+} from '@features/settings/components/flow-canvas/palette/flow-canvas-palette.component';
+import {
   Connection,
-} from './connections/flow-canvas-connections.component';
-import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-state.component';
-import { StatusWebSocketService } from '../../../../core/services/status-websocket.service';
-import { FlowCanvasDragService } from './flow-canvas-drag';
+  FlowCanvasConnectionsComponent
+} from '@features/settings/components/flow-canvas/connections/flow-canvas-connections.component';
+import {
+  FlowCanvasEmptyStateComponent
+} from '@features/settings/components/flow-canvas/empty-state/flow-canvas-empty-state.component';
+import {
+  DynamicNodeEditorComponent
+} from '@features/settings/components/dynamic-node-editor/dynamic-node-editor.component';
+import {NodePlugin} from '@core/models';
+import {NodeStoreService} from '@core/services/stores';
+import {EdgesApiService, NodesApiService} from '@core/services/api';
+import {DialogService, ToastService} from '@core/services';
+import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
+import {StatusWebSocketService} from '@core/services/status-websocket.service';
+import {NodeConfig} from '@core/models/node.model';
+
 
 @Component({
   selector: 'app-flow-canvas',
   standalone: true,
   imports: [
-    CommonModule,
     SynergyComponentsModule,
     FlowCanvasNodeComponent,
     FlowCanvasPaletteComponent,
     FlowCanvasConnectionsComponent,
     FlowCanvasEmptyStateComponent,
-    DynamicNodeEditorComponent,
+    DynamicNodeEditorComponent
   ],
   providers: [FlowCanvasDragService],
   templateUrl: './flow-canvas.component.html',
   styleUrl: './flow-canvas.component.css',
 })
 export class FlowCanvasComponent implements OnInit, OnDestroy {
-  private nodeStore = inject(NodeStoreService);
-  private nodesApi = inject(NodesApiService);
-  private edgesApi = inject(EdgesApiService);
-  private toast = inject(ToastService);
-  private dialog = inject(DialogService);
-  private pluginRegistry = inject(NodePluginRegistry);
-  private statusWs = inject(StatusWebSocketService);
-  protected drag = inject(FlowCanvasDragService);
-
   hasUnsavedChangesChange = output<boolean>();
-
+  public hasUnsavedChanges = signal(false);
+  protected drag = inject(FlowCanvasDragService);
   protected drawerOpen = signal(false);
-
-  protected nodes = this.nodeStore.nodes;
-  protected edges = this.nodeStore.edges;
   protected availablePlugins = signal<NodePlugin[]>([]);
-
   protected canvasNodes = signal<CanvasNode[]>([]);
   protected connections = signal<Connection[]>([]);
-  protected panOffset = signal({ x: 0, y: 0 });
+  protected panOffset = signal({x: 0, y: 0});
   protected zoom = signal(1);
-
   protected selectedCanvasNode = signal<CanvasNode | null>(null);
-
   protected canvasWidth = computed(() => {
     const nodes = this.canvasNodes();
     if (!nodes.length) return '100%';
     const maxX = Math.max(...nodes.map((n) => n.position.x + 350));
     return `calc(max(100%, ${maxX}px) * ${this.zoom()})`;
   });
-
   protected canvasHeight = computed(() => {
     const nodes = this.canvasNodes();
     if (!nodes.length) return '100%';
     const maxY = Math.max(...nodes.map((n) => n.position.y + 250));
     return `calc(max(100%, ${maxY}px) * ${this.zoom()})`;
   });
-
-  protected nodesStatus = this.statusWs.status;
-
-  private unsavedPositions = new Map<string, { x: number; y: number }>();
-  public hasUnsavedChanges = signal(false);
-
   protected isPaletteLoading = signal(true);
   protected isCanvasLoading = signal(true);
   protected nodeLoadingStates = signal<Record<string, boolean>>({});
+  private nodeStore = inject(NodeStoreService);
+  protected nodes = this.nodeStore.nodes;
+  protected edges = this.nodeStore.edges;
+  private nodesApi = inject(NodesApiService);
+  private edgesApi = inject(EdgesApiService);
+  private toast = inject(ToastService);
+  private dialog = inject(DialogService);
+  private pluginRegistry = inject(NodePluginRegistry);
+  private statusWs = inject(StatusWebSocketService);
+  protected nodesStatus = this.statusWs.status;
+  private unsavedPositions = new Map<string, { x: number; y: number }>();
 
   constructor() {
     effect(() => {
@@ -108,103 +116,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.statusWs.disconnect();
   }
 
-  private async loadGraphData() {
-    this.isPaletteLoading.set(true);
-    this.isCanvasLoading.set(true);
-    try {
-      const [nodes, edges] = await Promise.all([
-        this.nodesApi.getNodes(),
-        this.edgesApi.getEdges(),
-      ]);
-      // loadFromBackend fetches definitions AND populates NodeStore + registry
-      await this.pluginRegistry.loadFromBackend();
-      this.availablePlugins.set(this.pluginRegistry.getAll());
-      this.isPaletteLoading.set(false); // Palette has fetched its templates
-
-      this.nodeStore.setState({ nodes, edges });
-    } catch (error) {
-      console.error('Failed to load graph data', error);
-      this.toast.danger('Failed to load infrastructure graph.');
-      this.isPaletteLoading.set(false);
-      this.isCanvasLoading.set(false);
-    }
-  }
-
-  private mergeCanvasNodes(nodes: NodeConfig[]): void {
-    const existing = new Map(this.canvasNodes().map((n) => [n.id, n]));
-    const incoming = new Set(nodes.map((n) => n.id));
-
-    const merged: CanvasNode[] = nodes.map((node, index) => {
-      const prev = existing.get(node.id);
-      return {
-        id: node.id,
-        type: (node.category || node.type || 'unknown').toLowerCase(),
-        data: node,
-        position: prev
-          ? prev.position
-          : { x: node.x ?? (100 + (index % 4) * 300), y: node.y ?? (100 + Math.floor(index / 4) * 250) },
-      };
-    });
-
-    const prevIds = [...existing.keys()];
-    const structurallyChanged =
-      merged.length !== prevIds.length || prevIds.some((id) => !incoming.has(id));
-
-    if (structurallyChanged) {
-      this.canvasNodes.set(merged);
-      this.updateConnections();
-    } else {
-      const mergedById = new Map(merged.map((m) => [m.id, m]));
-      this.canvasNodes.update((current) =>
-        current.map((n) => {
-          const updated = mergedById.get(n.id);
-          return updated ? { ...n, data: updated.data } : n;
-        }),
-      );
-    }
-  }
-
-  private updateConnections(): void {
-    const connections: Connection[] = [];
-    const nodes = this.canvasNodes();
-    const edges = this.edges();
-
-    // Create a map for fast lookup of node instances by ID
-    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-
-    edges.forEach((edge) => {
-      const sourceNode = nodeMap.get(edge.source_node);
-      const targetNode = nodeMap.get(edge.target_node);
-
-      if (sourceNode && targetNode) {
-        const path = this.calculatePath(sourceNode, targetNode);
-        connections.push({
-          id: edge.id,
-          from: edge.source_node,
-          to: edge.target_node,
-          path,
-        });
-      }
-    });
-
-    this.connections.set(connections);
-  }
-
-  private calculatePath(fromNode: CanvasNode, toNode: CanvasNode): string {
-    const fromX = fromNode.position.x + 296; // 288 (node width) + 8 (half port width outside)
-    const fromY = fromNode.position.y + 44;
-    const toX = toNode.position.x - 8;
-    const toY = toNode.position.y + 44;
-
-    const controlPointOffset = Math.max(Math.abs(toX - fromX) * 0.5, 40);
-    const cp1x = fromX + controlPointOffset;
-    const cp1y = fromY;
-    const cp2x = toX - controlPointOffset;
-    const cp2y = toY;
-
-    return `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
-  }
-
   onCanvasMouseDown(event: MouseEvent) {
     this.selectedCanvasNode.set(null);
     this.drawerOpen.set(false);
@@ -228,10 +139,10 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       };
 
       this.canvasNodes.update((nodes) =>
-        nodes.map((n) => (n.id === node.id ? { ...n, position: newPosition } : n)),
+        nodes.map((n) => (n.id === node.id ? {...n, position: newPosition} : n)),
       );
 
-      this.drag.updateDraggingNode({ ...node, position: newPosition });
+      this.drag.updateDraggingNode({...node, position: newPosition});
       this.updateConnections();
     } else if (this.drag.pendingConnection()) {
       // Update the live pending bezier path as the cursor moves
@@ -276,7 +187,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       const x = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
       const y = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
 
-      this.createNodeAtPosition(this.drag.paletteDragType()!, { x, y });
+      this.createNodeAtPosition(this.drag.paletteDragType()!, {x, y});
       this.drag.endPaletteDrag();
     }
   }
@@ -291,16 +202,19 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
 
     const savePromises: Promise<void>[] = [];
-    
+
     this.unsavedPositions.forEach((position, nodeId) => {
       const node = this.nodes().find((n) => n.id === nodeId);
       if (node) {
         savePromises.push(
-          this.nodesApi.upsertNode({
-            ...node,
-            x: position.x,
-            y: position.y,
-          }).then(() => {})
+          this.nodesApi
+            .upsertNode({
+              ...node,
+              x: position.x,
+              y: position.y,
+            })
+            .then(() => {
+            }),
         );
       }
     });
@@ -349,12 +263,12 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
 
     try {
-      await this.edgesApi.createEdge({ source_node: sourceId, target_node: targetId });
+      await this.edgesApi.createEdge({source_node: sourceId, target_node: targetId});
       const [nodes, edges] = await Promise.all([
         this.nodesApi.getNodes(),
         this.edgesApi.getEdges(),
       ]);
-      this.nodeStore.setState({ nodes, edges });
+      this.nodeStore.setState({nodes, edges});
       this.toast.success('Connection created.');
     } catch (err) {
       console.error('Failed to create edge', err);
@@ -380,11 +294,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.drag.startPaletteDrag(type, event);
   }
 
-  onPaletteDragStart(type: 'sensor' | 'fusion' | string, event: DragEvent) {
-    this.drag.startPaletteDrag(type, event);
-  }
-
   onPaletteDragEnd() {
+    this.selectedCanvasNode.set(null)
     this.drag.endPaletteDrag();
   }
 
@@ -404,21 +315,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const x = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
     const y = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
 
-    this.createNodeAtPosition(type, { x, y });
+    this.createNodeAtPosition(type, {x, y});
     this.drag.endPaletteDrag();
-  }
-
-  private createNodeAtPosition(type: string, position: { x: number; y: number }) {
-    const plugin = this.pluginRegistry.get(type);
-    if (!plugin) {
-      this.toast.danger(`Unknown node type: ${type}`);
-      return;
-    }
-
-    const defaultData = plugin.createInstance();
-    this.nodeStore.set('selectedNode', { ...defaultData, x: position.x, y: position.y });
-    this.nodeStore.set('editMode', false);
-    this.drawerOpen.set(true);
   }
 
   onEditNode(node: CanvasNode) {
@@ -429,7 +327,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   async onDeleteNode(node: CanvasNode) {
     const name = node.data.name || node.id;
-    if (!await this.dialog.confirm(`Are you sure you want to delete ${name}?`)) return;
+    if (!(await this.dialog.confirm(`Are you sure you want to delete ${name}?`))) return;
 
     try {
       await this.nodesApi.deleteNode(node.id);
@@ -454,7 +352,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   async onDeleteEdge(edgeId: string) {
-    if (!await this.dialog.confirm('Are you sure you want to delete this connection?')) return;
+    if (!(await this.dialog.confirm('Are you sure you want to delete this connection?'))) return;
     try {
       await this.edgesApi.deleteEdge(edgeId);
       this.nodeStore.set(
@@ -470,7 +368,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   async onToggleNodeEnabled(node: CanvasNode, enabled: boolean) {
-    this.nodeLoadingStates.update((states) => ({ ...states, [node.id]: true }));
+    this.nodeLoadingStates.update((states) => ({...states, [node.id]: true}));
 
     try {
       await this.nodesApi.setNodeEnabled(node.id, enabled);
@@ -482,7 +380,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       this.toast.danger(`Failed to update node.`);
     } finally {
       this.nodeLoadingStates.update((states) => {
-        const newStates = { ...states };
+        const newStates = {...states};
         delete newStates[node.id];
         return newStates;
       });
@@ -502,6 +400,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
     if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+    if (this.drawerOpen()) return;
 
     const tag = (event.target as HTMLElement)?.tagName?.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
@@ -514,7 +413,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   resetView() {
-    this.panOffset.set({ x: 0, y: 0 });
+    this.panOffset.set({x: 0, y: 0});
     this.zoom.set(1);
   }
 
@@ -526,5 +425,118 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   onDrawerClose() {
     this.drawerOpen.set(false);
+  }
+
+  private async loadGraphData() {
+    this.isPaletteLoading.set(true);
+    this.isCanvasLoading.set(true);
+    try {
+      const [nodes, edges] = await Promise.all([
+        this.nodesApi.getNodes(),
+        this.edgesApi.getEdges(),
+      ]);
+      // loadFromBackend fetches definitions AND populates NodeStore + registry
+      await this.pluginRegistry.loadFromBackend();
+      this.availablePlugins.set(this.pluginRegistry.getAll());
+      this.isPaletteLoading.set(false); // Palette has fetched its templates
+
+      this.nodeStore.setState({nodes, edges});
+    } catch (error) {
+      console.error('Failed to load graph data', error);
+      this.toast.danger('Failed to load infrastructure graph.');
+      this.isPaletteLoading.set(false);
+      this.isCanvasLoading.set(false);
+    }
+  }
+
+  private mergeCanvasNodes(nodes: NodeConfig[]): void {
+    const existing = new Map(this.canvasNodes().map((n) => [n.id, n]));
+    const incoming = new Set(nodes.map((n) => n.id));
+
+    const merged: CanvasNode[] = nodes.map((node, index) => {
+      const prev = existing.get(node.id);
+      return {
+        id: node.id,
+        type: (node.category || node.type || 'unknown').toLowerCase(),
+        data: node,
+        position: prev
+          ? prev.position
+          : {
+            x: node.x ?? 100 + (index % 4) * 300,
+            y: node.y ?? 100 + Math.floor(index / 4) * 250,
+          },
+      };
+    });
+
+    const prevIds = [...existing.keys()];
+    const structurallyChanged =
+      merged.length !== prevIds.length || prevIds.some((id) => !incoming.has(id));
+
+    if (structurallyChanged) {
+      this.canvasNodes.set(merged);
+      this.updateConnections();
+    } else {
+      const mergedById = new Map(merged.map((m) => [m.id, m]));
+      this.canvasNodes.update((current) =>
+        current.map((n) => {
+          const updated = mergedById.get(n.id);
+          return updated ? {...n, data: updated.data} : n;
+        }),
+      );
+    }
+  }
+
+  private updateConnections(): void {
+    const connections: Connection[] = [];
+    const nodes = this.canvasNodes();
+    const edges = this.edges();
+
+    // Create a map for fast lookup of node instances by ID
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+    edges.forEach((edge) => {
+      const sourceNode = nodeMap.get(edge.source_node);
+      const targetNode = nodeMap.get(edge.target_node);
+
+      if (sourceNode && targetNode) {
+        const path = this.calculatePath(sourceNode, targetNode);
+        connections.push({
+          id: edge.id,
+          from: edge.source_node,
+          to: edge.target_node,
+          path,
+        });
+      }
+    });
+
+    this.connections.set(connections);
+  }
+
+  private calculatePath(fromNode: CanvasNode, toNode: CanvasNode): string {
+    const fromX = fromNode.position.x + 296; // 288 (node width) + 8 (half port width outside)
+    const fromY = fromNode.position.y + 44;
+    const toX = toNode.position.x - 8;
+    const toY = toNode.position.y + 44;
+
+    const controlPointOffset = Math.max(Math.abs(toX - fromX) * 0.5, 40);
+    const cp1x = fromX + controlPointOffset;
+    const cp1y = fromY;
+    const cp2x = toX - controlPointOffset;
+    const cp2y = toY;
+
+    return `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
+  }
+
+  private createNodeAtPosition(type: string, position: { x: number; y: number }) {
+    const plugin = this.pluginRegistry.get(type);
+    if (!plugin) {
+      this.toast.danger(`Unknown node type: ${type}`);
+      return;
+    }
+
+    const defaultData = plugin.createInstance();
+    this.nodeStore.set('selectedNode', {...defaultData, x: position.x, y: position.y});
+    this.nodeStore.set('editMode', false);
+    this.drawerOpen.set(true);
   }
 }

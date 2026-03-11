@@ -1,8 +1,8 @@
-import { Injectable, inject, computed } from '@angular/core';
-import { tap, map, Observable } from 'rxjs';
-import { SignalsSimpleStoreService } from '../signals-simple-store.service';
-import { Recording, ActiveRecording } from '../../models/recording.model';
-import { RecordingApiService } from '../api/recording-api.service';
+import {computed, inject, Injectable} from '@angular/core';
+import {map, Observable, tap} from 'rxjs';
+import {SignalsSimpleStoreService} from '../signals-simple-store.service';
+import {ActiveRecording, Recording} from '../../models/recording.model';
+import {RecordingApiService} from '../api/recording-api.service';
 
 export interface RecordingState {
   recordings: Recording[];
@@ -24,20 +24,12 @@ const initialState: RecordingState = {
   providedIn: 'root',
 })
 export class RecordingStoreService extends SignalsSimpleStoreService<RecordingState> {
-  private recordingApi = inject(RecordingApiService);
-
-  constructor() {
-    super();
-    this.setState(initialState);
-  }
-
   // Selectors
   recordings = this.select('recordings');
   activeRecordings = this.select('activeRecordings');
   selectedRecording = this.select('selectedRecording');
   isLoading = this.select('isLoading');
   error = this.select('error');
-
   /**
    * Check if a topic is currently recording
    */
@@ -49,7 +41,6 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
       });
     };
   });
-
   /**
    * Get active recording for a specific node
    */
@@ -61,6 +52,12 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
       });
     };
   });
+  private recordingApi = inject(RecordingApiService);
+
+  constructor() {
+    super();
+    this.setState(initialState);
+  }
 
   // Actions
 
@@ -68,7 +65,7 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
    * Load all recordings, optionally filtered by node_id
    */
   loadRecordings(nodeId?: string): Promise<void> {
-    this.setState({ isLoading: true, error: null });
+    this.setState({isLoading: true, error: null});
     return new Promise((resolve, reject) => {
       this.recordingApi.listRecordings(nodeId).subscribe({
         next: (data) => {
@@ -94,7 +91,7 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
    * Start recording a node graph
    */
   startRecording(nodeId: string, name?: string): Observable<string> {
-    return this.recordingApi.startRecording({ node_id: nodeId, name }).pipe(
+    return this.recordingApi.startRecording({node_id: nodeId, name}).pipe(
       tap(() => {
         // Reload recordings to get updated active list
         this.loadRecordings();
@@ -135,13 +132,13 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
    * Select a recording for detailed view
    */
   selectRecording(recording: Recording | null): void {
-    this.setState({ selectedRecording: recording });
+    this.setState({selectedRecording: recording});
   }
 
   /**
    * Clear error message
    */
   clearError(): void {
-    this.setState({ error: null });
+    this.setState({error: null});
   }
 }

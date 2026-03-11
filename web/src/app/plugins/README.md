@@ -9,8 +9,8 @@ To enable the example plugins (Transform, Filter, Recording), add them to your a
 ### In app.config.ts or main component:
 
 ```typescript
-import { APP_INITIALIZER } from '@angular/core';
-import { NodePluginRegistry } from './core/services/node-plugin-registry.service';
+import {APP_INITIALIZER} from '@angular/core';
+import {NodePluginRegistry} from './core/services/node-plugin-registry.service';
 import {
   transformNodePlugin,
   filterNodePlugin,
@@ -39,9 +39,9 @@ export const appConfig: ApplicationConfig = {
 ### In a standalone component:
 
 ```typescript
-import { Component, inject, OnInit } from '@angular/core';
-import { NodePluginRegistry } from './core/services/node-plugin-registry.service';
-import { transformNodePlugin } from './plugins/example-plugins';
+import {Component, inject, OnInit} from '@angular/core';
+import {NodePluginRegistry} from './core/services/node-plugin-registry.service';
+import {transformNodePlugin} from './plugins/example-plugins';
 
 @Component({
   selector: 'app-root',

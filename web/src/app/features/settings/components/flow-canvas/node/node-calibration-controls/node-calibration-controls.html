@@ -2,40 +2,40 @@
   <!-- Pending Calibration - Accept/Reject Buttons -->
   <div class="flex gap-1">
     <syn-button
-      variant="filled"
-      color="success"
-      size="small"
       (click)="acceptCalibration(); $event.stopPropagation()"
       [disabled]="isCalibrating()"
+      color="success"
+      size="small"
       title="Accept & Save Calibration"
+      variant="filled"
     >
-      <syn-icon name="check"></syn-icon>
+      <syn-icon name="check" />
     </syn-button>
     <syn-button
-      variant="outline"
-      color="danger"
-      size="small"
       (click)="rejectCalibration(); $event.stopPropagation()"
       [disabled]="isCalibrating()"
+      color="danger"
+      size="small"
       title="Reject Calibration"
+      variant="outline"
     >
-      <syn-icon name="close"></syn-icon>
+      <syn-icon name="close" />
     </syn-button>
   </div>
 } @else {
   <!-- Trigger Calibration Button -->
   <syn-button
-    variant="filled"
-    color="primary"
-    size="small"
     (click)="triggerCalibration(); $event.stopPropagation()"
     [disabled]="isCalibrating()"
+    color="primary"
+    size="small"
     title="Run Calibration"
+    variant="filled"
   >
     @if (isCalibrating()) {
-      <syn-spinner size="small"></syn-spinner>
+      <syn-spinner size="small" />
     } @else {
-      <syn-icon name="tune"></syn-icon>
+      <syn-icon name="tune" />
     }
   </syn-button>
 }

@@ -1,14 +1,13 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { environment } from '../../../../environments/environment';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {Observable} from 'rxjs';
+import {environment} from '../../../../environments/environment';
 import {
-  Recording,
-  ActiveRecording,
   ListRecordingsResponse,
+  Recording,
+  RecordingViewerInfo,
   StartRecordingRequest,
   StartRecordingResponse,
-  RecordingViewerInfo,
 } from '../../models/recording.model';
 
 @Injectable({
@@ -36,8 +35,8 @@ export class RecordingApiService {
    * List all recordings, optionally filtered by topic
    */
   listRecordings(topic?: string): Observable<ListRecordingsResponse> {
-    const params = topic ? { topic } : undefined;
-    return this.http.get<ListRecordingsResponse>(this.baseUrl, { params });
+    const params = topic ? {topic} : undefined;
+    return this.http.get<ListRecordingsResponse>(this.baseUrl, {params});
   }
 
   /**
@@ -58,7 +57,7 @@ export class RecordingApiService {
    * Download a recording zip as a Blob
    */
   getRecordingZip(recordingId: string): Observable<Blob> {
-    return this.http.get(`${this.baseUrl}/${recordingId}/download`, { responseType: 'blob' });
+    return this.http.get(`${this.baseUrl}/${recordingId}/download`, {responseType: 'blob'});
   }
 
   /**

@@ -1,11 +1,11 @@
-import { Component, output, input } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {Component, input, output} from '@angular/core';
+
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-toolbox-header',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule],
   templateUrl: './toolbox-header.component.html',
 })
 export class ToolboxHeaderComponent {
@@ -26,6 +26,6 @@ export class ToolboxHeaderComponent {
       event.dataTransfer.setData('componentType', type);
       event.dataTransfer.effectAllowed = 'copy';
     }
-    this.dragStart.emit({ event, type });
+    this.dragStart.emit({event, type});
   }
 }

@@ -17,8 +17,8 @@ class Clustering(PipelineOperation):
     """
 
     def __init__(self, eps: float = 0.2, min_points: int = 10):
-        self.eps = eps
-        self.min_points = min_points
+        self.eps = float(eps)
+        self.min_points = int(min_points)
 
     def apply(self, pcd: Any):
         if isinstance(pcd, o3d.t.geometry.PointCloud):

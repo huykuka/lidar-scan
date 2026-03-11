@@ -1,22 +1,65 @@
-import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
-import { environment } from '../../../../environments/environment';
-import { LidarProfile, LidarProfilesResponse } from '../../models/lidar-profile.model';
+import {inject, Injectable, signal} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {firstValueFrom} from 'rxjs';
+import {environment} from '../../../../environments/environment';
+import {LidarProfile, LidarProfilesResponse} from '../../models/lidar-profile.model';
 
 @Injectable({
   providedIn: 'root',
 })
 export class LidarProfilesApiService {
-  private http = inject(HttpClient);
-  private profilesLoaded = false;
-
   profiles = signal<LidarProfile[]>([]);
   isLoading = signal<boolean>(false);
+  private http = inject(HttpClient);
+  private profilesLoaded = false;
 
   constructor() {
     // Load profiles from backend API on initialization
     this.loadProfiles();
+  }
+
+  /**
+   * Get specific LiDAR profile by model ID
+   */
+  getProfileByModelId(modelId: string): LidarProfile | null {
+    return this.profiles().find((profile) => profile.model_id === modelId) || null;
+  }
+
+  async loadProfiles(forceRefresh = false): Promise<void> {
+    // Return early if profiles already loaded and not forcing refresh
+    if (this.profilesLoaded && !forceRefresh) {
+      return;
+    }
+
+    this.isLoading.set(true);
+    try {
+      // Real API call to get updated profiles from backend
+      const data = await firstValueFrom(
+        this.http.get<LidarProfilesResponse>(`${environment.apiUrl}/lidar/profiles`),
+      );
+
+      // Convert relative thumbnail URLs to absolute backend URLs
+      const processedProfiles = data.profiles.map((profile) => ({
+        ...profile,
+        thumbnail_url: profile.thumbnail_url?.startsWith('/')
+          ? `${environment.apiUrl.replace('/api/v1', '')}${profile.thumbnail_url}`
+          : profile.thumbnail_url,
+      }));
+
+      this.profiles.set(processedProfiles);
+      this.profilesLoaded = true;
+
+      // Remove mock implementation - now using real backend data
+      // await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API delay
+      // this.profiles.set(MOCK_LIDAR_PROFILES);
+    } catch (error) {
+      console.error('Failed to load LiDAR profiles:', error);
+      // Fallback to mock data if backend is unavailable
+      this.profiles.set(this.getMockLidarProfiles());
+      this.profilesLoaded = false;
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   /**
@@ -173,49 +216,5 @@ export class LidarProfilesApiService {
         icon_color: '#4CAF50',
       },
     ];
-  }
-
-  /**
-   * Get specific LiDAR profile by model ID
-   */
-  getProfileByModelId(modelId: string): LidarProfile | null {
-    return this.profiles().find((profile) => profile.model_id === modelId) || null;
-  }
-
-  async loadProfiles(forceRefresh = false): Promise<void> {
-    // Return early if profiles already loaded and not forcing refresh
-    if (this.profilesLoaded && !forceRefresh) {
-      return;
-    }
-
-    this.isLoading.set(true);
-    try {
-      // Real API call to get updated profiles from backend
-      const data = await firstValueFrom(
-        this.http.get<LidarProfilesResponse>(`${environment.apiUrl}/lidar/profiles`),
-      );
-
-      // Convert relative thumbnail URLs to absolute backend URLs
-      const processedProfiles = data.profiles.map((profile) => ({
-        ...profile,
-        thumbnail_url: profile.thumbnail_url?.startsWith('/')
-          ? `${environment.apiUrl.replace('/api/v1', '')}${profile.thumbnail_url}`
-          : profile.thumbnail_url,
-      }));
-
-      this.profiles.set(processedProfiles);
-      this.profilesLoaded = true;
-
-      // Remove mock implementation - now using real backend data
-      // await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API delay
-      // this.profiles.set(MOCK_LIDAR_PROFILES);
-    } catch (error) {
-      console.error('Failed to load LiDAR profiles:', error);
-      // Fallback to mock data if backend is unavailable
-      this.profiles.set(this.getMockLidarProfiles());
-      this.profilesLoaded = false;
-    } finally {
-      this.isLoading.set(false);
-    }
   }
 }

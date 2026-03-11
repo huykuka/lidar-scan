@@ -1,51 +1,31 @@
-import { Component, computed, effect, signal, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
-import { StatusWebSocketService } from '../../../../core/services/status-websocket.service';
-import { CalibrationApiService } from '../../../../core/services/api/calibration-api.service';
-import { ToastService } from '../../../../core/services/toast.service';
-import {
-  CalibrationNodeStatus,
-  CalibrationResult,
-} from '../../../../core/models/calibration.model';
-import { NodeConfig } from '../../../../core/models/node.model';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {Component, computed, effect, inject, signal} from '@angular/core';
+
+import {ActivatedRoute, Router} from '@angular/router';
+import {NodeStoreService} from '../../../../core/services/stores/node-store.service';
+import {StatusWebSocketService} from '../../../../core/services/status-websocket.service';
+import {CalibrationApiService} from '../../../../core/services/api/calibration-api.service';
+import {ToastService} from '../../../../core/services/toast.service';
+import {CalibrationNodeStatus,} from '../../../../core/models/calibration.model';
+import {NodeConfig} from '../../../../core/models/node.model';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-calibration-viewer',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule],
   templateUrl: './calibration-viewer.component.html',
 })
 export class CalibrationViewerComponent {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private nodeStore = inject(NodeStoreService);
-  private statusWs = inject(StatusWebSocketService);
-  private calibrationApi = inject(CalibrationApiService);
-  private toast = inject(ToastService);
-
   nodeId = signal<string>('');
   isLoading = signal(false);
   isAccepting = signal(false);
   isRejecting = signal(false);
-
-  calibrationNode = computed(() => {
-    const statusResponse = this.statusWs.status();
-    if (!statusResponse) return null;
-    
-    const node = statusResponse.nodes.find((n: any) => n.id === this.nodeId());
-    return node && node.type === 'calibration' ? (node as unknown as CalibrationNodeStatus) : null;
-  });
-
   hasPendingResults = computed(() => {
     const node = this.calibrationNode();
     return (
       node?.has_pending && node.pending_results && Object.keys(node.pending_results).length > 0
     );
   });
-
   pendingResultsList = computed(() => {
     const node = this.calibrationNode();
     if (!node?.pending_results) return [];
@@ -55,6 +35,19 @@ export class CalibrationViewerComponent {
       ...result,
     }));
   });
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private nodeStore = inject(NodeStoreService);
+  private statusWs = inject(StatusWebSocketService);
+  calibrationNode = computed(() => {
+    const statusResponse = this.statusWs.status();
+    if (!statusResponse) return null;
+
+    const node = statusResponse.nodes.find((n: any) => n.id === this.nodeId());
+    return node && node.type === 'calibration' ? (node as unknown as CalibrationNodeStatus) : null;
+  });
+  private calibrationApi = inject(CalibrationApiService);
+  private toast = inject(ToastService);
 
   constructor() {
     // Get node ID from route
@@ -66,7 +59,7 @@ export class CalibrationViewerComponent {
           this.nodeId.set(id);
         }
       },
-      { allowSignalWrites: true },
+      {allowSignalWrites: true},
     );
   }
 

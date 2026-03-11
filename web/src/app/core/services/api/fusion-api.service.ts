@@ -1,11 +1,11 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { firstValueFrom } from 'rxjs';
-import { FusionStoreService } from '../stores/fusion-store.service';
-import { FusionConfig } from '../../models/fusion.model';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {firstValueFrom} from 'rxjs';
+import {FusionStoreService} from '../stores/fusion-store.service';
+import {FusionConfig} from '../../models/fusion.model';
 
-export type { FusionConfig } from '../../models/fusion.model';
+export type {FusionConfig} from '../../models/fusion.model';
 
 @Injectable({
   providedIn: 'root',
@@ -26,8 +26,8 @@ export class FusionApiService {
         ...n.config,
       })) as FusionConfig[];
 
-    const response = { fusions };
-    this.store.setState({ fusions });
+    const response = {fusions};
+    this.store.setState({fusions});
     return response;
   }
 
@@ -38,7 +38,7 @@ export class FusionApiService {
       type: 'fusion',
       category: 'Processing',
       enabled: config.enabled ?? true,
-      config: { ...config },
+      config: {...config},
     };
 
     delete payload.config.id;

@@ -1,42 +1,28 @@
-import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
-import { RecordingApiService } from '../../core/services/api/recording-api.service';
-import { NavigationService } from '../../core/services/navigation.service';
-import { Router } from '@angular/router';
-import { Recording } from '../../core/models/recording.model';
-import { RecordingCardComponent } from './components/recording-card/recording-card.component';
+import {Component, computed, inject, OnInit, signal} from '@angular/core';
+
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {RecordingStoreService} from '@core/services/stores/recording-store.service';
+import {RecordingApiService} from '@core/services/api/recording-api.service';
+import {NavigationService} from '@core/services';
+import {Router} from '@angular/router';
+import {Recording} from '@core/models';
+import {RecordingCardComponent} from './components/recording-card/recording-card.component';
+import {DialogService} from '@core/services/dialog.service';
 
 @Component({
   selector: 'app-recordings',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule, RecordingCardComponent],
+  imports: [SynergyComponentsModule, RecordingCardComponent],
   templateUrl: './recordings.component.html',
   styleUrl: './recordings.component.css',
 })
 export class RecordingsComponent implements OnInit {
-  private recordingStore = inject(RecordingStoreService);
-  private recordingApi = inject(RecordingApiService);
-  private navService = inject(NavigationService);
-  private router = inject(Router);
-
-  // State
-  protected recordings = this.recordingStore.recordings;
-  protected isLoading = this.recordingStore.select('isLoading');
   protected searchQuery = signal<string>('');
   protected selectedRecording = signal<Recording | null>(null);
-  protected showDeleteDialog = signal<boolean>(false);
-  protected recordingToDelete = signal<Recording | null>(null);
   protected isDeleting = signal<boolean>(false);
-
   // Selection state
   protected isSelectionMode = signal<boolean>(false);
   protected selectedRecordingIds = signal<Set<string>>(new Set());
-  protected showBulkDeleteDialog = signal<boolean>(false);
-
-  constructor() {}
-
   // Computed
   protected filteredRecordings = computed(() => {
     const query = this.searchQuery().toLowerCase();
@@ -50,12 +36,22 @@ export class RecordingsComponent implements OnInit {
         (r.metadata?.sensor_name && r.metadata.sensor_name.toLowerCase().includes(query)),
     );
   });
-
   protected sortedRecordings = computed(() => {
     return [...this.filteredRecordings()].sort((a, b) => {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   });
+  private recordingStore = inject(RecordingStoreService);
+  // State
+  protected recordings = this.recordingStore.recordings;
+  protected isLoading = this.recordingStore.select('isLoading');
+  private recordingApi = inject(RecordingApiService);
+  private navService = inject(NavigationService);
+  private router = inject(Router);
+  private dialogService = inject(DialogService);
+
+  constructor() {
+  }
 
   async ngOnInit() {
     this.navService.setPageConfig({
@@ -79,26 +75,21 @@ export class RecordingsComponent implements OnInit {
     this.recordingApi.downloadRecording(recording.id, filename);
   }
 
-  protected confirmDelete(recording: Recording): void {
-    this.recordingToDelete.set(recording);
-    this.showDeleteDialog.set(true);
-  }
+  protected async confirmDelete(recording: Recording): Promise<void> {
+    const confirmed = await this.dialogService.confirm({
+      title: 'Delete Recording',
+      message: `Are you sure you want to delete <strong>${recording.name}</strong>? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
 
-  protected cancelDelete(): void {
-    this.recordingToDelete.set(null);
-    this.showDeleteDialog.set(false);
-  }
-
-  protected async deleteRecording(): Promise<void> {
-    const recording = this.recordingToDelete();
-    if (!recording) return;
+    if (!confirmed) return;
 
     this.isDeleting.set(true);
     try {
       await this.recordingApi.deleteRecording(recording.id).toPromise();
       await this.recordingStore.loadRecordings();
-      this.showDeleteDialog.set(false);
-      this.recordingToDelete.set(null);
     } catch (error) {
       console.error('Failed to delete recording:', error);
     } finally {
@@ -114,9 +105,6 @@ export class RecordingsComponent implements OnInit {
     this.selectedRecording.set(recording);
   }
 
-  protected closeDetails(): void {
-    this.selectedRecording.set(null);
-  }
 
   // --- Bulk Selection & Deletion Methods ---
 
@@ -154,20 +142,21 @@ export class RecordingsComponent implements OnInit {
     this.selectedRecordingIds.set(new Set(current));
   }
 
-  protected confirmBulkDelete(): void {
-    if (this.selectedRecordingIds().size > 0) {
-      this.showBulkDeleteDialog.set(true);
-    }
-  }
+  protected async confirmBulkDelete(): Promise<void> {
+    if (this.selectedRecordingIds().size === 0) return;
 
-  protected cancelBulkDelete(): void {
-    this.showBulkDeleteDialog.set(false);
-  }
+    const count = this.selectedRecordingIds().size;
+    const confirmed = await this.dialogService.confirm({
+      title: 'Delete Multiple Recordings',
+      message: `Are you sure you want to delete <strong>${count}</strong> recordings? This action cannot be undone.`,
+      confirmLabel: 'Delete All',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
 
-  protected async bulkDeleteRecordings(): Promise<void> {
+    if (!confirmed) return;
+
     const ids = Array.from(this.selectedRecordingIds());
-    if (ids.length === 0) return;
-
     this.isDeleting.set(true);
     try {
       // A more robust implementation might send an array to a bulk delete endpoint.
@@ -177,7 +166,6 @@ export class RecordingsComponent implements OnInit {
       await this.recordingStore.loadRecordings();
       this.selectedRecordingIds.set(new Set());
       this.isSelectionMode.set(false);
-      this.showBulkDeleteDialog.set(false);
     } catch (error) {
       console.error('Failed to perform bulk deletion:', error);
     } finally {

@@ -9,34 +9,39 @@
       <div class="flex items-center justify-between px-4 py-3">
         <div class="flex gap-2">
           <syn-button
-            variant="outline"
-            size="small"
             (click)="onExportConfig()"
             [disabled]="isExporting()"
             [loading]="isExporting()"
+            size="small"
+            variant="outline"
           >
-            <syn-icon slot="prefix" name="download"></syn-icon>Export
+            <syn-icon name="download" slot="prefix" />
+            Export
           </syn-button>
           <syn-button
-            variant="outline"
-            size="small"
-            [loading]="isImporting()"
-            [disabled]="isExporting()"
             (click)="onImportConfigClick()"
+            [disabled]="isExporting()"
+            [loading]="isImporting()"
+            size="small"
+            variant="outline"
           >
-            <syn-icon slot="prefix" name="upload"></syn-icon>Import
+            <syn-icon name="upload" slot="prefix" />
+            Import
           </syn-button>
-          <syn-button variant="outline" size="small" (click)="onReloadConfig()">
-            <syn-icon slot="prefix" name="save"></syn-icon>Save & Reload
+          <syn-button (click)="onReloadConfig()" size="small" variant="outline">
+            <syn-icon name="save" slot="prefix" />
+            Save & Reload
           </syn-button>
 
           @if (isSystemRunning()) {
-            <syn-button variant="filled" color="danger" size="small" (click)="onStopSystem()">
-              <syn-icon slot="prefix" name="stop"></syn-icon>Stop Data Flow
+            <syn-button (click)="onStopSystem()" color="danger" size="small" variant="filled">
+              <syn-icon name="stop" slot="prefix" />
+              Stop Data Flow
             </syn-button>
           } @else {
-            <syn-button variant="filled" color="success" size="small" (click)="onStartSystem()">
-              <syn-icon slot="prefix" name="play_arrow"></syn-icon>Start Data Flow
+            <syn-button (click)="onStartSystem()" color="success" size="small" variant="filled">
+              <syn-icon name="play_arrow" slot="prefix" />
+              Start Data Flow
             </syn-button>
           }
         </div>
@@ -45,18 +50,18 @@
 
     <!-- Flow Canvas -->
     <div class="flex-1 overflow-hidden">
-      <app-flow-canvas (hasUnsavedChangesChange)="hasUnsavedChanges.set($event)" />
+      <app-flow-canvas (hasUnsavedChangesChange)="hasUnsavedChanges.set($event)"/>
     </div>
   </div>
 
   <!-- Configuration Import Validation Dialog -->
   <app-config-import-dialog
-    [open]="showValidationDialog()"
-    [validationResult]="validationResult()"
-    [isImporting]="isImporting()"
-    [(mergeMode)]="importMergeMode"
     (cancel)="onCancelImport()"
     (confirm)="onConfirmImport()"
     (requestClose)="onCancelImport()"
+    [(mergeMode)]="importMergeMode"
+    [isImporting]="isImporting()"
+    [open]="showValidationDialog()"
+    [validationResult]="validationResult()"
   />
 </div>

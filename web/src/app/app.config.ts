@@ -5,15 +5,15 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { provideRouter } from '@angular/router';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import {provideRouter} from '@angular/router';
+import {provideHttpClient, withInterceptors} from '@angular/common/http';
 
-import { routes } from './app.routes';
-import { httpToastInterceptor } from './core/interceptors/http-toast.interceptor';
-import { GlobalErrorHandler } from './core/errors/global-error.handler';
-import { SystemStatusService } from './core/services/system-status.service';
+import {routes} from './app.routes';
+import {httpToastInterceptor} from './core/interceptors/http-toast.interceptor';
+import {GlobalErrorHandler} from './core/errors/global-error.handler';
+import {SystemStatusService} from './core/services/system-status.service';
 
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+import {provideAnimationsAsync} from '@angular/platform-browser/animations/async';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -21,7 +21,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
     provideHttpClient(withInterceptors([httpToastInterceptor])),
-    { provide: ErrorHandler, useClass: GlobalErrorHandler },
+    {provide: ErrorHandler, useClass: GlobalErrorHandler},
     provideAppInitializer(() => inject(SystemStatusService).start()),
   ],
 };

@@ -1,10 +1,10 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { CanvasNode } from '../flow-canvas-node.component';
-import { NodeStatus } from '../../../../../../core/models/node.model';
-import { CalibrationApiService } from '../../../../../../core/services/api/calibration-api.service';
-import { CalibrationNodeStatus } from '../../../../../../core/models/calibration.model';
-import { ToastService } from '../../../../../../core/services/toast.service';
+import {Component, computed, inject, input, signal} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {CanvasNode} from '../flow-canvas-node.component';
+import {NodeStatus} from '../../../../../../core/models/node.model';
+import {CalibrationApiService} from '../../../../../../core/services/api/calibration-api.service';
+import {CalibrationNodeStatus} from '../../../../../../core/models/calibration.model';
+import {ToastService} from '../../../../../../core/services/toast.service';
 
 @Component({
   selector: 'app-node-calibration-controls',
@@ -12,22 +12,18 @@ import { ToastService } from '../../../../../../core/services/toast.service';
   templateUrl: './node-calibration-controls.html',
 })
 export class NodeCalibrationControls {
-  private calibrationApi = inject(CalibrationApiService);
-  private toast = inject(ToastService);
-
   node = input.required<CanvasNode>();
   status = input<NodeStatus | null>(null);
-
   protected calibrationStatus = computed(() => {
     return this.status() as CalibrationNodeStatus | null;
   });
-
   protected hasPendingCalibration = computed(() => {
     return this.calibrationStatus()?.has_pending || false;
   });
-
   protected isCalibrating = signal<boolean>(false);
   protected calibrationError = signal<string | null>(null);
+  private calibrationApi = inject(CalibrationApiService);
+  private toast = inject(ToastService);
 
   protected async triggerCalibration(): Promise<void> {
     this.isCalibrating.set(true);

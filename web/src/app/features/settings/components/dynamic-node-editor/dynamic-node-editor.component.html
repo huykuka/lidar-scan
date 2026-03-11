@@ -1,4 +1,4 @@
-<div class="flex flex-col w-full min-w-[420px] mb-4">
+<div class="flex flex-col w-full min-w-105 mb-4">
   <!-- Header with Actions -->
   <div
     class="flex items-center justify-between gap-3 mb-4 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
@@ -7,7 +7,7 @@
       <div
         class="w-8 h-8 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 text-syn-color-primary-600 flex items-center justify-center shrink-0"
       >
-        <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-lg"></syn-icon>
+        <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-lg"/>
       </div>
       <div class="flex flex-col min-w-0">
         <h2 class="text-xs font-bold text-syn-color-neutral-900 truncate">
@@ -21,77 +21,74 @@
 
     <!-- Action Buttons -->
     <div class="flex gap-2 shrink-0">
-      <syn-button variant="outline" size="small" (click)="onCancel()">
-        <syn-icon name="close"></syn-icon>
+      <syn-button (click)="onCancel()" size="small" variant="outline">
+        <syn-icon name="close"/>
         Cancel
       </syn-button>
       <syn-button
-        variant="filled"
-        size="small"
         (click)="onSave()"
         [disabled]="form.invalid || configForm.invalid || isSaving()"
+        size="small"
+        variant="filled"
       >
-        <syn-icon name="save"></syn-icon>
+        <syn-icon name="save"/>
         Save
       </syn-button>
     </div>
   </div>
 
-  <form [formGroup]="form" (ngSubmit)="onSave()" class="flex flex-col gap-3 text-sm">
+  <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-3 text-sm">
     <!-- Header fields -->
     <div class="grid grid-cols-2 gap-3">
       <!-- Display Name -->
       <div class="col-span-2">
-        <syn-input
-          label="Display Name"
-          formControlName="name"
-          placeholder="e.g. My Sensor"
-          size="small"
-          ngDefaultControl
-        ></syn-input>
+        <syn-input formControlName="name"
+                   label="Display Name"
+                   ngDefaultControl
+                   placeholder="e.g. My Sensor"
+                   size="small"
+        />
       </div>
     </div>
 
-    <syn-divider class="my-0"></syn-divider>
+    <syn-divider class="my-0"/>
 
     <!-- Dynamic Properties from Schema -->
-    <div class="grid grid-cols-2 gap-x-3 gap-y-2" [formGroup]="configForm">
+    <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-2">
       @for (prop of visibleProperties(); track prop.name) {
         <div
-          class="flex flex-col"
           [class.col-span-2]="prop.type === 'vec3' || prop.type === 'string'"
+          class="flex flex-col"
         >
           <!-- String -->
           @if (prop.type === 'string') {
-            <syn-input
-              [label]="prop.label"
-              [formControlName]="prop.name"
-              [helpText]="prop.help_text || ''"
-              size="small"
-              ngDefaultControl
-            ></syn-input>
+            <syn-input [formControlName]="prop.name"
+                       [helpText]="prop.help_text || ''"
+                       [label]="prop.label"
+                       ngDefaultControl
+                       size="small"
+            />
           }
 
           <!-- Number -->
           @if (prop.type === 'number') {
-            <syn-input
-              [label]="prop.label"
-              type="number"
-              [step]="prop.step || 1"
-              [attr.min]="prop.min"
-              [attr.max]="prop.max"
-              [formControlName]="prop.name"
-              [helpText]="prop.help_text || ''"
-              size="small"
-              ngDefaultControl
-            ></syn-input>
+            <syn-input [attr.max]="prop.max"
+                       [attr.min]="prop.min"
+                       [formControlName]="prop.name"
+                       [helpText]="prop.help_text || ''"
+                       [label]="prop.label"
+                       [step]="prop.step || 1"
+                       ngDefaultControl
+                       size="small"
+                       type="number"
+            />
           }
 
           <!-- Boolean -->
           @if (prop.type === 'boolean') {
             <syn-checkbox
+              (synChangeEvent)="onCheckboxChange(prop.name, $event)"
               [checked]="configForm.get(prop.name)?.value"
-              (syn-change)="onCheckboxChange(prop.name, $event)"
               class="mt-4"
             >
               <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
@@ -105,18 +102,18 @@
           @if (prop.type === 'select') {
             @if (prop.name === 'lidar_type') {
               <app-lidar-type-select
+                (valueChange)="onLidarTypeChange(prop.name, $event)"
+                [helpText]="prop.help_text || ''"
                 [label]="prop.label"
                 [value]="configForm.get(prop.name)?.value"
-                [helpText]="prop.help_text || ''"
-                (valueChange)="onLidarTypeChange(prop.name, $event)"
               />
             } @else {
               <syn-select
-                size="small"
+                (synChangeEvent)="onSelectChange(prop.name, $event)"
+                [helpText]="prop.help_text || ''"
                 [label]="prop.label"
                 [value]="configForm.get(prop.name)?.value"
-                [helpText]="prop.help_text || ''"
-                (syn-change)="onSelectChange(prop.name, $event)"
+                size="small"
               >
                 @for (opt of prop.options; track opt.value) {
                   <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
@@ -132,49 +129,49 @@
             >
               <div class="flex flex-col">
                 <label class="text-[11px] font-bold text-syn-color-neutral-900">{{
-                  prop.label
-                }}</label>
+                    prop.label
+                  }}</label>
                 @if (prop.help_text) {
                   <span class="text-[10px] text-syn-color-neutral-500 mt-0.5">{{
-                    prop.help_text
-                  }}</span>
+                      prop.help_text
+                    }}</span>
                 }
               </div>
-              <div class="grid grid-cols-3 gap-1.5" [formGroupName]="prop.name">
+              <div [formGroupName]="prop.name" class="grid grid-cols-3 gap-1.5">
                 <syn-input
-                  type="number"
                   [step]="0.1"
                   formControlName="0"
-                  placeholder="X"
                   ngDefaultControl
+                  placeholder="X"
                   size="small"
+                  type="number"
                 >
-                  <span slot="prefix" class="text-xs font-bold text-syn-color-neutral-400 pl-2"
-                    >X</span
+                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
+                  >X</span
                   >
                 </syn-input>
                 <syn-input
-                  type="number"
                   [step]="0.1"
                   formControlName="1"
-                  placeholder="Y"
                   ngDefaultControl
+                  placeholder="Y"
                   size="small"
+                  type="number"
                 >
-                  <span slot="prefix" class="text-xs font-bold text-syn-color-neutral-400 pl-2"
-                    >Y</span
+                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
+                  >Y</span
                   >
                 </syn-input>
                 <syn-input
-                  type="number"
                   [step]="0.1"
                   formControlName="2"
-                  placeholder="Z"
                   ngDefaultControl
+                  placeholder="Z"
                   size="small"
+                  type="number"
                 >
-                  <span slot="prefix" class="text-xs font-bold text-syn-color-neutral-400 pl-2"
-                    >Z</span
+                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
+                  >Z</span
                   >
                 </syn-input>
               </div>
