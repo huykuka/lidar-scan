@@ -1,4 +1,4 @@
-<div class="flex flex-col w-full min-w-[420px] mb-4">
+<div class="flex flex-col w-full min-w-105 mb-4">
   <!-- Header with Actions -->
   <div
     class="flex items-center justify-between gap-3 mb-4 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
@@ -7,7 +7,7 @@
       <div
         class="w-8 h-8 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 text-syn-color-primary-600 flex items-center justify-center shrink-0"
       >
-        <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-lg" />
+        <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-lg"/>
       </div>
       <div class="flex flex-col min-w-0">
         <h2 class="text-xs font-bold text-syn-color-neutral-900 truncate">
@@ -22,7 +22,7 @@
     <!-- Action Buttons -->
     <div class="flex gap-2 shrink-0">
       <syn-button (click)="onCancel()" size="small" variant="outline">
-        <syn-icon name="close" />
+        <syn-icon name="close"/>
         Cancel
       </syn-button>
       <syn-button
@@ -31,7 +31,7 @@
         size="small"
         variant="filled"
       >
-        <syn-icon name="save" />
+        <syn-icon name="save"/>
         Save
       </syn-button>
     </div>
@@ -43,15 +43,15 @@
       <!-- Display Name -->
       <div class="col-span-2">
         <syn-input formControlName="name"
-          label="Display Name"
-          ngDefaultControl
-          placeholder="e.g. My Sensor"
-          size="small"
-         />
+                   label="Display Name"
+                   ngDefaultControl
+                   placeholder="e.g. My Sensor"
+                   size="small"
+        />
       </div>
     </div>
 
-    <syn-divider class="my-0" />
+    <syn-divider class="my-0"/>
 
     <!-- Dynamic Properties from Schema -->
     <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-2">
@@ -63,31 +63,31 @@
           <!-- String -->
           @if (prop.type === 'string') {
             <syn-input [formControlName]="prop.name"
-              [helpText]="prop.help_text || ''"
-              [label]="prop.label"
-              ngDefaultControl
-              size="small"
-             />
+                       [helpText]="prop.help_text || ''"
+                       [label]="prop.label"
+                       ngDefaultControl
+                       size="small"
+            />
           }
 
           <!-- Number -->
           @if (prop.type === 'number') {
             <syn-input [attr.max]="prop.max"
-              [attr.min]="prop.min"
-              [formControlName]="prop.name"
-              [helpText]="prop.help_text || ''"
-              [label]="prop.label"
-              [step]="prop.step || 1"
-              ngDefaultControl
-              size="small"
-              type="number"
-             />
+                       [attr.min]="prop.min"
+                       [formControlName]="prop.name"
+                       [helpText]="prop.help_text || ''"
+                       [label]="prop.label"
+                       [step]="prop.step || 1"
+                       ngDefaultControl
+                       size="small"
+                       type="number"
+            />
           }
 
           <!-- Boolean -->
           @if (prop.type === 'boolean') {
             <syn-checkbox
-              (syn-change)="onCheckboxChange(prop.name, $event)"
+              (synChangeEvent)="onCheckboxChange(prop.name, $event)"
               [checked]="configForm.get(prop.name)?.value"
               class="mt-4"
             >
@@ -109,7 +109,7 @@
               />
             } @else {
               <syn-select
-                (syn-change)="onSelectChange(prop.name, $event)"
+                (synChangeEvent)="onSelectChange(prop.name, $event)"
                 [helpText]="prop.help_text || ''"
                 [label]="prop.label"
                 [value]="configForm.get(prop.name)?.value"
