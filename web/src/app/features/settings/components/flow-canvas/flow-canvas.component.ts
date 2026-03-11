@@ -400,6 +400,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
     if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+    if (this.drawerOpen()) return;
 
     const tag = (event.target as HTMLElement)?.tagName?.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;

@@ -5,6 +5,7 @@ import {NavigationService} from '@core/services/navigation.service';
 import {MultiWebsocketService} from '@core/services/multi-websocket.service';
 import {TopicApiService} from '@core/services/api/topic-api.service';
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
+import {StatusWebSocketService} from '@core/services/status-websocket.service';
 import {PointCloudComponent} from '@features/workspaces/components/point-cloud/point-cloud.component';
 import {
   WorkspaceTelemetryComponent
@@ -38,6 +39,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   private wsService = inject(MultiWebsocketService);
   private topicApi = inject(TopicApiService);
   private workspaceStore = inject(WorkspaceStoreService);
+  private statusWs = inject(StatusWebSocketService);
   protected pointSize = this.workspaceStore.pointSize;
   protected showCockpit = this.workspaceStore.showCockpit;
   protected showGrid = this.workspaceStore.showGrid;
@@ -47,15 +49,23 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   private frameCountPerTopic = new Map<string, number>();
   private fpsUpdateInterval?: any;
   private viewInitialized = false;
+  private lastNodeIds = '';
 
   constructor() {
-    // Reactively manage WebSocket connections based on selectedTopics
     effect(() => {
       const selectedTopics = this.workspaceStore.selectedTopics();
-      // Only sync if view is initialized
       if (this.viewInitialized) {
         this.syncWebSocketConnections(selectedTopics);
       }
+    });
+
+    effect(() => {
+      const status = this.statusWs.status();
+      if (!status) return;
+      const nodeIds = status.nodes.map(n => n.id).sort().join(',');
+      if (nodeIds === this.lastNodeIds) return;
+      this.lastNodeIds = nodeIds;
+      this.refreshTopics();
     });
   }
 
@@ -166,6 +176,17 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private async refreshTopics() {
+    const topics = await this.topicApi.getTopics();
+    this.workspaceStore.set('topics', topics);
+
+    const selectedTopics = this.workspaceStore.getValue('selectedTopics');
+    const validSelectedTopics = selectedTopics.filter((st) => topics.includes(st.topic));
+    if (validSelectedTopics.length !== selectedTopics.length) {
+      this.workspaceStore.set('selectedTopics', validSelectedTopics);
+    }
+  }
+
   /**
    * Sync WebSocket connections with selected topics
    * Connect to enabled topics, disconnect from disabled or removed topics
@@ -208,8 +229,18 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.wsSubscriptions.has(topic)) return;
 
     const url = environment.wsUrl(topic);
-    const subscription = this.wsService.connect(topic, url).subscribe((data) => {
-      this.handleWsMessage(topic, data);
+    const subscription = this.wsService.connect(topic, url).subscribe({
+      next: (data) => this.handleWsMessage(topic, data),
+      complete: () => {
+        this.wsSubscriptions.delete(topic);
+        this.frameCountPerTopic.delete(topic);
+        this.pointCloud()?.removePointCloud(topic);
+        this.workspaceStore.removeTopic(topic);
+      },
+      error: () => {
+        this.wsSubscriptions.delete(topic);
+        this.frameCountPerTopic.delete(topic);
+      },
     });
 
     this.wsSubscriptions.set(topic, subscription);

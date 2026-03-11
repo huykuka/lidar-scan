@@ -17,9 +17,9 @@ class BoundaryDetection(PipelineOperation):
     """
 
     def __init__(self, radius: float = 0.02, max_nn: int = 30, angle_threshold: float = 90.0):
-        self.radius = radius
-        self.max_nn = max_nn
-        self.angle_threshold = angle_threshold
+        self.radius = float(radius)
+        self.max_nn = int(max_nn)
+        self.angle_threshold = float(angle_threshold)
 
     def apply(self, pcd: Any):
         if isinstance(pcd, o3d.t.geometry.PointCloud):

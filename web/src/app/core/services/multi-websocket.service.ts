@@ -45,9 +45,13 @@ export class MultiWebsocketService {
       console.error(`WebSocket error for topic ${topic}:`, error);
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event: CloseEvent) => {
       this.connections.delete(topic);
-      subject.complete();
+      if (event.code === 1001) {
+        subject.complete();
+      } else {
+        subject.error(event);
+      }
     };
 
     this.connections.set(topic, {socket, subject});

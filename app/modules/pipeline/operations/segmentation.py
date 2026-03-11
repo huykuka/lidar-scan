@@ -17,9 +17,9 @@ class PlaneSegmentation(PipelineOperation):
     """
 
     def __init__(self, distance_threshold: float = 0.1, ransac_n: int = 3, num_iterations: int = 1000):
-        self.distance_threshold = distance_threshold
-        self.ransac_n = ransac_n
-        self.num_iterations = num_iterations
+        self.distance_threshold = float(distance_threshold)
+        self.ransac_n = int(ransac_n)
+        self.num_iterations = int(num_iterations)
 
     def apply(self, pcd: Any):
         if isinstance(pcd, o3d.t.geometry.PointCloud):
