@@ -1,7 +1,4 @@
 <div
-  [class.border-syn-color-primary-400]="isFusionCategory()"
-  [class.border-syn-color-success-400]="isSensorCategory()"
-  [class.border-syn-color-warning-400]="isOperationCategory()"
   [class.opacity-50]="isDragging()"
   class="bg-white rounded-lg shadow-lg border-2 w-72 hover:shadow-xl transition-all relative"
 >
@@ -10,7 +7,7 @@
     <div
       (mousedown)="$event.stopPropagation()"
       (mouseup)="$event.stopPropagation(); portDrop.emit({ nodeId: node().id, portType: 'input' })"
-      class="absolute left-0 top-[44px] transform -translate-x-full -translate-y-1/2 w-4 h-6 rounded-sm border-2 border-white z-10 cursor-crosshair transition-transform after:absolute after:-inset-4 after:content-[''] bg-[#066fff]"
+      class="absolute left-0 top-11 transform -translate-x-full -translate-y-1/2 w-4 h-6 rounded-sm border-2 border-white z-10 cursor-crosshair transition-transform after:absolute after:-inset-4 after:content-[''] bg-[#066fff]"
       title="Input port — drop connection here"
     ></div>
   }
@@ -23,23 +20,20 @@
         portDragStart.emit({ nodeId: node().id, portType: 'output', event: $event })
       "
       (mouseup)="$event.stopPropagation()"
-      class="absolute right-0 top-[44px] transform translate-x-full -translate-y-1/2 w-4 h-6 rounded-sm border-2 border-white z-10 cursor-crosshair h transition-transform after:absolute after:-inset-4 after:content-[''] bg-[#066fff]"
+      class="absolute right-0 top-11 transform translate-x-full -translate-y-1/2 w-4 h-6 rounded-sm border-2 border-white z-10 cursor-crosshair h transition-transform after:absolute after:-inset-4 after:content-[''] bg-[#066fff]"
       title="Output port — drag to connect"
     ></div>
   }
 
   <!-- Node Header -->
-  <div class="p-3 flex items-center rounded-t-[6px]">
+  <div class="p-3 flex items-center rounded-t-md">
     <div class="flex items-center gap-2 min-w-0 flex-1">
-      <syn-icon [class.text-syn-color-primary-600]="isFusionCategory()"
-        [class.text-syn-color-success-600]="isSensorCategory()"
-        [class.text-syn-color-warning-600]="isOperationCategory()"
-        [name]="getNodeIcon()"
-        class="text-xl shrink-0"
-       />
+      <syn-icon [name]="getNodeIcon()"
+                class="text-xl shrink-0"
+      />
       <div [title]="statusBadge().label" class="flex flex-row min-w-0 items-center">
         <span class="font-semibold text-sm truncate flex-1">{{ getNodeName() }} </span>
-        <syn-badge [variant]="statusBadge().variant" class="ml-2" pill size="small" />
+        <syn-badge [variant]="statusBadge().variant" class="ml-2" pill size="small"/>
       </div>
     </div>
     <syn-button
@@ -49,38 +43,16 @@
       variant="text"
     >
       <syn-icon [name]="isExpanded() ? 'expand_less' : 'expand_more'"
-        class="text-syn-color-neutral-600 transition-transform"
-       />
+                class="text-syn-color-neutral-600 transition-transform"
+      />
     </syn-button>
   </div>
 
   <!-- Node Body (Collapsible Details) -->
   @if (isExpanded()) {
-    <div class="p-3 space-y-2 text-xs">
-      <!-- Render Dynamic Config Properties -->
-      <div class="flex flex-col gap-y-1.5 py-1">
-        @for (param of getConfigProperties(); track param.label) {
-          <div class="flex justify-between items-center w-full gap-2 min-w-0">
-            <span
-              [title]="param.label"
-              class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0 max-w-[40%]"
-            >{{ param.label }}</span
-            >
-
-            @if (param.isBadge) {
-              <syn-badge [variant]="param.badgeVariant || 'neutral'" class="shrink-0" size="small">
-                {{ param.value }}
-              </syn-badge>
-            } @else {
-              <span
-                [title]="param.value"
-                class="font-mono text-[11px] truncate text-right flex-1 min-w-0 block"
-              >{{ param.value }}</span
-              >
-            }
-          </div>
-        }
-      </div>
+    <div class="p-3 pt-0 space-y-2 text-xs">
+      <!-- Plugin Card Component (dynamically rendered) -->
+      <ng-container #cardHost></ng-container>
 
       @if (status() && getFrameAge()) {
         <div class="flex flex-col pt-2 border-t border-syn-color-neutral-100">
@@ -88,9 +60,8 @@
           >Last Frame Update</span
           >
           <span
-            [class.text-syn-color-danger-600]="isFrameVeryStale()"
-            [class.text-syn-color-success-600]="!isFrameStale() && !isFrameVeryStale()"
-            [class.text-syn-color-warning-600]="isFrameStale() && !isFrameVeryStale()"
+            [class.text-syn-color-success-600]="!isFrameStale()"
+            [class.text-syn-color-warning-600]="isFrameStale()"
             class="font-mono text-[11px] font-semibold"
           >
             {{ getFrameAge() }} ago
@@ -111,14 +82,14 @@
   <!-- Node Actions -->
   <div class="p-2 border-t border-syn-color-neutral-200 flex items-center gap-1">
     <div class="flex items-center gap-2 flex-1 min-w-0">
-      <syn-switch (syn-change)="onToggleEnabled.emit($any($event.target).checked)"
-        [checked]="isNodeEnabled()"
-        [disabled]="isLoading()"
-        class="shrink-0"
-        size="small"
-       />
+      <syn-switch (synChangeEvent)="onToggleEnabled.emit($any($event.target).checked)"
+                  [checked]="isNodeEnabled()"
+                  [disabled]="isLoading()"
+                  class="shrink-0"
+                  size="small"
+      />
       @if (isLoading()) {
-        <syn-spinner size="small" />
+        <syn-spinner size="small"/>
       } @else {
         <span
           [class.text-syn-color-danger-600]="!isNodeEnabled()"
@@ -132,12 +103,12 @@
 
     @if (isNodeEnabled() && isCalibrationNode()) {
       <app-node-calibration-controls [node]="node()"
-        [status]="status()"
-       />
+                                     [status]="status()"
+      />
     }
 
     @if (isNodeEnabled() && hasOutputPort()) {
-      <app-node-recording-controls [node]="node()" />
+      <app-node-recording-controls [node]="node()"/>
     }
   </div>
 </div>

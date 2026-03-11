@@ -1,0 +1,33 @@
+<div class="flex flex-col gap-y-1.5 py-1">
+  <div class="flex justify-between items-center w-full gap-2 min-w-0">
+    <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0">SENSORS</span>
+    <syn-badge variant="primary" class="shrink-0" size="small">
+      {{ sensorCount() }}
+    </syn-badge>
+  </div>
+
+  @if (sensorNames().length > 0) {
+    <div class="flex flex-col gap-1">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter">INPUT SOURCES</span>
+      <div class="flex flex-wrap gap-1">
+        @for (name of sensorNames(); track name) {
+          <syn-badge variant="success" size="small">{{ name }}</syn-badge>
+        }
+      </div>
+    </div>
+  }
+
+  @if (pipelineName()) {
+    <div class="flex justify-between items-center w-full gap-2 min-w-0">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0">PIPELINE</span>
+      <span class="font-mono text-[11px] truncate text-right flex-1 min-w-0 block">{{ pipelineName() }}</span>
+    </div>
+  }
+
+  @if (topic()) {
+    <div class="flex justify-between items-center w-full gap-2 min-w-0">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0">TOPIC</span>
+      <span class="font-mono text-[11px] truncate text-right flex-1 min-w-0 block">{{ topic() }}</span>
+    </div>
+  }
+</div>

@@ -118,7 +118,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   onCanvasMouseDown(event: MouseEvent) {
     this.selectedCanvasNode.set(null);
-    this.drawerOpen.set(false);
     if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
       this.drag.startPan();
       event.preventDefault();
@@ -417,14 +416,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.zoom.set(1);
   }
 
-  openNodeEditor(node?: Partial<NodeConfig>, editMode = false) {
-    this.nodeStore.set('selectedNode', node ?? {});
-    this.nodeStore.set('editMode', editMode);
-    this.drawerOpen.set(true);
-  }
-
   onDrawerClose() {
     this.drawerOpen.set(false);
+  }
+
+  onDrawerRequestClose(event: Event) {
+    if ((event as CustomEvent).detail?.source === 'overlay') {
+      event.preventDefault();
+    }
   }
 
   private async loadGraphData() {

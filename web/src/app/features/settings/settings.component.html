@@ -5,7 +5,7 @@
     style="height: calc(100vh - 200px)"
   >
     <!-- Toolbar -->
-    <div class="border-b border-syn-color-neutral-200 bg-syn-color-neutral-50 flex-shrink-0">
+    <div class="border-b border-syn-color-neutral-200 bg-syn-color-neutral-50 shrink-0">
       <div class="flex items-center justify-between px-4 py-3">
         <div class="flex gap-2">
           <syn-button
@@ -15,7 +15,7 @@
             size="small"
             variant="outline"
           >
-            <syn-icon name="download" slot="prefix" />
+            <syn-icon name="download" slot="prefix"/>
             Export
           </syn-button>
           <syn-button
@@ -25,22 +25,22 @@
             size="small"
             variant="outline"
           >
-            <syn-icon name="upload" slot="prefix" />
+            <syn-icon name="upload" slot="prefix"/>
             Import
           </syn-button>
           <syn-button (click)="onReloadConfig()" size="small" variant="outline">
-            <syn-icon name="save" slot="prefix" />
+            <syn-icon name="save" slot="prefix"/>
             Save & Reload
           </syn-button>
 
           @if (isSystemRunning()) {
             <syn-button (click)="onStopSystem()" color="danger" size="small" variant="filled">
-              <syn-icon name="stop" slot="prefix" />
+              <syn-icon name="stop" slot="prefix"/>
               Stop Data Flow
             </syn-button>
           } @else {
             <syn-button (click)="onStartSystem()" color="success" size="small" variant="filled">
-              <syn-icon name="play_arrow" slot="prefix" />
+              <syn-icon name="play_arrow" slot="prefix"/>
               Start Data Flow
             </syn-button>
           }

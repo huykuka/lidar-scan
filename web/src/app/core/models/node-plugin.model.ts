@@ -1,3 +1,23 @@
+import {InputSignal, OutputEmitterRef, Type} from '@angular/core';
+import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
+import {NodeStatus} from './node.model';
+
+/**
+ * Base contract every plugin card component must implement
+ */
+export interface NodeCardComponent {
+  node: InputSignal<CanvasNode>;
+  status: InputSignal<NodeStatus | null>;
+}
+
+/**
+ * Base contract every plugin editor component must implement
+ */
+export interface NodeEditorComponent {
+  saved: OutputEmitterRef<void>;
+  cancelled: OutputEmitterRef<void>;
+}
+
 /**
  * Base interface for all node types in the flow canvas
  */
@@ -40,8 +60,11 @@ export interface NodePlugin {
   /** Validator for node data */
   validate?: (data: NodeData) => ValidationResult;
 
+  /** Card component for node canvas display */
+  cardComponent?: Type<NodeCardComponent>;
+
   /** Editor component for node configuration */
-  editorComponent?: any; // Angular component class
+  editorComponent?: Type<NodeEditorComponent>;
 }
 
 /**

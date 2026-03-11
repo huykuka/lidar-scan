@@ -1,0 +1,96 @@
+<div class="flex flex-col py-1">
+  
+  @if (lidarType()) {
+    <div class="flex flex-col gap-1 pb-2">
+      <div class="flex justify-between items-center w-full gap-2 min-w-0">
+        <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Model</span>
+        <div class="flex items-center justify-end min-w-0 flex-1">
+          <img 
+            [src]="sensorImage()" 
+            [alt]="lidarDisplayName() + ' LiDAR device'"
+            class="w-5 h-5 rounded-md border border-syn-color-neutral-200 bg-white shrink-0"
+            style="object-fit: contain; padding: 1px; margin-right: 6px"
+            (error)="$any($event.target).src='/lidar-placeholder.svg'" 
+          />
+          <span class="font-mono text-[11px] truncate text-right">{{ lidarDisplayName() }}</span>
+        </div>
+      </div>
+      
+      <div class="flex justify-between items-center w-full gap-2 min-w-0">
+        <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Mode</span>
+        <syn-badge [variant]="modeBadgeVariant()" size="small">{{ mode() }}</syn-badge>
+      </div>
+      
+      @if (throttleMs() !== undefined && throttleMs() !== null) {
+        <div class="flex justify-between items-center w-full gap-2 min-w-0">
+          <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Throttle</span>
+          <span class="font-mono text-[11px] text-right shrink-0">{{ throttleMs() === 0 ? 'None' : throttleMs() + ' ms' }}</span>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="flex items-center justify-between gap-2 pb-2">
+      <span class="text-[11px] text-syn-color-neutral-600 font-medium">Sensor Node</span>
+      <syn-badge [variant]="modeBadgeVariant()" size="small">{{ mode() }}</syn-badge>
+    </div>
+  }
+
+  @if (mode() === 'real' && (hostname() || port() || udpReceiverIp() || imuUdpPort())) {
+    <div class="flex flex-col gap-1 pt-2 border-t border-syn-color-neutral-100">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter pb-0.5">Network</span>
+      
+      @if (hostname()) {
+        <div class="flex justify-between items-center w-full gap-2 min-w-0">
+          <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Hostname</span>
+          <span class="font-mono text-[11px] truncate text-right flex-1 min-w-0 block">{{ hostname() }}</span>
+        </div>
+      }
+      
+      @if (port()) {
+        <div class="flex justify-between items-center w-full gap-2 min-w-0">
+          <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Port</span>
+          <span class="font-mono text-[11px] text-right shrink-0">{{ port() }}</span>
+        </div>
+      }
+      
+      @if (udpReceiverIp()) {
+        <div class="flex justify-between items-center w-full gap-2 min-w-0">
+          <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">UDP Receiver</span>
+          <span class="font-mono text-[11px] truncate text-right flex-1 min-w-0 block">{{ udpReceiverIp() }}</span>
+        </div>
+      }
+      
+      @if (imuUdpPort()) {
+        <div class="flex justify-between items-center w-full gap-2 min-w-0">
+          <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">IMU Port</span>
+          <span class="font-mono text-[11px] text-right shrink-0">{{ imuUdpPort() }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  @if (mode() === 'sim' && pcdPath()) {
+    <div class="flex flex-col gap-1 pt-2 border-t border-syn-color-neutral-100">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter pb-0.5">Simulation</span>
+      <div class="flex justify-between items-center w-full gap-2 min-w-0">
+        <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">File</span>
+        <span class="font-mono text-[11px] truncate text-right flex-1 min-w-0 block">{{ pcdPath() }}</span>
+      </div>
+    </div>
+  }
+
+  <div class="flex flex-col gap-1 pt-2 border-t border-syn-color-neutral-100">
+    <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter pb-0.5">Transform</span>
+    
+    <div class="flex justify-between items-center w-full gap-2 min-w-0">
+      <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Position</span>
+      <span class="font-mono text-[11px] text-right shrink-0">{{ pose()[0] }}, {{ pose()[1] }}, {{ pose()[2] }}</span>
+    </div>
+    
+    <div class="flex justify-between items-center w-full gap-2 min-w-0">
+      <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Rotation</span>
+      <span class="font-mono text-[11px] text-right shrink-0">{{ rotation()[0] }}°, {{ rotation()[1] }}°, {{ rotation()[2] }}°</span>
+    </div>
+  </div>
+
+</div>

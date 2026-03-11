@@ -1,8 +1,8 @@
 import {Component, computed, inject, input, OnDestroy, signal} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '../flow-canvas-node.component';
-import {RecordingStoreService} from '../../../../../../core/services/stores/recording-store.service';
-import {RecordingApiService} from '../../../../../../core/services/api/recording-api.service';
+import {RecordingStoreService} from '@core/services/stores';
+import {RecordingApiService} from '@core/services/api';
 
 @Component({
   selector: 'app-node-recording-controls',

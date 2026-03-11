@@ -1,0 +1,20 @@
+<div class="flex flex-col gap-y-1.5 py-1">
+  <div class="flex justify-between items-center w-full gap-2 min-w-0">
+    <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0">ALGORITHM</span>
+    <syn-badge variant="warning" class="shrink-0" size="small">
+      {{ operationType() }}
+    </syn-badge>
+  </div>
+
+  @if (hasConfig()) {
+    <div class="flex flex-col gap-1 pt-1 border-t border-syn-color-neutral-100">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter">PARAMETERS</span>
+      @for (param of operationConfig(); track param.key) {
+        <div class="flex justify-between items-center w-full gap-2 min-w-0">
+          <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">{{ param.key }}</span>
+          <span class="font-mono text-[11px] truncate text-right flex-1 min-w-0 block">{{ param.value }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>
