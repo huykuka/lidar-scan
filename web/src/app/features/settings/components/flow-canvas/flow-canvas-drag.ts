@@ -22,14 +22,6 @@ export class FlowCanvasDragService {
 
   readonly isPanning = signal(false);
 
-  get isActive(): boolean {
-    return (
-      this.draggingNode() !== null ||
-      this.paletteDragType() !== null ||
-      this.pendingConnection() !== null ||
-      this.isPanning()
-    );
-  }
 
   startNodeDrag(node: CanvasNode, offsetX: number, offsetY: number): void {
     this.draggingNode.set(node);

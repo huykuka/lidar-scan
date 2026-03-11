@@ -12,20 +12,19 @@ import {
 } from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeStoreService} from '../../../../core/services/stores/node-store.service';
-import {NodeConfig} from '../../../../core/models/node.model';
-import {NodesApiService} from '../../../../core/services/api/nodes-api.service';
-import {EdgesApiService} from '../../../../core/services/api/edges-api.service';
-import {ToastService} from '../../../../core/services/toast.service';
-import {DialogService} from '../../../../core/services/dialog.service';
-import {NodePluginRegistry} from '../../../../core/services/node-plugin-registry.service';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {NodeConfig} from '@core/models/node.model';
+import {NodesApiService} from '@core/services/api/nodes-api.service';
+import {EdgesApiService} from '@core/services/api/edges-api.service';
+import {DialogService, ToastService} from '@core/services';
+import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 import {DynamicNodeEditorComponent} from '../dynamic-node-editor/dynamic-node-editor.component';
-import {NodePlugin} from '../../../../core/models/node-plugin.model';
+import {NodePlugin} from '@core/models';
 import {CanvasNode, FlowCanvasNodeComponent} from './node/flow-canvas-node.component';
 import {FlowCanvasPaletteComponent} from './palette/flow-canvas-palette.component';
 import {Connection, FlowCanvasConnectionsComponent,} from './connections/flow-canvas-connections.component';
 import {FlowCanvasEmptyStateComponent} from './empty-state/flow-canvas-empty-state.component';
-import {StatusWebSocketService} from '../../../../core/services/status-websocket.service';
+import {StatusWebSocketService} from '@core/services/status-websocket.service';
 import {FlowCanvasDragService} from './flow-canvas-drag';
 
 @Component({
@@ -283,11 +282,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.drag.startPaletteDrag(type, event);
   }
 
-  onPaletteDragStart(type: 'sensor' | 'fusion' | string, event: DragEvent) {
-    this.drag.startPaletteDrag(type, event);
-  }
-
   onPaletteDragEnd() {
+    this.selectedCanvasNode.set(null)
     this.drag.endPaletteDrag();
   }
 

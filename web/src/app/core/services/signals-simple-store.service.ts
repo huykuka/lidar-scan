@@ -42,4 +42,12 @@ export class SignalsSimpleStoreService<T> {
   public setState(partialState: Partial<T>): void {
     this.state.update((currentValue: any) => ({...currentValue, ...partialState}));
   }
+
+  public resetState(): void {
+    this.state.set({} as T);
+  }
+
+  public reset<K extends keyof T>(key: K): void {
+    this.state.update((currentValue: any) => ({...currentValue, [key]: undefined}));
+  }
 }
