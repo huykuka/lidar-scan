@@ -4,7 +4,6 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-workspace-view-controls-button',
-  standalone: true,
   imports: [SynergyComponentsModule],
   template: `
     <div
@@ -21,7 +20,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
       (click)="clicked.emit()"
       [attr.title]="label()"
     >
-      <syn-icon [attr.name]="icon()"></syn-icon>
+      <syn-icon [attr.name]="icon()" />
     </syn-button>
     </div>
   `,

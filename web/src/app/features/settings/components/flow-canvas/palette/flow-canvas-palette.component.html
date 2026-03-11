@@ -11,10 +11,9 @@
     [class.-right-3]="!isCollapsed()"
     class="absolute top-4 z-20 w-6 h-6 bg-white border border-syn-color-neutral-200 rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
   >
-    <syn-icon
-      [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'"
+    <syn-icon [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'"
       class="text-sm text-syn-color-neutral-600"
-    ></syn-icon>
+     />
   </button>
 
   <div
@@ -56,7 +55,7 @@
             </div>
           </div>
           <div class="flex justify-center p-4">
-            <syn-spinner></syn-spinner>
+            <syn-spinner />
           </div>
         </div>
       }
@@ -83,7 +82,7 @@
                       [style.color]="plugin.style.color"
                       class="w-8 h-8 rounded-md flex items-center justify-center bg-opacity-10 transition-colors duration-200"
                     >
-                      <syn-icon [name]="plugin.icon" class="text-lg"></syn-icon>
+                      <syn-icon [name]="plugin.icon" class="text-lg" />
                     </div>
                     <span
                       class="text-sm font-medium text-syn-color-neutral-700 group-hover:text-syn-color-neutral-900 transition-colors"
@@ -102,7 +101,7 @@
     <!-- Canvas Controls -->
     <div class="p-4 border-t border-syn-color-neutral-200 space-y-2">
       <syn-button (click)="onResetView.emit()" class="w-full" size="small" variant="outline">
-        <syn-icon name="center_focus_strong" slot="prefix"></syn-icon>
+        <syn-icon name="center_focus_strong" slot="prefix" />
         Reset View
       </syn-button>
       <div class="text-xs text-syn-color-neutral-500 text-center">

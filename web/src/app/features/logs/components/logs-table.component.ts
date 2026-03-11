@@ -13,14 +13,14 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
         <div
           class="flex flex-col items-center justify-center h-full text-syn-color-neutral-400 gap-4"
         >
-          <syn-spinner size="large"></syn-spinner>
+          <syn-spinner size="large" />
           <p class="text-sm font-medium animate-pulse">Initializing log viewer...</p>
         </div>
       } @else if (!isLoading() && entries().length === 0) {
         <div
           class="flex flex-col items-center justify-center h-full text-syn-color-neutral-400 py-12"
         >
-          <syn-icon name="description" class="text-5xl opacity-20 mb-4"></syn-icon>
+          <syn-icon name="description" class="text-5xl opacity-20 mb-4" />
           <p class="text-lg">No log entries found</p>
         </div>
       } @else {
@@ -28,7 +28,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           <div
             class="absolute inset-0 flex items-center justify-center bg-white/40 z-30 backdrop-blur-[1px]"
           >
-            <syn-spinner size="large"></syn-spinner>
+            <syn-spinner size="large" />
           </div>
         }
 
@@ -99,7 +99,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
               [loading]="isLoadingMore()"
               (click)="loadMoreClicked.emit()"
             >
-              <syn-icon slot="prefix" name="expand_more"></syn-icon>
+              <syn-icon slot="prefix" name="expand_more" />
               Load More
             </syn-button>
           </div>

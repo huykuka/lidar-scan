@@ -1,12 +1,11 @@
 import {Component, computed, inject} from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {DecimalPipe} from '@angular/common';
 import {WorkspaceStoreService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-workspace-telemetry',
-  standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule, DecimalPipe],
   template: `
     @if (showHud()) {
       <div

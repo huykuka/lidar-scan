@@ -9,11 +9,9 @@
       <!-- Summary -->
       <div [ngClass]="validation.valid ? 'bg-syn-color-success-50 border border-syn-color-success-200' : 'bg-syn-color-danger-50 border border-syn-color-danger-200'"
            class="flex items-start gap-3 p-3 rounded-lg">
-        <syn-icon
-          [class]="validation.valid ? 'text-syn-color-success-600' : 'text-syn-color-danger-600'"
+        <syn-icon [class]="validation.valid ? 'text-syn-color-success-600' : 'text-syn-color-danger-600'"
           [name]="validation.valid ? 'check_circle' : 'error'"
-          class="text-xl flex-shrink-0 mt-0.5">
-        </syn-icon>
+          class="text-xl flex-shrink-0 mt-0.5" />
         <div class="flex-1 min-w-0">
           <h3 [class]="validation.valid ? 'text-syn-color-success-800' : 'text-syn-color-danger-800'"
               class="font-black text-sm">
@@ -30,7 +28,7 @@
       @if (validation.errors.length > 0) {
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
-            <syn-icon class="text-syn-color-danger-600 text-base" name="error"></syn-icon>
+            <syn-icon class="text-syn-color-danger-600 text-base" name="error" />
             <h4 class="font-black text-xs uppercase tracking-widest text-syn-color-danger-800">Errors</h4>
           </div>
           <div class="flex flex-col gap-1">
@@ -48,7 +46,7 @@
       @if (validation.warnings.length > 0) {
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
-            <syn-icon class="text-syn-color-warning-600 text-base" name="warning"></syn-icon>
+            <syn-icon class="text-syn-color-warning-600 text-base" name="warning" />
             <h4 class="font-black text-xs uppercase tracking-widest text-syn-color-warning-800">Warnings</h4>
           </div>
           <div class="flex flex-col gap-1">
@@ -65,7 +63,7 @@
       <!-- Import Mode Toggle -->
       <div class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200">
         <div class="flex items-center gap-2">
-          <syn-icon class="text-syn-color-neutral-600 text-base" name="settings"></syn-icon>
+          <syn-icon class="text-syn-color-neutral-600 text-base" name="settings" />
           <h4 class="font-black text-xs uppercase tracking-widest text-syn-color-neutral-800">Import Mode</h4>
         </div>
         <div class="flex flex-col gap-2">
@@ -108,7 +106,7 @@
       (click)="confirm.emit()"
       [disabled]="!validationResult()?.valid || isImporting()"
       variant="filled">
-      <syn-icon name="upload" slot="prefix"></syn-icon>
+      <syn-icon name="upload" slot="prefix" />
       {{ isImporting() ? 'Importing...' : 'Import Configuration' }}
     </syn-button>
   </div>

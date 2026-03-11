@@ -1,14 +1,5 @@
-import {
-  AfterViewInit,
-  ChangeDetectorRef,
-  Component,
-  effect,
-  inject,
-  OnDestroy,
-  OnInit,
-  ViewChild,
-} from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {AfterViewInit, Component, effect, inject, OnDestroy, OnInit, viewChild} from '@angular/core';
+import {NgClass} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NavigationService} from '@core/services/navigation.service';
 import {MultiWebsocketService} from '@core/services/multi-websocket.service';
@@ -29,20 +20,19 @@ import {environment} from '@env/environment';
 
 @Component({
   selector: 'app-workspaces',
-  standalone: true,
   imports: [
-    CommonModule,
     SynergyComponentsModule,
     PointCloudComponent,
     WorkspaceTelemetryComponent,
     WorkspaceControlsComponent,
     WorkspaceViewControlsComponent,
-  ],
+    NgClass
+],
   templateUrl: './workspaces.component.html',
   styleUrl: './workspaces.component.css',
 })
 export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('pointCloud') pointCloud!: PointCloudComponent;
+  readonly pointCloud = viewChild.required<PointCloudComponent>('pointCloud');
 
   private navService = inject(NavigationService);
   private wsService = inject(MultiWebsocketService);
@@ -53,7 +43,6 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   protected showGrid = this.workspaceStore.showGrid;
   protected showAxes = this.workspaceStore.showAxes;
   protected backgroundColor = this.workspaceStore.backgroundColor;
-  private cdr = inject(ChangeDetectorRef);
   private wsSubscriptions = new Map<string, Subscription>();
   private frameCountPerTopic = new Map<string, number>();
   private fpsUpdateInterval?: any;
@@ -108,37 +97,37 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   protected resetCamera() {
-    this.pointCloud?.resetCamera();
+    this.pointCloud()?.resetCamera();
   }
 
   protected setTopView() {
-    this.pointCloud?.setTopView();
+    this.pointCloud()?.setTopView();
   }
 
   protected setFrontView() {
-    this.pointCloud?.setFrontView();
+    this.pointCloud()?.setFrontView();
   }
 
   protected setSideView() {
-    this.pointCloud?.setSideView();
+    this.pointCloud()?.setSideView();
   }
 
   protected setIsometricView() {
-    this.pointCloud?.setIsometricView();
+    this.pointCloud()?.setIsometricView();
   }
 
   protected fitToPoints() {
-    this.pointCloud?.fitToPoints();
+    this.pointCloud()?.fitToPoints();
   }
 
   protected captureScreenshot() {
     const topic = this.workspaceStore.currentTopic();
     const safeTopic = (topic || 'workspace').replace(/[^A-Za-z0-9_-]+/g, '_');
-    this.pointCloud?.capturePng(`${safeTopic}.png`);
+    this.pointCloud()?.capturePng(`${safeTopic}.png`);
   }
 
   protected clearPoints() {
-    this.pointCloud?.clear();
+    this.pointCloud()?.clear();
     this.workspaceStore.set('pointCount', 0);
   }
 
@@ -191,13 +180,13 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     this.wsSubscriptions.forEach((_, topic) => {
       if (!enabledTopicNames.has(topic)) {
         this.disconnectFromTopic(topic);
-        this.pointCloud?.removePointCloud(topic);
+        this.pointCloud()?.removePointCloud(topic);
       }
     });
 
     // Connect to newly enabled topics and update colors
     enabledTopics.forEach(({topic, color}) => {
-      this.pointCloud?.addOrUpdatePointCloud(topic, color);
+      this.pointCloud()?.addOrUpdatePointCloud(topic, color);
       if (!this.wsSubscriptions.has(topic)) {
         this.connectToTopic(topic);
       }
@@ -207,7 +196,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     selectedTopics
       .filter((t) => !t.enabled)
       .forEach(({topic}) => {
-        this.pointCloud?.removePointCloud(topic);
+        this.pointCloud()?.removePointCloud(topic);
       });
 
     // Update connection status
@@ -246,10 +235,10 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (data instanceof ArrayBuffer) {
       const payload = this.parseBinaryPointCloud(data);
       if (payload) {
-        this.pointCloud?.updatePointsForTopic(topic, payload.points, payload.count);
+        this.pointCloud()?.updatePointsForTopic(topic, payload.points, payload.count);
 
         // Update total point count
-        const totalPoints = this.pointCloud?.getTotalPointCount() || 0;
+        const totalPoints = this.pointCloud()?.getTotalPointCount() || 0;
         this.workspaceStore.set('pointCount', totalPoints);
 
         if (payload.timestamp > 0) {
@@ -268,10 +257,10 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
             flatArray[i * 3 + 1] = points[i][1];
             flatArray[i * 3 + 2] = points[i][2];
           }
-          this.pointCloud?.updatePointsForTopic(topic, flatArray, points.length);
+          this.pointCloud()?.updatePointsForTopic(topic, flatArray, points.length);
 
           // Update total point count
-          const totalPoints = this.pointCloud?.getTotalPointCount() || 0;
+          const totalPoints = this.pointCloud()?.getTotalPointCount() || 0;
           this.workspaceStore.set('pointCount', totalPoints);
         }
       } catch (e) {

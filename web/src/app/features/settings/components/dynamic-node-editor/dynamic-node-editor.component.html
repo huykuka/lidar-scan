@@ -7,7 +7,7 @@
       <div
         class="w-8 h-8 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 text-syn-color-primary-600 flex items-center justify-center shrink-0"
       >
-        <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-lg"></syn-icon>
+        <syn-icon [attr.name]="definition()?.icon || 'settings'" class="text-lg" />
       </div>
       <div class="flex flex-col min-w-0">
         <h2 class="text-xs font-bold text-syn-color-neutral-900 truncate">
@@ -22,7 +22,7 @@
     <!-- Action Buttons -->
     <div class="flex gap-2 shrink-0">
       <syn-button (click)="onCancel()" size="small" variant="outline">
-        <syn-icon name="close"></syn-icon>
+        <syn-icon name="close" />
         Cancel
       </syn-button>
       <syn-button
@@ -31,7 +31,7 @@
         size="small"
         variant="filled"
       >
-        <syn-icon name="save"></syn-icon>
+        <syn-icon name="save" />
         Save
       </syn-button>
     </div>
@@ -42,17 +42,16 @@
     <div class="grid grid-cols-2 gap-3">
       <!-- Display Name -->
       <div class="col-span-2">
-        <syn-input
-          formControlName="name"
+        <syn-input formControlName="name"
           label="Display Name"
           ngDefaultControl
           placeholder="e.g. My Sensor"
           size="small"
-        ></syn-input>
+         />
       </div>
     </div>
 
-    <syn-divider class="my-0"></syn-divider>
+    <syn-divider class="my-0" />
 
     <!-- Dynamic Properties from Schema -->
     <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-2">
@@ -63,19 +62,17 @@
         >
           <!-- String -->
           @if (prop.type === 'string') {
-            <syn-input
-              [formControlName]="prop.name"
+            <syn-input [formControlName]="prop.name"
               [helpText]="prop.help_text || ''"
               [label]="prop.label"
               ngDefaultControl
               size="small"
-            ></syn-input>
+             />
           }
 
           <!-- Number -->
           @if (prop.type === 'number') {
-            <syn-input
-              [attr.max]="prop.max"
+            <syn-input [attr.max]="prop.max"
               [attr.min]="prop.min"
               [formControlName]="prop.name"
               [helpText]="prop.help_text || ''"
@@ -84,7 +81,7 @@
               ngDefaultControl
               size="small"
               type="number"
-            ></syn-input>
+             />
           }
 
           <!-- Boolean -->

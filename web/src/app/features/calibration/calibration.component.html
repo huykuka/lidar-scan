@@ -5,13 +5,13 @@
       <!-- Empty State -->
       <syn-card class="max-w-lg mx-auto mt-16">
         <div class="text-center p-8">
-          <syn-icon class="text-6xl text-neutral-400 mb-6" name="tune"></syn-icon>
+          <syn-icon class="text-6xl text-neutral-400 mb-6" name="tune" />
           <h2 class="text-lg text-neutral-700 mb-2 m-0">No Calibration Nodes</h2>
           <p class="text-neutral-600 mb-6 m-0">
             Create a calibration node in Settings to align multiple LiDAR sensors
           </p>
           <syn-button (click)="goToSettings()" variant="filled">
-            <syn-icon name="settings" slot="prefix"></syn-icon>
+            <syn-icon name="settings" slot="prefix" />
             Go to Settings
           </syn-button>
         </div>
@@ -24,7 +24,7 @@
             <!-- Card Header -->
             <div class="flex items-center justify-between gap-4">
               <div class="flex items-center gap-3">
-                <syn-icon class="text-2xl text-primary-600" name="tune"></syn-icon>
+                <syn-icon class="text-2xl text-primary-600" name="tune" />
                 <div>
                   <h3 class="text-base font-semibold text-neutral-900 m-0">{{ node.name }}</h3>
                   <p class="text-xs font-mono text-neutral-600 m-0">{{ node.id.slice(0, 8) }}</p>
@@ -35,7 +35,7 @@
               </syn-badge>
             </div>
 
-            <syn-divider></syn-divider>
+            <syn-divider />
 
             <!-- Status Section -->
             <div class="mb-4">
@@ -89,11 +89,11 @@
 
             <!-- Pending Results Section -->
             @if (node.has_pending && hasPendingResults(node)) {
-              <syn-divider></syn-divider>
+              <syn-divider />
 
               <div class="mb-4">
                 <h4 class="text-sm font-semibold text-neutral-700 mb-3 m-0 flex items-center gap-2">
-                  <syn-icon class="text-success-600" name="check_circle"></syn-icon>
+                  <syn-icon class="text-success-600" name="check_circle" />
                   Pending Results
                 </h4>
 
@@ -132,12 +132,12 @@
             <div class="flex justify-end gap-2 mt-auto">
               @if (node.has_pending && hasPendingResults(node)) {
                 <syn-button (click)="viewDetails(node.id)" size="small" variant="text">
-                  <syn-icon name="visibility" slot="prefix"></syn-icon>
+                  <syn-icon name="visibility" slot="prefix" />
                   View Details
                 </syn-button>
               } @else {
                 <syn-button (click)="viewHistory(node.id)" size="small" variant="text">
-                  <syn-icon name="history" slot="prefix"></syn-icon>
+                  <syn-icon name="history" slot="prefix" />
                   View History
                 </syn-button>
               }

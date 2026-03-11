@@ -31,16 +31,15 @@
   <!-- Node Header -->
   <div class="p-3 flex items-center rounded-t-[6px]">
     <div class="flex items-center gap-2 min-w-0 flex-1">
-      <syn-icon
-        [class.text-syn-color-primary-600]="isFusionCategory()"
+      <syn-icon [class.text-syn-color-primary-600]="isFusionCategory()"
         [class.text-syn-color-success-600]="isSensorCategory()"
         [class.text-syn-color-warning-600]="isOperationCategory()"
         [name]="getNodeIcon()"
         class="text-xl shrink-0"
-      ></syn-icon>
+       />
       <div [title]="statusBadge().label" class="flex flex-row min-w-0 items-center">
         <span class="font-semibold text-sm truncate flex-1">{{ getNodeName() }} </span>
-        <syn-badge [variant]="statusBadge().variant" class="ml-2" pill size="small"></syn-badge>
+        <syn-badge [variant]="statusBadge().variant" class="ml-2" pill size="small" />
       </div>
     </div>
     <syn-button
@@ -49,10 +48,9 @@
       size="small"
       variant="text"
     >
-      <syn-icon
-        [name]="isExpanded() ? 'expand_less' : 'expand_more'"
+      <syn-icon [name]="isExpanded() ? 'expand_less' : 'expand_more'"
         class="text-syn-color-neutral-600 transition-transform"
-      ></syn-icon>
+       />
     </syn-button>
   </div>
 
@@ -113,15 +111,14 @@
   <!-- Node Actions -->
   <div class="p-2 border-t border-syn-color-neutral-200 flex items-center gap-1">
     <div class="flex items-center gap-2 flex-1 min-w-0">
-      <syn-switch
-        (syn-change)="onToggleEnabled.emit($any($event.target).checked)"
+      <syn-switch (syn-change)="onToggleEnabled.emit($any($event.target).checked)"
         [checked]="isNodeEnabled()"
         [disabled]="isLoading()"
         class="shrink-0"
         size="small"
-      ></syn-switch>
+       />
       @if (isLoading()) {
-        <syn-spinner size="small"></syn-spinner>
+        <syn-spinner size="small" />
       } @else {
         <span
           [class.text-syn-color-danger-600]="!isNodeEnabled()"
@@ -134,14 +131,13 @@
     </div>
 
     @if (isNodeEnabled() && isCalibrationNode()) {
-      <app-node-calibration-controls
-        [node]="node()"
+      <app-node-calibration-controls [node]="node()"
         [status]="status()"
-      ></app-node-calibration-controls>
+       />
     }
 
     @if (isNodeEnabled() && hasOutputPort()) {
-      <app-node-recording-controls [node]="node()"></app-node-recording-controls>
+      <app-node-recording-controls [node]="node()" />
     }
   </div>
 </div>

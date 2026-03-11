@@ -23,7 +23,7 @@
       class="flex items-center gap-2 rounded-xl border border-syn-color-neutral-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-widest hover:bg-syn-color-neutral-50 transition-colors"
       type="button"
     >
-      <syn-icon [name]="noticeIcon()" class="text-syn-color-neutral-600"></syn-icon>
+      <syn-icon [name]="noticeIcon()" class="text-syn-color-neutral-600" />
       <span class="text-syn-color-neutral-700">Status</span>
       @if (unreadCount() > 0) {
         <span
@@ -33,6 +33,6 @@
       }
     </button>
 
-    <ng-content select="[meta-nav]"></ng-content>
+    <ng-content select="[meta-nav]" />
   </nav>
 </syn-header>

@@ -1,4 +1,4 @@
-import {Component, inject, OnDestroy, OnInit, signal, ViewChild} from '@angular/core';
+import {Component, inject, OnDestroy, OnInit, signal, viewChild} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
 import {NavigationService, ToastService} from '@core/services';
@@ -27,7 +27,7 @@ import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api';
   ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
-  @ViewChild(FlowCanvasComponent) flowCanvas!: FlowCanvasComponent;
+  readonly flowCanvas = viewChild.required(FlowCanvasComponent);
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
   protected lidars = this.nodeStore.sensorNodes;
@@ -92,8 +92,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
   async onReloadConfig() {
     try {
       // Save any unsaved node positions before reloading
-      if (this.flowCanvas && this.flowCanvas.hasUnsavedChanges()) {
-        await this.flowCanvas.saveAllPositions();
+      const flowCanvas = this.flowCanvas();
+      if (flowCanvas && flowCanvas.hasUnsavedChanges()) {
+        await flowCanvas.saveAllPositions();
       }
 
       await this.nodesApi.reloadConfig();

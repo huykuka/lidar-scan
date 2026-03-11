@@ -7,7 +7,7 @@
       (click)="goBack()"
       class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercasetext-syn-color-neutral-600 hover:text-syn-color-primary-600 transition-colors"
     >
-      <syn-icon name="arrow_back"></syn-icon>
+      <syn-icon name="arrow_back" />
       Back
     </button>
     <div class="h-4 w-px bg-syn-color-neutral-300 self-center"></div>
@@ -17,7 +17,7 @@
       size="small"
       variant="text"
     >
-      <syn-icon [name]="showCockpit() ? 'visibility_off' : 'visibility'" slot="prefix"></syn-icon>
+      <syn-icon [name]="showCockpit() ? 'visibility_off' : 'visibility'" slot="prefix" />
       {{ showCockpit() ? 'Hide Settings' : 'Show Settings' }}
     </syn-button>
   </div>
@@ -45,7 +45,7 @@
             size="small"
             variant="outline"
           >
-            <syn-icon [name]="isPlaying() ? 'pause' : 'play_arrow'" slot="prefix"></syn-icon>
+            <syn-icon [name]="isPlaying() ? 'pause' : 'play_arrow'" slot="prefix" />
             {{ isPlaying() ? 'Pause' : 'Play' }}
           </syn-button>
 
@@ -55,14 +55,13 @@
               {{ formatTime(currentTime()) }}
             </span>
 
-            <syn-range
-              (syn-input)="onSeek($event)"
+            <syn-range (syn-input)="onSeek($event)"
               [disabled]="frameCount() === 0"
               [max]="frameCount() - 1"
               [min]="0"
               [value]="currentFrame().toString()"
               class="flex-1 min-w-0"
-            ></syn-range>
+             />
 
             <span class="text-[11px] font-mono text-black w-14 tabular-nums shrink-0">
               {{ formatTime(duration()) }}
@@ -93,7 +92,7 @@
         <!-- Metadata -->
         <div class="bg-white p-6 rounded-2xl border border-syn-color-neutral-200 shadow-sm">
           <div class="flex items-center gap-2 mb-4">
-            <syn-icon class="text-syn-color-primary-600" name="info"></syn-icon>
+            <syn-icon class="text-syn-color-primary-600" name="info" />
             <h3 class="text-[12px] font-black uppercase tracking-widest">Metadata</h3>
           </div>
           <div class="space-y-3">
@@ -131,7 +130,7 @@
         <!-- Appearance -->
         <div class="bg-white p-6 rounded-2xl border border-syn-color-neutral-200 shadow-sm">
           <div class="flex items-center gap-2 mb-6">
-            <syn-icon class="text-syn-color-primary-600" name="blur_on"></syn-icon>
+            <syn-icon class="text-syn-color-primary-600" name="blur_on" />
             <h3 class="text-[12px] font-black uppercase tracking-widest">Appearance</h3>
           </div>
 
@@ -146,13 +145,12 @@
                   }}
                 </syn-badge>
               </div>
-              <syn-range
-                (syn-input)="pointSize.set(+$any($event.target).value)"
+              <syn-range (syn-input)="pointSize.set(+$any($event.target).value)"
                 [max]="0.3"
                 [min]="0.01"
                 [step]="0.01"
                 [value]="pointSize().toString()"
-              ></syn-range>
+               />
             </div>
 
             <div
@@ -189,13 +187,12 @@
     <div class="p-6 space-y-6">
       <div class="space-y-2">
         <label class="text-xs font-bold text-syn-color-neutral-500 uppercase">Point size</label>
-        <syn-range
-          (syn-input)="pointSize.set(+$any($event.target).value)"
+        <syn-range (syn-input)="pointSize.set(+$any($event.target).value)"
           [max]="0.3"
           [min]="0.01"
           [step]="0.01"
           [value]="pointSize().toString()"
-        ></syn-range>
+         />
       </div>
     </div>
   </syn-drawer>
@@ -212,7 +209,7 @@
         open
         variant="danger"
       >
-        <syn-icon name="error" slot="icon"></syn-icon>
+        <syn-icon name="error" slot="icon" />
         <strong>Decoding interrupt</strong><br/>{{ error() }}
       </syn-alert>
     </div>

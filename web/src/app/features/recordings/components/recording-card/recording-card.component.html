@@ -1,16 +1,15 @@
 <div
-  (click)="selectable ? toggleSelection.emit(!selected) : select.emit(recording)"
+  (click)="selectable() ? toggleSelection.emit(!selected()) : select.emit(recording)"
   class="rounded-xl border border-neutral-200 hover:border-neutral-300 hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex flex-row relative"
 >
-  @if (selectable) {
+  @if (selectable()) {
     <div
       (click)="$event.stopPropagation()"
       class="h-full flex items-center justify-center bg-neutral-50 border-r border-neutral-200 px-3 z-10"
     >
-      <syn-checkbox
-        (syn-change)="toggleSelection.emit($any($event.target).checked)"
-        [checked]="selected"
-      ></syn-checkbox>
+      <syn-checkbox (syn-change)="toggleSelection.emit($any($event.target).checked)"
+        [checked]="selected()"
+       />
     </div>
   }
   <div class="flex-shrink-0 h-full bg-slate-900 flex items-center justify-center relative">
@@ -24,14 +23,14 @@
       />
       @if (isLoadingThumbnail(recording.id)) {
         <div class="absolute inset-0 flex items-center justify-center bg-slate-900/50">
-          <syn-spinner size="small"></syn-spinner>
+          <syn-spinner size="small" />
         </div>
       }
     } @else {
       <div
         class="h-14 w-14 sm:h-16 sm:w-16 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700"
       >
-        <syn-icon class="text-2xl text-white/20" name="videocam"></syn-icon>
+        <syn-icon class="text-2xl text-white/20" name="videocam" />
       </div>
     }
   </div>
@@ -47,7 +46,7 @@
           {{ recording.name }}
         </h3>
         <span class="text-[10px] sm:text-xs text-neutral-500 flex items-center gap-1 flex-shrink-0">
-          <syn-icon class="text-[10px] sm:text-xs" name="calendar_today"></syn-icon>
+          <syn-icon class="text-[10px] sm:text-xs" name="calendar_today" />
           {{ recording.created_at | date: 'yyyy-MM-dd HH:mm:ss' }}
         </span>
       </div>
@@ -56,15 +55,15 @@
     <!-- Badges / Metadata -->
     <div class="flex items-center gap-3 sm:gap-6 text-[11px] sm:text-xs text-neutral-600 mt-auto">
       <div class="flex items-center gap-1.5" title="Frames">
-        <syn-icon class="text-neutral-400" name="layers"></syn-icon>
+        <syn-icon class="text-neutral-400" name="layers" />
         <span class="font-medium">{{ recording.frame_count }}</span>
       </div>
       <div class="flex items-center gap-1.5" title="Duration">
-        <syn-icon class="text-neutral-400" name="timer"></syn-icon>
+        <syn-icon class="text-neutral-400" name="timer" />
         <span class="font-medium">{{ formatDuration(recording.duration_seconds) }}</span>
       </div>
       <div class="flex items-center gap-1.5" title="File Size">
-        <syn-icon class="text-neutral-400" name="sd"></syn-icon>
+        <syn-icon class="text-neutral-400" name="sd" />
         <span class="font-medium">{{ formatFileSize(recording.file_size_bytes) }}</span>
       </div>
     </div>
@@ -80,7 +79,7 @@
       title="Play Recording"
       variant="filled"
     >
-      <syn-icon name="play_arrow"></syn-icon>
+      <syn-icon name="play_arrow" />
     </syn-button>
 
     <syn-button
@@ -89,7 +88,7 @@
       title="Download ZIP"
       variant="outline"
     >
-      <syn-icon name="download"></syn-icon>
+      <syn-icon name="download" />
     </syn-button>
 
     <syn-button
@@ -99,7 +98,7 @@
       title="Delete"
       variant="outline"
     >
-      <syn-icon name="delete"></syn-icon>
+      <syn-icon name="delete" />
     </syn-button>
   </div>
 </div>

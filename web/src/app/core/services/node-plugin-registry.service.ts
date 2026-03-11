@@ -1,5 +1,5 @@
-import {Injectable} from '@angular/core';
-import {NodeData, NodePlugin} from '../models/node-plugin.model';
+import {inject, Injectable} from '@angular/core';
+import {NodeData, NodePlugin} from '@core/models';
 import {NodesApiService} from './api/nodes-api.service';
 import {NodeStoreService} from './stores/node-store.service';
 import {NodeDefinition} from '../models/node.model';
@@ -59,13 +59,10 @@ function definitionToPlugin(def: NodeDefinition): NodePlugin {
  */
 @Injectable({providedIn: 'root'})
 export class NodePluginRegistry {
-  private plugins = new Map<string, NodePlugin>();
+  private nodesApi = inject(NodesApiService);
+  private nodeStore = inject(NodeStoreService);
 
-  constructor(
-    private nodesApi: NodesApiService,
-    private nodeStore: NodeStoreService,
-  ) {
-  }
+  private plugins = new Map<string, NodePlugin>();
 
   /**
    * Load all node types from the backend and populate the registry.

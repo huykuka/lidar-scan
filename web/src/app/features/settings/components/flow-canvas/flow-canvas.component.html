@@ -1,13 +1,12 @@
 <div class="flex h-full bg-syn-color-neutral-50 relative">
   <!-- Left Palette Sidebar -->
-  <app-flow-canvas-palette
-    (onPluginDragEnd)="onPaletteDragEnd()"
+  <app-flow-canvas-palette (onPluginDragEnd)="onPaletteDragEnd()"
     (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
     (onResetView)="resetView()"
     [isLoading]="isPaletteLoading()"
     [plugins]="availablePlugins()"
     [zoom]="zoom()"
-  ></app-flow-canvas-palette>
+   />
 
   <!-- Canvas Area -->
   <div class="flex-1 relative overflow-auto syn-scrollbar">
@@ -98,7 +97,7 @@
 
       <!-- Spinner overlay on top of skeletons -->
       <div class="absolute inset-0 z-50 flex items-center justify-center bg-white/40 backdrop-blur-sm">
-        <syn-spinner class="text-3xl text-syn-color-primary-600"></syn-spinner>
+        <syn-spinner class="text-3xl text-syn-color-primary-600" />
       </div>
     }
 
@@ -141,11 +140,10 @@
         class="absolute inset-0"
       >
         <!-- Connection Lines Layer (below nodes) -->
-        <app-flow-canvas-connections
-          (onDelete)="onDeleteEdge($event)"
+        <app-flow-canvas-connections (onDelete)="onDeleteEdge($event)"
           [connections]="connections()"
           [pendingPath]="drag.pendingPath()"
-        ></app-flow-canvas-connections>
+         />
 
         <!-- Nodes Layer -->
         @for (node of canvasNodes(); track node.id) {
@@ -167,8 +165,7 @@
             class="absolute transition-shadow"
             title="Double-click to edit"
           >
-            <app-flow-canvas-node
-              (onEdit)="onEditNode(node)"
+            <app-flow-canvas-node (onEdit)="onEditNode(node)"
               (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
               (portDragStart)="onPortDragStart($event)"
               (portDrop)="onPortDrop($event)"
@@ -176,14 +173,14 @@
               [isLoading]="isNodeLoading(node.id)"
               [node]="node"
               [status]="getNodeStatus(node)"
-            ></app-flow-canvas-node>
+             />
           </div>
         }
       </div>
 
       <!-- Empty State -->
       @if (canvasNodes().length === 0) {
-        <app-flow-canvas-empty-state></app-flow-canvas-empty-state>
+        <app-flow-canvas-empty-state />
       }
     </div>
   </div>

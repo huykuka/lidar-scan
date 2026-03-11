@@ -18,12 +18,11 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           <h3 class="text-sm font-bold uppercase tracking-wider text-syn-color-neutral-600">
             Log Details
           </h3>
-          <syn-icon-button
-            name="close"
+          <syn-icon-button name="close"
             label="Close"
             size="small"
             (click)="close.emit()"
-          ></syn-icon-button>
+           />
         </div>
         <div class="flex-1 overflow-y-auto p-4 flex gap-6">
           <div class="flex flex-col gap-3 min-w-50">
@@ -56,7 +55,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
                 >Message</span
               >
               <syn-button variant="outline" size="small" (click)="onCopy()">
-                <syn-icon slot="prefix" name="content_copy"></syn-icon>
+                <syn-icon slot="prefix" name="content_copy" />
                 Copy Message
               </syn-button>
             </div>

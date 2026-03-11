@@ -1,10 +1,9 @@
-import {AfterViewInit, Component, effect, ElementRef, input, OnDestroy, OnInit, ViewChild,} from '@angular/core';
+import {AfterViewInit, Component, effect, ElementRef, input, OnDestroy, OnInit, viewChild} from '@angular/core';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 
 @Component({
   selector: 'app-point-cloud',
-  standalone: true,
   template: `
     <div
       #container
@@ -21,7 +20,7 @@ import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
   ],
 })
 export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('container', {static: true}) containerRef!: ElementRef<HTMLDivElement>;
+  readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
 
   // Inputs for customization
   pointSize = input<number>(0.1);
@@ -328,7 +327,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private syncSize() {
-    const container = this.containerRef.nativeElement;
+    const container = this.containerRef().nativeElement;
     const w = container.clientWidth;
     const h = container.clientHeight;
     if (w > 0 && h > 0) {
@@ -339,7 +338,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private initThree() {
-    const container = this.containerRef.nativeElement;
+    const container = this.containerRef().nativeElement;
 
     // Scene
     this.scene = new THREE.Scene();

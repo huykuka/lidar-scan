@@ -1,7 +1,7 @@
 <div class="workspace-controls">
   <div class="panel">
     <div class="panel__header">
-      <syn-icon class="panel__icon" name="sensors"></syn-icon>
+      <syn-icon class="panel__icon" name="sensors" />
       <h3 class="panel__title">Live Sources</h3>
     </div>
 
@@ -34,7 +34,7 @@
           class="field"
         >
           <div class="text-center py-3 px-4 bg-syn-color-success-50 rounded-lg border border-syn-color-success-200">
-            <syn-icon class="text-syn-color-success-600 text-2xl mb-1" name="check_circle"></syn-icon>
+            <syn-icon class="text-syn-color-success-600 text-2xl mb-1" name="check_circle" />
             <p class="text-sm text-syn-color-success-700 font-medium">All available topics are active</p>
           </div>
         </div>
@@ -64,29 +64,26 @@
                   </div>
                 </div>
                 <!-- Capture PCD -->
-                <syn-icon-button
-                  (click)="onCapturePcd(topicConfig.topic)"
+                <syn-icon-button (click)="onCapturePcd(topicConfig.topic)"
                   class="shrink-0"
                   label="Capture PCD"
                   name="download"
                   title="Download point cloud as PCD file"
-                ></syn-icon-button>
+                 />
                 <!-- Toggle Enable/Disable -->
-                <syn-icon-button
-                  (click)="toggleTopicEnabled(topicConfig.topic)"
+                <syn-icon-button (click)="toggleTopicEnabled(topicConfig.topic)"
                   [label]="topicConfig.enabled ? 'Hide' : 'Show'"
                   [name]="topicConfig.enabled ? 'visibility' : 'visibility_off'"
                   [title]="topicConfig.enabled ? 'Hide point cloud' : 'Show point cloud'"
                   class="shrink-0"
-                ></syn-icon-button>
+                 />
                 <!-- Remove Topic -->
-                <syn-icon-button
-                  (click)="removeTopic(topicConfig.topic)"
+                <syn-icon-button (click)="removeTopic(topicConfig.topic)"
                   class="shrink-0"
                   label="Remove"
                   name="close"
                   title="Remove topic from workspace"
-                ></syn-icon-button>
+                 />
               </div>
             }
           </div>
@@ -98,7 +95,7 @@
         <div
           class="text-center py-6 text-syn-color-neutral-500"
         >
-          <syn-icon class="text-4xl mb-2" name="info"></syn-icon>
+          <syn-icon class="text-4xl mb-2" name="info" />
           <p class="text-sm">No topics selected. Add a topic to start viewing.</p>
         </div>
       }
@@ -131,7 +128,7 @@
               size="small"
               variant="outline"
             >
-              <syn-icon name="download" slot="prefix"></syn-icon>
+              <syn-icon name="download" slot="prefix" />
               Capture PCD
             </syn-button>
           </div>
@@ -150,7 +147,7 @@
 
   <div class="panel panel--tight">
     <div class="panel__header">
-      <syn-icon class="panel__icon" name="blur_on"></syn-icon>
+      <syn-icon class="panel__icon" name="blur_on" />
       <h3 class="panel__title">Appearance</h3>
     </div>
 
@@ -160,13 +157,12 @@
           <label class="field__label">Point Size</label>
           <syn-badge pill variant="neutral">{{ pointSize() | number: '1.2-2' }}</syn-badge>
         </div>
-        <syn-range
-          (synInputEvent)="onPointSizeChange($event)"
+        <syn-range (synInputEvent)="onPointSizeChange($event)"
           [max]="0.1"
           [min]="0.01"
           [step]="0.01"
           [value]="pointSize().toString()"
-        ></syn-range>
+         />
       </div>
 
       <div class="field">
@@ -182,14 +178,13 @@
             type="color"
           />
           <span class="text-sm font-mono text-syn-color-neutral-600 uppercase">{{ backgroundColor() }}</span>
-          <syn-icon-button
-            (click)="onBackgroundColorChange({ target: { value: '#000000' } })"
+          <syn-icon-button (click)="onBackgroundColorChange({ target: { value: '#000000' } })"
             class="ml-auto"
             label="Reset to black"
             name="restart_alt"
             size="small"
             title="Reset to black"
-          ></syn-icon-button>
+           />
         </div>
       </div>
     </div>

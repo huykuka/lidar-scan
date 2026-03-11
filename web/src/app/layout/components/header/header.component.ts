@@ -1,18 +1,18 @@
-import {Component, computed, inject, input, ViewChild} from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {Component, computed, inject, input, viewChild} from '@angular/core';
+import {NgClass} from '@angular/common';
 import {SynergyComponentsModule, SynHeaderComponent} from '@synergy-design-system/angular';
 import {SystemStatusService} from '../../../core/services/system-status.service';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule, NgClass],
   templateUrl: './header.component.html',
   styleUrl: './header.component.css',
 })
 export class HeaderComponent {
   label = input<string>('Lidar 3D Control Cockpit');
-  @ViewChild('header', {static: true}) synHeader!: SynHeaderComponent;
+  readonly synHeader = viewChild.required<SynHeaderComponent>('header');
   protected readonly statusDotClass = computed(() => {
     const online = this.backendOnline();
     if (online === null) return 'bg-syn-color-neutral-300';
@@ -45,7 +45,7 @@ export class HeaderComponent {
   protected readonly lastNotice = this.systemStatus.lastNotice;
 
   get nativeElement() {
-    return this.synHeader.nativeElement;
+    return this.synHeader().nativeElement;
   }
 
   protected acknowledgeNotices() {

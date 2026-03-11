@@ -8,9 +8,9 @@ import {
   OnDestroy,
   OnInit,
   signal,
-  ViewChild,
+  viewChild
 } from '@angular/core';
-import {CommonModule} from '@angular/common';
+import {NgClass, DecimalPipe} from '@angular/common';
 import {ActivatedRoute, Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {RecordingApiService} from '@core/services/api/recording-api.service';
@@ -30,12 +30,12 @@ interface PCDData {
 @Component({
   selector: 'app-recording-viewer',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule, FormsModule],
+  imports: [SynergyComponentsModule, FormsModule, DecimalPipe, NgClass],
   templateUrl: './recording-viewer.component.html',
   styleUrl: './recording-viewer.component.css',
 })
 export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('container', {static: true}) containerRef!: ElementRef<HTMLDivElement>;
+  readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
   // State
   recordingId = signal<string | null>(null);
   recordingName = signal<string>('Loading...');
@@ -222,7 +222,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private initThreeJS() {
-    const container = this.containerRef.nativeElement;
+    const container = this.containerRef().nativeElement;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0a0a0b); // Deeper dark

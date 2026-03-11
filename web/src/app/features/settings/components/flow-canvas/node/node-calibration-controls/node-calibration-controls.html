@@ -9,7 +9,7 @@
       title="Accept & Save Calibration"
       variant="filled"
     >
-      <syn-icon name="check"></syn-icon>
+      <syn-icon name="check" />
     </syn-button>
     <syn-button
       (click)="rejectCalibration(); $event.stopPropagation()"
@@ -19,7 +19,7 @@
       title="Reject Calibration"
       variant="outline"
     >
-      <syn-icon name="close"></syn-icon>
+      <syn-icon name="close" />
     </syn-button>
   </div>
 } @else {
@@ -33,9 +33,9 @@
     variant="filled"
   >
     @if (isCalibrating()) {
-      <syn-spinner size="small"></syn-spinner>
+      <syn-spinner size="small" />
     } @else {
-      <syn-icon name="tune"></syn-icon>
+      <syn-icon name="tune" />
     }
   </syn-button>
 }

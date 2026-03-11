@@ -19,7 +19,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
             clearable
             class="w-full transition-all duration-200 group-hover:shadow-sm"
           >
-            <syn-icon slot="prefix" name="search" class="text-syn-color-primary-600"></syn-icon>
+            <syn-icon slot="prefix" name="search" class="text-syn-color-primary-600" />
           </syn-input>
         </div>
 
@@ -59,13 +59,11 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           (click)="streamingToggled.emit(!isStreaming())"
           class="min-w-[120px]"
         >
-          <syn-icon
-            slot="prefix"
+          <syn-icon slot="prefix"
             [name]="isStreaming() ? 'stop_circle' : 'play_circle'"
             [class.animate-pulse]="isStreaming()"
             [class.text-syn-color-red-500]="isStreaming()"
-          >
-          </syn-icon>
+           />
           {{ isStreaming() ? 'Stop Live' : 'Go Live' }}
         </syn-button>
 
@@ -75,7 +73,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
             (click)="refreshClicked.emit()"
             class="transition-all hover:bg-syn-color-primary-50"
           >
-            <syn-icon slot="prefix" name="refresh"></syn-icon>
+            <syn-icon slot="prefix" name="refresh" />
             Refresh
           </syn-button>
           <syn-button
@@ -83,7 +81,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
             (click)="downloadClicked.emit()"
             class="transition-all hover:bg-syn-color-primary-50"
           >
-            <syn-icon slot="prefix" name="file_download"></syn-icon>
+            <syn-icon slot="prefix" name="file_download" />
             Download Logs
           </syn-button>
         </div>

@@ -1,21 +1,21 @@
 <div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-3">
   <div class="flex items-center justify-between gap-3 mb-2">
     <div class="flex items-center gap-2 min-w-0">
-      <syn-icon class="text-xl text-syn-color-primary-600" name="handyman"></syn-icon>
+      <syn-icon class="text-xl text-syn-color-primary-600" name="handyman" />
       <h2 class="text-sm font-black text-syn-typography-color-text uppercase tracking-widest truncate">Toolbox</h2>
       <span class="text-[11px] text-syn-color-neutral-500 truncate">Drag or click to add</span>
     </div>
     <div class="flex gap-2">
       <syn-button (click)="exportConfig.emit()" [disabled]="isExporting()" size="small" variant="outline">
-        <syn-icon name="download" slot="prefix"></syn-icon>
+        <syn-icon name="download" slot="prefix" />
         {{ isExporting() ? 'Exporting...' : 'Export' }}
       </syn-button>
       <syn-button (click)="importConfig.emit()" [disabled]="isImporting()" size="small" variant="outline">
-        <syn-icon name="upload" slot="prefix"></syn-icon>
+        <syn-icon name="upload" slot="prefix" />
         {{ isImporting() ? 'Importing...' : 'Import' }}
       </syn-button>
       <syn-button (click)="reloadConfig.emit()" size="small" variant="outline">
-        <syn-icon name="refresh" slot="prefix"></syn-icon>
+        <syn-icon name="refresh" slot="prefix" />
         Reload
       </syn-button>
     </div>
@@ -30,7 +30,7 @@
       title="Add a real or simulated lidar">
       <div
         class="bg-syn-color-success-100 p-1.5 rounded-md text-syn-color-success-700 group-hover:bg-syn-color-success-600 group-hover:text-white transition-colors">
-        <syn-icon class="text-base" name="sensors"></syn-icon>
+        <syn-icon class="text-base" name="sensors" />
       </div>
       <div class="min-w-0">
         <div class="flex items-center gap-2">
@@ -49,7 +49,7 @@
       title="Merge multiple sensors into one topic">
       <div
         class="bg-syn-color-primary-100 p-1.5 rounded-md text-syn-color-primary-700 group-hover:bg-syn-color-primary-600 group-hover:text-white transition-colors">
-        <syn-icon class="text-base" name="hub"></syn-icon>
+        <syn-icon class="text-base" name="hub" />
       </div>
       <div class="min-w-0">
         <div class="flex items-center gap-2">
@@ -64,7 +64,7 @@
     <div class="flex items-center gap-2 p-2 rounded-lg border border-dashed border-syn-color-neutral-200 opacity-60"
          title="More tools coming soon">
       <div class="bg-syn-color-neutral-100 p-1.5 rounded-md text-syn-color-neutral-500">
-        <syn-icon class="text-base" name="extension"></syn-icon>
+        <syn-icon class="text-base" name="extension" />
       </div>
       <div class="min-w-0">
         <span class="text-xs font-black text-syn-color-neutral-500 truncate">More</span>

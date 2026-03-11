@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, HostListener, inject, signal, ViewChild} from '@angular/core';
+import {AfterViewInit, Component, HostListener, inject, signal, viewChild} from '@angular/core';
 import {ChildrenOutletContexts, RouterOutlet} from '@angular/router';
 
 import {NavigationService} from '@core/services';
@@ -16,8 +16,8 @@ import {pageTransition} from '@core/animations/page-transitions';
   animations: [pageTransition],
 })
 export class MainLayoutComponent implements AfterViewInit {
-  @ViewChild('header') header!: HeaderComponent;
-  @ViewChild('sideNav') sideNav!: SideNavComponent;
+  readonly header = viewChild.required<HeaderComponent>('header');
+  readonly sideNav = viewChild.required<SideNavComponent>('sideNav');
   protected readonly isSideNavOpen = signal(false);
   private navService = inject(NavigationService);
   protected readonly headline = this.navService.headline;
@@ -32,8 +32,10 @@ export class MainLayoutComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
-    if (this.header && this.sideNav) {
-      this.header.nativeElement.connectSideNavigation(this.sideNav.nativeElement);
+    const header = this.header();
+    const sideNav = this.sideNav();
+    if (header && sideNav) {
+      header.nativeElement.connectSideNavigation(sideNav.nativeElement);
     }
 
     // Initial state based on viewport.
@@ -59,7 +61,7 @@ export class MainLayoutComponent implements AfterViewInit {
     // Collapse when entering mobile/tablet.
     if (!isDesktop && this.isSideNavOpen()) {
       this.autoCollapsedByResize = true;
-      this.sideNav?.hide?.();
+      this.sideNav()?.hide?.();
       this.isSideNavOpen.set(false);
       return;
     }
@@ -67,7 +69,7 @@ export class MainLayoutComponent implements AfterViewInit {
     // Re-open when returning to desktop if we auto-collapsed.
     if (isDesktop && this.autoCollapsedByResize && !this.isSideNavOpen()) {
       this.autoCollapsedByResize = false;
-      this.sideNav?.show?.();
+      this.sideNav()?.show?.();
       this.isSideNavOpen.set(true);
     }
   }

@@ -3,8 +3,7 @@
   <div
     class="flex flex-col shadow-md rounded-xl overflow-hidden border border-syn-color-neutral-200"
   >
-    <app-logs-toolbar
-      (clearClicked)="clearAllLogs()"
+    <app-logs-toolbar (clearClicked)="clearAllLogs()"
       (downloadClicked)="downloadLogs()"
       (levelChanged)="selectedLevel.set($event); onFilterChange()"
       (refreshClicked)="refreshLogs()"
@@ -15,7 +14,7 @@
       [searchText]="searchText()"
       [selectedLevel]="selectedLevel()"
       [totalCount]="entries().length"
-    ></app-logs-toolbar>
+     />
 
     <!-- Integrated Status Bar -->
     @if (isStreaming() || streamError()) {
@@ -41,7 +40,7 @@
           <div
             class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-syn-color-red-700"
           >
-            <syn-icon class="text-syn-color-red-600" name="error_outline" size="small"></syn-icon>
+            <syn-icon class="text-syn-color-red-600" name="error_outline" size="small" />
             {{ streamError() }}
           </div>
         }
@@ -54,16 +53,15 @@
     class="flex-1 min-h-0 bg-white rounded-xl border border-syn-color-neutral-200 overflow-hidden flex flex-col relative shadow-sm"
   >
     <!-- Sub-component: Table with Load More -->
-    <app-logs-table
-      (entrySelected)="onSelectEntry($event)"
+    <app-logs-table (entrySelected)="onSelectEntry($event)"
       (loadMoreClicked)="loadMoreLogs()"
       [entries]="displayEntries()"
       [isLoadingMore]="isLoadingMore()"
       [isLoading]="isLoading()"
       [selectedEntry]="selectedEntry()"
-    ></app-logs-table>
+     />
 
     <!-- Sub-component: Detail Panel -->
-    <app-logs-detail (close)="onSelectEntry(null)" [entry]="selectedEntry()"></app-logs-detail>
+    <app-logs-detail (close)="onSelectEntry(null)" [entry]="selectedEntry()" />
   </div>
 </div>
