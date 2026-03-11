@@ -15,24 +15,29 @@
     </marker>
   </defs>
 
-  <!-- Existing connections -->
-  @for (connection of connections(); track $index) {
-    <!-- Grouped connection paths to increase clickable area -->
+  @for (connection of connections(); track connection.id ?? $index) {
     <g
       class="cursor-pointer group"
       (click)="connection.id ? onDelete.emit(connection.id) : null"
       title="Click to delete connection"
     >
-      <!-- Visible Path -->
       <path
         [attr.d]="connection.path"
+        pathLength="1"
         stroke="#6366f1"
         stroke-width="2"
         fill="none"
         marker-end="url(#arrowhead)"
-        class="group-hover:stroke-red-500 transition-colors pointer-events-none"
+        class="edge-path group-hover:stroke-red-500 transition-colors pointer-events-none"
       />
-      <!-- Invisible wide path for better click hitbox -->
+      <path
+        [attr.d]="connection.path"
+        pathLength="1"
+        stroke="#a5b4fc"
+        stroke-width="2"
+        fill="none"
+        class="edge-flow-overlay pointer-events-none"
+      />
       <path
         [attr.d]="connection.path"
         stroke="transparent"
@@ -43,7 +48,6 @@
     </g>
   }
 
-  <!-- Pending (in-progress) connection while dragging -->
   @if (pendingPath()) {
     <path
       [attr.d]="pendingPath()"
@@ -63,3 +67,4 @@
     </path>
   }
 </svg>
+

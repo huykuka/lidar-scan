@@ -64,9 +64,9 @@ class NodeRepository:
                 existing.enabled = data.get("enabled", existing.enabled)
                 if "config" in data:
                     existing.config_json = config_str
-                if "x" in data:
+                if "x" in data and data["x"] is not None:
                     existing.x = data["x"]
-                if "y" in data:
+                if "y" in data and data["y"] is not None:
                     existing.y = data["y"]
             else:
                 node = NodeModel(

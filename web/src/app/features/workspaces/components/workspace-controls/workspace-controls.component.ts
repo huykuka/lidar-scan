@@ -20,6 +20,7 @@ export class WorkspaceControlsComponent {
   protected selectedTopics = this.store.selectedTopics;
   protected isConnected = this.store.isConnected;
   protected pointSize = this.store.pointSize;
+  protected backgroundColor = this.store.backgroundColor;
 
   @Output() actionTaken = new EventEmitter<void>();
 
@@ -79,5 +80,9 @@ export class WorkspaceControlsComponent {
 
   protected onPointSizeChange(event: any) {
     this.store.set('pointSize', parseFloat(event.target.value));
+  }
+
+  protected onBackgroundColorChange(event: any) {
+    this.store.set('backgroundColor', event.target.value);
   }
 }

@@ -5,7 +5,6 @@ import { SettingsComponent } from './settings.component';
 import { NavigationService } from '../../core/services/navigation.service';
 import { LidarApiService } from '../../core/services/api/lidar-api.service';
 import { FusionApiService } from '../../core/services/api/fusion-api.service';
-import { DialogService } from '../../core/services/dialog.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LidarStoreService } from '../../core/services/stores/lidar-store.service';
 import { FusionStoreService } from '../../core/services/stores/fusion-store.service';
@@ -28,7 +27,6 @@ describe('SettingsComponent', () => {
       schemas: [CUSTOM_ELEMENTS_SCHEMA],
       providers: [
         { provide: NavigationService, useValue: { setHeadline: () => {} } },
-        { provide: DialogService, useValue: { open: () => {} } },
         {
           provide: ToastService,
           useValue: {

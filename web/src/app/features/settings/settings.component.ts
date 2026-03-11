@@ -11,14 +11,12 @@ import { SystemStatusService } from '../../core/services/system-status.service';
 import { ConfigApiService } from '../../core/services/api/config-api.service';
 import { ConfigExport, ConfigValidationResponse } from '../../core/models/config.model';
 import { NodeConfig } from '../../core/models/node.model';
-import { DynamicNodeEditorComponent } from './components/dynamic-node-editor/dynamic-node-editor.component';
-import { NodeCardComponent } from './components/node-card/node-card.component';
 import { ConfigImportDialogComponent } from './components/config-import-dialog/config-import-dialog.component';
 import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.component';
 import { NodeStoreService } from '../../core/services/stores/node-store.service';
 import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
-import { DialogService } from '../../core/services';
 import { ToastService } from '../../core/services/toast.service';
+import { DialogService } from '../../core/services/dialog.service';
 import { LidarProfilesApiService } from '../../core/services/api/lidar-profiles-api';
 
 @Component({
@@ -46,8 +44,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private configApi = inject(ConfigApiService);
   protected nodeStore = inject(NodeStoreService);
   private recordingStore = inject(RecordingStoreService);
-  private dialogService = inject(DialogService);
   private toast = inject(ToastService);
+  private dialog = inject(DialogService);
   protected systemStatus = inject(SystemStatusService);
 
   protected lidars = this.nodeStore.sensorNodes;
@@ -157,25 +155,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   onAddLidar() {
-    this.nodeStore.set('selectedNode', { type: 'sensor' });
-    this.nodeStore.set('editMode', false);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Add Sensor',
-    });
+    this.flowCanvas.openNodeEditor({ type: 'sensor' });
   }
 
   onEditLidar(lidar: NodeConfig) {
-    this.nodeStore.set('selectedNode', lidar);
-    this.nodeStore.set('editMode', true);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Edit Sensor',
-    });
+    this.flowCanvas.openNodeEditor(lidar, true);
   }
 
   async onDeleteLidar(id?: string) {
     if (!id) return;
     const name = this.lidarNameById(id);
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    if (!await this.dialog.confirm(`Are you sure you want to delete ${name}?`)) return;
     try {
       await this.nodesApi.deleteNode(id);
       await this.onReloadConfig();
@@ -211,26 +201,18 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   onAddFusion() {
-    this.nodeStore.set('selectedNode', { type: 'fusion' });
-    this.nodeStore.set('editMode', false);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Add Fusion',
-    });
+    this.flowCanvas.openNodeEditor({ type: 'fusion' });
   }
 
   onEditFusion(fusion: NodeConfig) {
-    this.nodeStore.set('selectedNode', fusion);
-    this.nodeStore.set('editMode', true);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Edit Fusion',
-    });
+    this.flowCanvas.openNodeEditor(fusion, true);
   }
 
   async onDeleteFusion(id?: string) {
     if (!id) return;
     const node = this.fusions().find((f: any) => f.id === id);
     const label = node?.name || id;
-    if (!confirm(`Are you sure you want to delete fusion ${label}?`)) return;
+    if (!await this.dialog.confirm(`Are you sure you want to delete fusion ${label}?`)) return;
     try {
       await this.nodesApi.deleteNode(id);
       await this.onReloadConfig();
@@ -266,26 +248,18 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   onAddOperation() {
-    this.nodeStore.set('selectedNode', { type: 'crop', category: 'operation' });
-    this.nodeStore.set('editMode', false);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Add Operation',
-    });
+    this.flowCanvas.openNodeEditor({ type: 'crop', category: 'operation' });
   }
 
   onEditOperation(node: NodeConfig) {
-    this.nodeStore.set('selectedNode', node);
-    this.nodeStore.set('editMode', true);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Edit Operation',
-    });
+    this.flowCanvas.openNodeEditor(node, true);
   }
 
   async onDeleteOperation(id?: string) {
     if (!id) return;
     const node = this.operations().find((o: any) => o.id === id);
     const label = node?.name || id;
-    if (!confirm(`Are you sure you want to delete operation ${label}?`)) return;
+    if (!await this.dialog.confirm(`Are you sure you want to delete operation ${label}?`)) return;
     try {
       await this.nodesApi.deleteNode(id);
       await this.onReloadConfig();

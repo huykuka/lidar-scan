@@ -162,6 +162,30 @@
           (synInputEvent)="onPointSizeChange($event)"
         ></syn-range>
       </div>
+
+      <div class="field">
+        <div class="field__row">
+          <label class="field__label">Background Color</label>
+        </div>
+        <div class="flex items-center gap-3">
+          <input
+            type="color"
+            [value]="backgroundColor()"
+            (input)="onBackgroundColorChange($event)"
+            class="w-10 h-10 rounded cursor-pointer border border-syn-color-neutral-300 p-0.5 bg-transparent"
+            title="Scene background color"
+          />
+          <span class="text-sm font-mono text-syn-color-neutral-600 uppercase">{{ backgroundColor() }}</span>
+          <syn-icon-button
+            name="restart_alt"
+            label="Reset to black"
+            size="small"
+            (click)="onBackgroundColorChange({ target: { value: '#000000' } })"
+            title="Reset to black"
+            class="ml-auto"
+          ></syn-icon-button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
