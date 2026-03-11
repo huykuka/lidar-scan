@@ -62,9 +62,10 @@
       <!-- Render Dynamic Config Properties -->
       <div class="flex flex-col gap-y-1.5 py-1">
         @for (param of getConfigProperties(); track param.label) {
-          <div class="flex justify-between items-center w-full gap-2">
+          <div class="flex justify-between items-center w-full gap-2 min-w-0">
             <span
-              class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0"
+              class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0 max-w-[40%]"
+              [title]="param.label"
               >{{ param.label }}</span
             >
 
@@ -74,7 +75,7 @@
               </syn-badge>
             } @else {
               <span
-                class="font-mono text-[11px] truncate text-right flex-1 min-w-0"
+                class="font-mono text-[11px] truncate text-right flex-1 min-w-0 block"
                 [title]="param.value"
                 >{{ param.value }}</span
               >

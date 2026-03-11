@@ -3,10 +3,10 @@ import {
   ElementRef,
   OnInit,
   OnDestroy,
+  AfterViewInit,
   ViewChild,
   input,
   effect,
-  output,
 } from '@angular/core';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -28,13 +28,14 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
     `,
   ],
 })
-export class PointCloudComponent implements OnInit, OnDestroy {
+export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('container', { static: true }) containerRef!: ElementRef<HTMLDivElement>;
 
   // Inputs for customization
   pointSize = input<number>(0.1);
   showGrid = input<boolean>(true);
   showAxes = input<boolean>(true);
+  backgroundColor = input<string>('#000000');
 
   // Three.js instances
   private scene!: THREE.Scene;
@@ -87,11 +88,23 @@ export class PointCloudComponent implements OnInit, OnDestroy {
         this.axesLabels.forEach((l) => (l.visible = isVisible));
       }
     });
+
+    effect(() => {
+      const color = this.backgroundColor();
+      if (this.scene) {
+        this.scene.background = new THREE.Color(color);
+      }
+    });
   }
 
-  ngOnInit() {
+  ngOnInit() {}
+
+  ngAfterViewInit() {
     this.initThree();
     this.animate();
+    // Re-sync size after the first paint — the route animation may have caused
+    // the container to be zero-sized at ngOnInit time.
+    requestAnimationFrame(() => this.syncSize());
   }
 
   ngOnDestroy() {
@@ -107,12 +120,23 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     this.renderer.dispose();
   }
 
+  private syncSize() {
+    const container = this.containerRef.nativeElement;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w > 0 && h > 0) {
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(w, h);
+    }
+  }
+
   private initThree() {
     const container = this.containerRef.nativeElement;
 
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x000000);
+    this.scene.background = new THREE.Color(this.backgroundColor());
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(
@@ -159,11 +183,7 @@ export class PointCloudComponent implements OnInit, OnDestroy {
     this.scene.add(...this.axesLabels);
 
     // Resize observer
-    const resizeObserver = new ResizeObserver(() => {
-      this.camera.aspect = container.clientWidth / container.clientHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(container.clientWidth, container.clientHeight);
-    });
+    const resizeObserver = new ResizeObserver(() => this.syncSize());
     resizeObserver.observe(container);
   }
 

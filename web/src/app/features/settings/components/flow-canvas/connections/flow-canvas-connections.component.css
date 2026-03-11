@@ -1,1 +1,35 @@
-/* Connections component styles can be added here if needed */
+@keyframes edge-draw-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes edge-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.edge-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  pathLength: 1;
+  animation: edge-draw-in 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.edge-flow-overlay {
+  stroke-dasharray: 8 16;
+  stroke-dashoffset: 0;
+  opacity: 0;
+  animation:
+    edge-draw-in 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+    edge-flow 0.9s linear 0.45s infinite;
+  animation-fill-mode: forwards;
+}
+

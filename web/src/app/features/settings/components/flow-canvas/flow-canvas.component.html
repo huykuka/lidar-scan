@@ -103,11 +103,11 @@
       [style.min-width]="canvasWidth()"
       [style.min-height]="canvasHeight()"
       [style.cursor]="
-        pendingConnection()
+        drag.pendingConnection()
           ? 'crosshair'
-          : isPanning()
+          : drag.isPanning()
             ? 'grabbing'
-            : paletteDragType()
+            : drag.paletteDragType()
               ? 'copy'
               : 'default'
       "
@@ -139,7 +139,7 @@
         <!-- Connection Lines Layer (below nodes) -->
         <app-flow-canvas-connections
           [connections]="connections()"
-          [pendingPath]="pendingPath()"
+          [pendingPath]="drag.pendingPath()"
           (onDelete)="onDeleteEdge($event)"
         ></app-flow-canvas-connections>
 
@@ -157,7 +157,7 @@
             [style.left.px]="node.position.x"
             [style.top.px]="node.position.y"
             [style.cursor]="
-              draggingNode()?.id === node.id ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
+              drag.draggingNode()?.id === node.id ? 'grabbing' : drag.pendingConnection() ? 'default' : 'grab'
             "
             (mousedown)="onNodeMouseDown($event, node)"
             (dblclick)="onEditNode(node)"
@@ -167,7 +167,7 @@
               [node]="node"
               [status]="getNodeStatus(node)"
               [isLoading]="isNodeLoading(node.id)"
-              [isDragging]="draggingNode()?.id === node.id"
+              [isDragging]="drag.draggingNode()?.id === node.id"
               (onEdit)="onEditNode(node)"
               (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
               (portDragStart)="onPortDragStart($event)"

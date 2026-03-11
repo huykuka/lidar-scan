@@ -16,6 +16,7 @@ import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.compon
 import { NodeStoreService } from '../../core/services/stores/node-store.service';
 import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
 import { ToastService } from '../../core/services/toast.service';
+import { DialogService } from '../../core/services/dialog.service';
 import { LidarProfilesApiService } from '../../core/services/api/lidar-profiles-api';
 
 @Component({
@@ -44,6 +45,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected nodeStore = inject(NodeStoreService);
   private recordingStore = inject(RecordingStoreService);
   private toast = inject(ToastService);
+  private dialog = inject(DialogService);
   protected systemStatus = inject(SystemStatusService);
 
   protected lidars = this.nodeStore.sensorNodes;
@@ -163,7 +165,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   async onDeleteLidar(id?: string) {
     if (!id) return;
     const name = this.lidarNameById(id);
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    if (!await this.dialog.confirm(`Are you sure you want to delete ${name}?`)) return;
     try {
       await this.nodesApi.deleteNode(id);
       await this.onReloadConfig();
@@ -210,7 +212,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     if (!id) return;
     const node = this.fusions().find((f: any) => f.id === id);
     const label = node?.name || id;
-    if (!confirm(`Are you sure you want to delete fusion ${label}?`)) return;
+    if (!await this.dialog.confirm(`Are you sure you want to delete fusion ${label}?`)) return;
     try {
       await this.nodesApi.deleteNode(id);
       await this.onReloadConfig();
@@ -257,7 +259,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     if (!id) return;
     const node = this.operations().find((o: any) => o.id === id);
     const label = node?.name || id;
-    if (!confirm(`Are you sure you want to delete operation ${label}?`)) return;
+    if (!await this.dialog.confirm(`Are you sure you want to delete operation ${label}?`)) return;
     try {
       await this.nodesApi.deleteNode(id);
       await this.onReloadConfig();

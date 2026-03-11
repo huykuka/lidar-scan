@@ -21,6 +21,7 @@ export interface WorkspaceState {
   showGrid: boolean;
   showAxes: boolean;
   showCockpit: boolean;
+  backgroundColor: string;
 }
 
 // Predefined colors for multiple point clouds
@@ -49,6 +50,7 @@ const initialState: WorkspaceState = {
   showGrid: true,
   showAxes: true,
   showCockpit: true,
+  backgroundColor: '#000000',
 };
 
 @Injectable({
@@ -82,6 +84,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
         showGrid: state.showGrid,
         showAxes: state.showAxes,
         showCockpit: state.showCockpit,
+        backgroundColor: state.backgroundColor,
         currentTopic: state.currentTopic,
         selectedTopics: state.selectedTopics,
       };
@@ -103,6 +106,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
   showGrid = this.select('showGrid');
   showAxes = this.select('showAxes');
   showCockpit = this.select('showCockpit');
+  backgroundColor = this.select('backgroundColor');
 
   // Helper methods for managing selected topics
   addTopic(topic: string) {

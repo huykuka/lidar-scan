@@ -8,6 +8,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
 import { NavigationService } from '../../core/services';
+import { DialogService } from '../../core/services/dialog.service';
 import { LogsToolbarComponent } from './components/logs-toolbar.component';
 import { LogsTableComponent } from './components/logs-table.component';
 import { LogsDetailComponent } from './components/logs-detail.component';
@@ -31,6 +32,7 @@ export class LogsComponent implements OnInit, OnDestroy {
   private api = inject(LogsApiService);
   private destroy$ = new Subject<void>();
   private navService = inject(NavigationService);
+  private dialog = inject(DialogService);
 
   // Signals
   entries = this.store.entries;
@@ -146,8 +148,8 @@ export class LogsComponent implements OnInit, OnDestroy {
     this.searchText.set('');
   }
 
-  clearAllLogs() {
-    if (confirm('Clear all logs?')) {
+  async clearAllLogs() {
+    if (await this.dialog.confirm({ title: 'Clear Logs', message: 'Clear all logs?', confirmLabel: 'Clear all' })) {
       this.store.clearEntries();
     }
   }

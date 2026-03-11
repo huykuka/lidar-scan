@@ -48,6 +48,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   protected showCockpit = this.workspaceStore.showCockpit;
   protected showGrid = this.workspaceStore.showGrid;
   protected showAxes = this.workspaceStore.showAxes;
+  protected backgroundColor = this.workspaceStore.backgroundColor;
 
   private wsSubscriptions = new Map<string, Subscription>();
   private frameCountPerTopic = new Map<string, number>();

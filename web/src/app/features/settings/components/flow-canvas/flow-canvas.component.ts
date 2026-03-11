@@ -6,6 +6,7 @@ import { NodeConfig, Edge } from '../../../../core/models/node.model';
 import { NodesApiService } from '../../../../core/services/api/nodes-api.service';
 import { EdgesApiService } from '../../../../core/services/api/edges-api.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { DialogService } from '../../../../core/services/dialog.service';
 import { NodePluginRegistry } from '../../../../core/services/node-plugin-registry.service';
 import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
 import { NodePlugin } from '../../../../core/models/node-plugin.model';
@@ -17,6 +18,7 @@ import {
 } from './connections/flow-canvas-connections.component';
 import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-state.component';
 import { StatusWebSocketService } from '../../../../core/services/status-websocket.service';
+import { FlowCanvasDragService } from './flow-canvas-drag';
 
 @Component({
   selector: 'app-flow-canvas',
@@ -30,6 +32,7 @@ import { StatusWebSocketService } from '../../../../core/services/status-websock
     FlowCanvasEmptyStateComponent,
     DynamicNodeEditorComponent,
   ],
+  providers: [FlowCanvasDragService],
   templateUrl: './flow-canvas.component.html',
   styleUrl: './flow-canvas.component.css',
 })
@@ -38,32 +41,26 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   private nodesApi = inject(NodesApiService);
   private edgesApi = inject(EdgesApiService);
   private toast = inject(ToastService);
+  private dialog = inject(DialogService);
   private pluginRegistry = inject(NodePluginRegistry);
   private statusWs = inject(StatusWebSocketService);
+  protected drag = inject(FlowCanvasDragService);
 
-  // Output for unsaved changes
   hasUnsavedChangesChange = output<boolean>();
 
-  // Drawer state
   protected drawerOpen = signal(false);
 
   protected nodes = this.nodeStore.nodes;
   protected edges = this.nodeStore.edges;
   protected availablePlugins = signal<NodePlugin[]>([]);
 
-  // Canvas state
   protected canvasNodes = signal<CanvasNode[]>([]);
   protected connections = signal<Connection[]>([]);
-  protected isPanning = signal(false);
   protected panOffset = signal({ x: 0, y: 0 });
   protected zoom = signal(1);
 
-  // Selection & Drag state
   protected selectedCanvasNode = signal<CanvasNode | null>(null);
-  protected draggingNode = signal<CanvasNode | null>(null);
-  protected dragOffset = signal({ x: 0, y: 0 });
 
-  // Canvas bounds for scrolling
   protected canvasWidth = computed(() => {
     const nodes = this.canvasNodes();
     if (!nodes.length) return '100%';
@@ -78,25 +75,11 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     return `calc(max(100%, ${maxY}px) * ${this.zoom()})`;
   });
 
-  // Palette drag state (dragging from sidebar)
-  protected paletteDragType = signal<string | null>(null);
-
-  // Port-to-port connection drag state
-  protected pendingConnection = signal<{
-    fromNodeId: string;
-    cursorX: number;
-    cursorY: number;
-  } | null>(null);
-  protected pendingPath = signal<string | null>(null);
-
-  // Node status — driven by WebSocket instead of HTTP polling
   protected nodesStatus = this.statusWs.status;
-  
-  // Track unsaved position changes
+
   private unsavedPositions = new Map<string, { x: number; y: number }>();
   public hasUnsavedChanges = signal(false);
 
-  // Loading states
   protected isPaletteLoading = signal(true);
   protected isCanvasLoading = signal(true);
   protected nodeLoadingStates = signal<Record<string, boolean>>({});
@@ -118,7 +101,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadGraphData();
-    this.statusWs.connect(); // subscribe to live status via WebSocket
+    this.statusWs.connect();
   }
 
   ngOnDestroy(): void {
@@ -226,19 +209,19 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.selectedCanvasNode.set(null);
     this.drawerOpen.set(false);
     if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
-      this.isPanning.set(true);
+      this.drag.startPan();
       event.preventDefault();
     }
   }
 
   onCanvasMouseMove(event: MouseEvent) {
-    if (this.isPanning()) {
+    if (this.drag.isPanning()) {
       this.panOffset.update((offset) => ({
         x: offset.x + event.movementX,
         y: offset.y + event.movementY,
       }));
-    } else if (this.draggingNode()) {
-      const node = this.draggingNode()!;
+    } else if (this.drag.draggingNode()) {
+      const node = this.drag.draggingNode()!;
       const newPosition = {
         x: node.position.x + event.movementX / this.zoom(),
         y: node.position.y + event.movementY / this.zoom(),
@@ -248,11 +231,11 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
         nodes.map((n) => (n.id === node.id ? { ...n, position: newPosition } : n)),
       );
 
-      this.draggingNode.set({ ...node, position: newPosition });
+      this.drag.updateDraggingNode({ ...node, position: newPosition });
       this.updateConnections();
-    } else if (this.pendingConnection()) {
+    } else if (this.drag.pendingConnection()) {
       // Update the live pending bezier path as the cursor moves
-      const pending = this.pendingConnection()!;
+      const pending = this.drag.pendingConnection()!;
       const canvasEl = event.currentTarget as HTMLElement;
       const rect = canvasEl.getBoundingClientRect();
       const toX = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
@@ -263,7 +246,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
         const fromX = fromNode.position.x + 296;
         const fromY = fromNode.position.y + 44;
         const cp = Math.max(Math.abs(toX - fromX) * 0.5, 40);
-        this.pendingPath.set(
+        this.drag.updateConnectionPath(
           `M ${fromX} ${fromY} C ${fromX + cp} ${fromY} ${toX - cp} ${toY} ${toX} ${toY}`,
         );
       }
@@ -271,33 +254,30 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   onCanvasMouseUp(event: MouseEvent) {
-    if (this.isPanning()) {
-      this.isPanning.set(false);
+    if (this.drag.isPanning()) {
+      this.drag.endPan();
     }
 
-    if (this.draggingNode()) {
-      const node = this.draggingNode()!;
-      // Mark position as unsaved
-      this.unsavedPositions.set(node.id, node.position);
+    const dropped = this.drag.endNodeDrag();
+    if (dropped) {
+      this.unsavedPositions.set(dropped.nodeId, dropped.position);
       this.hasUnsavedChanges.set(true);
       this.hasUnsavedChangesChange.emit(true);
-      this.draggingNode.set(null);
       this.updateConnections();
     }
 
     // Cancel any pending port connection if released on empty canvas
-    if (this.pendingConnection()) {
-      this.pendingConnection.set(null);
-      this.pendingPath.set(null);
+    if (this.drag.pendingConnection()) {
+      this.drag.cancelConnectionDrag();
     }
 
-    if (this.paletteDragType()) {
+    if (this.drag.paletteDragType()) {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       const x = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
       const y = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
 
-      this.createNodeAtPosition(this.paletteDragType()!, { x, y });
-      this.paletteDragType.set(null);
+      this.createNodeAtPosition(this.drag.paletteDragType()!, { x, y });
+      this.drag.endPaletteDrag();
     }
   }
 
@@ -339,15 +319,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   /** Called when user starts dragging from an output port on a node. */
   onPortDragStart(event: { nodeId: string; portType: 'input' | 'output'; event: MouseEvent }) {
     if (event.portType !== 'output') return;
-    this.pendingConnection.set({ fromNodeId: event.nodeId, cursorX: 0, cursorY: 0 });
+    this.drag.startConnectionDrag(event.nodeId);
   }
 
   /** Called when user releases on an input port on a node. */
   async onPortDrop(event: { nodeId: string; portType: 'input' | 'output' }) {
-    const pending = this.pendingConnection();
+    const pending = this.drag.pendingConnection();
     if (!pending || event.portType !== 'input') {
-      this.pendingConnection.set(null);
-      this.pendingPath.set(null);
+      this.drag.cancelConnectionDrag();
       return;
     }
 
@@ -355,8 +334,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const targetId = event.nodeId;
 
     if (sourceId === targetId) {
-      this.pendingConnection.set(null);
-      this.pendingPath.set(null);
+      this.drag.cancelConnectionDrag();
       return;
     }
 
@@ -366,8 +344,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     );
     if (exists) {
       this.toast.danger('Connection already exists.');
-      this.pendingConnection.set(null);
-      this.pendingPath.set(null);
+      this.drag.cancelConnectionDrag();
       return;
     }
 
@@ -383,8 +360,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       console.error('Failed to create edge', err);
       this.toast.danger('Failed to create connection.');
     } finally {
-      this.pendingConnection.set(null);
-      this.pendingPath.set(null);
+      this.drag.cancelConnectionDrag();
     }
   }
 
@@ -397,24 +373,19 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   onNodeMouseDown(event: MouseEvent, node: CanvasNode) {
     event.stopPropagation();
     this.selectedCanvasNode.set(node);
-    this.draggingNode.set(node);
-    this.dragOffset.set({ x: event.offsetX, y: event.offsetY });
+    this.drag.startNodeDrag(node, event.offsetX, event.offsetY);
   }
 
   onPluginDragStart(type: string, event: DragEvent) {
-    this.paletteDragType.set(type);
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'copy';
-      event.dataTransfer.setData('text/plain', type);
-    }
+    this.drag.startPaletteDrag(type, event);
   }
 
   onPaletteDragStart(type: 'sensor' | 'fusion' | string, event: DragEvent) {
-    this.onPluginDragStart(type, event);
+    this.drag.startPaletteDrag(type, event);
   }
 
   onPaletteDragEnd() {
-    this.paletteDragType.set(null);
+    this.drag.endPaletteDrag();
   }
 
   onCanvasDragOver(event: DragEvent) {
@@ -426,7 +397,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   onCanvasDrop(event: DragEvent) {
     event.preventDefault();
-    const type = this.paletteDragType();
+    const type = this.drag.paletteDragType();
     if (!type) return;
 
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -434,7 +405,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const y = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
 
     this.createNodeAtPosition(type, { x, y });
-    this.paletteDragType.set(null);
+    this.drag.endPaletteDrag();
   }
 
   private createNodeAtPosition(type: string, position: { x: number; y: number }) {
@@ -458,7 +429,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   async onDeleteNode(node: CanvasNode) {
     const name = node.data.name || node.id;
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
+    if (!await this.dialog.confirm(`Are you sure you want to delete ${name}?`)) return;
 
     try {
       await this.nodesApi.deleteNode(node.id);
@@ -483,7 +454,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   async onDeleteEdge(edgeId: string) {
-    if (!confirm('Are you sure you want to delete this connection?')) return;
+    if (!await this.dialog.confirm('Are you sure you want to delete this connection?')) return;
     try {
       await this.edgesApi.deleteEdge(edgeId);
       this.nodeStore.set(
