@@ -1,0 +1,47 @@
+<div class="flex flex-col gap-y-1.5 py-1">
+  @if (referenceSensorName()) {
+    <div class="flex justify-between items-center w-full gap-2 min-w-0">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0">REFERENCE</span>
+      <syn-badge variant="primary" class="shrink-0" size="small">
+        {{ referenceSensorName() }}
+      </syn-badge>
+    </div>
+  }
+
+  <div class="flex justify-between items-center w-full gap-2 min-w-0">
+    <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0">SOURCE SENSORS</span>
+    <syn-badge variant="neutral" class="shrink-0" size="small">
+      {{ sourceSensorCount() }}
+    </syn-badge>
+  </div>
+
+  <div class="flex justify-between items-center w-full gap-2 min-w-0">
+    <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0">SAMPLE FRAMES</span>
+    <span class="font-mono text-[11px] text-right shrink-0">{{ sampleFrames() }}</span>
+  </div>
+
+  @if (bufferedFrameCount() > 0) {
+    <div class="flex justify-between items-center w-full gap-2 min-w-0">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter shrink-0">BUFFERED</span>
+      <syn-badge variant="success" class="shrink-0" size="small">
+        {{ bufferedFrameCount() }}/{{ sampleFrames() }}
+      </syn-badge>
+    </div>
+  }
+
+  @if (hasPendingCalibration()) {
+    <div class="flex justify-between items-center w-full gap-2 min-w-0 pt-1 border-t border-syn-color-neutral-100">
+      <span class="text-[10px] text-syn-color-warning-600 uppercase tracking-tighter shrink-0">PENDING APPROVAL</span>
+      <syn-badge variant="warning" class="shrink-0" size="small">
+        {{ pendingResultsCount() }}
+      </syn-badge>
+    </div>
+  }
+
+  @if (lastCalibrationTime()) {
+    <div class="flex flex-col gap-0.5 pt-1 border-t border-syn-color-neutral-100">
+      <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter">LAST CALIBRATION</span>
+      <span class="font-mono text-[11px] text-syn-color-neutral-600">{{ lastCalibrationTime() }}</span>
+    </div>
+  }
+</div>

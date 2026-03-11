@@ -1,8 +1,16 @@
 import {inject, Injectable} from '@angular/core';
 import {NodeData, NodePlugin} from '@core/models';
-import {NodesApiService} from './api/nodes-api.service';
-import {NodeStoreService} from './stores/node-store.service';
+import {NodesApiService} from '@core/services/api';
+import {NodeStoreService} from '@core/services/stores';
 import {NodeDefinition} from '../models/node.model';
+import {SensorNodeCardComponent} from '@plugins/sensor/node/sensor-node-card.component';
+import {SensorNodeEditorComponent} from '@plugins/sensor/form/sensor-node-editor.component';
+import {FusionNodeCardComponent} from '@plugins/fusion/node/fusion-node-card.component';
+import {FusionNodeEditorComponent} from '@plugins/fusion/form/fusion-node-editor.component';
+import {OperationNodeCardComponent} from '@plugins/operation/node/operation-node-card.component';
+import {OperationNodeEditorComponent} from '@plugins/operation/form/operation-node-editor.component';
+import {CalibrationNodeCardComponent} from '@plugins/calibration/node/calibration-node-card.component';
+import {CalibrationNodeEditorComponent} from '@plugins/calibration/form/calibration-node-editor.component';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
 const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
@@ -74,14 +82,45 @@ export class NodePluginRegistry {
       this.nodeStore.set('nodeDefinitions', definitions);
       this.plugins.clear();
       definitions.forEach((def) => this.plugins.set(def.type, definitionToPlugin(def)));
+      this.registerPluginComponents();
     } catch (err) {
       console.error('NodePluginRegistry: Failed to load definitions from backend', err);
     }
   }
 
-  register(plugin: NodePlugin): void {
-    this.plugins.set(plugin.type, plugin);
+  private registerPluginComponents(): void {
+    this.plugins.forEach((plugin, type) => {
+      if (plugin.category === 'sensor') {
+        this.plugins.set(type, {
+          ...plugin,
+          cardComponent: SensorNodeCardComponent,
+          editorComponent: SensorNodeEditorComponent,
+        });
+      }
+      if (plugin.category === 'fusion') {
+        this.plugins.set(type, {
+          ...plugin,
+          cardComponent: FusionNodeCardComponent,
+          editorComponent: FusionNodeEditorComponent,
+        });
+      }
+      if (plugin.category === 'operation') {
+        this.plugins.set(type, {
+          ...plugin,
+          cardComponent: OperationNodeCardComponent,
+          editorComponent: OperationNodeEditorComponent,
+        });
+      }
+      if (plugin.category === 'calibration') {
+        this.plugins.set(type, {
+          ...plugin,
+          cardComponent: CalibrationNodeCardComponent,
+          editorComponent: CalibrationNodeEditorComponent,
+        });
+      }
+    });
   }
+
 
   get(type: string): NodePlugin | undefined {
     return this.plugins.get(type);
@@ -89,16 +128,5 @@ export class NodePluginRegistry {
 
   getAll(): NodePlugin[] {
     return Array.from(this.plugins.values());
-  }
-
-  has(type: string): boolean {
-    return this.plugins.has(type);
-  }
-
-  getByCategory(category: string): NodePlugin[] {
-    return this.getAll().filter((p) => {
-      const def = this.nodeStore.nodeDefinitions().find((d) => d.type === p.type);
-      return def?.category === category;
-    });
   }
 }
