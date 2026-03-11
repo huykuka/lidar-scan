@@ -1,6 +1,6 @@
 import {TestBed} from '@angular/core/testing';
 import {HttpClientTestingModule, HttpTestingController} from '@angular/common/http/testing';
-import {LidarProfilesApiService} from './lidar-profiles-api';
+import {LidarProfilesApiService} from './lidar-profiles-api.service';
 
 describe('LidarProfilesApiService', () => {
   let service: LidarProfilesApiService;

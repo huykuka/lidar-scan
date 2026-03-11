@@ -1,6 +1,6 @@
 import {TestBed} from '@angular/core/testing';
 
-import {LidarImagesService} from './lidar-images';
+import {LidarImagesService} from './lidar-images.service';
 
 describe('LidarImages', () => {
   let service: LidarImagesService;

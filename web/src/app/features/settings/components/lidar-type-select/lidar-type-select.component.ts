@@ -1,7 +1,7 @@
 import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, input, output,} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api';
+import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
 
 @Component({
   selector: 'app-lidar-type-select',

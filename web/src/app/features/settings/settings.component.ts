@@ -12,7 +12,7 @@ import {ConfigImportDialogComponent} from './components/config-import-dialog/con
 import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {RecordingStoreService} from '@core/services/stores/recording-store.service';
-import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api';
+import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
 
 @Component({
   selector: 'app-settings',

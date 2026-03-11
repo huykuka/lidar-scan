@@ -12,20 +12,32 @@ import {
 } from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {NodeConfig} from '@core/models/node.model';
-import {NodesApiService} from '@core/services/api/nodes-api.service';
-import {EdgesApiService} from '@core/services/api/edges-api.service';
+import {FlowCanvasDragService} from '@features/settings/components/flow-canvas/flow-canvas-drag';
+import {
+  CanvasNode,
+  FlowCanvasNodeComponent
+} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
+import {
+  FlowCanvasPaletteComponent
+} from '@features/settings/components/flow-canvas/palette/flow-canvas-palette.component';
+import {
+  Connection,
+  FlowCanvasConnectionsComponent
+} from '@features/settings/components/flow-canvas/connections/flow-canvas-connections.component';
+import {
+  FlowCanvasEmptyStateComponent
+} from '@features/settings/components/flow-canvas/empty-state/flow-canvas-empty-state.component';
+import {
+  DynamicNodeEditorComponent
+} from '@features/settings/components/dynamic-node-editor/dynamic-node-editor.component';
+import {NodePlugin} from '@core/models';
+import {NodeStoreService} from '@core/services/stores';
+import {EdgesApiService, NodesApiService} from '@core/services/api';
 import {DialogService, ToastService} from '@core/services';
 import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
-import {DynamicNodeEditorComponent} from '../dynamic-node-editor/dynamic-node-editor.component';
-import {NodePlugin} from '@core/models';
-import {CanvasNode, FlowCanvasNodeComponent} from './node/flow-canvas-node.component';
-import {FlowCanvasPaletteComponent} from './palette/flow-canvas-palette.component';
-import {Connection, FlowCanvasConnectionsComponent,} from './connections/flow-canvas-connections.component';
-import {FlowCanvasEmptyStateComponent} from './empty-state/flow-canvas-empty-state.component';
 import {StatusWebSocketService} from '@core/services/status-websocket.service';
-import {FlowCanvasDragService} from './flow-canvas-drag';
+import {NodeConfig} from '@core/models/node.model';
+
 
 @Component({
   selector: 'app-flow-canvas',

@@ -39,33 +39,6 @@ export class LidarApiService {
     return response;
   }
 
-  async saveLidar(config: any): Promise<any> {
-    const payload = {
-      id: config.id,
-      name: config.name,
-      type: 'sensor',
-      category: 'Input',
-      enabled: config.enabled ?? true,
-      config: {...config},
-    };
-
-    delete payload.config.id;
-    delete payload.config.name;
-    delete payload.config.enabled;
-
-    const response = await firstValueFrom(this.http.post(`${environment.apiUrl}/nodes`, payload));
-    return response;
-  }
-
-  async deleteLidar(id: string): Promise<any> {
-    const response = await firstValueFrom(this.http.delete(`${environment.apiUrl}/nodes/${id}`));
-    return response;
-  }
-
-  async reloadConfig(): Promise<any> {
-    return await firstValueFrom(this.http.post(`${environment.apiUrl}/nodes/reload`, {}));
-  }
-
   async setEnabled(id: string, enabled: boolean): Promise<any> {
     return await firstValueFrom(
       this.http.put(`${environment.apiUrl}/nodes/${encodeURIComponent(id)}/enabled`, {

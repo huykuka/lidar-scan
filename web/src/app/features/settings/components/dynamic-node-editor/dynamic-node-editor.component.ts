@@ -4,7 +4,7 @@ import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api';
+import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
 import {NodeEditorFacadeService} from '../../services/node-editor-facade.service';
 import {LidarTypeSelectComponent} from '../lidar-type-select/lidar-type-select.component';
 

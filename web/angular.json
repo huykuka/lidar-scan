@@ -9,7 +9,13 @@
   "projects": {
     "web": {
       "projectType": "application",
-      "schematics": {},
+      "schematics": {
+        "@schematics/angular:component": { "type": "component" },
+        "@schematics/angular:service": { "type": "service" },
+        "@schematics/angular:directive": { "type": "directive" },
+        "@schematics/angular:guard": { "typeSeparator": "." },
+        "@schematics/angular:pipe": { "typeSeparator": "." }
+      },
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
