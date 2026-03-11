@@ -1,39 +1,13 @@
 <div class="flex flex-col w-full min-w-105 mb-4">
-  <div
-    class="flex items-center justify-between gap-3 mb-4 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
-  >
-    <div class="flex items-center gap-3 min-w-0 flex-1">
-      <div
-        class="w-8 h-8 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 text-syn-color-primary-600 flex items-center justify-center shrink-0"
-      >
-        <syn-icon [attr.name]="definition()?.icon || 'sensors'" class="text-lg"/>
-      </div>
-      <div class="flex flex-col min-w-0">
-        <h2 class="text-xs font-bold text-syn-color-neutral-900 truncate">
-          {{ definition()?.display_name }}
-        </h2>
-        <p class="text-[11px] text-syn-color-neutral-500 truncate">
-          {{ definition()?.description }}
-        </p>
-      </div>
-    </div>
-
-    <div class="flex gap-2 shrink-0">
-      <syn-button (click)="onCancel()" size="small" variant="outline">
-        <syn-icon name="close"/>
-        Cancel
-      </syn-button>
-      <syn-button
-        (click)="onSave()"
-        [disabled]="form.invalid || configForm.invalid || isSaving()"
-        size="small"
-        variant="filled"
-      >
-        <syn-icon name="save"/>
-        Save
-      </syn-button>
-    </div>
-  </div>
+  <app-node-editor-header
+    [icon]="definition()?.icon || 'sensors'"
+    iconColor="text-syn-color-primary-600"
+    [title]="definition()?.display_name || ''"
+    [description]="definition()?.description"
+    [saveDisabled]="form.invalid || configForm.invalid || isSaving()"
+    (save)="onSave()"
+    (cancel)="onCancel()"
+  />
 
   <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-3 text-sm">
     <div class="grid grid-cols-2 gap-3">

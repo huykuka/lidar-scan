@@ -1,42 +1,28 @@
 <div class="flex flex-col w-full min-w-105 mb-4">
-  <div class="flex items-center justify-between gap-3 mb-4 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200">
-    <div class="flex items-center gap-3 min-w-0 flex-1">
-      <div class="w-8 h-8 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 text-syn-color-warning-600 flex items-center justify-center shrink-0">
-        <syn-icon [attr.name]="definition()?.icon || 'tune'" class="text-lg" />
-      </div>
-      <div class="flex flex-col min-w-0">
-        <h2 class="text-xs font-bold text-syn-color-neutral-900 truncate">
-          {{ definition()?.display_name }}
-        </h2>
-        <p class="text-[11px] text-syn-color-neutral-500 truncate">
-          {{ definition()?.description }}
-        </p>
-      </div>
-    </div>
+  <app-node-editor-header
+    [icon]="definition()?.icon || 'tune'"
+    iconColor="text-syn-color-warning-600"
+    [title]="definition()?.display_name || ''"
+    [description]="definition()?.description"
+    [saveDisabled]="form.invalid || configForm.invalid || isSaving()"
+    (save)="onSave()"
+    (cancel)="onCancel()"
+  />
 
-    <div class="flex gap-2 shrink-0">
-      <syn-button (click)="onCancel()" size="small" variant="outline">
-        <syn-icon name="close" />
-        Cancel
-      </syn-button>
-      <syn-button (click)="onSave()" [disabled]="form.invalid || configForm.invalid || isSaving()" size="small" variant="filled">
-        <syn-icon name="save" />
-        Save
-      </syn-button>
-    </div>
-  </div>
+  <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-4 text-sm">
 
-  <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-3 text-sm">
-    <div class="grid grid-cols-2 gap-3">
+    <syn-input
+      formControlName="name"
+      label="Display Name"
+      ngDefaultControl
+      placeholder="e.g. Ground Calibration"
+      size="small"
+    />
+
+    <syn-divider class="my-0"/>
+
+    <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-3">
       <div class="col-span-2">
-        <syn-input formControlName="name" label="Display Name" ngDefaultControl placeholder="e.g. Ground Calibration" size="small" />
-      </div>
-    </div>
-
-    <syn-divider class="my-0" />
-
-    <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-2">
-      <div class="col-span-2 flex flex-col">
         <syn-select
           (synChangeEvent)="onReferenceSensorChange($event)"
           [value]="selectedReferenceSensor() ?? ''"
@@ -51,7 +37,7 @@
         </syn-select>
       </div>
 
-      <div class="flex flex-col">
+      <div>
         <syn-input
           [attr.min]="5"
           [attr.max]="100"
@@ -64,153 +50,154 @@
           type="number"
         />
       </div>
-
-      <syn-divider class="col-span-2 my-2">
-        <span class="text-xs font-bold text-syn-color-neutral-700">ICP Settings</span>
-      </syn-divider>
-
-      @for (prop of visibleProperties(); track prop.name) {
-        @if (prop.name === 'icp_method' || prop.name === 'icp_threshold' || prop.name === 'icp_iterations' || prop.name === 'translation_only') {
-          <div [class.col-span-2]="prop.type === 'boolean'" class="flex flex-col">
-            @if (prop.type === 'number') {
-              <syn-input
-                [attr.max]="prop.max"
-                [attr.min]="prop.min"
-                [formControlName]="prop.name"
-                [helpText]="prop.help_text || ''"
-                [label]="prop.label"
-                [step]="prop.step || 1"
-                ngDefaultControl
-                size="small"
-                type="number"
-              />
-            }
-
-            @if (prop.type === 'boolean') {
-              <syn-checkbox
-                (synChangeEvent)="onCheckboxChange(prop.name, $event)"
-                [checked]="configForm.get(prop.name)?.value"
-                class="mt-4"
-              >
-                <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
-              </syn-checkbox>
-              @if (prop.help_text) {
-                <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
-              }
-            }
-
-            @if (prop.type === 'select') {
-              <syn-select
-                (synChangeEvent)="onSelectChange(prop.name, $event)"
-                [helpText]="prop.help_text || ''"
-                [label]="prop.label"
-                [value]="configForm.get(prop.name)?.value"
-                size="small"
-              >
-                @for (opt of prop.options; track opt.value) {
-                  <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
-                }
-              </syn-select>
-            }
-          </div>
-        }
-      }
-
-      <syn-divider class="col-span-2 my-2">
-        <span class="text-xs font-bold text-syn-color-neutral-700">Global Registration</span>
-      </syn-divider>
-
-      @for (prop of visibleProperties(); track prop.name) {
-        @if (prop.name === 'enable_global_registration' || prop.name === 'global_voxel_size' || prop.name === 'ransac_threshold' || prop.name === 'ransac_iterations') {
-          <div [class.col-span-2]="prop.type === 'boolean'" class="flex flex-col">
-            @if (prop.type === 'number') {
-              <syn-input
-                [attr.max]="prop.max"
-                [attr.min]="prop.min"
-                [formControlName]="prop.name"
-                [helpText]="prop.help_text || ''"
-                [label]="prop.label"
-                [step]="prop.step || 1"
-                ngDefaultControl
-                size="small"
-                type="number"
-              />
-            }
-
-            @if (prop.type === 'boolean') {
-              <syn-checkbox
-                (synChangeEvent)="onCheckboxChange(prop.name, $event)"
-                [checked]="configForm.get(prop.name)?.value"
-                class="mt-4"
-              >
-                <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
-              </syn-checkbox>
-              @if (prop.help_text) {
-                <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
-              }
-            }
-          </div>
-        }
-      }
-
-      <syn-divider class="col-span-2 my-2">
-        <span class="text-xs font-bold text-syn-color-neutral-700">Quality Control</span>
-      </syn-divider>
-
-      @for (prop of visibleProperties(); track prop.name) {
-        @if (prop.name === 'min_fitness' || prop.name === 'max_rmse') {
-          <div class="flex flex-col">
-            <syn-input
-              [attr.max]="prop.max"
-              [attr.min]="prop.min"
-              [formControlName]="prop.name"
-              [helpText]="prop.help_text || ''"
-              [label]="prop.label"
-              [step]="prop.step || 1"
-              ngDefaultControl
-              size="small"
-              type="number"
-            />
-          </div>
-        }
-      }
-
-      <syn-divider class="col-span-2 my-2">
-        <span class="text-xs font-bold text-syn-color-neutral-700">Save Behavior</span>
-      </syn-divider>
-
-      @for (prop of visibleProperties(); track prop.name) {
-        @if (prop.name === 'auto_save' || prop.name === 'min_fitness_to_save') {
-          <div [class.col-span-2]="prop.type === 'boolean'" class="flex flex-col">
-            @if (prop.type === 'number') {
-              <syn-input
-                [attr.max]="prop.max"
-                [attr.min]="prop.min"
-                [formControlName]="prop.name"
-                [helpText]="prop.help_text || ''"
-                [label]="prop.label"
-                [step]="prop.step || 1"
-                ngDefaultControl
-                size="small"
-                type="number"
-              />
-            }
-
-            @if (prop.type === 'boolean') {
-              <syn-checkbox
-                (synChangeEvent)="onCheckboxChange(prop.name, $event)"
-                [checked]="configForm.get(prop.name)?.value"
-                class="mt-4"
-              >
-                <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
-              </syn-checkbox>
-              @if (prop.help_text) {
-                <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
-              }
-            }
-          </div>
-        }
-      }
     </div>
+
+    <!-- ICP Settings -->
+    <div class="flex flex-col gap-3 p-3 rounded-lg border border-syn-color-neutral-200 bg-syn-color-neutral-50/50">
+      <p class="text-[11px] font-bold text-syn-color-neutral-600 uppercase tracking-wide">ICP Settings</p>
+      <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-3">
+        @for (prop of visibleProperties(); track prop.name) {
+          @if (prop.name === 'icp_method' || prop.name === 'icp_threshold' || prop.name === 'icp_iterations' || prop.name === 'translation_only') {
+            <div [class.col-span-2]="prop.type === 'boolean'" class="flex flex-col">
+              @if (prop.type === 'number') {
+                <syn-input
+                  [attr.max]="prop.max"
+                  [attr.min]="prop.min"
+                  [formControlName]="prop.name"
+                  [helpText]="prop.help_text || ''"
+                  [label]="prop.label"
+                  [step]="prop.step || 1"
+                  ngDefaultControl
+                  size="small"
+                  type="number"
+                />
+              }
+              @if (prop.type === 'boolean') {
+                <syn-checkbox
+                  (synChangeEvent)="onCheckboxChange(prop.name, $event)"
+                  [checked]="configForm.get(prop.name)?.value"
+                >
+                  <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+                </syn-checkbox>
+                @if (prop.help_text) {
+                  <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
+                }
+              }
+              @if (prop.type === 'select') {
+                <syn-select
+                  (synChangeEvent)="onSelectChange(prop.name, $event)"
+                  [helpText]="prop.help_text || ''"
+                  [label]="prop.label"
+                  [value]="configForm.get(prop.name)?.value"
+                  size="small"
+                >
+                  @for (opt of prop.options; track opt.value) {
+                    <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
+                  }
+                </syn-select>
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- Global Registration -->
+    <div class="flex flex-col gap-3 p-3 rounded-lg border border-syn-color-neutral-200 bg-syn-color-neutral-50/50">
+      <p class="text-[11px] font-bold text-syn-color-neutral-600 uppercase tracking-wide">Global Registration</p>
+      <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-3">
+        @for (prop of visibleProperties(); track prop.name) {
+          @if (prop.name === 'enable_global_registration' || prop.name === 'global_voxel_size' || prop.name === 'ransac_threshold' || prop.name === 'ransac_iterations') {
+            <div [class.col-span-2]="prop.type === 'boolean'" class="flex flex-col">
+              @if (prop.type === 'number') {
+                <syn-input
+                  [attr.max]="prop.max"
+                  [attr.min]="prop.min"
+                  [formControlName]="prop.name"
+                  [helpText]="prop.help_text || ''"
+                  [label]="prop.label"
+                  [step]="prop.step || 1"
+                  ngDefaultControl
+                  size="small"
+                  type="number"
+                />
+              }
+              @if (prop.type === 'boolean') {
+                <syn-checkbox
+                  (synChangeEvent)="onCheckboxChange(prop.name, $event)"
+                  [checked]="configForm.get(prop.name)?.value"
+                >
+                  <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+                </syn-checkbox>
+                @if (prop.help_text) {
+                  <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
+                }
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- Quality Control & Save Behavior -->
+    <div class="grid grid-cols-2 gap-3">
+      <div class="flex flex-col gap-3 p-3 rounded-lg border border-syn-color-neutral-200 bg-syn-color-neutral-50/50">
+        <p class="text-[11px] font-bold text-syn-color-neutral-600 uppercase tracking-wide">Quality Control</p>
+        <div [formGroup]="configForm" class="flex flex-col gap-3">
+          @for (prop of visibleProperties(); track prop.name) {
+            @if (prop.name === 'min_fitness' || prop.name === 'max_rmse') {
+              <syn-input
+                [attr.max]="prop.max"
+                [attr.min]="prop.min"
+                [formControlName]="prop.name"
+                [helpText]="prop.help_text || ''"
+                [label]="prop.label"
+                [step]="prop.step || 1"
+                ngDefaultControl
+                size="small"
+                type="number"
+              />
+            }
+          }
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-3 p-3 rounded-lg border border-syn-color-neutral-200 bg-syn-color-neutral-50/50">
+        <p class="text-[11px] font-bold text-syn-color-neutral-600 uppercase tracking-wide">Save Behavior</p>
+        <div [formGroup]="configForm" class="flex flex-col gap-3">
+          @for (prop of visibleProperties(); track prop.name) {
+            @if (prop.name === 'auto_save' || prop.name === 'min_fitness_to_save') {
+              @if (prop.type === 'number') {
+                <syn-input
+                  [attr.max]="prop.max"
+                  [attr.min]="prop.min"
+                  [formControlName]="prop.name"
+                  [helpText]="prop.help_text || ''"
+                  [label]="prop.label"
+                  [step]="prop.step || 1"
+                  ngDefaultControl
+                  size="small"
+                  type="number"
+                />
+              }
+              @if (prop.type === 'boolean') {
+                <div class="flex flex-col">
+                  <syn-checkbox
+                    (synChangeEvent)="onCheckboxChange(prop.name, $event)"
+                    [checked]="configForm.get(prop.name)?.value"
+                  >
+                    <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+                  </syn-checkbox>
+                  @if (prop.help_text) {
+                    <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
+                  }
+                </div>
+              }
+            }
+          }
+        </div>
+      </div>
+    </div>
+
   </form>
 </div>

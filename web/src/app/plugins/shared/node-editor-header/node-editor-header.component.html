@@ -1,0 +1,38 @@
+<div
+  class="flex items-center justify-between gap-3 p-3 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
+  [class.mb-2]="description()"
+  [class.mb-4]="!description()"
+>
+  <div class="flex items-center gap-3 min-w-0 flex-1">
+    <div
+      class="w-8 h-8 bg-white rounded-lg shadow-sm border border-syn-color-neutral-200 flex items-center justify-center shrink-0"
+      [ngClass]="iconColor()"
+    >
+      <syn-icon [attr.name]="icon()" class="text-lg"/>
+    </div>
+    <div class="flex items-center gap-2 min-w-0">
+      <h2 class="text-xs font-bold text-syn-color-neutral-900 truncate">{{ title() }}</h2>
+      <ng-content select="syn-badge"/>
+    </div>
+  </div>
+
+  <div class="flex gap-2 shrink-0">
+    <syn-button (click)="cancel.emit()" size="small" variant="outline">
+      <syn-icon name="close"/>
+      Cancel
+    </syn-button>
+    <syn-button
+      (click)="save.emit()"
+      [disabled]="saveDisabled()"
+      size="small"
+      variant="filled"
+    >
+      <syn-icon name="save"/>
+      Save
+    </syn-button>
+  </div>
+</div>
+
+@if (description()) {
+  <p class="text-[11px] text-syn-color-neutral-500 mb-4 px-1">{{ description() }}</p>
+}

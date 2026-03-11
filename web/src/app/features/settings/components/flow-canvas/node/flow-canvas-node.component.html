@@ -1,7 +1,4 @@
 <div
-  [class.border-syn-color-primary-400]="isFusionCategory()"
-  [class.border-syn-color-success-400]="isSensorCategory()"
-  [class.border-syn-color-warning-400]="isOperationCategory()"
   [class.opacity-50]="isDragging()"
   class="bg-white rounded-lg shadow-lg border-2 w-72 hover:shadow-xl transition-all relative"
 >
@@ -31,10 +28,7 @@
   <!-- Node Header -->
   <div class="p-3 flex items-center rounded-t-md">
     <div class="flex items-center gap-2 min-w-0 flex-1">
-      <syn-icon [class.text-syn-color-primary-600]="isFusionCategory()"
-                [class.text-syn-color-success-600]="isSensorCategory()"
-                [class.text-syn-color-warning-600]="isOperationCategory()"
-                [name]="getNodeIcon()"
+      <syn-icon [name]="getNodeIcon()"
                 class="text-xl shrink-0"
       />
       <div [title]="statusBadge().label" class="flex flex-row min-w-0 items-center">
@@ -88,7 +82,7 @@
   <!-- Node Actions -->
   <div class="p-2 border-t border-syn-color-neutral-200 flex items-center gap-1">
     <div class="flex items-center gap-2 flex-1 min-w-0">
-      <syn-switch (syn-change)="onToggleEnabled.emit($any($event.target).checked)"
+      <syn-switch (synChangeEvent)="onToggleEnabled.emit($any($event.target).checked)"
                   [checked]="isNodeEnabled()"
                   [disabled]="isLoading()"
                   class="shrink-0"

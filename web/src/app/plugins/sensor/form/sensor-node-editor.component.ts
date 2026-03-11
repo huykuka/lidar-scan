@@ -7,12 +7,13 @@ import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.ser
 import {NodeEditorFacadeService} from '../../../features/settings/services/node-editor-facade.service';
 import {LidarTypeSelectComponent} from '@plugins/sensor/lidar-type-select/lidar-type-select.component';
 import {NodeEditorComponent} from '@core/models/node-plugin.model';
+import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
 
 @Component({
   selector: 'app-sensor-node-editor',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent],
+  imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './sensor-node-editor.component.html',
   styleUrl: './sensor-node-editor.component.css',

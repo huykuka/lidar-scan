@@ -17,7 +17,6 @@ export interface CanvasNode {
 
 @Component({
   selector: 'app-flow-canvas-node',
-  standalone: true,
   imports: [SynergyComponentsModule, NodeRecordingControls, NodeCalibrationControls],
   templateUrl: './flow-canvas-node.component.html',
   styleUrl: './flow-canvas-node.component.css',
@@ -50,9 +49,6 @@ export class FlowCanvasNodeComponent {
     return this.node().type?.toLowerCase() ?? 'unknown';
   });
   protected isCalibrationNode = computed(() => this.nodeCategory() === 'calibration');
-  protected isSensorCategory = computed(() => this.nodeCategory() === 'sensor');
-  protected isFusionCategory = computed(() => this.nodeCategory() === 'fusion');
-  protected isOperationCategory = computed(() => this.nodeCategory() === 'operation');
   private nodeStore = inject(NodeStoreService);
   protected nodeDefinition = computed(() => {
     return this.nodeStore.nodeDefinitions().find((d) => d.type === this.node().data.type);
