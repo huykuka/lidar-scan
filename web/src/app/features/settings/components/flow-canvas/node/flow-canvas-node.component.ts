@@ -5,6 +5,7 @@ import {
   NodeConfig,
   LidarNodeStatus,
   FusionNodeStatus,
+  PropertySchema,
 } from '../../../../../core/models/node.model';
 import { NodeStoreService } from '../../../../../core/services/stores/node-store.service';
 import { NodeRecordingControls } from './node-recording-controls/node-recording-controls';
@@ -156,6 +157,12 @@ export class FlowCanvasNodeComponent {
     const processValue = (key: string, val: any) => {
       if (val === undefined || val === null || val === '') return;
 
+      // Look up PropertySchema for this key
+      const schema = this.nodeDefinition()?.properties?.find((p) => p.name === key);
+
+      // Skip hidden properties
+      if (schema?.hidden) return;
+
       if (typeof val === 'object' && !Array.isArray(val)) {
         Object.entries(val).forEach(([subKey, subVal]) => {
           processValue(`${key}_${subKey}`, subVal);
@@ -163,35 +170,18 @@ export class FlowCanvasNodeComponent {
         return;
       }
 
-      let displayVal = '';
-      if (Array.isArray(val)) {
-        displayVal = `[${val.map((v) => (typeof v === 'number' ? v.toFixed(1) : v)).join(',')}]`;
-      } else if (typeof val === 'number') {
-        if (key.toLowerCase().includes('port') || Number.isInteger(val)) {
-          displayVal = val.toString();
-        } else {
-          displayVal = val.toFixed(2);
-        }
-      } else {
-        displayVal = String(val);
-      }
+      // Format the display value using schema metadata
+      const displayVal = this.formatValue(val, key, schema);
 
-      if (key === 'pcd_path') {
-        displayVal = displayVal.split('/').pop() || displayVal;
-      }
-      if (key === 'pipeline_name' && displayVal === 'none') return;
+      // Skip if formatValue returns null (e.g., pipeline_name='none')
+      if (displayVal === null) return;
 
-      let label = key.replace(/_/g, ' ');
-      label = label.charAt(0).toUpperCase() + label.slice(1);
+      // Generate label using schema metadata
+      const label = this.generateLabel(key, schema);
 
-      let isBadge = false;
-      let badgeVariant: 'primary' | 'success' | 'neutral' | 'warning' | 'danger' = 'primary';
-
-      if (key === 'mode') {
-        isBadge = true;
-        badgeVariant = val === 'real' ? 'primary' : 'neutral';
-        displayVal = val === 'real' ? 'Hardware' : 'Simulation';
-      }
+      // Determine badge rendering from schema
+      const isBadge = schema?.type === 'select';
+      const badgeVariant = this.getBadgeVariant(val, key);
 
       params.push({ label, value: displayVal, isBadge, badgeVariant });
     };
@@ -201,6 +191,60 @@ export class FlowCanvasNodeComponent {
     });
 
     return params.slice(0, 20);
+  }
+
+  private generateLabel(key: string, schema?: PropertySchema): string {
+    // Use schema label if available
+    if (schema?.label) {
+      return schema.label;
+    }
+
+    // Fallback to transformation
+    let label = key.replace(/_/g, ' ');
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  private formatValue(val: any, key: string, schema?: PropertySchema): string | null {
+    // Use schema options for value-to-label mapping
+    if (schema?.options) {
+      const option = schema.options.find((opt) => opt.value === val);
+      if (option) return option.label;
+    }
+
+    // Format arrays
+    if (Array.isArray(val)) {
+      return `[${val.map((v) => (typeof v === 'number' ? v.toFixed(1) : v)).join(',')}]`;
+    }
+
+    // Format numbers
+    if (typeof val === 'number') {
+      if (key.toLowerCase().includes('port') || Number.isInteger(val)) {
+        return val.toString();
+      } else {
+        return val.toFixed(2);
+      }
+    }
+
+    // Special case: extract filename from path
+    if (key === 'pcd_path') {
+      const displayVal = String(val);
+      return displayVal.split('/').pop() || displayVal;
+    }
+
+    return String(val);
+  }
+
+  private getBadgeVariant(
+    val: any,
+    key: string,
+  ): 'primary' | 'success' | 'neutral' | 'warning' | 'danger' {
+    // Special handling for mode field
+    if (key === 'mode') {
+      return val === 'real' ? 'primary' : 'neutral';
+    }
+
+    // Default badge variant
+    return 'primary';
   }
 
   getFrameAge(): string | null {

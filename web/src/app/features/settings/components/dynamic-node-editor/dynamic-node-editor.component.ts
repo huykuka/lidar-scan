@@ -4,8 +4,7 @@ import {
   computed,
   signal,
   effect,
-  Output,
-  EventEmitter,
+  output,
   CUSTOM_ELEMENTS_SCHEMA,
   OnDestroy,
 } from '@angular/core';
@@ -14,32 +13,27 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angula
 import { Subscription } from 'rxjs';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
-import { NodesApiService } from '../../../../core/services/api/nodes-api.service';
 import { LidarProfilesApiService } from '../../../../core/services/api/lidar-profiles-api';
-import { DialogService } from '../../../../core/services';
-import { ToastService } from '../../../../core/services/toast.service';
-import { NodeConfig, Edge } from '../../../../core/models/node.model';
-import { LidarConfigValidationRequest, LidarProfile } from '../../../../core/models/lidar-profile.model';
-import { EdgesApiService } from '../../../../core/services/api/edges-api.service';
+import { NodeEditorFacadeService } from '../../services/node-editor-facade.service';
+import { LidarTypeSelectComponent } from '../lidar-type-select/lidar-type-select.component';
 
 @Component({
   selector: 'app-dynamic-node-editor',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [CommonModule, ReactiveFormsModule, SynergyComponentsModule],
+  imports: [CommonModule, ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent],
+  providers: [NodeEditorFacadeService],
   templateUrl: './dynamic-node-editor.component.html',
   styleUrl: './dynamic-node-editor.component.css',
 })
 export class DynamicNodeEditorComponent implements OnDestroy {
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
-  private nodesApi = inject(NodesApiService);
-  private edgesApi = inject(EdgesApiService);
   private lidarProfilesApi = inject(LidarProfilesApiService);
-  private dialogService = inject(DialogService);
-  private toast = inject(ToastService);
+  private facade = inject(NodeEditorFacadeService);
 
-  @Output() save = new EventEmitter<any>();
+  save = output<void>();
+  cancel = output<void>();
 
   protected editMode = this.nodeStore.editMode;
   protected isSaving = signal(false);
@@ -49,53 +43,30 @@ export class DynamicNodeEditorComponent implements OnDestroy {
   protected definition = computed(() => {
     const data = this.nodeStore.selectedNode();
     const type = data.type === 'operation' ? (data.config as any)?.op_type : data.type;
-    const def = this.nodeStore.nodeDefinitions().find((d) => d.type === type);
-
-    if (!def && data.type) {
-      console.warn(
-        `DynamicNodeEditor: No definition found for type "${type}" (data.type: ${data.type})`,
-      );
-      console.debug(
-        'Available definitions:',
-        this.nodeStore.nodeDefinitions().map((d) => d.type),
-      );
-    }
-
-    return def;
+    return this.nodeStore.nodeDefinitions().find((d) => d.type === type);
   });
-  
+
   protected visibleProperties = computed(() => {
     const def = this.definition();
     if (!def) return [];
     const vals = this.formValues();
-    return def.properties.filter(prop => {
+    return def.properties.filter((prop) => {
       if (prop.hidden) return false;
       if (prop.depends_on) {
-        return Object.entries(prop.depends_on).every(
-          ([key, allowed]) => (allowed as any[]).includes(vals[key])
+        return Object.entries(prop.depends_on).every(([key, allowed]) =>
+          (allowed as any[]).includes(vals[key]),
         );
       }
       return true;
     });
   });
 
-  // Enhanced LiDAR options with images for the lidar_type dropdown
-  protected lidarOptionsWithImages = computed(() => {
-    const profiles = this.lidarProfilesApi.profiles();
-    return profiles.map((profile: LidarProfile) => ({
-      value: profile.model_id,
-      label: profile.display_name,
-      imageSrc: profile.thumbnail_url
-    }));
-  });
-
   protected form!: FormGroup;
   protected configForm!: FormGroup;
 
   constructor() {
-    // Initialize LiDAR profiles on component creation
     this.lidarProfilesApi.loadProfiles();
-    
+
     effect(() => {
       const def = this.definition();
       if (def) {
@@ -109,16 +80,14 @@ export class DynamicNodeEditorComponent implements OnDestroy {
   }
 
   private initForm() {
-    // Cleanup existing subscription
     this.formValuesSub?.unsubscribe();
-    
+
     const data = this.nodeStore.selectedNode();
     const def = this.definition();
 
     const configGroup: any = {};
     if (def) {
       def.properties.forEach((prop) => {
-        // Support both old nested operation format and new flat format
         const currentConfig = data.config?.['op_config'] ?? data.config;
         const val = currentConfig ? currentConfig[prop.name] : prop.default;
 
@@ -138,9 +107,9 @@ export class DynamicNodeEditorComponent implements OnDestroy {
     }
 
     this.configForm = this.fb.group(configGroup);
-    this.formValuesSub = this.configForm.valueChanges.subscribe(v => this.formValues.set(v));
-    this.formValues.set(this.configForm.getRawValue()); // seed initial state
-    
+    this.formValuesSub = this.configForm.valueChanges.subscribe((v) => this.formValues.set(v));
+    this.formValues.set(this.configForm.getRawValue());
+
     this.form = this.fb.group({
       name: [data.name || def?.display_name || '', [Validators.required]],
     });
@@ -149,124 +118,40 @@ export class DynamicNodeEditorComponent implements OnDestroy {
   async onSave() {
     if (this.form.invalid || this.configForm.invalid) return;
 
-    this.isSaving.set(true);
-    const val = this.form.value;
-    const configRaw = this.configForm.getRawValue();
     const def = this.definition();
-    const data = this.nodeStore.selectedNode();
+    if (!def) return;
 
-    if (!def) {
-      this.toast.danger('No definition found for node type.');
-      this.isSaving.set(false);
-      return;
-    }
+    this.isSaving.set(true);
 
-    // Only validate real-mode sensor nodes
-    if (def.type === 'sensor' && configRaw['mode'] === 'real') {
-      const validationReq: LidarConfigValidationRequest = {
-        lidar_type: configRaw['lidar_type'],
-        hostname: configRaw['hostname'],
-        udp_receiver_ip: configRaw['udp_receiver_ip'] || undefined,
-        port: configRaw['port'] || undefined,
-        imu_udp_port: configRaw['imu_udp_port'] || undefined,
-      };
-      try {
-        const result = await this.nodesApi.validateLidarConfig(validationReq);
-        if (!result.valid) {
-          this.toast.danger(result.errors[0] ?? 'Invalid LiDAR configuration.');
-          this.isSaving.set(false);
-          return;
-        }
-        if (result.warnings.length > 0) {
-          this.toast.warning(result.warnings[0]);
-          // Do not abort save on warnings — proceed.
-        }
-      } catch {
-        // If validation endpoint is unavailable, proceed with save (graceful degradation).
-      }
-    }
-
-    const config: any = { ...configRaw };
-    def.properties.forEach((prop) => {
-      if (prop.type === 'vec3') {
-        config[prop.name] = [
-          Number(configRaw[prop.name][0]),
-          Number(configRaw[prop.name][1]),
-          Number(configRaw[prop.name][2]),
-        ];
-      }
+    const success = await this.facade.saveNode({
+      name: this.form.value.name,
+      config: this.configForm.getRawValue(),
+      definition: def,
+      existingNode: this.nodeStore.selectedNode(),
     });
 
-    // For operation nodes, store op_type at top level of config (flat)
-    // so build_operation in node_registry.py can read config.get('op_type') directly
-    const payload: Partial<NodeConfig> = {
-      id: data.id,
-      name: val.name,
-      type: def.type, // 'crop', 'downsample', 'sensor', 'fusion', etc.
-      category: def.category,
-      enabled: data.enabled ?? true,
-      config:
-        def.category === 'operation'
-          ? { op_type: def.type, ...config } // flat: op_type + all schema props
-          : config,
-      x: data.x ?? 100,
-      y: data.y ?? 100,
-    };
+    this.isSaving.set(false);
 
-    try {
-      await this.nodesApi.upsertNode(payload);
-      // Refresh the store so the canvas shows the new/updated node immediately
-      const [nodes, edges] = await Promise.all([
-        this.nodesApi.getNodes(),
-        this.edgesApi.getEdges(),
-      ]);
-      this.nodeStore.setState({ nodes, edges });
-      this.toast.success(`Node "${val.name}" saved.`);
-      this.save.emit(payload);
-      this.dialogService.close();
-    } catch (error) {
-      console.error('Failed to save node', error);
-      this.toast.danger('Failed to save configuration.');
-    } finally {
-      this.isSaving.set(false);
+    if (success) {
+      this.save.emit();
     }
   }
 
   onCancel() {
-    this.dialogService.close();
+    this.cancel.emit();
   }
 
-  /** syn-select emits 'syn-change', not 'change' — sync value manually */
   onSelectChange(propName: string, event: Event) {
     const value = (event.target as any).value;
     this.configForm.get(propName)?.setValue(value);
   }
 
-  /** syn-checkbox emits 'syn-change', not 'change' — sync checked manually */
   onCheckboxChange(propName: string, event: Event) {
     const checked = (event.target as any).checked;
     this.configForm.get(propName)?.setValue(checked);
   }
 
-  /**
-   * Get the selected LiDAR option with thumbnail for dropdown display
-   */
-  getSelectedLidarOption(propName: string): { value: string; label: string; imageSrc?: string } | null {
-    if (propName !== 'lidar_type') return null;
-    
-    const selectedValue = this.configForm.get(propName)?.value;
-    if (!selectedValue) return null;
-    
-    return this.lidarOptionsWithImages().find(opt => opt.value === selectedValue) || null;
-  }
-
-  /**
-   * Handle thumbnail image loading errors with fallback
-   */
-  handleImageError(event: Event) {
-    const imgElement = event.target as HTMLImageElement;
-    // Hide the image on error to prevent broken image icons
-    imgElement.style.display = 'none';
-    console.warn('Failed to load LiDAR thumbnail:', imgElement.src);
+  onLidarTypeChange(propName: string, value: string) {
+    this.configForm.get(propName)?.setValue(value);
   }
 }

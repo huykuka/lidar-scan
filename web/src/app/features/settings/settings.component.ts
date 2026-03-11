@@ -11,12 +11,10 @@ import { SystemStatusService } from '../../core/services/system-status.service';
 import { ConfigApiService } from '../../core/services/api/config-api.service';
 import { ConfigExport, ConfigValidationResponse } from '../../core/models/config.model';
 import { NodeConfig } from '../../core/models/node.model';
-import { DynamicNodeEditorComponent } from './components/dynamic-node-editor/dynamic-node-editor.component';
 import { ConfigImportDialogComponent } from './components/config-import-dialog/config-import-dialog.component';
 import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.component';
 import { NodeStoreService } from '../../core/services/stores/node-store.service';
 import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
-import { DialogService } from '../../core/services';
 import { ToastService } from '../../core/services/toast.service';
 import { LidarProfilesApiService } from '../../core/services/api/lidar-profiles-api';
 
@@ -45,7 +43,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private configApi = inject(ConfigApiService);
   protected nodeStore = inject(NodeStoreService);
   private recordingStore = inject(RecordingStoreService);
-  private dialogService = inject(DialogService);
   private toast = inject(ToastService);
   protected systemStatus = inject(SystemStatusService);
 
@@ -156,19 +153,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   onAddLidar() {
-    this.nodeStore.set('selectedNode', { type: 'sensor' });
-    this.nodeStore.set('editMode', false);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Add Sensor',
-    });
+    this.flowCanvas.openNodeEditor({ type: 'sensor' });
   }
 
   onEditLidar(lidar: NodeConfig) {
-    this.nodeStore.set('selectedNode', lidar);
-    this.nodeStore.set('editMode', true);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Edit Sensor',
-    });
+    this.flowCanvas.openNodeEditor(lidar, true);
   }
 
   async onDeleteLidar(id?: string) {
@@ -210,19 +199,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   onAddFusion() {
-    this.nodeStore.set('selectedNode', { type: 'fusion' });
-    this.nodeStore.set('editMode', false);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Add Fusion',
-    });
+    this.flowCanvas.openNodeEditor({ type: 'fusion' });
   }
 
   onEditFusion(fusion: NodeConfig) {
-    this.nodeStore.set('selectedNode', fusion);
-    this.nodeStore.set('editMode', true);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Edit Fusion',
-    });
+    this.flowCanvas.openNodeEditor(fusion, true);
   }
 
   async onDeleteFusion(id?: string) {
@@ -265,19 +246,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   onAddOperation() {
-    this.nodeStore.set('selectedNode', { type: 'crop', category: 'operation' });
-    this.nodeStore.set('editMode', false);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Add Operation',
-    });
+    this.flowCanvas.openNodeEditor({ type: 'crop', category: 'operation' });
   }
 
   onEditOperation(node: NodeConfig) {
-    this.nodeStore.set('selectedNode', node);
-    this.nodeStore.set('editMode', true);
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: 'Edit Operation',
-    });
+    this.flowCanvas.openNodeEditor(node, true);
   }
 
   async onDeleteOperation(id?: string) {

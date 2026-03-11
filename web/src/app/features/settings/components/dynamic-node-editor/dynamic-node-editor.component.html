@@ -103,49 +103,26 @@
 
           <!-- Select -->
           @if (prop.type === 'select') {
-            <syn-select
-              size="small"
-              [label]="prop.label"
-              [value]="configForm.get(prop.name)?.value"
-              [helpText]="prop.help_text || ''"
-              (syn-change)="onSelectChange(prop.name, $event)"
-            >
-              <!-- Enhanced LiDAR type dropdown with images -->
-              @if (prop.name === 'lidar_type') {
-                <!-- Selected value display with thumbnail -->
-                @if (getSelectedLidarOption(prop.name); as selectedOption) {
-                  <div slot="prefix" class="flex items-center">
-                    <img 
-                      [src]="selectedOption.imageSrc" 
-                      [alt]="selectedOption.label + ' LiDAR device'"
-                      class="w-5 h-5 rounded-md border border-syn-color-neutral-200 bg-white flex-shrink-0"
-                      style="object-fit: contain; padding: 1px; margin-right: 6px;"
-                      (error)="handleImageError($event)"
-                    />
-                  </div>
-                }
-                
-                @for (opt of lidarOptionsWithImages(); track opt.value) {
-                  <syn-option [value]="opt.value">
-                    <img 
-                      slot="prefix"
-                      [src]="opt.imageSrc" 
-                      [alt]="opt.label + ' LiDAR device'"
-                      class="w-6 h-6 rounded-md border border-syn-color-neutral-200 bg-white flex-shrink-0"
-                      style="object-fit: contain; padding: 2px; margin-right: 8px;"
-                      (error)="handleImageError($event)"
-                    />
-                    {{ opt.label }}
-                  </syn-option>
-                }
-              }
-              <!-- Standard dropdown options for other selects -->
-              @else {
+            @if (prop.name === 'lidar_type') {
+              <app-lidar-type-select
+                [label]="prop.label"
+                [value]="configForm.get(prop.name)?.value"
+                [helpText]="prop.help_text || ''"
+                (valueChange)="onLidarTypeChange(prop.name, $event)"
+              />
+            } @else {
+              <syn-select
+                size="small"
+                [label]="prop.label"
+                [value]="configForm.get(prop.name)?.value"
+                [helpText]="prop.help_text || ''"
+                (syn-change)="onSelectChange(prop.name, $event)"
+              >
                 @for (opt of prop.options; track opt.value) {
                   <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
                 }
-              }
-            </syn-select>
+              </syn-select>
+            }
           }
 
           <!-- Vec3 (X / Y / Z) -->

@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, OnInit, OnDestroy, output, HostListener } from '@angular/core';
+import { Component, inject, signal, computed, effect, untracked, OnInit, OnDestroy, output, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
@@ -6,7 +6,6 @@ import { NodeConfig, Edge } from '../../../../core/models/node.model';
 import { NodesApiService } from '../../../../core/services/api/nodes-api.service';
 import { EdgesApiService } from '../../../../core/services/api/edges-api.service';
 import { ToastService } from '../../../../core/services/toast.service';
-import { DialogService } from '../../../../core/services';
 import { NodePluginRegistry } from '../../../../core/services/node-plugin-registry.service';
 import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
 import { NodePlugin } from '../../../../core/models/node-plugin.model';
@@ -29,6 +28,7 @@ import { StatusWebSocketService } from '../../../../core/services/status-websock
     FlowCanvasPaletteComponent,
     FlowCanvasConnectionsComponent,
     FlowCanvasEmptyStateComponent,
+    DynamicNodeEditorComponent,
   ],
   templateUrl: './flow-canvas.component.html',
   styleUrl: './flow-canvas.component.css',
@@ -38,12 +38,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   private nodesApi = inject(NodesApiService);
   private edgesApi = inject(EdgesApiService);
   private toast = inject(ToastService);
-  private dialogService = inject(DialogService);
   private pluginRegistry = inject(NodePluginRegistry);
   private statusWs = inject(StatusWebSocketService);
 
   // Output for unsaved changes
   hasUnsavedChangesChange = output<boolean>();
+
+  // Drawer state
+  protected drawerOpen = signal(false);
 
   protected nodes = this.nodeStore.nodes;
   protected edges = this.nodeStore.edges;
@@ -100,18 +102,17 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected nodeLoadingStates = signal<Record<string, boolean>>({});
 
   constructor() {
-    // Watch for changes in node store
     effect(() => {
       const nodes = this.nodes();
-      const edges = this.edges();
-
-      // Re-initialize canvas nodes when data changes
-      setTimeout(() => {
-        this.initializeCanvasNodes();
-        this.updateConnections();
-        // Delay slightly so layout engine resolves DOM before removing loader
+      untracked(() => {
+        this.mergeCanvasNodes(nodes);
         setTimeout(() => this.isCanvasLoading.set(false), 50);
-      }, 0);
+      });
+    });
+
+    effect(() => {
+      const edges = this.edges();
+      untracked(() => this.updateConnections());
     });
   }
 
@@ -146,22 +147,38 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
-  private initializeCanvasNodes() {
-    const nodes: CanvasNode[] = [];
+  private mergeCanvasNodes(nodes: NodeConfig[]): void {
+    const existing = new Map(this.canvasNodes().map((n) => [n.id, n]));
+    const incoming = new Set(nodes.map((n) => n.id));
 
-    this.nodes().forEach((node, index) => {
-      nodes.push({
+    const merged: CanvasNode[] = nodes.map((node, index) => {
+      const prev = existing.get(node.id);
+      return {
         id: node.id,
         type: (node.category || node.type || 'unknown').toLowerCase(),
         data: node,
-        position: {
-          x: node.x ?? (100 + (index % 4) * 300),
-          y: node.y ?? (100 + Math.floor(index / 4) * 250),
-        },
-      });
+        position: prev
+          ? prev.position
+          : { x: node.x ?? (100 + (index % 4) * 300), y: node.y ?? (100 + Math.floor(index / 4) * 250) },
+      };
     });
 
-    this.canvasNodes.set(nodes);
+    const prevIds = [...existing.keys()];
+    const structurallyChanged =
+      merged.length !== prevIds.length || prevIds.some((id) => !incoming.has(id));
+
+    if (structurallyChanged) {
+      this.canvasNodes.set(merged);
+      this.updateConnections();
+    } else {
+      const mergedById = new Map(merged.map((m) => [m.id, m]));
+      this.canvasNodes.update((current) =>
+        current.map((n) => {
+          const updated = mergedById.get(n.id);
+          return updated ? { ...n, data: updated.data } : n;
+        }),
+      );
+    }
   }
 
   private updateConnections(): void {
@@ -207,6 +224,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   onCanvasMouseDown(event: MouseEvent) {
     this.selectedCanvasNode.set(null);
+    this.drawerOpen.set(false);
     if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
       this.isPanning.set(true);
       event.preventDefault();
@@ -427,21 +445,15 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
 
     const defaultData = plugin.createInstance();
-    // Store position for new node
     this.nodeStore.set('selectedNode', { ...defaultData, x: position.x, y: position.y });
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: `Add ${plugin.displayName}`,
-    });
+    this.nodeStore.set('editMode', false);
+    this.drawerOpen.set(true);
   }
 
   onEditNode(node: CanvasNode) {
     this.nodeStore.set('selectedNode', node.data);
     this.nodeStore.set('editMode', true);
-    const plugin = this.pluginRegistry.get(node.data.type);
-    const label = plugin?.displayName ?? node.data.name ?? node.data.type;
-    this.dialogService.open(DynamicNodeEditorComponent, {
-      label: `Edit ${label}`,
-    });
+    this.drawerOpen.set(true);
   }
 
   async onDeleteNode(node: CanvasNode) {
@@ -533,5 +545,15 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   resetView() {
     this.panOffset.set({ x: 0, y: 0 });
     this.zoom.set(1);
+  }
+
+  openNodeEditor(node?: Partial<NodeConfig>, editMode = false) {
+    this.nodeStore.set('selectedNode', node ?? {});
+    this.nodeStore.set('editMode', editMode);
+    this.drawerOpen.set(true);
+  }
+
+  onDrawerClose() {
+    this.drawerOpen.set(false);
   }
 }

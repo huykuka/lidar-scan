@@ -82,7 +82,7 @@ async def get_node(node_id: str):
 async def upsert_node(req: NodeCreateUpdate):
     """Create or update a node."""
     repo = NodeRepository()
-    node_id = repo.upsert(req.model_dump())
+    node_id = repo.upsert(req.model_dump(exclude_none=True))
     return {"status": "success", "id": node_id}
 
 
