@@ -7,6 +7,7 @@ import {NavigationService} from '@core/services';
 import {Router} from '@angular/router';
 import {Recording} from '@core/models';
 import {RecordingCardComponent} from './components/recording-card/recording-card.component';
+import {DialogService} from '@core/services/dialog.service';
 
 @Component({
   selector: 'app-recordings',
@@ -18,13 +19,10 @@ import {RecordingCardComponent} from './components/recording-card/recording-card
 export class RecordingsComponent implements OnInit {
   protected searchQuery = signal<string>('');
   protected selectedRecording = signal<Recording | null>(null);
-  protected showDeleteDialog = signal<boolean>(false);
-  protected recordingToDelete = signal<Recording | null>(null);
   protected isDeleting = signal<boolean>(false);
   // Selection state
   protected isSelectionMode = signal<boolean>(false);
   protected selectedRecordingIds = signal<Set<string>>(new Set());
-  protected showBulkDeleteDialog = signal<boolean>(false);
   // Computed
   protected filteredRecordings = computed(() => {
     const query = this.searchQuery().toLowerCase();
@@ -50,6 +48,7 @@ export class RecordingsComponent implements OnInit {
   private recordingApi = inject(RecordingApiService);
   private navService = inject(NavigationService);
   private router = inject(Router);
+  private dialogService = inject(DialogService);
 
   constructor() {
   }
@@ -76,26 +75,21 @@ export class RecordingsComponent implements OnInit {
     this.recordingApi.downloadRecording(recording.id, filename);
   }
 
-  protected confirmDelete(recording: Recording): void {
-    this.recordingToDelete.set(recording);
-    this.showDeleteDialog.set(true);
-  }
+  protected async confirmDelete(recording: Recording): Promise<void> {
+    const confirmed = await this.dialogService.confirm({
+      title: 'Delete Recording',
+      message: `Are you sure you want to delete <strong>${recording.name}</strong>? This action cannot be undone.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
 
-  protected cancelDelete(): void {
-    this.recordingToDelete.set(null);
-    this.showDeleteDialog.set(false);
-  }
-
-  protected async deleteRecording(): Promise<void> {
-    const recording = this.recordingToDelete();
-    if (!recording) return;
+    if (!confirmed) return;
 
     this.isDeleting.set(true);
     try {
       await this.recordingApi.deleteRecording(recording.id).toPromise();
       await this.recordingStore.loadRecordings();
-      this.showDeleteDialog.set(false);
-      this.recordingToDelete.set(null);
     } catch (error) {
       console.error('Failed to delete recording:', error);
     } finally {
@@ -148,20 +142,21 @@ export class RecordingsComponent implements OnInit {
     this.selectedRecordingIds.set(new Set(current));
   }
 
-  protected confirmBulkDelete(): void {
-    if (this.selectedRecordingIds().size > 0) {
-      this.showBulkDeleteDialog.set(true);
-    }
-  }
+  protected async confirmBulkDelete(): Promise<void> {
+    if (this.selectedRecordingIds().size === 0) return;
 
-  protected cancelBulkDelete(): void {
-    this.showBulkDeleteDialog.set(false);
-  }
+    const count = this.selectedRecordingIds().size;
+    const confirmed = await this.dialogService.confirm({
+      title: 'Delete Multiple Recordings',
+      message: `Are you sure you want to delete <strong>${count}</strong> recordings? This action cannot be undone.`,
+      confirmLabel: 'Delete All',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
 
-  protected async bulkDeleteRecordings(): Promise<void> {
+    if (!confirmed) return;
+
     const ids = Array.from(this.selectedRecordingIds());
-    if (ids.length === 0) return;
-
     this.isDeleting.set(true);
     try {
       // A more robust implementation might send an array to a bulk delete endpoint.
@@ -171,7 +166,6 @@ export class RecordingsComponent implements OnInit {
       await this.recordingStore.loadRecordings();
       this.selectedRecordingIds.set(new Set());
       this.isSelectionMode.set(false);
-      this.showBulkDeleteDialog.set(false);
     } catch (error) {
       console.error('Failed to perform bulk deletion:', error);
     } finally {

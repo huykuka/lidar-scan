@@ -1,4 +1,4 @@
-import {NodePlugin} from '../core/models/node-plugin.model';
+import {NodePlugin} from '@core/models';
 
 /**
  * Example: Transform Node Plugin

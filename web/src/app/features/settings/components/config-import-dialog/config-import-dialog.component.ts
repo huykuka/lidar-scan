@@ -5,7 +5,6 @@ import {ConfigValidationResponse} from '@core/models/config.model';
 
 @Component({
   selector: 'app-config-import-dialog',
-  standalone: true,
   imports: [SynergyComponentsModule, NgClass],
   templateUrl: './config-import-dialog.component.html',
 })

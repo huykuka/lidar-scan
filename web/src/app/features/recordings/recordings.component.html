@@ -12,7 +12,7 @@
           size="medium"
           type="search"
         >
-          <syn-icon name="search" slot="prefix" />
+          <syn-icon name="search" slot="prefix"/>
         </syn-input>
 
         <!-- Actions -->
@@ -24,7 +24,7 @@
               size="medium"
               variant="outline"
             >
-              <syn-icon name="done_all" slot="prefix" />
+              <syn-icon name="done_all" slot="prefix"/>
               Select All
             </syn-button>
             <syn-button
@@ -34,7 +34,7 @@
               style="color: var(--syn-color-error-700); border-color: var(--syn-color-error-700)"
               variant="outline"
             >
-              <syn-icon name="delete" slot="prefix" />
+              <syn-icon name="delete" slot="prefix"/>
               Delete ({{ selectedRecordingIds().size }})
             </syn-button>
             <syn-button (click)="toggleSelectionMode()" size="medium" variant="text">
@@ -47,7 +47,7 @@
               size="medium"
               variant="outline"
             >
-              <syn-icon name="checklist" slot="prefix" />
+              <syn-icon name="checklist" slot="prefix"/>
               Select
             </syn-button>
             <syn-button
@@ -56,7 +56,7 @@
               size="medium"
               variant="outline"
             >
-              <syn-icon name="refresh" slot="prefix" />
+              <syn-icon name="refresh" slot="prefix"/>
               Refresh
             </syn-button>
           }
@@ -69,11 +69,11 @@
   <div class="flex-1 overflow-auto bg-white rounded-lg border border-syn-color-neutral-200 p-6">
     @if (isLoading()) {
       <div class="flex items-center justify-center h-64">
-        <syn-spinner />
+        <syn-spinner/>
       </div>
     } @else if (sortedRecordings().length === 0) {
       <div class="flex flex-col items-center justify-center h-64 text-center">
-        <syn-icon class="text-6xl text-syn-color-neutral-400 mb-4" name="video_library" />
+        <syn-icon class="text-6xl text-syn-color-neutral-400 mb-4" name="video_library"/>
         <h3 class="text-lg font-semibold text-syn-color-neutral-700 mb-2">No Recordings Found</h3>
         <p class="text-sm text-syn-color-neutral-600">
           @if (searchQuery()) {
@@ -88,86 +88,17 @@
       <div class="grid gap-6" style="grid-template-columns: repeat(auto-fill, minmax(520px, 1fr))">
         @for (recording of sortedRecordings(); track recording.id; let idx = $index) {
           <app-recording-card (delete)="confirmDelete($event)"
-            (download)="downloadRecording($event)"
-            (play)="loadForPlayback($event)"
-            (select)="selectRecording($event)"
-            (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
-            [priority]="idx < 4"
-            [recording]="recording"
-            [selectable]="isSelectionMode()"
-            [selected]="selectedRecordingIds().has(recording.id)"
-           />
+                              (download)="downloadRecording($event)"
+                              (play)="loadForPlayback($event)"
+                              (select)="selectRecording($event)"
+                              (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
+                              [priority]="idx < 4"
+                              [recording]="recording"
+                              [selectable]="isSelectionMode()"
+                              [selected]="selectedRecordingIds().has(recording.id)"
+          />
         }
       </div>
     }
   </div>
 </div>
-
-<!-- Delete Confirmation Dialog -->
-@if (showDeleteDialog()) {
-  <syn-dialog (syn-request-close)="cancelDelete()" open>
-    <span slot="label">Delete Recording</span>
-
-    <p class="text-sm">
-      Are you sure you want to delete <strong>{{ recordingToDelete()?.name }}</strong
-    >? This action cannot be undone.
-    </p>
-
-    <syn-button (click)="cancelDelete()" [disabled]="isDeleting()" slot="footer" variant="text">
-      Cancel
-    </syn-button>
-    <syn-button
-      (click)="deleteRecording()"
-      [disabled]="isDeleting()"
-      slot="footer"
-      style="
-        color: var(--syn-color-error-700);
-        border-color: var(--syn-color-error-700);
-        font-size: var(--syn-font-size-x-large);
-      "
-      variant="outline"
-    >
-      @if (isDeleting()) {
-        <syn-spinner size="small" slot="prefix" />
-      }
-      Delete
-    </syn-button>
-  </syn-dialog>
-}
-
-<!-- Bulk Delete Confirmation Dialog -->
-@if (showBulkDeleteDialog()) {
-  <syn-dialog (syn-request-close)="cancelBulkDelete()" open>
-    <span slot="label">Delete Multiple Recordings</span>
-
-    <p class="text-sm">
-      Are you sure you want to delete <strong>{{ selectedRecordingIds().size }}</strong> recordings?
-      This action cannot be undone.
-    </p>
-
-    <syn-button (click)="cancelBulkDelete()" [disabled]="isDeleting()" slot="footer" variant="text">
-      Cancel
-    </syn-button>
-    <syn-button
-      (click)="bulkDeleteRecordings()"
-      [disabled]="isDeleting()"
-      slot="footer"
-      style="
-        color: var(--syn-color-error-700);
-        border-color: var(--syn-color-error-700);
-        font-size: var(--syn-font-size-x-large);
-      "
-      variant="outline"
-    >
-      @if (isDeleting()) {
-        <syn-spinner size="small" slot="prefix" />
-      }
-      Delete All
-    </syn-button>
-  </syn-dialog>
-}
-
-<!-- Details Panel (Future Enhancement) -->
-@if (selectedRecording()) {
-  <!-- Could add a detailed side panel or modal here -->
-}

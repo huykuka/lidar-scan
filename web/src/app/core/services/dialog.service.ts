@@ -28,16 +28,15 @@ export class DialogService {
       const dialog = document.createElement('syn-dialog') as any;
       dialog.setAttribute('label', title);
 
-      const btnVariant = variant === 'danger' ? 'filled' : 'outline';
-      const btnClass =
-        variant === 'danger' ? 'bg-red-600 hover:bg-red-700 text-white border-red-600' : '';
+      const confirmStyle =
+        variant === 'danger'
+          ? 'color: var(--syn-color-error-700); border-color: var(--syn-color-error-700); font-size: var(--syn-font-size-x-large);'
+          : '';
 
       dialog.innerHTML = `
-        <p class="text-sm text-neutral-700 dark:text-neutral-300">${this.escapeHtml(message)}</p>
-        <div slot="footer" class="flex justify-end gap-2">
-          <syn-button id="dlg-cancel" variant="outline">${this.escapeHtml(cancelLabel)}</syn-button>
-          <syn-button id="dlg-confirm" variant="${btnVariant}" class="${btnClass}">${this.escapeHtml(confirmLabel)}</syn-button>
-        </div>
+        <p class="text-sm">${this.escapeHtml(message)}</p>
+        <syn-button id="dlg-cancel" slot="footer" variant="text">${this.escapeHtml(cancelLabel)}</syn-button>
+        <syn-button id="dlg-confirm" slot="footer" variant="outline" style="${confirmStyle}">${this.escapeHtml(confirmLabel)}</syn-button>
       `;
 
       let settled = false;

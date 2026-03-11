@@ -37,20 +37,16 @@ export class WorkspaceControlsComponent {
 
     // Reset the dropdown to empty state
     this.selectedNewTopic = '';
-
-    // TODO: The 'emit' function requires a mandatory void argument
     this.actionTaken.emit();
   }
 
   protected removeTopic(topic: string) {
     this.store.removeTopic(topic);
-    // TODO: The 'emit' function requires a mandatory void argument
     this.actionTaken.emit();
   }
 
   protected toggleTopicEnabled(topic: string) {
     this.store.toggleTopicEnabled(topic);
-    // TODO: The 'emit' function requires a mandatory void argument
     this.actionTaken.emit();
   }
 
@@ -65,7 +61,6 @@ export class WorkspaceControlsComponent {
     if (event.target.value) {
       this.store.addTopic(event.target.value);
     }
-    // TODO: The 'emit' function requires a mandatory void argument
     this.actionTaken.emit();
   }
 
@@ -73,7 +68,6 @@ export class WorkspaceControlsComponent {
     if (topic) {
       this.topicApi.downloadPcd(topic);
     }
-    // TODO: The 'emit' function requires a mandatory void argument
     this.actionTaken.emit();
   }
 
