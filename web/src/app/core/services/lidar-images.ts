@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import {Injectable} from '@angular/core';
 
 interface LidarImageMapping {
   [key: string]: string;
@@ -47,7 +47,7 @@ export class LidarImagesService {
    * @param mappings - Object containing model_id to image path mappings
    */
   updateImageMappings(mappings: LidarImageMapping): void {
-    this.lidarImageMap = { ...this.lidarImageMap, ...mappings };
+    this.lidarImageMap = {...this.lidarImageMap, ...mappings};
   }
 
   /**
@@ -55,6 +55,6 @@ export class LidarImagesService {
    * Useful for debugging or configuration purposes
    */
   getAllImageMappings(): LidarImageMapping {
-    return { ...this.lidarImageMap };
+    return {...this.lidarImageMap};
   }
 }

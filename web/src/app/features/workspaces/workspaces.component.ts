@@ -1,25 +1,31 @@
 import {
-  Component,
-  OnInit,
-  OnDestroy,
   AfterViewInit,
-  inject,
-  ViewChild,
   ChangeDetectorRef,
+  Component,
   effect,
+  inject,
+  OnDestroy,
+  OnInit,
+  ViewChild,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NavigationService } from '../../core/services/navigation.service';
-import { MultiWebsocketService } from '../../core/services/multi-websocket.service';
-import { TopicApiService } from '../../core/services/api/topic-api.service';
-import { WorkspaceStoreService } from '../../core/services/stores/workspace-store.service';
-import { PointCloudComponent } from './components/point-cloud/point-cloud.component';
-import { WorkspaceTelemetryComponent } from './components/workspace-telemetry/workspace-telemetry.component';
-import { WorkspaceControlsComponent } from './components/workspace-controls/workspace-controls.component';
-import { WorkspaceViewControlsComponent } from './components/workspace-view-controls/workspace-view-controls.component';
-import { Subscription } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import {CommonModule} from '@angular/common';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {NavigationService} from '@core/services/navigation.service';
+import {MultiWebsocketService} from '@core/services/multi-websocket.service';
+import {TopicApiService} from '@core/services/api/topic-api.service';
+import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
+import {PointCloudComponent} from '@features/workspaces/components/point-cloud/point-cloud.component';
+import {
+  WorkspaceTelemetryComponent
+} from '@features/workspaces/components/workspace-telemetry/workspace-telemetry.component';
+import {
+  WorkspaceControlsComponent
+} from '@features/workspaces/components/workspace-controls/workspace-controls.component';
+import {
+  WorkspaceViewControlsComponent
+} from '@features/workspaces/components/workspace-view-controls/workspace-view-controls.component';
+import {Subscription} from 'rxjs';
+import {environment} from '@env/environment';
 
 @Component({
   selector: 'app-workspaces',
@@ -42,14 +48,12 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   private wsService = inject(MultiWebsocketService);
   private topicApi = inject(TopicApiService);
   private workspaceStore = inject(WorkspaceStoreService);
-  private cdr = inject(ChangeDetectorRef);
-
   protected pointSize = this.workspaceStore.pointSize;
   protected showCockpit = this.workspaceStore.showCockpit;
   protected showGrid = this.workspaceStore.showGrid;
   protected showAxes = this.workspaceStore.showAxes;
   protected backgroundColor = this.workspaceStore.backgroundColor;
-
+  private cdr = inject(ChangeDetectorRef);
   private wsSubscriptions = new Map<string, Subscription>();
   private frameCountPerTopic = new Map<string, number>();
   private fpsUpdateInterval?: any;
@@ -103,6 +107,57 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  protected resetCamera() {
+    this.pointCloud?.resetCamera();
+  }
+
+  protected setTopView() {
+    this.pointCloud?.setTopView();
+  }
+
+  protected setFrontView() {
+    this.pointCloud?.setFrontView();
+  }
+
+  protected setSideView() {
+    this.pointCloud?.setSideView();
+  }
+
+  protected setIsometricView() {
+    this.pointCloud?.setIsometricView();
+  }
+
+  protected fitToPoints() {
+    this.pointCloud?.fitToPoints();
+  }
+
+  protected captureScreenshot() {
+    const topic = this.workspaceStore.currentTopic();
+    const safeTopic = (topic || 'workspace').replace(/[^A-Za-z0-9_-]+/g, '_');
+    this.pointCloud?.capturePng(`${safeTopic}.png`);
+  }
+
+  protected clearPoints() {
+    this.pointCloud?.clear();
+    this.workspaceStore.set('pointCount', 0);
+  }
+
+  protected toggleGrid() {
+    this.workspaceStore.set('showGrid', !this.showGrid());
+  }
+
+  protected toggleAxes() {
+    this.workspaceStore.set('showAxes', !this.showAxes());
+  }
+
+  protected toggleCockpit() {
+    this.workspaceStore.set('showCockpit', !this.showCockpit());
+  }
+
+  protected closeCockpit() {
+    this.workspaceStore.set('showCockpit', false);
+  }
+
   private async initWorkspace() {
     const topics = await this.topicApi.getTopics();
     this.workspaceStore.set('topics', topics);
@@ -141,7 +196,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     // Connect to newly enabled topics and update colors
-    enabledTopics.forEach(({ topic, color }) => {
+    enabledTopics.forEach(({topic, color}) => {
       this.pointCloud?.addOrUpdatePointCloud(topic, color);
       if (!this.wsSubscriptions.has(topic)) {
         this.connectToTopic(topic);
@@ -151,7 +206,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     // Safety: Remove point clouds for disabled topics that are still in selectedTopics
     selectedTopics
       .filter((t) => !t.enabled)
-      .forEach(({ topic }) => {
+      .forEach(({topic}) => {
         this.pointCloud?.removePointCloud(topic);
       });
 
@@ -247,56 +302,5 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     if (payload.data && Array.isArray(payload.data)) return payload.data;
     if (payload.data?.points && Array.isArray(payload.data.points)) return payload.data.points;
     return null;
-  }
-
-  protected resetCamera() {
-    this.pointCloud?.resetCamera();
-  }
-
-  protected setTopView() {
-    this.pointCloud?.setTopView();
-  }
-
-  protected setFrontView() {
-    this.pointCloud?.setFrontView();
-  }
-
-  protected setSideView() {
-    this.pointCloud?.setSideView();
-  }
-
-  protected setIsometricView() {
-    this.pointCloud?.setIsometricView();
-  }
-
-  protected fitToPoints() {
-    this.pointCloud?.fitToPoints();
-  }
-
-  protected captureScreenshot() {
-    const topic = this.workspaceStore.currentTopic();
-    const safeTopic = (topic || 'workspace').replace(/[^A-Za-z0-9_-]+/g, '_');
-    this.pointCloud?.capturePng(`${safeTopic}.png`);
-  }
-
-  protected clearPoints() {
-    this.pointCloud?.clear();
-    this.workspaceStore.set('pointCount', 0);
-  }
-
-  protected toggleGrid() {
-    this.workspaceStore.set('showGrid', !this.showGrid());
-  }
-
-  protected toggleAxes() {
-    this.workspaceStore.set('showAxes', !this.showAxes());
-  }
-
-  protected toggleCockpit() {
-    this.workspaceStore.set('showCockpit', !this.showCockpit());
-  }
-
-  protected closeCockpit() {
-    this.workspaceStore.set('showCockpit', false);
   }
 }

@@ -1,9 +1,9 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { firstValueFrom } from 'rxjs';
-import { NodeConfig, NodesStatusResponse, NodeDefinition } from '../../models/node.model';
-import { LidarConfigValidationRequest, LidarConfigValidationResponse } from '../../models/lidar-profile.model';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {firstValueFrom} from 'rxjs';
+import {NodeConfig, NodeDefinition, NodesStatusResponse} from '../../models/node.model';
+import {LidarConfigValidationRequest, LidarConfigValidationResponse} from '../../models/lidar-profile.model';
 
 @Injectable({
   providedIn: 'root',
@@ -27,7 +27,7 @@ export class NodesApiService {
 
   async setNodeEnabled(id: string, enabled: boolean): Promise<any> {
     return await firstValueFrom(
-      this.http.put(`${environment.apiUrl}/nodes/${id}/enabled`, { enabled }),
+      this.http.put(`${environment.apiUrl}/nodes/${id}/enabled`, {enabled}),
     );
   }
 
@@ -65,12 +65,12 @@ export class NodesApiService {
     } catch (error) {
       // Fallback to permissive mock if backend validation unavailable
       console.warn('LiDAR validation endpoint unavailable, using fallback validation');
-      return { 
-        valid: true, 
-        lidar_type: request.lidar_type, 
-        resolved_launch_file: null, 
-        errors: [], 
-        warnings: ['Validation endpoint unavailable - config not verified'] 
+      return {
+        valid: true,
+        lidar_type: request.lidar_type,
+        resolved_launch_file: null,
+        errors: [],
+        warnings: ['Validation endpoint unavailable - config not verified']
       };
     }
   }

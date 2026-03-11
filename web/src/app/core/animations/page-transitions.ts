@@ -1,8 +1,8 @@
-import { trigger, transition, style, query, animate, group } from '@angular/animations';
+import {animate, group, query, style, transition, trigger} from '@angular/animations';
 
 export const pageTransition = trigger('routeAnimations', [
   transition('* <=> *', [
-    style({ position: 'relative', overflow: 'hidden' }),
+    style({position: 'relative', overflow: 'hidden'}),
     query(
       ':enter, :leave',
       [
@@ -15,7 +15,7 @@ export const pageTransition = trigger('routeAnimations', [
           opacity: 0,
         }),
       ],
-      { optional: true },
+      {optional: true},
     ),
     query(
       ':enter',
@@ -25,7 +25,7 @@ export const pageTransition = trigger('routeAnimations', [
           transform: 'scale(0.95)',
         }),
       ],
-      { optional: true },
+      {optional: true},
     ),
     group([
       query(
@@ -39,7 +39,7 @@ export const pageTransition = trigger('routeAnimations', [
             }),
           ),
         ],
-        { optional: true },
+        {optional: true},
       ),
       query(
         ':enter',
@@ -52,7 +52,7 @@ export const pageTransition = trigger('routeAnimations', [
             }),
           ),
         ],
-        { optional: true },
+        {optional: true},
       ),
     ]),
   ]),

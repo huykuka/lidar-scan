@@ -1,11 +1,11 @@
-import { Component, input, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {Component, input, output} from '@angular/core';
+
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs-toolbar',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule],
   template: `
     <div class="bg-white p-3 flex items-center justify-between gap-4 transition-all duration-300">
       <!-- Left: Search & Filter Group -->

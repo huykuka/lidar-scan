@@ -1,12 +1,12 @@
-import { Component, input, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { LogEntry } from '../../../core/models/log.model';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {Component, input, output} from '@angular/core';
+
+import {LogEntry} from '../../../core/models/log.model';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs-detail',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule],
   template: `
     @if (entry()) {
       <div

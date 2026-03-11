@@ -1,36 +1,36 @@
 <syn-side-nav
   #sideNav
-  noFocusTrapping
-  [open]="open()"
-  variant="default"
-  (synShowEvent)="onShow.emit()"
   (synHideEvent)="onHide.emit()"
+  (synShowEvent)="onShow.emit()"
+  [open]="open()"
+  noFocusTrapping
+  variant="default"
 >
-  <ng-container *ngFor="let item of mainNavItems">
+  @for (item of mainNavItems; track item) {
     <syn-nav-item
-      [routerLink]="[item.route]"
-      routerLinkActive="current"
       #rla="routerLinkActive"
+      [attr.divider]="item.divider ? '' : null"
       [current]="rla.isActive"
       [routerLinkActiveOptions]="{ exact: true }"
-      [attr.divider]="item.divider ? '' : null"
-    >
-      <syn-icon [name]="item.icon" slot="prefix"></syn-icon>
-      {{ item.label }}
-    </syn-nav-item>
-  </ng-container>
-
-  <ng-container *ngFor="let item of footerNavItems">
-    <syn-nav-item
-      slot="footer"
       [routerLink]="[item.route]"
       routerLinkActive="current"
-      #rlaFooter="routerLinkActive"
-      [current]="rlaFooter.isActive"
-      [attr.divider]="item.divider ? '' : null"
     >
       <syn-icon [name]="item.icon" slot="prefix"></syn-icon>
       {{ item.label }}
     </syn-nav-item>
-  </ng-container>
+  }
+
+  @for (item of footerNavItems; track item) {
+    <syn-nav-item
+      #rlaFooter="routerLinkActive"
+      [attr.divider]="item.divider ? '' : null"
+      [current]="rlaFooter.isActive"
+      [routerLink]="[item.route]"
+      routerLinkActive="current"
+      slot="footer"
+    >
+      <syn-icon [name]="item.icon" slot="prefix"></syn-icon>
+      {{ item.label }}
+    </syn-nav-item>
+  }
 </syn-side-nav>

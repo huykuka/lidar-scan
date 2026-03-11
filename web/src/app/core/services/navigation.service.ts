@@ -1,5 +1,5 @@
-import { Injectable, inject, signal, TemplateRef } from '@angular/core';
-import { Title } from '@angular/platform-browser';
+import {inject, Injectable, signal} from '@angular/core';
+import {Title} from '@angular/platform-browser';
 
 export interface PageConfig {
   title: string;
@@ -13,11 +13,10 @@ export interface PageConfig {
 export class NavigationService {
   private titleService = inject(Title);
   private readonly _headline = signal('Start');
-  private readonly _subtitle = signal<string | null>(null);
-  private readonly _showActionsSlot = signal(false);
-  
   readonly headline = this._headline.asReadonly();
+  private readonly _subtitle = signal<string | null>(null);
   readonly subtitle = this._subtitle.asReadonly();
+  private readonly _showActionsSlot = signal(false);
   readonly showActionsSlot = this._showActionsSlot.asReadonly();
 
   setHeadline(title: string) {

@@ -1,6 +1,6 @@
-import { ErrorHandler, Injectable, inject } from '@angular/core';
-import { ToastService } from '../services/toast.service';
-import { SystemStatusService } from '../services/system-status.service';
+import {ErrorHandler, inject, Injectable} from '@angular/core';
+import {ToastService} from '@core/services';
+import {SystemStatusService} from '../services/system-status.service';
 
 @Injectable()
 export class GlobalErrorHandler implements ErrorHandler {

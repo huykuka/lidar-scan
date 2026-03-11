@@ -1,23 +1,15 @@
-import {
-  Component,
-  ElementRef,
-  OnInit,
-  OnDestroy,
-  AfterViewInit,
-  ViewChild,
-  input,
-  effect,
-} from '@angular/core';
+import {AfterViewInit, Component, effect, ElementRef, input, OnDestroy, OnInit, ViewChild,} from '@angular/core';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 
 @Component({
   selector: 'app-point-cloud',
   standalone: true,
-  template: `<div
-    #container
-    class="w-full h-full min-h-0 bg-transparent rounded-lg overflow-hidden"
-  ></div>`,
+  template: `
+    <div
+      #container
+      class="w-full h-full min-h-0 bg-transparent rounded-lg overflow-hidden"
+    ></div>`,
   styles: [
     `
       :host {
@@ -29,7 +21,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   ],
 })
 export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
-  @ViewChild('container', { static: true }) containerRef!: ElementRef<HTMLDivElement>;
+  @ViewChild('container', {static: true}) containerRef!: ElementRef<HTMLDivElement>;
 
   // Inputs for customization
   pointSize = input<number>(0.1);
@@ -68,7 +60,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     effect(() => {
       // Update point size for all clouds
       const size = this.pointSize();
-      this.pointClouds.forEach(({ material }) => {
+      this.pointClouds.forEach(({material}) => {
         material.size = size;
       });
     });
@@ -97,7 +89,8 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  ngOnInit() {}
+  ngOnInit() {
+  }
 
   ngAfterViewInit() {
     this.initThree();
@@ -112,79 +105,12 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       cancelAnimationFrame(this.animationId);
     }
     // Dispose all point clouds
-    this.pointClouds.forEach(({ geometry, material }) => {
+    this.pointClouds.forEach(({geometry, material}) => {
       geometry.dispose();
       material.dispose();
     });
     this.pointClouds.clear();
     this.renderer.dispose();
-  }
-
-  private syncSize() {
-    const container = this.containerRef.nativeElement;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w > 0 && h > 0) {
-      this.camera.aspect = w / h;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(w, h);
-    }
-  }
-
-  private initThree() {
-    const container = this.containerRef.nativeElement;
-
-    // Scene
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(this.backgroundColor());
-
-    // Camera
-    this.camera = new THREE.PerspectiveCamera(
-      50,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      1000,
-    );
-    this.camera.position.set(15, 15, 15);
-    this.camera.lookAt(0, 0, 0);
-
-    // Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    container.appendChild(this.renderer.domElement);
-
-    // Controls
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.target.set(0, 0, 0);
-
-    // Grid & Axes
-    this.rebuildGrid();
-
-    this.axesHelper = new THREE.AxesHelper(5);
-    this.axesHelper.visible = !!this.showAxes();
-    this.scene.add(this.axesHelper);
-
-    // Axis Labels
-    const axisX = this.createTextSprite('Y', '#ff0000');
-    axisX.position.set(5.5, 0, 0);
-    axisX.visible = !!this.showAxes();
-
-    const axisY = this.createTextSprite('Z', '#00ff00');
-    axisY.position.set(0, 5.5, 0);
-    axisY.visible = !!this.showAxes();
-
-    const axisZ = this.createTextSprite('X', '#0000ff');
-    axisZ.position.set(0, 0, 5.5);
-    axisZ.visible = !!this.showAxes();
-
-    this.axesLabels = [axisX, axisY, axisZ];
-    this.scene.add(...this.axesLabels);
-
-    // Resize observer
-    const resizeObserver = new ResizeObserver(() => this.syncSize());
-    resizeObserver.observe(container);
   }
 
   /**
@@ -283,7 +209,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   getTotalPointCount(): number {
     let total = 0;
-    this.pointClouds.forEach(({ lastCount }) => {
+    this.pointClouds.forEach(({lastCount}) => {
       total += lastCount;
     });
     return total;
@@ -347,7 +273,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       maxZ = -Infinity;
 
     // Calculate bounding box across all point clouds
-    this.pointClouds.forEach(({ geometry, lastCount }) => {
+    this.pointClouds.forEach(({geometry, lastCount}) => {
       if (lastCount <= 0) return;
 
       const attr = geometry.getAttribute('position') as THREE.BufferAttribute;
@@ -399,6 +325,73 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     this.pointClouds.forEach((cloud, topic) => {
       this.updatePointsForTopic(topic, new Float32Array(0), 0);
     });
+  }
+
+  private syncSize() {
+    const container = this.containerRef.nativeElement;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    if (w > 0 && h > 0) {
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(w, h);
+    }
+  }
+
+  private initThree() {
+    const container = this.containerRef.nativeElement;
+
+    // Scene
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(this.backgroundColor());
+
+    // Camera
+    this.camera = new THREE.PerspectiveCamera(
+      50,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      1000,
+    );
+    this.camera.position.set(15, 15, 15);
+    this.camera.lookAt(0, 0, 0);
+
+    // Renderer
+    this.renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
+    this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(this.renderer.domElement);
+
+    // Controls
+    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.enableDamping = true;
+    this.controls.target.set(0, 0, 0);
+
+    // Grid & Axes
+    this.rebuildGrid();
+
+    this.axesHelper = new THREE.AxesHelper(5);
+    this.axesHelper.visible = !!this.showAxes();
+    this.scene.add(this.axesHelper);
+
+    // Axis Labels
+    const axisX = this.createTextSprite('Y', '#ff0000');
+    axisX.position.set(5.5, 0, 0);
+    axisX.visible = !!this.showAxes();
+
+    const axisY = this.createTextSprite('Z', '#00ff00');
+    axisY.position.set(0, 5.5, 0);
+    axisY.visible = !!this.showAxes();
+
+    const axisZ = this.createTextSprite('X', '#0000ff');
+    axisZ.position.set(0, 0, 5.5);
+    axisZ.visible = !!this.showAxes();
+
+    this.axesLabels = [axisX, axisY, axisZ];
+    this.scene.add(...this.axesLabels);
+
+    // Resize observer
+    const resizeObserver = new ResizeObserver(() => this.syncSize());
+    resizeObserver.observe(container);
   }
 
   private animate() {

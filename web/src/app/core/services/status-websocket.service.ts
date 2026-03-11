@@ -1,20 +1,19 @@
-import { Injectable, signal } from '@angular/core';
-import { environment } from '../../../environments/environment';
-import { NodesStatusResponse } from '../models/node.model';
+import {Injectable, signal} from '@angular/core';
+import {environment} from '../../../environments/environment';
+import {NodesStatusResponse} from '../models/node.model';
 
 @Injectable({
   providedIn: 'root',
 })
 export class StatusWebSocketService {
+  // Signal to expose status updates
+  public status = signal<NodesStatusResponse | null>(null);
+  public connected = signal<boolean>(false);
   private ws: WebSocket | null = null;
   private reconnectTimer: any = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 1000; // 2 seconds
-
-  // Signal to expose status updates
-  public status = signal<NodesStatusResponse | null>(null);
-  public connected = signal<boolean>(false);
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN) {

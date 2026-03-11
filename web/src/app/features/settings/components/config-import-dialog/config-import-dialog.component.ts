@@ -1,7 +1,7 @@
-import { Component, input, output, model } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { ConfigValidationResponse } from '../../../../core/models/config.model';
+import {Component, input, model, output} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {ConfigValidationResponse} from '@core/models/config.model';
 
 @Component({
   selector: 'app-config-import-dialog',
@@ -14,7 +14,7 @@ export class ConfigImportDialogComponent {
   open = input<boolean>(false);
   validationResult = input<ConfigValidationResponse | null>(null);
   isImporting = input<boolean>(false);
-  
+
   // Two-way binding for merge mode
   mergeMode = model<boolean>(false);
 

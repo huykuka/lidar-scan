@@ -1,16 +1,16 @@
-import { Component, signal, ViewChild, AfterViewInit, HostListener, inject } from '@angular/core';
-import { RouterOutlet, ChildrenOutletContexts } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { NavigationService } from '../../core/services/navigation.service';
-import { HeaderComponent } from '../components/header/header.component';
-import { SideNavComponent } from '../components/side-nav/side-nav.component';
-import { FooterComponent } from '../components/footer/footer.component';
-import { pageTransition } from '../../core/animations/page-transitions';
+import {AfterViewInit, Component, HostListener, inject, signal, ViewChild} from '@angular/core';
+import {ChildrenOutletContexts, RouterOutlet} from '@angular/router';
+
+import {NavigationService} from '@core/services';
+import {HeaderComponent} from '../components/header/header.component';
+import {SideNavComponent} from '../components/side-nav/side-nav.component';
+import {FooterComponent} from '../components/footer/footer.component';
+import {pageTransition} from '@core/animations/page-transitions';
 
 @Component({
   selector: 'app-main-layout',
   standalone: true,
-  imports: [RouterOutlet, CommonModule, HeaderComponent, SideNavComponent, FooterComponent],
+  imports: [RouterOutlet, HeaderComponent, SideNavComponent, FooterComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.css',
   animations: [pageTransition],
@@ -18,21 +18,18 @@ import { pageTransition } from '../../core/animations/page-transitions';
 export class MainLayoutComponent implements AfterViewInit {
   @ViewChild('header') header!: HeaderComponent;
   @ViewChild('sideNav') sideNav!: SideNavComponent;
-
+  protected readonly isSideNavOpen = signal(false);
   private navService = inject(NavigationService);
-  private contexts = inject(ChildrenOutletContexts);
-
   protected readonly headline = this.navService.headline;
   protected readonly subtitle = this.navService.subtitle;
   protected readonly showActionsSlot = this.navService.showActionsSlot;
-  protected readonly isSideNavOpen = signal(false);
+  private contexts = inject(ChildrenOutletContexts);
+  private readonly desktopBreakpoint = 1024;
+  private autoCollapsedByResize = false;
 
   getRouteAnimationData() {
     return this.contexts.getContext('primary')?.route?.snapshot?.url.join('/') || 'root';
   }
-
-  private readonly desktopBreakpoint = 1024;
-  private autoCollapsedByResize = false;
 
   ngAfterViewInit() {
     if (this.header && this.sideNav) {

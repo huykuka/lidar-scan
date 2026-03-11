@@ -1,5 +1,5 @@
-import { Injectable, signal } from '@angular/core';
-import { CanvasNode } from './node/flow-canvas-node.component';
+import {Injectable, signal} from '@angular/core';
+import {CanvasNode} from './node/flow-canvas-node.component';
 
 export interface DragPosition {
   x: number;
@@ -9,7 +9,7 @@ export interface DragPosition {
 @Injectable()
 export class FlowCanvasDragService {
   readonly draggingNode = signal<CanvasNode | null>(null);
-  readonly dragOffset = signal<DragPosition>({ x: 0, y: 0 });
+  readonly dragOffset = signal<DragPosition>({x: 0, y: 0});
 
   readonly paletteDragType = signal<string | null>(null);
 
@@ -22,9 +22,18 @@ export class FlowCanvasDragService {
 
   readonly isPanning = signal(false);
 
+  get isActive(): boolean {
+    return (
+      this.draggingNode() !== null ||
+      this.paletteDragType() !== null ||
+      this.pendingConnection() !== null ||
+      this.isPanning()
+    );
+  }
+
   startNodeDrag(node: CanvasNode, offsetX: number, offsetY: number): void {
     this.draggingNode.set(node);
-    this.dragOffset.set({ x: offsetX, y: offsetY });
+    this.dragOffset.set({x: offsetX, y: offsetY});
   }
 
   updateDraggingNode(node: CanvasNode): void {
@@ -34,7 +43,7 @@ export class FlowCanvasDragService {
   endNodeDrag(): { nodeId: string; position: DragPosition } | null {
     const node = this.draggingNode();
     if (!node) return null;
-    const result = { nodeId: node.id, position: { ...node.position } };
+    const result = {nodeId: node.id, position: {...node.position}};
     this.draggingNode.set(null);
     return result;
   }
@@ -52,7 +61,7 @@ export class FlowCanvasDragService {
   }
 
   startConnectionDrag(fromNodeId: string): void {
-    this.pendingConnection.set({ fromNodeId, cursorX: 0, cursorY: 0 });
+    this.pendingConnection.set({fromNodeId, cursorX: 0, cursorY: 0});
   }
 
   updateConnectionPath(path: string): void {
@@ -70,14 +79,5 @@ export class FlowCanvasDragService {
 
   endPan(): void {
     this.isPanning.set(false);
-  }
-
-  get isActive(): boolean {
-    return (
-      this.draggingNode() !== null ||
-      this.paletteDragType() !== null ||
-      this.pendingConnection() !== null ||
-      this.isPanning()
-    );
   }
 }

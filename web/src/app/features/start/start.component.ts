@@ -1,7 +1,7 @@
-import { Component, inject, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { NavigationService } from '../../core/services/navigation.service';
-import { SynIconComponent } from '@synergy-design-system/angular';
+import {Component, inject, OnInit} from '@angular/core';
+import {Router} from '@angular/router';
+import {NavigationService} from '@core/services';
+import {SynIconComponent} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-start',

@@ -1,39 +1,33 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed, effect } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { LogsStoreService } from '../../core/services/stores/logs-store.service';
-import { LogsApiService } from '../../core/services/api/logs-api.service';
-import { LogEntry } from '../../core/models/log.model';
-import { Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import {Component, computed, inject, OnDestroy, OnInit, signal} from '@angular/core';
 
-import { NavigationService } from '../../core/services';
-import { DialogService } from '../../core/services/dialog.service';
-import { LogsToolbarComponent } from './components/logs-toolbar.component';
-import { LogsTableComponent } from './components/logs-table.component';
-import { LogsDetailComponent } from './components/logs-detail.component';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {FormsModule} from '@angular/forms';
+import {LogsStoreService} from '../../core/services/stores/logs-store.service';
+import {LogsApiService} from '../../core/services/api/logs-api.service';
+import {LogEntry} from '../../core/models/log.model';
+import {Subject} from 'rxjs';
+import {takeUntil} from 'rxjs/operators';
+
+import {NavigationService} from '../../core/services';
+import {DialogService} from '../../core/services/dialog.service';
+import {LogsToolbarComponent} from './components/logs-toolbar.component';
+import {LogsTableComponent} from './components/logs-table.component';
+import {LogsDetailComponent} from './components/logs-detail.component';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     LogsToolbarComponent,
     LogsTableComponent,
     LogsDetailComponent,
-    SynergyComponentsModule,
+    SynergyComponentsModule
   ],
   templateUrl: './logs.component.html',
 })
 export class LogsComponent implements OnInit, OnDestroy {
   store = inject(LogsStoreService);
-  private api = inject(LogsApiService);
-  private destroy$ = new Subject<void>();
-  private navService = inject(NavigationService);
-  private dialog = inject(DialogService);
-
   // Signals
   entries = this.store.entries;
   isLoading = this.store.isLoading;
@@ -42,12 +36,10 @@ export class LogsComponent implements OnInit, OnDestroy {
   streamError = this.store.streamError;
   autoScroll = this.store.autoScroll;
   selectedEntry = this.store.selectedEntry;
-
   // UI state
   selectedLevel = signal<string>('');
   searchText = signal<string>('');
   isLoadingMore = signal<boolean>(false);
-
   // Computed
   displayEntries = computed(() => {
     let result = this.entries();
@@ -68,7 +60,6 @@ export class LogsComponent implements OnInit, OnDestroy {
 
     return result;
   });
-
   levelCounts = computed(() => {
     const entries = this.entries();
     const counts: { [key: string]: number } = {};
@@ -77,6 +68,10 @@ export class LogsComponent implements OnInit, OnDestroy {
     });
     return counts;
   });
+  private api = inject(LogsApiService);
+  private destroy$ = new Subject<void>();
+  private navService = inject(NavigationService);
+  private dialog = inject(DialogService);
 
   ngOnInit() {
     this.navService.setPageConfig({
@@ -89,19 +84,6 @@ export class LogsComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
-  }
-
-  private async loadInitialLogs() {
-    try {
-      this.store.setLoading(true);
-      const logs = await this.api.getLogs({ limit: 200 });
-      this.store.setEntries(logs);
-    } catch (error) {
-      this.store.setStreamError('Failed to load logs');
-      console.error('Error loading logs:', error);
-    } finally {
-      this.store.setLoading(false);
-    }
   }
 
   refreshLogs() {
@@ -149,7 +131,7 @@ export class LogsComponent implements OnInit, OnDestroy {
   }
 
   async clearAllLogs() {
-    if (await this.dialog.confirm({ title: 'Clear Logs', message: 'Clear all logs?', confirmLabel: 'Clear all' })) {
+    if (await this.dialog.confirm({title: 'Clear Logs', message: 'Clear all logs?', confirmLabel: 'Clear all'})) {
       this.store.clearEntries();
     }
   }
@@ -216,5 +198,18 @@ export class LogsComponent implements OnInit, OnDestroy {
     setTimeout(() => {
       document.body.removeChild(link);
     }, 100);
+  }
+
+  private async loadInitialLogs() {
+    try {
+      this.store.setLoading(true);
+      const logs = await this.api.getLogs({limit: 200});
+      this.store.setEntries(logs);
+    } catch (error) {
+      this.store.setStreamError('Failed to load logs');
+      console.error('Error loading logs:', error);
+    } finally {
+      this.store.setLoading(false);
+    }
   }
 }

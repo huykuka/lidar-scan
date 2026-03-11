@@ -1,5 +1,5 @@
-import { Injectable } from '@angular/core';
-import { Subject, Observable, Subscription } from 'rxjs';
+import {Injectable} from '@angular/core';
+import {Observable, Subject} from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -28,7 +28,8 @@ export class WebsocketService {
       console.error('WebSocket error:', error);
     };
 
-    this.socket.onclose = () => {};
+    this.socket.onclose = () => {
+    };
   }
 
   disconnect(): void {

@@ -1,5 +1,5 @@
-import { Injectable, effect } from '@angular/core';
-import { SignalsSimpleStoreService } from '../signals-simple-store.service';
+import {effect, Injectable} from '@angular/core';
+import {SignalsSimpleStoreService} from '../signals-simple-store.service';
 
 export interface TopicConfig {
   topic: string;
@@ -57,6 +57,21 @@ const initialState: WorkspaceState = {
   providedIn: 'root',
 })
 export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceState> {
+  // Helper selectors
+  currentTopic = this.select('currentTopic');
+  topics = this.select('topics');
+  selectedTopics = this.select('selectedTopics');
+  isConnected = this.select('isConnected');
+  pointCount = this.select('pointCount');
+  pointSize = this.select('pointSize');
+  pointColor = this.select('pointColor');
+  fps = this.select('fps');
+  lidarTime = this.select('lidarTime');
+  showHud = this.select('showHud');
+  showGrid = this.select('showGrid');
+  showAxes = this.select('showAxes');
+  showCockpit = this.select('showCockpit');
+  backgroundColor = this.select('backgroundColor');
   private readonly STORAGE_KEY = 'lidar_workspace_settings';
 
   constructor() {
@@ -92,22 +107,6 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
     });
   }
 
-  // Helper selectors
-  currentTopic = this.select('currentTopic');
-  topics = this.select('topics');
-  selectedTopics = this.select('selectedTopics');
-  isConnected = this.select('isConnected');
-  pointCount = this.select('pointCount');
-  pointSize = this.select('pointSize');
-  pointColor = this.select('pointColor');
-  fps = this.select('fps');
-  lidarTime = this.select('lidarTime');
-  showHud = this.select('showHud');
-  showGrid = this.select('showGrid');
-  showAxes = this.select('showAxes');
-  showCockpit = this.select('showCockpit');
-  backgroundColor = this.select('backgroundColor');
-
   // Helper methods for managing selected topics
   addTopic(topic: string) {
     const current = this.getValue('selectedTopics');
@@ -134,7 +133,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
     const current = this.getValue('selectedTopics');
     this.set(
       'selectedTopics',
-      current.map((t) => (t.topic === topic ? { ...t, enabled: !t.enabled } : t)),
+      current.map((t) => (t.topic === topic ? {...t, enabled: !t.enabled} : t)),
     );
   }
 
@@ -142,7 +141,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
     const current = this.getValue('selectedTopics');
     this.set(
       'selectedTopics',
-      current.map((t) => (t.topic === topic ? { ...t, color } : t)),
+      current.map((t) => (t.topic === topic ? {...t, color} : t)),
     );
   }
 }

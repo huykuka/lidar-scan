@@ -2,14 +2,14 @@
   <!-- Header -->
   <header class="bg-white border-b border-neutral-300 px-6 py-3">
     <div class="flex items-center gap-6">
-      <syn-button variant="text" size="small" (click)="goBack()">
-        <syn-icon slot="prefix" name="arrow_back"></syn-icon>
+      <syn-button (click)="goBack()" size="small" variant="text">
+        <syn-icon name="arrow_back" slot="prefix"></syn-icon>
         Back
       </syn-button>
 
       @if (calibrationNode()) {
         <div class="flex items-center gap-3">
-          <syn-icon name="tune" class="text-3xl text-primary-600"></syn-icon>
+          <syn-icon class="text-3xl text-primary-600" name="tune"></syn-icon>
           <div>
             <h1 class="text-xl font-semibold text-neutral-900 m-0">{{ calibrationNode()?.name }}</h1>
             <p class="text-xs font-mono text-neutral-600 m-0">{{ nodeId() }}</p>
@@ -29,8 +29,8 @@
       </div>
     } @else if (!calibrationNode()) {
       <!-- Error State -->
-      <syn-alert variant="danger" open>
-        <syn-icon slot="icon" name="error"></syn-icon>
+      <syn-alert open variant="danger">
+        <syn-icon name="error" slot="icon"></syn-icon>
         <strong>Node Not Found</strong>
         <div>Calibration node {{ nodeId() }} does not exist.</div>
       </syn-alert>
@@ -107,7 +107,7 @@
             <syn-card>
               <div class="flex justify-between items-center mb-3">
                 <h2 class="text-base font-semibold text-neutral-900 m-0 flex items-center gap-2">
-                  <syn-icon name="check_circle" class="text-success-600"></syn-icon>
+                  <syn-icon class="text-success-600" name="check_circle"></syn-icon>
                   Pending Results
                 </h2>
                 <syn-badge variant="warning">Needs Review</syn-badge>
@@ -158,35 +158,35 @@
 
               <div class="flex gap-2 mt-4">
                 <syn-button
-                  variant="filled"
                   (click)="acceptCalibration()"
                   [disabled]="isAccepting() || isRejecting()"
+                  variant="filled"
                 >
                   @if (isAccepting()) {
-                    <syn-spinner slot="prefix" size="small"></syn-spinner>
+                    <syn-spinner size="small" slot="prefix"></syn-spinner>
                   } @else {
-                    <syn-icon slot="prefix" name="check"></syn-icon>
+                    <syn-icon name="check" slot="prefix"></syn-icon>
                   }
                   Accept & Apply
                 </syn-button>
 
                 <syn-button
-                  variant="outline"
                   (click)="rejectCalibration()"
                   [disabled]="isAccepting() || isRejecting()"
+                  variant="outline"
                 >
                   @if (isRejecting()) {
-                    <syn-spinner slot="prefix" size="small"></syn-spinner>
+                    <syn-spinner size="small" slot="prefix"></syn-spinner>
                   } @else {
-                    <syn-icon slot="prefix" name="close"></syn-icon>
+                    <syn-icon name="close" slot="prefix"></syn-icon>
                   }
                   Reject
                 </syn-button>
               </div>
             </syn-card>
           } @else {
-            <syn-alert variant="neutral" open>
-              <syn-icon slot="icon" name="info"></syn-icon>
+            <syn-alert open variant="neutral">
+              <syn-icon name="info" slot="icon"></syn-icon>
               <strong>No Pending Results</strong>
               <div>Trigger calibration from the Settings page to see results here.</div>
             </syn-alert>
@@ -201,7 +201,7 @@
 
             @if (calibrationNode()!.buffered_frames.length === 0) {
               <div class="text-center py-12">
-                <syn-icon name="cloud_off" class="text-5xl text-neutral-400 mb-4"></syn-icon>
+                <syn-icon class="text-5xl text-neutral-400 mb-4" name="cloud_off"></syn-icon>
                 <p class="text-neutral-600 mb-1 m-0">No frames buffered yet</p>
                 <p class="text-sm text-neutral-500 m-0">
                   Connect sensors to this calibration node and start the system
@@ -211,7 +211,7 @@
               <div class="flex flex-col gap-2 mt-4">
                 @for (sensorId of calibrationNode()!.buffered_frames; track sensorId) {
                   <div class="flex items-center gap-2 p-2 bg-neutral-50 rounded-lg">
-                    <syn-icon name="sensors" class="text-primary-600"></syn-icon>
+                    <syn-icon class="text-primary-600" name="sensors"></syn-icon>
                     <div class="flex-1 flex flex-col gap-0.5">
                       <span class="text-sm font-medium text-neutral-900">
                         {{ getSensorName(sensorId) }}
@@ -220,8 +220,8 @@
                         {{ sensorId.slice(0, 8) }}
                       </span>
                     </div>
-                    <syn-badge variant="success" size="small">
-                      <syn-icon slot="prefix" name="check_circle"></syn-icon>
+                    <syn-badge size="small" variant="success">
+                      <syn-icon name="check_circle" slot="prefix"></syn-icon>
                       Ready
                     </syn-badge>
                   </div>
@@ -231,7 +231,7 @@
               <syn-divider></syn-divider>
 
               <div class="flex gap-2 p-2 bg-primary-50 rounded-lg mt-4">
-                <syn-icon name="info" class="text-primary-600 flex-shrink-0"></syn-icon>
+                <syn-icon class="text-primary-600 flex-shrink-0" name="info"></syn-icon>
                 <p class="text-sm text-neutral-700 m-0">
                   {{ calibrationNode()!.buffered_frames.length }} sensor(s) have buffered point
                   cloud data. You can trigger calibration from the Settings page.

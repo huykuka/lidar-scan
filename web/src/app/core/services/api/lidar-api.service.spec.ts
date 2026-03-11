@@ -1,9 +1,9 @@
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import {TestBed} from '@angular/core/testing';
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 
-import { LidarApiService } from './lidar-api.service';
-import { LidarStoreService } from '../stores/lidar-store.service';
+import {LidarApiService} from './lidar-api.service';
+import {LidarStoreService} from '../stores/lidar-store.service';
 
 describe('LidarApiService', () => {
   let service: LidarApiService;
@@ -34,14 +34,14 @@ describe('LidarApiService', () => {
         type: 'sensor',
         category: 'Input',
         enabled: true,
-        config: { hostname: '', mode: 'real' },
+        config: {hostname: '', mode: 'real'},
       },
     ]);
 
     const reqPipelines = httpMock.expectOne(
       (r) => r.method === 'GET' && r.url.endsWith('/nodes/pipelines'),
     );
-    reqPipelines.flush({ pipelines: ['none'] });
+    reqPipelines.flush({pipelines: ['none']});
 
     const res = await p;
     expect(res.lidars.length).toBe(1);
@@ -55,8 +55,8 @@ describe('LidarApiService', () => {
       (r) => r.method === 'PUT' && r.url.includes('/nodes/') && r.url.includes('/enabled'),
     );
     expect(req.request.url).toContain('/nodes/');
-    expect(req.request.body).toEqual({ enabled: false });
-    req.flush({ status: 'success' });
+    expect(req.request.body).toEqual({enabled: false});
+    req.flush({status: 'success'});
     await p;
   });
 });

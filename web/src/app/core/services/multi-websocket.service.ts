@@ -1,5 +1,5 @@
-import { Injectable } from '@angular/core';
-import { Subject, Observable } from 'rxjs';
+import {Injectable} from '@angular/core';
+import {Observable, Subject} from 'rxjs';
 
 export interface WebSocketMessage {
   topic: string;
@@ -50,7 +50,7 @@ export class MultiWebsocketService {
       subject.complete();
     };
 
-    this.connections.set(topic, { socket, subject });
+    this.connections.set(topic, {socket, subject});
     return subject.asObservable();
   }
 

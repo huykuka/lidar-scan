@@ -1,8 +1,8 @@
-import { Component, inject, Output, EventEmitter, computed, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { WorkspaceStoreService } from '../../../../core/services/stores/workspace-store.service';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { TopicApiService } from '../../../../core/services/api/topic-api.service';
+import {Component, computed, EventEmitter, inject, Output} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {WorkspaceStoreService} from '@core/services';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {TopicApiService} from '@core/services';
 
 @Component({
   selector: 'app-workspace-controls',
@@ -12,38 +12,34 @@ import { TopicApiService } from '../../../../core/services/api/topic-api.service
   styleUrl: './workspace-controls.component.css',
 })
 export class WorkspaceControlsComponent {
-  private store = inject(WorkspaceStoreService);
-  private topicApi = inject(TopicApiService);
-
-  protected topics = this.store.topics;
-  protected currentTopic = this.store.currentTopic;
-  protected selectedTopics = this.store.selectedTopics;
-  protected isConnected = this.store.isConnected;
-  protected pointSize = this.store.pointSize;
-  protected backgroundColor = this.store.backgroundColor;
-
   @Output() actionTaken = new EventEmitter<void>();
-
   // Track newly selected topic in dropdown
   protected selectedNewTopic = '';
-
   // Computed list of available topics (excluding already selected ones)
   protected availableTopics = computed(() => {
     const all = this.topics();
     const selected = this.selectedTopics().map((t) => t.topic);
     return all.filter((t) => !selected.includes(t));
   });
+  private store = inject(WorkspaceStoreService);
+  protected topics = this.store.topics;
+  protected currentTopic = this.store.currentTopic;
+  protected selectedTopics = this.store.selectedTopics;
+  protected isConnected = this.store.isConnected;
+  protected pointSize = this.store.pointSize;
+  protected backgroundColor = this.store.backgroundColor;
+  private topicApi = inject(TopicApiService);
 
   protected onTopicSelect(event: any) {
     const topic = event.target.value;
     if (!topic) return;
-    
+
     // Immediately add the selected topic
     this.store.addTopic(topic);
-    
+
     // Reset the dropdown to empty state
     this.selectedNewTopic = '';
-    
+
     this.actionTaken.emit();
   }
 

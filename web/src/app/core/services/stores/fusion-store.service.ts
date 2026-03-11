@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
-import { SignalsSimpleStoreService } from '../signals-simple-store.service';
-import { FusionConfig } from '../../models/fusion.model';
+import {Injectable} from '@angular/core';
+import {SignalsSimpleStoreService} from '../signals-simple-store.service';
+import {FusionConfig} from '../../models/fusion.model';
 
 export interface FusionState {
   fusions: FusionConfig[];
@@ -20,13 +20,13 @@ const initialState: FusionState = {
   providedIn: 'root',
 })
 export class FusionStoreService extends SignalsSimpleStoreService<FusionState> {
-  constructor() {
-    super();
-    this.setState(initialState);
-  }
-
   fusions = this.select('fusions');
   isLoading = this.select('isLoading');
   selectedFusion = this.select('selectedFusion');
   editMode = this.select('editMode');
+
+  constructor() {
+    super();
+    this.setState(initialState);
+  }
 }

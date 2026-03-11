@@ -1,8 +1,8 @@
-import { Injectable } from '@angular/core';
-import { SynAlert } from '@synergy-design-system/components';
-import { Subject } from 'rxjs';
-import { debounceTime, share, tap } from 'rxjs/operators';
-import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
+import {Injectable} from '@angular/core';
+import {SynAlert} from '@synergy-design-system/components';
+import {Subject} from 'rxjs';
+import {debounceTime, share, tap} from 'rxjs/operators';
+import {UntilDestroy, untilDestroyed} from '@ngneat/until-destroy';
 
 export interface ToastConfig {
   message: string;
@@ -36,7 +36,7 @@ export class ToastService {
 
   // Convenience methods remain the same
   public primary(message: string, duration: number = 3000): void {
-    this.enqueueToast({ message, variant: 'primary', duration });
+    this.enqueueToast({message, variant: 'primary', duration});
   }
 
   public success(message: string, duration: number = 3000): void {
@@ -49,7 +49,7 @@ export class ToastService {
   }
 
   public neutral(message: string, duration: number = 3000): void {
-    this.enqueueToast({ message, variant: 'neutral', duration });
+    this.enqueueToast({message, variant: 'neutral', duration});
   }
 
   public warning(message: string, duration: number = 3000): void {
@@ -71,7 +71,7 @@ export class ToastService {
   }
 
   private displayToast(config: ToastConfig): void {
-    const { message, variant, duration = 3000 } = config;
+    const {message, variant, duration = 3000} = config;
 
     // Use service method or fallback to a default icon
     const icon = config.icon || 'info';

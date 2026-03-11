@@ -1,9 +1,9 @@
-import { TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
+import {TestBed} from '@angular/core/testing';
+import {By} from '@angular/platform-browser';
 
-import { WorkspaceViewControlsComponent } from './workspace-view-controls.component';
-import { WorkspaceStoreService } from '../../../../core/services/stores/workspace-store.service';
-import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-button.component';
+import {WorkspaceViewControlsComponent} from './workspace-view-controls.component';
+import {WorkspaceStoreService} from '../../../../core/services/stores/workspace-store.service';
+import {WorkspaceViewControlsButtonComponent} from './workspace-view-controls-button.component';
 
 describe('WorkspaceViewControlsComponent', () => {
   let store: WorkspaceStoreService;

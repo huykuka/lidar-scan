@@ -1,8 +1,8 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { firstValueFrom } from 'rxjs';
-import { Edge } from '../../models/node.model';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {firstValueFrom} from 'rxjs';
+import {Edge} from '../../models/node.model';
 
 @Injectable({
   providedIn: 'root',

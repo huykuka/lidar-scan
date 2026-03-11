@@ -1,17 +1,17 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { firstValueFrom } from 'rxjs';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {firstValueFrom} from 'rxjs';
 import {
-  CalibrationTriggerRequest,
-  CalibrationTriggerResponse,
   CalibrationAcceptRequest,
   CalibrationAcceptResponse,
-  CalibrationRejectResponse,
   CalibrationHistoryResponse,
+  CalibrationRejectResponse,
   CalibrationRollbackRequest,
   CalibrationRollbackResponse,
   CalibrationStatistics,
+  CalibrationTriggerRequest,
+  CalibrationTriggerResponse,
 } from '../../models/calibration.model';
 
 @Injectable({

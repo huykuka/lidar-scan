@@ -1,7 +1,7 @@
-import { TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
+import {TestBed} from '@angular/core/testing';
+import {By} from '@angular/platform-browser';
 
-import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-button.component';
+import {WorkspaceViewControlsButtonComponent} from './workspace-view-controls-button.component';
 
 describe('WorkspaceViewControlsButtonComponent', () => {
   it('renders as icon-only button with title', async () => {

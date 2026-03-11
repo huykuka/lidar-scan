@@ -1,138 +1,144 @@
 <div class="workspace-controls">
   <div class="panel">
     <div class="panel__header">
-      <syn-icon name="sensors" class="panel__icon"></syn-icon>
+      <syn-icon class="panel__icon" name="sensors"></syn-icon>
       <h3 class="panel__title">Live Sources</h3>
     </div>
 
     <div class="panel__body">
       <!-- Add New Topic -->
-      <div class="field" *ngIf="availableTopics().length > 0">
-        <label class="field__label">Add Topic</label>
-        <syn-select
-          [value]="selectedNewTopic"
-          (synChangeEvent)="onTopicSelect($event)"
-          placeholder="Select topic to add..."
-          class="w-full"
-        >
-          <syn-option 
-            *ngFor="let topic of availableTopics()" 
-            [value]="topic"
-            [title]="topic"
+      @if (availableTopics().length > 0) {
+        <div class="field">
+          <label class="field__label">Add Topic</label>
+          <syn-select
+            (synChangeEvent)="onTopicSelect($event)"
+            [value]="selectedNewTopic"
+            class="w-full"
+            placeholder="Select topic to add..."
           >
-            {{ topic }}
-          </syn-option>
-        </syn-select>
-      </div>
+            @for (topic of availableTopics(); track topic) {
+              <syn-option
+                [title]="topic"
+                [value]="topic"
+              >
+                {{ topic }}
+              </syn-option>
+            }
+          </syn-select>
+        </div>
+      }
 
       <!-- All Topics Selected Message -->
-      <div
-        class="field"
-        *ngIf="availableTopics().length === 0 && topics().length > 0"
-      >
-        <div class="text-center py-3 px-4 bg-syn-color-success-50 rounded-lg border border-syn-color-success-200">
-          <syn-icon name="check_circle" class="text-syn-color-success-600 text-2xl mb-1"></syn-icon>
-          <p class="text-sm text-syn-color-success-700 font-medium">All available topics are active</p>
-        </div>
-      </div>
-
-      <!-- Selected Topics List -->
-      <div class="field" *ngIf="selectedTopics().length > 0">
-        <label class="field__label">Active Topics ({{ selectedTopics().length }})</label>
-        <div class="flex flex-col gap-2">
-          <div
-            *ngFor="let topicConfig of selectedTopics()"
-            class="flex items-center gap-2 p-2 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
-          >
-            <!-- Color Swatch -->
-            <input
-              type="color"
-              [value]="topicConfig.color"
-              (input)="onTopicColorChange(topicConfig.topic, $event)"
-              class="w-8 h-8 rounded cursor-pointer border-0"
-              title="Click to change color"
-            />
-
-            <!-- Topic Name -->
-            <div class="flex-1 min-w-0" [title]="topicConfig.topic">
-              <div class="text-sm font-medium text-syn-color-neutral-900 truncate">
-                {{ topicConfig.topic }}
-              </div>
-            </div>
-
-            <!-- Capture PCD -->
-            <syn-icon-button
-              name="download"
-              label="Capture PCD"
-              (click)="onCapturePcd(topicConfig.topic)"
-              class="shrink-0"
-              title="Download point cloud as PCD file"
-            ></syn-icon-button>
-
-            <!-- Toggle Enable/Disable -->
-            <syn-icon-button
-              [name]="topicConfig.enabled ? 'visibility' : 'visibility_off'"
-              [label]="topicConfig.enabled ? 'Hide' : 'Show'"
-              (click)="toggleTopicEnabled(topicConfig.topic)"
-              class="shrink-0"
-              [title]="topicConfig.enabled ? 'Hide point cloud' : 'Show point cloud'"
-            ></syn-icon-button>
-
-            <!-- Remove Topic -->
-            <syn-icon-button
-              name="close"
-              label="Remove"
-              (click)="removeTopic(topicConfig.topic)"
-              class="shrink-0"
-              title="Remove topic from workspace"
-            ></syn-icon-button>
+      @if (availableTopics().length === 0 && topics().length > 0) {
+        <div
+          class="field"
+        >
+          <div class="text-center py-3 px-4 bg-syn-color-success-50 rounded-lg border border-syn-color-success-200">
+            <syn-icon class="text-syn-color-success-600 text-2xl mb-1" name="check_circle"></syn-icon>
+            <p class="text-sm text-syn-color-success-700 font-medium">All available topics are active</p>
           </div>
         </div>
-      </div>
+      }
+
+      <!-- Selected Topics List -->
+      @if (selectedTopics().length > 0) {
+        <div class="field">
+          <label class="field__label">Active Topics ({{ selectedTopics().length }})</label>
+          <div class="flex flex-col gap-2">
+            @for (topicConfig of selectedTopics(); track topicConfig) {
+              <div
+                class="flex items-center gap-2 p-2 bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200"
+              >
+                <!-- Color Swatch -->
+                <input
+                  (input)="onTopicColorChange(topicConfig.topic, $event)"
+                  [value]="topicConfig.color"
+                  class="w-8 h-8 rounded cursor-pointer border-0"
+                  title="Click to change color"
+                  type="color"
+                />
+                <!-- Topic Name -->
+                <div [title]="topicConfig.topic" class="flex-1 min-w-0">
+                  <div class="text-sm font-medium text-syn-color-neutral-900 truncate">
+                    {{ topicConfig.topic }}
+                  </div>
+                </div>
+                <!-- Capture PCD -->
+                <syn-icon-button
+                  (click)="onCapturePcd(topicConfig.topic)"
+                  class="shrink-0"
+                  label="Capture PCD"
+                  name="download"
+                  title="Download point cloud as PCD file"
+                ></syn-icon-button>
+                <!-- Toggle Enable/Disable -->
+                <syn-icon-button
+                  (click)="toggleTopicEnabled(topicConfig.topic)"
+                  [label]="topicConfig.enabled ? 'Hide' : 'Show'"
+                  [name]="topicConfig.enabled ? 'visibility' : 'visibility_off'"
+                  [title]="topicConfig.enabled ? 'Hide point cloud' : 'Show point cloud'"
+                  class="shrink-0"
+                ></syn-icon-button>
+                <!-- Remove Topic -->
+                <syn-icon-button
+                  (click)="removeTopic(topicConfig.topic)"
+                  class="shrink-0"
+                  label="Remove"
+                  name="close"
+                  title="Remove topic from workspace"
+                ></syn-icon-button>
+              </div>
+            }
+          </div>
+        </div>
+      }
 
       <!-- Empty State -->
-      <div
-        *ngIf="selectedTopics().length === 0"
-        class="text-center py-6 text-syn-color-neutral-500"
-      >
-        <syn-icon name="info" class="text-4xl mb-2"></syn-icon>
-        <p class="text-sm">No topics selected. Add a topic to start viewing.</p>
-      </div>
+      @if (selectedTopics().length === 0) {
+        <div
+          class="text-center py-6 text-syn-color-neutral-500"
+        >
+          <syn-icon class="text-4xl mb-2" name="info"></syn-icon>
+          <p class="text-sm">No topics selected. Add a topic to start viewing.</p>
+        </div>
+      }
 
       <!-- Legacy Single Topic (for backwards compatibility) -->
-      <div class="field" *ngIf="selectedTopics().length === 0">
-        <label class="field__label">Legacy Single Topic</label>
-        <syn-select
-          [value]="currentTopic()"
-          (synChangeEvent)="onLegacyTopicChange($event)"
-          placeholder="Select topic..."
-          class="w-full"
-        >
-          <syn-option 
-            *ngFor="let topic of topics()" 
-            [value]="topic"
-            [title]="topic"
-          >
-            {{ topic }}
-          </syn-option>
-        </syn-select>
-        
-        <!-- Capture PCD for legacy mode -->
-        <div class="actions mt-3">
-          <syn-button
-            variant="outline"
-            size="small"
+      @if (selectedTopics().length === 0) {
+        <div class="field">
+          <label class="field__label">Legacy Single Topic</label>
+          <syn-select
+            (synChangeEvent)="onLegacyTopicChange($event)"
+            [value]="currentTopic()"
             class="w-full"
-            [disabled]="!currentTopic()"
-            (click)="onCapturePcd(currentTopic())"
+            placeholder="Select topic..."
           >
-            <syn-icon slot="prefix" name="download"></syn-icon>
-            Capture PCD
-          </syn-button>
+            @for (topic of topics(); track topic) {
+              <syn-option
+                [title]="topic"
+                [value]="topic"
+              >
+                {{ topic }}
+              </syn-option>
+            }
+          </syn-select>
+          <!-- Capture PCD for legacy mode -->
+          <div class="actions mt-3">
+            <syn-button
+              (click)="onCapturePcd(currentTopic())"
+              [disabled]="!currentTopic()"
+              class="w-full"
+              size="small"
+              variant="outline"
+            >
+              <syn-icon name="download" slot="prefix"></syn-icon>
+              Capture PCD
+            </syn-button>
+          </div>
         </div>
-      </div>
+      }
 
-      <div class="status" [class.status--ok]="isConnected()" [class.status--bad]="!isConnected()">
+      <div [class.status--bad]="!isConnected()" [class.status--ok]="isConnected()" class="status">
         <div class="status__dot">
           <span class="status__ping"></span>
           <span class="status__core"></span>
@@ -144,7 +150,7 @@
 
   <div class="panel panel--tight">
     <div class="panel__header">
-      <syn-icon name="blur_on" class="panel__icon"></syn-icon>
+      <syn-icon class="panel__icon" name="blur_on"></syn-icon>
       <h3 class="panel__title">Appearance</h3>
     </div>
 
@@ -155,11 +161,11 @@
           <syn-badge pill variant="neutral">{{ pointSize() | number: '1.2-2' }}</syn-badge>
         </div>
         <syn-range
-          [min]="0.01"
+          (synInputEvent)="onPointSizeChange($event)"
           [max]="0.1"
+          [min]="0.01"
           [step]="0.01"
           [value]="pointSize().toString()"
-          (synInputEvent)="onPointSizeChange($event)"
         ></syn-range>
       </div>
 
@@ -169,20 +175,20 @@
         </div>
         <div class="flex items-center gap-3">
           <input
-            type="color"
-            [value]="backgroundColor()"
             (input)="onBackgroundColorChange($event)"
+            [value]="backgroundColor()"
             class="w-10 h-10 rounded cursor-pointer border border-syn-color-neutral-300 p-0.5 bg-transparent"
             title="Scene background color"
+            type="color"
           />
           <span class="text-sm font-mono text-syn-color-neutral-600 uppercase">{{ backgroundColor() }}</span>
           <syn-icon-button
-            name="restart_alt"
-            label="Reset to black"
-            size="small"
             (click)="onBackgroundColorChange({ target: { value: '#000000' } })"
-            title="Reset to black"
             class="ml-auto"
+            label="Reset to black"
+            name="restart_alt"
+            size="small"
+            title="Reset to black"
           ></syn-icon-button>
         </div>
       </div>

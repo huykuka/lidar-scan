@@ -1,19 +1,19 @@
-import { Injectable } from '@angular/core';
-import { NodePlugin, NodeData } from '../models/node-plugin.model';
-import { NodesApiService } from './api/nodes-api.service';
-import { NodeStoreService } from './stores/node-store.service';
-import { NodeDefinition } from '../models/node.model';
+import {Injectable} from '@angular/core';
+import {NodeData, NodePlugin} from '../models/node-plugin.model';
+import {NodesApiService} from './api/nodes-api.service';
+import {NodeStoreService} from './stores/node-store.service';
+import {NodeDefinition} from '../models/node.model';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
 const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
-  sensor: { color: '#10b981', icon: 'sensors' },
-  fusion: { color: '#6366f1', icon: 'hub' },
-  calibration: { color: '#f59e0b', icon: 'tune' },
-  operation: { color: '#64748b', icon: 'settings_input_component' },
+  sensor: {color: '#10b981', icon: 'sensors'},
+  fusion: {color: '#6366f1', icon: 'hub'},
+  calibration: {color: '#f59e0b', icon: 'tune'},
+  operation: {color: '#64748b', icon: 'settings_input_component'},
 };
 
 function definitionToPlugin(def: NodeDefinition): NodePlugin {
-  const style = CATEGORY_STYLE[def.category] ?? { color: '#64748b', icon: 'extension' };
+  const style = CATEGORY_STYLE[def.category] ?? {color: '#64748b', icon: 'extension'};
 
   return {
     type: def.type,
@@ -21,7 +21,7 @@ function definitionToPlugin(def: NodeDefinition): NodePlugin {
     displayName: def.display_name,
     description: def.description ?? '',
     icon: def.icon ?? style.icon,
-    style: { color: style.color },
+    style: {color: style.color},
     ports: {
       inputs:
         def.inputs?.map((p: any) => ({
@@ -44,9 +44,9 @@ function definitionToPlugin(def: NodeDefinition): NodePlugin {
       category: def.category,
       name: def.display_name,
       enabled: true,
-      config: def.category === 'operation' ? { op_type: def.type } : {},
+      config: def.category === 'operation' ? {op_type: def.type} : {},
     }),
-    renderBody: (data: NodeData) => ({ fields: [] }),
+    renderBody: (data: NodeData) => ({fields: []}),
   };
 }
 
@@ -57,14 +57,15 @@ function definitionToPlugin(def: NodeDefinition): NodePlugin {
  * available. Types are loaded from the backend `/nodes/definitions` endpoint
  * and stored in the NodeStore. No local hardcoding of schemas.
  */
-@Injectable({ providedIn: 'root' })
+@Injectable({providedIn: 'root'})
 export class NodePluginRegistry {
   private plugins = new Map<string, NodePlugin>();
 
   constructor(
     private nodesApi: NodesApiService,
     private nodeStore: NodeStoreService,
-  ) {}
+  ) {
+  }
 
   /**
    * Load all node types from the backend and populate the registry.

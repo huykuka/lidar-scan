@@ -1,7 +1,6 @@
-import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { LidarProfilesApiService } from './lidar-profiles-api';
-import { LidarProfile } from '../../models/lidar-profile.model';
+import {TestBed} from '@angular/core/testing';
+import {HttpClientTestingModule, HttpTestingController} from '@angular/common/http/testing';
+import {LidarProfilesApiService} from './lidar-profiles-api';
 
 describe('LidarProfilesApiService', () => {
   let service: LidarProfilesApiService;
@@ -41,24 +40,24 @@ describe('LidarProfilesApiService', () => {
   describe('loadProfiles', () => {
     it('should simulate loading state correctly', async () => {
       const loadingStates: boolean[] = [];
-      
+
       // Track loading state changes
       const loadPromise = service.loadProfiles();
-      
+
       expect(service.isLoading()).toBe(true);
-      
+
       await loadPromise;
-      
+
       expect(service.isLoading()).toBe(false);
     });
 
     it('should populate profiles signal with mock data', async () => {
       await service.loadProfiles();
-      
+
       const profiles = service.profiles();
       expect(profiles).toBeDefined();
       expect(profiles.length).toBe(10); // Number of mock profiles
-      
+
       // Verify structure of first profile
       const firstProfile = profiles[0];
       expect(firstProfile).toEqual(expect.objectContaining({
@@ -78,7 +77,7 @@ describe('LidarProfilesApiService', () => {
       const startTime = Date.now();
       await service.loadProfiles();
       const endTime = Date.now();
-      
+
       // Should take at least 100ms due to mock delay
       expect(endTime - startTime).toBeGreaterThanOrEqual(100);
     });

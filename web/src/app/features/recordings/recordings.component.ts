@@ -1,42 +1,30 @@
-import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { RecordingStoreService } from '../../core/services/stores/recording-store.service';
-import { RecordingApiService } from '../../core/services/api/recording-api.service';
-import { NavigationService } from '../../core/services/navigation.service';
-import { Router } from '@angular/router';
-import { Recording } from '../../core/models/recording.model';
-import { RecordingCardComponent } from './components/recording-card/recording-card.component';
+import {Component, computed, inject, OnInit, signal} from '@angular/core';
+
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {RecordingStoreService} from '../../core/services/stores/recording-store.service';
+import {RecordingApiService} from '../../core/services/api/recording-api.service';
+import {NavigationService} from '../../core/services/navigation.service';
+import {Router} from '@angular/router';
+import {Recording} from '../../core/models/recording.model';
+import {RecordingCardComponent} from './components/recording-card/recording-card.component';
 
 @Component({
   selector: 'app-recordings',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule, RecordingCardComponent],
+  imports: [SynergyComponentsModule, RecordingCardComponent],
   templateUrl: './recordings.component.html',
   styleUrl: './recordings.component.css',
 })
 export class RecordingsComponent implements OnInit {
-  private recordingStore = inject(RecordingStoreService);
-  private recordingApi = inject(RecordingApiService);
-  private navService = inject(NavigationService);
-  private router = inject(Router);
-
-  // State
-  protected recordings = this.recordingStore.recordings;
-  protected isLoading = this.recordingStore.select('isLoading');
   protected searchQuery = signal<string>('');
   protected selectedRecording = signal<Recording | null>(null);
   protected showDeleteDialog = signal<boolean>(false);
   protected recordingToDelete = signal<Recording | null>(null);
   protected isDeleting = signal<boolean>(false);
-
   // Selection state
   protected isSelectionMode = signal<boolean>(false);
   protected selectedRecordingIds = signal<Set<string>>(new Set());
   protected showBulkDeleteDialog = signal<boolean>(false);
-
-  constructor() {}
-
   // Computed
   protected filteredRecordings = computed(() => {
     const query = this.searchQuery().toLowerCase();
@@ -50,12 +38,21 @@ export class RecordingsComponent implements OnInit {
         (r.metadata?.sensor_name && r.metadata.sensor_name.toLowerCase().includes(query)),
     );
   });
-
   protected sortedRecordings = computed(() => {
     return [...this.filteredRecordings()].sort((a, b) => {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   });
+  private recordingStore = inject(RecordingStoreService);
+  // State
+  protected recordings = this.recordingStore.recordings;
+  protected isLoading = this.recordingStore.select('isLoading');
+  private recordingApi = inject(RecordingApiService);
+  private navService = inject(NavigationService);
+  private router = inject(Router);
+
+  constructor() {
+  }
 
   async ngOnInit() {
     this.navService.setPageConfig({

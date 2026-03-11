@@ -1,8 +1,8 @@
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
+import {TestBed} from '@angular/core/testing';
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 
-import { TopicApiService } from './topic-api.service';
+import {TopicApiService} from './topic-api.service';
 
 describe('TopicApiService', () => {
   let service: TopicApiService;
@@ -23,7 +23,7 @@ describe('TopicApiService', () => {
   it('getTopics() returns topics', async () => {
     const p = service.getTopics();
     const req = httpMock.expectOne((r) => r.method === 'GET' && r.url.endsWith('/topics'));
-    req.flush({ topics: ['a_raw_points', 'b_raw_points'] });
+    req.flush({topics: ['a_raw_points', 'b_raw_points']});
     await expect(p).resolves.toEqual(['a_raw_points', 'b_raw_points']);
   });
 });

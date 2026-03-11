@@ -1,51 +1,39 @@
-import {
-  Component,
-  inject,
-  computed,
-  signal,
-  effect,
-  output,
-  CUSTOM_ELEMENTS_SCHEMA,
-  OnDestroy,
-} from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Subscription } from 'rxjs';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
-import { LidarProfilesApiService } from '../../../../core/services/api/lidar-profiles-api';
-import { NodeEditorFacadeService } from '../../services/node-editor-facade.service';
-import { LidarTypeSelectComponent } from '../lidar-type-select/lidar-type-select.component';
+import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, inject, OnDestroy, output, signal,} from '@angular/core';
+
+import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
+import {Subscription} from 'rxjs';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api';
+import {NodeEditorFacadeService} from '../../services/node-editor-facade.service';
+import {LidarTypeSelectComponent} from '../lidar-type-select/lidar-type-select.component';
 
 @Component({
   selector: 'app-dynamic-node-editor',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [CommonModule, ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent],
+  imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './dynamic-node-editor.component.html',
   styleUrl: './dynamic-node-editor.component.css',
 })
 export class DynamicNodeEditorComponent implements OnDestroy {
-  private fb = inject(FormBuilder);
-  private nodeStore = inject(NodeStoreService);
-  private lidarProfilesApi = inject(LidarProfilesApiService);
-  private facade = inject(NodeEditorFacadeService);
-
   save = output<void>();
   cancel = output<void>();
-
-  protected editMode = this.nodeStore.editMode;
   protected isSaving = signal(false);
-  private formValues = signal<Record<string, any>>({});
-  private formValuesSub?: Subscription;
-
+  protected form!: FormGroup;
+  protected configForm!: FormGroup;
+  private fb = inject(FormBuilder);
+  private nodeStore = inject(NodeStoreService);
+  protected editMode = this.nodeStore.editMode;
   protected definition = computed(() => {
     const data = this.nodeStore.selectedNode();
     const type = data.type === 'operation' ? (data.config as any)?.op_type : data.type;
     return this.nodeStore.nodeDefinitions().find((d) => d.type === type);
   });
-
+  private lidarProfilesApi = inject(LidarProfilesApiService);
+  private facade = inject(NodeEditorFacadeService);
+  private formValues = signal<Record<string, any>>({});
   protected visibleProperties = computed(() => {
     const def = this.definition();
     if (!def) return [];
@@ -60,9 +48,7 @@ export class DynamicNodeEditorComponent implements OnDestroy {
       return true;
     });
   });
-
-  protected form!: FormGroup;
-  protected configForm!: FormGroup;
+  private formValuesSub?: Subscription;
 
   constructor() {
     this.lidarProfilesApi.loadProfiles();
@@ -77,42 +63,6 @@ export class DynamicNodeEditorComponent implements OnDestroy {
 
   ngOnDestroy() {
     this.formValuesSub?.unsubscribe();
-  }
-
-  private initForm() {
-    this.formValuesSub?.unsubscribe();
-
-    const data = this.nodeStore.selectedNode();
-    const def = this.definition();
-
-    const configGroup: any = {};
-    if (def) {
-      def.properties.forEach((prop) => {
-        const currentConfig = data.config?.['op_config'] ?? data.config;
-        const val = currentConfig ? currentConfig[prop.name] : prop.default;
-
-        if (prop.type === 'vec3') {
-          configGroup[prop.name] = this.fb.group({
-            0: [val ? val[0] : prop.default ? prop.default[0] : 0],
-            1: [val ? val[1] : prop.default ? prop.default[1] : 0],
-            2: [val ? val[2] : prop.default ? prop.default[2] : 0],
-          });
-        } else {
-          configGroup[prop.name] = [
-            val ?? prop.default,
-            prop.required ? [Validators.required] : [],
-          ];
-        }
-      });
-    }
-
-    this.configForm = this.fb.group(configGroup);
-    this.formValuesSub = this.configForm.valueChanges.subscribe((v) => this.formValues.set(v));
-    this.formValues.set(this.configForm.getRawValue());
-
-    this.form = this.fb.group({
-      name: [data.name || def?.display_name || '', [Validators.required]],
-    });
   }
 
   async onSave() {
@@ -153,5 +103,41 @@ export class DynamicNodeEditorComponent implements OnDestroy {
 
   onLidarTypeChange(propName: string, value: string) {
     this.configForm.get(propName)?.setValue(value);
+  }
+
+  private initForm() {
+    this.formValuesSub?.unsubscribe();
+
+    const data = this.nodeStore.selectedNode();
+    const def = this.definition();
+
+    const configGroup: any = {};
+    if (def) {
+      def.properties.forEach((prop) => {
+        const currentConfig = data.config?.['op_config'] ?? data.config;
+        const val = currentConfig ? currentConfig[prop.name] : prop.default;
+
+        if (prop.type === 'vec3') {
+          configGroup[prop.name] = this.fb.group({
+            0: [val ? val[0] : prop.default ? prop.default[0] : 0],
+            1: [val ? val[1] : prop.default ? prop.default[1] : 0],
+            2: [val ? val[2] : prop.default ? prop.default[2] : 0],
+          });
+        } else {
+          configGroup[prop.name] = [
+            val ?? prop.default,
+            prop.required ? [Validators.required] : [],
+          ];
+        }
+      });
+    }
+
+    this.configForm = this.fb.group(configGroup);
+    this.formValuesSub = this.configForm.valueChanges.subscribe((v) => this.formValues.set(v));
+    this.formValues.set(this.configForm.getRawValue());
+
+    this.form = this.fb.group({
+      name: [data.name || def?.display_name || '', [Validators.required]],
+    });
   }
 }

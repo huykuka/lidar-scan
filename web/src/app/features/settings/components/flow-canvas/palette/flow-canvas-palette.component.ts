@@ -1,12 +1,12 @@
-import { Component, input, output, signal, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NodePlugin } from '../../../../../core/models/node-plugin.model';
+import {Component, computed, input, output, signal} from '@angular/core';
+
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {NodePlugin} from '../../../../../core/models/node-plugin.model';
 
 @Component({
   selector: 'app-flow-canvas-palette',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule],
+  imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-palette.component.html',
   styleUrl: './flow-canvas-palette.component.css',
 })
@@ -35,7 +35,7 @@ export class FlowCanvasPaletteComponent {
         if (indexB !== -1) return 1;
         return a.localeCompare(b);
       })
-      .map((key) => ({ category: key, plugins: groups[key] }));
+      .map((key) => ({category: key, plugins: groups[key]}));
   });
 
   onResetView = output<void>();

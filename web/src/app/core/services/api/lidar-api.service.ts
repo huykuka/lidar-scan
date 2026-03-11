@@ -1,9 +1,9 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { LidarListResponse, LidarConfig } from '../../models/lidar.model';
-import { firstValueFrom } from 'rxjs';
-import { LidarStoreService } from '../stores/lidar-store.service';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {LidarConfig, LidarListResponse} from '../../models/lidar.model';
+import {firstValueFrom} from 'rxjs';
+import {LidarStoreService} from '../stores/lidar-store.service';
 
 @Injectable({
   providedIn: 'root',
@@ -46,7 +46,7 @@ export class LidarApiService {
       type: 'sensor',
       category: 'Input',
       enabled: config.enabled ?? true,
-      config: { ...config },
+      config: {...config},
     };
 
     delete payload.config.id;

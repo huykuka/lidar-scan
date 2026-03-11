@@ -1,8 +1,8 @@
-import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
+import {TestBed} from '@angular/core/testing';
+import {signal} from '@angular/core';
 
-import { HeaderComponent } from './header.component';
-import { SystemStatusService } from '../../../core/services/system-status.service';
+import {HeaderComponent} from './header.component';
+import {SystemStatusService} from '../../../core/services/system-status.service';
 
 describe('HeaderComponent', () => {
   it('computes status dot class from backendOnline', async () => {
@@ -24,8 +24,10 @@ describe('HeaderComponent', () => {
             unreadCount,
             lastNotice,
             backendLabel: () => 'Checking',
-            acknowledge: () => {},
-            refreshNow: () => {},
+            acknowledge: () => {
+            },
+            refreshNow: () => {
+            },
           },
         },
       ],

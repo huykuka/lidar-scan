@@ -4,25 +4,25 @@
     class="flex flex-col shadow-md rounded-xl overflow-hidden border border-syn-color-neutral-200"
   >
     <app-logs-toolbar
+      (clearClicked)="clearAllLogs()"
+      (downloadClicked)="downloadLogs()"
+      (levelChanged)="selectedLevel.set($event); onFilterChange()"
+      (refreshClicked)="refreshLogs()"
+      (searchChanged)="searchText.set($event); onFilterChange()"
+      (streamingToggled)="$event ? startStreaming() : stopStreaming()"
+      [errorCount]="levelCounts()['ERROR'] || 0"
+      [isStreaming]="isStreaming()"
       [searchText]="searchText()"
       [selectedLevel]="selectedLevel()"
-      [isStreaming]="isStreaming()"
       [totalCount]="entries().length"
-      [errorCount]="levelCounts()['ERROR'] || 0"
-      (searchChanged)="searchText.set($event); onFilterChange()"
-      (levelChanged)="selectedLevel.set($event); onFilterChange()"
-      (streamingToggled)="$event ? startStreaming() : stopStreaming()"
-      (downloadClicked)="downloadLogs()"
-      (clearClicked)="clearAllLogs()"
-      (refreshClicked)="refreshLogs()"
     ></app-logs-toolbar>
 
     <!-- Integrated Status Bar -->
     @if (isStreaming() || streamError()) {
       <div
-        class="flex items-center gap-4 px-4 py-1.5 border-t border-syn-color-neutral-100 animate-in slide-in-from-top-1 duration-300"
         [class.bg-syn-color-green-50]="isStreaming() && !streamError()"
         [class.bg-syn-color-red-50]="streamError()"
+        class="flex items-center gap-4 px-4 py-1.5 border-t border-syn-color-neutral-100 animate-in slide-in-from-top-1 duration-300"
       >
         @if (isStreaming() && !streamError()) {
           <div
@@ -41,7 +41,7 @@
           <div
             class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-syn-color-red-700"
           >
-            <syn-icon name="error_outline" size="small" class="text-syn-color-red-600"></syn-icon>
+            <syn-icon class="text-syn-color-red-600" name="error_outline" size="small"></syn-icon>
             {{ streamError() }}
           </div>
         }
@@ -55,15 +55,15 @@
   >
     <!-- Sub-component: Table with Load More -->
     <app-logs-table
-      [entries]="displayEntries()"
-      [selectedEntry]="selectedEntry()"
-      [isLoading]="isLoading()"
-      [isLoadingMore]="isLoadingMore()"
       (entrySelected)="onSelectEntry($event)"
       (loadMoreClicked)="loadMoreLogs()"
+      [entries]="displayEntries()"
+      [isLoadingMore]="isLoadingMore()"
+      [isLoading]="isLoading()"
+      [selectedEntry]="selectedEntry()"
     ></app-logs-table>
 
     <!-- Sub-component: Detail Panel -->
-    <app-logs-detail [entry]="selectedEntry()" (close)="onSelectEntry(null)"></app-logs-detail>
+    <app-logs-detail (close)="onSelectEntry(null)" [entry]="selectedEntry()"></app-logs-detail>
   </div>
 </div>

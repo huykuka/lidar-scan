@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import {Injectable} from '@angular/core';
 
 export interface ConfirmDialogOptions {
   title?: string;
@@ -14,7 +14,7 @@ export interface ConfirmDialogOptions {
 export class DialogService {
   confirm(options: ConfirmDialogOptions | string): Promise<boolean> {
     const config: ConfirmDialogOptions =
-      typeof options === 'string' ? { message: options } : options;
+      typeof options === 'string' ? {message: options} : options;
 
     const {
       title = 'Confirm',

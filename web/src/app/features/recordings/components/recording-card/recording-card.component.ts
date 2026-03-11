@@ -1,8 +1,8 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import { CommonModule, NgOptimizedImage } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { Recording } from '../../../../core/models/recording.model';
-import { environment } from '../../../../../environments/environment';
+import {Component, EventEmitter, Input, Output, signal} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {Recording} from '../../../../core/models/recording.model';
+import {environment} from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-recording-card',
@@ -12,7 +12,7 @@ import { environment } from '../../../../../environments/environment';
   styleUrl: './recording-card.component.css',
 })
 export class RecordingCardComponent {
-  @Input({ required: true }) recording!: Recording;
+  @Input({required: true}) recording!: Recording;
   @Input() selectable = false;
   @Input() selected = false;
   @Input() priority = false;

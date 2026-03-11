@@ -1,13 +1,13 @@
-import { Component, inject, output } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { WorkspaceStoreService } from '../../../../core/services/stores/workspace-store.service';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-button.component';
+import {Component, inject, output} from '@angular/core';
+
+import {WorkspaceStoreService} from '@core/services';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {WorkspaceViewControlsButtonComponent} from './workspace-view-controls-button.component';
 
 @Component({
   selector: 'app-workspace-view-controls',
   standalone: true,
-  imports: [CommonModule, SynergyComponentsModule, WorkspaceViewControlsButtonComponent],
+  imports: [SynergyComponentsModule, WorkspaceViewControlsButtonComponent],
   template: `
     <div
       class="absolute left-4 top-0 bottom-0 flex flex-col justify-center items-start transition-opacity duration-300 py-2 sm:py-4 pointer-events-none z-50"
@@ -87,12 +87,6 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
   ],
 })
 export class WorkspaceViewControlsComponent {
-  private store = inject(WorkspaceStoreService);
-
-  protected showHud = this.store.showHud;
-  protected showGrid = this.store.showGrid;
-  protected showAxes = this.store.showAxes;
-
   onResetCamera = output<void>();
   onTopView = output<void>();
   onFrontView = output<void>();
@@ -101,6 +95,10 @@ export class WorkspaceViewControlsComponent {
   onFitToPoints = output<void>();
   onScreenshot = output<void>();
   onClearPoints = output<void>();
+  private store = inject(WorkspaceStoreService);
+  protected showHud = this.store.showHud;
+  protected showGrid = this.store.showGrid;
+  protected showAxes = this.store.showAxes;
 
   toggleHud() {
     this.store.set('showHud', !this.showHud());

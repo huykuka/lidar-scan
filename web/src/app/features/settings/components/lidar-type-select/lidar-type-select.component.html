@@ -1,18 +1,18 @@
 <syn-select
-  size="small"
+  (syn-change)="onSelectChange($event)"
+  [helpText]="helpText()"
   [label]="label()"
   [value]="value()"
-  [helpText]="helpText()"
-  (syn-change)="onSelectChange($event)"
+  size="small"
 >
   @if (selectedOption(); as opt) {
-    <div slot="prefix" class="flex items-center">
+    <div class="flex items-center" slot="prefix">
       <img
-        [src]="opt.imageSrc"
+        (error)="handleImageError($event)"
         [alt]="opt.label + ' LiDAR device'"
+        [src]="opt.imageSrc"
         class="w-5 h-5 rounded-md border border-syn-color-neutral-200 bg-white flex-shrink-0"
         style="object-fit: contain; padding: 1px; margin-right: 6px"
-        (error)="handleImageError($event)"
       />
     </div>
   }
@@ -20,12 +20,12 @@
   @for (opt of options(); track opt.value) {
     <syn-option [value]="opt.value">
       <img
-        slot="prefix"
-        [src]="opt.imageSrc"
-        [alt]="opt.label + ' LiDAR device'"
-        class="w-6 h-6 rounded-md border border-syn-color-neutral-200 bg-white flex-shrink-0"
-        style="object-fit: contain; padding: 2px; margin-right: 8px"
         (error)="handleImageError($event)"
+        [alt]="opt.label + ' LiDAR device'"
+        [src]="opt.imageSrc"
+        class="w-6 h-6 rounded-md border border-syn-color-neutral-200 bg-white flex-shrink-0"
+        slot="prefix"
+        style="object-fit: contain; padding: 2px; margin-right: 8px"
       />
       {{ opt.label }}
     </syn-option>

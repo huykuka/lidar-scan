@@ -1,12 +1,12 @@
 <div class="flex h-full bg-syn-color-neutral-50 relative">
   <!-- Left Palette Sidebar -->
   <app-flow-canvas-palette
-    [plugins]="availablePlugins()"
-    [isLoading]="isPaletteLoading()"
-    [zoom]="zoom()"
-    (onResetView)="resetView()"
-    (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
     (onPluginDragEnd)="onPaletteDragEnd()"
+    (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
+    (onResetView)="resetView()"
+    [isLoading]="isPaletteLoading()"
+    [plugins]="availablePlugins()"
+    [zoom]="zoom()"
   ></app-flow-canvas-palette>
 
   <!-- Canvas Area -->
@@ -25,7 +25,8 @@
             <div class="h-3 bg-syn-color-neutral-100 rounded w-3/4"></div>
             <div class="h-3 bg-syn-color-neutral-100 rounded w-1/2"></div>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-10 bg-syn-color-neutral-50 border-t border-syn-color-neutral-200 flex items-center px-4 gap-3">
+          <div
+            class="absolute bottom-0 left-0 right-0 h-10 bg-syn-color-neutral-50 border-t border-syn-color-neutral-200 flex items-center px-4 gap-3">
             <div class="w-8 h-4 bg-syn-color-neutral-200 rounded-full"></div>
             <div class="h-3 bg-syn-color-neutral-100 rounded w-16"></div>
           </div>
@@ -41,7 +42,8 @@
             <div class="h-3 bg-syn-color-neutral-100 rounded w-2/3"></div>
             <div class="h-3 bg-syn-color-neutral-100 rounded w-5/12"></div>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-10 bg-syn-color-neutral-50 border-t border-syn-color-neutral-200 flex items-center px-4 gap-3">
+          <div
+            class="absolute bottom-0 left-0 right-0 h-10 bg-syn-color-neutral-50 border-t border-syn-color-neutral-200 flex items-center px-4 gap-3">
             <div class="w-8 h-4 bg-syn-color-neutral-200 rounded-full"></div>
             <div class="h-3 bg-syn-color-neutral-100 rounded w-16"></div>
           </div>
@@ -57,7 +59,8 @@
             <div class="h-3 bg-syn-color-neutral-100 rounded w-3/4"></div>
             <div class="h-3 bg-syn-color-neutral-100 rounded w-1/3"></div>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-10 bg-syn-color-neutral-50 border-t border-syn-color-neutral-200 flex items-center px-4 gap-3">
+          <div
+            class="absolute bottom-0 left-0 right-0 h-10 bg-syn-color-neutral-50 border-t border-syn-color-neutral-200 flex items-center px-4 gap-3">
             <div class="w-8 h-4 bg-syn-color-neutral-200 rounded-full"></div>
             <div class="h-3 bg-syn-color-neutral-100 rounded w-16"></div>
           </div>
@@ -73,7 +76,8 @@
             <div class="h-3 bg-syn-color-neutral-100 rounded w-2/3"></div>
             <div class="h-3 bg-syn-color-neutral-100 rounded w-1/2"></div>
           </div>
-          <div class="absolute bottom-0 left-0 right-0 h-10 bg-syn-color-neutral-50 border-t border-syn-color-neutral-200 flex items-center px-4 gap-3">
+          <div
+            class="absolute bottom-0 left-0 right-0 h-10 bg-syn-color-neutral-50 border-t border-syn-color-neutral-200 flex items-center px-4 gap-3">
             <div class="w-8 h-4 bg-syn-color-neutral-200 rounded-full"></div>
             <div class="h-3 bg-syn-color-neutral-100 rounded w-16"></div>
           </div>
@@ -82,12 +86,12 @@
         <!-- Skeleton Edge line connecting node 1 and 2 -->
         <svg class="absolute inset-0 w-full h-full" style="z-index: 1;">
           <path
-            d="M 388 124 C 430 124, 438 124, 480 124"
-            stroke="#e5e7eb"
-            stroke-width="2"
-            fill="none"
-            stroke-dasharray="6 4"
             class="animate-pulse"
+            d="M 388 124 C 430 124, 438 124, 480 124"
+            fill="none"
+            stroke="#e5e7eb"
+            stroke-dasharray="6 4"
+            stroke-width="2"
           />
         </svg>
       </div>
@@ -99,9 +103,12 @@
     }
 
     <div
-      class="relative"
-      [style.min-width]="canvasWidth()"
-      [style.min-height]="canvasHeight()"
+      (dragover)="onCanvasDragOver($event)"
+      (drop)="onCanvasDrop($event)"
+      (mousedown)="onCanvasMouseDown($event)"
+      (mousemove)="onCanvasMouseMove($event)"
+      (mouseup)="onCanvasMouseUp($event)"
+      (wheel)="onCanvasWheel($event)"
       [style.cursor]="
         drag.pendingConnection()
           ? 'crosshair'
@@ -111,67 +118,64 @@
               ? 'copy'
               : 'default'
       "
-      (mousedown)="onCanvasMouseDown($event)"
-      (mousemove)="onCanvasMouseMove($event)"
-      (mouseup)="onCanvasMouseUp($event)"
-      (wheel)="onCanvasWheel($event)"
-      (dragover)="onCanvasDragOver($event)"
-      (drop)="onCanvasDrop($event)"
+      [style.min-height]="canvasHeight()"
+      [style.min-width]="canvasWidth()"
+      class="relative"
     >
       <!-- Grid Background -->
       <svg class="absolute inset-0 w-full h-full pointer-events-none">
         <defs>
-          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" fill="#e5e7eb" />
+          <pattern height="20" id="grid" patternUnits="userSpaceOnUse" width="20">
+            <circle cx="1" cy="1" fill="#e5e7eb" r="1"/>
           </pattern>
         </defs>
-        <rect width="100%" height="100%" fill="url(#grid)" />
+        <rect fill="url(#grid)" height="100%" width="100%"/>
       </svg>
 
       <!-- Nodes Container -->
       <div
-        class="absolute inset-0"
+        [style.transform-origin]="'0 0'"
         [style.transform]="
           'translate(' + panOffset().x + 'px, ' + panOffset().y + 'px) scale(' + zoom() + ')'
         "
-        [style.transform-origin]="'0 0'"
+        class="absolute inset-0"
       >
         <!-- Connection Lines Layer (below nodes) -->
         <app-flow-canvas-connections
+          (onDelete)="onDeleteEdge($event)"
           [connections]="connections()"
           [pendingPath]="drag.pendingPath()"
-          (onDelete)="onDeleteEdge($event)"
         ></app-flow-canvas-connections>
 
         <!-- Nodes Layer -->
         @for (node of canvasNodes(); track node.id) {
           <div
-            class="absolute transition-shadow"
+            (dblclick)="onEditNode(node)"
+            (mousedown)="onNodeMouseDown($event, node)"
             [class.ring-4]="selectedCanvasNode()?.id === node.id"
-            [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
             [class.ring-offset-2]="selectedCanvasNode()?.id === node.id"
             [class.ring-offset-white]="selectedCanvasNode()?.id === node.id"
+            [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
             [class.rounded-lg]="selectedCanvasNode()?.id === node.id"
             [class.shadow-2xl]="selectedCanvasNode()?.id === node.id"
             [class.z-10]="selectedCanvasNode()?.id === node.id"
-            [style.left.px]="node.position.x"
-            [style.top.px]="node.position.y"
             [style.cursor]="
               drag.draggingNode()?.id === node.id ? 'grabbing' : drag.pendingConnection() ? 'default' : 'grab'
             "
-            (mousedown)="onNodeMouseDown($event, node)"
-            (dblclick)="onEditNode(node)"
+            [style.left.px]="node.position.x"
+            [style.top.px]="node.position.y"
+            class="absolute transition-shadow"
             title="Double-click to edit"
           >
             <app-flow-canvas-node
-              [node]="node"
-              [status]="getNodeStatus(node)"
-              [isLoading]="isNodeLoading(node.id)"
-              [isDragging]="drag.draggingNode()?.id === node.id"
               (onEdit)="onEditNode(node)"
               (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
               (portDragStart)="onPortDragStart($event)"
               (portDrop)="onPortDrop($event)"
+              [isDragging]="drag.draggingNode()?.id === node.id"
+              [isLoading]="isNodeLoading(node.id)"
+              [node]="node"
+              [status]="getNodeStatus(node)"
             ></app-flow-canvas-node>
           </div>
         }
@@ -186,17 +190,17 @@
 
   <!-- Node Editor Drawer -->
   <syn-drawer
+    (syn-after-hide)="onDrawerClose()"
+    [open]="drawerOpen()"
     contained
     noHeader
     placement="end"
     style="--size: 480px"
-    [open]="drawerOpen()"
-    (syn-after-hide)="onDrawerClose()"
   >
     @if (drawerOpen()) {
       <app-dynamic-node-editor
-        (save)="onDrawerClose()"
         (cancel)="onDrawerClose()"
+        (save)="onDrawerClose()"
       />
     }
   </syn-drawer>

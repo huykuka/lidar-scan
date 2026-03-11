@@ -69,6 +69,7 @@ export interface NodeData {
   type: string;
   name: string;
   enabled?: boolean;
+
   [key: string]: any; // Plugin-specific data
 }
 

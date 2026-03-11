@@ -1,12 +1,10 @@
-import { DestroyRef, Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { HttpContext } from '@angular/common/http';
-import { catchError, interval, of, switchMap, tap } from 'rxjs';
-import { environment } from '../../../environments/environment';
-import { ToastService } from './toast.service';
-import { TOAST_ON_ERROR } from '../interceptors/http-toast.interceptor';
-import { firstValueFrom } from 'rxjs';
+import {computed, DestroyRef, inject, Injectable, signal} from '@angular/core';
+import {HttpClient, HttpContext} from '@angular/common/http';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {catchError, firstValueFrom, interval, of, switchMap, tap} from 'rxjs';
+import {environment} from '../../../environments/environment';
+import {ToastService} from './toast.service';
+import {TOAST_ON_ERROR} from '../interceptors/http-toast.interceptor';
 
 export type SystemNoticeLevel = 'info' | 'warning' | 'error';
 
@@ -26,26 +24,23 @@ interface BackendStatusResponse {
   providedIn: 'root',
 })
 export class SystemStatusService {
-  private http = inject(HttpClient);
-  private toast = inject(ToastService);
-  private destroyRef = inject(DestroyRef);
-
-  private started = false;
-  private lastOnlineToastAt = 0;
-  private lastOfflineToastAt = 0;
-
   readonly backendOnline = signal<boolean | null>(null);
   readonly backendVersion = signal<string | null>(null);
   readonly activeSensors = signal<string[]>([]);
   readonly unreadCount = signal<number>(0);
   readonly lastNotice = signal<SystemNotice | null>(null);
   readonly isRunning = signal<boolean>(false);
-
   readonly backendLabel = computed(() => {
     const online = this.backendOnline();
     if (online === null) return 'Checking';
     return online ? 'Online' : 'Offline';
   });
+  private http = inject(HttpClient);
+  private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
+  private started = false;
+  private lastOnlineToastAt = 0;
+  private lastOfflineToastAt = 0;
 
   async startSystem(): Promise<void> {
     const res = await firstValueFrom(
@@ -85,7 +80,7 @@ export class SystemStatusService {
   }
 
   report(level: SystemNoticeLevel, message: string): void {
-    this.lastNotice.set({ level, message, at: Date.now() });
+    this.lastNotice.set({level, message, at: Date.now()});
     this.unreadCount.update((c) => c + 1);
   }
 
@@ -93,7 +88,7 @@ export class SystemStatusService {
     // Avoid showing HTTP interceptor toasts for this health check.
     const ctx = new HttpContext().set(TOAST_ON_ERROR, false);
     return this.http
-      .get<BackendStatusResponse>(`${environment.apiUrl}/status`, { context: ctx })
+      .get<BackendStatusResponse>(`${environment.apiUrl}/status`, {context: ctx})
       .pipe(
         tap((res) => {
           const wasOnline = this.backendOnline();

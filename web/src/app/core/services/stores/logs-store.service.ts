@@ -1,6 +1,6 @@
-import { Injectable } from '@angular/core';
-import { SignalsSimpleStoreService } from '../signals-simple-store.service';
-import { LogEntry, LogFilterOptions } from '../../models/log.model';
+import {Injectable} from '@angular/core';
+import {SignalsSimpleStoreService} from '../signals-simple-store.service';
+import {LogEntry, LogFilterOptions} from '../../models/log.model';
 
 export interface LogsState {
   entries: LogEntry[];
@@ -33,11 +33,6 @@ const initialState: LogsState = {
   providedIn: 'root',
 })
 export class LogsStoreService extends SignalsSimpleStoreService<LogsState> {
-  constructor() {
-    super();
-    this.setState(initialState);
-  }
-
   // Selectors
   entries = this.select('entries');
   filteredEntries = this.select('filteredEntries');
@@ -47,6 +42,11 @@ export class LogsStoreService extends SignalsSimpleStoreService<LogsState> {
   selectedEntry = this.select('selectedEntry');
   streamError = this.select('streamError');
   autoScroll = this.select('autoScroll');
+
+  constructor() {
+    super();
+    this.setState(initialState);
+  }
 
   // Mutations
   addEntry(entry: LogEntry) {
@@ -58,7 +58,7 @@ export class LogsStoreService extends SignalsSimpleStoreService<LogsState> {
   }
 
   setEntries(entries: LogEntry[]) {
-    this.setState({ entries, filteredEntries: entries });
+    this.setState({entries, filteredEntries: entries});
   }
 
   appendEntries(entries: LogEntry[]) {
@@ -72,35 +72,35 @@ export class LogsStoreService extends SignalsSimpleStoreService<LogsState> {
   setFilters(filters: Partial<LogFilterOptions>) {
     this.state.update((current) => ({
       ...current,
-      filters: { ...current.filters, ...filters },
+      filters: {...current.filters, ...filters},
     }));
   }
 
   setOffset(offset: number) {
-    this.setFilters({ offset });
+    this.setFilters({offset});
   }
 
   clearEntries() {
-    this.setState({ entries: [], filteredEntries: [] });
+    this.setState({entries: [], filteredEntries: []});
   }
 
   selectEntry(entry: LogEntry | null) {
-    this.setState({ selectedEntry: entry });
+    this.setState({selectedEntry: entry});
   }
 
   setStreaming(streaming: boolean) {
-    this.setState({ isStreaming: streaming });
+    this.setState({isStreaming: streaming});
   }
 
   setStreamError(error: string | null) {
-    this.setState({ streamError: error });
+    this.setState({streamError: error});
   }
 
   setAutoScroll(autoScroll: boolean) {
-    this.setState({ autoScroll });
+    this.setState({autoScroll});
   }
 
   setLoading(loading: boolean) {
-    this.setState({ isLoading: loading });
+    this.setState({isLoading: loading});
   }
 }

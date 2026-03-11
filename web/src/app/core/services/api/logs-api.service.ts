@@ -1,8 +1,8 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { LogEntry, LogFilterOptions, LogsResponse } from '../../models/log.model';
-import { firstValueFrom, Observable } from 'rxjs';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {LogEntry, LogFilterOptions} from '../../models/log.model';
+import {firstValueFrom, Observable} from 'rxjs';
 
 @Injectable({
   providedIn: 'root',
@@ -76,7 +76,7 @@ export class LogsApiService {
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        observer.next(JSON.stringify({ type: 'connected' }));
+        observer.next(JSON.stringify({type: 'connected'}));
       };
 
       ws.onmessage = (event) => {
