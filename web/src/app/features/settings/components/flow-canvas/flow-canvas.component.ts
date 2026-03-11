@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, OnInit, OnDestroy, output } from '@angular/core';
+import { Component, inject, signal, computed, effect, OnInit, OnDestroy, output, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeStoreService } from '../../../../core/services/stores/node-store.service';
@@ -56,7 +56,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected panOffset = signal({ x: 0, y: 0 });
   protected zoom = signal(1);
 
-  // Drag state
+  // Selection & Drag state
+  protected selectedCanvasNode = signal<CanvasNode | null>(null);
   protected draggingNode = signal<CanvasNode | null>(null);
   protected dragOffset = signal({ x: 0, y: 0 });
 
@@ -151,7 +152,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.nodes().forEach((node, index) => {
       nodes.push({
         id: node.id,
-        type: node.category as 'sensor' | 'fusion' | 'operation',
+        type: (node.category || node.type || 'unknown').toLowerCase(),
         data: node,
         position: {
           x: node.x ?? (100 + (index % 4) * 300),
@@ -205,6 +206,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   onCanvasMouseDown(event: MouseEvent) {
+    this.selectedCanvasNode.set(null);
     if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
       this.isPanning.set(true);
       event.preventDefault();
@@ -376,6 +378,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   onNodeMouseDown(event: MouseEvent, node: CanvasNode) {
     event.stopPropagation();
+    this.selectedCanvasNode.set(node);
     this.draggingNode.set(node);
     this.dragOffset.set({ x: event.offsetX, y: event.offsetY });
   }
@@ -511,6 +514,20 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   isNodeLoading(nodeId: string): boolean {
     return this.nodeLoadingStates()[nodeId] || false;
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onKeyDown(event: KeyboardEvent) {
+    if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+
+    const tag = (event.target as HTMLElement)?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+    const selected = this.selectedCanvasNode();
+    if (!selected) return;
+
+    event.preventDefault();
+    this.onDeleteNode(selected);
   }
 
   resetView() {

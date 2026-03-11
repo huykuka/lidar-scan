@@ -12,7 +12,6 @@ import { ConfigApiService } from '../../core/services/api/config-api.service';
 import { ConfigExport, ConfigValidationResponse } from '../../core/models/config.model';
 import { NodeConfig } from '../../core/models/node.model';
 import { DynamicNodeEditorComponent } from './components/dynamic-node-editor/dynamic-node-editor.component';
-import { NodeCardComponent } from './components/node-card/node-card.component';
 import { ConfigImportDialogComponent } from './components/config-import-dialog/config-import-dialog.component';
 import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.component';
 import { NodeStoreService } from '../../core/services/stores/node-store.service';

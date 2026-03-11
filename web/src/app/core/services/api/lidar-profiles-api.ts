@@ -9,6 +9,7 @@ import { LidarProfile, LidarProfilesResponse } from '../../models/lidar-profile.
 })
 export class LidarProfilesApiService {
   private http = inject(HttpClient);
+  private profilesLoaded = false;
 
   profiles = signal<LidarProfile[]>([]);
   isLoading = signal<boolean>(false);
@@ -181,7 +182,12 @@ export class LidarProfilesApiService {
     return this.profiles().find((profile) => profile.model_id === modelId) || null;
   }
 
-  async loadProfiles(): Promise<void> {
+  async loadProfiles(forceRefresh = false): Promise<void> {
+    // Return early if profiles already loaded and not forcing refresh
+    if (this.profilesLoaded && !forceRefresh) {
+      return;
+    }
+
     this.isLoading.set(true);
     try {
       // Real API call to get updated profiles from backend
@@ -198,6 +204,7 @@ export class LidarProfilesApiService {
       }));
 
       this.profiles.set(processedProfiles);
+      this.profilesLoaded = true;
 
       // Remove mock implementation - now using real backend data
       // await new Promise(resolve => setTimeout(resolve, 100)); // Simulate API delay
@@ -206,6 +213,7 @@ export class LidarProfilesApiService {
       console.error('Failed to load LiDAR profiles:', error);
       // Fallback to mock data if backend is unavailable
       this.profiles.set(this.getMockLidarProfiles());
+      this.profilesLoaded = false;
     } finally {
       this.isLoading.set(false);
     }

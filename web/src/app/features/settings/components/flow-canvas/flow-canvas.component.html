@@ -68,6 +68,13 @@
         @for (node of canvasNodes(); track $index) {
           <div
             class="absolute transition-shadow"
+            [class.ring-4]="selectedCanvasNode()?.id === node.id"
+            [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
+            [class.ring-offset-2]="selectedCanvasNode()?.id === node.id"
+            [class.ring-offset-white]="selectedCanvasNode()?.id === node.id"
+            [class.rounded-lg]="selectedCanvasNode()?.id === node.id"
+            [class.shadow-2xl]="selectedCanvasNode()?.id === node.id"
+            [class.z-10]="selectedCanvasNode()?.id === node.id"
             [style.left.px]="node.position.x"
             [style.top.px]="node.position.y"
             [style.cursor]="
@@ -83,7 +90,6 @@
               [isLoading]="isNodeLoading(node.id)"
               [isDragging]="draggingNode()?.id === node.id"
               (onEdit)="onEditNode(node)"
-              (onDelete)="onDeleteNode(node)"
               (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
               (portDragStart)="onPortDragStart($event)"
               (portDrop)="onPortDrop($event)"

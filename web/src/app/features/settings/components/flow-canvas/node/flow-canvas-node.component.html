@@ -1,8 +1,8 @@
 <div
   class="bg-white rounded-lg shadow-lg border-2 w-72 hover:shadow-xl transition-all relative"
-  [class.border-syn-color-success-400]="node().type === 'sensor'"
-  [class.border-syn-color-primary-400]="node().type === 'fusion'"
-  [class.border-syn-color-warning-400]="node().type === 'operation'"
+  [class.border-syn-color-success-400]="isSensorCategory()"
+  [class.border-syn-color-primary-400]="isFusionCategory()"
+  [class.border-syn-color-warning-400]="isOperationCategory()"
   [class.opacity-50]="isDragging()"
 >
   <!-- Input Port (left side — rendered if node definition has inputs) -->
@@ -34,9 +34,9 @@
       <syn-icon
         [name]="getNodeIcon()"
         class="text-xl shrink-0"
-        [class.text-syn-color-success-600]="node().type === 'sensor'"
-        [class.text-syn-color-primary-600]="node().type === 'fusion'"
-        [class.text-syn-color-warning-600]="node().type === 'operation'"
+        [class.text-syn-color-success-600]="isSensorCategory()"
+        [class.text-syn-color-primary-600]="isFusionCategory()"
+        [class.text-syn-color-warning-600]="isOperationCategory()"
       ></syn-icon>
       <div class="flex flex-row min-w-0 items-center" [title]="statusBadge().label">
         <span class="font-semibold text-sm truncate flex-1">{{ getNodeName() }} </span>
@@ -68,7 +68,6 @@
               >{{ param.label }}</span
             >
 
-            <!-- Value or badge rendering -->
             @if (param.isBadge) {
               <syn-badge [variant]="param.badgeVariant || 'neutral'" size="small" class="shrink-0">
                 {{ param.value }}
@@ -84,7 +83,6 @@
         }
       </div>
 
-      <!-- Runtime Frame Age status -->
       @if (status() && getFrameAge()) {
         <div class="flex flex-col pt-2 border-t border-syn-color-neutral-100">
           <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter mb-0.5"
@@ -134,77 +132,15 @@
       }
     </div>
 
-    <!-- Calibration Button (only for calibration nodes) -->
     @if (isNodeEnabled() && isCalibrationNode()) {
-      @if (hasPendingCalibration()) {
-        <!-- Pending Calibration - Accept/Reject Buttons -->
-        <div class="flex gap-1">
-          <syn-button
-            variant="filled"
-            color="success"
-            size="small"
-            (click)="acceptCalibration(); $event.stopPropagation()"
-            [disabled]="isCalibrating()"
-            title="Accept & Save Calibration"
-          >
-            <syn-icon name="check"></syn-icon>
-          </syn-button>
-          <syn-button
-            variant="outline"
-            color="danger"
-            size="small"
-            (click)="rejectCalibration(); $event.stopPropagation()"
-            [disabled]="isCalibrating()"
-            title="Reject Calibration"
-          >
-            <syn-icon name="close"></syn-icon>
-          </syn-button>
-        </div>
-      } @else {
-        <!-- Trigger Calibration Button -->
-        <syn-button
-          variant="filled"
-          color="primary"
-          size="small"
-          (click)="triggerCalibration(); $event.stopPropagation()"
-          [disabled]="isCalibrating()"
-          title="Run Calibration"
-        >
-          @if (isCalibrating()) {
-            <syn-spinner size="small"></syn-spinner>
-          } @else {
-            <syn-icon name="tune"></syn-icon>
-          }
-        </syn-button>
-      }
+      <app-node-calibration-controls
+        [node]="node()"
+        [status]="status()"
+      ></app-node-calibration-controls>
     }
 
-    <!-- Recording Button (only shown for nodes with outputs) -->
     @if (isNodeEnabled() && hasOutputPort()) {
-      @if (isRecording()) {
-        <syn-button
-          variant="filled"
-          color="danger"
-          size="small"
-          (click)="toggleRecording(); $event.stopPropagation()"
-        >
-          <syn-icon slot="prefix" name="stop" class="animate-pulse"></syn-icon>
-          <span class="text-xs">{{ formatDuration(recordingDuration()) }}</span>
-        </syn-button>
-      } @else {
-        <syn-button
-          variant="text"
-          size="small"
-          (click)="toggleRecording(); $event.stopPropagation()"
-          title="Start Recording"
-        >
-          <syn-icon name="fiber_manual_record" style="color: var(--syn-color-error-700)"></syn-icon>
-        </syn-button>
-      }
+      <app-node-recording-controls [node]="node()"></app-node-recording-controls>
     }
-
-    <syn-button variant="text" size="small" (click)="onDelete.emit(); $event.stopPropagation()">
-      <syn-icon name="delete" style="color: var(--syn-color-error-700)"></syn-icon>
-    </syn-button>
   </div>
 </div>

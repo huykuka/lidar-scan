@@ -1,0 +1,20 @@
+@if (isRecording()) {
+  <syn-button
+    variant="filled"
+    color="danger"
+    size="small"
+    (click)="toggleRecording(); $event.stopPropagation()"
+  >
+    <syn-icon slot="prefix" name="stop" class="animate-pulse"></syn-icon>
+    <span class="text-xs">{{ formatDuration(recordingDuration()) }}</span>
+  </syn-button>
+} @else {
+  <syn-button
+    variant="text"
+    size="small"
+    (click)="toggleRecording(); $event.stopPropagation()"
+    title="Start Recording"
+  >
+    <syn-icon name="fiber_manual_record" style="color: var(--syn-color-error-700)"></syn-icon>
+  </syn-button>
+}
