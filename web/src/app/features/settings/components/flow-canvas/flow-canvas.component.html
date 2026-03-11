@@ -95,8 +95,8 @@
 
   <!-- Node Editor Drawer -->
   <syn-drawer
-    (synHideEvent)="onDrawerClose()"
     [open]="drawerOpen()"
+    (synRequestCloseEvent)="onDrawerRequestClose($event)"
     noHeader
     placement="end"
     style="--size: 480px"

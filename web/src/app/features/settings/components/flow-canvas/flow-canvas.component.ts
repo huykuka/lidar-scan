@@ -420,6 +420,12 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.drawerOpen.set(false);
   }
 
+  onDrawerRequestClose(event: Event) {
+    if ((event as CustomEvent).detail?.source === 'overlay') {
+      event.preventDefault();
+    }
+  }
+
   private async loadGraphData() {
     this.isPaletteLoading.set(true);
     this.isCanvasLoading.set(true);
