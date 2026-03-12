@@ -57,37 +57,13 @@ This is the root-cause fix. Without it, no overflow scrolling will work.
 
 ## Phase 3 — Wire Auto-Scroll Inputs
 
-- [ ] **FE-3.1** Add two new Signal inputs to `LogsTableComponent` class:
-  ```typescript
-  autoScroll = input<boolean>(true);
-  isStreaming = input<boolean>(false);
-  ```
-  Place these alongside the existing `entries`, `selectedEntry`, `isLoading`, and `isLoadingMore` inputs.
+- [x] **FE-3.1** Add two new Signal inputs to `LogsTableComponent` class:
 
-- [ ] **FE-3.2** Add the `viewChild` Signal reference for the scroll container. Add this to the class body:
-  ```typescript
-  protected readonly scrollContainer = viewChild<ElementRef<HTMLDivElement>>('scrollContainer');
-  ```
-  Ensure `ElementRef` is imported from `'@angular/core'`.
+- [x] **FE-3.2** Add the `viewChild` Signal reference for the scroll container. Add this to the class body:
 
-- [ ] **FE-3.3** Add the auto-scroll `effect()` inside the class **constructor** (not `ngOnInit`):
-  ```typescript
-  constructor() {
-    effect(() => {
-      const entries = this.entries();             // reactive dependency
-      const shouldScroll = this.autoScroll() && this.isStreaming();
-      if (shouldScroll && entries.length > 0) {
-        const el = this.scrollContainer()?.nativeElement;
-        if (el) el.scrollTop = 0;  // Newest entry is at top (addEntry prepends)
-      }
-    });
-  }
-  ```
-  - `entries()` inside the effect registers it as a reactive dependency — the effect re-runs whenever entries change.
-  - `scrollTop = 0` scrolls to the top because `LogsStoreService.addEntry()` **prepends** new entries (newest first).
-  - The guard `this.autoScroll() && this.isStreaming()` ensures this only runs during live streaming, not during manual load/refresh.
+- [x] **FE-3.3** Add the auto-scroll `effect()` inside the class **constructor** (not `ngOnInit`):
 
-- [ ] **FE-3.4** Update the `imports` in `@Component` to ensure `ElementRef`, `viewChild`, `effect` are imported from `'@angular/core'`. The full import line should read:
+- [x] **FE-3.4** Update the `imports` in `@Component` to ensure `ElementRef`, `viewChild`, `effect` are imported from `'@angular/core'`. The full import line should read:
   ```typescript
   import { Component, ElementRef, effect, input, output, viewChild } from '@angular/core';
   ```

@@ -1,4 +1,4 @@
-import {Component, input, output} from '@angular/core';
+import {Component, ElementRef, effect, input, output, viewChild} from '@angular/core';
 
 import {LogEntry} from '@core/models';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -122,9 +122,24 @@ export class LogsTableComponent {
   selectedEntry = input<LogEntry | null>(null);
   isLoading = input<boolean>(false);
   isLoadingMore = input<boolean>(false);
+  autoScroll = input<boolean>(true);
+  isStreaming = input<boolean>(false);
 
   entrySelected = output<LogEntry | null>();
   loadMoreClicked = output<void>();
+
+  protected readonly scrollContainer = viewChild<ElementRef<HTMLDivElement>>('scrollContainer');
+
+  constructor() {
+    effect(() => {
+      const entries = this.entries();             // reactive dependency
+      const shouldScroll = this.autoScroll() && this.isStreaming();
+      if (shouldScroll && entries.length > 0) {
+        const el = this.scrollContainer()?.nativeElement;
+        if (el) el.scrollTop = 0;  // Newest entry is at top (addEntry prepends)
+      }
+    });
+  }
 
   getSynergyBadgeVariant(level: string): 'neutral' | 'primary' | 'warning' | 'danger' {
     switch (level) {
