@@ -6,6 +6,9 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 @Component({
   selector: 'app-logs-table',
   standalone: true,
+  host: {
+    class: 'flex flex-col flex-1 min-h-0 overflow-hidden'
+  },
   imports: [SynergyComponentsModule],
   template: `
     <div class="flex-1 overflow-auto relative">
