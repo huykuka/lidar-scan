@@ -47,32 +47,11 @@ This is the root-cause fix. Without it, no overflow scrolling will work.
 
 ## Phase 2 — Fix the Inner Scroll Container
 
-- [ ] **FE-2.1** In the `LogsTableComponent` template, locate the outermost `<div>`:
-  ```html
-  <div class="flex-1 overflow-auto relative">
-  ```
+- [x] **FE-2.1** In the `LogsTableComponent` template, locate the outermost `<div>`:
 
-- [ ] **FE-2.2** Replace it with the corrected scroll container:
-  ```html
-  <div
-    #scrollContainer
-    role="region"
-    aria-label="Log entries"
-    tabindex="0"
-    class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative syn-scrollbar focus:outline-none focus-visible:ring-2 focus-visible:ring-syn-color-primary-300"
-  >
-  ```
-  Changes explained:
-  - `#scrollContainer`: Template reference variable for `viewChild` auto-scroll access.
-  - `role="region"` + `aria-label="Log entries"`: Marks the scroll region for screen readers.
-  - `tabindex="0"`: Makes the scroll container keyboard-focusable so Page Up/Down and arrow keys scroll the table.
-  - `overflow-auto` → `overflow-y-auto overflow-x-hidden`: Enables **only** vertical scrolling (horizontal scrolling is out of scope).
-  - `syn-scrollbar`: Applies the project-wide custom scrollbar style already defined in `styles.css` (thin scrollbar, `#cbd5e1` thumb colour matching the Synergy theme).
-  - `focus:outline-none`: Removes default focus ring on mouse click.
-  - `focus-visible:ring-2 focus-visible:ring-syn-color-primary-300`: Shows accessible focus ring for keyboard navigation only.
-  - `min-h-0`: Redundant safety guard for nested flex contexts.
+- [x] **FE-2.2** Replace it with the corrected scroll container:
 
-- [ ] **FE-2.3** Verify the closing `</div>` tag still correctly wraps the entire table and "Load More" section. The closing tag at the end of the `@else` block remains unchanged.
+- [x] **FE-2.3** Verify the closing `</div>` tag still correctly wraps the entire table and "Load More" section. The closing tag at the end of the `@else` block remains unchanged.
 
 ---
 

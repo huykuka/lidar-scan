@@ -11,7 +11,13 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   },
   imports: [SynergyComponentsModule],
   template: `
-    <div class="flex-1 overflow-auto relative">
+    <div
+      #scrollContainer
+      role="region"
+      aria-label="Log entries"
+      tabindex="0"
+      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative syn-scrollbar focus:outline-none focus-visible:ring-2 focus-visible:ring-syn-color-primary-300"
+    >
       @if (isLoading() && entries().length === 0) {
         <div
           class="flex flex-col items-center justify-center h-full text-syn-color-neutral-400 gap-4"
