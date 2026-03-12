@@ -55,6 +55,8 @@
     <!-- Sub-component: Table with Load More -->
     <app-logs-table (entrySelected)="onSelectEntry($event)"
       (loadMoreClicked)="loadMoreLogs()"
+      [autoScroll]="autoScroll()"
+      [isStreaming]="isStreaming()"
       [entries]="displayEntries()"
       [isLoadingMore]="isLoadingMore()"
       [isLoading]="isLoading()"

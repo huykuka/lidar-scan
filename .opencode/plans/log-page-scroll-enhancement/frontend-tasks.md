@@ -72,9 +72,9 @@ This is the root-cause fix. Without it, no overflow scrolling will work.
 
 ## Phase 4 — Thread New Inputs from Parent LogsComponent
 
-- [ ] **FE-4.1** Open `web/src/app/features/logs/logs.component.html`
+- [x] **FE-4.1** Open `web/src/app/features/logs/logs.component.html`
 
-- [ ] **FE-4.2** Locate the `<app-logs-table>` binding block (currently lines 56–62) and add the two new input bindings:
+- [x] **FE-4.2** Locate the `<app-logs-table>` binding block (currently lines 56–62) and add the two new input bindings:
   ```html
   <app-logs-table
     (entrySelected)="onSelectEntry($event)"
