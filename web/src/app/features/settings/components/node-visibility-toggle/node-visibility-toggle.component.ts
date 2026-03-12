@@ -14,20 +14,18 @@ export class NodeVisibilityToggleComponent {
   visibilityChanged = output<boolean>();
 
   protected onToggle(): void {
-    this.visibilityChanged.emit(!this.node().visible);
+    // Ensure we handle the optional/undefined visible case properly
+    const currentVisible = this.node().visible !== false; // defaults to true if undefined/null
+    this.visibilityChanged.emit(!currentVisible);
   }
 
-  protected getButtonClasses(): string {
-    const baseClasses = 'text-white';
-    
-    if (this.isPending()) {
-      return `${baseClasses} opacity-50 cursor-not-allowed`;
-    }
-    
-    if (this.node().visible === false) {
-      return `${baseClasses} opacity-40`;
-    }
-    
-    return baseClasses;
+  protected getTooltipText(): string {
+    const nodeName = this.node().name || 'Node';
+    return this.node().visible !== false ? `Hide ${nodeName}` : `Show ${nodeName}`;
+  }
+
+  protected getAriaLabel(): string {
+    const nodeName = this.node().name || 'Node';
+    return this.node().visible !== false ? `Hide node ${nodeName}` : `Show node ${nodeName}`;
   }
 }
