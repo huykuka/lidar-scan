@@ -124,15 +124,12 @@ No code changes are required for sticky headers — the existing `sticky top-0 z
 
 ## Phase 8 — Build & Lint Verification
 
-- [ ] **FE-8.1** Run the Angular production build — must have zero compilation errors:
-  ```bash
-  cd web && ng build --configuration production
-  ```
-- [ ] **FE-8.2** Run the Angular linter — must have zero new errors:
-  ```bash
-  cd web && ng lint
-  ```
-- [ ] **FE-8.3** Confirm no new TypeScript errors in `logs-table.component.ts` related to:
+- [x] **FE-8.1** Run the Angular production build — must have zero compilation errors:
+
+- [x] **FE-8.2** Run the Angular linter — must have zero new errors:
+  (Note: Linter not configured in project - ng lint command not available)
+
+- [x] **FE-8.3** Confirm no new TypeScript errors in `logs-table.component.ts` related to:
   - `viewChild` return type (`Signal<ElementRef<HTMLDivElement> | undefined>`)
   - `effect()` constructor injection context (must be in constructor, not `ngOnInit`)
   - `input()` signal types for `autoScroll` and `isStreaming`
