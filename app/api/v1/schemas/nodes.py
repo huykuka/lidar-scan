@@ -11,11 +11,12 @@ class NodeRecord(BaseModel):
             "examples": [
                 {
                     "id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
-                    "name": "MultiScan Left",
-                    "type": "sensor",
-                    "category": "sensor",
-                    "enabled": True,
-                    "config": {
+                     "name": "MultiScan Left",
+                     "type": "sensor",
+                     "category": "sensor",
+                     "enabled": True,
+                     "visible": True,
+                     "config": {
                         "lidar_type": "multiscan",
                         "hostname": "192.168.1.10",
                         "udp_receiver_ip": "192.168.1.100",
@@ -28,9 +29,10 @@ class NodeRecord(BaseModel):
                     "id": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
                     "name": "Point Cloud Fusion",
                     "type": "fusion",
-                    "category": "fusion", 
-                    "enabled": True,
-                    "config": {
+                     "category": "fusion", 
+                     "enabled": True,
+                     "visible": True,
+                     "config": {
                         "fusion_method": "icp_registration",
                         "distance_threshold": 0.05,
                         "max_iterations": 100
@@ -47,6 +49,7 @@ class NodeRecord(BaseModel):
     type: str
     category: str
     enabled: bool
+    visible: bool = True
     config: Dict[str, Any] = {}
     x: Optional[float] = None
     y: Optional[float] = None
@@ -59,8 +62,9 @@ class NodeStatusItem(BaseModel):
     type: str
     category: str
     enabled: bool
+    visible: bool = True
     running: bool
-    topic: Optional[str] = None
+    topic: Optional[str] = None  # null when visible=false
     last_frame_at: Optional[float] = None
     frame_age_seconds: Optional[float] = None
     last_error: Optional[str] = None

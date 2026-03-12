@@ -6,8 +6,8 @@ from app.api.v1.schemas.nodes import NodeRecord, NodesStatusResponse
 from app.api.v1.schemas.common import StatusResponse, UpsertResponse
 from .service import (
     list_nodes, list_node_definitions, get_node, upsert_node,
-    set_node_enabled, delete_node, reload_all_config, get_nodes_status,
-    NodeCreateUpdate, NodeStatusToggle
+    set_node_enabled, set_node_visible, delete_node, reload_all_config, get_nodes_status,
+    NodeCreateUpdate, NodeStatusToggle, NodeVisibilityToggle
 )
 
 
@@ -54,6 +54,20 @@ async def node_get_endpoint(node_id: str):
 )
 async def node_upsert_endpoint(req: NodeCreateUpdate):
     return await upsert_node(req)
+
+
+@router.put(
+    "/nodes/{node_id}/visible",
+    response_model=StatusResponse,
+    responses={
+        400: {"description": "Cannot change visibility of system topic"},
+        404: {"description": "Node not found"}
+    },
+    summary="Set Node Visible",
+    description="Toggle node visibility state. Controls whether the node streams data to WebSocket.",
+)
+async def node_visible_endpoint(node_id: str, req: NodeVisibilityToggle):
+    return await set_node_visible(node_id, req)
 
 
 @router.put(

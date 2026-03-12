@@ -17,9 +17,10 @@ class NodeCreateUpdate(BaseModel):
                 {
                     "name": "MultiScan Left",
                     "type": "sensor",
-                    "category": "sensor",
-                    "enabled": True,
-                    "config": {
+                     "category": "sensor",
+                     "enabled": True,
+                     "visible": True,
+                     "config": {
                         "lidar_type": "multiscan",
                         "hostname": "192.168.1.10",
                         "udp_receiver_ip": "192.168.1.100",
@@ -31,9 +32,10 @@ class NodeCreateUpdate(BaseModel):
                 {
                     "name": "Point Cloud Fusion",
                     "type": "fusion",
-                    "category": "fusion",
-                    "enabled": True,
-                    "config": {
+                     "category": "fusion",
+                     "enabled": True,
+                     "visible": True,
+                     "config": {
                         "fusion_method": "icp_registration", 
                         "distance_threshold": 0.05,
                         "max_iterations": 100
@@ -50,6 +52,7 @@ class NodeCreateUpdate(BaseModel):
     type: str
     category: str
     enabled: bool = True
+    visible: bool = True
     config: Dict[str, Any] = {}
     x: Optional[float] = None
     y: Optional[float] = None
@@ -57,6 +60,10 @@ class NodeCreateUpdate(BaseModel):
 
 class NodeStatusToggle(BaseModel):
     enabled: bool
+
+
+class NodeVisibilityToggle(BaseModel):
+    visible: bool
 
 
 async def list_nodes():
@@ -90,6 +97,38 @@ async def set_node_enabled(node_id: str, req: NodeStatusToggle):
     """Toggle node enabled state."""
     repo = NodeRepository()
     repo.set_enabled(node_id, req.enabled)
+    return {"status": "success"}
+
+
+async def set_node_visible(node_id: str, req: NodeVisibilityToggle):
+    """Toggle node visibility state."""
+    from app.services.websocket.manager import SYSTEM_TOPICS
+    from app.services.shared.topics import slugify_topic_prefix
+    
+    repo = NodeRepository()
+    
+    # Fetch node by ID; raise 404 if not found
+    node = repo.get_by_id(node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    
+    # Derive topic name and check against SYSTEM_TOPICS
+    node_name = node.get("name", node_id)
+    topic = f"{slugify_topic_prefix(node_name)}_{node_id[:8]}"
+    
+    if topic in SYSTEM_TOPICS:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot change visibility of system topic '{topic}'"
+        )
+    
+    # Update visibility in database
+    repo.set_visible(node_id, req.visible)
+    
+    # Update orchestrator state
+    # TODO: Implement NodeManager.set_node_visible method
+    # await node_manager.set_node_visible(node_id, req.visible)
+    
     return {"status": "success"}
 
 
@@ -140,10 +179,15 @@ async def get_nodes_status():
             # Re-add category from DB if not in runtime status
             status["category"] = cnfg["category"]
             status["enabled"] = cnfg["enabled"]
+            status["visible"] = cnfg.get("visible", True)
             
-            # Auto-generate topic: {node_name}_{node_id[:8]}
-            node_name = getattr(node_instance, "name", node_id)
-            status["topic"] = f"{node_name}_{node_id[:8]}"
+            # Set topic based on visibility and node instance
+            if hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is None:
+                status["topic"] = None  # Invisible running node
+            else:
+                # Auto-generate topic: {node_name}_{node_id[:8]}
+                node_name = getattr(node_instance, "name", node_id)
+                status["topic"] = f"{node_name}_{node_id[:8]}"
             
             # Add throttling stats from NodeManager
             throttle_stats = node_manager.get_throttle_stats(node_id)
@@ -157,7 +201,9 @@ async def get_nodes_status():
                 "type": cnfg["type"],
                 "category": cnfg["category"],
                 "enabled": cnfg["enabled"],
+                "visible": cnfg.get("visible", True),
                 "running": False,
+                "topic": None,  # Non-running nodes don't have topics
                 "last_error": "Node instance not found"
             })
     

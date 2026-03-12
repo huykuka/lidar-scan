@@ -81,7 +81,7 @@ class TestNodeModelVisibility:
             visible_col = next((col for col in result if col[1] == "visible"), None)
             assert visible_col is not None
             # Column info: (cid, name, type, notnull, dflt_value, pk)
-            assert visible_col[4] == "1"  # Default value should be 1 (True)
+            assert visible_col[4] in ("1", "'1'")  # Default value should be 1 (True) - SQLite may quote it
     
     def test_migration_idempotent(self, db_engine):
         """Test that running migration twice doesn't cause errors."""

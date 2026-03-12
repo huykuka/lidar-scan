@@ -25,6 +25,7 @@ class NodeModel(Base):
     type: Mapped[str] = mapped_column(String, nullable=False)
     category: Mapped[str] = mapped_column(String, nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    visible: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     # Store all configurations (like topic_prefix, xyz, args) in a JSON string
     config_json: Mapped[str] = mapped_column("config", String, default="{}")
     # Canvas position
@@ -39,6 +40,7 @@ class NodeModel(Base):
             "type": self.type,
             "category": self.category,
             "enabled": self.enabled,
+            "visible": self.visible,
             "config": json.loads(self.config_json) if self.config_json else {},
             "x": self.x,
             "y": self.y,
