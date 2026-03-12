@@ -1,0 +1,8 @@
+<syn-icon-button
+  [name]="node().visible !== false ? 'visibility' : 'visibility_off'"
+  [title]="node().visible !== false ? 'Hide node ' + node().name : 'Show node ' + node().name"
+  [aria-label]="node().visible !== false ? 'Hide node ' + node().name : 'Show node ' + node().name"
+  [disabled]="isPending()"
+  [class]="getButtonClasses()"
+  (click)="onToggle()"
+></syn-icon-button>

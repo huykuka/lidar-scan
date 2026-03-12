@@ -7,6 +7,7 @@ import {NodeRecordingControls} from './node-recording-controls/node-recording-co
 import {NodeCalibrationControls} from './node-calibration-controls/node-calibration-controls';
 import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 import {NodeCardComponent} from '@core/models/node-plugin.model';
+import {NodeVisibilityToggleComponent} from '../../node-visibility-toggle/node-visibility-toggle.component';
 
 export interface CanvasNode {
   id: string;
@@ -17,7 +18,7 @@ export interface CanvasNode {
 
 @Component({
   selector: 'app-flow-canvas-node',
-  imports: [SynergyComponentsModule, NodeRecordingControls, NodeCalibrationControls],
+  imports: [SynergyComponentsModule, NodeRecordingControls, NodeCalibrationControls, NodeVisibilityToggleComponent],
   templateUrl: './flow-canvas-node.component.html',
   styleUrl: './flow-canvas-node.component.css',
 })
@@ -26,8 +27,10 @@ export class FlowCanvasNodeComponent {
   status = input<LidarNodeStatus | FusionNodeStatus | null>(null);
   isLoading = input<boolean>(false);
   isDragging = input<boolean>(false);
+  isTogglingVisibility = input<boolean>(false);
   onEdit = output<void>();
   onToggleEnabled = output<boolean>();
+  onToggleVisibility = output<boolean>();
   portDragStart = output<{ nodeId: string; portType: 'input' | 'output'; event: MouseEvent }>();
   portDrop = output<{ nodeId: string; portType: 'input' | 'output' }>();
   isExpanded = signal<boolean>(false);

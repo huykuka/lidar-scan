@@ -1,5 +1,6 @@
 <div
-  [class.opacity-50]="isDragging()"
+  [class.opacity-50]="isDragging() || node().data.visible === false"
+  [class.grayscale]="node().data.visible === false"
   class="bg-white rounded-lg shadow-lg border-2 w-72 hover:shadow-xl transition-all relative"
 >
   <!-- Input Port (left side — rendered if node definition has inputs) -->
@@ -109,6 +110,16 @@
 
     @if (isNodeEnabled() && hasOutputPort()) {
       <app-node-recording-controls [node]="node()"/>
+    }
+    
+    <!-- Visibility Toggle -->
+    @if (isNodeEnabled()) {
+      <app-node-visibility-toggle 
+        [node]="node().data"
+        [isPending]="isTogglingVisibility()"
+        (visibilityChanged)="onToggleVisibility.emit($event)"
+        class="shrink-0"
+      />
     }
   </div>
 </div>

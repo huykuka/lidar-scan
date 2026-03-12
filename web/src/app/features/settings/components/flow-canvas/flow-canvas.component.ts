@@ -65,6 +65,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected panOffset = signal({x: 0, y: 0});
   protected zoom = signal(1);
   protected selectedCanvasNode = signal<CanvasNode | null>(null);
+  protected isTogglingVisibility = signal<string | null>(null);
   protected canvasWidth = computed(() => {
     const nodes = this.canvasNodes();
     if (!nodes.length) return '100%';
@@ -386,6 +387,37 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
+  async onToggleNodeVisibility(node: CanvasNode, visible: boolean) {
+    // Set pending state for this specific node
+    this.isTogglingVisibility.set(node.id);
+    
+    // Get current nodes for optimistic update and rollback
+    const currentNodes = this.nodes();
+    
+    try {
+      // Optimistic update: update local state immediately
+      this.nodeStore.set('nodes', currentNodes.map(n => 
+        n.id === node.id ? { ...n, visible } : n
+      ));
+      
+      // Call backend API
+      await this.nodesApi.setNodeVisible(node.id, visible);
+      
+      const name = node.data.name || node.id;
+      this.toast.success(`${name} ${visible ? 'shown' : 'hidden'}.`);
+    } catch (error) {
+      console.error('Failed to toggle node visibility', error);
+      
+      // Rollback optimistic update on error
+      this.nodeStore.set('nodes', currentNodes);
+      
+      this.toast.danger(`Failed to update node visibility.`);
+    } finally {
+      // Clear pending state
+      this.isTogglingVisibility.set(null);
+    }
+  }
+
   getNodeStatus(node: CanvasNode) {
     const status = this.nodesStatus();
     if (!status) return null;
@@ -394,6 +426,10 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   isNodeLoading(nodeId: string): boolean {
     return this.nodeLoadingStates()[nodeId] || false;
+  }
+
+  isNodeTogglingVisibility(nodeId: string): boolean {
+    return this.isTogglingVisibility() === nodeId;
   }
 
   @HostListener('document:keydown', ['$event'])

@@ -74,4 +74,25 @@ export class NodesApiService {
       };
     }
   }
+
+  async setNodeVisible(id: string, visible: boolean): Promise<{ status: string }> {
+    // TODO: Mock implementation - remove once backend is deployed
+    // Simulate 150ms network latency
+    await new Promise(resolve => setTimeout(resolve, 150));
+    
+    // Simulate 400 error for a known system node ID (for testing error handling)
+    if (id === 'system_status_node') {
+      throw { 
+        status: 400, 
+        error: { detail: "Cannot change visibility of system topic 'system_status'" } 
+      };
+    }
+    
+    return { status: 'success' };
+    
+    // Real implementation (commented out until backend ready):
+    // return await firstValueFrom(
+    //   this.http.put<{ status: string }>(`${environment.apiUrl}/nodes/${id}/visible`, { visible })
+    // );
+  }
 }
