@@ -126,8 +126,7 @@ async def set_node_visible(node_id: str, req: NodeVisibilityToggle):
     repo.set_visible(node_id, req.visible)
     
     # Update orchestrator state
-    # TODO: Implement NodeManager.set_node_visible method
-    # await node_manager.set_node_visible(node_id, req.visible)
+    await node_manager.set_node_visible(node_id, req.visible)
     
     return {"status": "success"}
 

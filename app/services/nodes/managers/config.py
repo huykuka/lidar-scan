@@ -104,22 +104,27 @@ class ConfigLoader:
     
     def _register_node_websocket_topic(self, node: Dict[str, Any], node_instance: Any):
         """
-        Register WebSocket topic for a node.
+        Register WebSocket topic for a node based on visibility.
         
         Args:
             node: Node configuration dictionary
             node_instance: Created node instance
         """
+        visible = node.get("visible", True)
         node_name = getattr(node_instance, "name", node["id"])
         safe_name = slugify_topic_prefix(node_name)
         topic = f"{safe_name}_{node['id'][:8]}"
-        manager.register_topic(topic)
+        
+        if visible:
+            manager.register_topic(topic)
+            node_instance._ws_topic = topic
+            logger.debug(f"Registered WS topic '{topic}' for visible node {node['id']}")
+        else:
+            node_instance._ws_topic = None  # do NOT call register_topic()
+            logger.debug(f"Skipping WS topic registration for invisible node {node['id']}")
         
         # Canonical WS topic key stored at registration time. LifecycleManager 
         # reads this during teardown to guarantee key consistency.
-        node_instance._ws_topic = topic
-        
-        logger.debug(f"Registered WS topic '{topic}' for node {node['id']}")
     
     def build_downstream_map(self, edges_data: List[Dict[str, Any]]) -> Dict[str, List[str]]:
         """

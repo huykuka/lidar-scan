@@ -142,6 +142,10 @@ class LifecycleManager:
             node_id: The node ID
             node_instance: The node instance
         """
+        # Add early return guard at top: if hasattr(node_instance, "_ws_topic") and node_instance._ws_topic is None: return
+        if hasattr(node_instance, "_ws_topic") and node_instance._ws_topic is None:
+            return  # This prevents calling unregister_topic() on a non-existent topic for invisible nodes
+            
         # Use stored topic if available to guarantee key match with registration
         if hasattr(node_instance, "_ws_topic"):
             topic = node_instance._ws_topic
