@@ -34,6 +34,10 @@ def ensure_schema(engine: Engine) -> None:
     Base.metadata.create_all(bind=engine)
 
     with engine.begin() as conn:
+        # Add visible column if it doesn't exist
+        if "visible" not in _table_cols(conn, "nodes"):
+            conn.execute(text("ALTER TABLE nodes ADD COLUMN visible INTEGER NOT NULL DEFAULT 1"))
+        
         # We start with a clean slate for the node architecture, so 
         # legacy migrations for lidars and fusions have been removed.
         pass

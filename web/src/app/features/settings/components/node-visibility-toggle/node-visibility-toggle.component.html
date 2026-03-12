@@ -1,0 +1,7 @@
+<syn-icon-button
+  [name]="node().visible !== false ? 'visibility' : 'visibility_off'"
+  [disabled]="isPending()"
+  [title]="getTooltipText()"
+  (click)="onToggle()"
+  label="Visibility"
+></syn-icon-button>

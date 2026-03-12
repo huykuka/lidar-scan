@@ -239,6 +239,41 @@ class NodeManager:
         """
         await self._lifecycle_manager.remove_node_async(node_id)
 
+    async def set_node_visible(self, node_id: str, visible: bool) -> None:
+        """
+        Set node visibility state, managing WebSocket topic registration/unregistration.
+        
+        Args:
+            node_id: The node ID to modify
+            visible: True to make visible (register topic), False to hide (unregister topic)
+        """
+        # If node_id not in self.nodes: log at DEBUG and return (disabled nodes — DB already updated by caller)
+        if node_id not in self.nodes:
+            logger.debug(f"set_node_visible called for disabled node {node_id} - DB updated, no runtime action needed")
+            return
+        
+        node_instance = self.nodes[node_id]
+        
+        # If not visible and node_instance._ws_topic is not None: call unregister, then set _ws_topic = None
+        if not visible and hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is not None:
+            await self._lifecycle_manager._unregister_node_websocket_topic_async(node_id, node_instance)
+            node_instance._ws_topic = None
+            logger.debug(f"Node {node_id} set to invisible - topic unregistered")
+            
+        # If visible and node_instance._ws_topic is None: derive topic, call register_topic, set _ws_topic = topic  
+        elif visible and hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is None:
+            from app.services.shared.topics import slugify_topic_prefix
+            
+            node_name = getattr(node_instance, "name", node_id)
+            topic = f"{slugify_topic_prefix(node_name)}_{node_id[:8]}"
+            websocket_manager.register_topic(topic)
+            node_instance._ws_topic = topic
+            logger.debug(f"Node {node_id} set to visible - topic '{topic}' registered")
+            
+        # If visible and node_instance._ws_topic is not None: no-op (already visible)
+        elif visible and hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is not None:
+            logger.debug(f"Node {node_id} already visible - no action needed")
+
     # ========================================
     # Data Flow Management
     # ========================================

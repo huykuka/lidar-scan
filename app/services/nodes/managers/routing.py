@@ -6,7 +6,7 @@ recording interception, and forwarding to downstream nodes with throttling.
 """
 import asyncio
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from app.core.logging import get_logger
 from app.services.websocket.manager import manager
@@ -72,30 +72,41 @@ class DataRouter:
         await self._record_node_data(source_id, payload)
         await self._forward_to_downstream_nodes(source_id, payload)
     
-    def _get_node_topic(self, source_id: str, source_node: Any) -> str:
+    def _get_node_topic(self, source_id: str, source_node: Any) -> Optional[str]:
         """
         Generate topic name for a node: {slugified_node_name}_{node_id[:8]}
+        
+        Returns None if the node is invisible (has _ws_topic = None).
         
         Args:
             source_id: Node ID
             source_node: Node instance
             
         Returns:
-            Topic name string
+            Topic name string or None if node is invisible
         """
+        # Prefer node_instance._ws_topic if the attribute exists (may be None)
+        if hasattr(source_node, '_ws_topic'):
+            return source_node._ws_topic
+        
+        # Keep legacy fallback (re-derive from name) only for nodes without _ws_topic attribute at all
         node_name = getattr(source_node, "name", source_id)
         safe_name = slugify_topic_prefix(node_name)
         return f"{safe_name}_{source_id[:8]}"
     
-    async def _broadcast_to_websocket(self, source_id: str, topic: str, payload: Dict[str, Any]):
+    async def _broadcast_to_websocket(self, source_id: str, topic: Optional[str], payload: Dict[str, Any]):
         """
         Broadcast point cloud data to WebSocket subscribers.
         
         Args:
             source_id: Source node ID
-            topic: WebSocket topic name
+            topic: WebSocket topic name (None for invisible nodes)
             payload: Data payload
         """
+        # Early return guard: if topic is None, return
+        if topic is None:
+            return
+            
         if "points" not in payload or not manager.has_subscribers(topic):
             return
 

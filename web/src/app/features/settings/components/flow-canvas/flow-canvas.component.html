@@ -75,10 +75,12 @@
           >
             <app-flow-canvas-node (onEdit)="onEditNode(node)"
                                   (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
+                                  (onToggleVisibility)="onToggleNodeVisibility(node, $event)"
                                   (portDragStart)="onPortDragStart($event)"
                                   (portDrop)="onPortDrop($event)"
                                   [isDragging]="drag.draggingNode()?.id === node.id"
                                   [isLoading]="isNodeLoading(node.id)"
+                                  [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
                                   [node]="node"
                                   [status]="getNodeStatus(node)"
             />

@@ -53,6 +53,7 @@ class NodeRepository:
             record_id = data.get("id") or uuid.uuid4().hex
             config_str = json.dumps(data.get("config", {}))
             enabled = data.get("enabled", True)
+            visible = data.get("visible", True)
             x = data.get("x", 100.0)
             y = data.get("y", 100.0)
             
@@ -62,6 +63,7 @@ class NodeRepository:
                 existing.type = data.get("type", existing.type)
                 existing.category = data.get("category", existing.category)
                 existing.enabled = data.get("enabled", existing.enabled)
+                existing.visible = data.get("visible", existing.visible)
                 if "config" in data:
                     existing.config_json = config_str
                 if "x" in data and data["x"] is not None:
@@ -75,6 +77,7 @@ class NodeRepository:
                     type=data.get("type", ""),
                     category=data.get("category", ""),
                     enabled=enabled,
+                    visible=visible,
                     config_json=config_str,
                     x=x,
                     y=y
@@ -98,6 +101,22 @@ class NodeRepository:
             if node:
                 node.enabled = enabled
                 session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            if self._should_close():
+                session.close()
+
+    def set_visible(self, node_id: str, visible: bool) -> None:
+        """Toggle node visible state"""
+        session = self._get_session()
+        try:
+            node = session.query(NodeModel).filter(NodeModel.id == node_id).first()
+            if not node:
+                raise ValueError(f"Node {node_id} not found")
+            node.visible = visible
+            session.commit()
         except Exception:
             session.rollback()
             raise

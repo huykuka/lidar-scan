@@ -4,6 +4,7 @@ export interface NodeConfig {
   type: string;
   category: string; // Dynamic from backend (sensor, fusion, operation, calibration, etc.)
   enabled: boolean;
+  visible?: boolean; // defaults to true if omitted (legacy compat)
   config: Record<string, any>;
   x: number;
   y: number;
@@ -23,7 +24,9 @@ export interface NodeStatus {
   type: string;
   category: string;
   enabled: boolean;
+  visible: boolean;
   running: boolean;
+  topic?: string | null; // type must allow `null` when `visible=false`
   last_error: string | null;
   // LiDAR specific fields
   lidar_type?: string;

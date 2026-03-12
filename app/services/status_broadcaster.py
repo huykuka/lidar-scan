@@ -31,11 +31,16 @@ def _build_status_message() -> Dict[str, Any]:
             # Ensure category and enabled are always present
             status.setdefault("category", config.get("category"))
             status.setdefault("enabled", config.get("enabled", True))
+            status["visible"] = config.get("visible", True)  # Add visible field
             
-            # Auto-generate topic: {slugified_node_name}_{node_id[:8]}
-            node_name = getattr(node_instance, "name", node_id)
-            safe_name = slugify_topic_prefix(node_name)
-            status["topic"] = f"{safe_name}_{node_id[:8]}"
+            # Set topic to None when _ws_topic is None on the instance (mirrors §1.4 of api-spec)
+            if hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is None:
+                status["topic"] = None
+            else:
+                # Auto-generate topic: {slugified_node_name}_{node_id[:8]}
+                node_name = getattr(node_instance, "name", node_id)
+                safe_name = slugify_topic_prefix(node_name)
+                status["topic"] = f"{safe_name}_{node_id[:8]}"
             
             nodes_status.append(status)
         else:
@@ -45,7 +50,9 @@ def _build_status_message() -> Dict[str, Any]:
                 "type": config.get("type"),
                 "category": config.get("category"),
                 "enabled": config.get("enabled", True),
+                "visible": config.get("visible", True),  # Add visible field
                 "running": False,
+                "topic": None,  # Non-running nodes don't have topics
                 "last_error": "Node instance not found",
             })
 

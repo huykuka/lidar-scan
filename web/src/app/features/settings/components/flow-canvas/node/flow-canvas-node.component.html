@@ -28,12 +28,10 @@
   <!-- Node Header -->
   <div class="p-3 flex items-center rounded-t-md">
     <div class="flex items-center gap-2 min-w-0 flex-1">
-      <syn-icon [name]="getNodeIcon()"
-                class="text-xl shrink-0"
-      />
+      <syn-icon [name]="getNodeIcon()" class="text-xl shrink-0" />
       <div [title]="statusBadge().label" class="flex flex-row min-w-0 items-center">
         <span class="font-semibold text-sm truncate flex-1">{{ getNodeName() }} </span>
-        <syn-badge [variant]="statusBadge().variant" class="ml-2" pill size="small"/>
+        <syn-badge [variant]="statusBadge().variant" class="ml-2" pill size="small" />
       </div>
     </div>
     <syn-button
@@ -42,8 +40,9 @@
       size="small"
       variant="text"
     >
-      <syn-icon [name]="isExpanded() ? 'expand_less' : 'expand_more'"
-                class="text-syn-color-neutral-600 transition-transform"
+      <syn-icon
+        [name]="isExpanded() ? 'expand_less' : 'expand_more'"
+        class="text-syn-color-neutral-600 transition-transform"
       />
     </syn-button>
   </div>
@@ -57,7 +56,7 @@
       @if (status() && getFrameAge()) {
         <div class="flex flex-col pt-2 border-t border-syn-color-neutral-100">
           <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter mb-0.5"
-          >Last Frame Update</span
+            >Last Frame Update</span
           >
           <span
             [class.text-syn-color-success-600]="!isFrameStale()"
@@ -81,34 +80,35 @@
 
   <!-- Node Actions -->
   <div class="p-2 border-t border-syn-color-neutral-200 flex items-center gap-1">
-    <div class="flex items-center gap-2 flex-1 min-w-0">
-      <syn-switch (synChangeEvent)="onToggleEnabled.emit($any($event.target).checked)"
-                  [checked]="isNodeEnabled()"
-                  [disabled]="isLoading()"
-                  class="shrink-0"
-                  size="small"
+    <div class="flex items-center gap-1 flex-1 min-w-0">
+      <syn-switch
+        (synChangeEvent)="onToggleEnabled.emit($any($event.target).checked)"
+        [checked]="isNodeEnabled()"
+        [disabled]="isLoading()"
+        class="shrink-0"
+        [title]="isNodeEnabled() ? 'Enabled' : 'Disabled'"
+        size="small"
       />
       @if (isLoading()) {
-        <syn-spinner size="small"/>
-      } @else {
-        <span
-          [class.text-syn-color-danger-600]="!isNodeEnabled()"
-          [class.text-syn-color-success-700]="isNodeEnabled()"
-          class="text-xs font-semibold truncate transition-colors"
-        >
-          {{ isNodeEnabled() ? 'Enabled' : 'Disabled' }}
-        </span>
+        <syn-spinner size="small" />
+      }
+      <!-- Visibility Toggle -->
+      @if (isNodeEnabled()) {
+        <app-node-visibility-toggle
+          [node]="node().data"
+          [isPending]="isTogglingVisibility()"
+          (visibilityChanged)="onToggleVisibility.emit($event)"
+          class="shrink-0"
+        />
       }
     </div>
 
     @if (isNodeEnabled() && isCalibrationNode()) {
-      <app-node-calibration-controls [node]="node()"
-                                     [status]="status()"
-      />
+      <app-node-calibration-controls [node]="node()" [status]="status()" />
     }
 
     @if (isNodeEnabled() && hasOutputPort()) {
-      <app-node-recording-controls [node]="node()"/>
+      <app-node-recording-controls [node]="node()" />
     }
   </div>
 </div>

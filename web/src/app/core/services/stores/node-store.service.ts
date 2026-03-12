@@ -33,6 +33,7 @@ export class NodeStoreService extends SignalsSimpleStoreService<NodeState> {
   isLoading = this.select('isLoading');
   selectedNode = this.select('selectedNode');
   // Computed Filters
+  visibleNodes = computed(() => this.nodes().filter(n => n.visible !== false));
   sensorNodes = computed(() => this.nodes().filter((n) => n.category === 'sensor'));
   fusionNodes = computed(() => this.nodes().filter((n) => n.category === 'fusion'));
   operationNodes = computed(() => this.nodes().filter((n) => n.category === 'operation'));

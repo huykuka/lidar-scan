@@ -50,6 +50,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   private fpsUpdateInterval?: any;
   private viewInitialized = false;
   private lastNodeIds = '';
+  private lastVisibilityKey = '';
 
   constructor() {
     effect(() => {
@@ -62,9 +63,14 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
     effect(() => {
       const status = this.statusWs.status();
       if (!status) return;
+      
       const nodeIds = status.nodes.map(n => n.id).sort().join(',');
-      if (nodeIds === this.lastNodeIds) return;
+      const visibilityKey = status.nodes.map(n => `${n.id}:${n.visible}`).sort().join(',');
+      
+      if (nodeIds === this.lastNodeIds && visibilityKey === this.lastVisibilityKey) return;
+      
       this.lastNodeIds = nodeIds;
+      this.lastVisibilityKey = visibilityKey;
       this.refreshTopics();
     });
   }
