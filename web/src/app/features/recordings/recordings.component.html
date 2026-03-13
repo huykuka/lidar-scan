@@ -1,6 +1,6 @@
-<div class="h-full flex flex-col">
+<div class="flex flex-col min-h-0 flex-1">
   <!-- Toolbar -->
-  <div class="bg-syn-color-neutral-50 rounded-lg border border-syn-color-neutral-200 mb-6 shadow-sm">
+  <div class="rounded-lg border mb-6 shadow-sm">
     <div class="p-4">
       <div class="flex items-center justify-between gap-6">
         <!-- Search Bar -->
@@ -66,7 +66,7 @@
   </div>
 
   <!-- Content Area -->
-  <div class="flex-1 overflow-auto bg-white rounded-lg border border-syn-color-neutral-200 p-6">
+  <div class="flex-1 min-h-0 bg-white rounded-lg overflow-auto border border-syn-color-neutral-200 p-6">
     @if (isLoading()) {
       <div class="flex items-center justify-center h-64">
         <syn-spinner/>

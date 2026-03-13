@@ -8,7 +8,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   standalone: true,
   imports: [SynergyComponentsModule],
   template: `
-    <div class="flex-1 overflow-auto relative">
+    <div class="flex-1 relative">
       @if (isLoading() && entries().length === 0) {
         <div
           class="flex flex-col items-center justify-center h-full text-syn-color-neutral-400 gap-4"
@@ -36,22 +36,22 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           <thead>
             <tr>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-color-neutral-100 text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-[180px] border-b border-syn-color-neutral-200"
+                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-45 border-b border-syn-color-neutral-200"
               >
                 Timestamp
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-color-neutral-100 text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-[110px] border-b border-syn-color-neutral-200"
+                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-27.5 border-b border-syn-color-neutral-200"
               >
                 Level
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-color-neutral-100 text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-[200px] border-b border-syn-color-neutral-200"
+                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-50 border-b border-syn-color-neutral-200"
               >
                 Module
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-color-neutral-100 text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest border-b border-syn-color-neutral-200"
+                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest border-b border-syn-color-neutral-200"
               >
                 Message
               </th>
