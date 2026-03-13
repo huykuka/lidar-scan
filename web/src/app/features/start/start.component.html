@@ -2,7 +2,7 @@
   class="w-full bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 animate-in fade-in slide-in-from-bottom-4 duration-500"
 >
   <div class="w-full max-w-7xl mx-auto">
-    <p class="text-base sm:text-lg text-syn-color-neutral-600 leading-relaxed mb-6 sm:mb-8">
+    <p class="text-base sm:text-lg text-syn-color-neutral-600 leading-relaxed mb-3 sm:mb-8">
       Your complete LiDAR processing platform. Configure sensors, design processing pipelines,
       visualize point clouds in real-time, and manage recordings - all from a unified interface.
     </p>
@@ -13,9 +13,10 @@
         (click)="navigateTo('/workspaces')"
         class="p-4 sm:p-5 md:p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 transition-all cursor-pointer group"
       >
-        <syn-icon class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
+        <syn-icon
+          class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
           name="spoke"
-         />
+        />
         <h3 class="font-bold text-syn-typography-color-text mb-1 sm:mb-2 text-sm sm:text-base">
           Workspaces
         </h3>
@@ -26,7 +27,7 @@
           class="flex items-center text-syn-color-primary-600 text-xs sm:text-sm font-medium group-hover:gap-2 transition-all"
         >
           <span>Open Workspace</span>
-          <syn-icon class="text-sm sm:text-base ml-1" name="arrow_forward" />
+          <syn-icon class="text-sm sm:text-base ml-1" name="arrow_forward"/>
         </div>
       </div>
 
@@ -35,9 +36,10 @@
         (click)="navigateTo('/settings')"
         class="p-4 sm:p-5 md:p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 transition-all cursor-pointer group"
       >
-        <syn-icon class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
+        <syn-icon
+          class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
           name="settings"
-         />
+        />
         <h3 class="font-bold text-syn-typography-color-text mb-1 sm:mb-2 text-sm sm:text-base">
           Settings
         </h3>
@@ -49,7 +51,7 @@
           class="flex items-center text-syn-color-primary-600 text-xs sm:text-sm font-medium group-hover:gap-2 transition-all"
         >
           <span>Configure System</span>
-          <syn-icon class="text-sm sm:text-base ml-1" name="arrow_forward" />
+          <syn-icon class="text-sm sm:text-base ml-1" name="arrow_forward"/>
         </div>
       </div>
 
@@ -58,9 +60,10 @@
         (click)="navigateTo('/recordings')"
         class="p-4 sm:p-5 md:p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 transition-all cursor-pointer group"
       >
-        <syn-icon class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
+        <syn-icon
+          class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
           name="video_library"
-         />
+        />
         <h3 class="font-bold text-syn-typography-color-text mb-1 sm:mb-2 text-sm sm:text-base">
           Recordings
         </h3>
@@ -71,7 +74,7 @@
           class="flex items-center text-syn-color-primary-600 text-xs sm:text-sm font-medium group-hover:gap-2 transition-all"
         >
           <span>View Recordings</span>
-          <syn-icon class="text-sm sm:text-base ml-1" name="arrow_forward" />
+          <syn-icon class="text-sm sm:text-base ml-1" name="arrow_forward"/>
         </div>
       </div>
 
@@ -80,9 +83,10 @@
         (click)="navigateTo('/logs')"
         class="p-4 sm:p-5 md:p-6 rounded-xl bg-syn-color-neutral-50 border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 transition-all cursor-pointer group"
       >
-        <syn-icon class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
+        <syn-icon
+          class="text-syn-color-primary-600 text-2xl sm:text-3xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform"
           name="description"
-         />
+        />
         <h3 class="font-bold text-syn-typography-color-text mb-1 sm:mb-2 text-sm sm:text-base">
           Logs
         </h3>
@@ -94,7 +98,7 @@
           class="flex items-center text-syn-color-primary-600 text-xs sm:text-sm font-medium group-hover:gap-2 transition-all"
         >
           <span>View Logs</span>
-          <syn-icon class="text-sm sm:text-base ml-1" name="arrow_forward" />
+          <syn-icon class="text-sm sm:text-base ml-1" name="arrow_forward"/>
         </div>
       </div>
     </div>
@@ -107,8 +111,8 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <div class="flex items-start gap-2 sm:gap-3">
           <syn-icon class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
-            name="hub"
-           />
+                    name="hub"
+          />
           <div>
             <h4
               class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
@@ -124,8 +128,8 @@
 
         <div class="flex items-start gap-2 sm:gap-3">
           <syn-icon class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
-            name="3d_rotation"
-           />
+                    name="3d_rotation"
+          />
           <div>
             <h4
               class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
@@ -140,8 +144,8 @@
 
         <div class="flex items-start gap-2 sm:gap-3">
           <syn-icon class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
-            name="merge"
-           />
+                    name="merge"
+          />
           <div>
             <h4
               class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
@@ -157,8 +161,8 @@
 
         <div class="flex items-start gap-2 sm:gap-3">
           <syn-icon class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
-            name="save"
-           />
+                    name="save"
+          />
           <div>
             <h4
               class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
@@ -174,8 +178,8 @@
 
         <div class="flex items-start gap-2 sm:gap-3">
           <syn-icon class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
-            name="filter_alt"
-           />
+                    name="filter_alt"
+          />
           <div>
             <h4
               class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
@@ -191,8 +195,8 @@
 
         <div class="flex items-start gap-2 sm:gap-3">
           <syn-icon class="text-syn-color-primary-600 text-lg sm:text-xl mt-0.5 flex-shrink-0"
-            name="speed"
-           />
+                    name="speed"
+          />
           <div>
             <h4
               class="font-semibold text-syn-typography-color-text text-xs sm:text-sm mb-0.5 sm:mb-1"
@@ -213,8 +217,8 @@
     >
       <div class="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
         <syn-icon class="text-syn-color-primary-700 text-2xl sm:text-3xl flex-shrink-0"
-          name="lightbulb"
-         />
+                  name="lightbulb"
+        />
         <div class="flex-1">
           <h3 class="text-base sm:text-lg font-bold text-syn-color-primary-900 mb-2 sm:mb-3">
             Getting Started

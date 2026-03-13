@@ -12,8 +12,8 @@
     class="absolute top-4 z-20 w-6 h-6 bg-white border border-syn-color-neutral-200 rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
   >
     <syn-icon [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'"
-      class="text-sm text-syn-color-neutral-600"
-     />
+              class="text-sm text-syn-color-neutral-600"
+    />
   </button>
 
   <div
@@ -22,14 +22,14 @@
     [class.pointer-events-none]="isCollapsed()"
     class="flex-1 flex flex-col overflow-hidden w-64 transition-opacity duration-300"
   >
-    <div class="p-4 border-b border-syn-color-neutral-200">
+    <div class="p-3 border-b border-syn-color-neutral-200">
       <h3 class="text-xs font-black uppercase tracking-widest text-syn-color-neutral-600">
         Node Palette
       </h3>
       <p class="text-xs text-syn-color-neutral-500 mt-1">Drag nodes onto canvas</p>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 space-y-4 syn-scrollbar">
+    <div class="flex-1 overflow-y-auto p-3 space-y-4 syn-scrollbar">
       @if (isLoading()) {
         <div class="space-y-4">
           <div class="space-y-2">
@@ -55,7 +55,7 @@
             </div>
           </div>
           <div class="flex justify-center p-4">
-            <syn-spinner />
+            <syn-spinner/>
           </div>
         </div>
       }
@@ -82,7 +82,7 @@
                       [style.color]="plugin.style.color"
                       class="w-8 h-8 rounded-md flex items-center justify-center bg-opacity-10 transition-colors duration-200"
                     >
-                      <syn-icon [name]="plugin.icon" class="text-lg" />
+                      <syn-icon [name]="plugin.icon" class="text-lg"/>
                     </div>
                     <span
                       class="text-sm font-medium text-syn-color-neutral-700 group-hover:text-syn-color-neutral-900 transition-colors"
@@ -101,7 +101,7 @@
     <!-- Canvas Controls -->
     <div class="p-4 border-t border-syn-color-neutral-200 space-y-2">
       <syn-button (click)="onResetView.emit()" class="w-full" size="small" variant="outline">
-        <syn-icon name="center_focus_strong" slot="prefix" />
+        <syn-icon name="center_focus_strong" slot="prefix"/>
         Reset View
       </syn-button>
       <div class="text-xs text-syn-color-neutral-500 text-center">

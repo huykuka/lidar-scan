@@ -28,13 +28,15 @@
             <syn-icon name="upload" slot="prefix"/>
             Import
           </syn-button>
-          <syn-button (click)="onReloadConfig()" size="small" variant="outline">
+          <syn-button (click)="onReloadConfig()" size="small" variant="outline"
+                      [disabled]="!flowCanvas().hasUnsavedChanges()"
+                      [loading]="nodeStore.isLoading()">
             <syn-icon name="save" slot="prefix"/>
             Save & Reload
           </syn-button>
 
           @if (isSystemRunning()) {
-            <syn-button (click)="onStopSystem()" color="danger" size="small" variant="filled">
+            <syn-button (click)="onStopSystem()" size="small" variant="filled">
               <syn-icon name="stop" slot="prefix"/>
               Stop Data Flow
             </syn-button>

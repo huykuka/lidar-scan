@@ -2,32 +2,15 @@
 
 @import "tailwindcss";
 
-
-/* Custom scrollbar class for smooth aesthetics */
-.syn-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-}
-
-.syn-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.syn-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
-
-.syn-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 4px;
-}
-
-.syn-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
-}
-
-.syn-scrollbar::-webkit-scrollbar-corner {
-  background: transparent;
+/*
+  Routed page components must stretch inside the fixed-height main layout.
+  Without this, some pages (e.g. Logs) expand to full content height and
+  their inner overflow containers never get a scrollable height.
+*/
+router-outlet + * {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
 }

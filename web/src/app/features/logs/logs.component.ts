@@ -1,17 +1,15 @@
 import {Component, computed, inject, OnDestroy, OnInit, signal} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
-import {LogsStoreService} from '../../core/services/stores/logs-store.service';
-import {LogsApiService} from '../../core/services/api/logs-api.service';
-import {LogEntry} from '../../core/models/log.model';
+import {LogsStoreService} from '@core/services/stores';
+import {LogsApiService} from '@core/services/api';
+import {LogEntry} from '@core/models';
 import {Subject} from 'rxjs';
 import {takeUntil} from 'rxjs/operators';
 
-import {NavigationService} from '../../core/services';
-import {DialogService} from '../../core/services/dialog.service';
+import {DialogService, NavigationService} from '@core/services';
 import {LogsToolbarComponent} from './components/logs-toolbar.component';
 import {LogsTableComponent} from './components/logs-table.component';
-import {LogsDetailComponent} from './components/logs-detail.component';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
@@ -21,7 +19,6 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
     FormsModule,
     LogsToolbarComponent,
     LogsTableComponent,
-    LogsDetailComponent,
     SynergyComponentsModule
   ],
   templateUrl: './logs.component.html',
@@ -34,7 +31,6 @@ export class LogsComponent implements OnInit, OnDestroy {
   isStreaming = this.store.isStreaming;
   filters = this.store.filters;
   streamError = this.store.streamError;
-  autoScroll = this.store.autoScroll;
   selectedEntry = this.store.selectedEntry;
   // UI state
   selectedLevel = signal<string>('');
