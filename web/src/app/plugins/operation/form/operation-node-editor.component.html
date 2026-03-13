@@ -8,7 +8,6 @@
     (save)="onSave()"
     (cancel)="onCancel()"
   >
-    <syn-badge variant="warning" size="small">{{ operationType() }}</syn-badge>
   </app-node-editor-header>
 
   <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-3 text-sm">

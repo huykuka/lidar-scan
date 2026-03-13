@@ -6,6 +6,8 @@ html, body {
   overflow: hidden;
 }
 
+/* Routed page sizing is handled globally in src/styles.css */
+
 app-root {
   display: block;
   height: 100%;

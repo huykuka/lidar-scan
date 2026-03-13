@@ -11,8 +11,6 @@ import {ConfigExport, ConfigValidationResponse,} from '@core/models/config.model
 import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
 import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {RecordingStoreService} from '@core/services/stores/recording-store.service';
-import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
 
 @Component({
   selector: 'app-settings',
@@ -27,7 +25,7 @@ import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.ser
   ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
-  readonly flowCanvas = viewChild.required(FlowCanvasComponent);
+  protected flowCanvas = viewChild.required(FlowCanvasComponent);
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
   protected lidars = this.nodeStore.sensorNodes;
@@ -48,11 +46,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
   // Computed signal for unsaved changes
   protected hasUnsavedChanges = signal(false);
   private navService = inject(NavigationService);
-  private lidarProfilesApi = inject(LidarProfilesApiService);
   private nodesApi = inject(NodesApiService);
   private statusWs = inject(StatusWebSocketService);
   private configApi = inject(ConfigApiService);
-  private recordingStore = inject(RecordingStoreService);
   private toast = inject(ToastService);
 
   async ngOnInit() {
@@ -74,13 +70,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
   async loadConfig() {
     this.nodeStore.set('isLoading', true);
     try {
-      const [nodes, definitions] = await Promise.all([
+      const [nodes] = await Promise.all([
         this.nodesApi.getNodes(),
-        this.nodesApi.getNodeDefinitions(),
-        this.recordingStore.loadRecordings(),
       ]);
       this.nodeStore.set('nodes', nodes);
-      this.nodeStore.set('nodeDefinitions', definitions);
       this.nodeStore.set('isLoading', false);
     } catch (error) {
       console.error('Failed to load configuration', error);
@@ -90,6 +83,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   }
 
   async onReloadConfig() {
+    this.nodeStore.set('isLoading', true);
     try {
       // Save any unsaved node positions before reloading
       const flowCanvas = this.flowCanvas();
@@ -98,8 +92,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
       }
 
       await this.nodesApi.reloadConfig();
-      // Refresh LiDAR profiles to get any backend updates
-      await this.lidarProfilesApi.loadProfiles();
       await this.loadConfig();
       this.toast.success('Configuration and LiDAR profiles reloaded.');
     } catch (error) {
