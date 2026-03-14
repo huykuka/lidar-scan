@@ -1,7 +1,7 @@
 ---
 description: Backend Developer. Implements Python FastAPI/Open3D logic following @.opencode/rules/backend.md.
 mode: subagent
-model: github-copilot/claude-sonnet-4
+model: github-copilot/gpt-5.3-codex
 color: "#3b82f6"
 permission:
   read: allow

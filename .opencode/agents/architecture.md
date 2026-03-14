@@ -1,7 +1,7 @@
 ---
 description: Software Architect. Decides technical directions and system design for new features.
 mode: subagent
-model: github-copilot/claude-sonnet-4.6
+model: github-copilot/gpt-5.4
 color: "#fb923c"
 permission:
   read: allow

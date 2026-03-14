@@ -1,7 +1,7 @@
 ---
 description: Frontend Developer. Implements Angular 20/Three.js UI following @.opencode/rules/frontend.md. Uses signal-based components and Tailwind CSS.
 mode: subagent
-model: github-copilot/claude-sonnet-4
+model: github-copilot/gpt-5.3-codex
 color: "#ec4899"
 permission:
   read: allow

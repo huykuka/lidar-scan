@@ -1,7 +1,7 @@
 ---
 description: Technical Writer. Documents main architecture changes into AGENTS.md and the /docs folder.
 mode: subagent
-model: github-copilot/claude-sonnet-4
+model: github-copilot/gpt-4.1
 color: "#14b8a6"
 permission:
   read: allow
