@@ -1,11 +1,10 @@
-from sqlalchemy import false
-from typing import List, Any, Callable
-import time
-import json
-import os
-import open3d as o3d
+from typing import Any
+
 import numpy as np
-from ..base import PipelineOperation, _tensor_map_keys
+import open3d as o3d
+
+from ..base import PipelineOperation
+
 
 class Clustering(PipelineOperation):
     """
@@ -39,4 +38,3 @@ class Clustering(PipelineOperation):
                 cluster_count = int(labels.max() + 1) if labels.size > 0 else 0
             return pcd, {"cluster_count": cluster_count}
         return pcd, {"cluster_count": 0}
-

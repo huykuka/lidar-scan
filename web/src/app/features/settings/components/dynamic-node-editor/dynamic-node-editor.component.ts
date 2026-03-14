@@ -32,6 +32,7 @@ export class DynamicNodeEditorComponent implements OnDestroy {
   constructor() {
     effect(() => {
       const nodeData = this.nodeStore.selectedNode();
+      console.log(nodeData)
       const container = this.editorHost();
 
       if (!container || !nodeData || !nodeData.type) {

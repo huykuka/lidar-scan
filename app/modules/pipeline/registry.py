@@ -5,11 +5,11 @@ This module registers all Open3D point cloud operation node types with the
 DAG orchestrator. Loaded automatically via discover_modules() at application startup.
 """
 from typing import Any, Dict, List
+
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition, PropertySchema, PortSchema, node_schema_registry
 )
-
 
 # --- Schema Definitions ---
 # Each operation defines how it appears in the Angular flow-canvas UI
@@ -22,9 +22,14 @@ node_schema_registry.register(NodeDefinition(
     description="Filter points within/outside bounding box",
     icon="crop",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="min_bound", label="Min Bounds [X, Y, Z]", type="vec3", default=[-10.0, -10.0, -2.0]),
-        PropertySchema(name="max_bound", label="Max Bounds [X, Y, Z]", type="vec3", default=[10.0, 10.0, 2.0]),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="min_bound", label="Min Bounds [X, Y, Z]", type="vec3", default=[-10.0, -10.0, -2.0],
+                       help_text="Lower XYZ bounds of the crop box"),
+        PropertySchema(name="max_bound", label="Max Bounds [X, Y, Z]", type="vec3", default=[10.0, 10.0, 2.0],
+                       help_text="Upper XYZ bounds of the crop box"),
+        PropertySchema(name="invert", label="Inverted", type="boolean", default=False,
+                       help_text="Keep points outside the bounds instead of inside"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -38,8 +43,10 @@ node_schema_registry.register(NodeDefinition(
     description="Subsamples points using a grid of voxels",
     icon="grid_view",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="voxel_size", label="Voxel Size (m)", type="number", default=0.05, step=0.01, min=0.001),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="voxel_size", label="Voxel Size (m)", type="number", default=0.05, step=0.01, min=0.001,
+                       help_text="Voxel edge length in meters"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -50,12 +57,15 @@ node_schema_registry.register(NodeDefinition(
     type="outlier_removal",
     display_name="Stat. Outlier Removal",
     category="operation",
-    description="Removes noise from the point cloud using stats",
+    description="Removes noise from the point cloud using statistic",
     icon="auto_fix_normal",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="nb_neighbors", label="Neighbors", type="number", default=20, min=1),
-        PropertySchema(name="std_ratio", label="Std Ratio", type="number", default=2.0, step=0.1, min=0.1),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="nb_neighbors", label="Neighbors", type="number", default=20, min=1,
+                       help_text="Number of neighbors to analyze for each point"),
+        PropertySchema(name="std_ratio", label="Std Ratio", type="number", default=2.0, step=0.1, min=0.1,
+                       help_text="Std dev multiplier for outlier threshold"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -69,9 +79,12 @@ node_schema_registry.register(NodeDefinition(
     description="Removes points with too few neighbors in a sphere",
     icon="blur_on",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="nb_points", label="Min Points", type="number", default=16, min=1),
-        PropertySchema(name="radius", label="Search Radius (m)", type="number", default=0.05, step=0.01, min=0.01),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="nb_points", label="Min Points", type="number", default=16, min=1,
+                       help_text="Minimum neighbors required within radius"),
+        PropertySchema(name="radius", label="Search Radius (m)", type="number", default=0.05, step=0.01, min=0.01,
+                       help_text="Neighborhood radius in meters"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -85,10 +98,14 @@ node_schema_registry.register(NodeDefinition(
     description="Segments a plane from the point cloud using RANSAC",
     icon="layers",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="distance_threshold", label="Distance Threshold", type="number", default=0.1, step=0.01),
-        PropertySchema(name="ransac_n", label="RANSAC N", type="number", default=3, min=3),
-        PropertySchema(name="num_iterations", label="Max Iterations", type="number", default=1000, step=10),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="distance_threshold", label="Distance Threshold", type="number", default=0.1, step=0.01,
+                       help_text="Max distance from plane to be considered an inlier"),
+        PropertySchema(name="ransac_n", label="RANSAC N", type="number", default=3, min=3,
+                       help_text="Number of points sampled per RANSAC iteration"),
+        PropertySchema(name="num_iterations", label="Max Iterations", type="number", default=1000, step=10,
+                       help_text="Maximum RANSAC iterations"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -102,9 +119,12 @@ node_schema_registry.register(NodeDefinition(
     description="Clusters points using the DBSCAN algorithm",
     icon="scatter_plot",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="eps", label="Eps (Radius)", type="number", default=0.2, step=0.01),
-        PropertySchema(name="min_points", label="Min Points", type="number", default=10, min=1),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="eps", label="Eps (Radius)", type="number", default=0.2, step=0.01,
+                       help_text="Neighborhood radius for clustering"),
+        PropertySchema(name="min_points", label="Min Points", type="number", default=10, min=1,
+                       help_text="Minimum points to form a cluster"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -118,10 +138,14 @@ node_schema_registry.register(NodeDefinition(
     description="Detects boundary points based on angle criteria",
     icon="timeline",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="radius", label="Radius", type="number", default=0.02, step=0.01),
-        PropertySchema(name="max_nn", label="Max NN", type="number", default=30, min=1),
-        PropertySchema(name="angle_threshold", label="Angle Threshold", type="number", default=90.0, step=1.0),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="radius", label="Radius", type="number", default=0.02, step=0.01,
+                       help_text="Neighborhood radius for boundary analysis"),
+        PropertySchema(name="max_nn", label="Max NN", type="number", default=30, min=1,
+                       help_text="Maximum neighbors to consider"),
+        PropertySchema(name="angle_threshold", label="Angle Threshold", type="number", default=90.0, step=1.0,
+                       help_text="Boundary angle threshold in degrees"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -135,8 +159,10 @@ node_schema_registry.register(NodeDefinition(
     description="Filter points based on attribute values",
     icon="filter_alt",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="key", label="Attribute (e.g. intensity)", type="string", default="intensity"),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="key", label="Attribute (e.g. intensity)", type="string", default="intensity",
+                       help_text="Attribute name to filter on"),
         PropertySchema(name="operator", label="Operator", type="select", default=">", options=[
             {"label": "Greater Than (>)", "value": ">"},
             {"label": "Less Than (<)", "value": "<"},
@@ -144,8 +170,10 @@ node_schema_registry.register(NodeDefinition(
             {"label": "Not Equals (!=)", "value": "!="},
             {"label": "Greater/Eq (>=)", "value": ">="},
             {"label": "Less/Eq (<=)", "value": "<="}
-        ]),
-        PropertySchema(name="value", label="Threshold Value", type="number", default=100.0, step=1.0),
+        ],
+                       help_text="Comparison operator for the filter"),
+        PropertySchema(name="value", label="Threshold Value", type="number", default=100.0, step=1.0,
+                       help_text="Value to compare against the attribute"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -159,10 +187,14 @@ node_schema_registry.register(NodeDefinition(
     description="Saves point cloud to PCD files",
     icon="save",
     properties=[
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="output_dir", label="Output Directory", type="string", default="debug_output"),
-        PropertySchema(name="prefix", label="File Prefix", type="string", default="pcd"),
-        PropertySchema(name="max_keeps", label="Max Keeps", type="number", default=10, min=1),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="output_dir", label="Output Directory", type="string", default="debug_output",
+                       help_text="Directory to write output PCD files"),
+        PropertySchema(name="prefix", label="File Prefix", type="string", default="pcd",
+                       help_text="Filename prefix for saved PCD files"),
+        PropertySchema(name="max_keeps", label="Max Keeps", type="number", default=10, min=1,
+                       help_text="Maximum number of files to keep"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
@@ -175,30 +207,22 @@ node_schema_registry.register(NodeDefinition(
 def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """Build an OperationNode instance from persisted node configuration."""
     from .operation_node import OperationNode  # lazy import
-    
+
     config = node.get("config", {})
     # op_type can come from config.op_type or fall back to the node's own type (e.g. "crop")
     op_type = config.get("op_type") or node.get("type", "crop")
-    
+
     # Remove config-level fields from op_config before passing to the operation class
     op_config = config.copy()
     op_config.pop("op_type", None)
-    
+
     # Extract throttle_ms for OperationNode, don't pass it to the operation itself
     throttle_ms = op_config.pop("throttle_ms", 0)
     try:
         throttle_ms = float(throttle_ms)
     except (ValueError, TypeError):
         throttle_ms = 0.0
-    
-    # Backwards compatibility and schema mapping for Crop
-    if op_type == "crop":
-        if "min" in op_config:
-            op_config["min_bound"] = op_config.pop("min")
-        if "max" in op_config:
-            op_config["max_bound"] = op_config.pop("max")
-        op_config.pop("invert", None)
-        
+
     # Translate operator setting to array format for filter_by_key
     if op_type == "filter_by_key":
         operator = op_config.pop("operator", "==")
