@@ -84,6 +84,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
     this.setState({
       ...initialState,
       ...persistedState,
+      showCockpit:true,
       isConnected: false, // Don't persist connection status
       topics: [], // Don't persist topics
       selectedTopics: persistedState.selectedTopics || [], // Persist topic selections
