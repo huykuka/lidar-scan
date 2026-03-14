@@ -11,26 +11,32 @@ import {
   untracked,
 } from '@angular/core';
 
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { FlowCanvasDragService } from '@features/settings/components/flow-canvas/flow-canvas-drag';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {FlowCanvasDragService} from '@features/settings/components/flow-canvas/flow-canvas-drag';
 import {
   CanvasNode,
   FlowCanvasNodeComponent,
 } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import { FlowCanvasPaletteComponent } from '@features/settings/components/flow-canvas/palette/flow-canvas-palette.component';
+import {
+  FlowCanvasPaletteComponent
+} from '@features/settings/components/flow-canvas/palette/flow-canvas-palette.component';
 import {
   Connection,
   FlowCanvasConnectionsComponent,
 } from '@features/settings/components/flow-canvas/connections/flow-canvas-connections.component';
-import { FlowCanvasEmptyStateComponent } from '@features/settings/components/flow-canvas/empty-state/flow-canvas-empty-state.component';
-import { DynamicNodeEditorComponent } from '@features/settings/components/dynamic-node-editor/dynamic-node-editor.component';
-import { NodePlugin } from '@core/models';
-import { NodeStoreService } from '@core/services/stores';
-import { EdgesApiService, NodesApiService } from '@core/services/api';
-import { DialogService, ToastService } from '@core/services';
-import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
-import { StatusWebSocketService } from '@core/services/status-websocket.service';
-import { NodeConfig } from '@core/models/node.model';
+import {
+  FlowCanvasEmptyStateComponent
+} from '@features/settings/components/flow-canvas/empty-state/flow-canvas-empty-state.component';
+import {
+  DynamicNodeEditorComponent
+} from '@features/settings/components/dynamic-node-editor/dynamic-node-editor.component';
+import {NodePlugin} from '@core/models';
+import {NodeStoreService} from '@core/services/stores';
+import {EdgesApiService, NodesApiService} from '@core/services/api';
+import {DialogService, ToastService} from '@core/services';
+import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
+import {StatusWebSocketService} from '@core/services/status-websocket.service';
+import {NodeConfig} from '@core/models/node.model';
 
 @Component({
   selector: 'app-flow-canvas',
@@ -538,7 +544,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   private calculatePath(fromNode: CanvasNode, toNode: CanvasNode): string {
-    const fromX = fromNode.position.x + 296; // 288 (node width) + 8 (half port width outside)
+    const fromX = fromNode.position.x + 240; // 288 (node width) + 8 (half port width outside)
     const fromY = fromNode.position.y + 44;
     const toX = toNode.position.x - 8;
     const toY = toNode.position.y + 44;
