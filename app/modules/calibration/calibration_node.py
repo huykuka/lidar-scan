@@ -419,16 +419,25 @@ class CalibrationNode(ModuleNode):
             # is picked up by LidarSensor.handle_data() after reload_config().
             target_id = getattr(record, "source_sensor_id", None) or sensor_id
             
-            # Update sensor pose in database
+            # Load the existing full config so we don't wipe non-pose fields
+            # (mode, hostname, lidar_type, pcd_path, etc.)
             repo = NodeRepository(session=db)
-            repo.update_node_config(target_id, {
+            existing_node = repo.get_by_id(target_id)
+            if not existing_node:
+                raise ValueError(f"Sensor node {target_id} not found in database")
+            existing_config = existing_node.get("config", {})
+            
+            # Merge new pose into existing config — only overwrite the 6 pose keys
+            updated_config = {
+                **existing_config,
                 "x": record.pose_after["x"],
                 "y": record.pose_after["y"],
                 "z": record.pose_after["z"],
                 "roll": record.pose_after["roll"],
                 "pitch": record.pose_after["pitch"],
-                "yaw": record.pose_after["yaw"]
-            })
+                "yaw": record.pose_after["yaw"],
+            }
+            repo.update_node_config(target_id, updated_config)
             
             # Save to calibration history
             CalibrationHistory.save_record(record, db_session=db)
