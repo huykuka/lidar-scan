@@ -434,7 +434,7 @@ class CalibrationNode(ModuleNode):
             CalibrationHistory.save_record(record, db_session=db)
             
             # Trigger NodeManager reload to apply new transforms
-            self.manager.reload_config()
+            await self.manager.reload_config()
         finally:
             if db_session is None:
                 db.close()
