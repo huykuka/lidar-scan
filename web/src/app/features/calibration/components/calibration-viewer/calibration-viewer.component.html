@@ -16,6 +16,13 @@
           </div>
         </div>
       }
+
+      <div class="ml-auto">
+        <syn-button (click)="viewHistory()" size="small" variant="text">
+          <syn-icon name="history" slot="prefix" />
+          View History
+        </syn-button>
+      </div>
     </div>
   </header>
 
@@ -114,6 +121,15 @@
               </div>
               <syn-divider />
 
+              <!-- Run ID display -->
+              @if (runId()) {
+                <div class="mt-3 mb-2 flex items-center gap-2 text-sm">
+                  <syn-icon class="text-primary-600 text-xs" name="tag" />
+                  <span class="text-neutral-600">Run:</span>
+                  <span class="font-mono text-xs text-primary-700 font-semibold">{{ runId() }}</span>
+                </div>
+              }
+
               <div class="flex flex-col gap-4 mt-4">
                 @for (result of pendingResultsList(); track result.sensorId) {
                   <div class="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
@@ -126,13 +142,18 @@
                           {{ result.sensorId.slice(0, 8) }}
                         </span>
                         
-                        <!-- NEW: Show source sensor ID if different -->
+                        <!-- Source sensor ID badge (NEW) -->
                         @if (result.source_sensor_id && result.source_sensor_id !== result.sensorId) {
-                          <div class="mt-1">
-                            <span class="text-xs text-neutral-600">Source: </span>
-                            <span class="text-xs font-mono text-neutral-700">
+                          <div class="mt-1 flex items-center gap-1">
+                            <span class="text-xs text-neutral-600">Source:</span>
+                            <syn-badge
+                              variant="primary"
+                              size="small"
+                              [attr.title]="result.source_sensor_id"
+                              [attr.aria-label]="'Source sensor that will be patched: ' + result.source_sensor_id"
+                            >
                               {{ result.source_sensor_id.slice(0, 8) }}
-                            </span>
+                            </syn-badge>
                           </div>
                         }
                       </div>
@@ -141,7 +162,7 @@
                       </syn-badge>
                     </div>
 
-                    <!-- NEW: Processing Chain Display -->
+                    <!-- Processing Chain Display (NEW) -->
                     @if (result.processing_chain && result.processing_chain.length > 0) {
                       <div class="mb-3 p-2 bg-white border border-neutral-200 rounded">
                         <span class="text-xs text-neutral-600 mb-1 block">Processing Chain</span>
@@ -177,11 +198,13 @@
                 }
               </div>
 
+              <!-- Accept/Reject buttons — open dialogs -->
               <div class="flex gap-2 mt-4">
                 <syn-button
-                  (click)="acceptCalibration()"
+                  (click)="openAcceptDialog()"
                   [disabled]="isAccepting() || isRejecting()"
                   variant="filled"
+                  aria-label="Open accept calibration dialog"
                 >
                   @if (isAccepting()) {
                     <syn-spinner size="small" slot="prefix" />
@@ -192,9 +215,10 @@
                 </syn-button>
 
                 <syn-button
-                  (click)="rejectCalibration()"
+                  (click)="openRejectDialog()"
                   [disabled]="isAccepting() || isRejecting()"
                   variant="outline"
+                  aria-label="Open reject calibration dialog"
                 >
                   @if (isRejecting()) {
                     <syn-spinner size="small" slot="prefix" />
@@ -264,4 +288,27 @@
       </div>
     }
   </div>
+
+  <!-- Accept Dialog -->
+  <app-calibration-accept-dialog
+    [open]="showAcceptDialog()"
+    [nodeStatus]="calibrationNode()"
+    [runId]="runId()"
+    [accepting]="isAccepting()"
+    [rejecting]="isRejecting()"
+    (accepted)="acceptCalibration($event)"
+    (rejected)="rejectCalibration()"
+    (closed)="showAcceptDialog.set(false)"
+  />
+
+  <!-- Reject Dialog -->
+  <app-calibration-reject-dialog
+    [open]="showRejectDialog()"
+    [nodeStatus]="calibrationNode()"
+    [runId]="runId()"
+    [rejecting]="isRejecting()"
+    (rejected)="rejectCalibration()"
+    (closed)="showRejectDialog.set(false)"
+  />
 </div>
+

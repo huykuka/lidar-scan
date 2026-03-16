@@ -1,1 +1,234 @@
-<p>calibration-history-table works!</p>
+<div class="flex flex-col gap-4">
+  <!-- Filter Controls -->
+  <div class="flex flex-wrap gap-3 items-end bg-white border border-neutral-200 rounded-lg p-4">
+    <div class="flex flex-col gap-1 flex-1 min-w-40">
+      <label class="text-xs font-semibold text-neutral-700">
+        Filter by Source Sensor
+      </label>
+      <select
+        class="border border-neutral-300 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+        [value]="filterSourceSensor()"
+        (change)="onSourceSensorFilterChange($event)"
+        aria-label="Filter by source sensor ID"
+      >
+        <option value="">All sensors</option>
+        @for (sensorId of uniqueSourceSensors(); track sensorId) {
+          <option [value]="sensorId">{{ sensorId }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="flex flex-col gap-1 flex-1 min-w-40">
+      <label class="text-xs font-semibold text-neutral-700">
+        Filter by Run ID
+      </label>
+      <input
+        class="border border-neutral-300 rounded px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500"
+        type="text"
+        placeholder="Exact run ID..."
+        [value]="filterRunId()"
+        (input)="onRunIdFilterInput($event)"
+        aria-label="Filter by calibration run ID"
+      />
+    </div>
+
+    @if (hasActiveFilters()) {
+      <syn-button size="small" variant="text" (click)="clearFilters()">
+        <syn-icon name="filter_alt_off" slot="prefix" />
+        Clear filters
+      </syn-button>
+    }
+  </div>
+
+  <!-- Results count -->
+  <div class="flex items-center gap-2 text-sm text-neutral-600">
+    <span>
+      Showing <strong>{{ filteredRecords().length }}</strong> of
+      <strong>{{ records().length }}</strong> records
+    </span>
+    @if (hasActiveFilters()) {
+      <syn-badge variant="primary" size="small">Filtered</syn-badge>
+    }
+  </div>
+
+  <!-- Empty State -->
+  @if (filteredRecords().length === 0) {
+    <div class="text-center py-12 text-neutral-500">
+      <syn-icon class="text-5xl mb-3" name="history" />
+      <p class="m-0">No calibration records match the current filters.</p>
+      @if (hasActiveFilters()) {
+        <syn-button class="mt-4" size="small" variant="text" (click)="clearFilters()">
+          Clear filters to see all records
+        </syn-button>
+      }
+    </div>
+  } @else {
+    <!-- Table -->
+    <div class="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
+      <table class="w-full text-sm" role="table" aria-label="Calibration history">
+        <thead class="bg-neutral-50 border-b border-neutral-200">
+          <tr>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Timestamp
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Sensor ID
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Source Sensor
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Processing Chain
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Run ID
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Fitness
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              RMSE
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Quality
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Accepted
+            </th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-100">
+          @for (record of filteredRecords(); track record.id) {
+            <tr class="hover:bg-neutral-50 transition-colors">
+              <!-- Timestamp -->
+              <td class="px-4 py-3 text-xs text-neutral-600 whitespace-nowrap">
+                {{ formatDate(record.timestamp) }}
+              </td>
+
+              <!-- Sensor ID -->
+              <td class="px-4 py-3">
+                <span class="font-mono text-xs text-neutral-800">
+                  {{ shortId(record.sensor_id) }}
+                </span>
+              </td>
+
+              <!-- Source Sensor ID (NEW) -->
+              <td class="px-4 py-3">
+                @if (record.source_sensor_id) {
+                  <syn-badge
+                    variant="primary"
+                    size="small"
+                    [attr.title]="record.source_sensor_id"
+                    [attr.aria-label]="'Source sensor: ' + record.source_sensor_id"
+                  >
+                    {{ shortId(record.source_sensor_id) }}
+                  </syn-badge>
+                } @else {
+                  <syn-badge
+                    variant="neutral"
+                    size="small"
+                    title="Legacy record: source sensor not tracked"
+                    aria-label="Legacy record — source sensor not tracked"
+                  >
+                    Legacy
+                  </syn-badge>
+                }
+              </td>
+
+              <!-- Processing Chain (NEW) -->
+              <td class="px-4 py-3">
+                @if (getChainLength(record) > 0) {
+                  <app-processing-chain
+                    [processingChain]="record.processing_chain ?? []"
+                    displayMode="compact"
+                    [showLastNode]="true"
+                  />
+                } @else {
+                  <span class="text-xs text-neutral-400 italic">—</span>
+                }
+              </td>
+
+              <!-- Run ID (NEW) — clickable to filter -->
+              <td class="px-4 py-3">
+                @if (record.run_id) {
+                  <button
+                    class="font-mono text-xs text-primary-600 hover:text-primary-800 hover:underline cursor-pointer bg-transparent border-none p-0"
+                    (click)="onRunIdClick(record.run_id)"
+                    [title]="'Filter by run: ' + record.run_id"
+                    [attr.aria-label]="'Filter history to run ' + record.run_id"
+                  >
+                    {{ shortId(record.run_id) }}
+                  </button>
+                } @else if (isLegacyRecord(record)) {
+                  <syn-badge
+                    variant="neutral"
+                    size="small"
+                    title="Legacy record: run ID not tracked"
+                    aria-label="Legacy record — run ID not tracked"
+                  >
+                    Legacy
+                  </syn-badge>
+                } @else {
+                  <span class="text-xs text-neutral-400">—</span>
+                }
+              </td>
+
+              <!-- Fitness -->
+              <td class="px-4 py-3 text-sm font-semibold text-neutral-900">
+                @if (record.fitness != null) {
+                  {{ (record.fitness * 100).toFixed(1) }}%
+                } @else {
+                  <span class="text-neutral-400">—</span>
+                }
+              </td>
+
+              <!-- RMSE -->
+              <td class="px-4 py-3 text-sm font-mono text-neutral-900">
+                @if (record.rmse != null) {
+                  {{ record.rmse.toFixed(4) }}
+                } @else {
+                  <span class="text-neutral-400">—</span>
+                }
+              </td>
+
+              <!-- Quality -->
+              <td class="px-4 py-3">
+                @if (record.quality) {
+                  <syn-badge [variant]="getQualityVariant(record.quality)" size="small">
+                    {{ record.quality }}
+                  </syn-badge>
+                } @else {
+                  <span class="text-neutral-400">—</span>
+                }
+              </td>
+
+              <!-- Accepted -->
+              <td class="px-4 py-3">
+                <syn-badge [variant]="record.accepted ? 'success' : 'neutral'" size="small">
+                  {{ record.accepted ? 'Yes' : 'No' }}
+                </syn-badge>
+              </td>
+
+              <!-- Actions -->
+              <td class="px-4 py-3">
+                <syn-button
+                  size="small"
+                  variant="text"
+                  (click)="onViewDetail(record)"
+                  aria-label="View detail for this calibration record"
+                >
+                  <syn-icon name="visibility" slot="prefix" />
+                  Detail
+                </syn-button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
