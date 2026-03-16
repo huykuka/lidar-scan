@@ -125,11 +125,32 @@
                         <span class="text-xs font-mono text-neutral-500">
                           {{ result.sensorId.slice(0, 8) }}
                         </span>
+                        
+                        <!-- NEW: Show source sensor ID if different -->
+                        @if (result.source_sensor_id && result.source_sensor_id !== result.sensorId) {
+                          <div class="mt-1">
+                            <span class="text-xs text-neutral-600">Source: </span>
+                            <span class="text-xs font-mono text-neutral-700">
+                              {{ result.source_sensor_id.slice(0, 8) }}
+                            </span>
+                          </div>
+                        }
                       </div>
                       <syn-badge [variant]="getQualityVariant(result.quality)">
                         {{ result.quality }}
                       </syn-badge>
                     </div>
+
+                    <!-- NEW: Processing Chain Display -->
+                    @if (result.processing_chain && result.processing_chain.length > 0) {
+                      <div class="mb-3 p-2 bg-white border border-neutral-200 rounded">
+                        <span class="text-xs text-neutral-600 mb-1 block">Processing Chain</span>
+                        <app-processing-chain 
+                          [processingChain]="result.processing_chain"
+                          [displayMode]="'full'"
+                          [showLastNode]="false" />
+                      </div>
+                    }
 
                     <div class="grid grid-cols-2 gap-4">
                       <div class="flex gap-2 items-center">
