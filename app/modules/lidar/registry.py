@@ -101,12 +101,13 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     imu_udp_port = config.get("imu_udp_port")
     
     # Build transformation string
-    x = config.get("x", 0)
-    y = config.get("y", 0)
-    z = config.get("z", 0)
-    roll = config.get("roll", 0)
-    pitch = config.get("pitch", 0)
-    yaw = config.get("yaw", 0)
+    # CRITICAL: Ensure pose values are floats, not strings from JSON config
+    x = float(config.get("x", 0) or 0)
+    y = float(config.get("y", 0) or 0)
+    z = float(config.get("z", 0) or 0)
+    roll = float(config.get("roll", 0) or 0)
+    pitch = float(config.get("pitch", 0) or 0)
+    yaw = float(config.get("yaw", 0) or 0)
     add_transform_xyz_rpy = f"{x},{y},{z},{roll},{pitch},{yaw}"
     
     # Build launch arguments using profile system
