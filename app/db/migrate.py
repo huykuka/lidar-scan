@@ -38,6 +38,15 @@ def ensure_schema(engine: Engine) -> None:
         if "visible" not in _table_cols(conn, "nodes"):
             conn.execute(text("ALTER TABLE nodes ADD COLUMN visible INTEGER NOT NULL DEFAULT 1"))
         
+        # Add provenance tracking columns to calibration_history (ICP Flow Alignment feature)
+        cal_cols = _table_cols(conn, "calibration_history")
+        if "source_sensor_id" not in cal_cols:
+            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN source_sensor_id TEXT"))
+        if "processing_chain_json" not in cal_cols:
+            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN processing_chain_json TEXT NOT NULL DEFAULT '[]'"))
+        if "run_id" not in cal_cols:
+            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN run_id TEXT"))
+        
         # We start with a clean slate for the node architecture, so 
         # legacy migrations for lidars and fusions have been removed.
         pass
