@@ -9,6 +9,8 @@ class CalibrationResult(BaseModel):
     fitness: Optional[float] = None
     rmse: Optional[float] = None
     quality: Optional[str] = None  # "good" | "acceptable" | "poor"
+    source_sensor_id: Optional[str] = None  # Leaf sensor ID (lidar_id)
+    processing_chain: List[str] = []  # DAG path from leaf sensor to calibration node
 
 
 class CalibrationTriggerResponse(BaseModel):
@@ -16,6 +18,7 @@ class CalibrationTriggerResponse(BaseModel):
     success: bool
     results: Dict[str, CalibrationResult]
     pending_approval: bool
+    run_id: Optional[str] = None  # UUID correlating multi-sensor calibration runs
 
 
 class AcceptResponse(BaseModel):
@@ -39,6 +42,9 @@ class CalibrationRecord(BaseModel):
     accepted: bool
     fitness: Optional[float] = None
     rmse: Optional[float] = None
+    source_sensor_id: Optional[str] = None  # Leaf sensor ID for provenance tracking
+    processing_chain: List[str] = []  # DAG path from leaf sensor to calibration node
+    run_id: Optional[str] = None  # UUID for multi-sensor run correlation
 
 
 class CalibrationHistoryResponse(BaseModel):
