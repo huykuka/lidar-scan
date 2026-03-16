@@ -1,0 +1,25 @@
+<div class="processing-chain">
+  @if (displayMode() === 'compact') {
+    <syn-badge variant="neutral">
+      {{ processingChain().length }} node{{ processingChain().length !== 1 ? 's' : '' }}
+    </syn-badge>
+  } @else {
+    <div class="flex flex-wrap items-center gap-2">
+      @for (nodeId of getDisplayChain(); track nodeId; let isLast = $last) {
+        <syn-badge 
+          variant="primary" 
+          [attr.title]="nodeId"
+          class="font-mono text-xs">
+          {{ getNodeDisplayName(nodeId) }}
+        </syn-badge>
+        @if (!isLast) {
+          <span class="text-gray-400">→</span>
+        }
+      }
+    </div>
+  }
+  
+  @if (processingChain().length === 0) {
+    <span class="text-gray-500 italic">No processing chain</span>
+  }
+</div>
