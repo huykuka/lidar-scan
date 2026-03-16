@@ -54,6 +54,26 @@ node_schema_registry.register(NodeDefinition(
             help_text="Maximum number of ICP iterations"
         ),
         PropertySchema(
+            name="normal_search_radius",
+            label="Normal Search Radius (m)",
+            type="number",
+            default=0.1,
+            min=0.01,
+            max=1.0,
+            step=0.01,
+            help_text="Search radius for normal estimation (larger = smoother normals)"
+        ),
+        PropertySchema(
+            name="normal_max_nn",
+            label="Normal Max Neighbors",
+            type="number",
+            default=30,
+            min=10,
+            max=100,
+            step=5,
+            help_text="Maximum neighbors for normal estimation"
+        ),
+        PropertySchema(
             name="translation_only",
             label="Translation Only (XYZ)",
             type="boolean",
@@ -162,6 +182,8 @@ def build_calibration(node: Dict[str, Any], service_context: Any, edges: List[Di
         "icp_method": config.get("icp_method", "point_to_plane"),
         "icp_threshold": _parse_float(config.get("icp_threshold"), 0.02),
         "icp_iterations": _parse_int(config.get("icp_iterations"), 50),
+        "normal_search_radius": _parse_float(config.get("normal_search_radius"), 0.1),
+        "normal_max_nn": _parse_int(config.get("normal_max_nn"), 30),
         "translation_only": _parse_bool(config.get("translation_only"), False),
         "enable_global_registration": _parse_bool(config.get("enable_global_registration"), True),
         "global_voxel_size": _parse_float(config.get("global_voxel_size"), 0.05),

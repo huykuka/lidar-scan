@@ -50,12 +50,18 @@ class ICPEngine:
                 - translation_only: Constrain to XYZ translation only, no rotation (default: False)
                 - min_fitness: Min fitness for quality gate (default: 0.7)
                 - max_rmse: Max RMSE for quality gate (default: 0.05)
+                - normal_search_radius: Normal estimation search radius in meters (default: 0.1)
+                - normal_max_nn: Normal estimation max neighbors (default: 30)
         """
         # ICP parameters
         self.method = config.get("icp_method", "point_to_plane")
         self.threshold = config.get("icp_threshold", 0.02)
         self.max_iterations = config.get("icp_iterations", 50)
         self.translation_only = config.get("translation_only", False)
+        
+        # Normal estimation parameters
+        self.normal_search_radius = config.get("normal_search_radius", 0.1)
+        self.normal_max_nn = config.get("normal_max_nn", 30)
         
         # Global registration
         self.enable_global = config.get("enable_global_registration", True)
@@ -99,20 +105,28 @@ class ICPEngine:
                 init_transform = initial_transform
             
             # Stage 1: Global registration (if needed)
-            if self.enable_global and self._needs_global_registration(init_transform):
+            if self.enable_global:
                 global_result = self.global_reg.register(source, target)
                 
+                print(global_result)
                 if global_result.converged:
                     init_transform = global_result.transformation
                     stages_used.append("global")
             
             # Stage 2: ICP refinement
             # Estimate normals (required for point-to-plane)
+            # Use configurable search parameters for normal estimation
             source_pcd.estimate_normals(
-                o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+                o3d.geometry.KDTreeSearchParamHybrid(
+                    radius=self.normal_search_radius,
+                    max_nn=self.normal_max_nn
+                )
             )
             target_pcd.estimate_normals(
-                o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+                o3d.geometry.KDTreeSearchParamHybrid(
+                    radius=self.normal_search_radius,
+                    max_nn=self.normal_max_nn
+                )
             )
             
             # Choose estimation method
