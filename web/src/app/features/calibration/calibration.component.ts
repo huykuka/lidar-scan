@@ -5,11 +5,12 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {StatusWebSocketService} from '../../core/services/status-websocket.service';
 import {CalibrationNodeStatus} from '../../core/models/calibration.model';
 import {NavigationService} from '../../core/services';
+import {ProcessingChainComponent} from './components/processing-chain/processing-chain.component';
 
 @Component({
   selector: 'app-calibration',
   standalone: true,
-  imports: [SynergyComponentsModule],
+  imports: [SynergyComponentsModule, ProcessingChainComponent],
   templateUrl: './calibration.component.html',
 })
 export class CalibrationComponent {
@@ -43,6 +44,30 @@ export class CalibrationComponent {
       sensorId,
       ...result,
     }));
+  }
+
+  /**
+   * Get buffered frame count (backward compatible with array and dict formats)
+   */
+  getBufferedFrameCount(bufferedFrames: Record<string, number> | string[]): number {
+    if (Array.isArray(bufferedFrames)) {
+      // Legacy array format
+      return bufferedFrames.length;
+    }
+    // New dict format - return number of sensors
+    return Object.keys(bufferedFrames).length;
+  }
+
+  /**
+   * Get buffered frame entries for display
+   */
+  getBufferedFrameEntries(bufferedFrames: Record<string, number> | string[]): Array<{sensorId: string, count: number}> {
+    if (Array.isArray(bufferedFrames)) {
+      // Legacy array format - convert to entries with unknown count
+      return bufferedFrames.map(sensorId => ({sensorId, count: 1}));
+    }
+    // New dict format
+    return Object.entries(bufferedFrames).map(([sensorId, count]) => ({sensorId, count}));
   }
 
   getQualityVariant(quality: string): 'success' | 'warning' | 'danger' | 'neutral' {
