@@ -84,14 +84,16 @@ async def accept_calibration(node_id: str, request: AcceptCalibrationRequest, db
     
     # Accept calibration
     try:
-        accepted = await node.accept_calibration(
+        result = await node.accept_calibration(
             sensor_ids=request.sensor_ids,
             db=db
         )
         
+        # node.accept_calibration() returns {"success": bool, "accepted": list}
+        # Extract the accepted list from the result
         return {
-            "success": True,
-            "accepted": accepted
+            "success": result.get("success", True),
+            "accepted": result.get("accepted", [])
         }
     
     except ValueError as e:
