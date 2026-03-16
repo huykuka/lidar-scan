@@ -196,12 +196,12 @@ This feature extends the existing `CalibrationNode` (at `app/modules/calibration
   - Verify `CalibrationHistory.save_record()` is called with full record including new fields
   - Verify `self.manager.reload_config()` is called to trigger DAG hot-reload
 
-- [ ] **Verify `NodeRepository.update_node_config()` workflow**
+- [x] **Verify `NodeRepository.update_node_config()` workflow**
   - Confirm it uses `json.dumps(config)` to serialize the full config dict
   - Confirm it commits the SQLAlchemy session
   - Confirm the node's `config_json` column is updated in the database
 
-- [ ] **Test transformation patch end-to-end**
+- [x] **Test transformation patch end-to-end**
   - Create test DAG: `LidarSensor A → CropNode → DownsampleNode → CalibrationNode`
   - Trigger calibration for sensor A
   - Verify `source_sensor_id` in record is `A` (not `DownsampleNode`)
@@ -228,11 +228,11 @@ This feature extends the existing `CalibrationNode` (at `app/modules/calibration
 
 ### Tasks
 
-- [ ] **Add `use_fast_global_registration` parameter** to `GlobalRegistration.__init__()`
+- [x] **Add `use_fast_global_registration` parameter** to `GlobalRegistration.__init__()`
   - File: `app/modules/calibration/registration/global_registration.py`
   - Add to config: `self.use_fgr = config.get("use_fast_global_registration", False)`
 
-- [ ] **Implement FGR branch** in `GlobalRegistration.register()`
+- [x] **Implement FGR branch** in `GlobalRegistration.register()`
   - After downsampling and FPFH computation, add conditional:
     ```python
     if self.use_fgr:
@@ -264,16 +264,16 @@ This feature extends the existing `CalibrationNode` (at `app/modules/calibration
         method = "ransac"
     ```
 
-- [ ] **Extend `GlobalResult` dataclass** to include method used
+- [x] **Extend `GlobalResult` dataclass** to include method used
   - Add field: `method: str` (values: `"ransac"` or `"fgr"`)
   - Return in `GlobalRegistration.register()`: `GlobalResult(..., method=method)`
 
-- [ ] **Update `ICPEngine` to pass through FGR flag**
+- [x] **Update `ICPEngine` to pass through FGR flag**
   - File: `app/modules/calibration/registration/icp_engine.py`
   - Add to config: `use_fast_global_registration: bool`
   - Pass to `GlobalRegistration(config)` constructor
 
-- [ ] **Unit tests for RANSAC vs FGR selection**
+- [x] **Unit tests for RANSAC vs FGR selection**
   - Test case: `use_fast_global_registration=False` → calls `registration_ransac_based_on_feature_matching`
   - Test case: `use_fast_global_registration=True` → calls `registration_fgr_based_on_feature_matching`
   - Test case: Verify `GlobalResult.method` field is correctly set
@@ -347,23 +347,23 @@ This feature extends the existing `CalibrationNode` (at `app/modules/calibration
 
 ### Test Scenarios
 
-- [ ] **Test 1: Simple direct connection**
+- [x] **Test 1: Simple direct connection**
   - DAG: `LidarSensor A → CalibrationNode`
   - Verify: `source_sensor_id = A`, `processing_chain = [A]`
   - Verify: Transformation applied to node A config
 
-- [ ] **Test 2: Complex processing chain**
+- [x] **Test 2: Complex processing chain**
   - DAG: `LidarSensor A → CropNode → DownsampleNode → CalibrationNode`
   - Verify: `source_sensor_id = A`, `processing_chain = [A, crop_id, downsample_id]`
   - Verify: Transformation applied to node A config (NOT crop or downsample)
 
-- [ ] **Test 3: Multi-sensor calibration**
+- [x] **Test 3: Multi-sensor calibration**
   - DAG: `LidarSensor A → CalibrationNode`, `LidarSensor B → CalibrationNode`
   - Trigger calibration with reference=A, sources=[B]
   - Verify: `run_id` is the same for both sensors
   - Verify: `source_sensor_id` is correct for each result
 
-- [ ] **Test 4: Accept calibration workflow**
+- [x] **Test 4: Accept calibration workflow**
   - Trigger calibration
   - Verify result is `pending`
   - Call `POST /api/v1/calibration/{node_id}/accept`
@@ -371,18 +371,18 @@ This feature extends the existing `CalibrationNode` (at `app/modules/calibration
   - Verify: `calibration_history` record created with `accepted=True`
   - Verify: `manager.reload_config()` was called
 
-- [ ] **Test 5: Reject calibration workflow**
+- [x] **Test 5: Reject calibration workflow**
   - Trigger calibration
   - Call `POST /api/v1/calibration/{node_id}/reject`
   - Verify: `nodes.config_json` unchanged
   - Verify: `_pending_calibration` is cleared
 
-- [ ] **Test 6: History query by source_sensor_id**
+- [x] **Test 6: History query by source_sensor_id**
   - Trigger calibration for sensor A through processing chain
   - Call `GET /api/v1/calibration/history/{sensor_id}?source_sensor_id=A`
   - Verify: Only records for leaf sensor A are returned
 
-- [ ] **Test 7: Run correlation**
+- [x] **Test 7: Run correlation**
   - Trigger multi-sensor calibration
   - Query `calibration_orm.get_calibration_history_by_run(db, run_id)`
   - Verify: All sensors from that run are returned
