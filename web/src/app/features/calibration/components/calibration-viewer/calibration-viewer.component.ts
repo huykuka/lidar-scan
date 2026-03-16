@@ -65,6 +65,30 @@ export class CalibrationViewerComponent {
     );
   }
 
+  /**
+   * Get buffered frame count (backward compatible with array and dict formats)
+   */
+  getBufferedFrameCount(bufferedFrames: Record<string, number> | string[]): number {
+    if (Array.isArray(bufferedFrames)) {
+      // Legacy array format
+      return bufferedFrames.length;
+    }
+    // New dict format - return number of sensors
+    return Object.keys(bufferedFrames).length;
+  }
+
+  /**
+   * Get buffered frame entries for display
+   */
+  getBufferedFrameEntries(bufferedFrames: Record<string, number> | string[]): Array<{sensorId: string, count: number}> {
+    if (Array.isArray(bufferedFrames)) {
+      // Legacy array format - convert to entries with unknown count
+      return bufferedFrames.map(sensorId => ({sensorId, count: 1}));
+    }
+    // New dict format
+    return Object.entries(bufferedFrames).map(([sensorId, count]) => ({sensorId, count}));
+  }
+
   getSensorName(sensorId: string): string {
     const nodes = this.nodeStore.nodes();
     const sensor = nodes.find((n: NodeConfig) => n.id === sensorId);

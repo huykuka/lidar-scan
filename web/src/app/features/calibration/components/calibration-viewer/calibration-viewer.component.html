@@ -56,7 +56,7 @@
                 <span class="text-neutral-600 font-medium">Buffered Sensors</span>
                 <span class="text-neutral-900">
                   <syn-badge variant="primary">
-                    {{ calibrationNode()!.buffered_frames.length }}
+                    {{ getBufferedFrameCount(calibrationNode()!.buffered_frames) }}
                   </syn-badge>
                 </span>
               </div>
@@ -220,7 +220,7 @@
             <h2 class="text-base font-semibold text-neutral-900 m-0 mb-3">Buffered Frames</h2>
             <syn-divider />
 
-            @if (calibrationNode()!.buffered_frames.length === 0) {
+            @if (getBufferedFrameCount(calibrationNode()!.buffered_frames) === 0) {
               <div class="text-center py-12">
                 <syn-icon class="text-5xl text-neutral-400 mb-4" name="cloud_off" />
                 <p class="text-neutral-600 mb-1 m-0">No frames buffered yet</p>
@@ -230,20 +230,20 @@
               </div>
             } @else {
               <div class="flex flex-col gap-2 mt-4">
-                @for (sensorId of calibrationNode()!.buffered_frames; track sensorId) {
+                @for (entry of getBufferedFrameEntries(calibrationNode()!.buffered_frames); track entry.sensorId) {
                   <div class="flex items-center gap-2 p-2 bg-neutral-50 rounded-lg">
                     <syn-icon class="text-primary-600" name="sensors" />
                     <div class="flex-1 flex flex-col gap-0.5">
                       <span class="text-sm font-medium text-neutral-900">
-                        {{ getSensorName(sensorId) }}
+                        {{ getSensorName(entry.sensorId) }}
                       </span>
                       <span class="text-xs font-mono text-neutral-500">
-                        {{ sensorId.slice(0, 8) }}
+                        {{ entry.sensorId.slice(0, 8) }}
                       </span>
                     </div>
                     <syn-badge size="small" variant="success">
                       <syn-icon name="check_circle" slot="prefix" />
-                      Ready
+                      {{ entry.count }} frame{{ entry.count !== 1 ? 's' : '' }}
                     </syn-badge>
                   </div>
                 }
@@ -254,7 +254,7 @@
               <div class="flex gap-2 p-2 bg-primary-50 rounded-lg mt-4">
                 <syn-icon class="text-primary-600 flex-shrink-0" name="info" />
                 <p class="text-sm text-neutral-700 m-0">
-                  {{ calibrationNode()!.buffered_frames.length }} sensor(s) have buffered point
+                  {{ getBufferedFrameCount(calibrationNode()!.buffered_frames) }} sensor(s) have buffered point
                   cloud data. You can trigger calibration from the Settings page.
                 </p>
               </div>
