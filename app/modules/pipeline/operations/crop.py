@@ -16,8 +16,21 @@ class Crop(PipelineOperation):
     """
 
     def __init__(self, min_bound, max_bound, invert=False):
+        # Convert to numpy arrays first
         self.min_bound_np = np.asarray(min_bound, dtype=np.float64)
         self.max_bound_np = np.asarray(max_bound, dtype=np.float64)
+        
+        # Validate and fix: ensure max_bound >= min_bound for each axis
+        for i, axis in enumerate(['X', 'Y', 'Z']):
+            if self.max_bound_np[i] < self.min_bound_np[i]:
+                # Swap the values to fix invalid bounds
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Crop bounding box: max_bound[{axis}]={self.max_bound_np[i]:.2f} < "
+                    f"min_bound[{axis}]={self.min_bound_np[i]:.2f}. Auto-swapping values."
+                )
+                self.min_bound_np[i], self.max_bound_np[i] = self.max_bound_np[i], self.min_bound_np[i]
 
         self.min_bound_t = o3d.core.Tensor(self.min_bound_np, dtype=o3d.core.Dtype.Float64)
         self.max_bound_t = o3d.core.Tensor(self.max_bound_np, dtype=o3d.core.Dtype.Float64)
