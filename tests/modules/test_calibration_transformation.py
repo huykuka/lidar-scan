@@ -17,7 +17,7 @@ class TestCalibrationTransformationPatch:
         """Create a mock NodeManager"""
         manager = Mock()
         manager.forward_data = AsyncMock()
-        manager.reload_config = Mock()
+        manager.reload_config = AsyncMock()
         return manager
     
     @pytest.fixture
@@ -60,6 +60,7 @@ class TestCalibrationTransformationPatch:
              patch('app.modules.calibration.calibration_node.SessionLocal') as MockSession:
             
             mock_repo_instance = MockRepo.return_value
+            mock_repo_instance.get_by_id = Mock(return_value={"config": {}})
             mock_repo_instance.update_node_config = Mock()
             mock_db = MockSession.return_value
             

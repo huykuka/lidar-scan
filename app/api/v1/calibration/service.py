@@ -42,7 +42,8 @@ async def trigger_calibration(node_id: str, request: TriggerCalibrationRequest):
     try:
         results = await node.trigger_calibration({
             "reference_sensor_id": request.reference_sensor_id,
-            "source_sensor_ids": request.source_sensor_ids
+            "source_sensor_ids": request.source_sensor_ids,
+            "sample_frames": getattr(request, "sample_frames", 5)
         })
         
         return {

@@ -107,8 +107,6 @@ class ICPEngine:
             # Stage 1: Global registration (if needed)
             if self.enable_global:
                 global_result = self.global_reg.register(source, target)
-                
-                print(global_result)
                 if global_result.converged:
                     init_transform = global_result.transformation
                     stages_used.append("global")

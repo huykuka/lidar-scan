@@ -5,7 +5,7 @@ This module provides data structures and utilities for tracking calibration
 attempts, storing history, and enabling rollback to previous calibrations.
 """
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import json
 
@@ -206,7 +206,7 @@ def create_calibration_record(
         CalibrationRecord with current timestamp
     """
     return CalibrationRecord(
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),
         sensor_id=sensor_id,
         reference_sensor_id=reference_sensor_id,
         fitness=fitness,

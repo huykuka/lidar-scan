@@ -10,7 +10,7 @@ Provenance Tracking:
 - processing_chain: Ordered list of DAG node IDs from leaf sensor to calibration node
 """
 from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from collections import deque
 import numpy as np
@@ -18,14 +18,16 @@ import uuid
 
 from app.core.logging import get_logger
 from app.services.nodes.base_module import ModuleNode
-
-logger = get_logger(__name__)
+from app.repositories.node_orm import NodeRepository
+from app.db.session import SessionLocal
 from app.modules.lidar.core.transformations import (
     create_transformation_matrix,
     pose_to_dict
 )
 from .registration.icp_engine import ICPEngine
 from .history import CalibrationHistory, create_calibration_record
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -232,8 +234,6 @@ class CalibrationNode(ModuleNode):
                 - pending_approval: bool
                 - error: str (if success=False)
         """
-        from app.repositories.node_orm import NodeRepository
-        
         # Determine reference sensor
         ref_id = params.get("reference_sensor_id") or self._reference_sensor_id
         if not ref_id or ref_id not in self._frame_buffer:
@@ -266,7 +266,6 @@ class CalibrationNode(ModuleNode):
         # Run ICP for each source sensor
         results = {}
         calibration_records = {}
-        
         for source_id in source_ids:
             # Aggregate frames for source sensor
             source_aggregated = self._aggregate_frames(source_id, sample_frames)
@@ -302,7 +301,6 @@ class CalibrationNode(ModuleNode):
             reg_result = await self.icp_engine.register(
                 source=source_points,
                 target=ref_points,
-                initial_transform=T_current
             )
             
             # Compose transformations: T_new = T_icp @ T_current
@@ -351,7 +349,7 @@ class CalibrationNode(ModuleNode):
         
         # Store pending calibrations (for user approval)
         self._pending_calibration = calibration_records
-        self._last_calibration_time = datetime.utcnow().isoformat()
+        self._last_calibration_time = datetime.now(timezone.utc).isoformat()
         
         return {
             "success": True,
@@ -407,9 +405,6 @@ class CalibrationNode(ModuleNode):
             record: CalibrationRecord to apply
             db_session: Optional SQLAlchemy session
         """
-        from app.repositories.node_orm import NodeRepository
-        from app.db.session import SessionLocal
-        
         # Get or create database session
         db = db_session or SessionLocal()
         
