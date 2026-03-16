@@ -28,7 +28,10 @@ def create_calibration_record(
     pose_after: dict,
     transformation_matrix: List[List[float]],
     accepted: bool = False,
-    notes: str = ""
+    notes: str = "",
+    source_sensor_id: Optional[str] = None,
+    processing_chain: Optional[List[str]] = None,
+    run_id: Optional[str] = None
 ) -> CalibrationHistoryModel:
     """
     Create a new calibration history record.
@@ -47,6 +50,9 @@ def create_calibration_record(
         transformation_matrix: 4x4 transformation matrix
         accepted: Whether user accepted the calibration
         notes: Optional user notes
+        source_sensor_id: Canonical leaf LidarSensor node ID (NEW)
+        processing_chain: DAG path from leaf sensor to calibration node (NEW)
+        run_id: Correlates multi-sensor calibration runs (NEW)
         
     Returns:
         Created CalibrationHistoryModel instance
@@ -64,7 +70,10 @@ def create_calibration_record(
         pose_after_json=json.dumps(pose_after),
         transformation_matrix_json=json.dumps(transformation_matrix),
         accepted=accepted,
-        notes=notes
+        notes=notes,
+        source_sensor_id=source_sensor_id or sensor_id,  # Default to sensor_id for backward compat
+        processing_chain_json=json.dumps(processing_chain or []),
+        run_id=run_id
     )
     
     db.add(record)
@@ -251,3 +260,51 @@ def get_calibration_statistics(db: Session, sensor_id: str) -> dict:
         "best_fitness": max(r.fitness for r in records),
         "best_rmse": min(r.rmse for r in records)
     }
+
+
+def get_calibration_history_by_source(
+    db: Session,
+    source_sensor_id: str,
+    limit: Optional[int] = None
+) -> List[CalibrationHistoryModel]:
+    """
+    Query calibration history by canonical leaf sensor ID.
+    
+    Args:
+        db: SQLAlchemy session
+        source_sensor_id: Canonical leaf LidarSensor node ID
+        limit: Maximum number of records to return (None = all)
+        
+    Returns:
+        List of CalibrationHistoryModel instances, sorted by timestamp descending
+    """
+    query = db.query(CalibrationHistoryModel).filter(
+        CalibrationHistoryModel.source_sensor_id == source_sensor_id
+    )
+    
+    query = query.order_by(desc(CalibrationHistoryModel.timestamp))
+    
+    if limit is not None:
+        query = query.limit(limit)
+    
+    return query.all()
+
+
+def get_calibration_history_by_run(
+    db: Session,
+    run_id: str
+) -> List[CalibrationHistoryModel]:
+    """
+    Return all sensor records for a given calibration run.
+    
+    Args:
+        db: SQLAlchemy session
+        run_id: Calibration run identifier
+        
+    Returns:
+        List of CalibrationHistoryModel instances for all sensors in the run
+    """
+    return db.query(CalibrationHistoryModel).filter(
+        CalibrationHistoryModel.run_id == run_id
+    ).order_by(CalibrationHistoryModel.timestamp).all()
+

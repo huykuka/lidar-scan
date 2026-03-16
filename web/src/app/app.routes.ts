@@ -54,6 +54,13 @@ export const routes: Routes = [
             (m) => m.CalibrationViewerComponent,
           ),
       },
+      {
+        path: 'calibration/:id/history',
+        loadComponent: () =>
+          import('./features/calibration/calibration-history/calibration-history.component').then(
+            (m) => m.CalibrationHistoryComponent,
+          ),
+      },
     ],
   },
   {

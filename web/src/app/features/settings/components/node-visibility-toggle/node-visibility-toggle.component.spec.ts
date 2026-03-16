@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
+import { vi } from 'vitest';
 import { NodeVisibilityToggleComponent } from './node-visibility-toggle.component';
 import { NodeConfig } from '../../../../core/models/node.model';
 
@@ -27,7 +28,7 @@ class TestHostComponent {
     y: 0
   });
   isPending = signal(false);
-  onVisibilityChanged = jasmine.createSpy('onVisibilityChanged');
+  onVisibilityChanged = vi.fn();
 }
 
 describe('NodeVisibilityToggleComponent', () => {

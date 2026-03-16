@@ -1,5 +1,7 @@
 """Calibration router configuration and endpoint metadata."""
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.db.models import get_db
@@ -71,14 +73,15 @@ async def calibration_reject_endpoint(node_id: str):
     response_model=CalibrationHistoryResponse,
     responses={500: {"description": "Database error"}},
     summary="Get Calibration History",
-    description="Retrieve calibration history for a sensor.",
+    description="Retrieve calibration history for a sensor. Optionally filter by source_sensor_id (leaf sensor ID).",
 )
 async def calibration_history_endpoint(
     sensor_id: str,
     limit: int = 10,
+    source_sensor_id: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    return await get_calibration_history(sensor_id, limit, db)
+    return await get_calibration_history(sensor_id, limit, db, source_sensor_id)
 
 
 @router.post(

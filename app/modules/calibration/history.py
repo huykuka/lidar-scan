@@ -5,7 +5,7 @@ This module provides data structures and utilities for tracking calibration
 attempts, storing history, and enabling rollback to previous calibrations.
 """
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import json
 
@@ -39,6 +39,16 @@ class CalibrationRecord:
     # User metadata
     accepted: bool  # Did user save this calibration?
     notes: str = ""
+    
+    # Provenance tracking (ICP Flow Alignment feature)
+    source_sensor_id: str = ""  # Canonical leaf LidarSensor node ID
+    processing_chain: Optional[List[str]] = None  # DAG path from leaf sensor to calibration node
+    run_id: str = ""  # Correlates multi-sensor calibration runs
+    
+    def __post_init__(self):
+        """Initialize mutable default values"""
+        if self.processing_chain is None:
+            self.processing_chain = []
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
@@ -82,7 +92,10 @@ class CalibrationHistory:
             pose_after=record.pose_after,
             transformation_matrix=record.transformation_matrix,
             accepted=record.accepted,
-            notes=record.notes
+            notes=record.notes,
+            source_sensor_id=record.source_sensor_id,
+            processing_chain=record.processing_chain or [],
+            run_id=record.run_id
         )
     
     @staticmethod
@@ -165,7 +178,10 @@ def create_calibration_record(
     pose_after: Dict[str, float],
     transformation_matrix: List[List[float]],
     accepted: bool = False,
-    notes: str = ""
+    notes: str = "",
+    source_sensor_id: str = "",
+    processing_chain: Optional[List[str]] = None,
+    run_id: str = ""
 ) -> CalibrationRecord:
     """
     Factory function to create a CalibrationRecord with current timestamp.
@@ -182,12 +198,15 @@ def create_calibration_record(
         transformation_matrix: 4x4 transformation matrix
         accepted: Whether calibration was accepted
         notes: Optional user notes
+        source_sensor_id: Canonical leaf LidarSensor node ID
+        processing_chain: DAG path from leaf sensor to calibration node
+        run_id: Correlates multi-sensor calibration runs
         
     Returns:
         CalibrationRecord with current timestamp
     """
     return CalibrationRecord(
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(timezone.utc).isoformat(),
         sensor_id=sensor_id,
         reference_sensor_id=reference_sensor_id,
         fitness=fitness,
@@ -198,5 +217,8 @@ def create_calibration_record(
         pose_after=pose_after,
         transformation_matrix=transformation_matrix,
         accepted=accepted,
-        notes=notes
+        notes=notes,
+        source_sensor_id=source_sensor_id,
+        processing_chain=processing_chain,
+        run_id=run_id
     )

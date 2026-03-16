@@ -42,13 +42,15 @@ async def trigger_calibration(node_id: str, request: TriggerCalibrationRequest):
     try:
         results = await node.trigger_calibration({
             "reference_sensor_id": request.reference_sensor_id,
-            "source_sensor_ids": request.source_sensor_ids
+            "source_sensor_ids": request.source_sensor_ids,
+            "sample_frames": getattr(request, "sample_frames", 5)
         })
         
         return {
             "success": True,
             "results": results.get("results", {}),
-            "pending_approval": not node.auto_save
+            "pending_approval": not node.auto_save,
+            "run_id": results.get("run_id")  # UUID correlating multi-sensor runs
         }
     
     except ValueError as e:
@@ -83,14 +85,16 @@ async def accept_calibration(node_id: str, request: AcceptCalibrationRequest, db
     
     # Accept calibration
     try:
-        accepted = await node.accept_calibration(
+        result = await node.accept_calibration(
             sensor_ids=request.sensor_ids,
             db=db
         )
         
+        # node.accept_calibration() returns {"success": bool, "accepted": list}
+        # Extract the accepted list from the result
         return {
-            "success": True,
-            "accepted": accepted
+            "success": result.get("success", True),
+            "accepted": result.get("accepted", [])
         }
     
     except ValueError as e:
@@ -127,24 +131,39 @@ async def reject_calibration(node_id: str):
     return {"status": "success"}
 
 
-async def get_calibration_history(sensor_id: str, limit: int, db: Session):
+async def get_calibration_history(
+    sensor_id: str, 
+    limit: int, 
+    db: Session,
+    source_sensor_id: Optional[str] = None
+):
     """
     Retrieve calibration history for a sensor.
     
     Args:
-        sensor_id: Sensor node ID
+        sensor_id: Sensor node ID (for backward compatibility)
         limit: Maximum number of records to return
         db: Database session
+        source_sensor_id: Optional leaf sensor ID for provenance-based queries
         
     Returns:
         List of calibration records
     """
     try:
-        records = calibration_orm.get_calibration_history(
-            db=db,
-            sensor_id=sensor_id,
-            limit=limit
-        )
+        # If source_sensor_id is provided, query by provenance
+        if source_sensor_id:
+            records = calibration_orm.get_calibration_history_by_source(
+                db=db,
+                source_sensor_id=source_sensor_id,
+                limit=limit
+            )
+        else:
+            # Fall back to legacy query by sensor_id
+            records = calibration_orm.get_calibration_history(
+                db=db,
+                sensor_id=sensor_id,
+                limit=limit
+            )
         
         return {
             "sensor_id": sensor_id,

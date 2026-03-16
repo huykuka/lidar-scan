@@ -3,21 +3,46 @@ Calibration node for ICP-based LiDAR sensor alignment.
 
 This module provides the main CalibrationNode class that orchestrates
 the calibration workflow within the DAG system.
+
+Provenance Tracking:
+- source_sensor_id: Canonical leaf LidarSensor node ID (from payload['lidar_id'])
+- node_id: Last processing node that forwarded the payload
+- processing_chain: Ordered list of DAG node IDs from leaf sensor to calibration node
 """
-from typing import Any, Dict, List, Optional
-from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime, timezone
+from dataclasses import dataclass
+from collections import deque
 import numpy as np
+import uuid
 
 from app.core.logging import get_logger
 from app.services.nodes.base_module import ModuleNode
-
-logger = get_logger(__name__)
+from app.repositories.node_orm import NodeRepository
+from app.db.session import SessionLocal
 from app.modules.lidar.core.transformations import (
     create_transformation_matrix,
     pose_to_dict
 )
 from .registration.icp_engine import ICPEngine
 from .history import CalibrationHistory, create_calibration_record
+
+logger = get_logger(__name__)
+
+
+@dataclass
+class BufferedFrame:
+    """
+    Frame buffer entry with provenance metadata.
+    
+    Stores point cloud data along with source sensor ID and processing chain
+    to enable correct transformation patching on complex DAG topologies.
+    """
+    points: np.ndarray           # (N, 3+) point cloud
+    timestamp: float             # Unix epoch
+    source_sensor_id: str        # Canonical leaf sensor ID (lidar_id)
+    processing_chain: List[str]  # Full DAG path: [sensor, crop, downsample, ...]
+    node_id: str                 # Last processing node that forwarded this payload
 
 
 def extract_pose_from_matrix(T: np.ndarray) -> Dict[str, float]:
@@ -91,8 +116,9 @@ class CalibrationNode(ModuleNode):
         # ICP engine
         self.icp_engine = ICPEngine(config)
         
-        # Calibration state
-        self._latest_frames: Dict[str, np.ndarray] = {}  # {node_id: points}
+        # Calibration state - REFACTORED: Ring-buffer with provenance tracking
+        self._frame_buffer: Dict[str, deque] = {}  # {source_sensor_id: deque[BufferedFrame]}
+        self._max_frames = config.get("max_buffered_frames", 30)
         self._reference_sensor_id: Optional[str] = None
         self._source_sensor_ids: List[str] = []
         self._pending_calibration: Optional[Dict[str, Any]] = None
@@ -106,43 +132,91 @@ class CalibrationNode(ModuleNode):
     
     async def on_input(self, payload: Dict[str, Any]):
         """
-        Store incoming point clouds in buffer.
+        Store incoming point clouds in ring-buffer with provenance metadata.
         
         This method is called by NodeManager when upstream nodes send data.
         
         Args:
             payload: Data payload with keys:
-                - node_id OR lidar_id: Source node ID (lidar_id from sensors, node_id from other nodes)
+                - lidar_id: Canonical leaf sensor ID (REQUIRED for provenance)
+                - node_id: Last processing node that forwarded this payload
                 - points: (N, 3+) numpy array
                 - timestamp: Frame timestamp
+                - processing_chain: List of node IDs from leaf sensor to here
         """
         if not self._enabled:
             return
         
-        # Accept either lidar_id (from sensor workers) or node_id (from other nodes)
-        source_id = payload.get("lidar_id") or payload.get("node_id")
+        # Canonical sensor ID is always lidar_id (set at the hardware source)
+        # node_id is the last processing node — use it for DAG routing only
+        source_sensor_id = payload.get("lidar_id")
+        node_id = payload.get("node_id") or source_sensor_id or ""
         points = payload.get("points")
+        timestamp = payload.get("timestamp", 0.0)
+        processing_chain = [str(x) for x in (payload.get("processing_chain") or [node_id or source_sensor_id]) if x is not None]
         
-        logger.debug(f"[{self.id}] on_input called: source_id={source_id}, points={'None' if points is None else len(points)}")
+        logger.debug(f"[{self.id}] on_input: source_sensor_id={source_sensor_id}, "
+                    f"node_id={node_id}, chain={processing_chain}, points={len(points) if points is not None else 'None'}")
         
-        if source_id and points is not None and len(points) > 0:
-            # Store latest frame from this sensor
-            self._latest_frames[source_id] = points
+        if source_sensor_id and points is not None and len(points) > 0:
+            # Initialize buffer for this source sensor
+            if source_sensor_id not in self._frame_buffer:
+                self._frame_buffer[source_sensor_id] = deque(maxlen=self._max_frames)
             
-            # Determine reference sensor (first sensor by default)
+            # Create buffered frame with provenance
+            frame = BufferedFrame(
+                points=points.copy(),
+                timestamp=timestamp,
+                source_sensor_id=source_sensor_id,
+                processing_chain=processing_chain,
+                node_id=node_id
+            )
+            self._frame_buffer[source_sensor_id].append(frame)
+            
+            # Role assignment (reference = first seen)
             if self._reference_sensor_id is None:
-                self._reference_sensor_id = source_id
-                logger.info(f"[{self.id}] Set reference sensor: {source_id[:8]}")
-            elif source_id not in self._source_sensor_ids and source_id != self._reference_sensor_id:
-                self._source_sensor_ids.append(source_id)
-                logger.info(f"[{self.id}] Added source sensor: {source_id[:8]}. Total sources: {len(self._source_sensor_ids)}")
+                self._reference_sensor_id = source_sensor_id
+                logger.info(f"[{self.id}] Set reference sensor: {source_sensor_id[:8]}")
+            elif (source_sensor_id not in self._source_sensor_ids 
+                  and source_sensor_id != self._reference_sensor_id):
+                self._source_sensor_ids.append(source_sensor_id)
+                logger.info(f"[{self.id}] Added source sensor: {source_sensor_id[:8]}. "
+                           f"Total sources: {len(self._source_sensor_ids)}")
         
         # Forward data through (passthrough mode)
         await self.manager.forward_data(self.id, payload)
     
+    def _aggregate_frames(
+        self,
+        source_sensor_id: str,
+        sample_frames: int
+    ) -> Optional[Tuple[np.ndarray, str, List[str]]]:
+        """
+        Aggregate up to sample_frames recent frames for source_sensor_id.
+        
+        Args:
+            source_sensor_id: Canonical leaf sensor ID
+            sample_frames: Number of recent frames to aggregate
+            
+        Returns:
+            Tuple of (aggregated_points, source_sensor_id, latest_processing_chain)
+            or None if no frames available.
+        """
+        buf = self._frame_buffer.get(source_sensor_id)
+        if not buf:
+            return None
+        
+        frames = list(buf)[-sample_frames:]  # most recent N frames
+        if not frames:
+            return None
+        
+        aggregated = np.concatenate([f.points for f in frames], axis=0)
+        latest_chain = frames[-1].processing_chain
+        return aggregated, source_sensor_id, latest_chain
+    
     async def trigger_calibration(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
-        User-triggered calibration action.
+        User-triggered calibration action with provenance tracking.
         
         This method is called from the API endpoint when user clicks "Run Calibration".
         
@@ -150,25 +224,33 @@ class CalibrationNode(ModuleNode):
             params: Calibration parameters:
                 - reference_sensor_id: Optional override for reference sensor
                 - source_sensor_ids: Optional list of sensors to calibrate
+                - sample_frames: Number of frames to aggregate (default: 5)
                 
         Returns:
             Dict with:
                 - success: bool
+                - run_id: str (correlates multi-sensor runs)
                 - results: Dict[sensor_id, calibration_result]
                 - pending_approval: bool
                 - error: str (if success=False)
         """
-        from app.repositories.node_orm import NodeRepository
-        
         # Determine reference sensor
         ref_id = params.get("reference_sensor_id") or self._reference_sensor_id
-        if not ref_id or ref_id not in self._latest_frames:
+        if not ref_id or ref_id not in self._frame_buffer:
             return {
                 "success": False,
                 "error": f"Reference sensor {ref_id} has no buffered data"
             }
         
-        ref_points = self._latest_frames[ref_id]
+        # Aggregate reference frames
+        sample_frames = params.get("sample_frames", 5)
+        ref_aggregated = self._aggregate_frames(ref_id, sample_frames)
+        if not ref_aggregated:
+            return {
+                "success": False,
+                "error": f"Cannot aggregate frames for reference sensor {ref_id}"
+            }
+        ref_points, _, _ = ref_aggregated
         
         # Determine source sensors to calibrate
         source_ids = params.get("source_sensor_ids") or self._source_sensor_ids
@@ -178,20 +260,27 @@ class CalibrationNode(ModuleNode):
                 "error": "No source sensors to calibrate"
             }
         
+        # Generate run_id for this calibration run
+        run_id = uuid.uuid4().hex[:12]
+        
         # Run ICP for each source sensor
         results = {}
         calibration_records = {}
-        
         for source_id in source_ids:
-            if source_id not in self._latest_frames:
+            # Aggregate frames for source sensor
+            source_aggregated = self._aggregate_frames(source_id, sample_frames)
+            if not source_aggregated:
+                logger.warning(f"Cannot aggregate frames for source sensor {source_id}")
                 continue
             
-            source_points = self._latest_frames[source_id]
+            source_points, source_sensor_id, processing_chain = source_aggregated
             
-            # Get current sensor pose from database
+            # CRITICAL: Get current sensor pose from database using source_sensor_id (leaf sensor)
+            # NOT node_id (which may be an intermediate processing node)
             repo = NodeRepository()
-            sensor_node_data = repo.get_by_id(source_id)
+            sensor_node_data = repo.get_by_id(source_sensor_id)
             if not sensor_node_data:
+                logger.warning(f"Sensor node {source_sensor_id} not found in database")
                 continue
             
             config = sensor_node_data.get('config', {})
@@ -212,7 +301,6 @@ class CalibrationNode(ModuleNode):
             reg_result = await self.icp_engine.register(
                 source=source_points,
                 target=ref_points,
-                initial_transform=T_current
             )
             
             # Compose transformations: T_new = T_icp @ T_current
@@ -221,9 +309,12 @@ class CalibrationNode(ModuleNode):
             # Extract new pose
             new_pose = extract_pose_from_matrix(T_new)
             
-            # Create calibration record
+            # Create calibration record with provenance
             record = create_calibration_record(
-                sensor_id=source_id,
+                sensor_id=source_sensor_id,
+                source_sensor_id=source_sensor_id,
+                processing_chain=processing_chain,
+                run_id=run_id,
                 reference_sensor_id=ref_id,
                 fitness=reg_result.fitness,
                 rmse=reg_result.rmse,
@@ -235,31 +326,34 @@ class CalibrationNode(ModuleNode):
                 accepted=False
             )
             
-            calibration_records[source_id] = record
+            calibration_records[source_sensor_id] = record
             
             # Auto-save if enabled and quality threshold met
             auto_saved = False
             if self.auto_save and reg_result.fitness >= self.min_fitness_to_save:
-                await self._apply_calibration(source_id, record)
+                await self._apply_calibration(source_sensor_id, record)
                 record.accepted = True
                 auto_saved = True
             
-            results[source_id] = {
+            results[source_sensor_id] = {
                 "fitness": reg_result.fitness,
                 "rmse": reg_result.rmse,
                 "quality": reg_result.quality,
                 "stages_used": reg_result.stages_used,
                 "pose_before": current_pose,
                 "pose_after": new_pose,
-                "auto_saved": auto_saved
+                "auto_saved": auto_saved,
+                "source_sensor_id": source_sensor_id,
+                "processing_chain": processing_chain
             }
         
         # Store pending calibrations (for user approval)
         self._pending_calibration = calibration_records
-        self._last_calibration_time = datetime.utcnow().isoformat()
+        self._last_calibration_time = datetime.now(timezone.utc).isoformat()
         
         return {
             "success": True,
+            "run_id": run_id,
             "results": results,
             "pending_approval": not self.auto_save
         }
@@ -302,34 +396,49 @@ class CalibrationNode(ModuleNode):
         """
         Apply calibration: update sensor config + save history.
         
+        CRITICAL: Always updates the leaf LidarSensor node (source_sensor_id),
+        NOT an intermediate processing node. This ensures the transformation
+        is picked up by LidarSensor.handle_data() after reload_config().
+        
         Args:
-            sensor_id: Sensor node ID
+            sensor_id: Sensor node ID (for backward compatibility, but overridden by source_sensor_id)
             record: CalibrationRecord to apply
             db_session: Optional SQLAlchemy session
         """
-        from app.repositories.node_orm import NodeRepository
-        from app.db.session import SessionLocal
-        
         # Get or create database session
         db = db_session or SessionLocal()
         
         try:
-            # Update sensor pose in database
+            # CRITICAL: Always update the leaf LidarSensor node (source_sensor_id),
+            # NOT an intermediate processing node. This ensures the transformation
+            # is picked up by LidarSensor.handle_data() after reload_config().
+            target_id = getattr(record, "source_sensor_id", None) or sensor_id
+            
+            # Load the existing full config so we don't wipe non-pose fields
+            # (mode, hostname, lidar_type, pcd_path, etc.)
             repo = NodeRepository(session=db)
-            repo.update_node_config(sensor_id, {
+            existing_node = repo.get_by_id(target_id)
+            if not existing_node:
+                raise ValueError(f"Sensor node {target_id} not found in database")
+            existing_config = existing_node.get("config", {})
+            
+            # Merge new pose into existing config — only overwrite the 6 pose keys
+            updated_config = {
+                **existing_config,
                 "x": record.pose_after["x"],
                 "y": record.pose_after["y"],
                 "z": record.pose_after["z"],
                 "roll": record.pose_after["roll"],
                 "pitch": record.pose_after["pitch"],
-                "yaw": record.pose_after["yaw"]
-            })
+                "yaw": record.pose_after["yaw"],
+            }
+            repo.update_node_config(target_id, updated_config)
             
             # Save to calibration history
             CalibrationHistory.save_record(record, db_session=db)
             
             # Trigger NodeManager reload to apply new transforms
-            self.manager.reload_config()
+            await self.manager.reload_config()
         finally:
             if db_session is None:
                 db.close()
@@ -351,7 +460,10 @@ class CalibrationNode(ModuleNode):
             "enabled": self._enabled,
             "reference_sensor": self._reference_sensor_id,
             "source_sensors": self._source_sensor_ids,
-            "buffered_frames": list(self._latest_frames.keys()),
+            "buffered_frames": {
+                sensor_id: len(buf) 
+                for sensor_id, buf in self._frame_buffer.items()
+            },
             "last_calibration_time": self._last_calibration_time,
             "has_pending": self._pending_calibration is not None,
             "pending_results": {}
@@ -362,7 +474,9 @@ class CalibrationNode(ModuleNode):
                 sensor_id: {
                     "fitness": record.fitness,
                     "rmse": record.rmse,
-                    "quality": record.quality
+                    "quality": record.quality,
+                    "source_sensor_id": getattr(record, "source_sensor_id", ""),
+                    "processing_chain": getattr(record, "processing_chain", [])
                 }
                 for sensor_id, record in self._pending_calibration.items()
             }

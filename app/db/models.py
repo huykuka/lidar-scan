@@ -5,7 +5,7 @@ Engine/session initialization lives in `app.db.session`.
 
 from __future__ import annotations
 
-from typing import cast
+from typing import cast, Optional
 
 
 from sqlalchemy import Boolean, Float, Integer, String
@@ -121,6 +121,11 @@ class CalibrationHistoryModel(Base):
     transformation_matrix_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON 4x4 matrix
     accepted: Mapped[bool] = mapped_column(Boolean, default=False)
     notes: Mapped[str] = mapped_column(String, default="")
+    
+    # NEW: Provenance tracking fields for ICP Flow Alignment
+    source_sensor_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    processing_chain_json: Mapped[str] = mapped_column(String, default="[]")
+    run_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
 
     def to_dict(self) -> dict:
         import json
@@ -139,6 +144,9 @@ class CalibrationHistoryModel(Base):
             "transformation_matrix": json.loads(self.transformation_matrix_json),
             "accepted": self.accepted,
             "notes": self.notes,
+            "source_sensor_id": self.source_sensor_id,
+            "processing_chain": json.loads(self.processing_chain_json or "[]"),
+            "run_id": self.run_id,
         }
 
 

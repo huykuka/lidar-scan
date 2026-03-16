@@ -37,8 +37,24 @@ export class CalibrationNodeCardComponent implements NodeCardComponent {
   });
 
   protected bufferedFrameCount = computed(() => {
-    const buffered = this.calibrationStatus()?.buffered_frames || [];
+    const buffered = this.calibrationStatus()?.buffered_frames;
+    if (!buffered) return 0;
+    // New dict format: { sensorId: frameCount } — sum all frame counts
+    if (!Array.isArray(buffered)) {
+      return Object.values(buffered as Record<string, number>).reduce((sum, n) => sum + n, 0);
+    }
+    // Legacy array format: array of sensor IDs
     return buffered.length;
+  });
+
+  /** Per-sensor buffered frame entries for detailed display */
+  protected bufferedFrameEntries = computed(() => {
+    const buffered = this.calibrationStatus()?.buffered_frames;
+    if (!buffered) return [];
+    if (!Array.isArray(buffered)) {
+      return Object.entries(buffered as Record<string, number>).map(([sensorId, count]) => ({sensorId, count}));
+    }
+    return buffered.map((sensorId: string) => ({sensorId, count: 1}));
   });
 
   protected hasPendingCalibration = computed(() => {

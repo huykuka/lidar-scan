@@ -64,12 +64,29 @@ export class CalibrationApiService {
 
   /**
    * Get calibration history for a sensor
+   * @param sensorId - Sensor ID to get history for
+   * @param limit - Maximum number of records to return
+   * @param sourceSensorId - Optional: Filter by canonical leaf sensor ID
+   * @param runId - Optional: Filter by calibration run ID
    */
-  async getHistory(sensorId: string, limit: number = 10): Promise<CalibrationHistoryResponse> {
+  async getHistory(
+    sensorId: string, 
+    limit: number = 10,
+    sourceSensorId?: string,
+    runId?: string
+  ): Promise<CalibrationHistoryResponse> {
+    let url = `${environment.apiUrl}/calibration/history/${sensorId}?limit=${limit}`;
+    
+    // NEW: Add optional query parameters for filtering
+    if (sourceSensorId) {
+      url += `&source_sensor_id=${encodeURIComponent(sourceSensorId)}`;
+    }
+    if (runId) {
+      url += `&run_id=${encodeURIComponent(runId)}`;
+    }
+    
     return await firstValueFrom(
-      this.http.get<CalibrationHistoryResponse>(
-        `${environment.apiUrl}/calibration/history/${sensorId}?limit=${limit}`,
-      ),
+      this.http.get<CalibrationHistoryResponse>(url),
     );
   }
 
