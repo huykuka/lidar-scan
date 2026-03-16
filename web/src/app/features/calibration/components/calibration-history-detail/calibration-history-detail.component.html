@@ -173,7 +173,7 @@
         }
       </div>
 
-      @if (record().stages_used?.length > 0) {
+      @if (record().stages_used && record().stages_used.length > 0) {
         <div class="flex justify-between items-center text-sm col-span-2">
           <span class="text-neutral-600">Stages Used</span>
           <div class="flex gap-1">
