@@ -1,7 +1,7 @@
 ---
 description: Code Reviewer. Evaluates git diffs or file contents against the coding standards defined in .opencode/rules/. Suggests refactoring to Devs.
 mode: subagent
-model: github-copilot/claude-sonnet-4.6
+model: github-copilot/claude-sonnet-4.5
 color: accent
 permission:
   read: allow
