@@ -1,7 +1,7 @@
 import { Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, inject, OnDestroy, OnInit, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
 import { NodeEditorComponent } from '@core/models/node-plugin.model';
 import { NodeStoreService } from '@core/services/stores/node-store.service';
 import { ToastService } from '@core/services/toast.service';
@@ -16,7 +16,7 @@ import { environment } from '@env/environment';
   selector: 'app-if-condition-editor',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
+  imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent, SynergyFormsModule],
   templateUrl: './if-condition-editor.component.html',
   styleUrl: './if-condition-editor.component.css',
 })
