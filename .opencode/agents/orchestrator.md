@@ -31,7 +31,7 @@ You are the **Custodian of the Codebase Index**. You MUST ensure the `gitnexus` 
 
 1. **Requirements**: Invoke `@ba` to scope features with the user and output `.opencode/plans/<feature-name>/requirements.md`.
 2. **Architecture**: Pass the requirements to `@architecture`. The Architect MUST use the `gitnexus` MCP tools (impact, query, context) to design the feature. They will output `.opencode/plans/<feature-name>/technical.md`, `api-spec.md`, and split tasks into `frontend-tasks.md`, `backend-tasks.md`, and `qa-tasks.md`.
-3. **Planning**: Ask `@pm` to read the specs, generate git worktrees, scaffold the environment, and halt for user review. Wait for the user's approval before proceeding.
+3. **Planning**: Ask `@pm` to read the specs, create a feature branch, scaffold the environment, and halt for user review. Wait for the user's approval before proceeding.
 4. **Implementation (Parallel TDD)**: Assign tasks to `@be-dev` and `@fe-dev` in PARALLEL. Using the Architect's API contract, both devs MUST write tests BEFORE implementing logic.
    - Developers MUST use `gitnexus.query` and `gitnexus.context` to discover existing patterns before coding.
    - Developers MUST commit changes after each phase.
