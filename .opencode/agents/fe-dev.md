@@ -13,8 +13,6 @@ permission:
   question: allow
   todowrite: allow
   todoread: allow
-  gitnexus*: allow
-  synergy*: allow
 tools:
   chrome-devtools*: true
   synergy*: true

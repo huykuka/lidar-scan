@@ -12,7 +12,6 @@ permission:
   edit: allow
   todowrite: allow
   todoread: allow
-  gitnexus*: allow
 tools:
   gitnexus*: true
 ---
