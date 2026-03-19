@@ -36,22 +36,22 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           <thead>
             <tr>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-45 border-b border-syn-color-neutral-200"
+                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold   uppercase tracking-widest w-45 border-b "
               >
                 Timestamp
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-27.5 border-b border-syn-color-neutral-200"
+                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold   uppercase tracking-widest w-27.5 border-b "
               >
                 Level
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest w-50 border-b border-syn-color-neutral-200"
+                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold   uppercase tracking-widest w-50 border-b "
               >
                 Module
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold text-syn-color-neutral-600 uppercase tracking-widest border-b border-syn-color-neutral-200"
+                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold   uppercase tracking-widest border-b "
               >
                 Message
               </th>

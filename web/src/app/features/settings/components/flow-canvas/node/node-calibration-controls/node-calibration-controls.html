@@ -1,41 +1,35 @@
 @if (hasPendingCalibration()) {
   <!-- Pending Calibration - Accept/Reject Buttons -->
-  <div class="flex gap-1">
-    <syn-button
+  <div class="flex">
+    <syn-icon-button
       (click)="acceptCalibration(); $event.stopPropagation()"
       [disabled]="isCalibrating()"
-      color="success"
+      label="Accept Calibration"
+      name="check"
       size="small"
+      class="text-syn-color-success-600"
       title="Accept & Save Calibration"
-      variant="filled"
-    >
-      <syn-icon name="check" />
-    </syn-button>
-    <syn-button
+    />
+    <syn-icon-button
       (click)="rejectCalibration(); $event.stopPropagation()"
       [disabled]="isCalibrating()"
-      color="danger"
+      label="Reject Calibration"
+      name="close"
       size="small"
+      class="text-syn-color-danger-600"
       title="Reject Calibration"
-      variant="outline"
-    >
-      <syn-icon name="close" />
-    </syn-button>
+    />
   </div>
 } @else {
   <!-- Trigger Calibration Button -->
-  <syn-button
+  <syn-icon-button
     (click)="triggerCalibration(); $event.stopPropagation()"
     [disabled]="isCalibrating()"
-    color="primary"
+    label="Trigger Calibration"
+    [name]="isCalibrating() ? 'sync' : 'tune'"
+    [class.animate-spin]="isCalibrating()"
     size="small"
+    class="text-syn-color-primary-600"
     title="Run Calibration"
-    variant="filled"
-  >
-    @if (isCalibrating()) {
-      <syn-spinner size="small" />
-    } @else {
-      <syn-icon name="tune" />
-    }
-  </syn-button>
+  />
 }

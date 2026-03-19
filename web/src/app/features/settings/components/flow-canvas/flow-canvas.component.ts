@@ -153,8 +153,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
       const fromNode = this.canvasNodes().find((n) => n.id === pending.fromNodeId);
       if (fromNode) {
-        const fromX = fromNode.position.x + 296;
-        const fromY = fromNode.position.y + 44;
+        const fromX = fromNode.position.x + 192 + 6; // node width + tab center (6px)
+        const fromY = fromNode.position.y + 16;      // header center (top-4)
         const cp = Math.max(Math.abs(toX - fromX) * 0.5, 40);
         this.drag.updateConnectionPath(
           `M ${fromX} ${fromY} C ${fromX + cp} ${fromY} ${toX - cp} ${toY} ${toX} ${toY}`,
@@ -544,10 +544,10 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   private calculatePath(fromNode: CanvasNode, toNode: CanvasNode): string {
-    const fromX = fromNode.position.x + 240; // 288 (node width) + 8 (half port width outside)
-    const fromY = fromNode.position.y + 44;
-    const toX = toNode.position.x - 8;
-    const toY = toNode.position.y + 44;
+    const fromX = fromNode.position.x + 192 + 6; // node width + tab center
+    const fromY = fromNode.position.y + 16;      // header center (top-4)
+    const toX = toNode.position.x - 6;           // target tab center
+    const toY = toNode.position.y + 16;
 
     const controlPointOffset = Math.max(Math.abs(toX - fromX) * 0.5, 40);
     const cp1x = fromX + controlPointOffset;

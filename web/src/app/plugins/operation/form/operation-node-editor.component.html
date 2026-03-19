@@ -58,7 +58,7 @@
               [checked]="configForm.get(prop.name)?.value"
               class="mt-4"
             >
-              <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+              <span class="text-xs font-medium ">{{ prop.label }}</span>
             </syn-checkbox>
             @if (prop.help_text) {
               <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
@@ -81,7 +81,7 @@
 
           @if (prop.type === 'vec3') {
             <div
-              class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border border-syn-color-neutral-200"
+              class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border "
             >
               <div class="flex flex-col">
                 <label class="text-[11px] font-bold text-syn-color-neutral-900">{{

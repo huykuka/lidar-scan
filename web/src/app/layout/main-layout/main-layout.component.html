@@ -8,7 +8,7 @@
       (onHide)="handleSideNavHide()"
       (onShow)="handleSideNavShow()"
       [open]="isSideNavOpen()"
-      class="h-full shrink-0 border-r border-syn-color-neutral-200 shadow-sm"
+      class="h-full shrink-0 border-r  shadow-sm"
      />
 
     <!-- Content Area -->
@@ -20,7 +20,7 @@
               {{ headline() }}
             </h1>
             @if (subtitle()) {
-              <p class="mt-1 text-sm text-syn-color-neutral-600">
+              <p class="mt-1 text-sm  ">
                 {{ subtitle() }}
               </p>
             } @else {

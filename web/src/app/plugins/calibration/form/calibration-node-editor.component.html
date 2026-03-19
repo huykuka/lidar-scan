@@ -52,8 +52,8 @@
       </div>
     </div>
 
-    <div class="flex flex-col gap-3 p-3 rounded-lg border border-syn-color-neutral-200 bg-syn-color-neutral-50/50">
-      <p class="text-[11px] font-bold text-syn-color-neutral-600 uppercase tracking-wide">ICP Settings</p>
+    <div class="flex flex-col gap-3 p-3 rounded-lg border  bg-syn-color-neutral-50/50">
+      <p class="text-[11px] font-bold   uppercase tracking-wide">ICP Settings</p>
       <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-3">
         @for (prop of visibleProperties(); track prop.name) {
           @if (prop.name === 'icp_method' || prop.name === 'icp_threshold' || prop.name === 'icp_iterations' || prop.name === 'translation_only' || prop.name === 'normal_search_radius' || prop.name === 'normal_max_nn') {
@@ -76,7 +76,7 @@
                   (synChangeEvent)="onCheckboxChange(prop.name, $event)"
                   [checked]="configForm.get(prop.name)?.value"
                 >
-                  <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+                  <span class="text-xs font-medium ">{{ prop.label }}</span>
                 </syn-checkbox>
                 @if (prop.help_text) {
                   <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
@@ -101,8 +101,8 @@
       </div>
     </div>
 
-    <div class="flex flex-col gap-3 p-3 rounded-lg border border-syn-color-neutral-200 bg-syn-color-neutral-50/50">
-      <p class="text-[11px] font-bold text-syn-color-neutral-600 uppercase tracking-wide">Global Registration</p>
+    <div class="flex flex-col gap-3 p-3 rounded-lg border  bg-syn-color-neutral-50/50">
+      <p class="text-[11px] font-bold   uppercase tracking-wide">Global Registration</p>
       <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-3">
         @for (prop of visibleProperties(); track prop.name) {
           @if (prop.name === 'enable_global_registration' || prop.name === 'global_voxel_size' || prop.name === 'ransac_threshold' || prop.name === 'ransac_iterations') {
@@ -125,7 +125,7 @@
                   (synChangeEvent)="onCheckboxChange(prop.name, $event)"
                   [checked]="configForm.get(prop.name)?.value"
                 >
-                  <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+                  <span class="text-xs font-medium ">{{ prop.label }}</span>
                 </syn-checkbox>
                 @if (prop.help_text) {
                   <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
@@ -138,8 +138,8 @@
     </div>
 
     <div class="grid grid-cols-2 gap-3">
-      <div class="flex flex-col gap-3 p-3 rounded-lg border border-syn-color-neutral-200 bg-syn-color-neutral-50/50">
-        <p class="text-[11px] font-bold text-syn-color-neutral-600 uppercase tracking-wide">Quality Control</p>
+      <div class="flex flex-col gap-3 p-3 rounded-lg border  bg-syn-color-neutral-50/50">
+        <p class="text-[11px] font-bold   uppercase tracking-wide">Quality Control</p>
         <div [formGroup]="configForm" class="flex flex-col gap-3">
           @for (prop of visibleProperties(); track prop.name) {
             @if (prop.name === 'min_fitness' || prop.name === 'max_rmse') {
@@ -159,8 +159,8 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-3 p-3 rounded-lg border border-syn-color-neutral-200 bg-syn-color-neutral-50/50">
-        <p class="text-[11px] font-bold text-syn-color-neutral-600 uppercase tracking-wide">Save Behavior</p>
+      <div class="flex flex-col gap-3 p-3 rounded-lg border  bg-syn-color-neutral-50/50">
+        <p class="text-[11px] font-bold   uppercase tracking-wide">Save Behavior</p>
         <div [formGroup]="configForm" class="flex flex-col gap-3">
           @for (prop of visibleProperties(); track prop.name) {
             @if (prop.name === 'auto_save' || prop.name === 'min_fitness_to_save') {
@@ -183,7 +183,7 @@
                     (synChangeEvent)="onCheckboxChange(prop.name, $event)"
                     [checked]="configForm.get(prop.name)?.value"
                   >
-                    <span class="text-xs font-medium text-syn-color-neutral-700">{{ prop.label }}</span>
+                    <span class="text-xs font-medium ">{{ prop.label }}</span>
                   </syn-checkbox>
                   @if (prop.help_text) {
                     <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>

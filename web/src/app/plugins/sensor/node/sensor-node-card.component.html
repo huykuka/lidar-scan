@@ -8,7 +8,7 @@
           <img 
             [src]="sensorImage()" 
             [alt]="lidarDisplayName() + ' LiDAR device'"
-            class="w-5 h-5 rounded-md border border-syn-color-neutral-200 bg-white shrink-0"
+            class="w-5 h-5 rounded-md border  bg-white shrink-0"
             style="object-fit: contain; padding: 1px; margin-right: 6px"
             (error)="$any($event.target).src='/lidar-placeholder.svg'" 
           />
@@ -30,7 +30,7 @@
     </div>
   } @else {
     <div class="flex items-center justify-between gap-2 pb-2">
-      <span class="text-[11px] text-syn-color-neutral-600 font-medium">Sensor Node</span>
+      <span class="text-[11px]   font-medium">Sensor Node</span>
       <syn-badge [variant]="modeBadgeVariant()" size="small">{{ mode() }}</syn-badge>
     </div>
   }

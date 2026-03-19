@@ -20,7 +20,7 @@ export class HeaderComponent {
   });
   protected readonly statusPillClass = computed(() => {
     const online = this.backendOnline();
-    if (online === null) return 'border-syn-color-neutral-200 bg-white';
+    if (online === null) return ' bg-white';
     return online
       ? 'border-syn-color-success-200 bg-syn-color-success-50'
       : 'border-syn-color-danger-200 bg-syn-color-danger-50';

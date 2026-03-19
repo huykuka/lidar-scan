@@ -5,7 +5,7 @@
   <div class="absolute -top-11 right-2 z-30 flex gap-2">
     <button
       (click)="goBack()"
-      class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercasetext-syn-color-neutral-600 hover:text-syn-color-primary-600 transition-colors"
+      class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercase  hover:text-syn-color-primary-600 transition-colors"
     >
       <syn-icon name="arrow_back" />
       Back
@@ -90,7 +90,7 @@
     >
       <div class="flex flex-col gap-4 w-[360px] h-full overflow-y-auto pr-1">
         <!-- Metadata -->
-        <div class="bg-white p-6 rounded-2xl border border-syn-color-neutral-200 shadow-sm">
+        <div class="bg-white p-6 rounded-2xl border  shadow-sm">
           <div class="flex items-center gap-2 mb-4">
             <syn-icon class="text-syn-color-primary-600" name="info" />
             <h3 class="text-[12px] font-black uppercase tracking-widest">Metadata</h3>
@@ -128,7 +128,7 @@
         </div>
 
         <!-- Appearance -->
-        <div class="bg-white p-6 rounded-2xl border border-syn-color-neutral-200 shadow-sm">
+        <div class="bg-white p-6 rounded-2xl border  shadow-sm">
           <div class="flex items-center gap-2 mb-6">
             <syn-icon class="text-syn-color-primary-600" name="blur_on" />
             <h3 class="text-[12px] font-black uppercase tracking-widest">Appearance</h3>
@@ -160,7 +160,7 @@
               >Render Color</span
               >
               <div
-                class="relative w-8 h-8 rounded-lg overflow-hidden border border-syn-color-neutral-200 shadow-sm"
+                class="relative w-8 h-8 rounded-lg overflow-hidden border  shadow-sm"
               >
                 <input
                   (input)="pointColor.set($any($event.target).value)"

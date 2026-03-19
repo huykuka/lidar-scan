@@ -1,4 +1,4 @@
-<div class="flex h-full bg-syn-color-neutral-50 relative">
+<div class="flex h-full relative">
   <!-- Left Palette Sidebar -->
   <app-flow-canvas-palette (onPluginDragEnd)="onPaletteDragEnd()"
                            (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
@@ -9,7 +9,7 @@
   />
 
   <!-- Canvas Area -->
-  <div class="flex-1 relative overflow-auto syn-scrollbar">
+  <div class="flex-1 relative overflow-auto">
     <div
       (dragover)="onCanvasDragOver($event)"
       (drop)="onCanvasDrop($event)"
@@ -59,11 +59,10 @@
           <div
             (dblclick)="onEditNode(node)"
             (mousedown)="onNodeMouseDown($event, node)"
-            [class.ring-4]="selectedCanvasNode()?.id === node.id"
-            [class.ring-offset-2]="selectedCanvasNode()?.id === node.id"
-            [class.ring-offset-white]="selectedCanvasNode()?.id === node.id"
+            [class.ring-2]="selectedCanvasNode()?.id === node.id"
+            [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
             [class.rounded-lg]="selectedCanvasNode()?.id === node.id"
-            [class.shadow-2xl]="selectedCanvasNode()?.id === node.id"
+            [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
             [class.z-10]="selectedCanvasNode()?.id === node.id"
             [style.cursor]="
               drag.draggingNode()?.id === node.id ? 'grabbing' : drag.pendingConnection() ? 'default' : 'grab'

@@ -1,4 +1,4 @@
-<div class="bg-white rounded-2xl shadow-sm border border-syn-color-neutral-200 p-3">
+<div class="bg-white rounded-2xl shadow-sm border  p-3">
   <div class="flex items-center justify-between gap-3 mb-2">
     <div class="flex items-center gap-2 min-w-0">
       <syn-icon class="text-xl text-syn-color-primary-600" name="handyman" />
@@ -25,7 +25,7 @@
     <div
       (click)="addLidar.emit()"
       (dragstart)="onDragStart($event, 'lidar')"
-      class="flex items-center gap-2 p-2 rounded-lg border border-syn-color-neutral-200 hover:border-syn-color-success-400 hover:bg-syn-color-success-50 cursor-pointer transition-all group"
+      class="flex items-center gap-2 p-2 rounded-lg border  hover:border-syn-color-success-400 hover:bg-syn-color-success-50 cursor-pointer transition-all group"
       draggable="true"
       title="Add a real or simulated lidar">
       <div
@@ -44,7 +44,7 @@
     <div
       (click)="addFusion.emit()"
       (dragstart)="onDragStart($event, 'fusion')"
-      class="flex items-center gap-2 p-2 rounded-lg border border-syn-color-neutral-200 hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 cursor-pointer transition-all group"
+      class="flex items-center gap-2 p-2 rounded-lg border  hover:border-syn-color-primary-400 hover:bg-syn-color-primary-50 cursor-pointer transition-all group"
       draggable="true"
       title="Merge multiple sensors into one topic">
       <div
@@ -61,7 +61,7 @@
     </div>
 
     <!-- Placeholder for future functionality -->
-    <div class="flex items-center gap-2 p-2 rounded-lg border border-dashed border-syn-color-neutral-200 opacity-60"
+    <div class="flex items-center gap-2 p-2 rounded-lg border border-dashed  opacity-60"
          title="More tools coming soon">
       <div class="bg-syn-color-neutral-100 p-1.5 rounded-md text-syn-color-neutral-500">
         <syn-icon class="text-base" name="extension" />

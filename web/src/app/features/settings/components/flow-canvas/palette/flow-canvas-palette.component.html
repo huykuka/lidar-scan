@@ -2,17 +2,17 @@
   [class.border-none]="isCollapsed()"
   [class.w-0]="isCollapsed()"
   [class.w-64]="!isCollapsed()"
-  class="bg-white border-r h-full border-syn-color-neutral-200 flex flex-col relative transition-all duration-300 z-10"
+  class="bg-white border-r h-full flex flex-col relative transition-all duration-300 z-10"
 >
   <!-- Toggle button -->
   <button
     (click)="isCollapsed.set(!isCollapsed())"
     [class.-right-10]="isCollapsed()"
     [class.-right-3]="!isCollapsed()"
-    class="absolute top-4 z-20 w-6 h-6 bg-white border border-syn-color-neutral-200 rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
+    class="absolute top-4 z-20 w-6 h-6 bg-white border rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
   >
     <syn-icon [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'"
-              class="text-sm text-syn-color-neutral-600"
+              class="text-sm"
     />
   </button>
 
@@ -20,93 +20,106 @@
     [class.opacity-0]="isCollapsed()"
     [class.opacity-100]="!isCollapsed()"
     [class.pointer-events-none]="isCollapsed()"
-    class="flex-1 flex flex-col overflow-hidden w-64 transition-opacity duration-300"
+    class="flex-1 flex flex-col overflow-hidden w-64 transition-opacity duration-300 bg-[#f3f3f3]"
   >
-    <div class="p-3 border-b border-syn-color-neutral-200">
-      <h3 class="text-xs font-black uppercase tracking-widest text-syn-color-neutral-600">
-        Node Palette
-      </h3>
-      <p class="text-xs text-syn-color-neutral-500 mt-1">Drag nodes onto canvas</p>
+    <!-- Simple Search Bar -->
+    <div class="px-3 py-2 border-r border-b bg-white flex items-center gap-2 ">
+      <syn-icon name="search" class="text-xs text-neutral-400" />
+      <input
+        [value]="searchQuery()"
+        (input)="onSearch($event)"
+        placeholder="filter nodes"
+        class="text-[12px] flex-1 outline-none bg-transparent placeholder:text-neutral-300 font-medium"
+      />
     </div>
 
-    <div class="flex-1 overflow-y-auto p-3 space-y-4 syn-scrollbar">
+    <!-- Custom Accordion Content -->
+    <div class="flex-1 overflow-y-auto syn-scrollbar border-r ">
       @if (isLoading()) {
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <div class="h-3 w-16 bg-syn-color-neutral-200 rounded animate-pulse"></div>
-            <div class="space-y-2">
-              @for (i of [1, 2]; track i) {
-                <div class="flex items-center gap-3 p-2 animate-pulse">
-                  <div class="w-8 h-8 rounded-full bg-syn-color-neutral-200"></div>
-                  <div class="w-24 h-3 bg-syn-color-neutral-200 rounded"></div>
-                </div>
-              }
-            </div>
-          </div>
-          <div class="space-y-2">
-            <div class="h-3 w-20 bg-syn-color-neutral-200 rounded animate-pulse"></div>
-            <div class="space-y-2">
-              @for (i of [1, 2, 3]; track i) {
-                <div class="flex items-center gap-3 p-2 animate-pulse">
-                  <div class="w-8 h-8 rounded-full bg-syn-color-neutral-200"></div>
-                  <div class="w-24 h-3 bg-syn-color-neutral-200 rounded"></div>
-                </div>
-              }
-            </div>
-          </div>
-          <div class="flex justify-center p-4">
-            <syn-spinner/>
-          </div>
+        <div class="p-8 flex justify-center opacity-20">
+          <syn-spinner />
         </div>
       }
 
       @if (!isLoading()) {
+        @if (groupedPlugins().length === 0 && searchQuery()) {
+           <div class="flex flex-col items-center justify-center py-16 px-4 text-center">
+             <syn-icon name="search_off" class="text-3xl text-neutral-300 mb-2" />
+             <p class="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">No nodes found</p>
+           </div>
+        }
+
         @for (group of groupedPlugins(); track group.category) {
-          <div class="space-y-2">
-            <h4
-              class="text-[10px] font-bold uppercase tracking-wider text-syn-color-neutral-400 pl-1"
-            >
+          <!-- Category Header -->
+          <div
+            (click)="toggleCategory(group.category)"
+            class="flex items-center gap-2 px-3 py-1.5 border-b  bg-[#e7e7e7] hover:bg-[#dfdfdf] cursor-pointer select-none transition-colors"
+          >
+            <syn-icon
+              [name]="isExpanded(group.category) ? 'expand_more' : 'chevron_right'"
+              class="text-[10px] text-neutral-600"
+            />
+            <span class="text-[11px] font-bold text-neutral-700 capitalize tracking-tight">
               {{ group.category }}
-            </h4>
-            <div class="space-y-2">
+            </span>
+          </div>
+
+          <!-- Nodes Container -->
+          @if (isExpanded(group.category)) {
+            <div class="p-3 grid grid-cols-1 gap-2.5 bg-white ">
               @for (plugin of group.plugins; track plugin.type) {
                 <syn-tooltip [content]="plugin.description" placement="right">
                   <div
                     (dragend)="onPluginDragEnd.emit()"
                     (dragstart)="onPluginDragStart.emit({ plugin: plugin.type, event: $event })"
-                    class="group flex items-center gap-3 p-2 border border-transparent rounded-lg cursor-grab hover:bg-neutral-50 hover:shadow-sm hover:border-neutral-200 transition-all duration-200"
+                    class="relative group cursor-grab active:cursor-grabbing transition-all hover:-translate-y-[1px]"
                     draggable="true"
                   >
-                    <div
-                      [style.background-color]="plugin.style.color + '20'"
-                      [style.color]="plugin.style.color"
-                      class="w-8 h-8 rounded-md flex items-center justify-center bg-opacity-10 transition-colors duration-200"
+                    <!-- Port Decorators (Visual only, to match screenshot) -->
+                    <div class="absolute left-0 top-1/2 -translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
+                    <div class="absolute right-0 top-1/2 translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
+
+                    <div 
+                      class="flex items-stretch h-8 rounded border border-black/20 shadow-sm overflow-hidden"
+                      [style.background-color]="plugin.style.color"
                     >
-                      <syn-icon [name]="plugin.icon" class="text-lg"/>
+                      <!-- Left Icon Section -->
+                      <div class="w-8 flex items-center justify-center bg-black/10 border-r border-black/5 shrink-0">
+                        <syn-icon [name]="plugin.icon || 'extension'" class="text-lg text-white/90 drop-shadow-sm" />
+                      </div>
+                      
+                      <!-- Label Section -->
+                      <div class="flex-1 flex items-center justify-center px-2 min-w-0">
+                        <span class="text-[11px] font-bold text-black/70 truncate leading-none text-center px-1">
+                          {{ plugin.displayName }}
+                        </span>
+                      </div>
                     </div>
-                    <span
-                      class="text-sm font-medium text-syn-color-neutral-700 group-hover:text-syn-color-neutral-900 transition-colors"
-                    >
-                    {{ plugin.displayName }}
-                  </span>
                   </div>
                 </syn-tooltip>
               }
             </div>
-          </div>
+          }
         }
       }
     </div>
 
-    <!-- Canvas Controls -->
-    <div class="p-4 border-t border-syn-color-neutral-200 space-y-2">
-      <syn-button (click)="onResetView.emit()" class="w-full" size="small" variant="outline">
-        <syn-icon name="center_focus_strong" slot="prefix"/>
-        Reset View
-      </syn-button>
-      <div class="text-xs text-syn-color-neutral-500 text-center">
-        Zoom: {{ (zoom() * 100).toFixed(0) }}%
-      </div>
+    <!-- Minimal Perspective Controls -->
+    <div class="px-4 py-3 bg-white border-r border-t flex flex-col gap-2.5">
+       <div class="flex items-center justify-between">
+         <span class="text-[9px] font-medium uppercase tracking-widest">Zoom</span>
+         <span class="text-[10px] font-mono font-bold text-neutral-600">{{ (zoom() * 100).toFixed(0) }}%</span>
+       </div>
+       <syn-button
+         (click)="onResetView.emit()"
+         size="small"
+       >
+         <syn-icon name="center_focus_strong" class="text-xs" />
+         Reset View
+       </syn-button>
     </div>
   </div>
+
+
+
 </div>

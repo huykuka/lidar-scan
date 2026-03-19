@@ -25,7 +25,7 @@
       <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter">BUFFERED FRAMES</span>
       @for (entry of bufferedFrameEntries(); track entry.sensorId) {
         <div class="flex justify-between items-center gap-2">
-          <span class="font-mono text-[10px] text-syn-color-neutral-600 truncate" [title]="entry.sensorId">
+          <span class="font-mono text-[10px]   truncate" [title]="entry.sensorId">
             {{ entry.sensorId.length > 10 ? entry.sensorId.slice(0, 8) + '…' : entry.sensorId }}
           </span>
           <syn-badge variant="success" class="shrink-0" size="small">
@@ -48,7 +48,7 @@
   @if (lastCalibrationTime()) {
     <div class="flex flex-col gap-0.5 pt-1 border-t border-syn-color-neutral-100">
       <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter">LAST CALIBRATION</span>
-      <span class="font-mono text-[11px] text-syn-color-neutral-600">{{ lastCalibrationTime() }}</span>
+      <span class="font-mono text-[11px]  ">{{ lastCalibrationTime() }}</span>
     </div>
   }
 </div>

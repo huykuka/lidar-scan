@@ -1,18 +1,21 @@
 <div
-  [class.opacity-50]="isDragging()"
-  class="bg-white rounded-lg shadow-lg border-2 w-60 hover:shadow-xl transition-all relative"
+  (click)="$event.stopPropagation()"
+  [class.grayscale]="!isNodeEnabled()"
+  [class.opacity-40]="!isNodeEnabled()"
+  [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
+  class="bg-white rounded-lg shadow border  w-48 hover:shadow-md transition-all relative flex flex-col transition-all duration-200"
 >
-  <!-- Input Port (left side — rendered if node definition has inputs) -->
+  <!-- Input Port -->
   @if (hasInputPort()) {
     <div
       (mousedown)="$event.stopPropagation()"
       (mouseup)="$event.stopPropagation(); portDrop.emit({ nodeId: node().id, portType: 'input' })"
-      class="absolute left-0 top-11 transform -translate-x-full -translate-y-1/2 w-4 h-6 rounded-sm border-2 border-white z-10 cursor-crosshair transition-transform after:absolute after:-inset-4 after:content-[''] bg-[#066fff]"
-      title="Input port — drop connection here"
+      class="absolute left-0 top-4 -translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
+      title="Input — drop connection here"
     ></div>
   }
 
-  <!-- Output Port (right side — rendered if node definition has outputs) -->
+  <!-- Output Port -->
   @if (hasOutputPort()) {
     <div
       (mousedown)="
@@ -20,95 +23,94 @@
         portDragStart.emit({ nodeId: node().id, portType: 'output', event: $event })
       "
       (mouseup)="$event.stopPropagation()"
-      class="absolute right-0 top-11 transform translate-x-full -translate-y-1/2 w-4 h-6 rounded-sm border-2 border-white z-10 cursor-crosshair h transition-transform after:absolute after:-inset-4 after:content-[''] bg-[#066fff]"
-      title="Output port — drag to connect"
+      class="absolute right-0 top-4 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
+      title="Output — drag to connect"
     ></div>
   }
 
-  <!-- Node Header -->
-  <div class="p-2 flex items-center rounded-t-md">
-    <div class="flex items-center gap-2 min-w-0 flex-1">
-      <syn-icon [name]="getNodeIcon()" class="text-xl shrink-0"/>
-      <div [title]="statusBadge().label" class="flex flex-row min-w-0 items-center">
-        <span class="font-semibold text-sm truncate flex-1">{{ getNodeName() }} </span>
-        <syn-badge [variant]="statusBadge().variant" class="ml-2" pill size="small"/>
-      </div>
+  <!-- Node Header (Ultra Compact) -->
+  <!-- Node Header (Ultra Compact) -->
+  <div
+    class="px-2 py-1.5 flex items-center gap-2 cursor-default min-h-[32px] rounded-t-lg transition-colors overflow-hidden"
+    [class.bg-syn-color-neutral-50]="isNodeEnabled()"
+    [class.bg-syn-color-neutral-200]="!isNodeEnabled()"
+  >
+    <syn-icon
+      [name]="getNodeIcon()"
+      class="text-[16px] shrink-0   flex items-center justify-center -mt-[1px]"
+    />
+
+    <div class="flex items-center gap-1.5 min-w-0 flex-1">
+      <span class="font-bold text-[11px] truncate text-syn-color-neutral-900 leading-none py-0.5">
+        {{ getNodeName() }}
+      </span>
+      <!-- Minimal Status Dot -->
+      <div
+        class="w-2.5 h-2.5 rounded-full shrink-0 border border-white shadow-sm -mt-[0.5px]"
+        [style.background-color]="'var(--syn-color-' + statusBadge().variant + '-600)'"
+        [title]="statusBadge().label"
+      ></div>
     </div>
-    <syn-button
-      (click)="isExpanded.set(!isExpanded())"
-      class="ml-2 shrink-0 flex items-center"
-      size="small"
-      variant="text"
-    >
-      <syn-icon
-        [name]="isExpanded() ? 'expand_less' : 'expand_more'"
-        class="text-syn-color-neutral-600 transition-transform"
-      />
-    </syn-button>
+
+    @if (status() && getFrameAge()) {
+      <div
+        [class.text-syn-color-success-600]="!isFrameStale()"
+        [class.text-syn-color-warning-600]="isFrameStale()"
+        class="font-mono text-[9px] font-bold shrink-0 bg-white/60 px-1 rounded-sm border /50 leading-none py-0.5"
+      >
+        {{ getFrameAge() }}
+      </div>
+    }
   </div>
 
-  <!-- Node Body (Collapsible Details) -->
-  @if (isExpanded()) {
-    <div class="p-2 pt-0 space-y-2 text-xs">
-      <!-- Plugin Card Component (dynamically rendered) -->
-      <ng-container #cardHost></ng-container>
-
-      @if (status() && getFrameAge()) {
-        <div class="flex flex-col pt-2 border-t border-syn-color-neutral-100">
-          <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter mb-0.5"
-          >Last Frame Update</span
-          >
-          <span
-            [class.text-syn-color-success-600]="!isFrameStale()"
-            [class.text-syn-color-warning-600]="isFrameStale()"
-            class="font-mono text-[11px] font-semibold"
-          >
-            {{ getFrameAge() }} ago
-          </span>
-        </div>
-      }
-
-      @if (status()?.last_error) {
-        <div
-          class="text-syn-color-danger-600 text-[11px] mt-2 p-2 bg-syn-color-danger-50 rounded border border-syn-color-danger-200 break-words"
-        >
-          {{ status()?.last_error }}
-        </div>
-      }
+  <!-- Runtime Error Section -->
+  @if (status()?.last_error) {
+    <div
+      class="px-2 py-1.5 bg-syn-color-danger-50 border-t border-syn-color-danger-100/50 text-[10px] text-syn-color-danger-700 leading-tight italic"
+    >
+      <div class="flex items-start gap-1">
+        <syn-icon name="error" class="shrink-0 text-xs mt-0.5" />
+        <span class="break-words line-clamp-2">{{ status()?.last_error }}</span>
+      </div>
     </div>
   }
 
-  <!-- Node Actions -->
-  <div class="p-1 px-2 border-t border-syn-color-neutral-200 flex items-center gap-1">
-    <div class="flex items-center gap-1 flex-1 min-w-0">
-      <syn-switch
-        (synChangeEvent)="onToggleEnabled.emit($any($event.target).checked)"
-        [checked]="isNodeEnabled()"
-        [disabled]="isLoading()"
-        class="shrink-0"
-        [title]="isNodeEnabled() ? 'Enabled' : 'Disabled'"
+  <!-- Node Actions Bar -->
+  <div
+    class="px-1.5 py-0.5 border-t  flex items-center justify-between bg-white rounded-b-lg transition-colors"
+    [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
+  >
+    <div class="flex items-center">
+      <!-- Power Icon Button -->
+      <syn-icon-button
+        (click)="!isLoading() && onToggleEnabled.emit(!isNodeEnabled())"
+        [label]="isNodeEnabled() ? 'Disable Node' : 'Enable Node'"
+        [name]="isLoading() ? 'sync' : 'power_settings_new'"
+        [class.animate-spin]="isLoading()"
+        [class.text-syn-color-success-600]="isNodeEnabled() && !isLoading()"
+        [class.text-syn-color-neutral-400]="!isNodeEnabled() && !isLoading()"
         size="small"
       />
-      @if (isLoading()) {
-        <syn-spinner size="small"/>
-      }
+
       <!-- Visibility Toggle -->
       @if (isNodeEnabled()) {
         <app-node-visibility-toggle
           [node]="node().data"
           [isPending]="isTogglingVisibility()"
           (visibilityChanged)="onToggleVisibility.emit($event)"
-          class="shrink-0"
         />
       }
     </div>
 
-    @if (isNodeEnabled() && isCalibrationNode()) {
-      <app-node-calibration-controls [node]="node()" [status]="status()"/>
-    }
+    <!-- Right-aligned Unit-specific Controls -->
+    <div class="flex items-center">
+      @if (isNodeEnabled() && isCalibrationNode()) {
+        <app-node-calibration-controls [node]="node()" [status]="status()" />
+      }
 
-    @if (isNodeEnabled() && hasOutputPort()) {
-      <app-node-recording-controls [node]="node()"/>
-    }
+      @if (isNodeEnabled() && hasOutputPort()) {
+        <app-node-recording-controls [node]="node()" />
+      }
+    </div>
   </div>
 </div>

@@ -2,6 +2,51 @@
 
 @import "tailwindcss";
 
+@theme {
+  /* Mapping Synergy CSS Variables to Tailwind v4 Theme Colors */
+  --color-syn-color-primary-50: var(--syn-color-primary-50);
+  --color-syn-color-primary-100: var(--syn-color-primary-100);
+  --color-syn-color-primary-200: var(--syn-color-primary-200);
+  --color-syn-color-primary-300: var(--syn-color-primary-300);
+  --color-syn-color-primary-400: var(--syn-color-primary-400);
+  --color-syn-color-primary-500: var(--syn-color-primary-500);
+  --color-syn-color-primary-600: var(--syn-color-primary-600);
+  --color-syn-color-primary-700: var(--syn-color-primary-700);
+  --color-syn-color-primary-800: var(--syn-color-primary-800);
+  --color-syn-color-primary-900: var(--syn-color-primary-900);
+  --color-syn-color-primary-950: var(--syn-color-primary-950);
+
+  --color-syn-color-neutral-50: var(--syn-color-neutral-50);
+  --color-syn-color-neutral-100: var(--syn-color-neutral-100);
+  --color-syn-color-neutral-200: var(--syn-color-neutral-200);
+  --color-syn-color-neutral-300: var(--syn-color-neutral-300);
+  --color-syn-color-neutral-400: var(--syn-color-neutral-400);
+  --color-syn-color-neutral-500: var(--syn-color-neutral-500);
+  --color-syn-color-neutral-600: var(--syn-color-neutral-600);
+  --color-syn-color-neutral-700: var(--syn-color-neutral-700);
+  --color-syn-color-neutral-800: var(--syn-color-neutral-800);
+  --color-syn-color-neutral-900: var(--syn-color-neutral-900);
+  --color-syn-color-neutral-950: var(--syn-color-neutral-950);
+
+  --color-syn-color-success-50: var(--syn-color-success-50);
+  --color-syn-color-success-100: var(--syn-color-success-100);
+  --color-syn-color-success-200: var(--syn-color-success-200);
+  --color-syn-color-success-600: var(--syn-color-success-600);
+  --color-syn-color-success-700: var(--syn-color-success-700);
+
+  --color-syn-color-danger-50: var(--syn-color-error-50);
+  --color-syn-color-danger-100: var(--syn-color-error-100);
+  --color-syn-color-danger-200: var(--syn-color-error-200);
+  --color-syn-color-danger-600: var(--syn-color-error-600);
+  --color-syn-color-danger-700: var(--syn-color-error-700);
+
+  --color-syn-color-warning-50: var(--syn-color-warning-50);
+  --color-syn-color-warning-100: var(--syn-color-warning-100);
+  --color-syn-color-warning-200: var(--syn-color-warning-200);
+  --color-syn-color-warning-600: var(--syn-color-warning-600);
+  --color-syn-color-warning-700: var(--syn-color-warning-700);
+}
+
 /*
   Routed page components must stretch inside the fixed-height main layout.
   Without this, some pages (e.g. Logs) expand to full content height and
