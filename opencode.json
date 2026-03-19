@@ -11,17 +11,6 @@
           "*": "allow"
         }
       }
-    },
-    "fe-dev": {
-      "tools": {
-        "chrome-devtools*": true,
-        "synergy*": true
-      }
-    },
-    "qa": {
-      "tools": {
-        "chrome-devtools*": true
-      }
     }
   },
   "tools": {
@@ -37,6 +26,11 @@
     "synergy": {
       "type": "local",
       "command": ["npx", "-y", "@synergy-design-system/mcp"],
+      "enabled": true
+    },
+    "gitnexus": {
+      "type": "local",
+      "command": ["npx", "-y", "gitnexus@latest", "mcp"],
       "enabled": true
     }
   }
