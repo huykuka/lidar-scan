@@ -126,24 +126,40 @@ class ConfigLoader:
         # Canonical WS topic key stored at registration time. LifecycleManager 
         # reads this during teardown to guarantee key consistency.
     
-    def build_downstream_map(self, edges_data: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+    def build_downstream_map(self, edges_data: List[Dict[str, Any]]) -> Dict[str, List[Any]]:
         """
         Build downstream routing map from edge configurations.
+        
+        Supports both legacy (simple target_id strings) and port-aware routing
+        (dictionaries with target_id and port metadata).
         
         Args:
             edges_data: List of edge configurations
             
         Returns:
-            Dictionary mapping source_node_id -> [target_node_ids]
+            Dictionary mapping source_node_id -> [target_node_ids or edge_dicts]
         """
         downstream_map = {}
         
         for edge in edges_data:
             source = edge.get("source_node")
             target = edge.get("target_node")
+            source_port = edge.get("source_port")
+            target_port = edge.get("target_port")
+            
             if source and target:
                 if source not in downstream_map:
                     downstream_map[source] = []
-                downstream_map[source].append(target)
+                
+                # If edge has port information, store as dictionary
+                # Otherwise, store as simple string (backwards compatibility)
+                if source_port or target_port:
+                    downstream_map[source].append({
+                        "target_id": target,
+                        "source_port": source_port,
+                        "target_port": target_port
+                    })
+                else:
+                    downstream_map[source].append(target)
         
         return downstream_map

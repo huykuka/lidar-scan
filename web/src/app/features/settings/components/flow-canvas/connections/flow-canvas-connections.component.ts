@@ -6,6 +6,7 @@ export interface Connection {
   from: string;
   to: string;
   path?: string;
+  color?: string; // Edge color for port-specific rendering (e.g., '#16a34a' for true, '#f97316' for false)
 }
 
 export interface PendingConnection {

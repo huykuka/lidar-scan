@@ -1,8 +1,18 @@
 <svg class="absolute inset-0 w-full h-full pointer-events-none" style="overflow: visible">
   <defs>
+    <!-- Default blue arrowhead -->
     <marker id="arrowhead" markerHeight="10" markerWidth="10" orient="auto" refX="9" refY="3">
       <polygon fill="#6366f1" points="0 0, 10 3, 0 6"/>
     </marker>
+    <!-- Green arrowhead for 'true' port -->
+    <marker id="arrowhead-green" markerHeight="10" markerWidth="10" orient="auto" refX="9" refY="3">
+      <polygon fill="#16a34a" points="0 0, 10 3, 0 6"/>
+    </marker>
+    <!-- Orange arrowhead for 'false' port -->
+    <marker id="arrowhead-orange" markerHeight="10" markerWidth="10" orient="auto" refX="9" refY="3">
+      <polygon fill="#f97316" points="0 0, 10 3, 0 6"/>
+    </marker>
+    <!-- Pending connection arrowhead -->
     <marker
       id="arrowhead-pending"
       markerHeight="10"
@@ -23,20 +33,20 @@
     >
       <path
         [attr.d]="connection.path"
+        [attr.stroke]="connection.color || '#6366f1'"
+        [attr.marker-end]="connection.color === '#16a34a' ? 'url(#arrowhead-green)' : connection.color === '#f97316' ? 'url(#arrowhead-orange)' : 'url(#arrowhead)'"
         class="edge-path group-hover:stroke-red-500 transition-colors pointer-events-none"
         fill="none"
-        marker-end="url(#arrowhead)"
         pathLength="1"
-        stroke="#6366f1"
         stroke-linecap="round"
         stroke-width="1.5"
       />
       <path
         [attr.d]="connection.path"
+        [attr.stroke]="connection.color ? connection.color + '66' : '#a5b4fc'"
         class="edge-flow-overlay pointer-events-none"
         fill="none"
         pathLength="1"
-        stroke="#a5b4fc"
         stroke-linecap="round"
         stroke-width="1.5"
       />

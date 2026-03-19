@@ -11,6 +11,8 @@ import {OperationNodeCardComponent} from '@plugins/operation/node/operation-node
 import {OperationNodeEditorComponent} from '@plugins/operation/form/operation-node-editor.component';
 import {CalibrationNodeCardComponent} from '@plugins/calibration/node/calibration-node-card.component';
 import {CalibrationNodeEditorComponent} from '@plugins/calibration/form/calibration-node-editor.component';
+import {IfConditionCardComponent} from '@plugins/flow-control/node/if-condition-card.component';
+import {IfConditionEditorComponent} from '@plugins/flow-control/form/if-condition-editor.component';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
 const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
@@ -18,6 +20,7 @@ const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
   fusion: {color: '#6366f1', icon: 'hub'},
   calibration: {color: '#f59e0b', icon: 'tune'},
   operation: {color: '#64748b', icon: 'settings_input_component'},
+  flow_control: {color: '#9c27b0', icon: 'call_split'},
 };
 
 function definitionToPlugin(def: NodeDefinition): NodePlugin {
@@ -116,6 +119,13 @@ export class NodePluginRegistry {
           ...plugin,
           cardComponent: CalibrationNodeCardComponent,
           editorComponent: CalibrationNodeEditorComponent,
+        });
+      }
+      if (plugin.category === 'flow_control') {
+        this.plugins.set(type, {
+          ...plugin,
+          cardComponent: IfConditionCardComponent,
+          editorComponent: IfConditionEditorComponent,
         });
       }
     });
