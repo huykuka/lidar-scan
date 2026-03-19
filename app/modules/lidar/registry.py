@@ -4,13 +4,14 @@ Node registry for the LiDAR sensor module.
 This module registers the sensor node type with the DAG orchestrator.
 Loaded automatically via discover_modules() at application startup.
 """
-from typing import Any, Dict, List
 import os
+from typing import Any, Dict, List
+
+from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition, PropertySchema, PortSchema, node_schema_registry
 )
-from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args
 
 # Compute helper lists at module load time
 _port_capable_models = [p.model_id for p in get_all_profiles() if p.port_arg]
@@ -42,16 +43,24 @@ node_schema_registry.register(NodeDefinition(
             help_text="Select the SICK LiDAR hardware model for this node",
             options=[{"label": p.display_name, "value": p.model_id} for p in get_all_profiles()]
         ),
-        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
         PropertySchema(name="mode", label="Mode", type="select", default="real", options=[
-            {"label": "Hardware (Real)", "value": "real"},
-            {"label": "Simulation (PCD)", "value": "sim"}
+            {"label": "Hardware", "value": "real"},
+            {"label": "Simulation by PCD", "value": "sim"}
         ]),
-        PropertySchema(name="hostname", label="Hostname", type="string", default="192.168.100.124", help_text="Lidar IP address", depends_on={"mode": ["real"]}),
-        PropertySchema(name="port", label="Port", type="number", default=2112, help_text="Device communication port", depends_on={"mode": ["real"], "lidar_type": _port_capable_models}),
-        PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10", help_text="Host IP address receiving data", depends_on={"mode": ["real"], "lidar_type": _udp_receiver_models}),
-        PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7503, help_text="UDP port for IMU data", depends_on={"mode": ["real"], "lidar_type": _imu_capable_models}),
-        PropertySchema(name="pcd_path", label="PCD Path", type="string", default="", help_text="Path to .pcd file (simulation only)", depends_on={"mode": ["sim"]}),
+        PropertySchema(name="hostname", label="Hostname", type="string", default="192.168.100.124",
+                       help_text="Lidar IP address", depends_on={"mode": ["real"]}),
+        PropertySchema(name="port", label="Port", type="number", default=2112, help_text="Device communication port",
+                       depends_on={"mode": ["real"], "lidar_type": _port_capable_models}),
+        PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10",
+                       help_text="Host IP address receiving data",
+                       depends_on={"mode": ["real"], "lidar_type": _udp_receiver_models}),
+        PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7503,
+                       help_text="UDP port for IMU data",
+                       depends_on={"mode": ["real"], "lidar_type": _imu_capable_models}),
+        PropertySchema(name="pcd_path", label="PCD Path", type="string", default="",
+                       help_text="Path to .pcd file (simulation only)", depends_on={"mode": ["sim"]}),
         PropertySchema(name="x", label="Pos X", type="number", default=0.0, step=0.01),
         PropertySchema(name="y", label="Pos Y", type="number", default=0.0, step=0.01),
         PropertySchema(name="z", label="Pos Z", type="number", default=0.0, step=0.01),
@@ -72,11 +81,10 @@ node_schema_registry.register(NodeDefinition(
 def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """Build a LidarSensor instance from persisted node configuration."""
     from .sensor import LidarSensor  # lazy import avoids circular dep
-    from app.services.websocket.manager import manager
-    
+
     config = node.get("config", {})
     mode = config.get("mode", "real")
-    
+
     # Ensure throttle_ms is numeric
     throttle_ms = config.get("throttle_ms", 0)
     try:
@@ -99,7 +107,7 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     port = config.get("port")  # replaces udp_port
     udp_receiver_ip = config.get("udp_receiver_ip")
     imu_udp_port = config.get("imu_udp_port")
-    
+
     # Build transformation string
     # CRITICAL: Ensure pose values are floats, not strings from JSON config
     x = float(config.get("x", 0) or 0)
@@ -109,7 +117,7 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     pitch = float(config.get("pitch", 0) or 0)
     yaw = float(config.get("yaw", 0) or 0)
     add_transform_xyz_rpy = f"{x},{y},{z},{roll},{pitch},{yaw}"
-    
+
     # Build launch arguments using profile system
     try:
         profile = get_profile(lidar_type)
@@ -130,7 +138,7 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
 
     sensor_name = name or sensor_id
     desired_prefix = topic_prefix or sensor_name
-    
+
     # Register unique topic prefix using same format as orchestrator (8 chars of ID)
     # The TopicRegistry will automatically slugify and ensure uniqueness
     final_topic_prefix = service_context._topic_registry.register(desired_prefix, sensor_id[:8])
@@ -146,9 +154,9 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         throttle_ms=throttle_ms
     )
     sensor.set_pose(x, y, z, roll, pitch, yaw)
-    
+
     # Set LiDAR type information on the sensor instance
     sensor.lidar_type = profile.model_id
     sensor.lidar_display_name = profile.display_name
-    
+
     return sensor

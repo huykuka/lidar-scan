@@ -46,7 +46,7 @@ _PROFILES = {
         icon_name="device_hub",
         icon_color="#0066CC"
     ),
-    
+
     # --- TiM Series (2D Time-of-Flight) ---
     "tim_240": SickLidarProfile(
         model_id="tim_240",
@@ -104,7 +104,7 @@ _PROFILES = {
         icon_name="verified_user",
         icon_color="#FF4444"
     ),
-    
+
     # --- LMS Series (2D Laser Measurement) ---
     "lms_1xx": SickLidarProfile(
         model_id="lms_1xx",
@@ -176,7 +176,7 @@ _PROFILES = {
         icon_name="track_changes",
         icon_color="#00AA44"
     ),
-    
+
     # --- MRS Series (3D Multi-Layer) ---
     "mrs_1xxx": SickLidarProfile(
         model_id="mrs_1xxx",
@@ -206,7 +206,7 @@ _PROFILES = {
         icon_name="360",
         icon_color="#8A2BE2"
     ),
-    
+
     # --- LRS Series (3D Radar) ---
     "lrs_4xxx": SickLidarProfile(
         model_id="lrs_4xxx",
@@ -278,7 +278,7 @@ _PROFILES = {
         icon_name="flip",
         icon_color="#FF9800"
     ),
-    
+
     # --- LD-MRS Series (Legacy Multi-Layer) ---
     "ldmrs": SickLidarProfile(
         model_id="ldmrs",
@@ -295,7 +295,7 @@ _PROFILES = {
         icon_color="#795548",
         disabled=True  # LD-MRS models are disabled - not shown in frontend
     ),
-    
+
     # --- OEM Series ---
     "oem_15xx": SickLidarProfile(
         disabled=True,
@@ -312,7 +312,7 @@ _PROFILES = {
         icon_name="precision_manufacturing",
         icon_color="#607D8B"
     ),
-    
+
     # --- NAV Series (Navigation) ---
     "nav_2xx": SickLidarProfile(
         model_id="nav_2xx",
@@ -356,7 +356,7 @@ _PROFILES = {
         icon_name="navigation",
         icon_color="#2196F3"
     ),
-    
+
     # --- RMS Series (Radar Multi-Sensor) ---
     "rms_xxxx": SickLidarProfile(
         model_id="rms_xxxx",
@@ -372,7 +372,7 @@ _PROFILES = {
         icon_name="settings_input_antenna",
         icon_color="#E91E63"
     ),
-    
+
     # --- picoScan Series (Compact 3D) ---
     "picoscan_120": SickLidarProfile(
         model_id="picoscan_120",
@@ -382,7 +382,7 @@ _PROFILES = {
         port_arg="",
         default_port=0,
         has_udp_receiver=True,  # Requires UDP receiver like multiScan
-        has_imu_udp_port=False,
+        has_imu_udp_port=True,
         scan_layers=3,
         thumbnail_url="/api/v1/assets/lidar/picoscan120.png",
         icon_name="settings_overscan",
@@ -396,7 +396,7 @@ _PROFILES = {
         port_arg="",
         default_port=0,
         has_udp_receiver=True,  # Requires UDP receiver like multiScan
-        has_imu_udp_port=False,
+        has_imu_udp_port=True,
         scan_layers=3,
         thumbnail_url="/api/v1/assets/lidar/picoscan150.png",
         icon_name="settings_overscan",
@@ -419,30 +419,30 @@ def get_all_profiles() -> List[SickLidarProfile]:
     ordered_keys = [
         # Multi-layer 3D sensors first
         "multiscan",
-        
+
         # TiM series (2D Time-of-Flight)
-        "tim_240", "tim_5xx", "tim_7xx", "tim_7xxs",  "picoscan_120", "picoscan_150",
-        
+        "tim_240", "tim_5xx", "tim_7xx", "tim_7xxs", "picoscan_120", "picoscan_150",
+
         # LMS series (2D Laser Measurement)
         "lms_1xx", "lms_1xxx", "lms_1xxx_v2", "lms_5xx", "lms_4xxx",
-        
+
         # MRS series (3D Multi-Layer)
         "mrs_1xxx", "mrs_6xxx",
-        
+
         # LRS series (3D Radar)
         "lrs_4xxx", "lrs_36x0", "lrs_36x0_upside_down", "lrs_36x1", "lrs_36x1_upside_down",
-        
+
         # Legacy and specialty
         "ldmrs", "oem_15xx",
-        
+
         # Navigation series
         "nav_2xx", "nav_31x", "nav_350",
-        
+
         # Radar multi-sensor
         "rms_xxxx",
-        
+
     ]
-    
+
     return [_PROFILES[key] for key in ordered_keys]
 
 
@@ -471,17 +471,17 @@ def get_profile(model_id: str) -> SickLidarProfile:
     if model_id not in _PROFILES:
         valid_models = list(_PROFILES.keys())
         raise KeyError(f"Unknown lidar_type '{model_id}'. Valid options: {valid_models}")
-    
+
     return _PROFILES[model_id]
 
 
 def build_launch_args(
-    model_id: str,
-    hostname: str,
-    port: Optional[int],
-    udp_receiver_ip: Optional[str],
-    imu_udp_port: Optional[int],
-    add_transform_xyz_rpy: str
+        model_id: str,
+        hostname: str,
+        port: Optional[int],
+        udp_receiver_ip: Optional[str],
+        imu_udp_port: Optional[int],
+        add_transform_xyz_rpy: str
 ) -> str:
     """
     Build launch arguments string for a specific SICK LiDAR model.
@@ -500,20 +500,20 @@ def build_launch_args(
         KeyError: If model_id is not recognized
     """
     profile = get_profile(model_id)
-    
+
     # Base arguments
     args = f"{profile.launch_file} hostname:={hostname} cloud_topic:=cloud_all_fields_fullframe"
-    
+
     # Add port argument if the model supports it and port is provided
     if profile.port_arg and port is not None:
         args += f" {profile.port_arg}:={port}"
-    
+
     # Add UDP receiver IP for models that require it (multiScan, picoScan)
     if profile.has_udp_receiver and udp_receiver_ip is not None:
         args += f" udp_receiver_ip:={udp_receiver_ip}"
-    
+
     # Add IMU UDP port for multiScan only
     if profile.has_imu_udp_port and imu_udp_port is not None:
         args += f" imu_udp_port:={imu_udp_port}"
-    
+
     return args
