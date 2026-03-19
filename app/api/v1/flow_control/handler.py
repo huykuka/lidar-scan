@@ -3,7 +3,7 @@ Flow control API router configuration and endpoint definitions.
 """
 from fastapi import APIRouter
 
-from .dto import SetExternalStateRequest, ExternalStateResponse
+from .dto import ExternalStateResponse
 from .service import set_external_state, reset_external_state
 
 
@@ -18,19 +18,19 @@ router = APIRouter(tags=["Flow Control"])
     response_model=ExternalStateResponse,
     responses={
         404: {"description": "Node not found or wrong type"},
-        400: {"description": "Invalid request body"}
     },
     summary="Set External State",
-    description="Update external_state boolean for conditional routing in IF nodes"
+    description="Set external_state to True for conditional routing in IF nodes"
 )
-async def set_external_state_endpoint(node_id: str, req: SetExternalStateRequest):
+async def set_external_state_endpoint(node_id: str):
     """
-    Set the external_state boolean for an IF condition node.
-    
-    This allows external applications to control data flow through conditional
+    Set the external_state to True for an IF condition node.
+
+    This allows external applications to enable data flow through conditional
     routing nodes via REST API without modifying the DAG configuration.
+    No request body is needed — calling this endpoint always sets the state to True.
     """
-    return await set_external_state(node_id, req)
+    return await set_external_state(node_id)
 
 
 @router.post(
@@ -45,7 +45,7 @@ async def set_external_state_endpoint(node_id: str, req: SetExternalStateRequest
 async def reset_external_state_endpoint(node_id: str):
     """
     Reset the external_state to False for an IF condition node.
-    
-    This is a convenience endpoint equivalent to calling /set with value=False.
+
+    No request body is needed — calling this endpoint always sets the state to False.
     """
     return await reset_external_state(node_id)
