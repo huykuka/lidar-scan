@@ -30,3 +30,5 @@ web/.env*
 # Third-party dependencies
 sick-scan-api/
 
+.gitnexus
+.claude

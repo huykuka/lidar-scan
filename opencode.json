@@ -15,7 +15,8 @@
   },
   "tools": {
     "chrome-devtools*": true,
-    "synergy*": false
+    "synergy*": true,
+    "gitnexus*": true
   },
   "mcp": {
     "chrome-devtools": {

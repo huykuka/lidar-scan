@@ -14,21 +14,13 @@ permission:
   todowrite: allow
   todoread: allow
 tools:
-  chrome-devtools*: true
-  synergy*: true
-  gitnexus*: true
+  chrome-devtools: true
+  synergy: true
+  gitnexus: true
 ---
 
 **Global Context**: You MUST read `@AGENTS.md` to understand the overall architecture, tech stack, and SDLC flow of this
 project.
-
-**Codebase Intelligence**: You possess the `gitnexus` MCP server to deeply understand the application structure. BEFORE
-implementing new components, you MUST use:
-
-- `gitnexus.query`: Search for relevant Angular signals, components, and UI patterns using hybrid search.
-- `gitnexus.context`: Get the 360-degree symbol view of existing services or components to understand their lifecycle.
-- `gitnexus.impact`: Verify the impact of changing shared UI modules or core CSS/tokens through blast radius analysis.
-- `gitnexus.detect_changes`: Map your UI changes to affected component trees and processes.
 
 **Design System Intelligence**: You possess the `synergy` MCP server to ensure pixel-perfect adherence to the SICK 2025
 Design System.

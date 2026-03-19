@@ -30,67 +30,6 @@ Each folder contains:
 - `qa-report.md`: Final test report and coverage results (@qa).
   All Dev and QA agents MUST update checkboxes (`[ ]` to `[x]`) in these files as steps complete.
 
-## Agent Responsibilities & Performance Monitoring
-
-### Core Agent Ownership
-
-- **@be-dev**: Backend metrics collection, DAG node instrumentation, Open3D performance tracking, WebSocket protocol metrics, `/api/metrics` endpoint implementation, WebSocket topic lifecycle management and cleanup
-- **@fe-dev**: Frontend performance metrics (Three.js FPS, Angular component responsiveness), metrics dashboard UI with Synergy UI components, WebSocket client performance tracking, handling topic cleanup notifications
-- **@qa**: Performance dashboard testing, metrics accuracy validation, load testing for <1% overhead requirement, integration testing of monitoring features, WebSocket topic cleanup edge-case testing
-- **@architecture**: Performance monitoring system design, metrics data flow architecture, integration points between frontend/backend monitoring, WebSocket topic cleanup architecture design
-- **@ba & @pm**: Performance requirements definition, acceptance criteria for monitoring features, developer workflow integration, WebSocket topic cleanup acceptance criteria
-
-### Performance Monitoring Documentation
-
-Performance monitoring specifications and implementation details are located in:
-
-- `.opencode/plans/performance-monitoring/requirements.md`: Feature requirements and acceptance criteria
-- `.opencode/plans/performance-monitoring/technical.md`: Architecture and implementation details
-- `.opencode/plans/performance-monitoring/api-spec.md`: Metrics API contracts and data schemas
-- `.opencode/plans/performance-monitoring/backend-tasks.md`: Backend implementation tasks and progress
-- `.opencode/plans/performance-monitoring/frontend-tasks.md`: Frontend dashboard and metrics tasks
-
-### WebSocket Topic Cleanup Architecture
-
-The system implements robust WebSocket topic lifecycle management to prevent ghost topics and ensure consistent DAG-to-topic mapping.
-
-#### Core Cleanup Features
-
-- **Canonical Topic Storage**: Each node instance stores its WebSocket topic (`_ws_topic`) at registration to guarantee consistent cleanup
-- **Async Teardown**: Topic unregistration properly closes WebSocket connections with `1001 Going Away` and cancels pending futures
-- **Orphan Sweep**: Configuration reloads detect and clean up topics from failed node initializations
-- **Duplicate Prevention**: Re-entrant locks prevent concurrent reloads from causing topic corruption
-- **Edge-Case Handling**: Comprehensive coverage of node removal during active WebSocket operations
-
-#### WebSocket Topic Cleanup Documentation
-
-Specifications and implementation details are located in:
-
-- `.opencode/plans/websocket-topic-cleanup/technical.md`: Architecture, async flows, and edge-case handling
-- `.opencode/plans/websocket-topic-cleanup/api-spec.md`: API contract changes and protocol behavior
-- `.opencode/plans/websocket-topic-cleanup/backend-tasks.md`: Implementation tasks and test coverage
-
-#### Manual Testing & Developer Tools
-
-Developers can manually test topic cleanup behavior using:
-
-1. **Topic Inspection**: `GET /api/v1/topics` - View current registered topics
-2. **Node Removal**: `DELETE /api/v1/nodes/{node_id}` - Trigger single-node cleanup
-3. **Full Reload**: `POST /api/v1/nodes/reload` - Test complete cleanup cycle
-4. **WebSocket Monitoring**: Browser DevTools Network tab to observe `1001 Going Away` close frames
-5. **Backend Logs**: Search for `"orphaned topic"` and `"unregister topic"` messages
-6. **Performance Metrics**: `/api/metrics/websocket` endpoint shows topic cleanup statistics
-
-#### Testing Edge Cases
-
-- **Concurrent Operations**: Multiple reload requests (should block with `409 Conflict`)
-- **Pending Futures**: Topics removed while `/api/v1/topics/capture` is waiting (should return `503`)
-- **Failed Initializations**: Nodes that partially registered topics but failed to start
-- **System Topic Protection**: Verify system topics (e.g., `system_status`) are never swept
-- **Client Reconnection**: Frontend handling of unexpected WebSocket closures
-
-### Performance Monitoring Integration in SDLC
-
 #### Planning Phase
 
 1. **@ba/@pm**: Define performance requirements and acceptance criteria in `requirements.md`
@@ -99,8 +38,8 @@ Developers can manually test topic cleanup behavior using:
 
 #### Development Phase
 
-1. **@be-dev**: Implement backend metrics collection following tasks in `backend-tasks.md`
-2. **@fe-dev**: Build Angular dashboard and frontend metrics using specifications in `frontend-tasks.md`
+1. **@be-dev**: Implement backend following tasks in `backend-tasks.md`
+2. **@fe-dev**: Build Angular frontend using specifications in `frontend-tasks.md`
 3. Both devs MUST mock API data per `api-spec.md` during parallel development
 
 #### QA & Review Phase
@@ -110,47 +49,106 @@ Developers can manually test topic cleanup behavior using:
 3. **@review**: Code review focusing on monitoring integration and performance impact
 4. **@docs**: Update documentation to reflect monitoring capabilities and usage
 
-### Observable Artifacts & Commands
+<!-- gitnexus:start -->
 
-#### Backend Monitoring Endpoints
+# GitNexus — Code Intelligence
 
-- `GET /api/metrics` - Real-time system metrics (JSON)
-- `GET /api/metrics/dag` - DAG node performance data
-- `GET /api/metrics/websocket` - WebSocket protocol performance
-- `GET /api/health/performance` - Performance health check
+This project is indexed by GitNexus as **lidar-standalone** Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
-#### Frontend Dashboard Access
+> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
-- `/dashboard/performance` - Developer performance monitoring dashboard
-- Real-time metrics visualization using Angular Signals and Synergy UI
-- Three.js rendering performance, WebSocket client metrics, Angular component responsiveness
+## Always Do
 
-#### Development Commands
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
 
-- `npm run dev:monitor` - Start development with performance monitoring enabled
-- `python -m app.main --enable-metrics` - Backend with metrics collection
-- Performance monitoring logs available in console/dev tools for debugging
+## When Debugging
 
-## Project Structure
+1. `gitnexus_query({query: "<error or symptom>"})` — find execution flows related to the issue
+2. `gitnexus_context({name: "<suspect function>"})` — see all callers, callees, and process participation
+3. `READ gitnexus://repo/lidar-standalone/process/{processName}` — trace the full execution flow step by step
+4. For regressions: `gitnexus_detect_changes({scope: "compare", base_ref: "main"})` — see what your branch changed
 
-```text
-lidar-standalone/
-├── .opencode/           # OpenCode Agent workflows, rules, and task tracking
-│   ├── agents/          # Agent instructions (e.g., pm, ba, orchestrator)
-│   ├── plans/           # Feature planning and subtask breakdown directories
-│   └── rules/           # Technology specific rules (frontend, backend, protocols)
-├── app/                 # Backend codebase (Python, FastAPI, Open3D)
-│   ├── api/             # API routes
-│   ├── core/            # Core logic, configurations
-│   ├── models/          # DB & domain models
-│   ├── services/        # Business logic and DAG modules
-│   └── main.py          # Application entrypoint
-├── web/                 # Frontend codebase (Angular 20, Three.js, Tailwind CSS)
-│   ├── public/          # Static assets
-│   ├── src/             # Application source and UI components
-│   └── angular.json     # Angular CLI configuration
-├── tests/               # Python backend tests
-├── scripts/             # Useful build and run scripts
-├── requirements.txt     # Python dependencies
-└── AGENTS.md            # This file
+## When Refactoring
+
+- **Renaming**: MUST use `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` first. Review the preview — graph edits are safe, text_search edits need manual review. Then run with `dry_run: false`.
+- **Extracting/Splitting**: MUST run `gitnexus_context({name: "target"})` to see all incoming/outgoing refs, then `gitnexus_impact({target: "target", direction: "upstream"})` to find all external callers before moving code.
+- After any refactor: run `gitnexus_detect_changes({scope: "all"})` to verify only expected files changed.
+
+## Never Do
+
+- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+
+## Tools Quick Reference
+
+| Tool             | When to use                   | Command                                                                 |
+| ---------------- | ----------------------------- | ----------------------------------------------------------------------- |
+| `query`          | Find code by concept          | `gitnexus_query({query: "auth validation"})`                            |
+| `context`        | 360-degree view of one symbol | `gitnexus_context({name: "validateUser"})`                              |
+| `impact`         | Blast radius before editing   | `gitnexus_impact({target: "X", direction: "upstream"})`                 |
+| `detect_changes` | Pre-commit scope check        | `gitnexus_detect_changes({scope: "staged"})`                            |
+| `rename`         | Safe multi-file rename        | `gitnexus_rename({symbol_name: "old", new_name: "new", dry_run: true})` |
+| `cypher`         | Custom graph queries          | `gitnexus_cypher({query: "MATCH ..."})`                                 |
+
+## Impact Risk Levels
+
+| Depth | Meaning                               | Action                |
+| ----- | ------------------------------------- | --------------------- |
+| d=1   | WILL BREAK — direct callers/importers | MUST update these     |
+| d=2   | LIKELY AFFECTED — indirect deps       | Should test           |
+| d=3   | MAY NEED TESTING — transitive         | Test if critical path |
+
+## Resources
+
+| Resource                                          | Use for                                  |
+| ------------------------------------------------- | ---------------------------------------- |
+| `gitnexus://repo/lidar-standalone/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/lidar-standalone/clusters`       | All functional areas                     |
+| `gitnexus://repo/lidar-standalone/processes`      | All execution flows                      |
+| `gitnexus://repo/lidar-standalone/process/{name}` | Step-by-step execution trace             |
+
+## Self-Check Before Finishing
+
+Before completing any code modification task, verify:
+
+1. `gitnexus_impact` was run for all modified symbols
+2. No HIGH/CRITICAL risk warnings were ignored
+3. `gitnexus_detect_changes()` confirms changes match expected scope
+4. All d=1 (WILL BREAK) dependents were updated
+
+## Keeping the Index Fresh
+
+After committing code changes, the GitNexus index becomes stale. Re-run analyze to update it:
+
+```bash
+npx gitnexus analyze
 ```
+
+If the index previously included embeddings, preserve them by adding `--embeddings`:
+
+```bash
+npx gitnexus analyze --embeddings
+```
+
+To check whether embeddings exist, inspect `.gitnexus/meta.json` — the `stats.embeddings` field shows the count (0 means no embeddings). **Running analyze without `--embeddings` will delete any previously generated embeddings.**
+
+> Claude Code users: A PostToolUse hook handles this automatically after `git commit` and `git merge`.
+
+## CLI
+
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
+
+<!-- gitnexus:end -->
