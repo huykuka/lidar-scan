@@ -32,11 +32,12 @@ async def set_external_state(node_id: str) -> ExternalStateResponse:
             detail="Node not found or not a flow control node"
         )
 
-    node.external_state = True
+    node.external_override = True
+    node.state = True  # Immediately set state
 
     return ExternalStateResponse(
         node_id=node_id,
-        state=node.external_state,
+        state=True,
         timestamp=time.time()
     )
 
@@ -62,10 +63,11 @@ async def reset_external_state(node_id: str) -> ExternalStateResponse:
             detail="Node not found or not a flow control node"
         )
 
-    node.external_state = False
+    node.external_override = None  # Disable external control
+    node.state = None  # Clear state (will use expression on next input)
 
     return ExternalStateResponse(
         node_id=node_id,
-        state=node.external_state,
+        state=False,
         timestamp=time.time()
     )

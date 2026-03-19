@@ -57,8 +57,8 @@ class IfConditionNode(ModuleNode):
         self.name = name
         self.manager = manager
         self.expression = expression
-        self.external_state: bool = False
-        self.last_evaluation: Optional[bool] = None
+        self.external_override: Optional[bool] = None  # None = use expression, True/False = external control
+        self.state: Optional[bool] = None  # Current routing state (True = route to 'true' port, False = route to 'false' port)
         self.last_error: Optional[str] = None
         self._ws_topic: Optional[str] = None  # Invisible node by default
         self._parser = ExpressionParser()
@@ -72,42 +72,45 @@ class IfConditionNode(ModuleNode):
         Args:
             payload: Input data from upstream nodes
         """
-        # Build evaluation context from payload metadata + external state
-        context = self._build_context(payload)
-        
-        try:
-            # Evaluate expression
-            result = self._parser.evaluate(self.expression, context)
-            
-            # Update status
-            self.last_evaluation = result
+        # Determine final routing state
+        if self.external_override is not None:
+            # External control is active - use override value
+            result = self.external_override
+            self.state = result
             self.last_error = None
+            logger.debug(f"Node {self.id}: Using external override state: {result}")
+        else:
+            # Use expression evaluation
+            context = self._build_context(payload)
             
-            logger.debug(f"Node {self.id}: Expression '{self.expression}' evaluated to {result}")
-            
-            # Add condition result to payload for debugging
-            payload["condition_result"] = result
-            
-            # Route to appropriate downstream nodes
-            await self._route_to_port("true" if result else "false", payload)
-            
-        except Exception as e:
-            # Fail-safe: route to false port on any error
-            error_msg = f"Expression evaluation failed: {e}"
-            self.last_error = error_msg
-            self.last_evaluation = False
-            
-            logger.error(f"Node {self.id}: {error_msg}", exc_info=True)
-            
-            # Add failure info to payload
-            payload["condition_result"] = False
-            
-            # Route to false port (fail-safe)
-            await self._route_to_port("false", payload)
+            try:
+                # Evaluate expression
+                result = self._parser.evaluate(self.expression, context)
+                
+                # Update status
+                self.state = result
+                self.last_error = None
+                
+                logger.debug(f"Node {self.id}: Expression '{self.expression}' evaluated to {result}")
+                
+            except Exception as e:
+                # Fail-safe: route to false port on any error
+                error_msg = f"Expression evaluation failed: {e}"
+                self.last_error = error_msg
+                self.state = False
+                result = False
+                
+                logger.error(f"Node {self.id}: {error_msg}", exc_info=True)
+        
+        # Add condition result to payload for debugging
+        payload["condition_result"] = result
+        
+        # Route to appropriate downstream nodes
+        await self._route_to_port("true" if result else "false", payload)
     
     def _build_context(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Build evaluation context from payload metadata and external state.
+        Build evaluation context from payload metadata.
         
         Args:
             payload: Input payload
@@ -120,9 +123,6 @@ class IfConditionNode(ModuleNode):
         
         # Remove 'points' array to avoid exposing large data in expressions
         context.pop("points", None)
-        
-        # Inject external_state
-        context["external_state"] = self.external_state
         
         return context
     
@@ -170,7 +170,6 @@ class IfConditionNode(ModuleNode):
             "category": "flow_control",
             "running": True,
             "expression": self.expression,
-            "external_state": self.external_state,
-            "last_evaluation": self.last_evaluation,
+            "state": self.state,
             "last_error": self.last_error,
         }

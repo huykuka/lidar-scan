@@ -69,8 +69,7 @@ node_schema_registry.register(NodeDefinition(
         PropertySchema(name="yaw", label="Yaw", type="number", default=0.0, step=0.1),
     ],
     outputs=[
-        PortSchema(id="raw_points", label="Raw Points"),
-        PortSchema(id="processed_points", label="Processed Points")
+        PortSchema(id="out", label="Output")
     ]
 ))
 

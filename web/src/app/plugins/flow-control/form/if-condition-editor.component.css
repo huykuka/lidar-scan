@@ -7,3 +7,108 @@ code {
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
 }
+
+/* Expression container with relative positioning for autocomplete */
+.expression-container {
+  position: relative;
+}
+
+.expression-input {
+  font-family: 'Courier New', Consolas, Monaco, monospace;
+}
+
+/* Syntax highlighting classes */
+.syntax-variable {
+  color: #0066cc;
+  font-weight: 600;
+  background: #e6f2ff;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.syntax-operator {
+  color: #cc0066;
+  font-weight: 600;
+  background: #ffe6f2;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.syntax-keyword {
+  color: #6600cc;
+  font-weight: 700;
+  background: #f2e6ff;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.syntax-value {
+  color: #009966;
+  font-weight: 600;
+  background: #e6fff5;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+/* Autocomplete dropdown */
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: white;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f4f4f5;
+  transition: background-color 0.15s ease;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover {
+  background-color: #f4f4f5;
+}
+
+.autocomplete-item.selected {
+  background-color: #e0e7ff;
+}
+
+.autocomplete-label {
+  font-family: 'Courier New', Consolas, Monaco, monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.autocomplete-type {
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.autocomplete-description {
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* Example expressions */
+.expression-example {
+  background: #fafafa;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid #e4e4e7;
+  font-family: 'Courier New', Consolas, Monaco, monospace;
+  font-size: 0.85em;
+  color: #3f3f46;
+}

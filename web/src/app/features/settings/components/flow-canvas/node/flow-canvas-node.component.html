@@ -69,6 +69,15 @@
       ></div>
     </div>
 
+    <!-- IF Condition State Icon (shows check/X/circle based on routing state) -->
+    @if (isIfConditionNode() && ifStateIcon()) {
+      <syn-icon
+        [name]="ifStateIcon()!.name"
+        [class]="ifStateIcon()!.color + ' text-[14px] shrink-0'"
+        [title]="ifStateIcon()!.title"
+      />
+    }
+
     @if (status() && getFrameAge()) {
       <div
         [class.text-syn-color-success-600]="!isFrameStale()"
@@ -110,7 +119,7 @@
       />
 
       <!-- Visibility Toggle -->
-      @if (isNodeEnabled()) {
+      @if (isNodeEnabled() && isWebsocketEnabled()) {
         <app-node-visibility-toggle
           [node]="node().data"
           [isPending]="isTogglingVisibility()"
@@ -125,7 +134,7 @@
         <app-node-calibration-controls [node]="node()" [status]="status()" />
       }
 
-      @if (isNodeEnabled() && hasOutputPort()) {
+      @if (isNodeEnabled() && hasOutputPort() && isWebsocketEnabled()) {
         <app-node-recording-controls [node]="node()" />
       }
     </div>

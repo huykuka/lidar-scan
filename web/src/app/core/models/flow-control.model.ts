@@ -14,8 +14,7 @@ export interface ExternalStateResponse {
  */
 export interface IfNodeStatus extends NodeStatus {
   expression: string;
-  external_state: boolean;
-  last_evaluation: boolean | null;
+  state: boolean | null;  // Unified routing state (True = route to 'true' port, False = route to 'false' port)
   last_error: string | null;
 }
 

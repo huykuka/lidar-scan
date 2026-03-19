@@ -3,15 +3,12 @@
     {{ shortExpression() }}
   </div>
   <div class="status-row flex gap-2 items-center">
-    @if (ifStatus()?.last_evaluation === true) {
+    @if (ifStatus()?.state === true) {
       <syn-badge variant="success" size="small">TRUE</syn-badge>
-    } @else if (ifStatus()?.last_evaluation === false) {
+    } @else if (ifStatus()?.state === false) {
       <syn-badge variant="neutral" size="small">FALSE</syn-badge>
     } @else {
       <syn-badge variant="neutral" size="small">—</syn-badge>
-    }
-    @if (ifStatus()?.external_state) {
-      <syn-badge variant="primary" size="small">Ext: ON</syn-badge>
     }
   </div>
   @if (ifStatus()?.last_error) {

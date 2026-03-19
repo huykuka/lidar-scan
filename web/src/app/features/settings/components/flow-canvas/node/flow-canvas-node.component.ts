@@ -2,6 +2,7 @@ import {Component, computed, inject, input, OnInit, output, signal} from '@angul
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {FusionNodeStatus, LidarNodeStatus, NodeConfig, NodeDefinition, PortSchema, PropertySchema} from '@core/models/node.model';
+import {IfNodeStatus} from '@core/models/flow-control.model';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
 import {NodeCalibrationControls} from './node-calibration-controls/node-calibration-controls';
@@ -53,6 +54,51 @@ export class FlowCanvasNodeComponent implements OnInit{
     return this.node().type?.toLowerCase() ?? 'unknown';
   });
   protected isCalibrationNode = computed(() => this.nodeCategory() === 'calibration');
+  protected isIfConditionNode = computed(() => this.nodeCategory() === 'flow_control');
+  
+  /**
+   * Get IF condition status if this is an IF node
+   */
+  protected ifStatus = computed(() => {
+    if (!this.isIfConditionNode()) return null;
+    return this.status() as IfNodeStatus | null;
+  });
+  
+  /**
+   * Get icon indicator for IF condition nodes
+   * Shows visual state with colored icons instead of text
+   */
+  protected ifStateIcon = computed(() => {
+    const ifSt = this.ifStatus();
+    if (!ifSt) return null;
+    
+    if (ifSt.state === true) {
+      return { 
+        name: 'check_circle', 
+        color: 'text-syn-color-success-600',
+        title: 'Routing to TRUE port'
+      };
+    } else if (ifSt.state === false) {
+      return { 
+        name: 'cancel', 
+        color: 'text-syn-color-danger-600',
+        title: 'Routing to FALSE port'
+      };
+    }
+    
+    return { 
+      name: 'radio_button_unchecked', 
+      color: 'text-syn-color-neutral-400',
+      title: 'No routing state yet'
+    };
+  });
+  
+  /** True when the node definition has WebSocket streaming enabled (default: true when definition is absent). */
+  protected isWebsocketEnabled = computed(() => {
+    const def = this.nodeDefinition();
+    // When no definition is found, default to true (backward-compat with unknown types)
+    return def ? def.websocket_enabled !== false : true;
+  });
   private nodeStore = inject(NodeStoreService);
   protected nodeDefinition = computed(() => {
     return this.nodeStore.nodeDefinitions().find((d) => d.type === this.node().data.type);

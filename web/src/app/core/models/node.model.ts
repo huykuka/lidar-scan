@@ -79,6 +79,8 @@ export interface NodeDefinition {
   category: string; // Dynamic from backend (sensor, fusion, operation, calibration, etc.)
   description?: string;
   icon: string;
+  /** When false, the node does not stream data via WebSocket. Hides visibility & recording controls in the canvas UI. */
+  websocket_enabled: boolean;
   properties: PropertySchema[];
   inputs: PortSchema[];
   outputs: PortSchema[];
