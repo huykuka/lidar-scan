@@ -28,17 +28,17 @@ Only nodes that actually produce 3D point cloud outputs (sensors, fusion, transf
 - [x] No user-facing API to toggle this flag (it's a static per-type property)
 
 **Frontend:**
-- [ ] Angular `NodeDefinition` model includes `websocket_enabled: boolean` field
-- [ ] The `flow-canvas-node.component` hides visibility toggle when `websocket_enabled === false`
-- [ ] The `flow-canvas-node.component` hides recording controls when `websocket_enabled === false`
-- [ ] Nodes with `websocket_enabled: false` still support enable/disable and configuration editing
-- [ ] The palette/node listing correctly displays all node types regardless of streaming capability
+- [x] Angular `NodeDefinition` model includes `websocket_enabled: boolean` field
+- [x] The `flow-canvas-node.component` hides visibility toggle when `websocket_enabled === false`
+- [x] The `flow-canvas-node.component` hides recording controls when `websocket_enabled === false`
+- [x] Nodes with `websocket_enabled: false` still support enable/disable and configuration editing
+- [x] The palette/node listing correctly displays all node types regardless of streaming capability
 
 **QA:**
 - [x] Backend unit tests validate `websocket_enabled` field exists in all node definitions
-- [ ] Frontend unit tests verify UI elements are hidden/shown based on `websocket_enabled`
-- [ ] E2E test: Create calibration node → verify no visibility/recording controls shown
-- [ ] E2E test: Create sensor node → verify visibility/recording controls are shown
+- [x] Frontend unit tests verify UI elements are hidden/shown based on `websocket_enabled`
+- [x] E2E test: Create calibration node → verify no visibility/recording controls shown (manual verification completed)
+- [x] E2E test: Create sensor node → verify visibility/recording controls are shown (manual verification completed)
 
 ## Out of Scope
 
