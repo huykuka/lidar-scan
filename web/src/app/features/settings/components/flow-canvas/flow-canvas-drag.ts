@@ -15,6 +15,8 @@ export class FlowCanvasDragService {
 
   readonly pendingConnection = signal<{
     fromNodeId: string;
+    fromPortId: string;
+    fromPortIndex: number;
     cursorX: number;
     cursorY: number;
   } | null>(null);
@@ -52,8 +54,8 @@ export class FlowCanvasDragService {
     this.paletteDragType.set(null);
   }
 
-  startConnectionDrag(fromNodeId: string): void {
-    this.pendingConnection.set({fromNodeId, cursorX: 0, cursorY: 0});
+  startConnectionDrag(fromNodeId: string, fromPortId: string = 'out', fromPortIndex: number = 0): void {
+    this.pendingConnection.set({fromNodeId, fromPortId, fromPortIndex, cursorX: 0, cursorY: 0});
   }
 
   updateConnectionPath(path: string): void {

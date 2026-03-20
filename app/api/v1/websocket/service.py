@@ -19,7 +19,6 @@ async def list_topics():
     return TopicsResponse(
         topics=manager.get_public_topics(),
         description={
-            "raw_points": "Stream of raw point cloud data (sub-sampled for performance)",
             "processed_points": "Stream of preprocessed data with algorithm results"
         }
     )

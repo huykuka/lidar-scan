@@ -1,0 +1,17 @@
+<div class="if-card p-2">
+  <div class="expression-preview text-xs text-syn-color-neutral-600 mb-1 font-mono">
+    {{ shortExpression() }}
+  </div>
+  <div class="status-row flex gap-2 items-center">
+    @if (ifStatus()?.state === true) {
+      <syn-badge variant="success" size="small">TRUE</syn-badge>
+    } @else if (ifStatus()?.state === false) {
+      <syn-badge variant="neutral" size="small">FALSE</syn-badge>
+    } @else {
+      <syn-badge variant="neutral" size="small">—</syn-badge>
+    }
+  </div>
+  @if (ifStatus()?.last_error) {
+    <syn-badge variant="danger" size="small" class="mt-1">Error</syn-badge>
+  }
+</div>

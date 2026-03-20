@@ -1,7 +1,7 @@
 <div
   [class.border-none]="isCollapsed()"
   [class.w-0]="isCollapsed()"
-  [class.w-64]="!isCollapsed()"
+  [class.w-60]="!isCollapsed()"
   class="bg-white border-r h-full flex flex-col relative transition-all duration-300 z-10"
 >
   <!-- Toggle button -->
@@ -20,7 +20,7 @@
     [class.opacity-0]="isCollapsed()"
     [class.opacity-100]="!isCollapsed()"
     [class.pointer-events-none]="isCollapsed()"
-    class="flex-1 flex flex-col overflow-hidden w-64 transition-opacity duration-300 bg-[#f3f3f3]"
+    class="flex-1 flex flex-col overflow-hidden w-60 transition-opacity duration-300 bg-[#f3f3f3]"
   >
     <!-- Simple Search Bar -->
     <div class="px-3 py-2 border-r border-b bg-white flex items-center gap-2 ">
@@ -90,7 +90,7 @@
                       
                       <!-- Label Section -->
                       <div class="flex-1 flex items-center justify-center px-2 min-w-0">
-                        <span class="text-[11px] font-bold text-black/70 truncate leading-none text-center px-1">
+                        <span class="text-[11px] font-bold text-black truncate leading-none text-center px-1">
                           {{ plugin.displayName }}
                         </span>
                       </div>

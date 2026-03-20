@@ -149,13 +149,25 @@ class DataRouter:
         """
         Forward data to all downstream nodes in the DAG, applying throttling.
         
+        Supports both legacy format (list of target_id strings) and 
+        port-aware format (list of edge dictionaries with target_id and port info).
+        
         Args:
             source_id: Source node ID
             payload: Data payload
         """
         targets = self.manager.downstream_map.get(source_id, [])
         
-        for target_id in targets:
+        for target in targets:
+            # Extract target_id (handle both string and dict formats)
+            if isinstance(target, dict):
+                target_id = target.get("target_id")
+            else:
+                target_id = target
+            
+            if not target_id:
+                continue
+            
             if self._should_skip_due_to_throttling(source_id, target_id):
                 continue
             

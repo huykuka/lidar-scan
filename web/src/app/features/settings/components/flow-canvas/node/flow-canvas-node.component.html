@@ -15,20 +15,36 @@
     ></div>
   }
 
-  <!-- Output Port -->
+  <!-- Output Port(s) -->
   @if (hasOutputPort()) {
-    <div
-      (mousedown)="
-        $event.stopPropagation();
-        portDragStart.emit({ nodeId: node().id, portType: 'output', event: $event })
-      "
-      (mouseup)="$event.stopPropagation()"
-      class="absolute right-0 top-4 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
-      title="Output — drag to connect"
-    ></div>
+    @if (outputPorts().length === 1) {
+      <!-- Single output port (legacy behavior) -->
+      <div
+        (mousedown)="
+          $event.stopPropagation();
+          portDragStart.emit({ nodeId: node().id, portType: 'output', portId: outputPorts()[0].id, portIndex: 0, event: $event })
+        "
+        (mouseup)="$event.stopPropagation()"
+        class="absolute right-0 top-4 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
+        title="Output — drag to connect"
+      ></div>
+    } @else {
+      <!-- Multiple output ports -->
+      @for (port of outputPorts(); track port.id; let i = $index) {
+        <div
+          (mousedown)="
+            $event.stopPropagation();
+            portDragStart.emit({ nodeId: node().id, portType: 'output', portId: port.id, portIndex: i, event: $event })
+          "
+          (mouseup)="$event.stopPropagation()"
+          [class]="getPortColorClass(port.id) + ' absolute right-0 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 after:absolute after:-inset-4 after:content-[\'\']'"
+          [style.top.px]="getOutputPortY(i, outputPorts().length)"
+          [title]="port.label + ' — drag to connect'"
+        ></div>
+      }
+    }
   }
 
-  <!-- Node Header (Ultra Compact) -->
   <!-- Node Header (Ultra Compact) -->
   <div
     class="px-2 py-1.5 flex items-center gap-2 cursor-default min-h-[32px] rounded-t-lg transition-colors overflow-hidden"
@@ -51,6 +67,15 @@
         [title]="statusBadge().label"
       ></div>
     </div>
+
+    <!-- IF Condition State Icon (shows check/X/circle based on routing state) -->
+    @if (isIfConditionNode() && ifStateIcon()) {
+      <syn-icon
+        [name]="ifStateIcon()!.name"
+        [class]="ifStateIcon()!.color + ' text-[14px] shrink-0'"
+        [title]="ifStateIcon()!.title"
+      />
+    }
 
     @if (status() && getFrameAge()) {
       <div
@@ -93,7 +118,7 @@
       />
 
       <!-- Visibility Toggle -->
-      @if (isNodeEnabled()) {
+      @if (isNodeEnabled() && isWebsocketEnabled()) {
         <app-node-visibility-toggle
           [node]="node().data"
           [isPending]="isTogglingVisibility()"
@@ -108,7 +133,7 @@
         <app-node-calibration-controls [node]="node()" [status]="status()" />
       }
 
-      @if (isNodeEnabled() && hasOutputPort()) {
+      @if (isNodeEnabled() && hasOutputPort() && isWebsocketEnabled()) {
         <app-node-recording-controls [node]="node()" />
       }
     </div>

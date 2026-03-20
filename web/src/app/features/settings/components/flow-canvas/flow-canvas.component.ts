@@ -153,8 +153,12 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
       const fromNode = this.canvasNodes().find((n) => n.id === pending.fromNodeId);
       if (fromNode) {
+        const def = this.nodeStore.nodeDefinitions().find((d) => d.type === fromNode.data.type);
+        const outputPorts = def?.outputs ?? [];
+        const totalOutputs = outputPorts.length;
+        
         const fromX = fromNode.position.x + 192 + 6; // node width + tab center (6px)
-        const fromY = fromNode.position.y + 16;      // header center (top-4)
+        const fromY = fromNode.position.y + this.calculatePortY(pending.fromPortIndex, totalOutputs);
         const cp = Math.max(Math.abs(toX - fromX) * 0.5, 40);
         this.drag.updateConnectionPath(
           `M ${fromX} ${fromY} C ${fromX + cp} ${fromY} ${toX - cp} ${toY} ${toX} ${toY}`,
@@ -229,9 +233,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   /** Called when user starts dragging from an output port on a node. */
-  onPortDragStart(event: { nodeId: string; portType: 'input' | 'output'; event: MouseEvent }) {
+  onPortDragStart(event: { nodeId: string; portType: 'input' | 'output'; portId: string; portIndex: number; event: MouseEvent }) {
     if (event.portType !== 'output') return;
-    this.drag.startConnectionDrag(event.nodeId);
+    this.drag.startConnectionDrag(event.nodeId, event.portId, event.portIndex);
   }
 
   /** Called when user releases on an input port on a node. */
@@ -250,9 +254,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Check for duplicate edge
+    // Check for duplicate edge (same source node, target node, and source port)
     const exists = this.edges().some(
-      (e) => e.source_node === sourceId && e.target_node === targetId,
+      (e) => e.source_node === sourceId && e.target_node === targetId && e.source_port === pending.fromPortId,
     );
     if (exists) {
       this.toast.danger('Connection already exists.');
@@ -261,7 +265,12 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
 
     try {
-      await this.edgesApi.createEdge({ source_node: sourceId, target_node: targetId });
+      await this.edgesApi.createEdge({ 
+        source_node: sourceId, 
+        target_node: targetId,
+        source_port: pending.fromPortId,
+        target_port: 'in' // Default input port
+      });
       const [nodes, edges] = await Promise.all([
         this.nodesApi.getNodes(),
         this.edgesApi.getEdges(),
@@ -530,12 +539,26 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       const targetNode = nodeMap.get(edge.target_node);
 
       if (sourceNode && targetNode) {
-        const path = this.calculatePath(sourceNode, targetNode);
+        const sourceDef = this.nodeStore.nodeDefinitions().find((d) => d.type === sourceNode.data.type);
+        const outputPorts = sourceDef?.outputs ?? [];
+        const portIndex = outputPorts.findIndex((p) => p.id === edge.source_port);
+        const totalOutputs = outputPorts.length;
+        
+        // Determine edge color based on source port ID
+        let color = '#6366f1'; // Default blue
+        if (edge.source_port === 'true') {
+          color = '#16a34a'; // Green for true port
+        } else if (edge.source_port === 'false') {
+          color = '#f97316'; // Orange for false port
+        }
+        
+        const path = this.calculatePath(sourceNode, targetNode, portIndex >= 0 ? portIndex : 0, totalOutputs);
         connections.push({
           id: edge.id,
           from: edge.source_node,
           to: edge.target_node,
           path,
+          color,
         });
       }
     });
@@ -543,9 +566,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.connections.set(connections);
   }
 
-  private calculatePath(fromNode: CanvasNode, toNode: CanvasNode): string {
+  private calculatePath(fromNode: CanvasNode, toNode: CanvasNode, fromPortIndex: number = 0, totalOutputPorts: number = 1): string {
     const fromX = fromNode.position.x + 192 + 6; // node width + tab center
-    const fromY = fromNode.position.y + 16;      // header center (top-4)
+    const fromY = fromNode.position.y + this.calculatePortY(fromPortIndex, totalOutputPorts);
     const toX = toNode.position.x - 6;           // target tab center
     const toY = toNode.position.y + 16;
 
@@ -556,6 +579,20 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const cp2y = toY;
 
     return `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
+  }
+
+  /**
+   * Calculate Y position for a port based on its index and total count
+   * Matches the logic in FlowCanvasNodeComponent.getOutputPortY()
+   */
+  private calculatePortY(portIndex: number, totalPorts: number): number {
+    if (totalPorts === 1) {
+      return 16; // Single port: center at top-4 (original position)
+    }
+    // Multiple ports: distribute evenly
+    const nodeHeight = 80; // Approximate node height in pixels
+    const spacing = nodeHeight / (totalPorts + 1);
+    return spacing * (portIndex + 1);
   }
 
   private createNodeAtPosition(type: string, position: { x: number; y: number }) {

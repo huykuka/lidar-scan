@@ -1,0 +1,178 @@
+<app-node-editor-header
+  [title]="form.get('name')?.value || 'If Condition'"
+  [icon]="'call_split'"
+  [saveDisabled]="!form.valid || isSaving()"
+  (save)="onSave()"
+  (cancel)="onCancel()"
+/>
+
+<form [formGroup]="form" class="flex flex-col gap-4">
+  <syn-input
+    label="Node Name"
+    formControlName="name"
+    size="small"
+    placeholder="If Condition"
+    required
+  />
+
+  <!-- External Control Toggle -->
+  <div class="flex flex-col gap-2">
+    <div class="flex items-center justify-between">
+      <label class="text-sm font-medium text-syn-color-neutral-700">
+        Control Mode
+      </label>
+      <syn-switch
+        formControlName="use_external_control"
+        size="small"
+      >
+        External Control
+      </syn-switch>
+    </div>
+    <p class="text-xs text-syn-color-neutral-500">
+      @if (form.get('use_external_control')?.value) {
+        External systems control routing via REST API
+      } @else {
+        Routing based on condition expression evaluation
+      }
+    </p>
+  </div>
+
+  <!-- Condition Expression - Only show when external control is disabled -->
+  @if (!form.get('use_external_control')?.value) {
+    <div class="expression-container">
+      <syn-textarea
+        #expressionInput
+        label="Condition Expression"
+        formControlName="expression"
+        size="small"
+        [rows]="4"
+        placeholder="Start typing to see suggestions..."
+        (input)="onExpressionInput($event)"
+        (keydown)="onExpressionKeydown($event)"
+        class="expression-input"
+      >
+        <div slot="help-text" class="flex flex-col gap-1">
+          @if (validationError()) {
+            <span class="text-syn-color-danger-600 text-xs">
+              {{ validationError() }}
+            </span>
+          } @else {
+            <span class="text-syn-color-neutral-500 text-xs">
+              Variables: <code class="syntax-variable">point_count</code>, 
+              <code class="syntax-variable">intensity</code>, 
+              <code class="syntax-variable">x</code>, 
+              <code class="syntax-variable">y</code>, 
+              <code class="syntax-variable">z</code>
+              <br>
+              Operators: <code class="syntax-operator">&gt;</code>, 
+              <code class="syntax-operator">&lt;</code>, 
+              <code class="syntax-operator">==</code>, 
+              <code class="syntax-keyword">AND</code>, 
+              <code class="syntax-keyword">OR</code>, 
+              <code class="syntax-keyword">NOT</code>
+            </span>
+          }
+        </div>
+      </syn-textarea>
+      
+      <!-- Autocomplete Dropdown -->
+      @if (showAutocomplete()) {
+        <div class="autocomplete-dropdown">
+          @for (suggestion of autocompleteSuggestions(); track suggestion.label; let idx = $index) {
+            <div 
+              class="autocomplete-item"
+              [class.selected]="idx === selectedSuggestionIndex()"
+              (click)="onSuggestionClick(suggestion, $event)"
+            >
+              <div class="flex items-center gap-2">
+                <span class="autocomplete-label" [class]="'syntax-' + suggestion.type">
+                  {{ suggestion.label }}
+                </span>
+                <span class="autocomplete-type text-xs text-syn-color-neutral-400">
+                  {{ suggestion.type }}
+                </span>
+              </div>
+              <div class="autocomplete-description text-xs text-syn-color-neutral-500">
+                {{ suggestion.description }}
+              </div>
+            </div>
+          }
+        </div>
+      }
+      
+      <!-- Example Expressions -->
+      <div class="mt-2 p-2 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
+        <span class="text-xs font-semibold text-syn-color-neutral-700">Examples:</span>
+        <ul class="text-xs text-syn-color-neutral-600 mt-1 space-y-1 pl-4">
+          <li><code class="expression-example">point_count > 1000</code></li>
+          <li><code class="expression-example">point_count > 1000 AND intensity > 50</code></li>
+          <li><code class="expression-example">(x > 0 AND x < 10) OR (y > 0 AND y < 10)</code></li>
+          <li><code class="expression-example">external_state == true</code></li>
+        </ul>
+      </div>
+    </div>
+  }
+  
+  <!-- External Control URLs - Only show when external control is enabled -->
+  @if (form.get('use_external_control')?.value) {
+    <div class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
+      <span class="text-xs font-semibold text-syn-color-neutral-700">External Control URLs</span>
+
+      @if (!isEditMode()) {
+        <!-- Pre-save placeholder -->
+        <p class="text-xs text-syn-color-neutral-400 italic">
+          Available after saving the node.
+        </p>
+      } @else {
+        <!-- Set URL -->
+        <div class="flex items-center gap-2">
+          <div class="flex-1">
+            <syn-input
+              label="Set (POST)"
+              [value]="setUrl() || ''"
+              readonly
+              size="small"
+              class="font-mono text-xs url-input"
+            />
+          </div>
+          <syn-button
+            variant="text"
+            size="small"
+            (click)="copyToClipboard(setUrl()!)"
+            type="button"
+          >
+            <syn-icon name="content_copy"></syn-icon>
+            Copy
+          </syn-button>
+        </div>
+
+        <!-- Reset URL -->
+        <div class="flex items-center gap-2">
+          <div class="flex-1">
+            <syn-input
+              label="Reset (POST)"
+              [value]="resetUrl() || ''"
+              readonly
+              size="small"
+              class="font-mono text-xs url-input"
+            />
+          </div>
+          <syn-button
+            variant="text"
+            size="small"
+            (click)="copyToClipboard(resetUrl()!)"
+            type="button"
+          >
+            <syn-icon name="content_copy"></syn-icon>
+            Copy
+          </syn-button>
+        </div>
+
+        <p class="text-xs text-syn-color-neutral-400">
+          Call these endpoints from any external system to control routing.
+          POST body for set: <code class="bg-syn-color-neutral-100 px-1 rounded">&#123;"value": true&#125;</code>
+        </p>
+      }
+    </div>
+  }
+</form>

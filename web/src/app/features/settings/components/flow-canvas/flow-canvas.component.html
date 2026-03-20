@@ -61,7 +61,6 @@
             (mousedown)="onNodeMouseDown($event, node)"
             [class.ring-2]="selectedCanvasNode()?.id === node.id"
             [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
-            [class.rounded-lg]="selectedCanvasNode()?.id === node.id"
             [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
             [class.z-10]="selectedCanvasNode()?.id === node.id"
             [style.cursor]="
@@ -69,7 +68,7 @@
             "
             [style.left.px]="node.position.x"
             [style.top.px]="node.position.y"
-            class="absolute transition-shadow"
+            class="absolute transition-shadow rounded-lg"
             title="Double-click to edit"
           >
             <app-flow-canvas-node (onEdit)="onEditNode(node)"
