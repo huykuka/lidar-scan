@@ -121,7 +121,37 @@ node_schema_registry.register(NodeDefinition(
 
 ---
 
-### 6. Write Backend Unit Tests
+### 6. Enhance Node Registration Logic to Respect websocket_enabled Flag
+**Files:** `app/services/nodes/managers/config.py`
+
+- [x] Update `_register_node_websocket_topic()` method to check `websocket_enabled` from node definition
+- [x] Non-streaming nodes (websocket_enabled=False) should NEVER register WebSocket topics regardless of visibility
+- [x] Streaming nodes (websocket_enabled=True) register topics only when visible=True (existing behavior)
+- [x] Add debug logging to distinguish between invisible nodes and non-streaming nodes
+
+**Implementation:**
+```python
+def _register_node_websocket_topic(self, node: Dict[str, Any], node_instance: Any):
+    from ..schema import node_schema_registry
+    
+    # Check if node type supports WebSocket streaming
+    node_type = node.get("type")
+    node_definition = node_schema_registry.get(node_type)
+    websocket_enabled = node_definition.websocket_enabled if node_definition else True
+    
+    visible = node.get("visible", True)
+    
+    # Register topic only if BOTH websocket_enabled AND visible are True
+    if websocket_enabled and visible:
+        manager.register_topic(topic)
+        node_instance._ws_topic = topic
+    else:
+        node_instance._ws_topic = None
+```
+
+---
+
+### 7. Write Backend Unit Tests
 **File:** `tests/modules/test_node_definitions.py` (new file)
 
 - [x] Create new test file with schema validation tests
@@ -174,7 +204,26 @@ def test_non_streaming_nodes_have_websocket_enabled_false():
 
 ---
 
-### 7. Verify API Response Format
+### 8. Write Integration Tests for WebSocket Registration Logic
+**File:** `tests/services/nodes/test_websocket_registration.py` (new file)
+
+- [x] Create comprehensive test suite validating WebSocket registration logic
+- [x] Test 1: Streaming node with visible=True SHOULD register WebSocket topic
+- [x] Test 2: Streaming node with visible=False should NOT register WebSocket topic
+- [x] Test 3: Non-streaming node with visible=True should NOT register WebSocket topic (websocket_enabled=False overrides visible=True)
+- [x] Test 4: Non-streaming node with visible=False should NOT register WebSocket topic
+- [x] Test 5: Node definition without websocket_enabled defaults to True (backward compatibility)
+- [x] Test 6-10: Integration tests validating real node definitions have correct websocket_enabled values
+
+**Test Coverage:**
+- All 10 tests passing
+- Validates that non-streaming nodes (calibration, if_condition) never register WebSocket topics
+- Validates that streaming nodes (sensor, fusion, pipeline operations) only register when visible
+- Ensures backward compatibility with legacy node definitions
+
+---
+
+### 9. Verify API Response Format
 **Manual Testing:**
 
 - [x] Start backend server: `python main.py`
