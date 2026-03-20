@@ -14,7 +14,6 @@ import { ExternalStateResponse } from '../../models/flow-control.model';
 })
 export class FlowControlApiService {
   private http = inject(HttpClient);
-  private readonly USE_MOCK = true; // Toggle to false when backend is ready
 
   /**
    * Set external state for an IF condition node
@@ -23,9 +22,6 @@ export class FlowControlApiService {
    * @returns Observable of external state response
    */
   setExternalState(nodeId: string, value: boolean): Observable<ExternalStateResponse> {
-    if (this.USE_MOCK) {
-      return this.mockSetExternalState(nodeId, value);
-    }
 
     return this.http
       .post<ExternalStateResponse>(
@@ -46,10 +42,6 @@ export class FlowControlApiService {
    * @returns Observable of external state response
    */
   resetExternalState(nodeId: string): Observable<ExternalStateResponse> {
-    if (this.USE_MOCK) {
-      return this.mockResetExternalState(nodeId);
-    }
-
     return this.http
       .post<ExternalStateResponse>(
         `${environment.apiUrl}/nodes/${nodeId}/flow-control/reset`,
@@ -61,52 +53,5 @@ export class FlowControlApiService {
           throw error;
         })
       );
-  }
-
-  // Mock implementations for development
-  private mockSetExternalState(nodeId: string, value: boolean): Observable<ExternalStateResponse> {
-    console.log(`[MOCK] Setting external state for node ${nodeId} to ${value}`);
-    
-    // Simulate 404 error for non-existent nodes
-    if (nodeId === 'non_existent_node') {
-      return of(null).pipe(
-        delay(150),
-        map(() => {
-          throw {
-            status: 404,
-            error: { detail: 'Node not found or not a flow control node' }
-          };
-        })
-      );
-    }
-
-    return of({
-      node_id: nodeId,
-      state: value,
-      timestamp: Date.now() / 1000,
-    }).pipe(delay(200));
-  }
-
-  private mockResetExternalState(nodeId: string): Observable<ExternalStateResponse> {
-    console.log(`[MOCK] Resetting external state for node ${nodeId}`);
-    
-    // Simulate 404 error for non-existent nodes
-    if (nodeId === 'non_existent_node') {
-      return of(null).pipe(
-        delay(150),
-        map(() => {
-          throw {
-            status: 404,
-            error: { detail: 'Node not found or not a flow control node' }
-          };
-        })
-      );
-    }
-
-    return of({
-      node_id: nodeId,
-      state: false,
-      timestamp: Date.now() / 1000,
-    }).pipe(delay(200));
   }
 }

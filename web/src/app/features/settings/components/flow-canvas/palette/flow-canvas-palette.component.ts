@@ -5,7 +5,6 @@ import {NodePlugin} from '@core/models';
 
 @Component({
   selector: 'app-flow-canvas-palette',
-  standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-palette.component.html',
   styleUrl: './flow-canvas-palette.component.css',

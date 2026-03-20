@@ -21,7 +21,7 @@ export interface CanvasNode {
   templateUrl: './flow-canvas-node.component.html',
   styleUrl: './flow-canvas-node.component.css',
 })
-export class FlowCanvasNodeComponent implements OnInit{
+export class FlowCanvasNodeComponent {
   node = input.required<CanvasNode>();
   status = input<LidarNodeStatus | FusionNodeStatus | null>(null);
   isLoading = input<boolean>(false);
@@ -104,9 +104,6 @@ export class FlowCanvasNodeComponent implements OnInit{
     return this.nodeStore.nodeDefinitions().find((d) => d.type === this.node().data.type);
   });
 
-  ngOnInit(): void {
-    console.log(this.node())
-  }
 
   statusBadge(): {
     variant: 'primary' | 'success' | 'neutral' | 'warning' | 'danger';
