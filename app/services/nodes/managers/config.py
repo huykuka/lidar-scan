@@ -104,24 +104,45 @@ class ConfigLoader:
     
     def _register_node_websocket_topic(self, node: Dict[str, Any], node_instance: Any):
         """
-        Register WebSocket topic for a node based on visibility.
+        Register WebSocket topic for a node based on visibility AND websocket_enabled flag.
+        
+        A node is registered for WebSocket streaming if and only if:
+        1. The node definition has websocket_enabled=True (capability check)
+        2. AND the node instance has visible=True (user preference)
+        
+        Non-streaming nodes (websocket_enabled=False) are NEVER registered for WebSocket
+        topics regardless of visibility setting.
         
         Args:
             node: Node configuration dictionary
             node_instance: Created node instance
         """
+        from ..schema import node_schema_registry
+        
+        # Check if node type supports WebSocket streaming
+        node_type = node.get("type")
+        node_definition = node_schema_registry.get(node_type)
+        websocket_enabled = node_definition.websocket_enabled if node_definition else True  # Default to True for backward compat
+        
+        # Check visibility preference
         visible = node.get("visible", True)
+        
+        # Generate topic name
         node_name = getattr(node_instance, "name", node["id"])
         safe_name = slugify_topic_prefix(node_name)
         topic = f"{safe_name}_{node['id'][:8]}"
         
-        if visible:
+        # Register topic only if BOTH websocket_enabled AND visible are True
+        if websocket_enabled and visible:
             manager.register_topic(topic)
             node_instance._ws_topic = topic
-            logger.debug(f"Registered WS topic '{topic}' for visible node {node['id']}")
+            logger.debug(f"Registered WS topic '{topic}' for visible streaming node {node['id']}")
         else:
             node_instance._ws_topic = None  # do NOT call register_topic()
-            logger.debug(f"Skipping WS topic registration for invisible node {node['id']}")
+            if not websocket_enabled:
+                logger.debug(f"Skipping WS topic registration for non-streaming node {node['id']} (websocket_enabled=False)")
+            else:
+                logger.debug(f"Skipping WS topic registration for invisible node {node['id']}")
         
         # Canonical WS topic key stored at registration time. LifecycleManager 
         # reads this during teardown to guarantee key consistency.

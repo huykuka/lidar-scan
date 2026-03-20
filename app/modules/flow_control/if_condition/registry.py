@@ -18,6 +18,7 @@ node_schema_registry.register(NodeDefinition(
     category="flow_control",
     description="Routes data based on boolean expression",
     icon="call_split",
+    websocket_enabled=False,  # Conditional routing logic, no continuous data output
     properties=[
         PropertySchema(
             name="expression",

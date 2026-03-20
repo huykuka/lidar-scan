@@ -1,0 +1,274 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                  NODE WEBSOCKET STREAMING FLAG - VISUAL GUIDE                 ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            BACKEND ARCHITECTURE                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+   ┌──────────────────┐
+   │  registry.py     │  Plugin author declares capability
+   │  (per module)    │
+   └────────┬─────────┘
+            │
+            │ NodeDefinition(
+            │   type="sensor",
+            │   websocket_enabled=True  ← Add this line
+            │ )
+            │
+            v
+   ┌──────────────────┐
+   │  schema.py       │  Pydantic validates + defaults to True
+   │  NodeDefinition  │
+   └────────┬─────────┘
+            │
+            │ websocket_enabled: bool = True
+            │
+            v
+   ┌──────────────────┐
+   │ /nodes/          │  FastAPI returns JSON
+   │ definitions      │
+   └────────┬─────────┘
+            │
+            │ GET /api/v1/nodes/definitions
+            │
+            │ Response: [
+            │   {
+            │     "type": "sensor",
+            │     "websocket_enabled": true
+            │   },
+            │   {
+            │     "type": "calibration",
+            │     "websocket_enabled": false
+            │   }
+            │ ]
+            │
+            v
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           FRONTEND ARCHITECTURE                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+   ┌──────────────────┐
+   │ NodesApiService  │  Fetches definitions on app init
+   └────────┬─────────┘
+            │
+            v
+   ┌──────────────────┐
+   │ NodePluginReg.   │  Caches in Map<type, plugin>
+   │ loadFromBackend()│
+   └────────┬─────────┘
+            │
+            v
+   ┌──────────────────┐
+   │ nodeDefinition() │  Computed signal (reactive)
+   │ (component)      │
+   └────────┬─────────┘
+            │
+            v
+   ┌──────────────────┐
+   │ isWebsocket      │  Computed signal (reactive)
+   │ Enabled()        │  = def.websocket_enabled ?? true
+   └────────┬─────────┘
+            │
+            v
+   ┌──────────────────┐
+   │ @if template     │  Conditionally renders controls
+   │ guards           │
+   └──────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          UI BEHAVIOR COMPARISON                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃   SENSOR NODE (streaming=true) ┃ CALIBRATION NODE (streaming=false)┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                ┃                                    ┃
+┃  ┌────────────────────────┐   ┃  ┌────────────────────────┐       ┃
+┃  │  LiDAR Sensor          │   ┃  │  ICP Calibration       │       ┃
+┃  │  ──────────────────    │   ┃  │  ──────────────────    │       ┃
+┃  │                        │   ┃  │                        │       ┃
+┃  │  Controls:             │   ┃  │  Controls:             │       ┃
+┃  │  [✓] Enable/Disable    │   ┃  │  [✓] Enable/Disable    │       ┃
+┃  │  [⚙] Settings          │   ┃  │  [⚙] Settings          │       ┃
+┃  │  [👁] Visibility Toggle │   ┃  │  [ ] Visibility (hidden)│       ┃
+┃  │  [⏺] Recording Button   │   ┃  │  [ ] Recording (hidden) │       ┃
+┃  │                        │   ┃  │                        │       ┃
+┃  └────────────────────────┘   ┃  └────────────────────────┘       ┃
+┃                                ┃                                    ┃
+┃  User sees:                    ┃  User sees:                        ┃
+┃  ✅ All streaming controls     ┃  ✅ Only enable/settings           ┃
+┃  ✅ Can toggle visibility      ┃  ❌ No streaming controls          ┃
+┃  ✅ Can start recording        ┃  (Less clutter, clearer intent)    ┃
+┃                                ┃                                    ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         NODE TYPE CONFIGURATION                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃      Node Type        ┃ websocket_en.  ┃          Rationale            ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ sensor                ┃      TRUE      ┃ Streams raw point clouds      ┃
+┃ fusion                ┃      TRUE      ┃ Streams merged point clouds   ┃
+┃ crop                  ┃      TRUE      ┃ Transforms & forwards         ┃
+┃ downsample            ┃      TRUE      ┃ Transforms & forwards         ┃
+┃ outlier_removal       ┃      TRUE      ┃ Transforms & forwards         ┃
+┃ radius_outlier_removal┃      TRUE      ┃ Transforms & forwards         ┃
+┃ plane_segmentation    ┃      TRUE      ┃ Transforms & forwards         ┃
+┃ clustering            ┃      TRUE      ┃ Transforms & forwards         ┃
+┃ boundary_detection    ┃      TRUE      ┃ Transforms & forwards         ┃
+┃ filter_by_key         ┃      TRUE      ┃ Transforms & forwards         ┃
+┃ debug_save            ┃      TRUE      ┃ Transforms & forwards         ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃ calibration           ┃     FALSE      ┃ Computes transforms only      ┃
+┃ if_condition          ┃     FALSE      ┃ Conditional routing logic     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         IMPLEMENTATION CHECKLIST                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+BACKEND (1.5 hours)
+  ☐ Update app/modules/lidar/registry.py → websocket_enabled=True
+  ☐ Update app/modules/fusion/registry.py → websocket_enabled=True
+  ☐ Update app/modules/pipeline/registry.py → websocket_enabled=True (9 ops)
+  ☐ Update app/modules/calibration/registry.py → websocket_enabled=False
+  ☐ Update app/modules/flow_control/if_condition/registry.py → False
+  ☐ Write tests/modules/test_node_definitions.py (4 tests)
+  ☐ Run: pytest tests/modules/test_node_definitions.py -v
+
+FRONTEND (1.75 hours)
+  ☐ Verify web/src/app/core/models/node.model.ts (already has field)
+  ☐ Verify flow-canvas-node.component.ts (computed signal exists)
+  ☐ Verify flow-canvas-node.component.html (template guards exist)
+  ☐ Write tests in flow-canvas-node.component.spec.ts (5 tests)
+  ☐ Run: cd web && npm test
+
+QA (6.25 hours)
+  ☐ Backend unit tests (4 tests)
+  ☐ Frontend unit tests (6 tests)
+  ☐ Integration tests (4 tests - API verification)
+  ☐ E2E tests (6 tests - UI behavior)
+  ☐ Regression tests (5 tests)
+  ☐ Performance tests (2 tests)
+  ☐ Cross-browser tests (3 browsers)
+  ☐ Accessibility tests (2 tests)
+  ☐ Document results in qa-report.md
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            KEY DESIGN DECISIONS                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+1. SCHEMA-LEVEL FLAG (Not Instance-Level)
+   ✅ Capability is per-type, not per-instance
+   ✅ Simpler: No database, no user toggles
+   ✅ Performant: Loaded once at startup
+
+2. DEFAULT TO TRUE (Not False)
+   ✅ Backward compatible (existing nodes unaffected)
+   ✅ Safe fallback (unknown types show controls)
+   ✅ Fail-safe (better to show than hide incorrectly)
+
+3. UI-ONLY ENFORCEMENT (Not DAG-Level)
+   ✅ Separation of concerns (UI ≠ orchestrator logic)
+   ✅ Natural enforcement (nodes without outputs don't stream anyway)
+   ✅ Flexibility (future streaming types possible)
+
+4. SINGLE BOOLEAN (Not Separate Flags)
+   ✅ YAGNI: One flag sufficient for current use cases
+   ✅ Simpler: Less to maintain, fewer test combinations
+   ✅ Extensible: Can add granular flags later if needed
+
+5. ANGULAR SIGNALS (Not RxJS)
+   ✅ Modern Angular pattern (v16+)
+   ✅ Automatic dependency tracking
+   ✅ Better template optimization
+
+6. TEMPLATE GUARDS (@if, Not CSS)
+   ✅ Performance: Elements removed from DOM
+   ✅ Accessibility: Screen readers don't see hidden controls
+   ✅ Simpler: No CSS class management
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              RISK ASSESSMENT                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Risk: Schema field missing in old backend
+  Likelihood: LOW  │  Impact: LOW
+  Mitigation: Frontend defaults to true (safe fallback)
+
+Risk: Performance regression
+  Likelihood: VERY LOW  │  Impact: MEDIUM
+  Mitigation: Comprehensive performance tests in QA
+
+Risk: User confusion (missing controls)
+  Likelihood: LOW  │  Impact: LOW
+  Mitigation: Clear documentation, intuitive design
+
+Risk: Breaking existing streaming
+  Likelihood: VERY LOW  │  Impact: HIGH
+  Mitigation: Regression tests verify zero changes
+
+OVERALL RISK: LOW
+  ✅ Backward compatible
+  ✅ Easy rollback (remove websocket_enabled=False lines)
+  ✅ Isolated change (UI only)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                 SUCCESS METRICS                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+✅ Zero regression in existing streaming behavior
+✅ Calibration/flow control nodes show cleaner UI
+✅ No console errors or TypeScript warnings
+✅ All 32 tests pass (unit + integration + E2E)
+✅ No performance degradation (<1% change)
+✅ Reduction in support questions about recording on calibration nodes
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            ROLLOUT TIMELINE                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Day 1: Backend Development (1.5h)
+  09:00 - 09:30  Update registry files (5 files)
+  09:30 - 10:15  Write backend unit tests
+  10:15 - 10:30  Run test suite, manual API verification
+
+Day 1: Frontend Development (1.75h)
+  10:30 - 10:45  Verify existing code (no changes needed)
+  10:45 - 11:45  Write component unit tests
+  11:45 - 12:15  Run test suite, manual UI verification
+
+Day 2: QA Testing (6.25h)
+  09:00 - 12:00  Execute 32-test plan
+  12:00 - 13:00  Lunch break
+  13:00 - 15:15  Complete remaining tests
+  15:15 - 16:00  Document results, sign-off
+
+Day 2: Deployment (5min)
+  16:00 - 16:05  Deploy to production (zero downtime)
+
+TOTAL EFFORT: ~9.5 hours (2 days with parallel work)
+
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                         FEATURE STATUS: READY FOR DEV                         ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+All planning artifacts complete. Teams can proceed:
+  • @be-dev → Start with backend-tasks.md
+  • @fe-dev → Start with frontend-tasks.md
+  • @qa     → Review qa-tasks.md
+
+Questions? See architecture-rationale.md for detailed design decisions.

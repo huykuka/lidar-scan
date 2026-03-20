@@ -33,6 +33,7 @@ node_schema_registry.register(NodeDefinition(
     category="sensor",
     description="Interface for physical SICK sensors or PCD file simulations",
     icon="sensors",
+    websocket_enabled=True,  # Streams raw point cloud data via LIDR protocol
     properties=[
         PropertySchema(
             name="lidar_type",
