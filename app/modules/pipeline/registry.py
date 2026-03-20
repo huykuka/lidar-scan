@@ -194,7 +194,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Saves point cloud to PCD files",
     icon="save",
-    websocket_enabled=False,  # Forwards transformed point clouds
+    websocket_enabled=False,  # Saves to disk only, no WebSocket streaming
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),

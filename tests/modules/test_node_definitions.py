@@ -33,7 +33,7 @@ def test_streaming_nodes_have_websocket_enabled_true():
         "sensor", "fusion", 
         "crop", "downsample", "outlier_removal", "radius_outlier_removal",
         "plane_segmentation", "clustering", "boundary_detection", 
-        "filter_by_key", "debug_save"
+        "filter_by_key"
     ]
     
     for node_type in streaming_types:
@@ -45,7 +45,7 @@ def test_streaming_nodes_have_websocket_enabled_true():
 
 def test_non_streaming_nodes_have_websocket_enabled_false():
     """Non-streaming node types must have websocket_enabled=False."""
-    non_streaming_types = ["calibration", "if_condition"]
+    non_streaming_types = ["calibration", "if_condition", "debug_save"]
     
     for node_type in non_streaming_types:
         defn = node_schema_registry.get(node_type)

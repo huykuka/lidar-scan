@@ -271,7 +271,7 @@ class TestRealNodeDefinitions:
         operation_types = [
             "crop", "downsample", "outlier_removal", "radius_outlier_removal",
             "plane_segmentation", "clustering", "boundary_detection", 
-            "filter_by_key", "debug_save"
+            "filter_by_key"
         ]
         
         for node_type in operation_types:

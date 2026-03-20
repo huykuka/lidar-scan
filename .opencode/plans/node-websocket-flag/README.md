@@ -91,7 +91,7 @@ See `architecture-rationale.md` for detailed rationale and alternatives consider
 | clustering | operation | ✅ `true` | Transforms and forwards point clouds |
 | boundary_detection | operation | ✅ `true` | Transforms and forwards point clouds |
 | filter_by_key | operation | ✅ `true` | Transforms and forwards point clouds |
-| debug_save | operation | ✅ `true` | Transforms and forwards point clouds |
+| debug_save | operation | ❌ `false` | Saves point clouds to disk, no streaming |
 | calibration | calibration | ❌ `false` | Only computes transformations, no streaming |
 | if_condition | flow_control | ❌ `false` | Conditional routing, no continuous streaming |
 
