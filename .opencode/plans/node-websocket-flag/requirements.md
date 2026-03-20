@@ -26,6 +26,8 @@ Only nodes that actually produce 3D point cloud outputs (sensors, fusion, transf
 - [x] Flow control nodes (`flow_control/if_condition/registry.py`) → `websocket_enabled: False`
 - [x] The `/api/v1/nodes/definitions` endpoint returns `websocket_enabled` in each definition
 - [x] No user-facing API to toggle this flag (it's a static per-type property)
+- [x] Node registration logic enforces `websocket_enabled` flag - non-streaming nodes are NOT registered on WebSocket topics
+- [x] Comprehensive test coverage validates WebSocket registration logic (10 tests: unit + integration)
 
 **Frontend:**
 - [x] Angular `NodeDefinition` model includes `websocket_enabled: boolean` field
