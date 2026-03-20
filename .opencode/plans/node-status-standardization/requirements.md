@@ -88,24 +88,24 @@ This replaces the current mixed-format `get_status()` approach with a unified st
 ### Frontend Requirements
 
 #### Node Visualization
-- [ ] Display operational state as an icon in the **left side** of the node header:
+- [x] Display operational state as an icon in the **left side** of the node header:
   - `INITIALIZE`: ⏳ (hourglass/spinner icon)
   - `RUNNING`: ▶️ (play icon) 
   - `STOPPED`: ⏸️ (pause icon)
   - `ERROR`: ❌ (error icon with red color)
-- [ ] Display application state badge in the **bottom-right corner outside the node** (Node-RED style):
+- [x] Display application state badge in the **bottom-right corner outside the node** (Node-RED style):
   - Text label + colored dot/pill indicator
   - Color derived from `application_state.color` field (fallback to gray if not specified)
   - Badge visibility: only show if `application_state` is present in status
-- [ ] Error messages displayed **passively** within the node body (no modal interruptions):
+- [x] Error messages displayed **passively** within the node body (no modal interruptions):
   - Show `error_message` text in a small red text area at the bottom of the node when `operational_state === "ERROR"`
   - Error text auto-wraps and is limited to 2 lines with ellipsis
 
 #### WebSocket Integration
-- [ ] Subscribe to the `system_status` WebSocket topic on application load
-- [ ] Parse the new status schema format and update Angular Signal-based state management
-- [ ] Map `node_id` to the corresponding visual node component and trigger re-rendering on status updates
-- [ ] Implement UI debouncing (50ms) to batch rapid status updates and prevent excessive re-renders
+- [x] Subscribe to the `system_status` WebSocket topic on application load
+- [x] Parse the new status schema format and update Angular Signal-based state management
+- [x] Map `node_id` to the corresponding visual node component and trigger re-rendering on status updates
+- [x] Implement UI debouncing (50ms) to batch rapid status updates and prevent excessive re-renders
 
 #### Status Dashboard (Optional Enhancement)
 - [ ] Consider adding a collapsible status panel showing all node statuses in a table/list view for debugging
