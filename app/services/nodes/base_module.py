@@ -77,60 +77,6 @@ class ModuleNode(ABC):
         """
         ...
     
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        DEPRECATED — use emit_status() instead.
-        
-        This method provides backward compatibility by converting the new
-        emit_status() return value to the legacy dict format.
-        
-        Will be removed in a future version.
-        
-        Args:
-            runtime_status: Shared runtime state dictionary (unused in new implementation)
-            
-        Returns:
-            Dictionary containing node status information (legacy format)
-        """
-        warnings.warn(
-            "get_status() is deprecated. Use emit_status() instead.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        
-        # Call the new emit_status() and convert to legacy format
-        try:
-            status_update = self.emit_status()
-            legacy_dict = {
-                "id": status_update.node_id,
-                "name": self.name,
-                "type": getattr(self, "node_type", "unknown"),
-                "running": status_update.operational_state in ["RUNNING", "INITIALIZE"],
-                "operational_state": status_update.operational_state,
-                "timestamp": status_update.timestamp,
-            }
-            
-            if status_update.application_state:
-                legacy_dict["application_state"] = {
-                    "label": status_update.application_state.label,
-                    "value": status_update.application_state.value,
-                    "color": status_update.application_state.color,
-                }
-            
-            if status_update.error_message:
-                legacy_dict["last_error"] = status_update.error_message
-            
-            return legacy_dict
-        except NotImplementedError:
-            # If emit_status() is not implemented yet, return minimal status
-            return {
-                "id": self.id,
-                "name": self.name,
-                "type": getattr(self, "node_type", "unknown"),
-                "running": False,
-                "last_error": "emit_status() not implemented",
-            }
-
     def start(self, data_queue: Any = None, runtime_status: Optional[Dict[str, Any]] = None) -> None:
         """
         Called when the orchestrator starts.

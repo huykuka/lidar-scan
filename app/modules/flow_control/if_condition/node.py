@@ -192,24 +192,3 @@ class IfConditionNode(ModuleNode):
                 color="green" if self.state else "red",
             ),
         )
-
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Return node status for API/status broadcaster.
-        
-        Args:
-            runtime_status: Shared runtime state (unused)
-            
-        Returns:
-            Status dictionary with node metrics
-        """
-        return {
-            "id": self.id,
-            "name": self.name,
-            "type": "if_condition",
-            "category": "flow_control",
-            "running": True,
-            "expression": self.expression,
-            "state": self.state,
-            "last_error": self.last_error,
-        }

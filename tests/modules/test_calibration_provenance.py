@@ -239,29 +239,6 @@ class TestCalibrationNodeProvenance:
         result = calibration_node._aggregate_frames("sensor-A", sample_frames=1)
         assert result is None
     
-    def test_get_status_reports_buffer_sizes(self, calibration_node):
-        """Test get_status includes per-sensor buffer sizes"""
-        # Populate buffers
-        for sensor_id in ["sensor-A", "sensor-B"]:
-            frames = []
-            for i in range(3 if sensor_id == "sensor-A" else 5):
-                frame = BufferedFrame(
-                    points=np.random.rand(10, 3).astype(np.float32),
-                    timestamp=float(i),
-                    source_sensor_id=sensor_id,
-                    processing_chain=[sensor_id],
-                    node_id=sensor_id
-                )
-                frames.append(frame)
-            calibration_node._frame_buffer[sensor_id] = deque(frames, maxlen=30)
-        
-        status = calibration_node.get_status()
-        
-        # Should report buffer sizes as dict, not list
-        assert isinstance(status["buffered_frames"], dict)
-        assert status["buffered_frames"]["sensor-A"] == 3
-        assert status["buffered_frames"]["sensor-B"] == 5
-
 
 # ---------------------------------------------------------------------------
 # Task B5 — emit_status() tests

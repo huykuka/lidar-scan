@@ -182,19 +182,6 @@ async def get_nodes_status():
             except Exception as e:
                 logger.warning(f"[get_nodes_status] emit_status() failed for {node_id}: {e}")
                 continue
-        elif node_instance and hasattr(node_instance, "get_status"):
-            # Fallback for nodes not yet migrated (should not happen after B4-B8)
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", DeprecationWarning)
-                raw = node_instance.get_status(node_manager.node_runtime_status)
-            entry = {
-                "node_id": node_id,
-                "operational_state": "RUNNING" if raw.get("running") else "STOPPED",
-                "application_state": raw.get("application_state"),
-                "error_message": raw.get("last_error"),
-                "timestamp": time.time(),
-            }
         else:
             entry = {
                 "node_id": node_id,

@@ -195,22 +195,3 @@ class FusionService(ModuleNode):
                 color="blue" if frame_count > 0 else "gray",
             ),
         )
-
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Returns standard status for this node"""
-        last_broadcast_at = self.last_broadcast_at
-        broadcast_age = time.time() - last_broadcast_at if last_broadcast_at else None
-        
-        status = {
-            "id": self.id,
-            "name": self.name,
-            "type": "fusion",
-            "enabled": self._enabled,
-            "running": self._enabled,
-            "sensor_ids": list(self._filter) if self._filter else [],
-            "last_broadcast_at": last_broadcast_at,
-            "broadcast_age_seconds": broadcast_age,
-            "last_error": self.last_error,
-            "input_count": len(self._latest_frames)
-        }
-        return status

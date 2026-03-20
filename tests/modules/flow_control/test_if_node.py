@@ -158,58 +158,6 @@ class TestIfConditionNodeErrorHandling:
         assert node.last_evaluation is False
 
 
-class TestIfConditionNodeStatus:
-    """Test get_status() method."""
-    
-    def test_get_status_returns_all_required_fields(self):
-        manager = Mock()
-        manager.downstream_map = {}
-        
-        node = IfConditionNode(
-            manager=manager,
-            node_id="test_if_1",
-            name="Test IF",
-            expression="point_count > 1000",
-            throttle_ms=0
-        )
-        
-        status = node.get_status()
-        
-        assert status["id"] == "test_if_1"
-        assert status["name"] == "Test IF"
-        assert status["type"] == "if_condition"
-        assert status["category"] == "flow_control"
-        assert status["running"] is True
-        assert status["expression"] == "point_count > 1000"
-        assert status["external_state"] is False
-        assert status["last_evaluation"] is None
-        assert status["last_error"] is None
-    
-    @pytest.mark.asyncio
-    async def test_get_status_updates_after_evaluation(self):
-        manager = Mock()
-        manager.downstream_map = {
-            "test_if_1": [
-                {"target_id": "target_true", "source_port": "true"}
-            ]
-        }
-        manager.forward_data = AsyncMock()
-        
-        node = IfConditionNode(
-            manager=manager,
-            node_id="test_if_1",
-            name="Test IF",
-            expression="point_count > 1000",
-            throttle_ms=0
-        )
-        
-        payload = {"point_count": 1500, "points": []}
-        await node.on_input(payload)
-        
-        status = node.get_status()
-        assert status["last_evaluation"] is True
-        assert status["last_error"] is None
-
 
 class TestIfConditionNodeComplexExpressions:
     """Test complex multi-condition expressions."""

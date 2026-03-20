@@ -446,47 +446,7 @@ class CalibrationNode(ModuleNode):
         finally:
             if db_session is None:
                 db.close()
-    
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Returns calibration node status + latest results.
-        
-        Args:
-            runtime_status: Optional runtime status dict
-            
-        Returns:
-            Status dict with calibration state
-        """
-        status = {
-            "id": self.id,
-            "name": self.name,
-            "type": "calibration",
-            "enabled": self._enabled,
-            "reference_sensor": self._reference_sensor_id,
-            "source_sensors": self._source_sensor_ids,
-            "buffered_frames": {
-                sensor_id: len(buf) 
-                for sensor_id, buf in self._frame_buffer.items()
-            },
-            "last_calibration_time": self._last_calibration_time,
-            "has_pending": self._pending_calibration is not None,
-            "pending_results": {}
-        }
-        
-        if self._pending_calibration:
-            status["pending_results"] = {
-                sensor_id: {
-                    "fitness": record.fitness,
-                    "rmse": record.rmse,
-                    "quality": record.quality,
-                    "source_sensor_id": getattr(record, "source_sensor_id", ""),
-                    "processing_chain": getattr(record, "processing_chain", [])
-                }
-                for sensor_id, record in self._pending_calibration.items()
-            }
-        
-        return status
-    
+
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardised status for this calibration node.
 

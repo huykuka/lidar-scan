@@ -144,21 +144,3 @@ class OperationNode(ModuleNode):
                 color="blue" if recently_active else "gray",
             ),
         )
-
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Returns standard status for this node"""
-        frame_age = time.time() - self.last_output_at if self.last_output_at else None
-        return {
-            "id": self.id,
-            "name": self.name,
-            "type": "operation",
-            "op_type": self.op_type,
-            "running": True,
-            "frame_age_seconds": frame_age,
-            "last_input_at": self.last_input_at,
-            "last_output_at": self.last_output_at,
-            "last_error": self.last_error,
-            "processing_time_ms": self.processing_time_ms,
-            "input_count": self.input_count,
-            "output_count": self.output_count
-        }
