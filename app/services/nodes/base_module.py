@@ -6,6 +6,9 @@ must implement to integrate with the NodeManager routing engine.
 """
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
+import warnings
+
+from app.schemas.status import NodeStatusUpdate
 
 
 class ModuleNode(ABC):
@@ -50,32 +53,83 @@ class ModuleNode(ABC):
         ...
 
     @abstractmethod
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def emit_status(self) -> NodeStatusUpdate:
         """
-        Return a status dictionary for the status broadcaster / API.
+        Return standardised status. Called by StatusAggregator on state changes.
         
-        Called periodically by the status broadcaster to collect node health metrics.
+        This method must be implemented by all nodes to provide structured status
+        information using the NodeStatusUpdate schema.
         
-        Must include at minimum:
-            - id (str): Node ID
-            - name (str): Node name
-            - type (str): Node type (e.g., "sensor", "fusion", "operation")
-            - running (bool): Whether the node is active
-            
-        Optional fields:
-            - last_frame_at (float): Timestamp of last processed frame
-            - frame_age_seconds (float): Seconds since last frame
-            - last_error (str): Most recent error message
-            - topic (str): WebSocket topic for this node's output
-            - Any module-specific metrics
-            
-        Args:
-            runtime_status: Shared runtime state dictionary managed by the orchestrator
-            
         Returns:
-            Dictionary containing node status information
+            NodeStatusUpdate: Standardised status containing operational_state,
+                             optional application_state, and error_message.
+        
+        Example:
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.RUNNING,
+                application_state=ApplicationState(
+                    label="connection_status",
+                    value="connected",
+                    color="green"
+                )
+            )
         """
         ...
+    
+    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        DEPRECATED — use emit_status() instead.
+        
+        This method provides backward compatibility by converting the new
+        emit_status() return value to the legacy dict format.
+        
+        Will be removed in a future version.
+        
+        Args:
+            runtime_status: Shared runtime state dictionary (unused in new implementation)
+            
+        Returns:
+            Dictionary containing node status information (legacy format)
+        """
+        warnings.warn(
+            "get_status() is deprecated. Use emit_status() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+        
+        # Call the new emit_status() and convert to legacy format
+        try:
+            status_update = self.emit_status()
+            legacy_dict = {
+                "id": status_update.node_id,
+                "name": self.name,
+                "type": getattr(self, "node_type", "unknown"),
+                "running": status_update.operational_state in ["RUNNING", "INITIALIZE"],
+                "operational_state": status_update.operational_state,
+                "timestamp": status_update.timestamp,
+            }
+            
+            if status_update.application_state:
+                legacy_dict["application_state"] = {
+                    "label": status_update.application_state.label,
+                    "value": status_update.application_state.value,
+                    "color": status_update.application_state.color,
+                }
+            
+            if status_update.error_message:
+                legacy_dict["last_error"] = status_update.error_message
+            
+            return legacy_dict
+        except NotImplementedError:
+            # If emit_status() is not implemented yet, return minimal status
+            return {
+                "id": self.id,
+                "name": self.name,
+                "type": getattr(self, "node_type", "unknown"),
+                "running": False,
+                "last_error": "emit_status() not implemented",
+            }
 
     def start(self, data_queue: Any = None, runtime_status: Optional[Dict[str, Any]] = None) -> None:
         """
