@@ -59,8 +59,9 @@ class IfConditionNode(ModuleNode):
         self.name = name
         self.manager = manager
         self.expression = expression
-        self.external_override: Optional[bool] = None  # None = use expression, True/False = external control
+        self.external_state: Optional[bool] = None  # None = use expression, True/False = external control
         self.state: Optional[bool] = None  # Current routing state (True = route to 'true' port, False = route to 'false' port)
+        self.last_evaluation: Optional[bool] = None  # Most recent condition result
         self.last_error: Optional[str] = None
         self._ws_topic: Optional[str] = None  # Invisible node by default
         self._parser = ExpressionParser()
@@ -75,12 +76,12 @@ class IfConditionNode(ModuleNode):
             payload: Input data from upstream nodes
         """
         # Determine final routing state
-        if self.external_override is not None:
+        if self.external_state is not None:
             # External control is active - use override value
-            result = self.external_override
+            result = self.external_state
             self.state = result
             self.last_error = None
-            logger.debug(f"Node {self.id}: Using external override state: {result}")
+            logger.debug(f"Node {self.id}: Using external state: {result}")
         else:
             # Use expression evaluation
             context = self._build_context(payload)
@@ -106,6 +107,9 @@ class IfConditionNode(ModuleNode):
         
         # Add condition result to payload for debugging
         payload["condition_result"] = result
+        
+        # Keep last_evaluation in sync with evaluated result
+        self.last_evaluation = result
         
         # Notify status aggregator on every evaluation
         notify_status_change(self.id)
@@ -134,29 +138,18 @@ class IfConditionNode(ModuleNode):
     async def _route_to_port(self, port_id: str, payload: Dict[str, Any]) -> None:
         """
         Route data to downstream nodes connected to a specific output port.
-        
+
+        Delegates entirely to the NodeManager so that WebSocket broadcasting,
+        recording interception, throttling, and fan-out all follow the standard
+        pipeline path.  The active_port argument tells the router to restrict
+        forwarding to edges whose source_port matches port_id.
+
         Args:
             port_id: Output port identifier ("true" or "false")
             payload: Data payload to forward
         """
-        # Get all edges from this node
-        all_edges = self.manager.downstream_map.get(self.id, [])
-        
-        # Filter edges matching the output port
-        matching_edges = [
-            edge for edge in all_edges
-            if isinstance(edge, dict) and edge.get("source_port") == port_id
-        ]
-        
-        # Forward to each target
-        for edge in matching_edges:
-            target_id = edge.get("target_id")
-            if target_id:
-                try:
-                    await self.manager.forward_data(target_id, payload)
-                    logger.debug(f"Forwarded from {self.id} to {target_id} via port '{port_id}'")
-                except Exception as e:
-                    logger.error(f"Error forwarding from {self.id} to {target_id}: {e}")
+        await self.manager.forward_data(self.id, payload, active_port=port_id)
+        logger.debug(f"Node {self.id}: routed payload via port '{port_id}'")
     
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardised status for this if-condition node.

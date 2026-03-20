@@ -301,7 +301,7 @@ class NodeManager:
                 logger.error(f"Listener error: {e}", exc_info=True)
                 await asyncio.sleep(0.1)
 
-    async def forward_data(self, source_id: str, payload: Any):
+    async def forward_data(self, source_id: str, payload: Any, active_port: Optional[str] = None):
         """
         Forward data from a source node to downstream nodes.
         
@@ -316,8 +316,10 @@ class NodeManager:
         Args:
             source_id: The ID of the source node
             payload: The data payload to forward
+            active_port: If set, only forward edges matching this source port.
+                         Used by IfConditionNode for port-aware fan-out.
         """
-        await self._data_router.forward_data(source_id, payload)
+        await self._data_router.forward_data(source_id, payload, active_port=active_port)
 
     # ========================================
     # Throttling Management

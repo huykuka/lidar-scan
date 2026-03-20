@@ -48,7 +48,7 @@ class DataRouter:
             # Standard on_input method (ModuleNode interface)
             await node_instance.on_input(payload)
     
-    async def forward_data(self, source_id: str, payload: Any):
+    async def forward_data(self, source_id: str, payload: Any, active_port: Optional[str] = None):
         """
         Forward data to all connected downstream nodes and handle broadcasting.
         
@@ -60,6 +60,9 @@ class DataRouter:
         Args:
             source_id: Source node ID
             payload: Data payload to forward
+            active_port: If set, only forward edges whose source_port matches this value.
+                         Used by port-aware nodes like IfConditionNode to restrict fan-out
+                         to a single output port.
         """
         source_node = self.manager.nodes.get(source_id)
         if not source_node:
@@ -70,7 +73,7 @@ class DataRouter:
         
         await self._broadcast_to_websocket(source_id, topic, payload)
         await self._record_node_data(source_id, payload)
-        await self._forward_to_downstream_nodes(source_id, payload)
+        await self._forward_to_downstream_nodes(source_id, payload, active_port=active_port)
     
     def _get_node_topic(self, source_id: str, source_node: Any) -> Optional[str]:
         """
@@ -145,16 +148,22 @@ class DataRouter:
         except Exception as e:
             logger.error(f"Error intercepting recording payload for node '{source_id}': {e}", exc_info=True)
     
-    async def _forward_to_downstream_nodes(self, source_id: str, payload: Dict[str, Any]):
+    async def _forward_to_downstream_nodes(self, source_id: str, payload: Dict[str, Any], active_port: Optional[str] = None):
         """
         Forward data to all downstream nodes in the DAG, applying throttling.
         
         Supports both legacy format (list of target_id strings) and 
         port-aware format (list of edge dictionaries with target_id and port info).
         
+        When active_port is set, only edges whose source_port matches active_port
+        are forwarded.  String-format (legacy, portless) edges are always forwarded
+        when active_port is None, and skipped when active_port is set (they carry no
+        port information so they cannot match).
+        
         Args:
             source_id: Source node ID
             payload: Data payload
+            active_port: If set, restrict forwarding to edges with matching source_port.
         """
         targets = self.manager.downstream_map.get(source_id, [])
         
@@ -162,8 +171,14 @@ class DataRouter:
             # Extract target_id (handle both string and dict formats)
             if isinstance(target, dict):
                 target_id = target.get("target_id")
+                # Port filtering: skip if active_port is set and edge port doesn't match
+                if active_port is not None and target.get("source_port") != active_port:
+                    continue
             else:
                 target_id = target
+                # Legacy string edges have no port info; skip when port-filtering is active
+                if active_port is not None:
+                    continue
             
             if not target_id:
                 continue

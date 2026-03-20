@@ -167,11 +167,19 @@ class LifecycleManager:
         if node_id in self.manager.downstream_map:
             del self.manager.downstream_map[node_id]
         
-        # Remove as target from all sources
+        # Remove as target from all sources (handle both string and dict edge formats)
         for source, targets in list(self.manager.downstream_map.items()):
-            if node_id in targets:
-                targets.remove(node_id)
-                if not targets:
+            new_targets = [
+                t for t in targets
+                if not (
+                    (isinstance(t, str) and t == node_id) or
+                    (isinstance(t, dict) and t.get("target_id") == node_id)
+                )
+            ]
+            if len(new_targets) != len(targets):
+                if new_targets:
+                    self.manager.downstream_map[source] = new_targets
+                else:
                     del self.manager.downstream_map[source]
     
     def _cleanup_node_state(self, node_id: str):

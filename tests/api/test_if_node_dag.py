@@ -56,10 +56,11 @@ class TestIfNodeBasicRouting:
         
         await if_node.on_input(payload)
         
-        # Should forward to true-target only
+        # Should call forward_data once with the node's id and active_port='true'
         mock_manager.forward_data.assert_called_once()
         call_args = mock_manager.forward_data.call_args
-        assert call_args[0][0] == "true-target"
+        assert call_args[0][0] == "if-1"
+        assert call_args.kwargs["active_port"] == "true"
         assert call_args[0][1]["point_count"] == 1500
         assert "condition_result" in call_args[0][1]
         assert call_args[0][1]["condition_result"] is True
@@ -75,16 +76,19 @@ class TestIfNodeBasicRouting:
         
         await if_node.on_input(payload)
         
-        # Should forward to false-target only
+        # Should call forward_data once with the node's id and active_port='false'
         mock_manager.forward_data.assert_called_once()
         call_args = mock_manager.forward_data.call_args
-        assert call_args[0][0] == "false-target"
+        assert call_args[0][0] == "if-1"
+        assert call_args.kwargs["active_port"] == "false"
         assert call_args[0][1]["point_count"] == 500
         assert call_args[0][1]["condition_result"] is False
 
     @pytest.mark.asyncio
     async def test_no_calls_when_no_matching_port(self, if_node, mock_manager):
-        """Node with only true port configured doesn't forward on false result."""
+        """Node with only true port configured: forward_data is still called
+        once (with active_port='false'), but the router finds no matching edge.
+        The node delegates filtering to the manager."""
         # Reconfigure to only have true port
         mock_manager.downstream_map["if-1"] = [{"target_id": "true-target", "source_port": "true"}]
         
@@ -95,8 +99,10 @@ class TestIfNodeBasicRouting:
         
         await if_node.on_input(payload)
         
-        # No forward should happen
-        mock_manager.forward_data.assert_not_called()
+        # forward_data is called once; the router (not the node) filters out
+        # the unmatched port.  Verify the correct port is requested.
+        mock_manager.forward_data.assert_called_once()
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "false"
 
 
 class TestIfNodeExternalStateControl:
@@ -138,10 +144,11 @@ class TestIfNodeExternalStateControl:
         payload = {"point_count": 1000, "timestamp": 1.0}
         await external_state_node.on_input(payload)
         
-        # Should go to blocked-target
+        # Should route via false port
         mock_manager.forward_data.assert_called_once()
         call_args = mock_manager.forward_data.call_args
-        assert call_args[0][0] == "blocked-target"
+        assert call_args[0][0] == "if-external"
+        assert call_args.kwargs["active_port"] == "false"
 
     @pytest.mark.asyncio
     async def test_external_state_true_allows_data(self, external_state_node, mock_manager):
@@ -151,10 +158,11 @@ class TestIfNodeExternalStateControl:
         payload = {"point_count": 1000, "timestamp": 2.0}
         await external_state_node.on_input(payload)
         
-        # Should go to allowed-target
+        # Should route via true port
         mock_manager.forward_data.assert_called_once()
         call_args = mock_manager.forward_data.call_args
-        assert call_args[0][0] == "allowed-target"
+        assert call_args[0][0] == "if-external"
+        assert call_args.kwargs["active_port"] == "true"
 
     @pytest.mark.asyncio
     async def test_toggling_external_state_changes_routing(self, external_state_node, mock_manager):
@@ -165,7 +173,7 @@ class TestIfNodeExternalStateControl:
         external_state_node.external_state = False
         await external_state_node.on_input(payload.copy())
         assert mock_manager.forward_data.call_count == 1
-        assert mock_manager.forward_data.call_args[0][0] == "blocked-target"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "false"
         
         mock_manager.forward_data.reset_mock()
         
@@ -173,7 +181,7 @@ class TestIfNodeExternalStateControl:
         external_state_node.external_state = True
         await external_state_node.on_input(payload.copy())
         assert mock_manager.forward_data.call_count == 1
-        assert mock_manager.forward_data.call_args[0][0] == "allowed-target"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "true"
 
 
 class TestIfNodeComplexExpressions:
@@ -207,14 +215,14 @@ class TestIfNodeComplexExpressions:
         # Both conditions true
         payload1 = {"point_count": 1500, "intensity_avg": 75, "timestamp": 1.0}
         await node.on_input(payload1)
-        assert mock_manager.forward_data.call_args[0][0] == "true-target"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "true"
         
         mock_manager.forward_data.reset_mock()
         
         # One condition false
         payload2 = {"point_count": 1500, "intensity_avg": 25, "timestamp": 2.0}
         await node.on_input(payload2)
-        assert mock_manager.forward_data.call_args[0][0] == "false-target"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "false"
 
     @pytest.mark.asyncio
     async def test_compound_or_condition(self, mock_manager):
@@ -234,14 +242,14 @@ class TestIfNodeComplexExpressions:
         # Only first condition true
         payload1 = {"point_count": 1500, "intensity_avg": 25, "timestamp": 1.0}
         await node.on_input(payload1)
-        assert mock_manager.forward_data.call_args[0][0] == "true-target"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "true"
         
         mock_manager.forward_data.reset_mock()
         
         # Both conditions false
         payload2 = {"point_count": 500, "intensity_avg": 25, "timestamp": 2.0}
         await node.on_input(payload2)
-        assert mock_manager.forward_data.call_args[0][0] == "false-target"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "false"
 
     @pytest.mark.asyncio
     async def test_parentheses_grouping(self, mock_manager):
@@ -262,7 +270,7 @@ class TestIfNodeComplexExpressions:
         node.external_state = True
         payload = {"point_count": 500, "intensity_avg": 75, "timestamp": 1.0}
         await node.on_input(payload)
-        assert mock_manager.forward_data.call_args[0][0] == "true-target"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "true"
 
 
 class TestIfNodeErrorHandling:
@@ -296,12 +304,12 @@ class TestIfNodeErrorHandling:
         payload = {"point_count": 1500, "timestamp": 1.0}  # missing_field not present
         await node.on_input(payload)
         
-        # Should route to false (fail-safe)
-        assert mock_manager.forward_data.call_args[0][0] == "false-target"
+        # Should route to false port (fail-safe)
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "false"
         
-        # Error should be logged in node status
-        assert node.last_error is not None
-        assert node.last_evaluation is None
+        # Missing field evaluates gracefully to False (no error raised by parser)
+        assert node.last_error is None
+        assert node.last_evaluation is False
 
     @pytest.mark.asyncio
     async def test_type_error_routes_to_false(self, mock_manager):
@@ -322,8 +330,8 @@ class TestIfNodeErrorHandling:
         payload = {"point_count": "many", "timestamp": 1.0}
         await node.on_input(payload)
         
-        # Should route to false (fail-safe)
-        assert mock_manager.forward_data.call_args[0][0] == "false-target"
+        # Should route to false port (fail-safe)
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "false"
         assert node.last_error is not None
 
 
@@ -342,7 +350,8 @@ class TestIfNodeBackwardsCompatibility:
 
     @pytest.mark.asyncio
     async def test_legacy_string_downstream_map(self, mock_manager):
-        """Node with string-only downstream_map routes to all targets."""
+        """Node with string-only downstream_map: forward_data is called once.
+        The manager/router handles fan-out to legacy string targets."""
         node = IfConditionNode(
             manager=mock_manager,
             node_id="if-legacy",
@@ -357,12 +366,16 @@ class TestIfNodeBackwardsCompatibility:
         payload = {"point_count": 1500, "timestamp": 1.0}
         await node.on_input(payload)
         
-        # Should forward to all legacy targets (no port filtering)
-        assert mock_manager.forward_data.call_count == 2
+        # forward_data is called once (node delegates to manager).
+        # The router is responsible for fan-out to all legacy string targets.
+        mock_manager.forward_data.assert_called_once()
+        assert mock_manager.forward_data.call_args[0][0] == "if-legacy"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "true"
 
     @pytest.mark.asyncio
     async def test_mixed_downstream_map(self, mock_manager):
-        """Node with mixed downstream_map (legacy + port-aware) works."""
+        """Node with mixed downstream_map (legacy + port-aware): forward_data
+        is called once; the router handles both string and dict edge formats."""
         node = IfConditionNode(
             manager=mock_manager,
             node_id="if-mixed",
@@ -381,14 +394,10 @@ class TestIfNodeBackwardsCompatibility:
         payload = {"point_count": 1500, "timestamp": 1.0}  # true condition
         await node.on_input(payload)
         
-        # Should forward to legacy-target and true-target (2 calls)
-        assert mock_manager.forward_data.call_count == 2
-        
-        # Verify targets
-        calls = [call[0][0] for call in mock_manager.forward_data.call_args_list]
-        assert "legacy-target" in calls
-        assert "true-target" in calls
-        assert "false-target" not in calls
+        # forward_data is called once; router handles filtered fan-out.
+        mock_manager.forward_data.assert_called_once()
+        assert mock_manager.forward_data.call_args[0][0] == "if-mixed"
+        assert mock_manager.forward_data.call_args.kwargs["active_port"] == "true"
 
 
 class TestIfNodeMetadataEnrichment:

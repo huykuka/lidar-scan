@@ -123,14 +123,14 @@ class TestResetExternalStateEndpoint:
 
     @patch("app.api.v1.flow_control.service.node_manager")
     def test_reset_always_sets_state_to_false(self, mock_manager, client):
-        """/reset always sets external_state to False"""
+        """/reset clears external_state (sets to None) to re-enable expression evaluation"""
         mock_node = Mock(spec=IfConditionNode)
         mock_node.external_state = True
         mock_manager.nodes.get.return_value = mock_node
 
         client.post("/api/v1/nodes/test-node/flow-control/reset")
 
-        assert mock_node.external_state is False
+        assert mock_node.external_state is None
 
     @patch("app.api.v1.flow_control.service.node_manager")
     def test_reset_response_contains_node_id(self, mock_manager, client):
@@ -220,7 +220,7 @@ class TestFlowControlEndpointsIntegration:
 
         response2 = client.post("/api/v1/nodes/test-node/flow-control/reset")
         assert response2.status_code == 200
-        assert mock_node.external_state is False
+        assert mock_node.external_state is None
 
     @patch("app.api.v1.flow_control.service.node_manager")
     def test_multiple_sets_keep_state_true(self, mock_manager, client):

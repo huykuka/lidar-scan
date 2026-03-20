@@ -35,9 +35,9 @@ class TestIfConditionNodeBasicRouting:
         payload = {"point_count": 1500, "points": []}
         await node.on_input(payload)
         
-        # Verify true port called, false port not called
+        # Verify forward_data called once with the node's own id and active_port='true'
         assert manager.forward_data.call_count == 1
-        manager.forward_data.assert_called_once_with("downsample_1", payload)
+        manager.forward_data.assert_called_once_with("test_if_1", payload, active_port="true")
     
     @pytest.mark.asyncio
     async def test_routes_to_false_port_when_condition_false(self):
@@ -62,7 +62,7 @@ class TestIfConditionNodeBasicRouting:
         await node.on_input(payload)
         
         assert manager.forward_data.call_count == 1
-        manager.forward_data.assert_called_once_with("discard_1", payload)
+        manager.forward_data.assert_called_once_with("test_if_1", payload, active_port="false")
 
 
 class TestIfConditionNodeExternalState:
@@ -90,13 +90,13 @@ class TestIfConditionNodeExternalState:
         # Initially false
         payload = {"points": []}
         await node.on_input(payload)
-        manager.forward_data.assert_called_with("target_false", payload)
+        manager.forward_data.assert_called_with("test_if_1", payload, active_port="false")
         
         # Set to true
         node.external_state = True
         manager.forward_data.reset_mock()
         await node.on_input(payload)
-        manager.forward_data.assert_called_with("target_true", payload)
+        manager.forward_data.assert_called_with("test_if_1", payload, active_port="true")
 
 
 class TestIfConditionNodeErrorHandling:
@@ -125,7 +125,7 @@ class TestIfConditionNodeErrorHandling:
         await node.on_input(payload)
         
         # Should route to false port
-        manager.forward_data.assert_called_with("target_false", payload)
+        manager.forward_data.assert_called_with("test_if_1", payload, active_port="false")
         
         # Should log error
         assert node.last_error is not None
@@ -154,7 +154,7 @@ class TestIfConditionNodeErrorHandling:
         await node.on_input(payload)
         
         # Missing field should evaluate to None, comparison fails -> false
-        manager.forward_data.assert_called_with("target_false", payload)
+        manager.forward_data.assert_called_with("test_if_1", payload, active_port="false")
         assert node.last_evaluation is False
 
 
@@ -189,7 +189,7 @@ class TestIfConditionNodeComplexExpressions:
             "points": []
         }
         await node.on_input(payload)
-        manager.forward_data.assert_called_with("target_true", payload)
+        manager.forward_data.assert_called_with("test_if_1", payload, active_port="true")
         
         # Failing payload (one condition fails)
         manager.forward_data.reset_mock()
@@ -200,7 +200,7 @@ class TestIfConditionNodeComplexExpressions:
             "points": []
         }
         await node.on_input(payload2)
-        manager.forward_data.assert_called_with("target_false", payload2)
+        manager.forward_data.assert_called_with("test_if_1", payload2, active_port="false")
 
 
 class TestIfConditionNodeBackwardsCompatibility:
@@ -224,8 +224,9 @@ class TestIfConditionNodeBackwardsCompatibility:
         # Should not crash even with no downstream nodes
         await node.on_input(payload)
         
-        # forward_data should not be called
-        manager.forward_data.assert_not_called()
+        # forward_data IS called (once, with active_port) — the manager/router
+        # is responsible for finding zero downstream targets and doing nothing.
+        manager.forward_data.assert_called_once_with("test_if_1", payload, active_port="true")
 
 
 # ---------------------------------------------------------------------------
