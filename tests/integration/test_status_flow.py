@@ -6,6 +6,10 @@ These tests exercise the full path:
   node.enable/disable → notify_status_change → _broadcast_system_status → WS manager
 
 All WebSocket I/O is mocked so no real asyncio server is required.
+
+NOTE: node_manager is lazily imported in _broadcast_system_status() to avoid
+circular imports. Tests must patch 'app.services.nodes.instance.node_manager'
+instead of patching it on status_aggregator module.
 """
 import asyncio
 import time
@@ -32,6 +36,8 @@ def _make_node(node_id: str, state: str = "RUNNING") -> Mock:
     node.emit_status.return_value = NodeStatusUpdate(
         node_id=node_id,
         operational_state=OperationalState(state),
+        application_state=None,
+        error_message=None,
     )
     return node
 
@@ -55,7 +61,8 @@ async def test_status_broadcast_on_dag_start():
         "node-B": _make_node("node-B", "INITIALIZE"),
     }
 
-    with patch.object(aggregator_module, "node_manager", mock_nm), \
+    # Patch at the lazy import location
+    with patch("app.services.nodes.instance.node_manager", mock_nm), \
          patch.object(aggregator_module, "manager") as mock_ws_manager:
 
         mock_ws_manager.register_topic = Mock()
@@ -99,7 +106,8 @@ async def test_status_broadcast_on_node_enable_disable():
 
     captured = []
 
-    with patch.object(aggregator_module, "node_manager", mock_nm_inner), \
+    # Patch at the lazy import location
+    with patch("app.services.nodes.instance.node_manager", mock_nm_inner), \
          patch.object(aggregator_module, "manager") as mock_ws_manager:
 
         mock_ws_manager.register_topic = Mock()
@@ -149,7 +157,8 @@ async def test_multiple_nodes_batched_in_one_broadcast():
 
     captured = []
 
-    with patch.object(aggregator_module, "node_manager", mock_nm), \
+    # Patch at the lazy import location
+    with patch("app.services.nodes.instance.node_manager", mock_nm), \
          patch.object(aggregator_module, "manager") as mock_ws_manager:
 
         mock_ws_manager.register_topic = Mock()
@@ -199,7 +208,8 @@ async def test_rate_limit_prevents_flooding():
         nonlocal broadcast_count
         broadcast_count += 1
 
-    with patch.object(aggregator_module, "node_manager", mock_nm), \
+    # Patch at the lazy import location
+    with patch("app.services.nodes.instance.node_manager", mock_nm), \
          patch.object(aggregator_module, "manager") as mock_ws_manager:
 
         mock_ws_manager.register_topic = Mock()

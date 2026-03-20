@@ -5,16 +5,22 @@ Spec: .opencode/plans/node-status-standardization/technical.md § 2.3
 
 This service collects status updates from all DAG nodes and broadcasts them
 via WebSocket with rate limiting and debouncing to prevent flooding.
+
+CIRCULAR IMPORT FIX:
+  node_manager is imported lazily inside _broadcast_system_status() to break
+  the circular dependency: instance.py -> discover_modules() -> registries -> 
+  node implementations -> status_aggregator.py -> instance.py (circular!)
 """
 import asyncio
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
 
 from app.core.logging import get_logger
 from app.schemas.status import NodeStatusUpdate, SystemStatusBroadcast
 from app.services.websocket.manager import manager
-from app.services.nodes.instance import node_manager
 
+if TYPE_CHECKING:
+    from app.services.nodes.orchestrator import NodeManager
 
 logger = get_logger("status_aggregator")
 
@@ -65,11 +71,17 @@ async def _broadcast_system_status() -> None:
     and broadcasts via manager.broadcast("system_status", payload).
     
     Includes 100ms debounce sleep to batch multiple rapid status changes.
+    
+    Uses lazy import of node_manager to avoid circular dependency during
+    module initialization.
     """
     # Debounce: wait 100ms to batch multiple rapid changes
     await asyncio.sleep(0.1)
     
     try:
+        # Lazy import to break circular dependency
+        from app.services.nodes.instance import node_manager
+        
         # Collect status from all registered nodes
         status_updates: list[NodeStatusUpdate] = []
         

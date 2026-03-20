@@ -2,6 +2,10 @@
 Tests for StatusAggregator service.
 
 Spec: .opencode/plans/node-status-standardization/technical.md § 2.3
+
+NOTE: node_manager is lazily imported in _broadcast_system_status() to avoid
+circular imports. Tests must patch 'app.services.nodes.instance.node_manager'
+instead of patching it on status_aggregator module.
 """
 import asyncio
 import pytest
@@ -26,8 +30,8 @@ class TestStatusAggregatorRateLimit:
         with patch("app.services.status_aggregator.manager") as mock_manager:
             mock_manager.broadcast = AsyncMock()
             
-            # Mock node_manager to return empty nodes initially
-            with patch("app.services.status_aggregator.node_manager") as mock_node_mgr:
+            # Mock node_manager at the point where it's imported (lazy import in _broadcast_system_status)
+            with patch("app.services.nodes.instance.node_manager") as mock_node_mgr:
                 mock_node_mgr.nodes = {}
                 
                 start_status_aggregator()
@@ -63,19 +67,26 @@ class TestStatusAggregatorDebounce:
             mock_node_1.emit_status.return_value = NodeStatusUpdate(
                 node_id="node_1",
                 operational_state=OperationalState.RUNNING,
+                application_state=None,
+                error_message=None,
             )
             mock_node_2 = MagicMock()
             mock_node_2.emit_status.return_value = NodeStatusUpdate(
                 node_id="node_2",
                 operational_state=OperationalState.RUNNING,
+                application_state=None,
+                error_message=None,
             )
             mock_node_3 = MagicMock()
             mock_node_3.emit_status.return_value = NodeStatusUpdate(
                 node_id="node_3",
                 operational_state=OperationalState.RUNNING,
+                application_state=None,
+                error_message=None,
             )
             
-            with patch("app.services.status_aggregator.node_manager") as mock_node_mgr:
+            # Patch at the lazy import location
+            with patch("app.services.nodes.instance.node_manager") as mock_node_mgr:
                 mock_node_mgr.nodes = {
                     "node_1": mock_node_1,
                     "node_2": mock_node_2,
@@ -143,7 +154,8 @@ class TestStatusAggregatorLifecycle:
             mock_manager.register_topic = MagicMock()
             mock_manager.broadcast = AsyncMock()
             
-            with patch("app.services.status_aggregator.node_manager") as mock_node_mgr:
+            # Patch at the lazy import location
+            with patch("app.services.nodes.instance.node_manager") as mock_node_mgr:
                 mock_node_mgr.nodes = {}
                 
                 start_status_aggregator()
@@ -187,9 +199,12 @@ class TestStatusAggregatorNodeHandling:
             mock_node_with_status.emit_status.return_value = NodeStatusUpdate(
                 node_id="normal_node",
                 operational_state=OperationalState.RUNNING,
+                application_state=None,
+                error_message=None,
             )
             
-            with patch("app.services.status_aggregator.node_manager") as mock_node_mgr:
+            # Patch at the lazy import location
+            with patch("app.services.nodes.instance.node_manager") as mock_node_mgr:
                 mock_node_mgr.nodes = {
                     "broken_node": mock_node_without_status,
                     "normal_node": mock_node_with_status,

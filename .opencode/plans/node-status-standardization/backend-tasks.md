@@ -208,6 +208,21 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 ---
 
+### Task B12.5: Fix Circular Import Issue (Emergency Bugfix)
+
+**Context**: After completing B12, backend startup failed with circular import errors.
+
+- [x] B12.5.1 — Diagnose circular import chain: `instance.py → discover_modules() → registries → node implementations → status_aggregator.py → instance.py`
+- [x] B12.5.2 — Implement lazy import of `node_manager` in `status_aggregator.py::_broadcast_system_status()` to break the cycle
+- [x] B12.5.3 — Update tests to patch lazy import location (`app.services.nodes.instance.node_manager` instead of `status_aggregator.node_manager`)
+- [x] B12.5.4 — Add comprehensive test suite `tests/services/test_circular_import_fix.py` to prevent regressions
+- [x] B12.5.5 — Verify all modules load correctly and node types are registered
+- [x] B12.5.6 — Document fix in `.opencode/plans/node-status-standardization/CIRCULAR_IMPORT_FIX.md`
+
+**Result**: ✅ All module registries load successfully, sensor nodes instantiate correctly, backend starts without errors.
+
+---
+
 ### Task B13: Performance Validation
 
 - [ ] B13.1 — Run the DAG with 10+ nodes for 60 seconds
