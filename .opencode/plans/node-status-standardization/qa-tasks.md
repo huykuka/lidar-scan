@@ -13,11 +13,11 @@ Update checkboxes from `[ ]` to `[x]` as each step completes. Record all results
 
 Before starting any tests, confirm:
 
-- [ ] QA0.1 — All items in `backend-tasks.md` are checked `[x]`
-- [ ] QA0.2 — All items in `frontend-tasks.md` are checked `[x]`
+- [x] QA0.1 — All items in `backend-tasks.md` are checked `[x]` (except performance validation B13 which is part of QA)
+- [x] QA0.2 — All items in `frontend-tasks.md` are checked `[x]`
 - [ ] QA0.3 — `pytest` passes with zero failures: `pytest --tb=short`
-- [ ] QA0.4 — Angular build has no errors: `cd web && ng build --configuration production`
-- [ ] QA0.5 — Dev server starts cleanly (backend + frontend) and WebSocket connects: no errors in browser console on page load
+- [x] QA0.4 — Angular build has no errors: `cd web && ng build --configuration production`
+- [x] QA0.5 — Dev server starts cleanly (backend + frontend) and WebSocket connects: no errors in browser console on page load
 
 ---
 

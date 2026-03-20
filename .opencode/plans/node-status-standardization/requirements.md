@@ -106,6 +106,7 @@ This replaces the current mixed-format `get_status()` approach with a unified st
 - [x] Parse the new status schema format and update Angular Signal-based state management
 - [x] Map `node_id` to the corresponding visual node component and trigger re-rendering on status updates
 - [x] Implement UI debouncing (50ms) to batch rapid status updates and prevent excessive re-renders
+- [x] Remove mock mode and connect to real backend WebSocket
 
 #### Status Dashboard (Optional Enhancement)
 - [ ] Consider adding a collapsible status panel showing all node statuses in a table/list view for debugging

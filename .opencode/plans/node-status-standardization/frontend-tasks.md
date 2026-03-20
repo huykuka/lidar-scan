@@ -151,7 +151,7 @@ Three isolated changes to the existing template:
 - [x] F8.1 — While backend is in progress, create a dev-only helper that pre-seeds `StatusWebSocketService.status` signal with `MOCK_SYSTEM_STATUS` from `api-spec.md § 5`
 - [x] F8.2 — Gate behind `environment.mockStatus === true`
 - [x] F8.3 — Cycle through all four `operational_state` values on a 3-second timer to test all visual states
-- [ ] F8.4 — Manual verification: every node type renders the correct icon, badge, and error text in each state
+- [x] F8.4 — Manual verification: every node type renders the correct icon, badge, and error text in each state
 
 ---
 
@@ -161,26 +161,26 @@ Three isolated changes to the existing template:
 
 **File**: `flow-canvas-node.component.spec.ts`
 
-- [ ] F9.1 — Mock `NodeStoreService.nodeStatusMap` to return controlled `NodeStatusUpdate` values
-- [ ] F9.2 — `should display hourglass_empty icon with animate-pulse for INITIALIZE`
-- [ ] F9.3 — `should display play_circle icon for RUNNING`
-- [ ] F9.4 — `should display pause_circle icon for STOPPED`
-- [ ] F9.5 — `should display error icon for ERROR`
-- [ ] F9.6 — `should render application state badge when application_state is present`
-- [ ] F9.7 — `should NOT render badge when application_state is absent`
-- [ ] F9.8 — `should display error text in body when operational_state is ERROR`
-- [ ] F9.9 — `should NOT display error text when operational_state is RUNNING`
-- [ ] F9.10 — `should apply correct hex color from badgeColorMap for each named color`
-- [ ] F9.11 — `should fall back to gray hex when application_state.color is undefined`
-- [ ] F9.12 — `should format boolean value as "true"/"false" string in badge text`
+- [x] F9.1 — Mock `NodeStoreService.nodeStatusMap` to return controlled `NodeStatusUpdate` values
+- [x] F9.2 — `should display hourglass_empty icon with animate-pulse for INITIALIZE`
+- [x] F9.3 — `should display play_circle icon for RUNNING`
+- [x] F9.4 — `should display pause_circle icon for STOPPED`
+- [x] F9.5 — `should display error icon for ERROR`
+- [x] F9.6 — `should render application state badge when application_state is present`
+- [x] F9.7 — `should NOT render badge when application_state is absent`
+- [x] F9.8 — `should display error text in body when operational_state is ERROR`
+- [x] F9.9 — `should NOT display error text when operational_state is RUNNING`
+- [x] F9.10 — `should apply correct hex color from badgeColorMap for each named color`
+- [x] F9.11 — `should fall back to gray hex when application_state.color is undefined`
+- [x] F9.12 — `should format boolean value as "true"/"false" string in badge text`
 
 ---
 
 ### Task F10: Build Verification
 
-- [ ] F10.1 — `ng build --configuration production` — zero TypeScript errors, zero warnings from removed types
-- [ ] F10.2 — `ng test --watch=false` — all unit tests pass
-- [ ] F10.3 — No unused imports remain from old `NodeStatus` types
+- [x] F10.1 — `ng build --configuration production` — zero TypeScript errors, zero warnings from removed types
+- [x] F10.2 — `ng test --watch=false` — all unit tests pass
+- [x] F10.3 — No unused imports remain from old `NodeStatus` types
 
 ---
 
