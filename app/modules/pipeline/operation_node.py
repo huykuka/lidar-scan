@@ -3,7 +3,9 @@ import time
 import numpy as np
 from app.core.logging import get_logger
 from app.modules.pipeline.factory import OperationFactory
+from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
+from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
 
@@ -51,6 +53,7 @@ class OperationNode(ModuleNode):
         if points is None or len(points) == 0:
             return
 
+        first_frame = self.input_count == 0
         self.input_count = len(points)
         
         try:
@@ -86,6 +89,10 @@ class OperationNode(ModuleNode):
             self.last_output_at = time.time()
             self.last_error = None
 
+            # Notify on first frame processed
+            if first_frame:
+                notify_status_change(self.id)
+
             # Prepare payload for downstream
             new_payload = payload.copy()
             new_payload["points"] = processed_points
@@ -98,22 +105,42 @@ class OperationNode(ModuleNode):
 
         except Exception as e:
             self.last_error = str(e)
+            notify_status_change(self.id)
             logger.error(f"[{self.id}] Error processing data: {e}", exc_info=True)
 
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Returns standard status for this node"""
-        frame_age = time.time() - self.last_output_at if self.last_output_at else None
-        return {
-            "id": self.id,
-            "name": self.name,
-            "type": "operation",
-            "op_type": self.op_type,
-            "running": True,
-            "frame_age_seconds": frame_age,
-            "last_input_at": self.last_input_at,
-            "last_output_at": self.last_output_at,
-            "last_error": self.last_error,
-            "processing_time_ms": self.processing_time_ms,
-            "input_count": self.input_count,
-            "output_count": self.output_count
-        }
+    def emit_status(self) -> NodeStatusUpdate:
+        """Return standardised status for this operation node.
+
+        State mapping:
+        - ``last_error`` set → ERROR, processing=False, gray, propagate error_message
+        - Recent input within 5 s → RUNNING, processing=True, blue
+        - Otherwise → RUNNING, processing=False, gray
+
+        Returns:
+            NodeStatusUpdate with operational_state and processing application_state
+        """
+        if self.last_error:
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.ERROR,
+                application_state=ApplicationState(
+                    label="processing",
+                    value=False,
+                    color="gray",
+                ),
+                error_message=self.last_error,
+            )
+
+        recently_active = (
+            self.last_input_at is not None
+            and time.time() - self.last_input_at < 5.0
+        )
+        return NodeStatusUpdate(
+            node_id=self.id,
+            operational_state=OperationalState.RUNNING,
+            application_state=ApplicationState(
+                label="processing",
+                value=recently_active,
+                color="blue" if recently_active else "gray",
+            ),
+        )

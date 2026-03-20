@@ -53,15 +53,15 @@ class TestNodeVisibilityAPISchemas:
         from app.api.v1.schemas.nodes import NodeStatusItem
         
         status_data = {
-            "id": "test_node_id",
+            "node_id": "test_node_id",
             "name": "Test Node",
             "type": "sensor",
             "category": "sensor",
             "enabled": True,
             "visible": False,  # Should support visible field
-            "running": True,
+            "operational_state": "RUNNING",
             "topic": None,  # Should be None when visible=False
-            "last_error": None,
+            "error_message": None,
             "throttle_ms": 0.0,
             "throttled_count": 0
         }
@@ -274,7 +274,7 @@ class TestNodeVisibilityAPIEndpoints:
         assert status_response.status_code == 200
         
         status_data = status_response.json()
-        test_node_status = next(n for n in status_data["nodes"] if n["id"] == node_id)
+        test_node_status = next(n for n in status_data["nodes"] if n["node_id"] == node_id)
         
         assert "visible" in test_node_status
         assert test_node_status["visible"] is False

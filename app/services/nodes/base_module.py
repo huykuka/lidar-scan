@@ -6,6 +6,9 @@ must implement to integrate with the NodeManager routing engine.
 """
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
+import warnings
+
+from app.schemas.status import NodeStatusUpdate
 
 
 class ModuleNode(ABC):
@@ -50,33 +53,30 @@ class ModuleNode(ABC):
         ...
 
     @abstractmethod
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def emit_status(self) -> NodeStatusUpdate:
         """
-        Return a status dictionary for the status broadcaster / API.
+        Return standardised status. Called by StatusAggregator on state changes.
         
-        Called periodically by the status broadcaster to collect node health metrics.
+        This method must be implemented by all nodes to provide structured status
+        information using the NodeStatusUpdate schema.
         
-        Must include at minimum:
-            - id (str): Node ID
-            - name (str): Node name
-            - type (str): Node type (e.g., "sensor", "fusion", "operation")
-            - running (bool): Whether the node is active
-            
-        Optional fields:
-            - last_frame_at (float): Timestamp of last processed frame
-            - frame_age_seconds (float): Seconds since last frame
-            - last_error (str): Most recent error message
-            - topic (str): WebSocket topic for this node's output
-            - Any module-specific metrics
-            
-        Args:
-            runtime_status: Shared runtime state dictionary managed by the orchestrator
-            
         Returns:
-            Dictionary containing node status information
+            NodeStatusUpdate: Standardised status containing operational_state,
+                             optional application_state, and error_message.
+        
+        Example:
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.RUNNING,
+                application_state=ApplicationState(
+                    label="connection_status",
+                    value="connected",
+                    color="green"
+                )
+            )
         """
         ...
-
+    
     def start(self, data_queue: Any = None, runtime_status: Optional[Dict[str, Any]] = None) -> None:
         """
         Called when the orchestrator starts.

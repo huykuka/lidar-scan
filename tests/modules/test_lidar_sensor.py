@@ -1,86 +1,10 @@
 """Tests for LidarSensor class"""
 import pytest
+import time
 from unittest.mock import Mock, MagicMock
 from app.modules.lidar.sensor import LidarSensor
+from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 
-
-class TestLidarSensorStatus:
-    """Test LidarSensor.get_status() method"""
-    
-    def test_get_status_includes_lidar_type(self):
-        """Status includes lidar_type field"""
-        sensor = LidarSensor(
-            manager=Mock(),
-            sensor_id="sensor-001",
-            launch_args="./launch/sick_tim_5xx.launch hostname:=192.168.0.1",
-            mode="real",
-            name="Test Sensor"
-        )
-        sensor.lidar_type = "tim_5xx"
-        sensor.lidar_display_name = "SICK TiM5xx Family"
-        
-        status = sensor.get_status({})
-        
-        assert status["lidar_type"] == "tim_5xx"
-        assert status["lidar_display_name"] == "SICK TiM5xx Family"
-    
-    def test_get_status_with_multiscan_type(self):
-        """Status correctly reports multiScan type"""
-        sensor = LidarSensor(
-            manager=Mock(),
-            sensor_id="sensor-002",
-            launch_args="./launch/sick_multiscan.launch hostname:=192.168.0.50",
-            mode="real",
-            name="Front Scanner"
-        )
-        sensor.lidar_type = "multiscan"
-        sensor.lidar_display_name = "SICK multiScan100"
-        
-        status = sensor.get_status({})
-        
-        assert status["lidar_type"] == "multiscan"
-        assert status["lidar_display_name"] == "SICK multiScan100"
-    
-    def test_get_status_standard_fields_present(self):
-        """Status includes all standard fields"""
-        sensor = LidarSensor(
-            manager=Mock(),
-            sensor_id="sensor-003",
-            launch_args="./launch/sick_lms_1xx.launch hostname:=192.168.0.1",
-            mode="real",
-            name="Test LiDAR"
-        )
-        sensor.lidar_type = "lms_1xx"
-        sensor.lidar_display_name = "SICK LMS1xx"
-        
-        status = sensor.get_status({})
-        
-        assert "id" in status
-        assert "name" in status
-        assert "type" in status
-        assert "mode" in status
-        assert "topic" in status
-        assert "running" in status
-        assert "connection_status" in status
-        assert "last_frame_at" in status
-        assert "frame_age_seconds" in status
-        assert "last_error" in status
-    
-    def test_get_status_without_lidar_type_optional(self):
-        """Status works when lidar_type not set (backward compat)"""
-        sensor = LidarSensor(
-            manager=Mock(),
-            sensor_id="sensor-004",
-            launch_args="./launch/sick_multiscan.launch",
-            mode="real"
-        )
-        # Don't set lidar_type
-        
-        status = sensor.get_status({})
-        
-        # Fields should be absent or None, not crash
-        assert "id" in status
-        assert "name" in status
 
 
 class TestLidarSensorAttributes:
@@ -168,60 +92,6 @@ class TestLidarSensorIntegration:
         assert "hostname:=" in sensor.launch_args
         assert "port:=" not in sensor.launch_args
 
-
-class TestLidarSensorStatusRuntimeTracking:
-    """Test status tracking with runtime_status dict"""
-    
-    def test_get_status_with_runtime_data(self):
-        """Status includes runtime tracking data"""
-        import time
-        sensor = LidarSensor(
-            manager=Mock(),
-            sensor_id="sensor-001",
-            launch_args="test",
-            mode="real"
-        )
-        sensor.lidar_type = "tim_5xx"
-        sensor.lidar_display_name = "SICK TiM5xx Family"
-        
-        current_time = time.time()
-        runtime_status = {
-            "sensor-001": {
-                "last_frame_at": current_time,
-                "last_error": None,
-                "connection_status": "connected"
-            }
-        }
-        
-        status = sensor.get_status(runtime_status)
-        
-        assert status["connection_status"] == "connected"
-        assert status["last_error"] is None
-        assert status["last_frame_at"] == current_time
-    
-    def test_get_status_with_error_state(self):
-        """Status reports error states"""
-        sensor = LidarSensor(
-            manager=Mock(),
-            sensor_id="sensor-002",
-            launch_args="test",
-            mode="real"
-        )
-        
-        runtime_status = {
-            "sensor-002": {
-                "last_frame_at": None,
-                "last_error": "Connection timeout",
-                "connection_status": "disconnected"
-            }
-        }
-        
-        status = sensor.get_status(runtime_status)
-        
-        assert status["connection_status"] == "disconnected"
-        assert status["last_error"] == "Connection timeout"
-
-
 class TestLidarSensorEdgeCases:
     """Test edge cases for sensor behavior"""
     
@@ -291,3 +161,157 @@ class TestLidarSensorEdgeCases:
         assert pose["roll"] == 0.1
         assert pose["pitch"] == 0.2
         assert pose["yaw"] == 1.57
+
+
+class TestLidarSensorEmitStatus:
+    """Test LidarSensor.emit_status() standardized status reporting"""
+    
+    def test_emit_status_stopped(self):
+        """Worker not started → STOPPED with disconnected status"""
+        mock_manager = Mock()
+        mock_manager.node_runtime_status = {}
+        
+        sensor = LidarSensor(
+            manager=mock_manager,
+            sensor_id="sensor-001",
+            launch_args="test",
+            mode="real",
+            name="Test Sensor"
+        )
+        
+        status = sensor.emit_status()
+        
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.node_id == "sensor-001"
+        assert status.operational_state == OperationalState.STOPPED
+        assert status.application_state is not None
+        assert status.application_state.label == "connection_status"
+        assert status.application_state.value == "disconnected"
+        assert status.application_state.color == "red"
+        assert status.error_message is None
+    
+    def test_emit_status_initialize(self):
+        """Worker spawned → INITIALIZE with starting status"""
+        sensor = LidarSensor(
+            manager=Mock(),
+            sensor_id="sensor-002",
+            launch_args="test",
+            mode="real"
+        )
+        
+        # Simulate runtime status showing process starting
+        runtime_status = {
+            "sensor-002": {
+                "process_alive": True,
+                "connection_status": "starting",
+                "last_error": None,
+            }
+        }
+        sensor.manager.node_runtime_status = runtime_status
+        
+        # Mock alive process
+        sensor._process = MagicMock()
+        sensor._process.is_alive.return_value = True
+        
+        status = sensor.emit_status()
+        
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.INITIALIZE
+        assert status.application_state.label == "connection_status"
+        assert status.application_state.value == "starting"
+        assert status.application_state.color == "orange"
+    
+    def test_emit_status_running(self):
+        """Receiving frames → RUNNING with connected status"""
+        sensor = LidarSensor(
+            manager=Mock(),
+            sensor_id="sensor-003",
+            launch_args="test",
+            mode="real"
+        )
+        
+        # Simulate runtime status showing active connection
+        runtime_status = {
+            "sensor-003": {
+                "process_alive": True,
+                "connection_status": "connected",
+                "last_frame_at": time.time(),
+                "last_error": None,
+            }
+        }
+        sensor.manager.node_runtime_status = runtime_status
+        
+        # Mock alive process
+        sensor._process = MagicMock()
+        sensor._process.is_alive.return_value = True
+        
+        status = sensor.emit_status()
+        
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.RUNNING
+        assert status.application_state.label == "connection_status"
+        assert status.application_state.value == "connected"
+        assert status.application_state.color == "green"
+    
+    def test_emit_status_error(self):
+        """UDP timeout → ERROR with disconnected status and error message"""
+        sensor = LidarSensor(
+            manager=Mock(),
+            sensor_id="sensor-004",
+            launch_args="test",
+            mode="real"
+        )
+        
+        # Simulate runtime status showing error
+        runtime_status = {
+            "sensor-004": {
+                "process_alive": True,
+                "connection_status": "disconnected",
+                "last_error": "UDP socket timeout after 5s",
+            }
+        }
+        sensor.manager.node_runtime_status = runtime_status
+        
+        # Mock alive process (still running but errored)
+        sensor._process = MagicMock()
+        sensor._process.is_alive.return_value = True
+        
+        status = sensor.emit_status()
+        
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.ERROR
+        assert status.application_state.label == "connection_status"
+        assert status.application_state.value == "disconnected"
+        assert status.application_state.color == "red"
+        assert status.error_message == "UDP socket timeout after 5s"
+    
+    def test_emit_status_worker_stopped(self):
+        """Worker process stopped → STOPPED with disconnected status"""
+        sensor = LidarSensor(
+            manager=Mock(),
+            sensor_id="sensor-005",
+            launch_args="test",
+            mode="real"
+        )
+        
+        # Simulate runtime status after stop
+        runtime_status = {
+            "sensor-005": {
+                "process_alive": False,
+                "connection_status": "disconnected",
+                "last_error": None,
+            }
+        }
+        sensor.manager.node_runtime_status = runtime_status
+        
+        # Mock dead process
+        sensor._process = MagicMock()
+        sensor._process.is_alive.return_value = False
+        
+        status = sensor.emit_status()
+        
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.STOPPED
+        assert status.application_state.value == "disconnected"
+        assert status.application_state.color == "red"
+

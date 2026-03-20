@@ -56,18 +56,25 @@ class NodeRecord(BaseModel):
 
 
 class NodeStatusItem(BaseModel):
-    """Runtime status information for a single node."""
-    id: str
+    """Runtime status information for a single node.
+
+    The core fields (node_id, operational_state, application_state,
+    error_message, timestamp) mirror NodeStatusUpdate from the status schema
+    spec.  Additional DB-metadata fields (name, type, category, enabled,
+    visible, topic, throttle_*) are augmented by the REST endpoint.
+    """
+    node_id: str
+    operational_state: str
+    application_state: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    timestamp: Optional[float] = None
+    # DB metadata augmented by the REST endpoint
     name: str
     type: str
     category: str
     enabled: bool
     visible: bool = True
-    running: bool
     topic: Optional[str] = None  # null when visible=false
-    last_frame_at: Optional[float] = None
-    frame_age_seconds: Optional[float] = None
-    last_error: Optional[str] = None
     throttle_ms: float = 0.0
     throttled_count: int = 0
 

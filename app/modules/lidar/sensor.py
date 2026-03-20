@@ -11,6 +11,8 @@ import numpy as np
 from app.core.logging import get_logger
 from app.modules.lidar.core import create_transformation_matrix, pose_to_dict
 from app.services.nodes.base_module import ModuleNode
+from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
+from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
 
@@ -117,10 +119,14 @@ class LidarSensor(ModuleNode):
             self._process.start()
             runtime_status[self.id]["process_alive"] = True
             logger.info(f"Spawned worker for {self.id} (PID: {self._process.pid})")
+            
+            # Notify status change after starting
+            notify_status_change(self.id)
         except Exception as e:
             error_msg = f"Failed to start worker: {e}"
             logger.error(f"[{self.id}] {error_msg}", exc_info=True)
             runtime_status[self.id]["last_error"] = error_msg
+            notify_status_change(self.id)
 
     def stop(self):
         """Stops the worker process for this sensor"""
@@ -146,6 +152,9 @@ class LidarSensor(ModuleNode):
         self._process = None
         self._stop_event = None
         logger.info(f"[{self.id}] Worker process stopped.")
+        
+        # Notify status change after stopping
+        notify_status_change(self.id)
 
     async def handle_data(self, payload: Dict[str, Any], runtime_status: Dict[str, Any]):
         """Handles incoming data explicitly for this Lidar node"""
@@ -161,14 +170,17 @@ class LidarSensor(ModuleNode):
                         runtime_status[self.id]["last_error"] = None
                         runtime_status[self.id]["connection_status"] = "connected"
                         logger.info(f"[{self.id}] Connected: {payload.get('message', '')}")
+                        notify_status_change(self.id)
                     elif event_type == "disconnected":
                         runtime_status[self.id]["last_error"] = f"Disconnected: {payload.get('message', 'Connection lost')}"
                         runtime_status[self.id]["connection_status"] = "disconnected"
                         logger.warning(f"[{self.id}] Disconnected: {payload.get('message', '')}")
+                        notify_status_change(self.id)
                     elif event_type == "error":
                         runtime_status[self.id]["last_error"] = payload.get("message", "Unknown error")
                         runtime_status[self.id]["connection_status"] = "error"
                         logger.error(f"[{self.id}] Error: {payload.get('message', '')}")
+                        notify_status_change(self.id)
                 return
 
             if self.id in runtime_status:
@@ -200,32 +212,57 @@ class LidarSensor(ModuleNode):
             if self.id in runtime_status:
                 runtime_status[self.id]["last_error"] = str(e)
 
-
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Returns standard status for this node"""
-        from app.services.shared.topics import slugify_topic_prefix
+    def emit_status(self) -> NodeStatusUpdate:
+        """Return standardized status for this sensor node.
         
-        runtime_status = runtime_status or {}
-        runtime = runtime_status.get(self.id, {}).copy()
-        last_frame_at = runtime.get("last_frame_at")
-        frame_age = time.time() - last_frame_at if last_frame_at else None
+        Maps sensor lifecycle and connection state to OperationalState:
+        - Process not alive → STOPPED
+        - Process starting up → INITIALIZE
+        - Connected and receiving frames → RUNNING
+        - Connection error with last_error set → ERROR
         
-        # Generate topic using same format as orchestrator: {slugified_name}_{node_id[:8]}
-        safe_name = slugify_topic_prefix(self.name)
-        actual_topic = f"{safe_name}_{self.id[:8]}"
+        Returns:
+            NodeStatusUpdate with operational_state and connection_status application_state
+        """
+        # Read runtime status from manager
+        runtime_status = getattr(self.manager, 'node_runtime_status', {})
+        runtime = runtime_status.get(self.id, {})
         
-        status = {
-            "id": self.id,
-            "name": self.name,
-            "type": "sensor",
-            "mode": self.mode,
-            "topic": actual_topic,  # Match orchestrator format
-            "running": (self._process.is_alive() if self._process else False),
-            "connection_status": runtime.get("connection_status", "unknown"),
-            "last_frame_at": last_frame_at,
-            "frame_age_seconds": frame_age,
-            "last_error": runtime.get("last_error"),
-            "lidar_type": self.lidar_type,
-            "lidar_display_name": self.lidar_display_name,
-        }
-        return status
+        connection_status = runtime.get("connection_status", "disconnected")
+        last_error = runtime.get("last_error")
+        process_alive = self._process.is_alive() if self._process else False
+        
+        # Determine operational state
+        if not process_alive:
+            operational_state = OperationalState.STOPPED
+            app_value = "disconnected"
+            app_color = "red"
+        elif last_error:
+            # Error state - process alive but connection failed
+            operational_state = OperationalState.ERROR
+            app_value = "disconnected"
+            app_color = "red"
+        elif connection_status == "starting":
+            operational_state = OperationalState.INITIALIZE
+            app_value = "starting"
+            app_color = "orange"
+        elif connection_status == "connected":
+            operational_state = OperationalState.RUNNING
+            app_value = "connected"
+            app_color = "green"
+        else:
+            # Fallback: process alive but not connected yet
+            operational_state = OperationalState.STOPPED
+            app_value = "disconnected"
+            app_color = "red"
+        
+        return NodeStatusUpdate(
+            node_id=self.id,
+            operational_state=operational_state,
+            application_state=ApplicationState(
+                label="connection_status",
+                value=app_value,
+                color=app_color,
+            ),
+            error_message=last_error,
+        )

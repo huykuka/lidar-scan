@@ -20,7 +20,9 @@ import time
 import numpy as np
 
 from app.modules.lidar.core import transform_points
+from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
+from app.services.status_aggregator import notify_status_change
 
 
 class FusionService(ModuleNode):
@@ -61,10 +63,12 @@ class FusionService(ModuleNode):
     def enable(self):
         """Activate fusion."""
         self._enabled = True
+        notify_status_change(self.id)
 
     def disable(self):
         """Deactivate fusion."""
         self._enabled = False
+        notify_status_change(self.id)
 
     async def _on_frame(self, payload):
         """Called after each sensor frame is handled. Extracts points and fuses."""
@@ -90,7 +94,11 @@ class FusionService(ModuleNode):
             return
 
         # Store latest frame from this sensor
+        prev_count = len(self._latest_frames)
         self._latest_frames[source_id] = points
+        if len(self._latest_frames) > prev_count:
+            # New sensor contributed — notify status change
+            notify_status_change(self.id)
 
         # Determine which sensors we're waiting for
         if self._filter:
@@ -142,21 +150,48 @@ class FusionService(ModuleNode):
         except Exception as e:
             self.last_error = str(e)
 
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Returns standard status for this node"""
-        last_broadcast_at = self.last_broadcast_at
-        broadcast_age = time.time() - last_broadcast_at if last_broadcast_at else None
-        
-        status = {
-            "id": self.id,
-            "name": self.name,
-            "type": "fusion",
-            "enabled": self._enabled,
-            "running": self._enabled,
-            "sensor_ids": list(self._filter) if self._filter else [],
-            "last_broadcast_at": last_broadcast_at,
-            "broadcast_age_seconds": broadcast_age,
-            "last_error": self.last_error,
-            "input_count": len(self._latest_frames)
-        }
-        return status
+    def emit_status(self) -> NodeStatusUpdate:
+        """Return standardised status for this fusion node.
+
+        State mapping:
+        - ``last_error`` set → ERROR, fusing=0, red, propagate error_message
+        - ``_enabled == False`` → STOPPED, fusing=0, gray
+        - enabled, no frames yet → RUNNING, fusing=0, gray
+        - enabled, frames present → RUNNING, fusing=len(_latest_frames), blue
+
+        Returns:
+            NodeStatusUpdate with operational_state and fusing application_state
+        """
+        if self.last_error:
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.ERROR,
+                application_state=ApplicationState(
+                    label="fusing",
+                    value=0,
+                    color="red",
+                ),
+                error_message=self.last_error,
+            )
+
+        if not self._enabled:
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.STOPPED,
+                application_state=ApplicationState(
+                    label="fusing",
+                    value=0,
+                    color="gray",
+                ),
+            )
+
+        frame_count = len(self._latest_frames)
+        return NodeStatusUpdate(
+            node_id=self.id,
+            operational_state=OperationalState.RUNNING,
+            application_state=ApplicationState(
+                label="fusing",
+                value=frame_count,
+                color="blue" if frame_count > 0 else "gray",
+            ),
+        )

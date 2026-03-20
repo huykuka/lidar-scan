@@ -17,7 +17,9 @@ import numpy as np
 import uuid
 
 from app.core.logging import get_logger
+from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
+from app.services.status_aggregator import notify_status_change
 from app.repositories.node_orm import NodeRepository
 from app.db.session import SessionLocal
 from app.modules.lidar.core.transformations import (
@@ -350,7 +352,8 @@ class CalibrationNode(ModuleNode):
         # Store pending calibrations (for user approval)
         self._pending_calibration = calibration_records
         self._last_calibration_time = datetime.now(timezone.utc).isoformat()
-        
+        notify_status_change(self.id)
+
         return {
             "success": True,
             "run_id": run_id,
@@ -390,6 +393,7 @@ class CalibrationNode(ModuleNode):
             Dict with success status
         """
         self._pending_calibration = None
+        notify_status_change(self.id)
         return {"success": True}
     
     async def _apply_calibration(self, sensor_id: str, record, db_session=None):
@@ -442,51 +446,46 @@ class CalibrationNode(ModuleNode):
         finally:
             if db_session is None:
                 db.close()
-    
-    def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Returns calibration node status + latest results.
-        
-        Args:
-            runtime_status: Optional runtime status dict
-            
+
+    def emit_status(self) -> NodeStatusUpdate:
+        """Return standardised status for this calibration node.
+
+        Maps enabled flag and pending-calibration state to OperationalState:
+        - ``_enabled == False`` → STOPPED, calibrating=False, gray
+        - ``_enabled == True``, no pending calibration → RUNNING, calibrating=False, gray
+        - ``_enabled == True``, pending calibration present → RUNNING, calibrating=True, blue
+
         Returns:
-            Status dict with calibration state
+            NodeStatusUpdate with operational_state and calibrating application_state
         """
-        status = {
-            "id": self.id,
-            "name": self.name,
-            "type": "calibration",
-            "enabled": self._enabled,
-            "reference_sensor": self._reference_sensor_id,
-            "source_sensors": self._source_sensor_ids,
-            "buffered_frames": {
-                sensor_id: len(buf) 
-                for sensor_id, buf in self._frame_buffer.items()
-            },
-            "last_calibration_time": self._last_calibration_time,
-            "has_pending": self._pending_calibration is not None,
-            "pending_results": {}
-        }
-        
-        if self._pending_calibration:
-            status["pending_results"] = {
-                sensor_id: {
-                    "fitness": record.fitness,
-                    "rmse": record.rmse,
-                    "quality": record.quality,
-                    "source_sensor_id": getattr(record, "source_sensor_id", ""),
-                    "processing_chain": getattr(record, "processing_chain", [])
-                }
-                for sensor_id, record in self._pending_calibration.items()
-            }
-        
-        return status
-    
+        if not self._enabled:
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.STOPPED,
+                application_state=ApplicationState(
+                    label="calibrating",
+                    value=False,
+                    color="gray",
+                ),
+            )
+
+        calibrating = self._pending_calibration is not None
+        return NodeStatusUpdate(
+            node_id=self.id,
+            operational_state=OperationalState.RUNNING,
+            application_state=ApplicationState(
+                label="calibrating",
+                value=calibrating,
+                color="blue" if calibrating else "gray",
+            ),
+        )
+
     def enable(self):
         """Activate calibration node"""
         self._enabled = True
-    
+        notify_status_change(self.id)
+
     def disable(self):
         """Deactivate calibration node"""
         self._enabled = False
+        notify_status_change(self.id)

@@ -3,7 +3,7 @@
   [class.grayscale]="!isNodeEnabled()"
   [class.opacity-40]="!isNodeEnabled()"
   [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
-  class="bg-white rounded-lg shadow border  w-48 hover:shadow-md transition-all relative flex flex-col transition-all duration-200"
+  class="bg-white rounded-lg shadow border w-48 hover:shadow-md transition-shadow relative flex flex-col"
 >
   <!-- Input Port -->
   @if (hasInputPort()) {
@@ -53,56 +53,36 @@
   >
     <syn-icon
       [name]="getNodeIcon()"
-      class="text-[16px] shrink-0   flex items-center justify-center -mt-[1px]"
+      class="text-[16px] shrink-0 flex items-center justify-center -mt-[1px]"
     />
 
     <div class="flex items-center gap-1.5 min-w-0 flex-1">
       <span class="font-bold text-[11px] truncate text-syn-color-neutral-900 leading-none py-0.5">
         {{ getNodeName() }}
       </span>
-      <!-- Minimal Status Dot -->
-      <div
-        class="w-2.5 h-2.5 rounded-full shrink-0 border border-white shadow-sm -mt-[0.5px]"
-        [style.background-color]="'var(--syn-color-' + statusBadge().variant + '-600)'"
-        [title]="statusBadge().label"
-      ></div>
     </div>
-
-    <!-- IF Condition State Icon (shows check/X/circle based on routing state) -->
-    @if (isIfConditionNode() && ifStateIcon()) {
-      <syn-icon
-        [name]="ifStateIcon()!.name"
-        [class]="ifStateIcon()!.color + ' text-[14px] shrink-0'"
-        [title]="ifStateIcon()!.title"
+    <syn-icon
+        [name]="operationalIcon().icon"
+        [class]="operationalIcon().css + ' text-[20px] shrink-0'"
+        [title]="status()?.operational_state ?? 'Unknown'"
       />
-    }
-
-    @if (status() && getFrameAge()) {
-      <div
-        [class.text-syn-color-success-600]="!isFrameStale()"
-        [class.text-syn-color-warning-600]="isFrameStale()"
-        class="font-mono text-[9px] font-bold shrink-0 bg-white/60 px-1 rounded-sm border /50 leading-none py-0.5"
-      >
-        {{ getFrameAge() }}
-      </div>
-    }
   </div>
 
   <!-- Runtime Error Section -->
-  @if (status()?.last_error) {
+  @if (errorText()) {
     <div
       class="px-2 py-1.5 bg-syn-color-danger-50 border-t border-syn-color-danger-100/50 text-[10px] text-syn-color-danger-700 leading-tight italic"
     >
       <div class="flex items-start gap-1">
         <syn-icon name="error" class="shrink-0 text-xs mt-0.5" />
-        <span class="break-words line-clamp-2">{{ status()?.last_error }}</span>
+        <span class="break-words line-clamp-2" [title]="errorText()">{{ errorText() }}</span>
       </div>
     </div>
   }
 
   <!-- Node Actions Bar -->
   <div
-    class="px-1.5 py-0.5 border-t  flex items-center justify-between bg-white rounded-b-lg transition-colors"
+    class="px-0.5 py-0.5 border-t  flex items-center justify-between bg-white rounded-b-lg transition-colors"
     [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
   >
     <div class="flex items-center">
@@ -138,4 +118,13 @@
       }
     </div>
   </div>
+  
+  <!-- Application State Label (Node-RED style: colored square + text, floats below node) -->
+  @if (appBadge()) {
+    <div class="absolute -bottom-5 left-0 flex items-center gap-1.5 z-10">
+      <div class="w-2.5 h-2.5 shrink-0"
+           [style.background-color]="appBadge()!.color"></div>
+      <span class="text-[10px] text-gray-500 bg-white px-1 py-0.5 font-normal leading-none">{{ appBadge()!.text }}</span>
+    </div>
+  }
 </div>
