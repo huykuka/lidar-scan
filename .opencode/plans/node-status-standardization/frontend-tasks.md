@@ -15,10 +15,10 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `web/src/app/core/models/node-status.model.ts` *(new)*
 
-- [ ] F1.1 — Create `node-status.model.ts` containing `OperationalState` type literal union, `ApplicationState`, `NodeStatusUpdate`, `NodesStatusResponse` interfaces — exactly as in `api-spec.md § 1.2`
-- [ ] F1.2 — Export all types from `web/src/app/core/models/index.ts`
-- [ ] F1.3 — Remove old `NodeStatus`, `LidarNodeStatus`, `FusionNodeStatus` from `node.model.ts` — superseded by `NodeStatusUpdate`
-- [ ] F1.4 — Resolve all TypeScript compilation errors from the removed types: `ng build --configuration development`
+- [x] F1.1 — Create `node-status.model.ts` containing `OperationalState` type literal union, `ApplicationState`, `NodeStatusUpdate`, `NodesStatusResponse` interfaces — exactly as in `api-spec.md § 1.2`
+- [x] F1.2 — Export all types from `web/src/app/core/models/index.ts`
+- [x] F1.3 — Remove old `NodeStatus`, `LidarNodeStatus`, `FusionNodeStatus` from `node.model.ts` — superseded by `NodeStatusUpdate`
+- [x] F1.4 — Resolve all TypeScript compilation errors from the removed types: `ng build --configuration development`
 
 ---
 
@@ -26,16 +26,16 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `web/src/app/core/services/status-websocket.service.ts` *(modified)*
 
-- [ ] F2.1 — Update `status` signal type to `NodesStatusResponse | null` using the new `NodeStatusUpdate` array shape
-- [ ] F2.2 — Add 50 ms debounce before updating the signal (prevents excess change-detection on rapid updates):
+- [x] F2.1 — Update `status` signal type to `NodesStatusResponse | null` using the new `NodeStatusUpdate` array shape
+- [x] F2.2 — Add 50 ms debounce before updating the signal (prevents excess change-detection on rapid updates):
   ```typescript
   private _pending: NodesStatusResponse | null = null;
   private _debounceId: ReturnType<typeof setTimeout> | null = null;
   ```
   On each `onmessage`: store in `_pending`; if no timer running, start a 50 ms timeout that flushes `_pending` into the signal.
-- [ ] F2.3 — Write unit tests `status-websocket.service.spec.ts`:
-  - [ ] `should parse NodeStatusUpdate array from a WebSocket JSON message`
-  - [ ] `should debounce rapid messages and update signal only once within the 50ms window`
+- [x] F2.3 — Write unit tests `status-websocket.service.spec.ts`:
+  - [x] `should parse NodeStatusUpdate array from a WebSocket JSON message`
+  - [x] `should debounce rapid messages and update signal only once within the 50ms window`
 
 ---
 
@@ -43,17 +43,17 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `web/src/app/core/services/stores/node-store.service.ts` *(modified)*
 
-- [ ] F3.1 — Inject `StatusWebSocketService` (if not already present)
-- [ ] F3.2 — Add computed signal:
+- [x] F3.1 — Inject `StatusWebSocketService` (if not already present)
+- [x] F3.2 — Add computed signal:
   ```typescript
   nodeStatusMap = computed<Map<string, NodeStatusUpdate>>(() => {
     const statuses = this.statusWebSocket.status()?.nodes ?? [];
     return new Map(statuses.map(s => [s.node_id, s]));
   });
   ```
-- [ ] F3.3 — Unit tests:
-  - [ ] `should build a Map keyed by node_id`
-  - [ ] `should return empty Map when status is null`
+- [x] F3.3 — Unit tests:
+  - [x] `should build a Map keyed by node_id`
+  - [x] `should return empty Map when status is null`
 
 ---
 
@@ -63,24 +63,24 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `web/src/app/features/settings/components/flow-canvas/node/flow-canvas-node.component.ts` *(modified)*
 
-- [ ] F4.1 — Change `status` input type to `NodeStatusUpdate | null`
-- [ ] F4.2 — Add `badgeColorMap` constant (semantic name → CSS hex):
+- [x] F4.1 — Change `status` input type to `NodeStatusUpdate | null`
+- [x] F4.2 — Add `badgeColorMap` constant (semantic name → CSS hex):
   ```typescript
   protected readonly badgeColorMap: Record<string, string> = {
     green: '#16a34a', blue: '#2563eb', orange: '#d97706',
     red:   '#dc2626', gray: '#6b7280',
   };
   ```
-- [ ] F4.3 — Add `operationalIcon` computed signal:
+- [x] F4.3 — Add `operationalIcon` computed signal:
   - `INITIALIZE` → `{ icon: 'hourglass_empty', css: 'text-syn-color-warning-600 animate-pulse' }`
   - `RUNNING`    → `{ icon: 'play_circle',     css: 'text-syn-color-success-600' }`
   - `STOPPED`    → `{ icon: 'pause_circle',    css: 'text-syn-color-neutral-400' }`
   - `ERROR`      → `{ icon: 'error',           css: 'text-syn-color-danger-600' }`
   - `null`       → `{ icon: 'radio_button_unchecked', css: 'text-syn-color-neutral-300' }`
-- [ ] F4.4 — Add `appBadge` computed signal: returns `{ text: "${label}: ${value}", color: hex }` from `status()?.application_state`, or `null` if absent. Booleans → `"true"` / `"false"` strings.
-- [ ] F4.5 — Add `errorText` computed signal: returns `status()?.error_message` only when `operational_state === 'ERROR'`, else `null`
-- [ ] F4.6 — Remove obsolete helpers: `statusBadge()`, `getFrameAge()`, `isFrameStale()`, `getStatusColorClass()`, `ifStateIcon()`, `ifStatus`
-- [ ] F4.7 — Remove `IfNodeStatus` import from `flow-control.model.ts` if now unused
+- [x] F4.4 — Add `appBadge` computed signal: returns `{ text: "${label}: ${value}", color: hex }` from `status()?.application_state`, or `null` if absent. Booleans → `"true"` / `"false"` strings.
+- [x] F4.5 — Add `errorText` computed signal: returns `status()?.error_message` only when `operational_state === 'ERROR'`, else `null`
+- [x] F4.6 — Remove obsolete helpers: `statusBadge()`, `getFrameAge()`, `isFrameStale()`, `getStatusColorClass()`, `ifStateIcon()`, `ifStatus`
+- [x] F4.7 — Remove `IfNodeStatus` import from `flow-control.model.ts` if now unused
 
 ---
 
@@ -91,8 +91,8 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 Three isolated changes to the existing template:
 
 **Change 1 — Header: replace status dot with operational icon**
-- [ ] F5.1 — Remove `<div class="w-2.5 h-2.5 rounded-full ...">` (the status dot at line 64)
-- [ ] F5.2 — Add before the node-name `<span>`:
+- [x] F5.1 — Remove `<div class="w-2.5 h-2.5 rounded-full ...">` (the status dot at line 64)
+- [x] F5.2 — Add before the node-name `<span>`:
   ```html
   <syn-icon
     [name]="operationalIcon().icon"
@@ -100,17 +100,17 @@ Three isolated changes to the existing template:
     [title]="status()?.operational_state ?? 'Unknown'"
   />
   ```
-- [ ] F5.3 — Remove the existing `@if (isIfConditionNode() && ifStateIcon())` block (no longer needed)
-- [ ] F5.4 — Remove the frame-age badge `@if (status() && getFrameAge())` block
+- [x] F5.3 — Remove the existing `@if (isIfConditionNode() && ifStateIcon())` block (no longer needed)
+- [x] F5.4 — Remove the frame-age badge `@if (status() && getFrameAge())` block
 
 **Change 2 — Body: passive error display**
-- [ ] F5.5 — Replace `@if (status()?.last_error)` condition with `@if (errorText())`
-- [ ] F5.6 — Replace `{{ status()?.last_error }}` binding with `{{ errorText() }}`
-- [ ] F5.7 — Add `[title]="errorText()"` to the error `<span>` for full text on hover
-- [ ] F5.8 — Keep existing `line-clamp-2` and danger colour classes unchanged
+- [x] F5.5 — Replace `@if (status()?.last_error)` condition with `@if (errorText())`
+- [x] F5.6 — Replace `{{ status()?.last_error }}` binding with `{{ errorText() }}`
+- [x] F5.7 — Add `[title]="errorText()"` to the error `<span>` for full text on hover
+- [x] F5.8 — Keep existing `line-clamp-2` and danger colour classes unchanged
 
 **Change 3 — Bottom-right badge (Node-RED style)**
-- [ ] F5.9 — Add after the last child of the host `<div>`:
+- [x] F5.9 — Add after the last child of the host `<div>`:
   ```html
   @if (appBadge()) {
     <div class="absolute -bottom-3 right-1 flex items-center gap-1
@@ -121,7 +121,7 @@ Three isolated changes to the existing template:
     </div>
   }
   ```
-- [ ] F5.10 — Verify the host `<div>` has `relative` class (it does in the current template)
+- [x] F5.10 — Verify the host `<div>` has `relative` class (it does in the current template)
 
 ---
 
@@ -129,9 +129,9 @@ Three isolated changes to the existing template:
 
 **File**: `web/src/app/features/settings/components/flow-canvas/flow-canvas.component.ts` *(modified)*
 
-- [ ] F6.1 — Inject `NodeStoreService` if not already present
-- [ ] F6.2 — Change per-node status lookup to `nodeStore.nodeStatusMap().get(node.id) ?? null` (returns `NodeStatusUpdate | null`)
-- [ ] F6.3 — Pass the result to `[status]` on `<app-flow-canvas-node>` — the type now matches the updated input
+- [x] F6.1 — Inject `NodeStoreService` if not already present
+- [x] F6.2 — Change per-node status lookup to `nodeStore.nodeStatusMap().get(node.id) ?? null` (returns `NodeStatusUpdate | null`)
+- [x] F6.3 — Pass the result to `[status]` on `<app-flow-canvas-node>` — the type now matches the updated input
 
 ---
 
@@ -139,8 +139,8 @@ Three isolated changes to the existing template:
 
 **File**: `node-calibration-controls/node-calibration-controls.ts` *(check and update if needed)*
 
-- [ ] F7.1 — Check if this component uses the old `NodeStatus` type for its `status` input
-- [ ] F7.2 — If yes, update to `NodeStatusUpdate | null`; derive calibration activity from `status?.application_state?.value === true`
+- [x] F7.1 — Check if this component uses the old `NodeStatus` type for its `status` input
+- [x] F7.2 — If yes, update to `NodeStatusUpdate | null`; derive calibration activity from `status?.application_state?.value === true`
 
 ---
 

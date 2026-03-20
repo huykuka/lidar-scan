@@ -3,7 +3,6 @@ import {Component, computed, inject, input, OnInit, output, signal} from '@angul
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodeConfig, NodeDefinition, PortSchema, PropertySchema} from '@core/models/node.model';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
-import {IfNodeStatus} from '@core/models/flow-control.model';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
 import {NodeCalibrationControls} from './node-calibration-controls/node-calibration-controls';
@@ -58,40 +57,67 @@ export class FlowCanvasNodeComponent {
   protected isIfConditionNode = computed(() => this.nodeCategory() === 'flow_control');
   
   /**
-   * Get IF condition status if this is an IF node
+   * Map semantic color names from application_state to CSS hex colors
    */
-  protected ifStatus = computed(() => {
-    if (!this.isIfConditionNode()) return null;
-    return this.status() as IfNodeStatus | null;
+  protected readonly badgeColorMap: Record<string, string> = {
+    green: '#16a34a',
+    blue: '#2563eb',
+    orange: '#d97706',
+    red: '#dc2626',
+    gray: '#6b7280',
+  };
+  
+  /**
+   * Compute operational state icon and styling
+   */
+  protected operationalIcon = computed<{ icon: string; css: string }>(() => {
+    const status = this.status();
+    if (!status) {
+      return { icon: 'radio_button_unchecked', css: 'text-syn-color-neutral-300' };
+    }
+    
+    switch (status.operational_state) {
+      case 'INITIALIZE':
+        return { icon: 'hourglass_empty', css: 'text-syn-color-warning-600 animate-pulse' };
+      case 'RUNNING':
+        return { icon: 'play_circle', css: 'text-syn-color-success-600' };
+      case 'STOPPED':
+        return { icon: 'pause_circle', css: 'text-syn-color-neutral-400' };
+      case 'ERROR':
+        return { icon: 'error', css: 'text-syn-color-danger-600' };
+      default:
+        return { icon: 'radio_button_unchecked', css: 'text-syn-color-neutral-300' };
+    }
   });
   
   /**
-   * Get icon indicator for IF condition nodes
-   * Shows visual state with colored icons instead of text
+   * Compute application-specific state badge (Node-RED style bottom-right badge)
    */
-  protected ifStateIcon = computed(() => {
-    const ifSt = this.ifStatus();
-    if (!ifSt) return null;
+  protected appBadge = computed<{ text: string; color: string } | null>(() => {
+    const status = this.status();
+    if (!status?.application_state) return null;
     
-    if (ifSt.state === true) {
-      return { 
-        name: 'check_circle', 
-        color: 'text-syn-color-success-600',
-        title: 'Routing to TRUE port'
-      };
-    } else if (ifSt.state === false) {
-      return { 
-        name: 'cancel', 
-        color: 'text-syn-color-danger-600',
-        title: 'Routing to FALSE port'
-      };
-    }
+    const { label, value, color } = status.application_state;
     
-    return { 
-      name: 'radio_button_unchecked', 
-      color: 'text-syn-color-neutral-400',
-      title: 'No routing state yet'
+    // Convert boolean values to strings
+    const displayValue = typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value);
+    
+    // Map semantic color to hex, defaulting to gray if not provided
+    const hexColor = color ? (this.badgeColorMap[color] ?? color) : this.badgeColorMap['gray'];
+    
+    return {
+      text: `${label}: ${displayValue}`,
+      color: hexColor,
     };
+  });
+  
+  /**
+   * Compute error message (only when operational_state is ERROR)
+   */
+  protected errorText = computed<string | null>(() => {
+    const status = this.status();
+    if (!status || status.operational_state !== 'ERROR') return null;
+    return status.error_message ?? null;
   });
   
   /** True when the node definition has WebSocket streaming enabled (default: true when definition is absent). */
@@ -106,49 +132,6 @@ export class FlowCanvasNodeComponent {
   });
 
 
-  statusBadge(): {
-    variant: 'primary' | 'success' | 'neutral' | 'warning' | 'danger';
-    label: string;
-  } {
-    const status = this.status();
-    const enabled = this.node().data.enabled;
-
-    if (!enabled) {
-      return {variant: 'neutral', label: 'Disabled'};
-    }
-
-    if (!status) {
-      return {variant: 'warning', label: 'Unknown'};
-    }
-
-    const lidarStatus = status as LidarNodeStatus;
-    if (lidarStatus.connection_status) {
-      if (lidarStatus.connection_status === 'disconnected') {
-        return {variant: 'danger', label: 'Disconnected'};
-      }
-      if (lidarStatus.connection_status === 'error') {
-        return {variant: 'danger', label: 'Error'};
-      }
-      if (lidarStatus.connection_status === 'starting') {
-        return {variant: 'warning', label: 'Starting'};
-      }
-    }
-
-    if (status.last_error) {
-      return {variant: 'danger', label: 'Error'};
-    }
-
-    if (status.running) {
-      return {variant: 'success', label: 'Running'};
-    }
-
-    if (enabled && !status.running) {
-      return {variant: 'warning', label: 'Starting'};
-    }
-
-    return {variant: 'neutral', label: 'Stopped'};
-  }
-
   getNodeName(): string {
     return this.node().data.name || this.node().id;
   }
@@ -161,68 +144,6 @@ export class FlowCanvasNodeComponent {
   getNodeIcon(): string {
     const definitionIcon = this.nodeDefinition()?.icon;
     return definitionIcon || 'settings_input_component';
-  }
-
-  getFrameAge(): string | null {
-    const status = this.status();
-    if (!status) {
-      return null;
-    }
-
-    let age: number | null = null;
-    if ('frame_age_seconds' in status) {
-      age = (status as LidarNodeStatus).frame_age_seconds ?? null;
-    } else if ('broadcast_age_seconds' in status) {
-      age = (status as FusionNodeStatus).broadcast_age_seconds ?? null;
-    }
-
-    if (age === null) {
-      return null;
-    }
-
-    if (age < 1) {
-      return '<1s';
-    } else if (age < 60) {
-      return `${Math.floor(age)}s`;
-    } else {
-      return `${Math.floor(age / 60)}m`;
-    }
-  }
-
-  isFrameStale(): boolean {
-    const status = this.status();
-    if (!status) {
-      return false;
-    }
-
-    let age: number | null = null;
-    if ('frame_age_seconds' in status) {
-      age = (status as LidarNodeStatus).frame_age_seconds ?? null;
-    } else if ('broadcast_age_seconds' in status) {
-      age = (status as FusionNodeStatus).broadcast_age_seconds ?? null;
-    }
-
-    if (age === null) {
-      return false;
-    }
-
-    return age > 5 && age <= 60;
-  }
-
-  getStatusColorClass(): string {
-    const badge = this.statusBadge();
-    switch (badge.variant) {
-      case 'success':
-        return 'bg-syn-color-success-600';
-      case 'warning':
-        return 'bg-syn-color-warning-600';
-      case 'danger':
-        return 'bg-syn-color-danger-600';
-      case 'primary':
-        return 'bg-syn-color-primary-600';
-      default:
-        return 'bg-syn-color-neutral-400';
-    }
   }
 
   /**

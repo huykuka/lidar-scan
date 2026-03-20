@@ -53,22 +53,13 @@ export class CalibrationViewerComponent {
   private router = inject(Router);
   private nodeStore = inject(NodeStoreService);
   private statusWs = inject(StatusWebSocketService);
-  calibrationNode = computed(() => {
-    const statusResponse = this.statusWs.status();
-    if (!statusResponse) return null;
-
-    // Note: NodeStatusUpdate doesn't have 'type' field - need to get node from nodeStore instead
-    // and match by node_id
-    const nodeId = this.nodeId();
-    const statusUpdate = statusResponse.nodes.find((n: any) => n.node_id === nodeId);
-    
-    // CalibrationNodeStatus comes from a separate API endpoint, not WebSocket
-    // This computed should probably fetch from calibration API, not status WebSocket
-    // For now, return null as this needs backend implementation
+  // TODO: CalibrationNodeStatus comes from a separate API endpoint, not WebSocket
+  // This needs backend implementation of GET /api/calibration/{node_id}/status
+  // For now, returning null with proper type annotation to prevent TypeScript errors
+  calibrationNode = computed<CalibrationNodeStatus | null>(() => {
+    // TODO: Implement when backend provides calibration-specific status endpoint
+    // Example: this.calibrationApi.getNodeStatus(this.nodeId())
     return null;
-    
-    // TODO: Fetch CalibrationNodeStatus from calibration-specific API endpoint
-    // Example: this.calibrationApi.getNodeStatus(nodeId)
   });
   private calibrationApi = inject(CalibrationApiService);
   private toast = inject(ToastService);

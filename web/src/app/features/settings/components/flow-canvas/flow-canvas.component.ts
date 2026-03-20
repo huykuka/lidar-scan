@@ -424,9 +424,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   getNodeStatus(node: CanvasNode) {
-    const status = this.nodesStatus();
-    if (!status) return null;
-    return status.nodes.find((n: any) => n.id === node.id) || null;
+    return this.nodeStore.nodeStatusMap().get(node.id) ?? null;
   }
 
   isNodeLoading(nodeId: string): boolean {

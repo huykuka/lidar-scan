@@ -57,45 +57,27 @@
     />
 
     <div class="flex items-center gap-1.5 min-w-0 flex-1">
+      <!-- Operational State Icon -->
+      <syn-icon
+        [name]="operationalIcon().icon"
+        [class]="operationalIcon().css + ' text-[14px] shrink-0'"
+        [title]="status()?.operational_state ?? 'Unknown'"
+      />
+      
       <span class="font-bold text-[11px] truncate text-syn-color-neutral-900 leading-none py-0.5">
         {{ getNodeName() }}
       </span>
-      <!-- Minimal Status Dot -->
-      <div
-        class="w-2.5 h-2.5 rounded-full shrink-0 border border-white shadow-sm -mt-[0.5px]"
-        [style.background-color]="'var(--syn-color-' + statusBadge().variant + '-600)'"
-        [title]="statusBadge().label"
-      ></div>
     </div>
-
-    <!-- IF Condition State Icon (shows check/X/circle based on routing state) -->
-    @if (isIfConditionNode() && ifStateIcon()) {
-      <syn-icon
-        [name]="ifStateIcon()!.name"
-        [class]="ifStateIcon()!.color + ' text-[14px] shrink-0'"
-        [title]="ifStateIcon()!.title"
-      />
-    }
-
-    @if (status() && getFrameAge()) {
-      <div
-        [class.text-syn-color-success-600]="!isFrameStale()"
-        [class.text-syn-color-warning-600]="isFrameStale()"
-        class="font-mono text-[9px] font-bold shrink-0 bg-white/60 px-1 rounded-sm border /50 leading-none py-0.5"
-      >
-        {{ getFrameAge() }}
-      </div>
-    }
   </div>
 
   <!-- Runtime Error Section -->
-  @if (status()?.last_error) {
+  @if (errorText()) {
     <div
       class="px-2 py-1.5 bg-syn-color-danger-50 border-t border-syn-color-danger-100/50 text-[10px] text-syn-color-danger-700 leading-tight italic"
     >
       <div class="flex items-start gap-1">
         <syn-icon name="error" class="shrink-0 text-xs mt-0.5" />
-        <span class="break-words line-clamp-2">{{ status()?.last_error }}</span>
+        <span class="break-words line-clamp-2" [title]="errorText()">{{ errorText() }}</span>
       </div>
     </div>
   }
@@ -138,4 +120,14 @@
       }
     </div>
   </div>
+  
+  <!-- Application State Badge (Node-RED style bottom-right) -->
+  @if (appBadge()) {
+    <div class="absolute -bottom-3 right-1 flex items-center gap-1
+                bg-white border rounded-full px-1.5 py-0.5 shadow-sm text-[9px] font-mono z-10">
+      <span class="truncate max-w-[80px]">{{ appBadge()!.text }}</span>
+      <div class="w-2 h-2 rounded-full shrink-0"
+           [style.background-color]="appBadge()!.color"></div>
+    </div>
+  }
 </div>
