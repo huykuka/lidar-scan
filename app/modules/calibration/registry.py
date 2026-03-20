@@ -20,6 +20,7 @@ node_schema_registry.register(NodeDefinition(
     category="calibration",
     description="Automatically align multiple LiDAR sensors using Iterative Closest Point (ICP) registration",
     icon="tune",
+    websocket_enabled=False,  # Only computes transformations, no continuous stream
     properties=[
         # ICP Settings
         PropertySchema(

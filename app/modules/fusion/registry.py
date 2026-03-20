@@ -20,6 +20,7 @@ node_schema_registry.register(NodeDefinition(
     category="fusion",
     description="Merges multiple point cloud streams into a unified coordinate system",
     icon="hub",
+    websocket_enabled=True,  # Streams merged point cloud output
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10, help_text="Minimum time between processing frames (0 = no limit)"),
         # Topic is now auto-generated as {node_name}_{node_id[:8]} by NodeManager

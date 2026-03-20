@@ -21,6 +21,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Filter points within/outside bounding box",
     icon="crop",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
@@ -42,6 +43,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Subsamples points using a grid of voxels",
     icon="grid_view",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
@@ -59,6 +61,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Removes noise from the point cloud using statistic",
     icon="auto_fix_normal",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
@@ -78,6 +81,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Removes points with too few neighbors in a sphere",
     icon="blur_on",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
@@ -97,6 +101,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Segments a plane from the point cloud using RANSAC",
     icon="layers",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
@@ -118,6 +123,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Clusters points using the DBSCAN algorithm",
     icon="scatter_plot",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
@@ -137,6 +143,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Detects boundary points based on angle criteria",
     icon="timeline",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
@@ -158,6 +165,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Filter points based on attribute values",
     icon="filter_alt",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
@@ -186,6 +194,7 @@ node_schema_registry.register(NodeDefinition(
     category="operation",
     description="Saves point cloud to PCD files",
     icon="save",
+    websocket_enabled=True,  # Forwards transformed point clouds
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
