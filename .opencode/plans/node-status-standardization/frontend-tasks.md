@@ -148,9 +148,9 @@ Three isolated changes to the existing template:
 
 ### Task F8: Mock Data for Parallel Dev
 
-- [ ] F8.1 — While backend is in progress, create a dev-only helper that pre-seeds `StatusWebSocketService.status` signal with `MOCK_SYSTEM_STATUS` from `api-spec.md § 5`
-- [ ] F8.2 — Gate behind `environment.mockStatus === true`
-- [ ] F8.3 — Cycle through all four `operational_state` values on a 3-second timer to test all visual states
+- [x] F8.1 — While backend is in progress, create a dev-only helper that pre-seeds `StatusWebSocketService.status` signal with `MOCK_SYSTEM_STATUS` from `api-spec.md § 5`
+- [x] F8.2 — Gate behind `environment.mockStatus === true`
+- [x] F8.3 — Cycle through all four `operational_state` values on a 3-second timer to test all visual states
 - [ ] F8.4 — Manual verification: every node type renders the correct icon, badge, and error text in each state
 
 ---

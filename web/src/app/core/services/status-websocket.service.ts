@@ -1,6 +1,7 @@
 import {Injectable, signal} from '@angular/core';
 import {environment} from '../../../environments/environment';
 import {NodesStatusResponse} from '../models/node-status.model';
+import {MOCK_SYSTEM_STATUS, startMockStatusCycling} from './mock-status.helper';
 
 @Injectable({
   providedIn: 'root',
@@ -18,8 +19,20 @@ export class StatusWebSocketService {
   // Debounce state: prevents excess change-detection on rapid updates
   private _pending: NodesStatusResponse | null = null;
   private _debounceId: ReturnType<typeof setTimeout> | null = null;
+  
+  // Mock mode support
+  private _mockCleanup: (() => void) | null = null;
 
   connect(): void {
+    // Check if mock mode is enabled
+    if ((environment as any).mockStatus === true) {
+      console.warn('[StatusWebSocket] Mock mode enabled - using cycling mock data');
+      this.status.set(MOCK_SYSTEM_STATUS);
+      this.connected.set(true);
+      this._mockCleanup = startMockStatusCycling(this.status);
+      return;
+    }
+    
     if (this.ws?.readyState === WebSocket.OPEN) {
       return; // Already connected
     }
@@ -72,6 +85,12 @@ export class StatusWebSocketService {
   }
 
   disconnect(): void {
+    // Clean up mock cycling if active
+    if (this._mockCleanup) {
+      this._mockCleanup();
+      this._mockCleanup = null;
+    }
+    
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
