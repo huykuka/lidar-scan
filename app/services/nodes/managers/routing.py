@@ -168,17 +168,11 @@ class DataRouter:
         targets = self.manager.downstream_map.get(source_id, [])
         
         for target in targets:
-            # Extract target_id (handle both string and dict formats)
-            if isinstance(target, dict):
-                target_id = target.get("target_id")
-                # Port filtering: skip if active_port is set and edge port doesn't match
-                if active_port is not None and target.get("source_port") != active_port:
-                    continue
-            else:
-                target_id = target
-                # Legacy string edges have no port info; skip when port-filtering is active
-                if active_port is not None:
-                    continue
+            # All edges are port-aware dicts: {"target_id": ..., "source_port": ..., "target_port": ...}
+            target_id = target.get("target_id")
+            # Port filtering: skip if active_port is set and edge port doesn't match
+            if active_port is not None and target.get("source_port") != active_port:
+                continue
             
             if not target_id:
                 continue

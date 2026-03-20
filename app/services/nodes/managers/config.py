@@ -172,15 +172,10 @@ class ConfigLoader:
                 if source not in downstream_map:
                     downstream_map[source] = []
                 
-                # If edge has port information, store as dictionary
-                # Otherwise, store as simple string (backwards compatibility)
-                if source_port or target_port:
-                    downstream_map[source].append({
-                        "target_id": target,
-                        "source_port": source_port,
-                        "target_port": target_port
-                    })
-                else:
-                    downstream_map[source].append(target)
+                downstream_map[source].append({
+                    "target_id": target,
+                    "source_port": source_port or "out",
+                    "target_port": target_port or "in"
+                })
         
         return downstream_map

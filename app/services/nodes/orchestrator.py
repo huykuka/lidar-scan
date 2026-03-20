@@ -63,7 +63,7 @@ class NodeManager:
         # Runtime tracking instances
         self.nodes: Dict[str, Any] = {}  # node_id -> node_instance
         self.node_runtime_status: Dict[str, Dict[str, Any]] = {}  # node_id -> status_dict
-        self.downstream_map: Dict[str, List[str]] = {}  # source_id -> [target_ids]
+        self.downstream_map: Dict[str, List[Dict[str, str]]] = {}  # source_id -> [port-aware edge dicts]
         
         # Throttling state per node
         self._throttle_config: Dict[str, float] = {}  # node_id -> throttle_interval_ms

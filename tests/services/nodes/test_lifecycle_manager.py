@@ -103,7 +103,10 @@ class TestLifecycleManagerAsync:
         # Add to manager's nodes and other tracking dicts
         lifecycle_manager.manager.nodes[node_id] = node_instance
         lifecycle_manager.manager.node_runtime_status[node_id] = {"status": "running"}
-        lifecycle_manager.manager.downstream_map[node_id] = ["target1", "target2"]
+        lifecycle_manager.manager.downstream_map[node_id] = [
+            {"target_id": "target1", "source_port": "out", "target_port": "in"},
+            {"target_id": "target2", "source_port": "out", "target_port": "in"},
+        ]
         lifecycle_manager.manager._throttle_config[node_id] = 100.0
         lifecycle_manager.manager._last_process_time[node_id] = 123456.789
         lifecycle_manager.manager._throttled_count[node_id] = 5
