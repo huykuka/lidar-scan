@@ -1,7 +1,7 @@
 import {Component, computed, inject, input, signal} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '../flow-canvas-node.component';
-import {NodeStatus} from '../../../../../../core/models/node.model';
+import {NodeStatusUpdate} from '../../../../../../core/models/node-status.model';
 import {CalibrationApiService} from '../../../../../../core/services/api/calibration-api.service';
 import {CalibrationNodeStatus} from '../../../../../../core/models/calibration.model';
 import {ToastService} from '../../../../../../core/services/toast.service';
@@ -13,11 +13,17 @@ import {ToastService} from '../../../../../../core/services/toast.service';
 })
 export class NodeCalibrationControls {
   node = input.required<CanvasNode>();
-  status = input<NodeStatus | null>(null);
+  status = input<NodeStatusUpdate | null>(null);
   protected calibrationStatus = computed(() => {
     return this.status() as CalibrationNodeStatus | null;
   });
   protected hasPendingCalibration = computed(() => {
+    // In new status system, check application_state.value for calibration activity
+    const appState = this.status()?.application_state;
+    if (appState?.label === 'calibrating' && typeof appState.value === 'boolean') {
+      return appState.value;
+    }
+    // Fallback to old CalibrationNodeStatus if still using legacy format
     return this.calibrationStatus()?.has_pending || false;
   });
   protected isCalibrating = signal<boolean>(false);

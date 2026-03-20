@@ -2,7 +2,8 @@ import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {environment} from '../../../../environments/environment';
 import {firstValueFrom} from 'rxjs';
-import {NodeConfig, NodeDefinition, NodesStatusResponse} from '../../models/node.model';
+import {NodeConfig, NodeDefinition} from '../../models/node.model';
+import {NodesStatusResponse} from '../../models/node-status.model';
 import {LidarConfigValidationRequest, LidarConfigValidationResponse} from '../../models/lidar-profile.model';
 
 @Injectable({

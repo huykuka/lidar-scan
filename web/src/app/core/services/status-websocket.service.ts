@@ -1,6 +1,6 @@
 import {Injectable, signal} from '@angular/core';
 import {environment} from '../../../environments/environment';
-import {NodesStatusResponse} from '../models/node.model';
+import {NodesStatusResponse} from '../models/node-status.model';
 
 @Injectable({
   providedIn: 'root',
@@ -14,6 +14,10 @@ export class StatusWebSocketService {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 1000; // 2 seconds
+  
+  // Debounce state: prevents excess change-detection on rapid updates
+  private _pending: NodesStatusResponse | null = null;
+  private _debounceId: ReturnType<typeof setTimeout> | null = null;
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -34,7 +38,19 @@ export class StatusWebSocketService {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          this.status.set(data);
+          // Store pending update
+          this._pending = data;
+          
+          // Start debounce timer if not already running
+          if (!this._debounceId) {
+            this._debounceId = setTimeout(() => {
+              if (this._pending) {
+                this.status.set(this._pending);
+              }
+              this._pending = null;
+              this._debounceId = null;
+            }, 50); // 50ms debounce window
+          }
         } catch (error) {
           console.error('[StatusWebSocket] Failed to parse message:', error);
         }
@@ -60,6 +76,13 @@ export class StatusWebSocketService {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    
+    // Clear debounce timer
+    if (this._debounceId) {
+      clearTimeout(this._debounceId);
+      this._debounceId = null;
+    }
+    this._pending = null;
 
     if (this.ws) {
       this.ws.close();

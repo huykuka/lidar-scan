@@ -1,7 +1,7 @@
 import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, input} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import {NodeStatus} from '@core/models/node.model';
+import {NodeStatusUpdate} from '@core/models/node-status.model';
 import {NodeCardComponent} from '@core/models/node-plugin.model';
 import {LidarProfilesApiService} from '@core/services/api';
 
@@ -17,7 +17,7 @@ export class SensorNodeCardComponent implements NodeCardComponent {
   lidarProfileService = inject(LidarProfilesApiService)
 
   node = input.required<CanvasNode>();
-  status = input<NodeStatus | null>(null);
+  status = input<NodeStatusUpdate | null>(null);
 
   protected mode = computed(() => this.node().data.config['mode']);
 
@@ -30,9 +30,7 @@ export class SensorNodeCardComponent implements NodeCardComponent {
   });
 
   protected lidarDisplayName = computed(() => {
-    const st = this.status();
-    if (st?.lidar_display_name) return st.lidar_display_name;
-    
+    // Note: lidar_display_name no longer in status - would need to be in node config if needed
     const profile = this.lidarProfile();
     return profile?.display_name || this.lidarType() || 'Unknown';
   });

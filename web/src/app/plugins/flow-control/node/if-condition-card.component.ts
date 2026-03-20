@@ -2,7 +2,7 @@ import { Component, computed, input } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeCardComponent } from '@core/models/node-plugin.model';
 import { CanvasNode } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import { NodeStatus } from '@core/models/node.model';
+import { NodeStatusUpdate } from '@core/models/node-status.model';
 import { IfNodeStatus } from '@core/models/flow-control.model';
 
 /**
@@ -18,7 +18,7 @@ import { IfNodeStatus } from '@core/models/flow-control.model';
 })
 export class IfConditionCardComponent implements NodeCardComponent {
   node = input.required<CanvasNode>();
-  status = input<NodeStatus | null>(null);
+  status = input<NodeStatusUpdate | null>(null);
 
   /**
    * Type-cast status to IfNodeStatus for accessing IF-specific fields

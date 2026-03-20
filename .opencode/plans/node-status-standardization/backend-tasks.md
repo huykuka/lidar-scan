@@ -75,20 +75,20 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `app/modules/lidar/sensor.py`
 
-- [ ] B4.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
-- [ ] B4.2 — Implement `emit_status()`:
+- [x] B4.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
+- [x] B4.2 — Implement `emit_status()`:
   - Process running + connection_status=`"connected"` → `RUNNING`, app_state green
   - Process running + connection_status=`"starting"` → `INITIALIZE`, app_state orange
   - Process running + `last_error` set → `ERROR`, app_state red, propagate error_message
   - Process not alive / None → `STOPPED`, app_state red disconnected
   - Read `connection_status` and `last_error` from `self.manager.node_runtime_status.get(self.id, {})`
-- [ ] B4.3 — Call `notify_status_change(self.id)` in:
+- [x] B4.3 — Call `notify_status_change(self.id)` in:
   - `start()` — after spawning worker process (INITIALIZE)
   - `stop()` — after terminating worker process (STOPPED)
   - The runtime-status update point where `connection_status` changes (in the async reading loop / worker callback)
-- [ ] B4.4 — Update tests `tests/modules/test_lidar_sensor.py`:
-  - [ ] Replace / augment old `test_get_status_*` tests with `test_emit_status_stopped`, `test_emit_status_initialize`, `test_emit_status_running`, `test_emit_status_error`
-  - [ ] Each test asserts `isinstance(status, NodeStatusUpdate)` and checks `operational_state`, `application_state.label`, `application_state.value`, `application_state.color`
+- [x] B4.4 — Update tests `tests/modules/test_lidar_sensor.py`:
+  - [x] Replace / augment old `test_get_status_*` tests with `test_emit_status_stopped`, `test_emit_status_initialize`, `test_emit_status_running`, `test_emit_status_error`
+  - [x] Each test asserts `isinstance(status, NodeStatusUpdate)` and checks `operational_state`, `application_state.label`, `application_state.value`, `application_state.color`
 
 ---
 
@@ -222,9 +222,9 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 ```
 Phase 1 — Schema & Infrastructure
-  [ ] B1 — Pydantic schema (app/schemas/status.py)
-  [ ] B2 — StatusAggregator service
-  [ ] B3 — ModuleNode base class update
+  [x] B1 — Pydantic schema (app/schemas/status.py)
+  [x] B2 — StatusAggregator service
+  [x] B3 — ModuleNode base class update
 
 Phase 2 — Node Implementations
   [ ] B4 — LidarSensor.emit_status()

@@ -1,13 +1,13 @@
 import {InputSignal, OutputEmitterRef, Type} from '@angular/core';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import {NodeStatus} from './node.model';
+import {NodeStatusUpdate} from './node-status.model';
 
 /**
  * Base contract every plugin card component must implement
  */
 export interface NodeCardComponent {
   node: InputSignal<CanvasNode>;
-  status: InputSignal<NodeStatus | null>;
+  status: InputSignal<NodeStatusUpdate | null>;
 }
 
 /**

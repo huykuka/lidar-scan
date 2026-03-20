@@ -1,7 +1,7 @@
 import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, input} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import {NodeStatus} from '@core/models/node.model';
+import {NodeStatusUpdate} from '@core/models/node-status.model';
 import {NodeCardComponent} from '@core/models/node-plugin.model';
 
 @Component({
@@ -14,7 +14,7 @@ import {NodeCardComponent} from '@core/models/node-plugin.model';
 })
 export class OperationNodeCardComponent implements NodeCardComponent {
   node = input.required<CanvasNode>();
-  status = input<NodeStatus | null>(null);
+  status = input<NodeStatusUpdate | null>(null);
 
   protected operationType = computed(() => {
     return this.node().data.config['op_type'] || 'unknown';

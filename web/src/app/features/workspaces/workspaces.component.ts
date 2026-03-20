@@ -64,13 +64,15 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
       const status = this.statusWs.status();
       if (!status) return;
       
-      const nodeIds = status.nodes.map(n => n.id).sort().join(',');
-      const visibilityKey = status.nodes.map(n => `${n.id}:${n.visible}`).sort().join(',');
+      // Use node_id from new NodeStatusUpdate schema
+      const nodeIds = status.nodes.map(n => n.node_id).sort().join(',');
+      // Note: visibility is in NodeConfig, not in status. This effect only tracks node existence changes.
+      // Visibility changes should be tracked separately if needed via nodeStore.nodes()
       
-      if (nodeIds === this.lastNodeIds && visibilityKey === this.lastVisibilityKey) return;
+      if (nodeIds === this.lastNodeIds) return;
       
       this.lastNodeIds = nodeIds;
-      this.lastVisibilityKey = visibilityKey;
+      this.lastVisibilityKey = nodeIds; // Simplified - just track nodes, not visibility
       this.refreshTopics();
     });
   }

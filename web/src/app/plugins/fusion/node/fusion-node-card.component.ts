@@ -1,7 +1,7 @@
 import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, input} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import {NodeStatus} from '@core/models/node.model';
+import {NodeStatusUpdate} from '@core/models/node-status.model';
 import {NodeCardComponent} from '@core/models/node-plugin.model';
 import {inject} from '@angular/core';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
@@ -16,7 +16,7 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
 })
 export class FusionNodeCardComponent implements NodeCardComponent {
   node = input.required<CanvasNode>();
-  status = input<NodeStatus | null>(null);
+  status = input<NodeStatusUpdate | null>(null);
   private nodeStore = inject(NodeStoreService);
 
   protected sensorCount = computed(() => {

@@ -1,7 +1,8 @@
 import {Component, computed, inject, input, OnInit, output, signal} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {FusionNodeStatus, LidarNodeStatus, NodeConfig, NodeDefinition, PortSchema, PropertySchema} from '@core/models/node.model';
+import {NodeConfig, NodeDefinition, PortSchema, PropertySchema} from '@core/models/node.model';
+import {NodeStatusUpdate} from '@core/models/node-status.model';
 import {IfNodeStatus} from '@core/models/flow-control.model';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
@@ -23,7 +24,7 @@ export interface CanvasNode {
 })
 export class FlowCanvasNodeComponent {
   node = input.required<CanvasNode>();
-  status = input<LidarNodeStatus | FusionNodeStatus | null>(null);
+  status = input<NodeStatusUpdate | null>(null);
   isLoading = input<boolean>(false);
   isDragging = input<boolean>(false);
   isTogglingVisibility = input<boolean>(false);

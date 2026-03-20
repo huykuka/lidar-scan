@@ -18,39 +18,6 @@ export interface Edge {
   target_port: string;
 }
 
-export interface NodeStatus {
-  id: string;
-  name: string;
-  type: string;
-  category: string;
-  enabled: boolean;
-  visible: boolean;
-  running: boolean;
-  topic?: string | null; // type must allow `null` when `visible=false`
-  last_error: string | null;
-  // LiDAR specific fields
-  lidar_type?: string;
-  lidar_display_name?: string;
-  // Specific fields for different categories
-  connection_status?: 'connected' | 'disconnected' | 'starting' | 'error';
-  frame_age_seconds?: number;
-  broadcast_age_seconds?: number;
-  // Throttling stats
-  throttle_ms?: number;
-  throttled_count?: number;
-  last_process_time?: number;
-  // Dynamic metrics
-  metrics?: Record<string, any>;
-}
-
-// Aliases for compatibility
-export type LidarNodeStatus = NodeStatus;
-export type FusionNodeStatus = NodeStatus;
-
-export interface NodesStatusResponse {
-  nodes: NodeStatus[];
-}
-
 export interface PropertySchema {
   name: string;
   label: string;
