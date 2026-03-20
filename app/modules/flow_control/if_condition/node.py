@@ -9,6 +9,8 @@ from typing import Any, Dict, Optional
 
 from app.services.nodes.base_module import ModuleNode
 from app.core.logging import get_logger
+from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
+from app.services.status_aggregator import notify_status_change
 from .expression_parser import ExpressionParser
 
 logger = get_logger(__name__)
@@ -105,6 +107,9 @@ class IfConditionNode(ModuleNode):
         # Add condition result to payload for debugging
         payload["condition_result"] = result
         
+        # Notify status aggregator on every evaluation
+        notify_status_change(self.id)
+
         # Route to appropriate downstream nodes
         await self._route_to_port("true" if result else "false", payload)
     
@@ -153,6 +158,41 @@ class IfConditionNode(ModuleNode):
                 except Exception as e:
                     logger.error(f"Error forwarding from {self.id} to {target_id}: {e}")
     
+    def emit_status(self) -> NodeStatusUpdate:
+        """Return standardised status for this if-condition node.
+
+        State mapping:
+        - ``last_error`` set → ERROR, no application_state, propagate error_message
+        - ``state is None`` → RUNNING, no application_state (not yet evaluated)
+        - ``state == True`` → RUNNING, condition="true", green
+        - ``state == False`` → RUNNING, condition="false", red
+
+        Returns:
+            NodeStatusUpdate with operational_state and optional condition application_state
+        """
+        if self.last_error:
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.ERROR,
+                error_message=self.last_error,
+            )
+
+        if self.state is None:
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.RUNNING,
+            )
+
+        return NodeStatusUpdate(
+            node_id=self.id,
+            operational_state=OperationalState.RUNNING,
+            application_state=ApplicationState(
+                label="condition",
+                value="true" if self.state else "false",
+                color="green" if self.state else "red",
+            ),
+        )
+
     def get_status(self, runtime_status: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Return node status for API/status broadcaster.

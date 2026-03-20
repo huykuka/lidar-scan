@@ -278,3 +278,83 @@ class TestIfConditionNodeBackwardsCompatibility:
         
         # forward_data should not be called
         manager.forward_data.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Task B6 — emit_status() tests
+# ---------------------------------------------------------------------------
+
+class TestIfConditionNodeEmitStatus:
+    """Test IfConditionNode.emit_status() standardized status reporting."""
+
+    @pytest.fixture
+    def node(self):
+        manager = Mock()
+        manager.downstream_map = {}
+        manager.forward_data = AsyncMock()
+        return IfConditionNode(
+            manager=manager,
+            node_id="if-node-1",
+            name="Test IF",
+            expression="point_count > 1000",
+        )
+
+    def test_emit_status_no_evaluation(self, node):
+        """state is None (no evaluation yet) → RUNNING, no application_state."""
+        from app.schemas.status import NodeStatusUpdate, OperationalState
+
+        node.state = None
+        node.last_error = None
+
+        status = node.emit_status()
+
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.node_id == "if-node-1"
+        assert status.operational_state == OperationalState.RUNNING
+        assert status.application_state is None
+        assert status.error_message is None
+
+    def test_emit_status_true(self, node):
+        """state == True → RUNNING, condition='true', green."""
+        from app.schemas.status import NodeStatusUpdate, OperationalState
+
+        node.state = True
+        node.last_error = None
+
+        status = node.emit_status()
+
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.RUNNING
+        assert status.application_state is not None
+        assert status.application_state.label == "condition"
+        assert status.application_state.value == "true"
+        assert status.application_state.color == "green"
+
+    def test_emit_status_false(self, node):
+        """state == False → RUNNING, condition='false', red."""
+        from app.schemas.status import NodeStatusUpdate, OperationalState
+
+        node.state = False
+        node.last_error = None
+
+        status = node.emit_status()
+
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.RUNNING
+        assert status.application_state is not None
+        assert status.application_state.label == "condition"
+        assert status.application_state.value == "false"
+        assert status.application_state.color == "red"
+
+    def test_emit_status_error(self, node):
+        """last_error set → ERROR, no application_state, error_message propagated."""
+        from app.schemas.status import NodeStatusUpdate, OperationalState
+
+        node.state = False
+        node.last_error = "Expression evaluation failed: syntax error"
+
+        status = node.emit_status()
+
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.ERROR
+        assert status.error_message == "Expression evaluation failed: syntax error"

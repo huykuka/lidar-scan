@@ -17,7 +17,7 @@ from app.db.migrate import ensure_schema
 from app.db.session import init_engine
 from app.services.nodes.instance import node_manager
 from app.services.shared.recorder import get_recorder
-from app.services.status_broadcaster import start_status_broadcaster, stop_status_broadcaster
+from app.services.status_aggregator import start_status_aggregator, stop_status_aggregator
 from app.services.websocket.manager import manager
 
 logger = get_logger("app")
@@ -120,13 +120,17 @@ async def lifespan(_: FastAPI):
     node_manager.load_config()
     node_manager.start(asyncio.get_running_loop())
     
-    # Start status broadcaster
-    start_status_broadcaster()
+    # Start status aggregator (replaces legacy status_broadcaster)
+    start_status_aggregator()
+    # Emit initial status for all nodes
+    from app.services.status_aggregator import notify_status_change
+    for node_id in node_manager.nodes:
+        notify_status_change(node_id)
 
     yield
 
     # Shutdown
-    stop_status_broadcaster()
+    stop_status_aggregator()
     
     # Stop all active recordings
     await recorder.stop_all_recordings()

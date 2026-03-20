@@ -5,9 +5,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict
 
+from app.core.logging import get_logger
 from app.repositories import NodeRepository, EdgeRepository
 from app.services.nodes.instance import node_manager
 from app.services.nodes.schema import node_schema_registry
+
+logger = get_logger(__name__)
 
 
 class NodeCreateUpdate(BaseModel):
@@ -162,9 +165,8 @@ async def reload_all_config():
 
 
 async def get_nodes_status():
-    """Returns runtime status of all nodes based on their engine handlers"""
-    # Build a unified status list from the running service
-    nodes_status = []
+    """Returns runtime status of all nodes using the standardised emit_status() interface."""
+    status_updates = []
     
     repo = NodeRepository()
     nodes = repo.list()
@@ -173,37 +175,52 @@ async def get_nodes_status():
         node_id = cnfg["id"]
         node_instance = node_manager.nodes.get(node_id)
         
-        if node_instance and hasattr(node_instance, "get_status"):
-            status = node_instance.get_status(node_manager.node_runtime_status)
-            # Re-add category from DB if not in runtime status
-            status["category"] = cnfg["category"]
-            status["enabled"] = cnfg["enabled"]
-            status["visible"] = cnfg.get("visible", True)
-            
-            # Set topic based on visibility and node instance
-            if hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is None:
-                status["topic"] = None  # Invisible running node
-            else:
-                # Auto-generate topic: {node_name}_{node_id[:8]}
-                node_name = getattr(node_instance, "name", node_id)
-                status["topic"] = f"{node_name}_{node_id[:8]}"
-            
-            # Add throttling stats from NodeManager
-            throttle_stats = node_manager.get_throttle_stats(node_id)
-            status.update(throttle_stats)
-            
-            nodes_status.append(status)
+        if node_instance and hasattr(node_instance, "emit_status"):
+            try:
+                status = node_instance.emit_status()
+                entry = status.model_dump()
+            except Exception as e:
+                logger.warning(f"[get_nodes_status] emit_status() failed for {node_id}: {e}")
+                continue
+        elif node_instance and hasattr(node_instance, "get_status"):
+            # Fallback for nodes not yet migrated (should not happen after B4-B8)
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", DeprecationWarning)
+                raw = node_instance.get_status(node_manager.node_runtime_status)
+            entry = {
+                "node_id": node_id,
+                "operational_state": "RUNNING" if raw.get("running") else "STOPPED",
+                "application_state": raw.get("application_state"),
+                "error_message": raw.get("last_error"),
+                "timestamp": time.time(),
+            }
         else:
-            nodes_status.append({
-                "id": node_id,
-                "name": cnfg["name"],
-                "type": cnfg["type"],
-                "category": cnfg["category"],
-                "enabled": cnfg["enabled"],
-                "visible": cnfg.get("visible", True),
-                "running": False,
-                "topic": None,  # Non-running nodes don't have topics
-                "last_error": "Node instance not found"
-            })
+            entry = {
+                "node_id": node_id,
+                "operational_state": "STOPPED",
+                "application_state": None,
+                "error_message": "Node instance not found",
+                "timestamp": time.time(),
+            }
+        
+        # Augment with DB metadata that the frontend needs
+        entry["category"] = cnfg["category"]
+        entry["enabled"] = cnfg["enabled"]
+        entry["visible"] = cnfg.get("visible", True)
+        entry["name"] = cnfg["name"]
+        entry["type"] = cnfg["type"]
+        
+        # Derive WebSocket topic (None for invisible nodes)
+        if node_instance and hasattr(node_instance, "_ws_topic"):
+            entry["topic"] = node_instance._ws_topic
+        else:
+            entry["topic"] = None
+        
+        # Add throttling stats
+        throttle_stats = node_manager.get_throttle_stats(node_id)
+        entry.update(throttle_stats)
+        
+        status_updates.append(entry)
     
-    return {"nodes": nodes_status}
+    return {"nodes": status_updates}

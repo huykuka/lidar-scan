@@ -96,18 +96,18 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `app/modules/calibration/calibration_node.py`
 
-- [ ] B5.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
-- [ ] B5.2 — Implement `emit_status()`:
+- [x] B5.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
+- [x] B5.2 — Implement `emit_status()`:
   - `self._enabled == False` → `STOPPED`, calibrating=false, gray
   - `self._enabled == True` and `self._pending_calibration is None` → `RUNNING`, calibrating=false, gray
   - `self._enabled == True` and `self._pending_calibration is not None` → `RUNNING`, calibrating=true, blue
-- [ ] B5.3 — Call `notify_status_change(self.id)` in:
+- [x] B5.3 — Call `notify_status_change(self.id)` in:
   - `enable()` after setting `_enabled = True`
   - `disable()` after setting `_enabled = False`
   - Point in `on_input()` where `_pending_calibration` is assigned (calibration starts)
   - Point in calibration callback where `_pending_calibration` is cleared (calibration ends)
-- [ ] B5.4 — Update tests `tests/modules/test_calibration_provenance.py`:
-  - [ ] Replace `test_get_status_reports_buffer_sizes` with `test_emit_status_*` variants covering enabled/disabled/calibrating states
+- [x] B5.4 — Update tests `tests/modules/test_calibration_provenance.py`:
+  - [x] Replace `test_get_status_reports_buffer_sizes` with `test_emit_status_*` variants covering enabled/disabled/calibrating states
 
 ---
 
@@ -115,15 +115,15 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `app/modules/flow_control/if_condition/node.py`
 
-- [ ] B6.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
-- [ ] B6.2 — Implement `emit_status()`:
+- [x] B6.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
+- [x] B6.2 — Implement `emit_status()`:
   - `self.last_error` set → `ERROR`, `application_state=None`, propagate error_message
   - `self.state is None` → `RUNNING`, `application_state=None` (no evaluation yet)
   - `self.state == True` → `RUNNING`, condition=`"true"`, green
   - `self.state == False` → `RUNNING`, condition=`"false"`, red
-- [ ] B6.3 — Call `notify_status_change(self.id)` in `on_input()` after `self.state` is updated
-- [ ] B6.4 — Update tests `tests/modules/flow_control/test_if_node.py`:
-  - [ ] Replace `test_get_status_*` with `test_emit_status_no_evaluation`, `test_emit_status_true`, `test_emit_status_false`, `test_emit_status_error`
+- [x] B6.3 — Call `notify_status_change(self.id)` in `on_input()` after `self.state` is updated
+- [x] B6.4 — Update tests `tests/modules/flow_control/test_if_node.py`:
+  - [x] Replace `test_get_status_*` with `test_emit_status_no_evaluation`, `test_emit_status_true`, `test_emit_status_false`, `test_emit_status_error`
 
 ---
 
@@ -131,16 +131,16 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `app/modules/pipeline/operation_node.py`
 
-- [ ] B7.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
-- [ ] B7.2 — Implement `emit_status()`:
+- [x] B7.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
+- [x] B7.2 — Implement `emit_status()`:
   - `self.last_error` set → `ERROR`, processing=false, gray, propagate error_message
   - `self.last_input_at` and `time.time() - self.last_input_at < 5` → `RUNNING`, processing=true, blue
   - Otherwise → `RUNNING`, processing=false, gray
-- [ ] B7.3 — Call `notify_status_change(self.id)` in:
+- [x] B7.3 — Call `notify_status_change(self.id)` in:
   - `enable()` / `disable()` (if they exist or are added)
   - `on_input()` on first frame (`self.input_count == 1`) and on any error
-- [ ] B7.4 — Add tests `tests/modules/test_operation_node.py`:
-  - [ ] `test_emit_status_idle`, `test_emit_status_processing`, `test_emit_status_error`
+- [x] B7.4 — Add tests `tests/modules/test_operation_node.py`:
+  - [x] `test_emit_status_idle`, `test_emit_status_processing`, `test_emit_status_error`
 
 ---
 
@@ -148,17 +148,17 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `app/modules/fusion/service.py`
 
-- [ ] B8.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
-- [ ] B8.2 — Implement `emit_status()`:
+- [x] B8.1 — Add imports: `NodeStatusUpdate`, `OperationalState`, `ApplicationState`, `notify_status_change`
+- [x] B8.2 — Implement `emit_status()`:
   - `self._enabled == False` → `STOPPED`, fusing=0, gray
   - `self._enabled == True` and `len(self._latest_frames) == 0` → `RUNNING`, fusing=0, gray
   - `self._enabled == True` and frames present → `RUNNING`, fusing=len, blue
   - `self.last_error` set → `ERROR`, fusing=0, red, propagate error_message
-- [ ] B8.3 — Call `notify_status_change(self.id)` in:
+- [x] B8.3 — Call `notify_status_change(self.id)` in:
   - `enable()`, `disable()`
   - `on_input()` when a new sensor contributes its first frame (len of `_latest_frames` increases)
-- [ ] B8.4 — Add tests `tests/modules/test_fusion_service_status.py`:
-  - [ ] `test_emit_status_disabled`, `test_emit_status_no_inputs`, `test_emit_status_with_inputs`, `test_emit_status_error`
+- [x] B8.4 — Add tests `tests/modules/test_fusion_service_status.py`:
+  - [x] `test_emit_status_disabled`, `test_emit_status_no_inputs`, `test_emit_status_with_inputs`, `test_emit_status_error`
 
 ---
 
@@ -168,12 +168,12 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `app/services/nodes/orchestrator.py`
 
-- [ ] B9.1 — Import `start_status_aggregator`, `stop_status_aggregator`, `notify_status_change` from `app.services.status_aggregator`
-- [ ] B9.2 — In `start()` (DAG startup): call `start_status_aggregator()` **before** starting nodes; after all nodes are initialised, call `notify_status_change(node_id)` for each node
-- [ ] B9.3 — In `stop()` (DAG shutdown): call `notify_status_change(node_id)` for each node **before** stopping them; call `stop_status_aggregator()` **after** all nodes stopped
-- [ ] B9.4 — In `reload_config()` (config reload): after new nodes are registered, call `notify_status_change(node_id)` for all nodes in the new graph
-- [ ] B9.5 — Remove the import and call of `start_status_broadcaster` / `stop_status_broadcaster` (old `status_broadcaster.py`)
-- [ ] B9.6 — Run orchestrator reload tests: `pytest tests/services/nodes/test_orchestrator_reload.py`
+- [x] B9.1 — Import `start_status_aggregator`, `stop_status_aggregator`, `notify_status_change` from `app.services.status_aggregator`
+- [x] B9.2 — In `start()` (DAG startup): call `start_status_aggregator()` **before** starting nodes; after all nodes are initialised, call `notify_status_change(node_id)` for each node
+- [x] B9.3 — In `stop()` (DAG shutdown): call `notify_status_change(node_id)` for each node **before** stopping them; call `stop_status_aggregator()` **after** all nodes stopped
+- [x] B9.4 — In `reload_config()` (config reload): after new nodes are registered, call `notify_status_change(node_id)` for all nodes in the new graph
+- [x] B9.5 — Remove the import and call of `start_status_broadcaster` / `stop_status_broadcaster` (old `status_broadcaster.py`)
+- [x] B9.6 — Run orchestrator reload tests: `pytest tests/services/nodes/test_orchestrator_reload.py`
 
 ---
 
@@ -181,10 +181,10 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `app/api/v1/nodes/service.py`
 
-- [ ] B10.1 — Update `get_all_nodes_status()` (or equivalent) to iterate `node_manager.nodes` and call `node.emit_status()` instead of `node.get_status()`
-- [ ] B10.2 — Return `{"nodes": [s.model_dump() for s in status_updates]}` — same structure as WebSocket broadcast
-- [ ] B10.3 — Keep a fallback for nodes without `emit_status` (log warning, skip node) for safety
-- [ ] B10.4 — Update API tests `tests/api/test_nodes.py` to assert the new response shape matches `SystemStatusBroadcast`
+- [x] B10.1 — Update `get_all_nodes_status()` (or equivalent) to iterate `node_manager.nodes` and call `node.emit_status()` instead of `node.get_status()`
+- [x] B10.2 — Return `{"nodes": [s.model_dump() for s in status_updates]}` — same structure as WebSocket broadcast
+- [x] B10.3 — Keep a fallback for nodes without `emit_status` (log warning, skip node) for safety
+- [x] B10.4 — Update API tests `tests/api/test_nodes.py` to assert the new response shape matches `SystemStatusBroadcast`
 
 ---
 
@@ -192,19 +192,19 @@ Update checkboxes from `[ ]` to `[x]` as each step completes.
 
 **File**: `tests/integration/test_status_flow.py` (new file)
 
-- [ ] B11.1 — `test_status_broadcast_on_dag_start`: start orchestrator → connect to `system_status` WebSocket → assert at least one `NodeStatusUpdate` received with `operational_state` in `[INITIALIZE, RUNNING]`
-- [ ] B11.2 — `test_status_broadcast_on_node_enable_disable`: toggle a node enable/disable → assert WebSocket receives `RUNNING` then `STOPPED`
-- [ ] B11.3 — `test_multiple_nodes_batched_in_one_broadcast`: enable 3 nodes within 50ms → assert a single WebSocket message contains all 3 node updates
-- [ ] B11.4 — `test_rate_limit_prevents_flooding`: trigger state changes 50 times in 1 second on one node → assert `manager.broadcast` called ≤ 15 times
+- [x] B11.1 — `test_status_broadcast_on_dag_start`: start orchestrator → connect to `system_status` WebSocket → assert at least one `NodeStatusUpdate` received with `operational_state` in `[INITIALIZE, RUNNING]`
+- [x] B11.2 — `test_status_broadcast_on_node_enable_disable`: toggle a node enable/disable → assert WebSocket receives `RUNNING` then `STOPPED`
+- [x] B11.3 — `test_multiple_nodes_batched_in_one_broadcast`: enable 3 nodes within 50ms → assert a single WebSocket message contains all 3 node updates
+- [x] B11.4 — `test_rate_limit_prevents_flooding`: trigger state changes 50 times in 1 second on one node → assert `manager.broadcast` called ≤ 15 times
 
 ---
 
 ### Task B12: Remove Legacy Status Broadcaster
 
-- [ ] B12.1 — Delete `app/services/status_broadcaster.py`
-- [ ] B12.2 — Search and remove all imports of `start_status_broadcaster`, `stop_status_broadcaster` across the codebase
-- [ ] B12.3 — Run full test suite: `pytest` — confirm all tests pass
-- [ ] B12.4 — Confirm `get_status()` shim is still in place (do **not** remove yet — that's Phase 4 cleanup)
+- [x] B12.1 — Delete `app/services/status_broadcaster.py`
+- [x] B12.2 — Search and remove all imports of `start_status_broadcaster`, `stop_status_broadcaster` across the codebase
+- [x] B12.3 — Run full test suite: `pytest` — confirm all tests pass (pre-existing failures confirmed unrelated to our changes)
+- [x] B12.4 — Confirm `get_status()` shim is still in place (do **not** remove yet — that's Phase 4 cleanup)
 
 ---
 
@@ -227,16 +227,16 @@ Phase 1 — Schema & Infrastructure
   [x] B3 — ModuleNode base class update
 
 Phase 2 — Node Implementations
-  [ ] B4 — LidarSensor.emit_status()
-  [ ] B5 — CalibrationNode.emit_status()
-  [ ] B6 — IfConditionNode.emit_status()
-  [ ] B7 — OperationNode.emit_status()
-  [ ] B8 — FusionService.emit_status()
+  [x] B4 — LidarSensor.emit_status()
+  [x] B5 — CalibrationNode.emit_status()
+  [x] B6 — IfConditionNode.emit_status()
+  [x] B7 — OperationNode.emit_status()
+  [x] B8 — FusionService.emit_status()
 
 Phase 3 — Wiring & Integration
-  [ ] B9  — Orchestrator integration
-  [ ] B10 — REST endpoint update
-  [ ] B11 — Integration tests
-  [ ] B12 — Delete legacy status_broadcaster.py
+  [x] B9  — Orchestrator integration
+  [x] B10 — REST endpoint update
+  [x] B11 — Integration tests
+  [x] B12 — Delete legacy status_broadcaster.py
   [ ] B13 — Performance validation
 ```

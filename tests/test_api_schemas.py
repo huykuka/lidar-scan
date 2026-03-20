@@ -110,29 +110,28 @@ class TestNodeSchemas:
     def test_node_status_item_creation(self):
         """NodeStatusItem should accept all fields with proper defaults"""
         item = NodeStatusItem(
-            id="test-uuid",
+            node_id="test-uuid",
             name="Test Node",
             type="sensor",
             category="sensor",
             enabled=True,
-            running=False
+            operational_state="RUNNING",
         )
         assert item.throttle_ms == 0.0  # default
         assert item.throttled_count == 0  # default
         assert item.topic is None  # optional
-        assert item.last_frame_at is None  # optional
-        assert item.frame_age_seconds is None  # optional
-        assert item.last_error is None  # optional
+        assert item.application_state is None  # optional
+        assert item.error_message is None  # optional
         
     def test_node_status_item_throttle_defaults(self):
         """NodeStatusItem should have correct throttle defaults"""
         item = NodeStatusItem(
-            id="test-uuid",
+            node_id="test-uuid",
             name="Test Node", 
             type="sensor",
             category="sensor",
             enabled=True,
-            running=False,
+            operational_state="STOPPED",
             throttle_ms=100.0,
             throttled_count=5
         )
@@ -143,26 +142,26 @@ class TestNodeSchemas:
         """NodesStatusResponse should wrap list of NodeStatusItem"""
         items = [
             NodeStatusItem(
-                id="test-uuid-1",
+                node_id="test-uuid-1",
                 name="Node 1",
                 type="sensor",
                 category="sensor", 
                 enabled=True,
-                running=True
+                operational_state="RUNNING",
             ),
             NodeStatusItem(
-                id="test-uuid-2",
+                node_id="test-uuid-2",
                 name="Node 2",
                 type="fusion",
                 category="fusion",
                 enabled=True, 
-                running=False
+                operational_state="STOPPED",
             )
         ]
         response = NodesStatusResponse(nodes=items)
         assert len(response.nodes) == 2
-        assert response.nodes[0].id == "test-uuid-1"
-        assert response.nodes[1].id == "test-uuid-2"
+        assert response.nodes[0].node_id == "test-uuid-1"
+        assert response.nodes[1].node_id == "test-uuid-2"
 
 
 class TestEdgeSchemas:

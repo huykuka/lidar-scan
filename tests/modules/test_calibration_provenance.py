@@ -261,3 +261,70 @@ class TestCalibrationNodeProvenance:
         assert isinstance(status["buffered_frames"], dict)
         assert status["buffered_frames"]["sensor-A"] == 3
         assert status["buffered_frames"]["sensor-B"] == 5
+
+
+# ---------------------------------------------------------------------------
+# Task B5 — emit_status() tests
+# ---------------------------------------------------------------------------
+
+class TestCalibrationNodeEmitStatus:
+    """Test CalibrationNode.emit_status() standardized status reporting."""
+
+    @pytest.fixture
+    def mock_manager(self):
+        manager = Mock()
+        manager.forward_data = AsyncMock()
+        manager.reload_config = Mock()
+        return manager
+
+    @pytest.fixture
+    def calibration_node(self, mock_manager):
+        config = {"name": "Test Calibration", "max_buffered_frames": 30}
+        return CalibrationNode(mock_manager, "calib-node-1", config)
+
+    def test_emit_status_disabled(self, calibration_node):
+        """Node disabled → STOPPED, calibrating=false, gray."""
+        from app.schemas.status import NodeStatusUpdate, OperationalState
+
+        calibration_node._enabled = False
+
+        status = calibration_node.emit_status()
+
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.node_id == "calib-node-1"
+        assert status.operational_state == OperationalState.STOPPED
+        assert status.application_state is not None
+        assert status.application_state.label == "calibrating"
+        assert status.application_state.value is False
+        assert status.application_state.color == "gray"
+        assert status.error_message is None
+
+    def test_emit_status_enabled_idle(self, calibration_node):
+        """Node enabled, no pending calibration → RUNNING, calibrating=false, gray."""
+        from app.schemas.status import NodeStatusUpdate, OperationalState
+
+        calibration_node._enabled = True
+        calibration_node._pending_calibration = None
+
+        status = calibration_node.emit_status()
+
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.RUNNING
+        assert status.application_state.label == "calibrating"
+        assert status.application_state.value is False
+        assert status.application_state.color == "gray"
+
+    def test_emit_status_calibrating(self, calibration_node):
+        """Node enabled, pending calibration → RUNNING, calibrating=true, blue."""
+        from app.schemas.status import NodeStatusUpdate, OperationalState
+
+        calibration_node._enabled = True
+        calibration_node._pending_calibration = {"sensor-A": Mock()}
+
+        status = calibration_node.emit_status()
+
+        assert isinstance(status, NodeStatusUpdate)
+        assert status.operational_state == OperationalState.RUNNING
+        assert status.application_state.label == "calibrating"
+        assert status.application_state.value is True
+        assert status.application_state.color == "blue"
