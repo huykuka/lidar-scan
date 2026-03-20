@@ -97,7 +97,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       const nodes = this.nodes();
       untracked(() => {
         this.mergeCanvasNodes(nodes);
-        setTimeout(() => this.isCanvasLoading.set(false), 50);
+        this.isCanvasLoading.set(false);
       });
     });
 
@@ -525,43 +525,40 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   private updateConnections(): void {
-    const connections: Connection[] = [];
     const nodes = this.canvasNodes();
     const edges = this.edges();
-
-    // Create a map for fast lookup of node instances by ID
     const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    const prev = new Map(this.connections().map((c) => [c.id, c]));
+
+    const next: Connection[] = [];
 
     edges.forEach((edge) => {
       const sourceNode = nodeMap.get(edge.source_node);
       const targetNode = nodeMap.get(edge.target_node);
+      if (!sourceNode || !targetNode) return;
 
-      if (sourceNode && targetNode) {
-        const sourceDef = this.nodeStore.nodeDefinitions().find((d) => d.type === sourceNode.data.type);
-        const outputPorts = sourceDef?.outputs ?? [];
-        const portIndex = outputPorts.findIndex((p) => p.id === edge.source_port);
-        const totalOutputs = outputPorts.length;
-        
-        // Determine edge color based on source port ID
-        let color = '#6366f1'; // Default blue
-        if (edge.source_port === 'true') {
-          color = '#16a34a'; // Green for true port
-        } else if (edge.source_port === 'false') {
-          color = '#f97316'; // Orange for false port
-        }
-        
-        const path = this.calculatePath(sourceNode, targetNode, portIndex >= 0 ? portIndex : 0, totalOutputs);
-        connections.push({
-          id: edge.id,
-          from: edge.source_node,
-          to: edge.target_node,
-          path,
-          color,
-        });
+      const sourceDef = this.nodeStore.nodeDefinitions().find((d) => d.type === sourceNode.data.type);
+      const outputPorts = sourceDef?.outputs ?? [];
+      const portIndex = outputPorts.findIndex((p) => p.id === edge.source_port);
+      const totalOutputs = outputPorts.length;
+
+      let color = '#6366f1';
+      if (edge.source_port === 'true') color = '#16a34a';
+      else if (edge.source_port === 'false') color = '#f97316';
+
+      const path = this.calculatePath(sourceNode, targetNode, portIndex >= 0 ? portIndex : 0, totalOutputs);
+
+      const existing = prev.get(edge.id);
+      if (existing && existing.path === path && existing.color === color) {
+        // Path and color unchanged — reuse the same object reference so Angular's
+        // @for track keeps the DOM node alive and the draw-in animation does NOT replay.
+        next.push(existing);
+      } else {
+        next.push({ id: edge.id, from: edge.source_node, to: edge.target_node, path, color });
       }
     });
 
-    this.connections.set(connections);
+    this.connections.set(next);
   }
 
   private calculatePath(fromNode: CanvasNode, toNode: CanvasNode, fromPortIndex: number = 0, totalOutputPorts: number = 1): string {

@@ -21,11 +21,11 @@ export class NodeVisibilityToggleComponent {
 
   protected getTooltipText(): string {
     const nodeName = this.node().name || 'Node';
-    return this.node().visible ? `Hide ${nodeName}` : `Show ${nodeName}`;
+    return this.node().visible ? `Hide ${nodeName} from 3D view` : `Show ${nodeName} in 3D view`;
   }
 
   protected getAriaLabel(): string {
     const nodeName = this.node().name || 'Node';
-    return this.node().visible ? `Hide node ${nodeName}` : `Show node ${nodeName}`;
+    return this.node().visible ? `Hide node ${nodeName} from 3D view` : `Show node ${nodeName} in 3D view`;
   }
 }

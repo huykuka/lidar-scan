@@ -3,7 +3,7 @@
   [class.grayscale]="!isNodeEnabled()"
   [class.opacity-40]="!isNodeEnabled()"
   [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
-  class="bg-white rounded-lg shadow border  w-48 hover:shadow-md transition-all relative flex flex-col transition-all duration-200"
+  class="bg-white rounded-lg shadow border w-48 hover:shadow-md transition-shadow relative flex flex-col"
 >
   <!-- Input Port -->
   @if (hasInputPort()) {
@@ -53,21 +53,19 @@
   >
     <syn-icon
       [name]="getNodeIcon()"
-      class="text-[16px] shrink-0   flex items-center justify-center -mt-[1px]"
+      class="text-[16px] shrink-0 flex items-center justify-center -mt-[1px]"
     />
 
     <div class="flex items-center gap-1.5 min-w-0 flex-1">
-      <!-- Operational State Icon -->
-      <syn-icon
-        [name]="operationalIcon().icon"
-        [class]="operationalIcon().css + ' text-[14px] shrink-0'"
-        [title]="status()?.operational_state ?? 'Unknown'"
-      />
-      
       <span class="font-bold text-[11px] truncate text-syn-color-neutral-900 leading-none py-0.5">
         {{ getNodeName() }}
       </span>
     </div>
+    <syn-icon
+        [name]="operationalIcon().icon"
+        [class]="operationalIcon().css + ' text-[20px] shrink-0'"
+        [title]="status()?.operational_state ?? 'Unknown'"
+      />
   </div>
 
   <!-- Runtime Error Section -->
@@ -84,7 +82,7 @@
 
   <!-- Node Actions Bar -->
   <div
-    class="px-1.5 py-0.5 border-t  flex items-center justify-between bg-white rounded-b-lg transition-colors"
+    class="px-0.5 py-0.5 border-t  flex items-center justify-between bg-white rounded-b-lg transition-colors"
     [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
   >
     <div class="flex items-center">
@@ -121,13 +119,12 @@
     </div>
   </div>
   
-  <!-- Application State Badge (Node-RED style bottom-right) -->
+  <!-- Application State Label (Node-RED style: colored square + text, floats below node) -->
   @if (appBadge()) {
-    <div class="absolute -bottom-3 right-1 flex items-center gap-1
-                bg-white border rounded-full px-1.5 py-0.5 shadow-sm text-[9px] font-mono z-10">
-      <span class="truncate max-w-[80px]">{{ appBadge()!.text }}</span>
-      <div class="w-2 h-2 rounded-full shrink-0"
+    <div class="absolute -bottom-5 left-0 flex items-center gap-1.5 z-10">
+      <div class="w-2.5 h-2.5 shrink-0"
            [style.background-color]="appBadge()!.color"></div>
+      <span class="text-[10px] text-gray-500 bg-white px-1 py-0.5 font-normal leading-none">{{ appBadge()!.text }}</span>
     </div>
   }
 </div>

@@ -203,6 +203,36 @@ describe('FlowCanvasNodeComponent', () => {
       expect(badge?.color).toBe('#6b7280'); // gray fallback
     });
 
+    it('should render Node-RED style label: colored square on left, muted text, no border/pill', () => {
+      const status: NodeStatusUpdate = {
+        node_id: 'test-node-id',
+        operational_state: 'RUNNING',
+        application_state: { label: 'connected', value: true, color: 'green' },
+        timestamp: Date.now() / 1000,
+      };
+      fixture.componentRef.setInput('status', status);
+      fixture.detectChanges();
+
+      const compiled = fixture.nativeElement as HTMLElement;
+      // Container must be absolute, anchored bottom-left, no border class
+      const container = compiled.querySelector<HTMLElement>('div[class*="-bottom-5"]');
+      expect(container).toBeTruthy();
+      expect(container!.classList.contains('absolute')).toBeTrue();
+      expect(container!.classList.contains('left-0')).toBeTrue();
+      expect(container!.classList.contains('rounded-full')).toBeFalse();
+      expect(container!.classList.contains('border')).toBeFalse();
+
+      // First child: square indicator (no rounded-full)
+      const square = container!.children[0] as HTMLElement;
+      expect(square.classList.contains('rounded-full')).toBeFalse();
+      expect(square.style.backgroundColor).toBe('rgb(22, 163, 74)'); // #16a34a
+
+      // Second child: text in muted gray
+      const label = container!.children[1] as HTMLElement;
+      expect(label.textContent?.trim()).toBe('connected: true');
+      expect(label.classList.contains('text-gray-500')).toBeTrue();
+    });
+
     it('should format boolean value as "true"/"false" string in badge text', () => {
       const trueStatus: NodeStatusUpdate = {
         node_id: 'test-node-id',
