@@ -69,6 +69,15 @@ class EdgeModel(Base):
             "target_port": self.target_port,
         }
 
+class DagMetaModel(Base):
+    """Single-row table holding the monotonic DAG config version counter."""
+
+    __tablename__ = "dag_meta"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    config_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
 class RecordingModel(Base):
     """SQLAlchemy model for recordings table."""
 

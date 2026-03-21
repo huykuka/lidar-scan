@@ -92,6 +92,14 @@ OPENAPI_TAGS: list[dict] = [
             "Live streaming requires the `ws://` WebSocket endpoints (not in REST docs)."
         ),
     },
+    {
+        "name": "DAG",
+        "description": (
+            "Atomic DAG configuration save/load. "
+            "PUT /dag/config replaces all nodes and edges in one transaction and triggers a reload. "
+            "GET /dag/config returns the current snapshot with the monotonic config_version."
+        ),
+    },
 ]
 
 def get_static_path():
