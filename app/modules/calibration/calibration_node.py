@@ -18,6 +18,7 @@ import uuid
 
 from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
+from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 from app.repositories.node_orm import NodeRepository
@@ -47,7 +48,7 @@ class BufferedFrame:
     node_id: str                 # Last processing node that forwarded this payload
 
 
-def extract_pose_from_matrix(T: np.ndarray) -> Dict[str, float]:
+def extract_pose_from_matrix(T: np.ndarray) -> "Pose":
     """
     Extract 6-DOF pose (x, y, z, roll, pitch, yaw) from 4x4 transformation matrix.
     
@@ -55,8 +56,9 @@ def extract_pose_from_matrix(T: np.ndarray) -> Dict[str, float]:
         T: 4x4 transformation matrix
         
     Returns:
-        Dictionary with keys: x, y, z, roll, pitch, yaw (angles in degrees)
+        Pose instance with angles in degrees, clamped to [-180, +180].
     """
+    import math
     # Translation
     x, y, z = T[:3, 3]
     
@@ -78,14 +80,20 @@ def extract_pose_from_matrix(T: np.ndarray) -> Dict[str, float]:
         yaw = 0.0
         roll = np.arctan2(-R[1, 2], R[1, 1])
     
-    # Convert radians to degrees
-    return pose_to_dict(
+    def _clamp_angle(deg: float) -> float:
+        """Clamp angle to [-180, +180] range."""
+        deg = deg % 360.0
+        if deg > 180.0:
+            deg -= 360.0
+        return deg
+
+    return Pose(
         x=float(x),
         y=float(y),
         z=float(z),
-        roll=float(np.degrees(roll)),
-        pitch=float(np.degrees(pitch)),
-        yaw=float(np.degrees(yaw))
+        roll=_clamp_angle(float(np.degrees(roll))),
+        pitch=_clamp_angle(float(np.degrees(pitch))),
+        yaw=_clamp_angle(float(np.degrees(yaw))),
     )
 
 
@@ -287,17 +295,19 @@ class CalibrationNode(ModuleNode):
             
             config = sensor_node_data.get('config', {})
             
-            current_pose = pose_to_dict(
-                x=config.get("x", 0.0),
-                y=config.get("y", 0.0),
-                z=config.get("z", 0.0),
-                roll=config.get("roll", 0.0),
-                pitch=config.get("pitch", 0.0),
-                yaw=config.get("yaw", 0.0)
+            # Read pose from the nested pose sub-object (B-06 canonical format)
+            raw_pose = sensor_node_data.get("pose") or {}
+            current_pose = Pose(
+                x=raw_pose.get("x", 0.0),
+                y=raw_pose.get("y", 0.0),
+                z=raw_pose.get("z", 0.0),
+                roll=raw_pose.get("roll", 0.0),
+                pitch=raw_pose.get("pitch", 0.0),
+                yaw=raw_pose.get("yaw", 0.0),
             )
             
             # Build initial transformation from current pose
-            T_current = create_transformation_matrix(**current_pose)
+            T_current = create_transformation_matrix(**current_pose.to_flat_dict())
             
             # Run ICP registration
             reg_result = await self.icp_engine.register(
@@ -342,8 +352,8 @@ class CalibrationNode(ModuleNode):
                 "rmse": reg_result.rmse,
                 "quality": reg_result.quality,
                 "stages_used": reg_result.stages_used,
-                "pose_before": current_pose,
-                "pose_after": new_pose,
+                "pose_before": current_pose.to_flat_dict(),
+                "pose_after": new_pose.to_flat_dict(),
                 "auto_saved": auto_saved,
                 "source_sensor_id": source_sensor_id,
                 "processing_chain": processing_chain
@@ -424,19 +434,15 @@ class CalibrationNode(ModuleNode):
             existing_node = repo.get_by_id(target_id)
             if not existing_node:
                 raise ValueError(f"Sensor node {target_id} not found in database")
-            existing_config = existing_node.get("config", {})
             
-            # Merge new pose into existing config — only overwrite the 6 pose keys
-            updated_config = {
-                **existing_config,
-                "x": record.pose_after["x"],
-                "y": record.pose_after["y"],
-                "z": record.pose_after["z"],
-                "roll": record.pose_after["roll"],
-                "pitch": record.pose_after["pitch"],
-                "yaw": record.pose_after["yaw"],
-            }
-            repo.update_node_config(target_id, updated_config)
+            # Write pose as nested entity via update_node_pose — never flat keys
+            pose_after = record.pose_after
+            if isinstance(pose_after, Pose):
+                pose_to_write = pose_after
+            else:
+                # Legacy dict support (CalibrationRecord.pose_after still typed Dict in history)
+                pose_to_write = Pose(**pose_after)
+            repo.update_node_pose(target_id, pose_to_write)
             
             # Save to calibration history
             CalibrationHistory.save_record(record, db_session=db)

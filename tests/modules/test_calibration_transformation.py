@@ -61,25 +61,25 @@ class TestCalibrationTransformationPatch:
             
             mock_repo_instance = MockRepo.return_value
             mock_repo_instance.get_by_id = Mock(return_value={"config": {}})
-            mock_repo_instance.update_node_config = Mock()
+            mock_repo_instance.update_node_pose = Mock()
             mock_db = MockSession.return_value
             
             # Call _apply_calibration
             await calibration_node._apply_calibration("downsample-1", record)
             
-            # Verify update_node_config was called with source_sensor_id (sensor-A), NOT sensor_id (downsample-1)
-            mock_repo_instance.update_node_config.assert_called_once()
-            call_args = mock_repo_instance.update_node_config.call_args
+            # Verify update_node_pose was called with source_sensor_id (sensor-A), NOT sensor_id (downsample-1)
+            mock_repo_instance.update_node_pose.assert_called_once()
+            call_args = mock_repo_instance.update_node_pose.call_args
             target_id = call_args[0][0]
             
             assert target_id == "sensor-A", f"Expected target 'sensor-A', got '{target_id}'"
             assert target_id != "downsample-1", "Should NOT target processing node"
             
-            # Verify pose_after was written
+            # Verify pose_after was written as a Pose object
             pose_update = call_args[0][1]
-            assert pose_update["x"] == 0.3
-            assert pose_update["y"] == 0.1
-            assert pose_update["z"] == 0.5
+            assert pose_update.x == pytest.approx(0.3)
+            assert pose_update.y == pytest.approx(0.1)
+            assert pose_update.z == pytest.approx(0.5)
             
             # Verify reload_config was called
             calibration_node.manager.reload_config.assert_called_once()
@@ -118,10 +118,8 @@ class TestCalibrationTransformationPatch:
         with patch('app.modules.calibration.calibration_node.NodeRepository') as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_by_id = Mock(return_value={
-                "config": {
-                    "x": 0.0, "y": 0.0, "z": 0.0,
-                    "roll": 0.0, "pitch": 0.0, "yaw": 0.0
-                }
+                "config": {},
+                "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
             })
             
             # Mock ICP engine
@@ -179,10 +177,8 @@ class TestCalibrationTransformationPatch:
         with patch('app.modules.calibration.calibration_node.NodeRepository') as MockRepo:
             mock_repo = MockRepo.return_value
             mock_repo.get_by_id = Mock(return_value={
-                "config": {
-                    "x": 0.0, "y": 0.0, "z": 0.0,
-                    "roll": 0.0, "pitch": 0.0, "yaw": 0.0
-                }
+                "config": {},
+                "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
             })
             
             # Mock ICP engine

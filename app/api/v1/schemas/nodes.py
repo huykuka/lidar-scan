@@ -3,6 +3,8 @@
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.pose import Pose
+
 
 class NodeRecord(BaseModel):
     """Full node configuration record from database."""
@@ -51,6 +53,7 @@ class NodeRecord(BaseModel):
     enabled: bool
     visible: bool = True
     config: Dict[str, Any] = {}
+    pose: Optional[Pose] = None
     x: Optional[float] = None
     y: Optional[float] = None
 

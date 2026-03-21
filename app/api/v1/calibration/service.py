@@ -214,26 +214,12 @@ async def rollback_calibration(sensor_id: str, request: RollbackRequest, db: Ses
     # Update sensor configuration with the rolled-back pose
     try:
         import json
+        from app.schemas.pose import Pose
         pose_after = json.loads(record.pose_after_json)
         
-        # Update sensor config in database
+        # Update sensor pose in database using nested entity (never flat keys)
         repo = NodeRepository()
-        
-        # Get existing config or empty dict
-        existing_config = sensor_node.config if hasattr(sensor_node, 'config') else {}
-        
-        repo.update_node_config(
-            sensor_id,
-            {
-                **existing_config,
-                "x": pose_after["x"],
-                "y": pose_after["y"],
-                "z": pose_after["z"],
-                "roll": pose_after["roll"],
-                "pitch": pose_after["pitch"],
-                "yaw": pose_after["yaw"]
-            }
-        )
+        repo.update_node_pose(sensor_id, Pose(**pose_after))
         
         # Trigger DAG reload
         await node_manager.reload_config()

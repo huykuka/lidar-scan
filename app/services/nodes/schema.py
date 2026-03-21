@@ -10,7 +10,7 @@ class PropertySchema(BaseModel):
     """
     name: str
     label: str
-    type: str  # "string", "number", "boolean", "select", "vec3", "list"
+    type: str  # "string", "number", "boolean", "select", "vec3", "list", "pose"
     default: Optional[Any] = None
     options: Optional[List[Dict[str, Any]]] = None  # For "select" type
     required: bool = False

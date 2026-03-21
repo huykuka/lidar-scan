@@ -10,6 +10,7 @@ import numpy as np
 
 from app.core.logging import get_logger
 from app.modules.lidar.core import create_transformation_matrix, pose_to_dict
+from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 from app.services.status_aggregator import notify_status_change
@@ -47,18 +48,27 @@ class LidarSensor(ModuleNode):
         self.lidar_display_name: str = "SICK multiScan"
         
         self.transformation = transformation if transformation is not None else np.eye(4)
-        self.pose_params: Dict[str, float] = {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+        self.pose_params: Pose = Pose.zero()
         
         self._process = None
         self._stop_event = None
 
-    def set_pose(self, x: float, y: float, z: float, roll: float = 0, pitch: float = 0, yaw: float = 0) -> "LidarSensor":
-        self.transformation = create_transformation_matrix(x, y, z, roll, pitch, yaw)
-        self.pose_params = pose_to_dict(x, y, z, roll, pitch, yaw)
+    def set_pose(self, pose: Pose) -> "LidarSensor":
+        """Set the sensor pose and recompute the transformation matrix.
+
+        Args:
+            pose: Canonical 6-DOF Pose instance.
+
+        Returns:
+            self — to allow method chaining.
+        """
+        self.transformation = create_transformation_matrix(**pose.to_flat_dict())
+        self.pose_params = pose
         return self
 
-    def get_pose_params(self) -> Dict[str, float]:
-        return self.pose_params.copy()
+    def get_pose_params(self) -> Pose:
+        """Return the current sensor pose as a Pose instance."""
+        return self.pose_params
 
     async def on_input(self, payload: Dict[str, Any]):
         """Standard ModuleNode interface - delegates to handle_data"""

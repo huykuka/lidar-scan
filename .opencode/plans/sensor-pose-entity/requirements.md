@@ -39,16 +39,16 @@ All scattered pose fields (whether flat properties like `sensor_x`, `sensor_y`, 
 
 ### Backend (Python + Database)
 
-- [ ] **Pose Entity Created**: A `Pose` class/model is defined with six fields:
+- [x] **Pose Entity Created**: A `Pose` class/model is defined with six fields:
   - `x`, `y`, `z` (type: float, unit: millimeters)
   - `roll`, `pitch`, `yaw` (type: float, unit: degrees, range: -180° to +180°)
-- [ ] **Validation Enforced**: Backend validates:
+- [x] **Validation Enforced**: Backend validates:
   - `x`, `y`, `z` must be numeric (floats)
   - `roll`, `pitch`, `yaw` must be numeric floats within [-180, +180] degrees
   - Invalid values return HTTP 422 with descriptive error messages
-- [ ] **Database Schema Updated**: Sensor table stores pose as a single structured field (JSON column or composite type), not as six separate columns
-- [ ] **All Models Refactored**: All Pydantic models, SQLAlchemy models, and DAG node logic use the `Pose` type exclusively
-- [ ] **No Legacy Fields Remain**: All scattered pose fields (e.g., `sensor_x`, `sensor_y`, `sensor_roll`, etc.) are removed from:
+- [x] **Database Schema Updated**: Sensor table stores pose as a single structured field (JSON column or composite type), not as six separate columns
+- [x] **All Models Refactored**: All Pydantic models, SQLAlchemy models, and DAG node logic use the `Pose` type exclusively
+- [x] **No Legacy Fields Remain**: All scattered pose fields (e.g., `sensor_x`, `sensor_y`, `sensor_roll`, etc.) are removed from:
   - Database schema
   - Python models
   - API response serialization
@@ -56,7 +56,7 @@ All scattered pose fields (whether flat properties like `sensor_x`, `sensor_y`, 
 
 ### API Layer
 
-- [ ] **API Contract Updated**: All sensor-related endpoints (GET, POST, PUT, PATCH) accept/return pose as a single nested object:
+- [x] **API Contract Updated**: All sensor-related endpoints (GET, POST, PUT, PATCH) accept/return pose as a single nested object:
   ```json
   {
     "id": "sensor-1",
@@ -71,7 +71,7 @@ All scattered pose fields (whether flat properties like `sensor_x`, `sensor_y`, 
     }
   }
   ```
-- [ ] **Breaking Change Migration**: Endpoints **do not** accept old flat pose fields (e.g., `sensor_x`, `sensor_y`). Clients must send the new format.
+- [x] **Breaking Change Migration**: Endpoints **do not** accept old flat pose fields (e.g., `sensor_x`, `sensor_y`). Clients must send the new format.
 - [ ] **OpenAPI/Swagger Updated**: API documentation reflects the new `Pose` schema with validation constraints documented (units, ranges)
 
 ### Frontend (Angular + UI)
@@ -113,7 +113,7 @@ All scattered pose fields (whether flat properties like `sensor_x`, `sensor_y`, 
   - X, Y, Z are numeric
   - Roll, pitch, yaw are numeric and within [-180, +180] degrees
   - Form is invalid if any constraint is violated; submit button is disabled
-- [ ] **Backend Validation**: FastAPI Pydantic models enforce the same constraints; return HTTP 422 with field-specific error messages
+- [x] **Backend Validation**: FastAPI Pydantic models enforce the same constraints; return HTTP 422 with field-specific error messages
 - [x] **User Feedback**: Validation errors display inline near the offending field with clear messaging (e.g., "Roll must be between -180° and +180°")
 
 ### Data Migration

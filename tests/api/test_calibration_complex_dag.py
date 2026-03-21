@@ -76,11 +76,11 @@ class TestSimpleDirectConnection:
              patch("app.modules.calibration.calibration_node.SessionLocal"):
             mock_repo = MockRepo.return_value
             mock_repo.get_by_id = Mock(return_value={"config": {}})
-            mock_repo.update_node_config = Mock()
+            mock_repo.update_node_pose = Mock()
 
             await calibration_node._apply_calibration("sensor-A", record)
 
-            call_args = mock_repo.update_node_config.call_args
+            call_args = mock_repo.update_node_pose.call_args
             assert call_args[0][0] == "sensor-A"
 
 
@@ -154,11 +154,11 @@ class TestComplexProcessingChain:
              patch("app.modules.calibration.calibration_node.SessionLocal"):
             mock_repo = MockRepo.return_value
             mock_repo.get_by_id = Mock(return_value={"config": {}})
-            mock_repo.update_node_config = Mock()
+            mock_repo.update_node_pose = Mock()
 
             await calibration_node._apply_calibration("downsample-1", record)
 
-            call_args = mock_repo.update_node_config.call_args
+            call_args = mock_repo.update_node_pose.call_args
             target_id = call_args[0][0]
             assert target_id == "sensor-A", f"Expected 'sensor-A', got '{target_id}'"
             assert target_id != "downsample-1"
@@ -189,7 +189,8 @@ class TestComplexProcessingChain:
 
         with patch("app.modules.calibration.calibration_node.NodeRepository") as MockRepo:
             MockRepo.return_value.get_by_id = Mock(return_value={
-                "config": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+                "config": {},
+                "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
             })
             calibration_node.icp_engine.register = AsyncMock(return_value=Mock(
                 transformation=np.eye(4), fitness=0.9, rmse=0.01,
@@ -252,7 +253,8 @@ class TestMultiSensorCalibration:
 
         with patch("app.modules.calibration.calibration_node.NodeRepository") as MockRepo:
             MockRepo.return_value.get_by_id = Mock(return_value={
-                "config": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+                "config": {},
+                "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
             })
             calibration_node.icp_engine.register = AsyncMock(return_value=Mock(
                 transformation=np.eye(4), fitness=0.9, rmse=0.01,
@@ -294,7 +296,8 @@ class TestMultiSensorCalibration:
 
         with patch("app.modules.calibration.calibration_node.NodeRepository") as MockRepo:
             MockRepo.return_value.get_by_id = Mock(return_value={
-                "config": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0}
+                "config": {},
+                "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
             })
             calibration_node.icp_engine.register = AsyncMock(return_value=Mock(
                 transformation=np.eye(4), fitness=0.9, rmse=0.01,
