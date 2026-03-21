@@ -1,8 +1,7 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ReactiveFormsModule } from '@angular/forms';
-import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { PoseFormComponent } from './pose-form.component';
-import { Pose, ZERO_POSE } from '@core/models/pose.model';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {ReactiveFormsModule} from '@angular/forms';
+import {PoseFormComponent} from './pose-form.component';
+import {Pose, ZERO_POSE} from '@core/models/pose.model';
 
 describe('PoseFormComponent', () => {
   let component: PoseFormComponent;
@@ -11,7 +10,7 @@ describe('PoseFormComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [PoseFormComponent, ReactiveFormsModule],
-      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
     }).compileComponents();
 
     fixture = TestBed.createComponent(PoseFormComponent);

@@ -1,6 +1,6 @@
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {ReactiveFormsModule} from '@angular/forms';
-import {CUSTOM_ELEMENTS_SCHEMA, signal} from '@angular/core';
+import {signal} from '@angular/core';
 import {vi} from 'vitest';
 import {SensorNodeEditorComponent} from './sensor-node-editor.component';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
@@ -64,7 +64,7 @@ describe('SensorNodeEditorComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [SensorNodeEditorComponent, ReactiveFormsModule],
-      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
       providers: [
         { provide: NodeStoreService, useValue: mockNodeStore },
         { provide: LidarProfilesApiService, useValue: mockLidarProfilesApi },

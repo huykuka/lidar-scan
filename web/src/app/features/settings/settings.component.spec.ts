@@ -1,4 +1,4 @@
-import {CUSTOM_ELEMENTS_SCHEMA, signal} from '@angular/core';
+import {signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
 
 import {SettingsComponent} from './settings.component';
@@ -23,7 +23,7 @@ describe('SettingsComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [SettingsComponent],
-      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
       providers: [
         {
           provide: NavigationService, useValue: {

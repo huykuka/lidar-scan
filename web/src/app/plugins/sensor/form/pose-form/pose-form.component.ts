@@ -6,16 +6,9 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import {
-  Component,
-  CUSTOM_ELEMENTS_SCHEMA,
-  effect,
-  inject,
-  input,
-  OnInit,
-  output,
-} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {Component, effect, inject, input, OnInit, output,} from '@angular/core';
+import {UpperCasePipe} from '@angular/common';
+import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
 import {Pose, ZERO_POSE} from '@core/models/pose.model';
 
 /** Validates that a numeric value is within the [-180, +180] degree range. */
@@ -32,8 +25,8 @@ export function angleRangeValidator(control: AbstractControl): ValidationErrors 
 @Component({
   selector: 'app-pose-form',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [ReactiveFormsModule, SynergyComponentsModule],
+
+  imports: [ReactiveFormsModule, SynergyComponentsModule, UpperCasePipe,SynergyFormsModule],
   templateUrl: './pose-form.component.html',
 })
 export class PoseFormComponent implements OnInit {
@@ -80,7 +73,7 @@ export class PoseFormComponent implements OnInit {
    * Handles numeric input for x, y, z fields.
    * Reads the input value, patches the form control.
    */
-  onXyzInput(field: 'x' | 'y' | 'z', event: Event): void {
+  onXyzInput(field: string, event: Event): void {
     const value = Number((event.target as HTMLInputElement).value);
     this.poseFormGroup.get(field)?.setValue(value);
     this.emitCurrentPose();

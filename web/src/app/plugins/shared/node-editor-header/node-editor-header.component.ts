@@ -1,11 +1,11 @@
-import {Component, CUSTOM_ELEMENTS_SCHEMA, input, output} from '@angular/core';
+import {Component, input, output} from '@angular/core';
 import {NgClass} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-node-editor-header',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   imports: [SynergyComponentsModule, NgClass],
   templateUrl: './node-editor-header.component.html',
 })

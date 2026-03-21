@@ -1,14 +1,14 @@
-import { Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, inject, OnDestroy, OnInit, output, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subscription } from 'rxjs';
-import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
-import { NodeEditorComponent } from '@core/models/node-plugin.model';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { ToastService } from '@core/services/toast.service';
-import { NodeEditorHeaderComponent } from '@plugins/shared/node-editor-header/node-editor-header.component';
-import { NodeEditorFacadeService } from '@features/settings/services/node-editor-facade.service';
-import { environment } from '@env/environment';
-import { CommonModule } from '@angular/common';
+import {Component, computed, inject, OnDestroy, OnInit, output, signal} from '@angular/core';
+import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
+import {Subscription} from 'rxjs';
+import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
+import {NodeEditorComponent} from '@core/models/node-plugin.model';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {ToastService} from '@core/services/toast.service';
+import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
+import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {environment} from '@env/environment';
+import {CommonModule} from '@angular/common';
 
 /**
  * Autocomplete suggestion item
@@ -27,7 +27,7 @@ interface AutocompleteSuggestion {
 @Component({
   selector: 'app-if-condition-editor',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent, SynergyFormsModule, CommonModule],
   providers: [NodeEditorFacadeService],
   templateUrl: './if-condition-editor.component.html',
@@ -36,22 +36,22 @@ interface AutocompleteSuggestion {
 export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditorComponent {
   saved = output<void>();
   cancelled = output<void>();
-  
+
   private nodeStore = inject(NodeStoreService);
   private toast = inject(ToastService);
   private facade = inject(NodeEditorFacadeService);
-  
+
   form!: FormGroup;
   validationError = signal<string | null>(null);
   protected isSaving = signal(false);
   private expressionSub?: Subscription;
-  
+
   // Autocomplete state
   protected showAutocomplete = signal(false);
   protected autocompleteSuggestions = signal<AutocompleteSuggestion[]>([]);
   protected selectedSuggestionIndex = signal(0);
   protected cursorPosition = signal(0);
-  
+
   /**
    * Available variables for autocomplete
    */
@@ -69,7 +69,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
     { label: 'echo', type: 'variable', description: 'Echo return index' },
     { label: 'reflector', type: 'variable', description: 'Reflector flag (boolean)' },
   ];
-  
+
   /**
    * Available operators for autocomplete
    */
@@ -81,7 +81,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
     { label: '>=', type: 'operator', description: 'Greater than or equal to', insertText: ' >= ' },
     { label: '<=', type: 'operator', description: 'Less than or equal to', insertText: ' <= ' },
   ];
-  
+
   /**
    * Available keywords for autocomplete
    */
@@ -92,7 +92,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
     { label: 'true', type: 'value', description: 'Boolean true value' },
     { label: 'false', type: 'value', description: 'Boolean false value' },
   ];
-  
+
   /**
    * All available suggestions combined
    */
@@ -101,24 +101,24 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
     ...this.OPERATORS,
     ...this.KEYWORDS,
   ];
-  
+
   /**
    * Get node definition for the IF condition type
    */
   protected definition = computed(() => {
     return this.nodeStore.nodeDefinitions().find((d) => d.type === 'if_condition');
   });
-  
+
   /**
    * Check if we're editing an existing node (has ID) or creating new
    */
   protected isEditMode = computed(() => this.nodeStore.select('editMode')());
-  
+
   /**
    * Current node ID (null if creating new node)
    */
   protected nodeId = computed(() => this.nodeStore.selectedNode()?.id ?? null);
-  
+
   /**
    * Computed URL for setting external state
    */
@@ -127,7 +127,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
       ? `${environment.apiUrl}/nodes/${this.nodeId()}/flow-control/set`
       : null
   );
-  
+
   /**
    * Computed URL for resetting external state
    */
@@ -140,7 +140,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
   constructor() {
     // Initialize form in constructor (injection context)
     const node = this.nodeStore.selectedNode();
-    
+
     this.form = new FormGroup({
       name: new FormControl(node?.name || 'If Condition', [Validators.required]),
       expression: new FormControl(
@@ -149,7 +149,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
       ),
       use_external_control: new FormControl(node?.config?.['use_external_control'] || false)
     });
-    
+
     // Subscribe to expression changes for real-time validation
     const expressionControl = this.form.get('expression');
     if (expressionControl) {
@@ -168,7 +168,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
   ngOnDestroy(): void {
     this.expressionSub?.unsubscribe();
   }
-  
+
   /**
    * Handle input events on expression textarea
    */
@@ -176,54 +176,54 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
     const textarea = event.target as HTMLTextAreaElement;
     const value = textarea.value;
     const cursorPos = textarea.selectionStart;
-    
+
     this.cursorPosition.set(cursorPos);
-    
+
     // Get word at cursor for autocomplete
     const textBeforeCursor = value.substring(0, cursorPos);
     const lastWord = this.getLastWord(textBeforeCursor);
-    
+
     if (lastWord.length > 0) {
       this.updateAutocomplete(lastWord);
     } else {
       this.showAutocomplete.set(false);
     }
   }
-  
+
   /**
    * Handle keydown events for autocomplete navigation
    */
   protected onExpressionKeydown(event: KeyboardEvent): void {
     if (!this.showAutocomplete()) return;
-    
+
     const suggestions = this.autocompleteSuggestions();
-    
+
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
-        this.selectedSuggestionIndex.update(idx => 
+        this.selectedSuggestionIndex.update(idx =>
           Math.min(idx + 1, suggestions.length - 1)
         );
         break;
-        
+
       case 'ArrowUp':
         event.preventDefault();
         this.selectedSuggestionIndex.update(idx => Math.max(idx - 1, 0));
         break;
-        
+
       case 'Enter':
       case 'Tab':
         event.preventDefault();
         this.insertSuggestion(suggestions[this.selectedSuggestionIndex()], event);
         break;
-        
+
       case 'Escape':
         event.preventDefault();
         this.showAutocomplete.set(false);
         break;
     }
   }
-  
+
   /**
    * Get the last partial word before cursor
    */
@@ -232,17 +232,17 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
     const match = text.match(/[a-z_][a-z0-9_]*$/i);
     return match ? match[0] : '';
   }
-  
+
   /**
    * Update autocomplete suggestions based on partial input
    */
   private updateAutocomplete(partial: string): void {
     const lower = partial.toLowerCase();
-    
-    const filtered = this.ALL_SUGGESTIONS.filter(s => 
+
+    const filtered = this.ALL_SUGGESTIONS.filter(s =>
       s.label.toLowerCase().startsWith(lower)
     );
-    
+
     if (filtered.length > 0) {
       this.autocompleteSuggestions.set(filtered);
       this.selectedSuggestionIndex.set(0);
@@ -251,59 +251,59 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
       this.showAutocomplete.set(false);
     }
   }
-  
+
   /**
    * Insert selected suggestion into expression
    */
   protected insertSuggestion(suggestion: AutocompleteSuggestion, event?: Event): void {
     // Get the textarea element - try from event or fall back to DOM query
     let textarea: HTMLTextAreaElement | null = null;
-    
+
     if (event) {
       const target = event.target as HTMLElement;
       textarea = target.closest('.expression-container')?.querySelector('textarea') || null;
     }
-    
+
     if (!textarea) {
       // Fallback: query the DOM directly
       textarea = document.querySelector('.expression-container textarea');
     }
-    
+
     if (!textarea) return;
-    
+
     const value = this.form.get('expression')?.value || '';
     const cursorPos = textarea.selectionStart;
     const textBeforeCursor = value.substring(0, cursorPos);
     const textAfterCursor = value.substring(cursorPos);
-    
+
     // Find start of current word
     const lastWord = this.getLastWord(textBeforeCursor);
     const startPos = cursorPos - lastWord.length;
-    
+
     // Insert suggestion
     const insertText = suggestion.insertText || suggestion.label;
     const newValue = value.substring(0, startPos) + insertText + textAfterCursor;
     const newCursorPos = startPos + insertText.length;
-    
+
     // Update form control
     this.form.get('expression')?.setValue(newValue);
-    
+
     // Update cursor position
     setTimeout(() => {
       textarea?.setSelectionRange(newCursorPos, newCursorPos);
       textarea?.focus();
     }, 0);
-    
+
     this.showAutocomplete.set(false);
   }
-  
+
   /**
    * Handle click on autocomplete suggestion
    */
   protected onSuggestionClick(suggestion: AutocompleteSuggestion, event: Event): void {
     this.insertSuggestion(suggestion, event);
   }
-  
+
   /**
    * Validate expression syntax on client side
    */
@@ -312,14 +312,14 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
       this.validationError.set('Expression cannot be empty');
       return;
     }
-    
+
     // Check for allowed characters only
     const allowedPattern = /^[a-z_0-9\s><=!&|()\.]+$/i;
     if (!allowedPattern.test(expr)) {
       this.validationError.set('Invalid characters in expression');
       return;
     }
-    
+
     // Check for balanced parentheses
     let depth = 0;
     for (const char of expr) {
@@ -334,10 +334,10 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
       this.validationError.set('Unbalanced parentheses');
       return;
     }
-    
+
     this.validationError.set(null);
   }
-  
+
   /**
    * Save form data to backend via facade service
    */
@@ -346,15 +346,15 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
       this.toast.warning('Please fix validation errors before saving');
       return;
     }
-    
+
     const def = this.definition();
     if (!def) {
       this.toast.danger('Node definition not found');
       return;
     }
-    
+
     this.isSaving.set(true);
-    
+
     const success = await this.facade.saveNode({
       name: this.form.value.name,
       config: {
@@ -365,21 +365,21 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
       definition: def,
       existingNode: this.nodeStore.selectedNode(),
     });
-    
+
     this.isSaving.set(false);
-    
+
     if (success) {
       this.saved.emit();
     }
   }
-  
+
   /**
    * Cancel editing
    */
   onCancel(): void {
     this.cancelled.emit();
   }
-  
+
   /**
    * Copy text to clipboard and show toast
    */

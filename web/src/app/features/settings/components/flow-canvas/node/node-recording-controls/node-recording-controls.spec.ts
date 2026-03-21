@@ -1,12 +1,11 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { vi } from 'vitest';
-import { NodeRecordingControls } from './node-recording-controls';
-import { CanvasNode } from '../flow-canvas-node.component';
-import { RecordingStoreService } from '@core/services/stores';
-import { RecordingApiService } from '@core/services/api';
-import { ZERO_POSE, Pose } from '@core/models/pose.model';
-import { signal } from '@angular/core';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {signal} from '@angular/core';
+import {vi} from 'vitest';
+import {NodeRecordingControls} from './node-recording-controls';
+import {CanvasNode} from '../flow-canvas-node.component';
+import {RecordingStoreService} from '@core/services/stores';
+import {RecordingApiService} from '@core/services/api';
+import {Pose} from '@core/models/pose.model';
 
 function createMockNodeWithPose(pose?: Pose): CanvasNode {
   return {
@@ -50,7 +49,7 @@ describe('NodeRecordingControls — pose metadata', () => {
 
     await TestBed.configureTestingModule({
       imports: [NodeRecordingControls],
-      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
       providers: [
         { provide: RecordingApiService, useValue: mockRecordingApi },
         { provide: RecordingStoreService, useValue: mockRecordingStore },

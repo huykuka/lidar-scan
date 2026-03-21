@@ -1,4 +1,4 @@
-import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, inject, OnDestroy, output, signal} from '@angular/core';
+import {Component, computed, effect, inject, OnDestroy, output, signal} from '@angular/core';
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -10,7 +10,7 @@ import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node
 @Component({
   selector: 'app-operation-node-editor',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './operation-node-editor.component.html',

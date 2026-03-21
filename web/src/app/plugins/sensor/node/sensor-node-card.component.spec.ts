@@ -1,10 +1,9 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
-import { vi } from 'vitest';
-import { SensorNodeCardComponent } from './sensor-node-card.component';
-import { CanvasNode } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import { ZERO_POSE, Pose } from '@core/models/pose.model';
-import { LidarProfilesApiService } from '@core/services/api/lidar-profiles-api.service';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {vi} from 'vitest';
+import {SensorNodeCardComponent} from './sensor-node-card.component';
+import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
+import {Pose, ZERO_POSE} from '@core/models/pose.model';
+import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
 
 function createMockNode(poseOverride?: Partial<Pose>, configOverride: Record<string, any> = {}): CanvasNode {
   return {
@@ -42,7 +41,7 @@ describe('SensorNodeCardComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [SensorNodeCardComponent],
-      schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
       providers: [{ provide: LidarProfilesApiService, useValue: lidarProfilesSpy }],
     }).compileComponents();
 

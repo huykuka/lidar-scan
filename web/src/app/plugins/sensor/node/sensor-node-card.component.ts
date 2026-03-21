@@ -1,4 +1,4 @@
-import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, input} from '@angular/core';
+import {Component, computed, inject, input} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
@@ -9,7 +9,7 @@ import {ZERO_POSE} from '@core/models/pose.model';
 @Component({
   selector: 'app-sensor-node-card',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   imports: [SynergyComponentsModule],
   templateUrl: './sensor-node-card.component.html',
   styleUrl: './sensor-node-card.component.css',
@@ -23,7 +23,7 @@ export class SensorNodeCardComponent implements NodeCardComponent {
   protected mode = computed(() => this.node().data.config['mode']);
 
   protected lidarType = computed(() => this.node().data.config['lidar_type']);
-  
+
   protected lidarProfile = computed(() => {
     const typeId = this.lidarType();
     if (!typeId) return null;
