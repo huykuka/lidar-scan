@@ -19,7 +19,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
             clearable
             class="w-full transition-all duration-200 group-hover:shadow-sm"
           >
-            <syn-icon slot="prefix" name="search" class="text-syn-color-primary-600" />
+            <syn-icon slot="prefix" name="search" class="text-syn-color-primary-600 pl-3" />
           </syn-input>
         </div>
 
