@@ -94,3 +94,9 @@ def ensure_schema(engine: Engine) -> None:
         
         # Backfill flat pose keys into nested config["pose"] (data-only, no DDL)
         _backfill_pose_into_config(conn)
+
+    # Seed dag_meta row if table is empty (idempotent via INSERT OR IGNORE)
+    with engine.begin() as conn:
+        conn.execute(text(
+            "INSERT OR IGNORE INTO dag_meta (id, config_version) VALUES (1, 0)"
+        ))

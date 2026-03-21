@@ -1,111 +1,130 @@
-<div class="flex h-full relative">
-  <!-- Left Palette Sidebar -->
-  <app-flow-canvas-palette (onPluginDragEnd)="onPaletteDragEnd()"
-                           (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
-                           (onResetView)="resetView()"
-                           [isLoading]="isPaletteLoading()"
-                           [plugins]="availablePlugins()"
-                           [zoom]="zoom()"
-  />
+<div class="flex flex-col h-full">
+  <!-- Phase 7.1: Validation errors — shown only when dirty AND invalid -->
+  @if (canvasEditStore.isDirty() && !canvasEditStore.isValid()) {
+    <div class="shrink-0 mx-3 mt-2 mb-0">
+      <div class="flex items-start gap-2 px-3 py-2 rounded-md border border-syn-color-danger-300 bg-syn-color-danger-50 text-syn-color-danger-800">
+        <syn-icon name="error_outline" class="mt-0.5 shrink-0 text-syn-color-danger-600" style="font-size: 1rem;"></syn-icon>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-semibold mb-1">Fix validation errors before saving:</p>
+          <ul class="text-xs space-y-0.5 list-disc list-inside">
+            @for (err of canvasEditStore.validationErrors(); track $index) {
+              <li>{{ err.message }}</li>
+            }
+          </ul>
+        </div>
+      </div>
+    </div>
+  }
 
-  <!-- Canvas Area -->
-  <div class="flex-1 relative overflow-auto">
-    <div
-      (dragover)="onCanvasDragOver($event)"
-      (drop)="onCanvasDrop($event)"
-      (mousedown)="onCanvasMouseDown($event)"
-      (mousemove)="onCanvasMouseMove($event)"
-      (mouseup)="onCanvasMouseUp($event)"
-      (wheel)="onCanvasWheel($event)"
-      [style.cursor]="
-        drag.pendingConnection()
-          ? 'crosshair'
-          : drag.isPanning()
-            ? 'grabbing'
-            : drag.paletteDragType()
-              ? 'copy'
-              : 'default'
-      "
-      [style.min-height]="canvasHeight()"
-      [style.min-width]="canvasWidth()"
-      class="relative"
-    >
-      <!-- Grid Background -->
-      <svg class="absolute inset-0 w-full h-full pointer-events-none">
-        <defs>
-          <pattern height="20" id="grid" patternUnits="userSpaceOnUse" width="20">
-            <circle cx="1" cy="1" fill="#e5e7eb" r="1"/>
-          </pattern>
-        </defs>
-        <rect fill="url(#grid)" height="100%" width="100%"/>
-      </svg>
+  <div class="flex flex-1 min-h-0 relative">
+    <!-- Left Palette Sidebar -->
+    <app-flow-canvas-palette (onPluginDragEnd)="onPaletteDragEnd()"
+                             (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
+                             (onResetView)="resetView()"
+                             [isLoading]="isPaletteLoading()"
+                             [plugins]="availablePlugins()"
+                             [zoom]="zoom()"
+    />
 
-      <!-- Nodes Container -->
+    <!-- Canvas Area -->
+    <div class="flex-1 relative overflow-auto">
       <div
-        [style.transform-origin]="'0 0'"
-        [style.transform]="
-          'translate(' + panOffset().x + 'px, ' + panOffset().y + 'px) scale(' + zoom() + ')'
+        (dragover)="onCanvasDragOver($event)"
+        (drop)="onCanvasDrop($event)"
+        (mousedown)="onCanvasMouseDown($event)"
+        (mousemove)="onCanvasMouseMove($event)"
+        (mouseup)="onCanvasMouseUp($event)"
+        (wheel)="onCanvasWheel($event)"
+        [style.cursor]="
+          drag.pendingConnection()
+            ? 'crosshair'
+            : drag.isPanning()
+              ? 'grabbing'
+              : drag.paletteDragType()
+                ? 'copy'
+                : 'default'
         "
-        class="absolute inset-0"
+        [style.min-height]="canvasHeight()"
+        [style.min-width]="canvasWidth()"
+        class="relative"
       >
-        <!-- Connection Lines Layer (below nodes) -->
-        <app-flow-canvas-connections (onDelete)="onDeleteEdge($event)"
-                                     [connections]="connections()"
-                                     [pendingPath]="drag.pendingPath()"
-        />
+        <!-- Grid Background -->
+        <svg class="absolute inset-0 w-full h-full pointer-events-none">
+          <defs>
+            <pattern height="20" id="grid" patternUnits="userSpaceOnUse" width="20">
+              <circle cx="1" cy="1" fill="#e5e7eb" r="1"/>
+            </pattern>
+          </defs>
+          <rect fill="url(#grid)" height="100%" width="100%"/>
+        </svg>
 
-        <!-- Nodes Layer -->
-        @for (node of canvasNodes(); track node.id) {
-          <div
-            (dblclick)="onEditNode(node)"
-            (mousedown)="onNodeMouseDown($event, node)"
-            [class.ring-2]="selectedCanvasNode()?.id === node.id"
-            [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
-            [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
-            [class.z-10]="selectedCanvasNode()?.id === node.id"
-            [style.cursor]="
-              drag.draggingNode()?.id === node.id ? 'grabbing' : drag.pendingConnection() ? 'default' : 'grab'
-            "
-            [style.left.px]="node.position.x"
-            [style.top.px]="node.position.y"
-            class="absolute transition-shadow rounded-lg"
-            title="Double-click to edit"
-          >
-            <app-flow-canvas-node (onEdit)="onEditNode(node)"
-                                  (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
-                                  (onToggleVisibility)="onToggleNodeVisibility(node, $event)"
-                                  (portDragStart)="onPortDragStart($event)"
-                                  (portDrop)="onPortDrop($event)"
-                                  [isDragging]="drag.draggingNode()?.id === node.id"
-                                  [isLoading]="isNodeLoading(node.id)"
-                                  [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
-                                  [node]="node"
-                                  [status]="getNodeStatus(node)"
-            />
-          </div>
+        <!-- Nodes Container -->
+        <div
+          [style.transform-origin]="'0 0'"
+          [style.transform]="
+            'translate(' + panOffset().x + 'px, ' + panOffset().y + 'px) scale(' + zoom() + ')'
+          "
+          class="absolute inset-0"
+        >
+          <!-- Connection Lines Layer (below nodes) -->
+          <app-flow-canvas-connections (onDelete)="onDeleteEdge($event)"
+                                       [connections]="connections()"
+                                       [pendingPath]="drag.pendingPath()"
+          />
+
+          <!-- Nodes Layer -->
+          @for (node of canvasNodes(); track node.id) {
+            <div
+              (dblclick)="onEditNode(node)"
+              (mousedown)="onNodeMouseDown($event, node)"
+              [class.ring-2]="selectedCanvasNode()?.id === node.id"
+              [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
+              [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
+              [class.z-10]="selectedCanvasNode()?.id === node.id"
+              [style.cursor]="
+                drag.draggingNode()?.id === node.id ? 'grabbing' : drag.pendingConnection() ? 'default' : 'grab'
+              "
+              [style.left.px]="node.position.x"
+              [style.top.px]="node.position.y"
+              class="absolute transition-shadow rounded-lg"
+              title="Double-click to edit"
+            >
+              <app-flow-canvas-node (onEdit)="onEditNode(node)"
+                                    (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
+                                    (onToggleVisibility)="onToggleNodeVisibility(node, $event)"
+                                    (portDragStart)="onPortDragStart($event)"
+                                    (portDrop)="onPortDrop($event)"
+                                    [isDragging]="drag.draggingNode()?.id === node.id"
+                                    [isLoading]="isNodeLoading(node.id)"
+                                    [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
+                                    [node]="node"
+                                    [status]="getNodeStatus(node)"
+              />
+            </div>
+          }
+        </div>
+
+        <!-- Empty State -->
+        @if (canvasNodes().length === 0) {
+          <app-flow-canvas-empty-state/>
         }
       </div>
-
-      <!-- Empty State -->
-      @if (canvasNodes().length === 0) {
-        <app-flow-canvas-empty-state/>
-      }
     </div>
-  </div>
 
-  <!-- Node Editor Drawer -->
-  <syn-drawer
-    [open]="drawerOpen()"
-    (synRequestCloseEvent)="onDrawerRequestClose($event)"
-    noHeader
-    placement="end"
-    style="--size: 480px"
-  >
-    @if (drawerOpen()) {
-      <app-dynamic-node-editor
-        (cancel)="onDrawerClose()"
-        (save)="onDrawerClose()"
-      />
-    }
-  </syn-drawer>
+    <!-- Node Editor Drawer -->
+    <syn-drawer
+      [open]="drawerOpen()"
+      (synRequestCloseEvent)="onDrawerRequestClose($event)"
+      noHeader
+      placement="end"
+      style="--size: 480px"
+    >
+      @if (drawerOpen()) {
+        <app-dynamic-node-editor
+          (cancel)="onDrawerClose()"
+          (save)="onDrawerClose()"
+        />
+      }
+    </syn-drawer>
+  </div>
 </div>

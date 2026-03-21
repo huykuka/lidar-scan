@@ -18,3 +18,8 @@ class DeleteEdgeResponse(BaseModel):
     """Response for edge deletion operations."""
     status: str
     id: str
+
+
+class ConflictResponse(BaseModel):
+    """Response body for 409 Conflict errors."""
+    detail: str

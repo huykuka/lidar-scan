@@ -1,66 +1,23 @@
-"""Nodes endpoint handlers - Pure business logic without routing configuration."""
+"""Nodes endpoint handlers - Pure business logic without routing configuration.
+
+Note: NodeCreateUpdate, upsert_node, and delete_node have been removed.
+All node creation, update, and deletion is now performed atomically via
+PUT /api/v1/dag/config. This module retains read operations (list, get, status)
+and live-action toggles (enabled, visible, reload) which remain as direct
+per-node calls.
+"""
 
 import time
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 from app.core.logging import get_logger
-from app.repositories import NodeRepository, EdgeRepository
-from app.schemas.pose import Pose
+from app.repositories import NodeRepository
 from app.services.nodes.instance import node_manager
 from app.services.nodes.schema import node_schema_registry
 
 logger = get_logger(__name__)
-
-
-class NodeCreateUpdate(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "examples": [
-                {
-                    "name": "MultiScan Left",
-                    "type": "sensor",
-                     "category": "sensor",
-                     "enabled": True,
-                     "visible": True,
-                     "config": {
-                        "lidar_type": "multiscan",
-                        "hostname": "192.168.1.10",
-                        "udp_receiver_ip": "192.168.1.100",
-                        "port": 2115
-                    },
-                    "x": 120.0,
-                    "y": 200.0
-                },
-                {
-                    "name": "Point Cloud Fusion",
-                    "type": "fusion",
-                     "category": "fusion",
-                     "enabled": True,
-                     "visible": True,
-                     "config": {
-                        "fusion_method": "icp_registration", 
-                        "distance_threshold": 0.05,
-                        "max_iterations": 100
-                    },
-                    "x": 300.0,
-                    "y": 200.0
-                }
-            ]
-        }
-    )
-    
-    id: Optional[str] = None
-    name: str
-    type: str
-    category: str
-    enabled: bool = True
-    visible: bool = True
-    config: Dict[str, Any] = {}
-    pose: Optional[Pose] = None
-    x: Optional[float] = None
-    y: Optional[float] = None
 
 
 class NodeStatusToggle(BaseModel):
@@ -91,27 +48,6 @@ async def get_node(node_id: str):
     return node
 
 
-async def upsert_node(req: NodeCreateUpdate):
-    """Create or update a node."""
-    repo = NodeRepository()
-    payload = req.model_dump(exclude_none=True)
-
-    # For sensor nodes: default to Pose.zero() if no pose provided
-    if req.type == "sensor" and req.pose is None:
-        payload["pose"] = Pose.zero().to_flat_dict()
-
-    # Serialize Pose object to flat dict for the repo layer
-    if "pose" in payload and isinstance(payload["pose"], dict):
-        pass  # already a dict (model_dump converts Pydantic models to dicts)
-
-    try:
-        node_id = repo.upsert(payload)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-
-    return {"status": "success", "id": node_id}
-
-
 async def set_node_enabled(node_id: str, req: NodeStatusToggle):
     """Toggle node enabled state."""
     repo = NodeRepository()
@@ -123,59 +59,41 @@ async def set_node_visible(node_id: str, req: NodeVisibilityToggle):
     """Toggle node visibility state."""
     from app.services.websocket.manager import SYSTEM_TOPICS
     from app.services.shared.topics import slugify_topic_prefix
-    
+
     repo = NodeRepository()
-    
+
     # Fetch node by ID; raise 404 if not found
     node = repo.get_by_id(node_id)
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
-    
+
     # Derive topic name and check against SYSTEM_TOPICS
     node_name = node.get("name", node_id)
     topic = f"{slugify_topic_prefix(node_name)}_{node_id[:8]}"
-    
+
     if topic in SYSTEM_TOPICS:
         raise HTTPException(
-            status_code=400, 
-            detail=f"Cannot change visibility of system topic '{topic}'"
+            status_code=400,
+            detail=f"Cannot change visibility of system topic '{topic}'",
         )
-    
+
     # Update visibility in database
     repo.set_visible(node_id, req.visible)
-    
+
     # Update orchestrator state
     await node_manager.set_node_visible(node_id, req.visible)
-    
-    return {"status": "success"}
 
-
-async def delete_node(node_id: str):
-    """Delete a node and associated edges."""
-    node_repo = NodeRepository()
-    edge_repo = EdgeRepository()
-    
-    # Delete the node dynamically from orchestrator
-    await node_manager.remove_node_async(node_id)
-    node_repo.delete(node_id)
-    
-    # Delete any edges connected to this node
-    all_edges = edge_repo.list()
-    filtered_edges = [
-        e for e in all_edges 
-        if e.get("source_node") != node_id and e.get("target_node") != node_id
-    ]
-    if len(filtered_edges) < len(all_edges):
-        edge_repo.save_all(filtered_edges)
-        
     return {"status": "success"}
 
 
 async def reload_all_config():
     """Reload all node configurations."""
     if node_manager._reload_lock.locked():
-        raise HTTPException(status_code=409, detail="A configuration reload is already in progress. Please wait and retry.")
-    
+        raise HTTPException(
+            status_code=409,
+            detail="A configuration reload is already in progress. Please wait and retry.",
+        )
+
     await node_manager.reload_config()
     return {"status": "success"}
 
@@ -183,14 +101,14 @@ async def reload_all_config():
 async def get_nodes_status():
     """Returns runtime status of all nodes using the standardised emit_status() interface."""
     status_updates = []
-    
+
     repo = NodeRepository()
     nodes = repo.list()
-    
+
     for cnfg in nodes:
         node_id = cnfg["id"]
         node_instance = node_manager.nodes.get(node_id)
-        
+
         if node_instance and hasattr(node_instance, "emit_status"):
             try:
                 status = node_instance.emit_status()
@@ -206,24 +124,24 @@ async def get_nodes_status():
                 "error_message": "Node instance not found",
                 "timestamp": time.time(),
             }
-        
+
         # Augment with DB metadata that the frontend needs
         entry["category"] = cnfg["category"]
         entry["enabled"] = cnfg["enabled"]
         entry["visible"] = cnfg.get("visible", True)
         entry["name"] = cnfg["name"]
         entry["type"] = cnfg["type"]
-        
+
         # Derive WebSocket topic (None for invisible nodes)
         if node_instance and hasattr(node_instance, "_ws_topic"):
             entry["topic"] = node_instance._ws_topic
         else:
             entry["topic"] = None
-        
+
         # Add throttling stats
         throttle_stats = node_manager.get_throttle_stats(node_id)
         entry.update(throttle_stats)
-        
+
         status_updates.append(entry)
-    
+
     return {"nodes": status_updates}

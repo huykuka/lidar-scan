@@ -1,16 +1,20 @@
-import {Component, inject, OnDestroy, OnInit, signal, viewChild} from '@angular/core';
+import {Component, effect, HostListener, inject, OnDestroy, OnInit, signal} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
 import {NavigationService, ToastService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodesApiService} from '@core/services/api/nodes-api.service';
 import {StatusWebSocketService} from '@core/services/status-websocket.service';
 import {SystemStatusService} from '@core/services/system-status.service';
-import {ConfigApiService} from '@core/services/api/config-api.service';
+import {DagApiService} from '@core/services/api/dag-api.service';
+import {ConfigTransferService} from '@core/services/api/config-transfer.service';
 import {ConfigExport, ConfigValidationResponse,} from '@core/models/config.model';
 import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
 import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {DialogService} from '@core/services/dialog.service';
+import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 
 @Component({
   selector: 'app-settings',
@@ -25,15 +29,15 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
   ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
-  protected flowCanvas = viewChild.required(FlowCanvasComponent);
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
-  protected lidars = this.nodeStore.sensorNodes;
-  protected isLoading = this.nodeStore.isLoading;
-  protected fusions = this.nodeStore.fusionNodes;
-  protected operations = this.nodeStore.operationNodes;
   protected isSystemRunning = this.systemStatus.isRunning;
-  // Loading state for individual nodes
+
+  // Phase 4.1: feature-scoped canvas edit store
+  protected canvasEditStore = inject(CanvasEditStoreService);
+
+  // Phase 7.2: global initializing state — true until both node definitions + DAG config are loaded
+  protected isInitializing = signal(true);
 
   // Import/Export state
   protected isExporting = signal(false);
@@ -43,23 +47,67 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected pendingImportConfig = signal<ConfigExport | null>(null);
   protected importMergeMode = signal(false);
 
-  // Computed signal for unsaved changes
-  protected hasUnsavedChanges = signal(false);
   private navService = inject(NavigationService);
-  private nodesApi = inject(NodesApiService);
   private statusWs = inject(StatusWebSocketService);
-  private configApi = inject(ConfigApiService);
+  private configTransfer = inject(ConfigTransferService);
+  private dagApi = inject(DagApiService);
+  private dialog = inject(DialogService);
   private toast = inject(ToastService);
+  private pluginRegistry = inject(NodePluginRegistry);
+
+  constructor() {
+
+    effect(() => {
+      const dirty = this.canvasEditStore.isDirty();
+      this.navService.setPageConfig({
+        title: dirty ? 'Settings ●' : 'Settings',
+        subtitle: 'Configure LiDAR sensors, fusion nodes, and recording settings',
+        showActionsSlot: false,
+      });
+    });
+
+    // Phase 4.5: subscribe to conflict events
+    this.canvasEditStore.conflictDetected$
+      .pipe(takeUntilDestroyed())
+      .subscribe((detail) => {
+        this.dialog
+          .confirm({
+            title: 'DAG Conflict Detected',
+            message: `Another save has occurred. Your unsaved changes are preserved but cannot be saved. Click "Sync & Discard" to load the latest configuration.`,
+            confirmLabel: 'Sync & Discard My Changes',
+            cancelLabel: 'Stay & Keep Editing',
+            variant: 'neutral',
+          })
+          .then((confirmed) => {
+            if (confirmed) this.canvasEditStore.syncFromBackend(true);
+          });
+      });
+  }
 
   async ngOnInit() {
     this.navService.setPageConfig({
       title: 'Settings',
       subtitle: 'Configure LiDAR sensors, fusion nodes, and recording settings',
     });
-    await this.loadConfig();
 
     // Connect to WebSocket for real-time status updates
     this.statusWs.connect();
+
+    // Phase 7.2: load node definitions + DAG config in parallel so both are
+    // available before the canvas becomes interactive (fixes empty palette bug).
+    this.isInitializing.set(true);
+    try {
+      const [dagConfig] = await Promise.all([
+        this.dagApi.getDagConfig(),
+        this.pluginRegistry.loadFromBackend(),
+      ]);
+      this.canvasEditStore.initFromBackend(dagConfig);
+    } catch (error) {
+      console.error('Failed to initialize canvas', error);
+      this.toast.danger('Failed to load canvas configuration.');
+    } finally {
+      this.isInitializing.set(false);
+    }
   }
 
   ngOnDestroy(): void {
@@ -67,37 +115,25 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.statusWs.disconnect();
   }
 
-  async loadConfig() {
-    this.nodeStore.set('isLoading', true);
-    try {
-      const [nodes] = await Promise.all([
-        this.nodesApi.getNodes(),
-      ]);
-      this.nodeStore.set('nodes', nodes);
-      this.nodeStore.set('isLoading', false);
-    } catch (error) {
-      console.error('Failed to load configuration', error);
-      this.toast.warning('Unable to load configuration.');
-      this.nodeStore.set('isLoading', false);
+  // Phase 4.4: prevent accidental page-leave when dirty
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent) {
+    if (this.canvasEditStore.isDirty()) {
+      event.preventDefault();
     }
   }
 
-  async onReloadConfig() {
-    this.nodeStore.set('isLoading', true);
-    try {
-      // Save any unsaved node positions before reloading
-      const flowCanvas = this.flowCanvas();
-      if (flowCanvas && flowCanvas.hasUnsavedChanges()) {
-        await flowCanvas.saveAllPositions();
-      }
+  // Phase 4.3: action handlers
+  onSaveAndReload() {
+    this.canvasEditStore.saveAndReload();
+  }
 
-      await this.nodesApi.reloadConfig();
-      await this.loadConfig();
-      this.toast.success('Configuration and LiDAR profiles reloaded.');
-    } catch (error) {
-      console.error('Failed to reload config:', error);
-      this.toast.danger('Failed to reload backend configuration.');
-    }
+  onSync() {
+    this.canvasEditStore.syncFromBackend();
+  }
+
+  onReloadRuntime() {
+    this.canvasEditStore.reloadRuntime();
   }
 
   async onStartSystem() {
@@ -120,38 +156,38 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
   }
 
-  async onExportConfig() {
+  onExportConfig() {
     this.isExporting.set(true);
-    try {
-      const config = await this.configApi.exportConfig();
+    this.configTransfer.downloadConfig().subscribe({
+      next: ({blob, filename}) => {
+        // Trigger browser download — UI concern, stays in the component
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        window.URL.revokeObjectURL(url);
 
-      // Create blob and download
-      const blob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `lidar-config-${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-
-      this.toast.success('Configuration exported successfully.');
-    } catch (error) {
-      console.error('Failed to export config', error);
-      this.toast.danger('Failed to export configuration.');
-    } finally {
-      this.isExporting.set(false);
-    }
+        this.toast.success('Configuration exported successfully.');
+        this.isExporting.set(false);
+      },
+      error: (error) => {
+        console.error('Failed to export config', error);
+        this.toast.danger('Failed to export configuration.');
+        this.isExporting.set(false);
+      },
+    });
   }
 
-    onImportConfigClick() {
-    // Trigger file input
+  onImportConfigClick() {
+    // Trigger file input — UI concern, stays in the component
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = async (event: any) => {
+    input.onchange = (event: any) => {
       const file = event.target.files?.[0];
       if (file) {
-        await this.readAndValidateConfigFile(file);
+        this.readAndValidateConfigFile(file);
       }
     };
     input.click();
@@ -164,49 +200,43 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.isImporting.set(false);
   }
 
-  async onConfirmImport() {
+  onConfirmImport() {
     const config = this.pendingImportConfig();
     if (!config) return;
 
-    try {
-      const result = await this.configApi.importConfig(config, this.importMergeMode());
-
-      this.showValidationDialog.set(false);
-      this.validationResult.set(null);
-      this.pendingImportConfig.set(null);
-
-      await this.onReloadConfig();
-
-      this.toast.success(
-        `Configuration imported: ${result.imported.lidars} lidars, ${result.imported.fusions} fusions.`,
-      );
-    } catch (error) {
-      console.error('Failed to import config', error);
-      this.toast.danger('Failed to import configuration.');
-    } finally {
-      this.isImporting.set(false);
-    }
+    this.configTransfer.importConfig(config, this.importMergeMode()).subscribe({
+      next: (result) => {
+        this.showValidationDialog.set(false);
+        this.validationResult.set(null);
+        this.pendingImportConfig.set(null);
+        this.onSync();
+        this.isImporting.set(false);
+      },
+      error: (error) => {
+        console.error('Failed to import config', error);
+        this.toast.danger('Failed to import configuration.');
+        this.isImporting.set(false);
+      },
+    });
   }
 
-  private async readAndValidateConfigFile(file: File) {
+  private readAndValidateConfigFile(file: File) {
     this.isImporting.set(true);
-    try {
-      const text = await file.text();
-      const config = JSON.parse(text) as ConfigExport;
+    this.configTransfer.readAndValidate(file).subscribe({
+      next: ({config, validation}) => {
+        this.validationResult.set(validation);
+        this.pendingImportConfig.set(config);
+        this.showValidationDialog.set(true);
 
-      // Validate the config
-      const validation = await this.configApi.validateConfig(config);
-      this.validationResult.set(validation);
-      this.pendingImportConfig.set(config);
-      this.showValidationDialog.set(true);
-
-      if (!validation.valid) {
-        this.toast.warning('Configuration has validation errors. Please review.');
-      }
-    } catch (error) {
-      console.error('Failed to read or validate config file', error);
-      this.toast.danger('Failed to read configuration file. Please check the file format.');
-      this.isImporting.set(false);
-    }
+        if (!validation.valid) {
+          this.toast.warning('Configuration has validation errors. Please review.');
+        }
+      },
+      error: (error) => {
+        console.error('Failed to read or validate config file', error);
+        this.toast.danger('Failed to read configuration file. Please check the file format.');
+        this.isImporting.set(false);
+      },
+    });
   }
 }

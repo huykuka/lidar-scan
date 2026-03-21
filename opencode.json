@@ -1,8 +1,13 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "autoupdate": true,
-  "instructions": ["AGENTS.md"],
+  "instructions": [
+    "AGENTS.md"
+  ],
   "agent": {
+    "compaction": {
+      "model": "github-copilot/gpt-4.1"
+    },
     "plan": {
       "disable": true,
       "permission": {
@@ -21,17 +26,30 @@
   "mcp": {
     "chrome-devtools": {
       "type": "local",
-      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
+      "command": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ],
       "enabled": true
     },
     "synergy": {
       "type": "local",
-      "command": ["npx", "-y", "@synergy-design-system/mcp"],
+      "command": [
+        "npx",
+        "-y",
+        "@synergy-design-system/mcp"
+      ],
       "enabled": true
     },
     "gitnexus": {
       "type": "local",
-      "command": ["npx", "-y", "gitnexus@latest", "mcp"],
+      "command": [
+        "npx",
+        "-y",
+        "gitnexus@latest",
+        "mcp"
+      ],
       "enabled": true
     }
   }

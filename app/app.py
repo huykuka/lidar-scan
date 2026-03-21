@@ -31,16 +31,18 @@ OPENAPI_TAGS: list[dict] = [
     {
         "name": "Nodes",
         "description": (
-            "CRUD operations for DAG processing nodes. "
-            "Node configurations are persisted in SQLite; "
-            "the live engine reflects changes after reload."
+            "Read-only access and live-action toggles for DAG processing nodes. "
+            "Node creation, update, and deletion is performed atomically via "
+            "PUT /api/v1/dag/config. This router exposes list, get, enabled/visible "
+            "toggles, status queries, and the reload trigger."
         ),
     },
     {
         "name": "Edges",
         "description": (
-            "Manage directed connections between DAG nodes. "
-            "Edges define the data-flow topology of the processing pipeline."
+            "Read-only access to directed connections between DAG nodes. "
+            "Edge creation and deletion is performed atomically via "
+            "PUT /api/v1/dag/config. This router exposes only GET /edges."
         ),
     },
     {
@@ -90,6 +92,14 @@ OPENAPI_TAGS: list[dict] = [
             "Introspection of registered WebSocket topics. "
             "Use `GET /api/v1/topics/capture` for a single-frame HTTP snapshot. "
             "Live streaming requires the `ws://` WebSocket endpoints (not in REST docs)."
+        ),
+    },
+    {
+        "name": "DAG",
+        "description": (
+            "Atomic DAG configuration save/load. "
+            "PUT /dag/config replaces all nodes and edges in one transaction and triggers a reload. "
+            "GET /dag/config returns the current snapshot with the monotonic config_version."
         ),
     },
 ]

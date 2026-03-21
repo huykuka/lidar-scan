@@ -28,12 +28,6 @@
             <syn-icon name="upload" slot="prefix"/>
             Import
           </syn-button>
-          <syn-button (click)="onReloadConfig()" size="small" variant="outline"
-                      [disabled]="!flowCanvas().hasUnsavedChanges()"
-                      [loading]="nodeStore.isLoading()">
-            <syn-icon name="save" slot="prefix"/>
-            Save & Reload
-          </syn-button>
 
           @if (isSystemRunning()) {
             <syn-button (click)="onStopSystem()" size="small" variant="filled">
@@ -41,7 +35,7 @@
               Stop Data Flow
             </syn-button>
           } @else {
-            <syn-button (click)="onStartSystem()" color="success" size="small" variant="filled">
+            <syn-button (click)="onStartSystem()" size="small" variant="outline">
               <syn-icon name="play_arrow" slot="prefix"/>
               Start Data Flow
             </syn-button>
@@ -50,9 +44,77 @@
       </div>
     </div>
 
+    <!-- Canvas action toolbar: dirty indicator + Reload / Sync / Save & Reload -->
+    <div class="flex items-center justify-between px-4 py-2 border-b shrink-0">
+      @if (canvasEditStore.isDirty()) {
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md border
+                    border-syn-color-warning-300 bg-syn-color-warning-50">
+          <span class="text-syn-color-warning-600 text-base leading-none">●</span>
+          <span class="text-xs font-semibold text-syn-color-warning-700">Unsaved changes</span>
+        </div>
+      } @else {
+        <div></div>
+      }
+
+      <div class="flex items-center gap-2">
+        <!-- Reload: restarts backend runtime only, never touches local state -->
+        <syn-button
+          size="small"
+          variant="text"
+          [disabled]="canvasEditStore.isReloading()"
+          (click)="onReloadRuntime()"
+        >
+          @if (canvasEditStore.isReloading()) {
+            <syn-spinner slot="prefix"/>
+            Reloading…
+          } @else {
+            Reload
+          }
+        </syn-button>
+
+        <!-- Sync: pull latest backend config, prompt if dirty -->
+        <syn-button
+          size="small"
+          variant="outline"
+          [disabled]="canvasEditStore.isSyncing()"
+          (click)="onSync()"
+        >
+          @if (canvasEditStore.isSyncing()) {
+            <syn-spinner slot="prefix"/>
+            Syncing…
+          } @else {
+            Sync
+          }
+        </syn-button>
+
+        <!-- Save & Reload: persist local edits + reload backend -->
+        <syn-button
+          size="small"
+          variant="filled"
+          [disabled]="!canvasEditStore.isDirty() || canvasEditStore.isSaving() || !canvasEditStore.isValid()"
+          (click)="onSaveAndReload()"
+        >
+          @if (canvasEditStore.isSaving()) {
+            <syn-spinner slot="prefix"/>
+            Saving…
+          } @else {
+            Save &amp; Reload
+          }
+        </syn-button>
+      </div>
+    </div>
+
     <!-- Flow Canvas -->
-    <div class="flex-1 overflow-hidden">
-      <app-flow-canvas (hasUnsavedChangesChange)="hasUnsavedChanges.set($event)"/>
+    <div class="flex-1 overflow-hidden relative">
+      @if (isInitializing()) {
+        <div class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div class="flex flex-col items-center gap-3 text-syn-color-neutral-600">
+            <syn-spinner style="font-size: 2rem;"></syn-spinner>
+            <span class="text-sm font-medium">Loading canvas…</span>
+          </div>
+        </div>
+      }
+      <app-flow-canvas/>
     </div>
   </div>
 
