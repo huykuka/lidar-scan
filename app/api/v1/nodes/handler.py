@@ -1,13 +1,18 @@
-"""Nodes router configuration and endpoint metadata."""
+"""Nodes router configuration and endpoint metadata.
+
+Note: POST /nodes (create/update) and DELETE /nodes/{node_id} have been removed.
+All node creation, update, and deletion is now performed atomically via
+PUT /api/v1/dag/config. This router retains read-only and live-action endpoints.
+"""
 
 from fastapi import APIRouter
 from app.services.nodes.schema import NodeDefinition
 from app.api.v1.schemas.nodes import NodeRecord, NodesStatusResponse
-from app.api.v1.schemas.common import StatusResponse, UpsertResponse
+from app.api.v1.schemas.common import StatusResponse
 from .service import (
-    list_nodes, list_node_definitions, get_node, upsert_node,
-    set_node_enabled, set_node_visible, delete_node, reload_all_config, get_nodes_status,
-    NodeCreateUpdate, NodeStatusToggle, NodeVisibilityToggle
+    list_nodes, list_node_definitions, get_node,
+    set_node_enabled, set_node_visible, reload_all_config, get_nodes_status,
+    NodeStatusToggle, NodeVisibilityToggle
 )
 
 
@@ -26,7 +31,7 @@ async def nodes_list_endpoint():
 
 
 @router.get(
-    "/nodes/definitions", 
+    "/nodes/definitions",
     response_model=list[NodeDefinition],
     summary="List Node Definitions",
     description="Returns all available node types and their configuration schemas",
@@ -44,16 +49,6 @@ async def nodes_definitions_endpoint():
 )
 async def node_get_endpoint(node_id: str):
     return await get_node(node_id)
-
-
-@router.post(
-    "/nodes",
-    response_model=UpsertResponse,
-    summary="Create/Update Node",
-    description="Create a new node or update an existing one.",
-)
-async def node_upsert_endpoint(req: NodeCreateUpdate):
-    return await upsert_node(req)
 
 
 @router.put(
@@ -78,17 +73,6 @@ async def node_visible_endpoint(node_id: str, req: NodeVisibilityToggle):
 )
 async def node_enabled_endpoint(node_id: str, req: NodeStatusToggle):
     return await set_node_enabled(node_id, req)
-
-
-@router.delete(
-    "/nodes/{node_id}",
-    response_model=StatusResponse,
-    responses={404: {"description": "Node not found"}},
-    summary="Delete Node",
-    description="Delete a node and all associated edges.",
-)
-async def node_delete_endpoint(node_id: str):
-    return await delete_node(node_id)
 
 
 @router.post(

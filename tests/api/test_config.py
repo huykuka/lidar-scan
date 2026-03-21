@@ -1,6 +1,18 @@
 """Tests for configuration import/export API."""
 
 import json
+from unittest.mock import AsyncMock, patch
+
+
+def _put_dag(client, base_version: int, nodes: list, edges: list | None = None):
+    """Seed the DB via PUT /api/v1/dag/config with mocked reload."""
+    body = {"base_version": base_version, "nodes": nodes, "edges": edges or []}
+    with patch(
+        "app.api.v1.dag.service.node_manager.reload_config",
+        new_callable=AsyncMock,
+    ):
+        return client.put("/api/v1/dag/config", json=body)
+
 
 
 class TestConfigurationExport:
@@ -20,21 +32,19 @@ class TestConfigurationExport:
     
     def test_export_with_data(self, client):
         """Test exporting configuration with nodes and edges"""
-        # Create some test data
-        client.post("/api/v1/nodes", json={
-            "id": "s1",
-            "name": "Test Lidar",
-            "type": "sensor",
-            "category": "Input",
-            "config": {"launch_args": "test_args"}
-        })
-        client.post("/api/v1/nodes", json={
-            "id": "f1",
-            "name": "Test Fusion",
-            "type": "fusion",
-            "category": "Processing",
-            "config": {"topic": "fused"}
-        })
+        # Seed test data via PUT /dag/config
+        _put_dag(client, 0, [
+            {
+                "id": "s1", "name": "Test Lidar", "type": "sensor", "category": "Input",
+                "enabled": True, "visible": True,
+                "config": {"launch_args": "test_args"}, "pose": None, "x": 0.0, "y": 0.0,
+            },
+            {
+                "id": "f1", "name": "Test Fusion", "type": "fusion", "category": "Processing",
+                "enabled": True, "visible": True,
+                "config": {"topic": "fused"}, "pose": None, "x": 0.0, "y": 0.0,
+            },
+        ])
         
         response = client.get("/api/v1/config/export")
         
@@ -66,13 +76,13 @@ class TestConfigurationImport:
     
     def test_import_replace_mode(self, client):
         """Test import in replace mode (default)"""
-        # Create existing data
-        client.post("/api/v1/nodes", json={
-            "id": "old_s1",
-            "name": "Existing Lidar",
-            "type": "sensor",
-            "category": "Input"
-        })
+        # Create existing data via PUT /dag/config
+        _put_dag(client, 0, [
+            {
+                "id": "old_s1", "name": "Existing Lidar", "type": "sensor", "category": "Input",
+                "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0,
+            }
+        ])
         
         # Import new configuration (should replace)
         response = client.post("/api/v1/config/import", json={
@@ -98,13 +108,13 @@ class TestConfigurationImport:
     
     def test_import_merge_mode(self, client):
         """Test import in merge mode"""
-        # Create existing data
-        client.post("/api/v1/nodes", json={
-            "id": "old_s1",
-            "name": "Existing Lidar",
-            "type": "sensor",
-            "category": "Input"
-        })
+        # Create existing data via PUT /dag/config
+        _put_dag(client, 0, [
+            {
+                "id": "old_s1", "name": "Existing Lidar", "type": "sensor", "category": "Input",
+                "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0,
+            }
+        ])
         
         # Import new configuration (should merge)
         response = client.post("/api/v1/config/import", json={

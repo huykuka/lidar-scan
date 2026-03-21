@@ -74,29 +74,26 @@ class TestGetDagConfig:
         assert data["config_version"] == 0
 
     def test_get_returns_correct_version_and_nodes(self, client):
-        """Seed DB with 2 nodes + 1 edge and verify GET returns them."""
-        # Seed via existing nodes/edges API
-        client.post("/api/v1/nodes", json={
-            "id": "aaa",
-            "name": "Sensor A",
-            "type": "sensor",
-            "category": "sensor",
-            "config": {},
-        })
-        client.post("/api/v1/nodes", json={
-            "id": "bbb",
-            "name": "Fusion B",
-            "type": "fusion",
-            "category": "fusion",
-            "config": {},
-        })
-        client.post("/api/v1/edges", json={
-            "id": "e1",
-            "source_node": "aaa",
-            "source_port": "out",
-            "target_node": "bbb",
-            "target_port": "in",
-        })
+        """Seed DB with 2 nodes + 1 edge via PUT /dag/config and verify GET returns them."""
+        seed_nodes = [
+            {"id": "aaa", "name": "Sensor A", "type": "sensor", "category": "sensor",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+            {"id": "bbb", "name": "Fusion B", "type": "fusion", "category": "fusion",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+        ]
+        seed_edge = {
+            "id": "e1", "source_node": "aaa", "source_port": "out",
+            "target_node": "bbb", "target_port": "in",
+        }
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ):
+            seed_resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=0, nodes=seed_nodes, edges=[seed_edge]),
+            )
+        assert seed_resp.status_code == 200
 
         resp = client.get("/api/v1/dag/config")
         assert resp.status_code == 200
@@ -138,16 +135,25 @@ class TestSaveDagConfig:
 
     def test_save_replaces_nodes(self, client):
         """PUT with one node must leave only that node in DB (old nodes deleted)."""
-        # Pre-seed two nodes
-        client.post("/api/v1/nodes", json={"id": "old1", "name": "Old A", "type": "sensor", "category": "sensor", "config": {}})
-        client.post("/api/v1/nodes", json={"id": "old2", "name": "Old B", "type": "fusion", "category": "fusion", "config": {}})
+        # Pre-seed two nodes via PUT /dag/config
+        old_nodes = [
+            {"id": "old1", "name": "Old A", "type": "sensor", "category": "sensor",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+            {"id": "old2", "name": "Old B", "type": "fusion", "category": "fusion",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+        ]
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ):
+            client.put("/api/v1/dag/config", json=_put_body(base_version=0, nodes=old_nodes))
 
         new_node = _node_payload("new1", "New Sensor")
         with patch(
             "app.api.v1.dag.service.node_manager.reload_config",
             new_callable=AsyncMock,
         ):
-            resp = client.put("/api/v1/dag/config", json=_put_body(nodes=[new_node]))
+            resp = client.put("/api/v1/dag/config", json=_put_body(base_version=1, nodes=[new_node]))
         assert resp.status_code == 200
 
         # Only the new node should exist
@@ -157,12 +163,27 @@ class TestSaveDagConfig:
 
     def test_save_replaces_edges(self, client):
         """PUT with 0 edges after seeding 2 edges must result in DB having 0 edges."""
-        # Seed nodes and edges
-        client.post("/api/v1/nodes", json={"id": "n1", "name": "N1", "type": "sensor", "category": "sensor", "config": {}})
-        client.post("/api/v1/nodes", json={"id": "n2", "name": "N2", "type": "fusion", "category": "fusion", "config": {}})
-        client.post("/api/v1/nodes", json={"id": "n3", "name": "N3", "type": "fusion", "category": "fusion", "config": {}})
-        client.post("/api/v1/edges", json=_edge_payload("e1", "n1", "n2"))
-        client.post("/api/v1/edges", json=_edge_payload("e2", "n1", "n3"))
+        # Seed nodes and edges via PUT /dag/config
+        seed_nodes = [
+            {"id": "n1", "name": "N1", "type": "sensor", "category": "sensor",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+            {"id": "n2", "name": "N2", "type": "fusion", "category": "fusion",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+            {"id": "n3", "name": "N3", "type": "fusion", "category": "fusion",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+        ]
+        seed_edges = [
+            _edge_payload("e1", "n1", "n2"),
+            _edge_payload("e2", "n1", "n3"),
+        ]
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ):
+            client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=0, nodes=seed_nodes, edges=seed_edges),
+            )
 
         # Save with no edges, keeping just n1
         n1 = _node_payload("n1", "N1")
@@ -172,7 +193,7 @@ class TestSaveDagConfig:
         ):
             resp = client.put(
                 "/api/v1/dag/config",
-                json=_put_body(nodes=[n1], edges=[]),
+                json=_put_body(base_version=1, nodes=[n1], edges=[]),
             )
         assert resp.status_code == 200
 
@@ -291,3 +312,55 @@ class TestSaveDagConfig:
             resp = client.put("/api/v1/dag/config", json=_put_body(nodes=[node]))
         assert resp.status_code == 200
         assert resp.json()["node_id_map"] == {}
+
+    def test_no_ghost_records_after_put(self, client):
+        """PUT with N nodes then PUT with N-1 nodes must leave exactly N-1 nodes and 0 dangling edges."""
+        # First PUT: 3 nodes + 2 edges
+        first_nodes = [
+            {"id": "g1", "name": "Ghost 1", "type": "sensor", "category": "sensor",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+            {"id": "g2", "name": "Ghost 2", "type": "fusion", "category": "fusion",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+            {"id": "g3", "name": "Ghost 3", "type": "fusion", "category": "fusion",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+        ]
+        first_edges = [
+            _edge_payload("ge1", "g1", "g2"),
+            _edge_payload("ge2", "g1", "g3"),
+        ]
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ):
+            r1 = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=0, nodes=first_nodes, edges=first_edges),
+            )
+        assert r1.status_code == 200
+
+        # Second PUT: only 2 nodes, no edges — g3 and both edges should disappear
+        second_nodes = [
+            {"id": "g1", "name": "Ghost 1", "type": "sensor", "category": "sensor",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+            {"id": "g2", "name": "Ghost 2", "type": "fusion", "category": "fusion",
+             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
+        ]
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ):
+            r2 = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=second_nodes, edges=[]),
+            )
+        assert r2.status_code == 200
+
+        # Exactly 2 nodes, 0 edges — no ghost records
+        nodes_resp = client.get("/api/v1/nodes")
+        assert len(nodes_resp.json()) == 2
+        node_ids = {n["id"] for n in nodes_resp.json()}
+        assert node_ids == {"g1", "g2"}
+        assert "g3" not in node_ids
+
+        edges_resp = client.get("/api/v1/edges")
+        assert edges_resp.json() == []

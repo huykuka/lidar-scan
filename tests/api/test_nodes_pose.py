@@ -1,18 +1,39 @@
 """
-B-18: Integration tests for the nodes API with Pose object.
+B-18: Integration tests for nodes API with Pose object.
 
+Node creation is now exclusively via PUT /api/v1/dag/config (atomic).
 Tests cover:
-- POST /nodes with pose object → 200 and round-trip GET returns same pose
-- POST /nodes with config.x = 100 (flat key) → 422 with correct error
-- POST /nodes with pose.yaw = 270 → 422 (angle out of range)
-- POST /nodes with pose.yaw = 180 → 200 (boundary passes)
-- POST /nodes with pose.yaw = -180 → 200 (negative boundary passes)
+- PUT /dag/config with sensor node + pose → round-trip GET /nodes/{id} returns same pose
+- PUT /dag/config with sensor node, pose accessible at top-level not inside config
+- PUT /dag/config with pose.yaw = 270 → 422 (angle out of range, validated by NodeRecord/Pose)
+- PUT /dag/config with pose.yaw = 180 → 200 (boundary passes)
+- PUT /dag/config with pose.yaw = -180 → 200 (negative boundary passes)
 - GET /nodes → all sensor nodes have pose field; non-sensor nodes have pose: null
 """
+from __future__ import annotations
+
+from typing import Any, Dict
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 
-SENSOR_NODE_PAYLOAD = {
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _put_dag(client, base_version: int, nodes: list, edges: list | None = None):
+    """Perform PUT /api/v1/dag/config with mocked reload."""
+    body = {"base_version": base_version, "nodes": nodes, "edges": edges or []}
+    with patch(
+        "app.api.v1.dag.service.node_manager.reload_config",
+        new_callable=AsyncMock,
+    ):
+        return client.put("/api/v1/dag/config", json=body)
+
+
+SENSOR_NODE = {
+    "id": "sensor_pose_01",
     "name": "Test Front LiDAR",
     "type": "sensor",
     "category": "sensor",
@@ -35,7 +56,8 @@ SENSOR_NODE_PAYLOAD = {
     "y": 200.0,
 }
 
-FUSION_NODE_PAYLOAD = {
+FUSION_NODE = {
+    "id": "fusion_01",
     "name": "Test Fusion",
     "type": "fusion",
     "category": "fusion",
@@ -44,28 +66,25 @@ FUSION_NODE_PAYLOAD = {
     "config": {
         "fusion_method": "icp_registration",
     },
+    "pose": None,
     "x": 300.0,
     "y": 200.0,
 }
 
 
 class TestNodesPoseRoundTrip:
-    """B-18: POST/GET round-trip with pose object."""
+    """B-18: PUT /dag/config → GET /nodes/{id} round-trip with pose object."""
 
     def test_create_sensor_with_pose_returns_200(self, client):
-        resp = client.post("/api/v1/nodes", json=SENSOR_NODE_PAYLOAD)
+        resp = _put_dag(client, 0, [SENSOR_NODE])
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["status"] == "success"
-        assert "id" in data
 
     def test_create_sensor_pose_round_trip(self, client):
-        """POST with pose → GET /nodes/{id} returns same pose at top level."""
-        create_resp = client.post("/api/v1/nodes", json=SENSOR_NODE_PAYLOAD)
-        assert create_resp.status_code == 200
-        node_id = create_resp.json()["id"]
+        """PUT with pose → GET /nodes/{id} returns same pose at top level."""
+        put_resp = _put_dag(client, 0, [SENSOR_NODE])
+        assert put_resp.status_code == 200
 
-        get_resp = client.get(f"/api/v1/nodes/{node_id}")
+        get_resp = client.get("/api/v1/nodes/sensor_pose_01")
         assert get_resp.status_code == 200
         node = get_resp.json()
 
@@ -80,10 +99,9 @@ class TestNodesPoseRoundTrip:
 
     def test_create_sensor_pose_not_in_config(self, client):
         """Pose must be at top level, not inside config dict."""
-        create_resp = client.post("/api/v1/nodes", json=SENSOR_NODE_PAYLOAD)
-        node_id = create_resp.json()["id"]
+        _put_dag(client, 0, [SENSOR_NODE])
 
-        get_resp = client.get(f"/api/v1/nodes/{node_id}")
+        get_resp = client.get("/api/v1/nodes/sensor_pose_01")
         node = get_resp.json()
 
         # pose must NOT appear inside config
@@ -92,97 +110,40 @@ class TestNodesPoseRoundTrip:
         assert "pose" not in node.get("config", {})
 
 
-class TestNodesPoseFlatKeyRejection:
-    """B-18: Flat pose keys in config must be rejected with 422."""
-
-    def test_flat_x_in_config_rejected_422(self, client):
-        payload = {
-            "name": "Bad Sensor",
-            "type": "sensor",
-            "category": "sensor",
-            "enabled": True,
-            "visible": True,
-            "config": {
-                "lidar_type": "multiscan",
-                "hostname": "192.168.1.10",
-                "mode": "sim",
-                "x": 100.0,   # DEPRECATED flat key
-            },
-        }
-        resp = client.post("/api/v1/nodes", json=payload)
-        assert resp.status_code == 422
-        detail = resp.json()["detail"]
-        assert "pose" in detail.lower() or "deprecated" in detail.lower()
-
-    def test_flat_roll_in_config_rejected_422(self, client):
-        payload = {
-            "name": "Bad Sensor 2",
-            "type": "sensor",
-            "category": "sensor",
-            "enabled": True,
-            "visible": True,
-            "config": {
-                "lidar_type": "multiscan",
-                "mode": "sim",
-                "roll": 5.0,   # DEPRECATED flat key
-            },
-        }
-        resp = client.post("/api/v1/nodes", json=payload)
-        assert resp.status_code == 422
-
-    def test_multiple_flat_keys_in_config_rejected_422(self, client):
-        payload = {
-            "name": "Bad Sensor 3",
-            "type": "sensor",
-            "category": "sensor",
-            "enabled": True,
-            "visible": True,
-            "config": {
-                "x": 100.0,
-                "y": 0.0,
-                "z": 50.0,
-                "roll": 0.0,
-                "pitch": 0.0,
-                "yaw": 45.0,
-            },
-        }
-        resp = client.post("/api/v1/nodes", json=payload)
-        assert resp.status_code == 422
-
-
 class TestNodesPoseValidation:
-    """B-18: Pose field validation (angle bounds)."""
+    """B-18: Pose field validation (angle bounds) via NodeRecord schema in PUT /dag/config."""
+
+    def _node_with_pose(self, pose: Dict[str, Any]) -> Dict[str, Any]:
+        return {**SENSOR_NODE, "id": "v_sensor_01", "pose": pose}
 
     def test_yaw_270_rejected_422(self, client):
-        payload = {**SENSOR_NODE_PAYLOAD, "pose": {
-            "x": 0.0, "y": 0.0, "z": 0.0,
-            "roll": 0.0, "pitch": 0.0, "yaw": 270.0,  # Out of range
-        }}
-        resp = client.post("/api/v1/nodes", json=payload)
+        node = self._node_with_pose(
+            {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 270.0}
+        )
+        body = {"base_version": 0, "nodes": [node], "edges": []}
+        resp = client.put("/api/v1/dag/config", json=body)
         assert resp.status_code == 422
 
     def test_yaw_180_passes_200(self, client):
-        payload = {**SENSOR_NODE_PAYLOAD, "pose": {
-            "x": 0.0, "y": 0.0, "z": 0.0,
-            "roll": 0.0, "pitch": 0.0, "yaw": 180.0,  # Boundary passes
-        }}
-        resp = client.post("/api/v1/nodes", json=payload)
+        node = self._node_with_pose(
+            {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 180.0}
+        )
+        resp = _put_dag(client, 0, [node])
         assert resp.status_code == 200
 
     def test_yaw_neg180_passes_200(self, client):
-        payload = {**SENSOR_NODE_PAYLOAD, "pose": {
-            "x": 0.0, "y": 0.0, "z": 0.0,
-            "roll": 0.0, "pitch": 0.0, "yaw": -180.0,  # Negative boundary passes
-        }}
-        resp = client.post("/api/v1/nodes", json=payload)
+        node = self._node_with_pose(
+            {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": -180.0}
+        )
+        resp = _put_dag(client, 0, [node])
         assert resp.status_code == 200
 
     def test_roll_exceeds_180_rejected_422(self, client):
-        payload = {**SENSOR_NODE_PAYLOAD, "pose": {
-            "x": 0.0, "y": 0.0, "z": 0.0,
-            "roll": 190.0, "pitch": 0.0, "yaw": 0.0,
-        }}
-        resp = client.post("/api/v1/nodes", json=payload)
+        node = self._node_with_pose(
+            {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 190.0, "pitch": 0.0, "yaw": 0.0}
+        )
+        body = {"base_version": 0, "nodes": [node], "edges": []}
+        resp = client.put("/api/v1/dag/config", json=body)
         assert resp.status_code == 422
 
 
@@ -190,8 +151,7 @@ class TestNodesListPoseField:
     """B-18: GET /nodes returns pose for sensor nodes, null for others."""
 
     def test_get_nodes_list_sensor_has_pose(self, client):
-        # Create sensor node
-        client.post("/api/v1/nodes", json=SENSOR_NODE_PAYLOAD)
+        _put_dag(client, 0, [SENSOR_NODE])
 
         resp = client.get("/api/v1/nodes")
         assert resp.status_code == 200
@@ -204,8 +164,7 @@ class TestNodesListPoseField:
             assert node["pose"] is not None
 
     def test_get_nodes_list_fusion_has_null_pose(self, client):
-        # Create fusion node
-        client.post("/api/v1/nodes", json=FUSION_NODE_PAYLOAD)
+        _put_dag(client, 0, [FUSION_NODE])
 
         resp = client.get("/api/v1/nodes")
         assert resp.status_code == 200
@@ -218,23 +177,25 @@ class TestNodesListPoseField:
             assert node["pose"] is None
 
     def test_create_sensor_without_pose_defaults_to_zero(self, client):
-        """Sensor created without pose gets zero pose."""
-        payload = {
+        """Sensor created without pose (pose: null) gets null or zero pose via GET."""
+        no_pose_node = {
+            "id": "noposenode01",
             "name": "No-Pose Sensor",
             "type": "sensor",
             "category": "sensor",
             "enabled": True,
             "visible": True,
             "config": {"lidar_type": "multiscan", "hostname": "192.168.1.10", "mode": "sim"},
+            "pose": None,
+            "x": 0.0,
+            "y": 0.0,
         }
-        create_resp = client.post("/api/v1/nodes", json=payload)
-        assert create_resp.status_code == 200
-        node_id = create_resp.json()["id"]
+        _put_dag(client, 0, [no_pose_node])
 
-        get_resp = client.get(f"/api/v1/nodes/{node_id}")
+        get_resp = client.get("/api/v1/nodes/noposenode01")
         node = get_resp.json()
 
-        # Should have a zero pose (not None for sensor nodes)
+        # Sensor with null pose: pose may be None or a zero pose object
         assert "pose" in node
         if node["pose"] is not None:
             pose = node["pose"]

@@ -189,6 +189,62 @@
 
 ---
 
+## Phase 6 — Dead Code Removal (canvas-local-edit no longer uses per-node/edge CRUD)
+
+> All canvas save/create/delete operations are now routed exclusively through `PUT /api/v1/dag/config`.
+> The following per-node/per-edge mutation endpoints and their service functions are no longer called
+> by any active frontend code or workflow and must be removed.
+
+### 6.1 Remove edge mutation endpoints & service functions
+
+#### `app/api/v1/edges/handler.py`
+- [x] Delete `POST /edges` — `edge_create_endpoint`
+- [x] Delete `DELETE /edges/{edge_id}` — `edge_delete_endpoint`
+- [x] Delete `POST /edges/bulk` — `edges_bulk_endpoint`
+- [x] Remove imports for `create_edge`, `delete_edge`, `save_edges_bulk`, `EdgeCreateUpdate` from handler
+
+#### `app/api/v1/edges/service.py`
+- [x] Delete `async def create_edge(edge: EdgeCreateUpdate)` function
+- [x] Delete `async def delete_edge(edge_id: str)` function
+- [x] Delete `async def save_edges_bulk(edges: List[EdgeCreateUpdate])` function
+- [x] Delete `class EdgeCreateUpdate(BaseModel)` (no longer used by any handler)
+- [x] Clean up unused imports (`uuid`, `List` from `typing` if no longer needed)
+
+### 6.2 Remove node mutation endpoint & service function
+
+#### `app/api/v1/nodes/handler.py`
+- [x] Delete `POST /nodes` — `node_upsert_endpoint`
+- [x] Delete `DELETE /nodes/{node_id}` — `node_delete_endpoint`
+- [x] Remove `upsert_node`, `delete_node`, `NodeCreateUpdate` from handler imports
+
+#### `app/api/v1/nodes/service.py`
+- [x] Delete `async def upsert_node(req: NodeCreateUpdate)` function
+- [x] Delete `async def delete_node(node_id: str)` function
+- [x] Delete `class NodeCreateUpdate(BaseModel)` (no longer used by any handler)
+- [x] Clean up unused imports (`Pose` from `app.schemas.pose`, `EdgeRepository` if only used by `delete_node`)
+
+### 6.3 Update Swagger tag description in `app/app.py`
+- [x] Update `"Nodes"` OpenAPI tag description to remove mention of CRUD/create/delete
+- [x] Update `"Edges"` OpenAPI tag description to reflect read-only status (list only)
+
+### 6.4 Update test files to remove calls to deleted endpoints
+
+#### `tests/api/test_dag_config.py`
+- [x] Replace `client.post("/api/v1/nodes", ...)` seeding calls in `test_get_returns_correct_version_and_nodes` with equivalent `PUT /dag/config` seeding
+- [x] Replace `client.post("/api/v1/nodes", ...)` and `client.post("/api/v1/edges", ...)` seeding in `test_save_replaces_nodes`, `test_save_replaces_edges` with `PUT /dag/config` seeding
+- [x] Verify all tests in `test_dag_config.py` still pass
+
+### 6.5 Atomic PUT ghost/stale record validation
+- [x] Confirm `save_dag_config()` in `app/api/v1/dag/service.py` deletes all DB nodes NOT present in `req.nodes` (existing `ids_to_delete` logic)
+- [x] Confirm `EdgeRepository.save_all()` performs a full replace (delete-all then insert), so no stale edges can persist
+- [x] Add a targeted regression test: `test_no_ghost_records_after_put` — PUT with N nodes then PUT with N-1 nodes, assert DB has exactly N-1 nodes and 0 dangling edges
+
+### 6.6 Final verification
+- [x] Run `pytest tests/api/test_dag_config.py tests/api/test_nodes_pose.py tests/api/test_config.py tests/repositories/ tests/test_dag_meta_migration.py` — all pass
+- [x] Confirm `GET /api/v1/edges`, `GET /api/v1/nodes`, `GET /api/v1/nodes/{id}`, `PUT /nodes/{id}/visible`, `PUT /nodes/{id}/enabled`, `POST /nodes/reload`, `GET /nodes/status/all` still respond correctly
+
+---
+
 ## Dependency Notes
 
 - **Does not depend on frontend work** — backend can be developed and tested independently

@@ -31,16 +31,18 @@ OPENAPI_TAGS: list[dict] = [
     {
         "name": "Nodes",
         "description": (
-            "CRUD operations for DAG processing nodes. "
-            "Node configurations are persisted in SQLite; "
-            "the live engine reflects changes after reload."
+            "Read-only access and live-action toggles for DAG processing nodes. "
+            "Node creation, update, and deletion is performed atomically via "
+            "PUT /api/v1/dag/config. This router exposes list, get, enabled/visible "
+            "toggles, status queries, and the reload trigger."
         ),
     },
     {
         "name": "Edges",
         "description": (
-            "Manage directed connections between DAG nodes. "
-            "Edges define the data-flow topology of the processing pipeline."
+            "Read-only access to directed connections between DAG nodes. "
+            "Edge creation and deletion is performed atomically via "
+            "PUT /api/v1/dag/config. This router exposes only GET /edges."
         ),
     },
     {
