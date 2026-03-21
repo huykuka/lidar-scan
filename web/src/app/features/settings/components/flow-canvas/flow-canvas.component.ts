@@ -20,6 +20,9 @@ import {
   FlowCanvasPaletteComponent
 } from '@features/settings/components/flow-canvas/palette/flow-canvas-palette.component';
 import {
+  FlowCanvasControlsComponent
+} from '@features/settings/components/flow-canvas/controls/flow-canvas-controls.component';
+import {
   Connection,
   FlowCanvasConnectionsComponent,
 } from '@features/settings/components/flow-canvas/connections/flow-canvas-connections.component';
@@ -38,6 +41,8 @@ import {StatusWebSocketService} from '@core/services/status-websocket.service';
 import {NodeConfig} from '@core/models/node.model';
 import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 
+const GRID_SIZE = 20; // px — must match the SVG grid pattern size
+
 @Component({
   selector: 'app-flow-canvas',
   standalone: true,
@@ -45,6 +50,7 @@ import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-st
     SynergyComponentsModule,
     FlowCanvasNodeComponent,
     FlowCanvasPaletteComponent,
+    FlowCanvasControlsComponent,
     FlowCanvasConnectionsComponent,
     FlowCanvasEmptyStateComponent,
     DynamicNodeEditorComponent,
@@ -62,7 +68,12 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected panOffset = signal({ x: 0, y: 0 });
   protected zoom = signal(1);
   protected selectedCanvasNode = signal<CanvasNode | null>(null);
+  // Raw (unsnapped) drag accumulator — tracks continuous mouse movement so the
+  // node follows the cursor smoothly; snapping is applied only on drop.
+  private rawDragPos = signal<{ x: number; y: number } | null>(null);
   protected isTogglingVisibility = signal<string | null>(null);
+  protected snapToGrid = signal(true);
+  readonly gridSize = GRID_SIZE;
   protected canvasWidth = computed(() => {
     const nodes = this.canvasNodes();
     if (!nodes.length) return '100%';
@@ -153,16 +164,19 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       }));
     } else if (this.drag.draggingNode()) {
       const node = this.drag.draggingNode()!;
-      const newPosition = {
-        x: node.position.x + event.movementX / this.zoom(),
-        y: node.position.y + event.movementY / this.zoom(),
+      // Accumulate raw (unsnapped) delta so the node follows the cursor exactly.
+      // Snapping is deferred to mouseup so there is no per-frame jitter.
+      const prev = this.rawDragPos() ?? node.position;
+      const raw = {
+        x: prev.x + event.movementX / this.zoom(),
+        y: prev.y + event.movementY / this.zoom(),
       };
+      this.rawDragPos.set(raw);
 
       this.canvasNodes.update((nodes) =>
-        nodes.map((n) => (n.id === node.id ? { ...n, position: newPosition } : n)),
+        nodes.map((n) => (n.id === node.id ? { ...n, position: raw } : n)),
       );
-
-      this.drag.updateDraggingNode({ ...node, position: newPosition });
+      this.drag.updateDraggingNode({ ...node, position: raw });
       this.updateConnections();
     } else if (this.drag.pendingConnection()) {
       // Update the live pending bezier path as the cursor moves
@@ -195,9 +209,16 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
     const dropped = this.drag.endNodeDrag();
     if (dropped) {
-      // Phase 2.6: persist final drag position into the local-edit store
-      this.canvasEditStore.moveNode(dropped.nodeId, dropped.position.x, dropped.position.y);
+      // Snap the final position before persisting to the store
+      const snapped = this.snapPos(dropped.position);
+      this.canvasEditStore.moveNode(dropped.nodeId, snapped.x, snapped.y);
+      // Reflect the snapped position in canvasNodes too
+      this.canvasNodes.update((nodes) =>
+        nodes.map((n) => (n.id === dropped.nodeId ? { ...n, position: snapped } : n)),
+      );
       this.updateConnections();
+      // Reset the raw accumulator now that the drag is committed
+      this.rawDragPos.set(null);
     }
 
     // Cancel any pending port connection if released on empty canvas
@@ -207,10 +228,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
     if (this.drag.paletteDragType()) {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-      const x = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
-      const y = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
-
-      this.createNodeAtPosition(this.drag.paletteDragType()!, { x, y });
+      const rawX = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
+      const rawY = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
+      this.createNodeAtPosition(this.drag.paletteDragType()!, this.snapPos({ x: rawX, y: rawY }));
       this.drag.endPaletteDrag();
     }
   }
@@ -265,6 +285,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   onNodeMouseDown(event: MouseEvent, node: CanvasNode) {
     event.stopPropagation();
     this.selectedCanvasNode.set(node);
+    // Seed the raw accumulator from the node's current position so the first
+    // mousemove delta is applied to the correct base coordinate.
+    this.rawDragPos.set({ x: node.position.x, y: node.position.y });
     this.drag.startNodeDrag(node, event.offsetX, event.offsetY);
   }
 
@@ -290,10 +313,10 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     if (!type) return;
 
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
-    const y = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
+    const rawX = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
+    const rawY = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
 
-    this.createNodeAtPosition(type, { x, y });
+    this.createNodeAtPosition(type, this.snapPos({ x: rawX, y: rawY }));
     this.drag.endPaletteDrag();
   }
 
@@ -393,6 +416,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   resetView() {
     this.panOffset.set({ x: 0, y: 0 });
     this.zoom.set(1);
+  }
+
+  zoomIn() {
+    this.zoom.update((z) => Math.min(3, z * 1.1));
+  }
+
+  zoomOut() {
+    this.zoom.update((z) => Math.max(0.1, z * 0.9));
   }
 
   onDrawerClose() {
@@ -516,6 +547,17 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const nodeHeight = 80; // Approximate node height in pixels
     const spacing = nodeHeight / (totalPorts + 1);
     return spacing * (portIndex + 1);
+  }
+
+  /** Snap a coordinate to the nearest grid line when snap-to-grid is enabled. */
+  private snap(value: number): number {
+    if (!this.snapToGrid()) return value;
+    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  }
+
+  /** Snap an {x, y} position pair. */
+  private snapPos(pos: { x: number; y: number }): { x: number; y: number } {
+    return { x: this.snap(pos.x), y: this.snap(pos.y) };
   }
 
   private createNodeAtPosition(type: string, position: { x: number; y: number }) {

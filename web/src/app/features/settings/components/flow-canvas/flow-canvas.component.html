@@ -20,10 +20,8 @@
     <!-- Left Palette Sidebar -->
     <app-flow-canvas-palette (onPluginDragEnd)="onPaletteDragEnd()"
                              (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
-                             (onResetView)="resetView()"
                              [isLoading]="isPaletteLoading()"
                              [plugins]="availablePlugins()"
-                             [zoom]="zoom()"
     />
 
     <!-- Canvas Area -->
@@ -48,14 +46,22 @@
         [style.min-width]="canvasWidth()"
         class="relative"
       >
-        <!-- Grid Background -->
-        <svg class="absolute inset-0 w-full h-full pointer-events-none">
+        <!-- Grid Background: dot grid at minor interval, line grid at major interval -->
+        <svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
           <defs>
-            <pattern height="20" id="grid" patternUnits="userSpaceOnUse" width="20">
-              <circle cx="1" cy="1" fill="#e5e7eb" r="1"/>
+            <!-- Minor cell: one dot per snap unit -->
+            <pattern [attr.height]="gridSize" [attr.width]="gridSize" id="grid-minor" patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" [attr.fill]="snapToGrid() ? '#d1d5db' : '#e5e7eb'" r="1"/>
+            </pattern>
+            <!-- Major cell: bold dot every 4 snap units -->
+            <pattern [attr.height]="gridSize * 4" [attr.width]="gridSize * 4" id="grid-major" patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" fill="#9ca3af" r="1.5"/>
             </pattern>
           </defs>
-          <rect fill="url(#grid)" height="100%" width="100%"/>
+          <rect fill="url(#grid-minor)" height="100%" width="100%"/>
+          @if (snapToGrid()) {
+            <rect fill="url(#grid-major)" height="100%" width="100%"/>
+          }
         </svg>
 
         <!-- Nodes Container -->
@@ -81,6 +87,7 @@
               [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
               [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
               [class.z-10]="selectedCanvasNode()?.id === node.id"
+              [class.select-none]="!!drag.draggingNode()"
               [style.cursor]="
                 drag.draggingNode()?.id === node.id ? 'grabbing' : drag.pendingConnection() ? 'default' : 'grab'
               "
@@ -108,6 +115,18 @@
         @if (canvasNodes().length === 0) {
           <app-flow-canvas-empty-state/>
         }
+      </div>
+
+      <!-- Bottom-right canvas controls: zoom indicator, reset view, snap toggle -->
+      <div class="absolute bottom-4 right-4 z-20 pointer-events-auto">
+        <app-flow-canvas-controls
+          (onResetView)="resetView()"
+          (onSnapToggle)="snapToGrid.set(!snapToGrid())"
+          (onZoomIn)="zoomIn()"
+          (onZoomOut)="zoomOut()"
+          [snapToGrid]="snapToGrid()"
+          [zoom]="zoom()"
+        />
       </div>
     </div>
 

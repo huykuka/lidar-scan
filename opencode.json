@@ -6,7 +6,7 @@
   ],
   "agent": {
     "compaction": {
-      "model": "github-copilot/gpt-4.1"
+      "model": "github-copilot/claude-haiku-4.5"
     },
     "plan": {
       "disable": true,

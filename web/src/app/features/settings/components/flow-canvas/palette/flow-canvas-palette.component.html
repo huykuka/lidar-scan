@@ -104,22 +104,5 @@
       }
     </div>
 
-    <!-- Minimal Perspective Controls -->
-    <div class="px-4 py-3 bg-white border-r border-t flex flex-col gap-2.5">
-       <div class="flex items-center justify-between">
-         <span class="text-[9px] font-medium uppercase tracking-widest">Zoom</span>
-         <span class="text-[10px] font-mono font-bold text-neutral-600">{{ (zoom() * 100).toFixed(0) }}%</span>
-       </div>
-       <syn-button
-         (click)="onResetView.emit()"
-         size="small"
-       >
-         <syn-icon name="center_focus_strong" class="text-xs" />
-         Reset View
-       </syn-button>
-    </div>
   </div>
-
-
-
 </div>

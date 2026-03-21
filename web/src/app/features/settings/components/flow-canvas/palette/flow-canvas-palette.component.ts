@@ -1,4 +1,4 @@
-import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, effect, input, output, signal, untracked} from '@angular/core';
+import {Component, computed, effect, input, output, signal, untracked} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodePlugin} from '@core/models';
@@ -13,7 +13,6 @@ export class FlowCanvasPaletteComponent {
   isCollapsed = signal<boolean>(false);
   plugins = input.required<NodePlugin[]>();
   isLoading = input<boolean>(false);
-  zoom = input<number>(1);
   searchQuery = signal<string>('');
 
   constructor() {
@@ -60,7 +59,6 @@ export class FlowCanvasPaletteComponent {
       .map(key => ({ category: key, plugins: groups[key] }));
   });
 
-  onResetView = output<void>();
   onPluginDragStart = output<{ plugin: string; event: DragEvent }>();
   onPluginDragEnd = output<void>();
 
