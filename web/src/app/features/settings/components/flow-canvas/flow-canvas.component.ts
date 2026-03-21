@@ -81,7 +81,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   private nodeStore = inject(NodeStoreService);
   // Phase 2.2: drive canvasNodes + connections from the local-edit store
-  private canvasEditStore = inject(CanvasEditStoreService);
+  protected canvasEditStore = inject(CanvasEditStoreService);
   protected nodes = this.canvasEditStore.localNodes;
   protected edges = this.canvasEditStore.localEdges;
   private nodesApi = inject(NodesApiService);
@@ -105,6 +105,19 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     effect(() => {
       const edges = this.edges();
       untracked(() => this.updateConnections());
+    });
+
+    // Phase 7.2: derive availablePlugins from nodeStore.nodeDefinitions()
+    // nodeDefinitions are populated by NodePluginRegistry.loadFromBackend() which
+    // is now called in SettingsComponent.ngOnInit() before initFromBackend().
+    effect(() => {
+      const definitions = this.nodeStore.nodeDefinitions();
+      if (definitions.length > 0) {
+        untracked(() => {
+          this.availablePlugins.set(this.pluginRegistry.getAll());
+          this.isPaletteLoading.set(false);
+        });
+      }
     });
   }
 

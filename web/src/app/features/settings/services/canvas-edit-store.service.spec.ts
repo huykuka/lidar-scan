@@ -38,12 +38,13 @@ const makeEdge = (id: string, sourceNode: string, targetNode: string): Edge => (
 function createNodeStoreMock() {
   let nodesValue: NodeConfig[] = [];
   let edgesValue: Edge[] = [];
-  const nodesSignal = jasmine.createSpy('nodes').and.callFake(() => nodesValue);
-  const edgesSignal = jasmine.createSpy('edges').and.callFake(() => edgesValue);
+  const nodesSignal = vi.fn().mockImplementation(() => nodesValue);
+  const edgesSignal = vi.fn().mockImplementation(() => edgesValue);
   return {
     nodes: nodesSignal,
     edges: edgesSignal,
-    setState: jasmine.createSpy('setState').and.callFake((state: any) => {
+    nodeDefinitions: vi.fn().mockReturnValue([]),
+    setState: vi.fn().mockImplementation((state: any) => {
       if (state.nodes !== undefined) nodesValue = state.nodes;
       if (state.edges !== undefined) edgesValue = state.edges;
     }),
@@ -54,32 +55,32 @@ function createNodeStoreMock() {
 
 function createDagApiMock() {
   return {
-    getDagConfig: jasmine.createSpy('getDagConfig').and.returnValue(
-      Promise.resolve({ config_version: 5, nodes: [], edges: [] } as DagConfigResponse),
+    getDagConfig: vi.fn().mockResolvedValue(
+      { config_version: 5, nodes: [], edges: [] } as DagConfigResponse,
     ),
-    saveDagConfig: jasmine.createSpy('saveDagConfig').and.returnValue(
-      Promise.resolve({ config_version: 6, node_id_map: {} }),
+    saveDagConfig: vi.fn().mockResolvedValue(
+      { config_version: 6, node_id_map: {} },
     ),
   };
 }
 
 function createToastMock() {
   return {
-    success: jasmine.createSpy('success'),
-    danger: jasmine.createSpy('danger'),
-    warning: jasmine.createSpy('warning'),
+    success: vi.fn(),
+    danger: vi.fn(),
+    warning: vi.fn(),
   };
 }
 
 function createDialogMock() {
   return {
-    confirm: jasmine.createSpy('confirm').and.returnValue(Promise.resolve(true)),
+    confirm: vi.fn().mockResolvedValue(true),
   };
 }
 
 function createNodesApiMock() {
   return {
-    reloadConfig: jasmine.createSpy('reloadConfig').and.returnValue(Promise.resolve({})),
+    reloadConfig: vi.fn().mockResolvedValue({}),
   };
 }
 
@@ -145,13 +146,13 @@ describe('CanvasEditStoreService', () => {
   describe('isDirty()', () => {
     it('should be false initially after init with empty state', () => {
       service.initFromBackend({ config_version: 1, nodes: [], edges: [] });
-      expect(service.isDirty()).toBeFalse();
+      expect(service.isDirty()).toBe(false);
     });
 
     it('should become true after addNode()', () => {
       service.initFromBackend({ config_version: 1, nodes: [], edges: [] });
       service.addNode(makeNode('n1'));
-      expect(service.isDirty()).toBeTrue();
+      expect(service.isDirty()).toBe(true);
     });
 
     it('should become true after deleteNode()', () => {
@@ -159,7 +160,7 @@ describe('CanvasEditStoreService', () => {
       nodeStoreMock._setNodes([node]);
       service.initFromBackend({ config_version: 1, nodes: [node], edges: [] });
       service.deleteNode('n1');
-      expect(service.isDirty()).toBeTrue();
+      expect(service.isDirty()).toBe(true);
     });
 
     it('should become true after moveNode()', () => {
@@ -167,7 +168,7 @@ describe('CanvasEditStoreService', () => {
       nodeStoreMock._setNodes([node]);
       service.initFromBackend({ config_version: 1, nodes: [node], edges: [] });
       service.moveNode('n1', 100, 200);
-      expect(service.isDirty()).toBeTrue();
+      expect(service.isDirty()).toBe(true);
     });
 
     it('should remain false after updateNode with identical values', () => {
@@ -175,7 +176,7 @@ describe('CanvasEditStoreService', () => {
       nodeStoreMock._setNodes([node]);
       service.initFromBackend({ config_version: 1, nodes: [node], edges: [] });
       service.updateNode('n1', { x: 10, y: 20 }); // same values
-      expect(service.isDirty()).toBeFalse();
+      expect(service.isDirty()).toBe(false);
     });
   });
 
@@ -247,7 +248,7 @@ describe('CanvasEditStoreService', () => {
       await service.saveAndReload();
 
       expect(dagApiMock.saveDagConfig).toHaveBeenCalledWith(
-        jasmine.objectContaining({ base_version: 5 }),
+        expect.objectContaining({ base_version: 5 }),
       );
     });
 
@@ -257,8 +258,8 @@ describe('CanvasEditStoreService', () => {
       service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
       service.moveNode('n1', 999, 888);
 
-      dagApiMock.saveDagConfig.and.returnValue(
-        Promise.reject({ status: 409, error: { detail: 'Version conflict' } }),
+      dagApiMock.saveDagConfig.mockRejectedValueOnce(
+        { status: 409, error: { detail: 'Version conflict' } },
       );
 
       const emitted: string[] = [];
@@ -278,7 +279,7 @@ describe('CanvasEditStoreService', () => {
 
       await service.saveAndReload();
 
-      expect(service.isSaving()).toBeFalse();
+      expect(service.isSaving()).toBe(false);
     });
 
     it('should set isSaving to false on error', async () => {
@@ -287,11 +288,11 @@ describe('CanvasEditStoreService', () => {
       service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
       service.moveNode('n1', 999, 888);
 
-      dagApiMock.saveDagConfig.and.returnValue(Promise.reject(new Error('network')));
+      dagApiMock.saveDagConfig.mockRejectedValueOnce(new Error('network'));
 
       await service.saveAndReload();
 
-      expect(service.isSaving()).toBeFalse();
+      expect(service.isSaving()).toBe(false);
     });
 
     it('should do nothing when not dirty', async () => {
@@ -307,8 +308,8 @@ describe('CanvasEditStoreService', () => {
   describe('syncFromBackend()', () => {
     it('should call dagApi.getDagConfig() and reset state', async () => {
       const serverNodes = [makeNode('server-n1')];
-      dagApiMock.getDagConfig.and.returnValue(
-        Promise.resolve({ config_version: 9, nodes: serverNodes, edges: [] }),
+      dagApiMock.getDagConfig.mockResolvedValueOnce(
+        { config_version: 9, nodes: serverNodes, edges: [] },
       );
 
       await service.syncFromBackend(true); // skipConfirm=true
@@ -329,7 +330,7 @@ describe('CanvasEditStoreService', () => {
       service.initFromBackend({ config_version: 1, nodes: [], edges: [] });
       service.addNode(makeNode('n1')); // make dirty
 
-      dialogMock.confirm.and.returnValue(Promise.resolve(true));
+      dialogMock.confirm.mockResolvedValueOnce(true);
       await service.syncFromBackend();
 
       expect(dialogMock.confirm).toHaveBeenCalled();
@@ -339,7 +340,7 @@ describe('CanvasEditStoreService', () => {
       service.initFromBackend({ config_version: 1, nodes: [], edges: [] });
       service.addNode(makeNode('n1')); // make dirty
 
-      dialogMock.confirm.and.returnValue(Promise.resolve(false));
+      dialogMock.confirm.mockResolvedValueOnce(false);
       await service.syncFromBackend();
 
       expect(dagApiMock.getDagConfig).not.toHaveBeenCalled();
@@ -404,23 +405,23 @@ describe('CanvasEditStoreService', () => {
 
     it('should set isReloading to true during call and false after success', async () => {
       let wasReloadingDuringCall = false;
-      nodesApiMock.reloadConfig.and.callFake(async () => {
+      nodesApiMock.reloadConfig.mockImplementationOnce(async () => {
         wasReloadingDuringCall = service.isReloading();
         return {};
       });
 
       await service.reloadRuntime();
 
-      expect(wasReloadingDuringCall).toBeTrue();
-      expect(service.isReloading()).toBeFalse();
+      expect(wasReloadingDuringCall).toBe(true);
+      expect(service.isReloading()).toBe(false);
     });
 
     it('should set isReloading to false even on error', async () => {
-      nodesApiMock.reloadConfig.and.returnValue(Promise.reject(new Error('network error')));
+      nodesApiMock.reloadConfig.mockRejectedValueOnce(new Error('network error'));
 
       await service.reloadRuntime();
 
-      expect(service.isReloading()).toBeFalse();
+      expect(service.isReloading()).toBe(false);
     });
 
     it('should show success toast on success', async () => {
@@ -429,8 +430,8 @@ describe('CanvasEditStoreService', () => {
     });
 
     it('should show danger toast on error', async () => {
-      nodesApiMock.reloadConfig.and.returnValue(
-        Promise.reject(new Error('connection refused')),
+      nodesApiMock.reloadConfig.mockRejectedValueOnce(
+        new Error('connection refused'),
       );
       await service.reloadRuntime();
       expect(toastMock.danger).toHaveBeenCalled();

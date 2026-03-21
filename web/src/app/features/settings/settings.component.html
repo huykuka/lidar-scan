@@ -65,7 +65,7 @@
           (click)="onReloadRuntime()"
         >
           @if (canvasEditStore.isReloading()) {
-            <syn-spinner slot="prefix" />
+            <syn-spinner slot="prefix"/>
             Reloading…
           } @else {
             Reload
@@ -80,7 +80,7 @@
           (click)="onSync()"
         >
           @if (canvasEditStore.isSyncing()) {
-            <syn-spinner slot="prefix" />
+            <syn-spinner slot="prefix"/>
             Syncing…
           } @else {
             Sync
@@ -95,7 +95,7 @@
           (click)="onSaveAndReload()"
         >
           @if (canvasEditStore.isSaving()) {
-            <syn-spinner slot="prefix" />
+            <syn-spinner slot="prefix"/>
             Saving…
           } @else {
             Save &amp; Reload
@@ -105,7 +105,15 @@
     </div>
 
     <!-- Flow Canvas -->
-    <div class="flex-1 overflow-hidden">
+    <div class="flex-1 overflow-hidden relative">
+      @if (isInitializing()) {
+        <div class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div class="flex flex-col items-center gap-3 text-syn-color-neutral-600">
+            <syn-spinner style="font-size: 2rem;"></syn-spinner>
+            <span class="text-sm font-medium">Loading canvas…</span>
+          </div>
+        </div>
+      }
       <app-flow-canvas/>
     </div>
   </div>

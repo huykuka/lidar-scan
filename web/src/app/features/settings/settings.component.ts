@@ -14,6 +14,7 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 import {DialogService} from '@core/services/dialog.service';
+import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 
 @Component({
   selector: 'app-settings',
@@ -40,6 +41,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
   // Phase 4.1: feature-scoped canvas edit store
   protected canvasEditStore = inject(CanvasEditStoreService);
 
+  // Phase 7.2: global initializing state — true until both node definitions + DAG config are loaded
+  protected isInitializing = signal(true);
+
   // Import/Export state
   protected isExporting = signal(false);
   protected isImporting = signal(false);
@@ -54,6 +58,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private dagApi = inject(DagApiService);
   private dialog = inject(DialogService);
   private toast = inject(ToastService);
+  private pluginRegistry = inject(NodePluginRegistry);
 
   constructor() {
     // Phase 4.6: dirty indicator title effect
@@ -93,13 +98,20 @@ export class SettingsComponent implements OnInit, OnDestroy {
     // Connect to WebSocket for real-time status updates
     this.statusWs.connect();
 
-    // Phase 4.2: load DAG config from backend and initialise the local-edit store
+    // Phase 7.2: load node definitions + DAG config in parallel so both are
+    // available before the canvas becomes interactive (fixes empty palette bug).
+    this.isInitializing.set(true);
     try {
-      const dagConfig = await this.dagApi.getDagConfig();
+      const [dagConfig] = await Promise.all([
+        this.dagApi.getDagConfig(),
+        this.pluginRegistry.loadFromBackend(),
+      ]);
       this.canvasEditStore.initFromBackend(dagConfig);
     } catch (error) {
-      console.error('Failed to load DAG config', error);
-      this.toast.danger('Failed to load DAG configuration.');
+      console.error('Failed to initialize canvas', error);
+      this.toast.danger('Failed to load canvas configuration.');
+    } finally {
+      this.isInitializing.set(false);
     }
   }
 

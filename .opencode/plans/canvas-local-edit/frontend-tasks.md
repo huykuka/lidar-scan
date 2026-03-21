@@ -542,9 +542,9 @@ File: `web/src/app/features/settings/settings.component.html`
 
 ### 7.1 Validation error display
 
-- [ ] In `flow-canvas.component.html` or a new `canvas-errors.component.ts`, display
+- [x] In `flow-canvas.component.html` or a new `canvas-errors.component.ts`, display
   `canvasEditStore.validationErrors()` as a dismissible inline alert below the canvas toolbar
-- [ ] Only show errors when `isDirty()` AND `!isValid()`
+- [x] Only show errors when `isDirty()` AND `!isValid()`
 
 ### 7.2 Loading state of `FlowCanvasComponent`
 
