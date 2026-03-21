@@ -4,6 +4,7 @@ import {environment} from '../../../../environments/environment';
 import {LidarConfig, LidarListResponse} from '../../models/lidar.model';
 import {firstValueFrom} from 'rxjs';
 import {LidarStoreService} from '../stores/lidar-store.service';
+import {ZERO_POSE} from '../../models/pose.model';
 
 @Injectable({
   providedIn: 'root',
@@ -25,6 +26,7 @@ export class LidarApiService {
         name: n.name,
         enabled: n.enabled,
         ...n.config,
+        pose: n.pose ?? ZERO_POSE,
       })) as LidarConfig[];
 
     const response = {

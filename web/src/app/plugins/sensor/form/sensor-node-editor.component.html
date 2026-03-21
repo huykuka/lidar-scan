@@ -4,7 +4,7 @@
     iconColor="text-syn-color-primary-600"
     [title]="definition()?.display_name || ''"
     [description]="definition()?.description"
-    [saveDisabled]="form.invalid || configForm.invalid || isSaving()"
+    [saveDisabled]="isSaveDisabled()"
     (save)="onSave()"
     (cancel)="onCancel()"
   />
@@ -144,5 +144,12 @@
         </div>
       }
     </div>
+
+    <syn-divider class="my-0"/>
+
+    <app-pose-form
+      [pose]="poseValue()"
+      (poseChange)="onPoseChange($event)"
+    />
   </form>
 </div>

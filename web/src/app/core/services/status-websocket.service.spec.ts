@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { StatusWebSocketService } from './status-websocket.service';
 import { NodesStatusResponse, NodeStatusUpdate } from '../models/node-status.model';

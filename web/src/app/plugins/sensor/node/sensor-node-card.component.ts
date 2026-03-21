@@ -4,6 +4,7 @@ import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-ca
 import {NodeStatusUpdate} from '@core/models/node-status.model';
 import {NodeCardComponent} from '@core/models/node-plugin.model';
 import {LidarProfilesApiService} from '@core/services/api';
+import {ZERO_POSE} from '@core/models/pose.model';
 
 @Component({
   selector: 'app-sensor-node-card',
@@ -56,28 +57,20 @@ export class SensorNodeCardComponent implements NodeCardComponent {
   protected throttleMs = computed(() => this.node().data.config['throttle_ms']);
 
   protected pose = computed(() => {
-    const config = this.node().data.config;
-    const x = config['x'] ?? 0;
-    const y = config['y'] ?? 0;
-    const z = config['z'] ?? 0;
-
+    const p = this.node().data.pose ?? ZERO_POSE;
     return [
-      typeof x === 'number' ? x.toFixed(2) : x,
-      typeof y === 'number' ? y.toFixed(2) : y,
-      typeof z === 'number' ? z.toFixed(2) : z,
+      p.x.toFixed(2),
+      p.y.toFixed(2),
+      p.z.toFixed(2),
     ];
   });
 
   protected rotation = computed(() => {
-    const config = this.node().data.config;
-    const roll = config['roll'] ?? 0;
-    const pitch = config['pitch'] ?? 0;
-    const yaw = config['yaw'] ?? 0;
-
+    const p = this.node().data.pose ?? ZERO_POSE;
     return [
-      typeof roll === 'number' ? roll.toFixed(1) : roll,
-      typeof pitch === 'number' ? pitch.toFixed(1) : pitch,
-      typeof yaw === 'number' ? yaw.toFixed(1) : yaw,
+      p.roll.toFixed(1),
+      p.pitch.toFixed(1),
+      p.yaw.toFixed(1),
     ];
   });
 

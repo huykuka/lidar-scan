@@ -8,12 +8,14 @@ import {NodeEditorFacadeService} from '../../../features/settings/services/node-
 import {LidarTypeSelectComponent} from '@plugins/sensor/lidar-type-select/lidar-type-select.component';
 import {NodeEditorComponent} from '@core/models/node-plugin.model';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
+import {PoseFormComponent} from './pose-form/pose-form.component';
+import {Pose, ZERO_POSE} from '@core/models/pose.model';
 
 @Component({
   selector: 'app-sensor-node-editor',
   standalone: true,
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
-  imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent, NodeEditorHeaderComponent],
+  imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent, NodeEditorHeaderComponent, PoseFormComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './sensor-node-editor.component.html',
   styleUrl: './sensor-node-editor.component.css',
@@ -24,6 +26,11 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
   protected isSaving = signal(false);
   protected form!: FormGroup;
   protected configForm!: FormGroup;
+  protected poseValue = signal<Pose>(ZERO_POSE);
+  protected isPoseValid = signal<boolean>(true);
+  protected isSaveDisabled = computed(
+    () => this.form?.invalid || this.configForm?.invalid || !this.isPoseValid() || this.isSaving()
+  );
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
   protected definition = computed(() => {
@@ -39,6 +46,7 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
     const vals = this.formValues();
     return def.properties.filter((prop) => {
       if (prop.hidden) return false;
+      if (prop.type === 'pose') return false;
       if (prop.depends_on) {
         return Object.entries(prop.depends_on).every(([key, allowed]) =>
           (allowed as any[]).includes(vals[key]),
@@ -65,7 +73,7 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
   }
 
   async onSave() {
-    if (this.form.invalid || this.configForm.invalid) return;
+    if (this.form.invalid || this.configForm.invalid || !this.isPoseValid()) return;
 
     const def = this.definition();
     if (!def) return;
@@ -77,6 +85,7 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
       config: this.configForm.getRawValue(),
       definition: def,
       existingNode: this.nodeStore.selectedNode(),
+      pose: this.poseValue(),
     });
 
     this.isSaving.set(false);
@@ -84,6 +93,10 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
     if (success) {
       this.saved.emit();
     }
+  }
+
+  onPoseChange(pose: Pose): void {
+    this.poseValue.set(pose);
   }
 
   onCancel() {
@@ -110,9 +123,13 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
     const data = this.nodeStore.selectedNode();
     const def = this.definition();
 
+    // Initialize pose signal from node data
+    this.poseValue.set(data.pose ?? ZERO_POSE);
+
     const configGroup: any = {};
     if (def) {
       def.properties.forEach((prop) => {
+        if (prop.type === 'pose') return;
         const val = data.config ? data.config[prop.name] : prop.default;
 
         if (prop.type === 'vec3') {
