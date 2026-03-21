@@ -1,14 +1,14 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ReactiveFormsModule } from '@angular/forms';
-import { CUSTOM_ELEMENTS_SCHEMA, signal } from '@angular/core';
-import { vi } from 'vitest';
-import { SensorNodeEditorComponent } from './sensor-node-editor.component';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { NodeEditorFacadeService } from '../../../features/settings/services/node-editor-facade.service';
-import { LidarProfilesApiService } from '@core/services/api/lidar-profiles-api.service';
-import { ZERO_POSE, Pose } from '@core/models/pose.model';
-import { NodeConfig, NodeDefinition } from '@core/models/node.model';
-import { StatusWebSocketService } from '@core/services/status-websocket.service';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {ReactiveFormsModule} from '@angular/forms';
+import {CUSTOM_ELEMENTS_SCHEMA, signal} from '@angular/core';
+import {vi} from 'vitest';
+import {SensorNodeEditorComponent} from './sensor-node-editor.component';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
+import {NodeConfig, NodeDefinition} from '@core/models/node.model';
+import {StatusWebSocketService} from '@core/services/status-websocket.service';
+import {Pose, ZERO_POSE} from '@core/models';
 
 const mockDefinition: NodeDefinition = {
   type: 'sensor',

@@ -1,3 +1,5 @@
+import {Pose} from '@core/models/pose.model';
+
 export interface CalibrationResult {
   fitness: number;
   rmse: number;
@@ -11,14 +13,6 @@ export interface CalibrationResult {
   processing_chain?: string[]; // Ordered DAG path from sensor to calibration node
 }
 
-export interface Pose {
-  x: number;
-  y: number;
-  z: number;
-  roll: number;
-  pitch: number;
-  yaw: number;
-}
 
 export interface CalibrationTriggerRequest {
   reference_sensor_id?: string;
