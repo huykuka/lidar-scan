@@ -31,10 +31,6 @@ import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 export class SettingsComponent implements OnInit, OnDestroy {
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
-  protected lidars = this.nodeStore.sensorNodes;
-  protected isLoading = this.nodeStore.isLoading;
-  protected fusions = this.nodeStore.fusionNodes;
-  protected operations = this.nodeStore.operationNodes;
   protected isSystemRunning = this.systemStatus.isRunning;
 
   // Phase 4.1: feature-scoped canvas edit store
@@ -60,7 +56,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
   private pluginRegistry = inject(NodePluginRegistry);
 
   constructor() {
-    // Phase 4.6: dirty indicator title effect
+
     effect(() => {
       const dirty = this.canvasEditStore.isDirty();
       this.navService.setPageConfig({
@@ -213,11 +209,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.showValidationDialog.set(false);
         this.validationResult.set(null);
         this.pendingImportConfig.set(null);
-
-        // Phase 4.3: after config import, sync the canvas from the backend
-        this.toast.success(
-          `Configuration imported: ${result.imported.lidars} lidars, ${result.imported.fusions} fusions.`,
-        );
         this.onSync();
         this.isImporting.set(false);
       },
