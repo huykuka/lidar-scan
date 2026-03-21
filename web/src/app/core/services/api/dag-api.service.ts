@@ -1,12 +1,8 @@
-import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
-import { environment } from '../../../../environments/environment';
-import {
-  DagConfigResponse,
-  DagConfigSaveRequest,
-  DagConfigSaveResponse,
-} from '../../models/dag.model';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {firstValueFrom} from 'rxjs';
+import {environment} from '@env/environment';
+import {DagConfigResponse, DagConfigSaveRequest, DagConfigSaveResponse,} from '@core/models';
 
 // ---------------------------------------------------------------------------
 // Mock data — used when environment.useMockDag === true
@@ -44,29 +40,12 @@ export class DagApiService {
   private http = inject(HttpClient);
 
   async getDagConfig(): Promise<DagConfigResponse> {
-    if (environment.useMockDag) {
-      await new Promise((r) => setTimeout(r, 300));
-      return structuredClone(MOCK_DAG_CONFIG);
-    }
     return firstValueFrom(
       this.http.get<DagConfigResponse>(`${environment.apiUrl}/dag/config`),
     );
   }
 
   async saveDagConfig(req: DagConfigSaveRequest): Promise<DagConfigSaveResponse> {
-    if (environment.useMockDag) {
-      // Simulate 409 conflict when base_version === 0 (for testing)
-      if (req.base_version === 0) {
-        throw {
-          status: 409,
-          error: {
-            detail: 'Version conflict: base_version=0 but current version is 3.',
-          },
-        };
-      }
-      await new Promise((r) => setTimeout(r, 800));
-      return { ...MOCK_SAVE_RESPONSE };
-    }
     return firstValueFrom(
       this.http.put<DagConfigSaveResponse>(`${environment.apiUrl}/dag/config`, req),
     );

@@ -1,17 +1,13 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
-import { Subject } from 'rxjs';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { DagApiService } from '@core/services/api/dag-api.service';
-import { ToastService } from '@core/services/toast.service';
-import { DialogService } from '@core/services/dialog.service';
-import { NodesApiService } from '@core/services/api/nodes-api.service';
-import { Edge, NodeConfig } from '@core/models/node.model';
-import { DagConfigResponse } from '@core/models/dag.model';
-import {
-  detectCycles,
-  validateRequiredFields,
-  ValidationError,
-} from '@features/settings/utils/dag-validator';
+import {computed, inject, Injectable, signal} from '@angular/core';
+import {Subject} from 'rxjs';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {DagApiService} from '@core/services/api/dag-api.service';
+import {ToastService} from '@core/services/toast.service';
+import {DialogService} from '@core/services/dialog.service';
+import {NodesApiService} from '@core/services/api/nodes-api.service';
+import {Edge, NodeConfig} from '@core/models/node.model';
+import {DagConfigResponse} from '@core/models/dag.model';
+import {detectCycles, validateRequiredFields, ValidationError,} from '@features/settings/utils/dag-validator';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -30,7 +26,9 @@ function deepEqual(a: unknown, b: unknown): boolean {
  * IMPORTANT: This service must be provided via `providers: [CanvasEditStoreService]`
  * on SettingsComponent. It must NOT be `providedIn: 'root'`.
  */
-@Injectable()
+@Injectable({
+  providedIn:"root"
+})
 export class CanvasEditStoreService {
   // ------ Internal state ------
   private _localNodes = signal<NodeConfig[]>([]);
