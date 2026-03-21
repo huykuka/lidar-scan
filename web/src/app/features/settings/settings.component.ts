@@ -15,12 +15,14 @@ import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-st
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 import {DialogService} from '@core/services/dialog.service';
 import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
+import {HasUnsavedChanges} from '@core/guards/unsaved-changes.guard';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
+  providers: [CanvasEditStoreService],
   imports: [
     FormsModule,
     SynergyComponentsModule,
@@ -28,7 +30,7 @@ import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
     FlowCanvasComponent
   ],
 })
-export class SettingsComponent implements OnInit, OnDestroy {
+export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
   protected isSystemRunning = this.systemStatus.isRunning;
@@ -113,6 +115,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     // Disconnect WebSocket when component is destroyed
     this.statusWs.disconnect();
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.canvasEditStore.isDirty();
   }
 
   // Phase 4.4: prevent accidental page-leave when dirty

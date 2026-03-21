@@ -1,11 +1,14 @@
 import {inject} from '@angular/core';
 import {CanDeactivateFn} from '@angular/router';
-import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 import {DialogService} from '@core/services/dialog.service';
 
-export const unsavedChangesGuard: CanDeactivateFn<unknown> = async () => {
-  const store = inject(CanvasEditStoreService);
-  if (!store.isDirty()) return true;
+/** Any routed component that wants the unsaved-changes guard must implement this. */
+export interface HasUnsavedChanges {
+  hasUnsavedChanges(): boolean;
+}
+
+export const unsavedChangesGuard: CanDeactivateFn<HasUnsavedChanges> = async (component) => {
+  if (!component.hasUnsavedChanges()) return true;
   const dialog = inject(DialogService);
   return dialog.confirm({
     title: 'Unsaved Changes',

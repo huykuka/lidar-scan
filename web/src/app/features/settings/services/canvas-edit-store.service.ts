@@ -26,9 +26,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
  * IMPORTANT: This service must be provided via `providers: [CanvasEditStoreService]`
  * on SettingsComponent. It must NOT be `providedIn: 'root'`.
  */
-@Injectable({
-  providedIn:"root"
-})
+@Injectable()
 export class CanvasEditStoreService {
   // ------ Internal state ------
   private _localNodes = signal<NodeConfig[]>([]);
@@ -37,6 +35,9 @@ export class CanvasEditStoreService {
   private _isSaving = signal<boolean>(false);
   private _isSyncing = signal<boolean>(false);
   private _isReloading = signal<boolean>(false);
+  /** True once initFromBackend() has been called at least once. Used by the canvas to distinguish
+   *  the initial empty-signal state (before HTTP completes) from a real empty node list. */
+  private _isInitialized = signal<boolean>(false);
 
   // ------ Public read-only exposures ------
   readonly localNodes = this._localNodes.asReadonly();
@@ -45,6 +46,7 @@ export class CanvasEditStoreService {
   readonly isSaving = this._isSaving.asReadonly();
   readonly isSyncing = this._isSyncing.asReadonly();
   readonly isReloading = this._isReloading.asReadonly();
+  readonly isInitialized = this._isInitialized.asReadonly();
 
   // ------ Conflict event channel ------
   readonly conflictDetected$ = new Subject<string>();
@@ -84,6 +86,7 @@ export class CanvasEditStoreService {
     this._localEdges.set(structuredClone(config.edges));
     this._baseVersion.set(config.config_version);
     this.nodeStore.setState({ nodes: config.nodes, edges: config.edges });
+    this._isInitialized.set(true);
   }
 
   // ---------------------------------------------------------------------------

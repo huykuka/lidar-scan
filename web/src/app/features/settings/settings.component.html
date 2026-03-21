@@ -1,93 +1,92 @@
-<div class="flex flex-col gap-6 animate-in fade-in duration-500">
-  <!-- Flow Canvas Section -->
-  <div
-    class="bg-white rounded-xl shadow-sm border  overflow-hidden flex flex-col"
-    style="height: calc(100vh - 200px)"
-  >
-    <!-- Toolbar -->
-    <div class="border-b  shrink-0">
-      <div class="flex items-center justify-between px-4 py-3">
-        <div class="flex gap-2">
-          <syn-button
-            (click)="onExportConfig()"
-            [disabled]="isExporting()"
-            [loading]="isExporting()"
-            size="small"
-            variant="outline"
-          >
-            <syn-icon name="download" slot="prefix"/>
-            Export
-          </syn-button>
-          <syn-button
-            (click)="onImportConfigClick()"
-            [disabled]="isExporting()"
-            [loading]="isImporting()"
-            size="small"
-            variant="outline"
-          >
-            <syn-icon name="upload" slot="prefix"/>
-            Import
-          </syn-button>
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <!-- Flow Canvas Panel: fills the remaining space given by the router-outlet container -->
+  <div class="bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col flex-1 min-h-0">
 
-          @if (isSystemRunning()) {
-            <syn-button (click)="onStopSystem()" size="small" variant="filled">
-              <syn-icon name="stop" slot="prefix"/>
-              Stop Data Flow
-            </syn-button>
-          } @else {
-            <syn-button (click)="onStartSystem()" size="small" variant="outline">
-              <syn-icon name="play_arrow" slot="prefix"/>
-              Start Data Flow
-            </syn-button>
-          }
-        </div>
-      </div>
-    </div>
+    <!-- Single unified toolbar -->
+    <div class="flex items-center justify-between gap-3 px-4 py-2.5 border-b shrink-0">
 
-    <!-- Canvas action toolbar: dirty indicator + Reload / Sync / Save & Reload -->
-    <div class="flex items-center justify-between px-4 py-2 border-b shrink-0">
-      @if (canvasEditStore.isDirty()) {
-        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md border
-                    border-syn-color-warning-300 bg-syn-color-warning-50">
-          <span class="text-syn-color-warning-600 text-base leading-none">●</span>
-          <span class="text-xs font-semibold text-syn-color-warning-700">Unsaved changes</span>
-        </div>
-      } @else {
-        <div></div>
-      }
-
+      <!-- Left: file actions + system control -->
       <div class="flex items-center gap-2">
-        <!-- Reload: restarts backend runtime only, never touches local state -->
+        <syn-button
+          (click)="onExportConfig()"
+          [disabled]="isExporting()"
+          [loading]="isExporting()"
+          size="small"
+          variant="outline"
+        >
+          <syn-icon name="download" slot="prefix"/>
+          Export
+        </syn-button>
+
+        <syn-button
+          (click)="onImportConfigClick()"
+          [disabled]="isImporting()"
+          [loading]="isImporting()"
+          size="small"
+          variant="outline"
+        >
+          <syn-icon name="upload" slot="prefix"/>
+          Import
+        </syn-button>
+
+        <div class="w-px h-5 bg-syn-color-neutral-200 mx-1"></div>
+
+        @if (isSystemRunning()) {
+          <syn-button (click)="onStopSystem()" size="small" variant="filled">
+            <syn-icon name="stop" slot="prefix"/>
+            Stop
+          </syn-button>
+        } @else {
+          <syn-button (click)="onStartSystem()" size="small" variant="outline">
+            <syn-icon name="play_arrow" slot="prefix"/>
+            Start
+          </syn-button>
+        }
+      </div>
+
+      <!-- Right: dirty badge + canvas actions -->
+      <div class="flex items-center gap-2">
+        @if (canvasEditStore.isDirty()) {
+          <span class="flex items-center gap-1 px-2 py-0.5 rounded border
+                       border-syn-color-warning-300 bg-syn-color-warning-50
+                       text-xs font-semibold text-syn-color-warning-700">
+            <span class="text-syn-color-warning-500 text-[10px] leading-none">●</span>
+            Unsaved
+          </span>
+        }
+
         <syn-button
           size="small"
           variant="text"
           [disabled]="canvasEditStore.isReloading()"
           (click)="onReloadRuntime()"
+          title="Restart backend runtime without saving"
         >
           @if (canvasEditStore.isReloading()) {
             <syn-spinner slot="prefix"/>
             Reloading…
           } @else {
+            <syn-icon name="refresh" slot="prefix"/>
             Reload
           }
         </syn-button>
 
-        <!-- Sync: pull latest backend config, prompt if dirty -->
         <syn-button
           size="small"
           variant="outline"
           [disabled]="canvasEditStore.isSyncing()"
           (click)="onSync()"
+          title="Pull latest config from backend"
         >
           @if (canvasEditStore.isSyncing()) {
             <syn-spinner slot="prefix"/>
             Syncing…
           } @else {
+            <syn-icon name="sync" slot="prefix"/>
             Sync
           }
         </syn-button>
 
-        <!-- Save & Reload: persist local edits + reload backend -->
         <syn-button
           size="small"
           variant="filled"
@@ -98,14 +97,15 @@
             <syn-spinner slot="prefix"/>
             Saving…
           } @else {
-            Save &amp; Reload
+            <syn-icon name="save" slot="prefix"/>
+            Apply
           }
         </syn-button>
       </div>
     </div>
 
-    <!-- Flow Canvas -->
-    <div class="flex-1 overflow-hidden relative">
+    <!-- Canvas -->
+    <div class="flex-1 min-h-0 overflow-hidden relative">
       @if (isInitializing()) {
         <div class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm">
           <div class="flex flex-col items-center gap-3 text-syn-color-neutral-600">

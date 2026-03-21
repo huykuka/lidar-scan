@@ -92,19 +92,27 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected nodesStatus = this.statusWs.status;
 
   constructor() {
-    // Phase 2.2: react to localNodes from the store
+    // Phase 2.2: react to localNodes from the store.
+    // canvasEditStore.isInitialized() gates the loading spinner: the effect fires
+    // immediately at construction with the default empty signal, so we must not
+    // clear isCanvasLoading until the store has actually been seeded from the backend.
     effect(() => {
       const nodes = this.nodes();
+      const initialized = this.canvasEditStore.isInitialized();
       untracked(() => {
         this.mergeCanvasNodes(nodes);
-        this.isCanvasLoading.set(false);
+        if (initialized) {
+          this.isCanvasLoading.set(false);
+        }
       });
     });
 
-    // Phase 2.2: react to localEdges from the store
+    // Phase 2.2: react to localEdges from the store.
+    // NOTE: updateConnections() reads canvasNodes() internally — we must NOT wrap it
+    // in untracked() or the effect won't re-run when canvasNodes changes without an
+    // edge change (e.g. after a node position update from sync).
     effect(() => {
-      const edges = this.edges();
-      untracked(() => this.updateConnections());
+      this.updateConnections();
     });
 
     // Phase 7.2: derive availablePlugins from nodeStore.nodeDefinitions()
@@ -112,21 +120,21 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     // is now called in SettingsComponent.ngOnInit() before initFromBackend().
     effect(() => {
       const definitions = this.nodeStore.nodeDefinitions();
-      if (definitions.length > 0) {
-        untracked(() => {
-          this.availablePlugins.set(this.pluginRegistry.getAll());
-          this.isPaletteLoading.set(false);
-        });
-      }
+      untracked(() => {
+        this.availablePlugins.set(this.pluginRegistry.getAll());
+        this.isPaletteLoading.set(false);
+      });
     });
   }
 
   ngOnInit(): void {
-    this.statusWs.connect();
+    // WebSocket lifecycle is managed by SettingsComponent (the page owner).
+    // FlowCanvasComponent only consumes the status signal; it must not call
+    // connect/disconnect or it will race with the parent's lifecycle.
   }
 
   ngOnDestroy(): void {
-    this.statusWs.disconnect();
+    // See ngOnInit — WebSocket is owned by SettingsComponent.
   }
 
   onCanvasMouseDown(event: MouseEvent) {
@@ -338,23 +346,17 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     // Set pending state for this specific node
     this.isTogglingVisibility.set(node.id);
 
-    // Get current nodes for optimistic update and rollback
-    const currentNodes = this.nodes();
+    // Optimistic update via canvasEditStore so localNodes (and canvasNodes) reflect the change immediately
+    this.canvasEditStore.updateNode(node.id, { visible });
 
     try {
-      // Optimistic update: update local state immediately
-      this.nodeStore.set(
-        'nodes',
-        currentNodes.map((n) => (n.id === node.id ? { ...n, visible } : n)),
-      );
-
       // Call backend API
       await this.nodesApi.setNodeVisible(node.id, visible);
     } catch (error) {
       console.error('Failed to toggle node visibility', error);
 
-      // Rollback optimistic update on error
-      this.nodeStore.set('nodes', currentNodes);
+      // Rollback: revert optimistic update in the same store
+      this.canvasEditStore.updateNode(node.id, { visible: !visible });
     } finally {
       // Clear pending state
       this.isTogglingVisibility.set(null);
@@ -409,16 +411,20 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
     const merged: CanvasNode[] = nodes.map((node, index) => {
       const prev = existing.get(node.id);
+      // Prefer backend-supplied coordinates if present; fall back to the current
+      // canvas position (preserves drag positions not yet persisted) or a default grid slot.
+      const position =
+        node.x != null && node.y != null
+          ? { x: node.x, y: node.y }
+          : prev
+            ? prev.position
+            : { x: 100 + (index % 4) * 300, y: 100 + Math.floor(index / 4) * 250 };
+
       return {
         id: node.id,
         type: (node.category || node.type || 'unknown').toLowerCase(),
         data: node,
-        position: prev
-          ? prev.position
-          : {
-              x: node.x ?? 100 + (index % 4) * 300,
-              y: node.y ?? 100 + Math.floor(index / 4) * 250,
-            },
+        position,
       };
     });
 
@@ -434,7 +440,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       this.canvasNodes.update((current) =>
         current.map((n) => {
           const updated = mergedById.get(n.id);
-          return updated ? { ...n, data: updated.data } : n;
+          if (!updated) return n;
+          // Update both data and position so backend coordinate changes are reflected.
+          return { ...n, data: updated.data, position: updated.position };
         }),
       );
     }
@@ -444,7 +452,11 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const nodes = this.canvasNodes();
     const edges = this.edges();
     const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-    const prev = new Map(this.connections().map((c) => [c.id, c]));
+    // Read the previous connections OUTSIDE the reactive graph so the effect that
+    // calls this method does not treat `connections` as a tracked dependency.
+    // Without untracked() here, the effect would re-schedule itself every time
+    // connections.set() is called below, creating an oscillation loop.
+    const prev = new Map(untracked(() => this.connections()).map((c) => [c.id, c]));
 
     const next: Connection[] = [];
 
