@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.core.logging import get_logger
 from app.repositories import NodeRepository, EdgeRepository
+from app.schemas.pose import Pose
 from app.services.nodes.instance import node_manager
 from app.services.nodes.schema import node_schema_registry
 
@@ -57,6 +58,7 @@ class NodeCreateUpdate(BaseModel):
     enabled: bool = True
     visible: bool = True
     config: Dict[str, Any] = {}
+    pose: Optional[Pose] = None
     x: Optional[float] = None
     y: Optional[float] = None
 
@@ -92,7 +94,21 @@ async def get_node(node_id: str):
 async def upsert_node(req: NodeCreateUpdate):
     """Create or update a node."""
     repo = NodeRepository()
-    node_id = repo.upsert(req.model_dump(exclude_none=True))
+    payload = req.model_dump(exclude_none=True)
+
+    # For sensor nodes: default to Pose.zero() if no pose provided
+    if req.type == "sensor" and req.pose is None:
+        payload["pose"] = Pose.zero().to_flat_dict()
+
+    # Serialize Pose object to flat dict for the repo layer
+    if "pose" in payload and isinstance(payload["pose"], dict):
+        pass  # already a dict (model_dump converts Pydantic models to dicts)
+
+    try:
+        node_id = repo.upsert(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
     return {"status": "success", "id": node_id}
 
 

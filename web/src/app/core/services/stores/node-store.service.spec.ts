@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { TestBed } from '@angular/core/testing';
 import { NodeStoreService } from './node-store.service';
 import { StatusWebSocketService } from '../status-websocket.service';

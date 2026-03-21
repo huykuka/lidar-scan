@@ -1,4 +1,4 @@
-import {Component, CUSTOM_ELEMENTS_SCHEMA, OnDestroy, computed, effect, inject, output, signal} from '@angular/core';
+import {Component, computed, effect, inject, OnDestroy, output, signal} from '@angular/core';
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -10,7 +10,7 @@ import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node
 @Component({
   selector: 'app-calibration-node-editor',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './calibration-node-editor.component.html',
@@ -30,7 +30,7 @@ export class CalibrationNodeEditorComponent implements NodeEditorComponent, OnDe
   });
   private facade = inject(NodeEditorFacadeService);
   private formValues = signal<Record<string, any>>({});
-  
+
   protected visibleProperties = computed(() => {
     const def = this.definition();
     if (!def) return [];
@@ -45,7 +45,7 @@ export class CalibrationNodeEditorComponent implements NodeEditorComponent, OnDe
       return true;
     });
   });
-  
+
   private formValuesSub?: Subscription;
 
   protected availableSensors = computed(() => {

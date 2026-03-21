@@ -34,6 +34,8 @@ class NodeModel(Base):
 
     def to_dict(self) -> dict:
         import json
+        config = json.loads(self.config_json) if self.config_json else {}
+        pose = config.pop("pose", None)   # surface pose at top level; local mutation only
         return {
             "id": self.id,
             "name": self.name,
@@ -41,7 +43,8 @@ class NodeModel(Base):
             "category": self.category,
             "enabled": self.enabled,
             "visible": self.visible,
-            "config": json.loads(self.config_json) if self.config_json else {},
+            "config": config,
+            "pose": pose,
             "x": self.x,
             "y": self.y,
         }

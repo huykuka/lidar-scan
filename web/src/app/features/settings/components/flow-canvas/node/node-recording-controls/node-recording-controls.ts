@@ -53,11 +53,11 @@ export class NodeRecordingControls implements OnDestroy {
           node_id: data.id,
         };
 
-        if (config.mode !== undefined || config.pose !== undefined) {
+        if (config.mode !== undefined || data.pose !== undefined) {
           metadata.sensor_id = data.id;
           metadata.mode = config.mode;
           metadata.pipeline_name = config.pipeline_name;
-          metadata.pose = config.pose;
+          metadata.pose = data.pose;
         }
 
         if (Array.isArray(config.sensor_ids)) {

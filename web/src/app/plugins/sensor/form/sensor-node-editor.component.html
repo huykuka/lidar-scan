@@ -4,7 +4,7 @@
     iconColor="text-syn-color-primary-600"
     [title]="definition()?.display_name || ''"
     [description]="definition()?.description"
-    [saveDisabled]="form.invalid || configForm.invalid || isSaving()"
+    [saveDisabled]="isSaveDisabled()"
     (save)="onSave()"
     (cancel)="onCancel()"
   />
@@ -14,14 +14,12 @@
       <div class="col-span-2">
         <syn-input formControlName="name"
                    label="Display Name"
-                   ngDefaultControl
                    placeholder="e.g. Front Sensor"
                    size="small"
         />
       </div>
     </div>
 
-    <syn-divider class="my-0"/>
 
     <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-2">
       @for (prop of visibleProperties(); track prop.name) {
@@ -33,7 +31,6 @@
             <syn-input [formControlName]="prop.name"
                        [helpText]="prop.help_text || ''"
                        [label]="prop.label"
-                       ngDefaultControl
                        size="small"
             />
           }
@@ -45,7 +42,6 @@
                        [helpText]="prop.help_text || ''"
                        [label]="prop.label"
                        [step]="prop.step || 1"
-                       ngDefaultControl
                        size="small"
                        type="number"
             />
@@ -87,62 +83,14 @@
             }
           }
 
-          @if (prop.type === 'vec3') {
-            <div
-              class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border "
-            >
-              <div class="flex flex-col">
-                <label class="text-[11px] font-bold text-syn-color-neutral-900">{{
-                    prop.label
-                  }}</label>
-                @if (prop.help_text) {
-                  <span class="text-[10px] text-syn-color-neutral-500 mt-0.5">{{
-                      prop.help_text
-                    }}</span>
-                }
-              </div>
-              <div [formGroupName]="prop.name" class="grid grid-cols-3 gap-1.5">
-                <syn-input
-                  [step]="0.1"
-                  formControlName="0"
-                  ngDefaultControl
-                  placeholder="X"
-                  size="small"
-                  type="number"
-                >
-                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
-                  >X</span
-                  >
-                </syn-input>
-                <syn-input
-                  [step]="0.1"
-                  formControlName="1"
-                  ngDefaultControl
-                  placeholder="Y"
-                  size="small"
-                  type="number"
-                >
-                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
-                  >Y</span
-                  >
-                </syn-input>
-                <syn-input
-                  [step]="0.1"
-                  formControlName="2"
-                  ngDefaultControl
-                  placeholder="Z"
-                  size="small"
-                  type="number"
-                >
-                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
-                  >Z</span
-                  >
-                </syn-input>
-              </div>
-            </div>
-          }
         </div>
       }
     </div>
+
+
+    <app-pose-form
+      [pose]="poseValue()"
+      (poseChange)="onPoseChange($event)"
+    />
   </form>
 </div>

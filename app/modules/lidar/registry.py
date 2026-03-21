@@ -8,6 +8,7 @@ import os
 from typing import Any, Dict, List
 
 from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args
+from app.schemas.pose import Pose
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition, PropertySchema, PortSchema, node_schema_registry
@@ -62,12 +63,8 @@ node_schema_registry.register(NodeDefinition(
                        depends_on={"mode": ["real"], "lidar_type": _imu_capable_models}),
         PropertySchema(name="pcd_path", label="PCD Path", type="string", default="",
                        help_text="Path to .pcd file (simulation only)", depends_on={"mode": ["sim"]}),
-        PropertySchema(name="x", label="Pos X", type="number", default=0.0, step=0.01),
-        PropertySchema(name="y", label="Pos Y", type="number", default=0.0, step=0.01),
-        PropertySchema(name="z", label="Pos Z", type="number", default=0.0, step=0.01),
-        PropertySchema(name="roll", label="Roll", type="number", default=0.0, step=0.1),
-        PropertySchema(name="pitch", label="Pitch", type="number", default=0.0, step=0.1),
-        PropertySchema(name="yaw", label="Yaw", type="number", default=0.0, step=0.1),
+        PropertySchema(name="pose", label="Sensor Pose", type="pose",
+                       help_text="6-DOF sensor pose: position (mm) and orientation (degrees)"),
     ],
     outputs=[
         PortSchema(id="out", label="Output")
@@ -108,15 +105,16 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     udp_receiver_ip = config.get("udp_receiver_ip")
     imu_udp_port = config.get("imu_udp_port")
 
-    # Build transformation string
-    # CRITICAL: Ensure pose values are floats, not strings from JSON config
-    x = float(config.get("x", 0) or 0)
-    y = float(config.get("y", 0) or 0)
-    z = float(config.get("z", 0) or 0)
-    roll = float(config.get("roll", 0) or 0)
-    pitch = float(config.get("pitch", 0) or 0)
-    yaw = float(config.get("yaw", 0) or 0)
-    add_transform_xyz_rpy = f"{x},{y},{z},{roll},{pitch},{yaw}"
+    # Read pose from the canonical top-level "pose" key (B-10)
+    # This is surfaced at the top level by NodeModel.to_dict()
+    raw_pose = node.get("pose") or {}
+    p_x = float(raw_pose.get("x", 0) or 0)
+    p_y = float(raw_pose.get("y", 0) or 0)
+    p_z = float(raw_pose.get("z", 0) or 0)
+    p_roll = float(raw_pose.get("roll", 0) or 0)
+    p_pitch = float(raw_pose.get("pitch", 0) or 0)
+    p_yaw = float(raw_pose.get("yaw", 0) or 0)
+    add_transform_xyz_rpy = f"{p_x},{p_y},{p_z},{p_roll},{p_pitch},{p_yaw}"
 
     # Build launch arguments using profile system
     try:
@@ -153,7 +151,9 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         pcd_path=pcd_path or None,
         throttle_ms=throttle_ms
     )
-    sensor.set_pose(x, y, z, roll, pitch, yaw)
+
+    # Apply canonical pose (already parsed from node["pose"] above)
+    sensor.set_pose(Pose(x=p_x, y=p_y, z=p_z, roll=p_roll, pitch=p_pitch, yaw=p_yaw))
 
     # Set LiDAR type information on the sensor instance
     sensor.lidar_type = profile.model_id

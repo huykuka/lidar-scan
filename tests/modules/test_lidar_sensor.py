@@ -128,39 +128,41 @@ class TestLidarSensorEdgeCases:
     
     def test_sensor_with_zero_pose(self):
         """Sensor correctly handles zero pose"""
+        from app.schemas.pose import Pose
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-001",
             launch_args="test",
             mode="real"
         )
-        sensor.set_pose(0, 0, 0, 0, 0, 0)
+        sensor.set_pose(Pose.zero())
         pose = sensor.get_pose_params()
         
-        assert pose["x"] == 0.0
-        assert pose["y"] == 0.0
-        assert pose["z"] == 0.0
-        assert pose["roll"] == 0.0
-        assert pose["pitch"] == 0.0
-        assert pose["yaw"] == 0.0
+        assert pose.x == 0.0
+        assert pose.y == 0.0
+        assert pose.z == 0.0
+        assert pose.roll == 0.0
+        assert pose.pitch == 0.0
+        assert pose.yaw == 0.0
     
     def test_sensor_with_nonzero_pose(self):
         """Sensor correctly stores non-zero pose"""
+        from app.schemas.pose import Pose
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-002",
             launch_args="test",
             mode="real"
         )
-        sensor.set_pose(1.5, 2.5, 0.3, 0.1, 0.2, 1.57)
+        sensor.set_pose(Pose(x=1.5, y=2.5, z=0.3, roll=0.1, pitch=0.2, yaw=1.57))
         pose = sensor.get_pose_params()
         
-        assert pose["x"] == 1.5
-        assert pose["y"] == 2.5
-        assert pose["z"] == 0.3
-        assert pose["roll"] == 0.1
-        assert pose["pitch"] == 0.2
-        assert pose["yaw"] == 1.57
+        assert pose.x == 1.5
+        assert pose.y == 2.5
+        assert pose.z == 0.3
+        assert pose.roll == 0.1
+        assert pose.pitch == 0.2
+        assert pose.yaw == 1.57
 
 
 class TestLidarSensorEmitStatus:

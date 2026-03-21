@@ -4,10 +4,12 @@ Calibration history tracking and management.
 This module provides data structures and utilities for tracking calibration
 attempts, storing history, and enabling rollback to previous calibrations.
 """
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import json
+
+from app.schemas.pose import Pose
 
 
 @dataclass
@@ -28,10 +30,10 @@ class CalibrationRecord:
     stages_used: List[str]  # ["global", "icp"] or ["icp"]
     
     # Pose before calibration
-    pose_before: Dict[str, float]  # {x, y, z, roll, pitch, yaw}
+    pose_before: Pose
     
     # Pose after calibration
-    pose_after: Dict[str, float]  # {x, y, z, roll, pitch, yaw}
+    pose_after: Pose
     
     # Transform applied (4x4 matrix as nested list for JSON serialization)
     transformation_matrix: List[List[float]]
@@ -46,13 +48,34 @@ class CalibrationRecord:
     run_id: str = ""  # Correlates multi-sensor calibration runs
     
     def __post_init__(self):
-        """Initialize mutable default values"""
+        """Initialize mutable default values and coerce dicts to Pose."""
         if self.processing_chain is None:
             self.processing_chain = []
+        # Coerce dict → Pose if legacy data was passed
+        if isinstance(self.pose_before, dict):
+            object.__setattr__(self, 'pose_before', Pose(**self.pose_before))
+        if isinstance(self.pose_after, dict):
+            object.__setattr__(self, 'pose_after', Pose(**self.pose_after))
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
-        return asdict(self)
+        return {
+            "timestamp": self.timestamp,
+            "sensor_id": self.sensor_id,
+            "reference_sensor_id": self.reference_sensor_id,
+            "fitness": self.fitness,
+            "rmse": self.rmse,
+            "quality": self.quality,
+            "stages_used": list(self.stages_used),
+            "pose_before": self.pose_before.to_flat_dict(),
+            "pose_after": self.pose_after.to_flat_dict(),
+            "transformation_matrix": self.transformation_matrix,
+            "accepted": self.accepted,
+            "notes": self.notes,
+            "source_sensor_id": self.source_sensor_id,
+            "processing_chain": list(self.processing_chain or []),
+            "run_id": self.run_id,
+        }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CalibrationRecord":
@@ -88,8 +111,8 @@ class CalibrationHistory:
             rmse=record.rmse,
             quality=record.quality,
             stages_used=record.stages_used,
-            pose_before=record.pose_before,
-            pose_after=record.pose_after,
+            pose_before=record.pose_before.to_flat_dict(),
+            pose_after=record.pose_after.to_flat_dict(),
             transformation_matrix=record.transformation_matrix,
             accepted=record.accepted,
             notes=record.notes,
@@ -162,9 +185,9 @@ class CalibrationHistory:
         if not record:
             raise ValueError(f"Calibration record not found for timestamp {timestamp}")
         
-        # Update sensor config with pose_after from that calibration
+        # Update sensor pose using the dedicated update_node_pose method
         repo = NodeRepository()
-        repo.update_node_config(sensor_id, record.pose_after)
+        repo.update_node_pose(sensor_id, record.pose_after)
 
 
 def create_calibration_record(
@@ -174,8 +197,8 @@ def create_calibration_record(
     rmse: float,
     quality: str,
     stages_used: List[str],
-    pose_before: Dict[str, float],
-    pose_after: Dict[str, float],
+    pose_before: Pose,
+    pose_after: Pose,
     transformation_matrix: List[List[float]],
     accepted: bool = False,
     notes: str = "",

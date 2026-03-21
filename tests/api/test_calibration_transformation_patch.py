@@ -75,7 +75,7 @@ class TestAcceptCalibrationWorkflow:
     async def test_accept_writes_config_to_leaf_sensor(
         self, calibration_node, pending_record
     ):
-        """Accepting calibration calls update_node_config on the leaf sensor (source_sensor_id)."""
+        """Accepting calibration calls update_node_pose on the leaf sensor (source_sensor_id)."""
         calibration_node._pending_calibration = {"sensor-A": pending_record}
 
         with patch("app.modules.calibration.calibration_node.NodeRepository") as MockRepo, \
@@ -83,19 +83,19 @@ class TestAcceptCalibrationWorkflow:
              patch("app.modules.calibration.calibration_node.SessionLocal"):
             mock_repo = MockRepo.return_value
             mock_repo.get_by_id = Mock(return_value={"config": {}})
-            mock_repo.update_node_config = Mock()
+            mock_repo.update_node_pose = Mock()
 
             await calibration_node._apply_calibration("sensor-A", pending_record)
 
-            # config must go to leaf sensor
-            call_args = mock_repo.update_node_config.call_args
+            # pose must go to leaf sensor
+            call_args = mock_repo.update_node_pose.call_args
             assert call_args[0][0] == "sensor-A"
 
-            # pose_after values must be written
-            written_config = call_args[0][1]
-            assert written_config["x"] == pytest.approx(0.3)
-            assert written_config["y"] == pytest.approx(0.1)
-            assert written_config["yaw"] == pytest.approx(0.5)
+            # pose_after values must be in the Pose object passed
+            written_pose = call_args[0][1]
+            assert written_pose.x == pytest.approx(0.3)
+            assert written_pose.y == pytest.approx(0.1)
+            assert written_pose.yaw == pytest.approx(0.5)
 
     @pytest.mark.asyncio
     async def test_accept_triggers_dag_reload(
@@ -108,7 +108,7 @@ class TestAcceptCalibrationWorkflow:
              patch("app.modules.calibration.calibration_node.CalibrationHistory"), \
              patch("app.modules.calibration.calibration_node.SessionLocal"):
             MockRepo.return_value.get_by_id = Mock(return_value={"config": {}})
-            MockRepo.return_value.update_node_config = Mock()
+            MockRepo.return_value.update_node_pose = Mock()
 
             await calibration_node._apply_calibration("sensor-A", pending_record)
 
@@ -130,7 +130,7 @@ class TestAcceptCalibrationWorkflow:
              patch("app.modules.calibration.calibration_node.CalibrationHistory") as MockHistory, \
              patch("app.modules.calibration.calibration_node.SessionLocal"):
             MockRepo.return_value.get_by_id = Mock(return_value={"config": {}})
-            MockRepo.return_value.update_node_config = Mock()
+            MockRepo.return_value.update_node_pose = Mock()
             MockHistory.save_record = Mock()  # Class-level static/classmethod
 
             await calibration_node._apply_calibration("sensor-A", pending_record)
@@ -172,7 +172,7 @@ class TestRejectCalibrationWorkflow:
 
     @pytest.mark.asyncio
     async def test_reject_does_not_call_update_node_config(self, calibration_node):
-        """Rejection must NOT patch any node config."""
+        """Rejection must NOT patch any node pose."""
         calibration_node._pending_calibration = {"sensor-A": Mock()}
 
         with patch("app.modules.calibration.calibration_node.NodeRepository") as MockRepo:
@@ -180,7 +180,7 @@ class TestRejectCalibrationWorkflow:
 
             await calibration_node.reject_calibration()
 
-            mock_repo.update_node_config.assert_not_called()
+            mock_repo.update_node_pose.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_reject_does_not_call_reload_config(self, calibration_node, mock_manager):
@@ -214,7 +214,8 @@ class TestHistoryQueryBySourceSensorId:
             "name": "Sensor A",
             "type": "sensor",
             "category": "Input",
-            "config": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
+            "config": {},
+            "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
         })
 
         # Query history filtered by source_sensor_id

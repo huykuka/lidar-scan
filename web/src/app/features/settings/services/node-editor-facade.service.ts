@@ -6,12 +6,14 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {ToastService} from '@core/services';
 import {NodeConfig, NodeDefinition, PropertySchema,} from '@core/models/node.model';
 import {LidarConfigValidationRequest,} from '@core/models';
+import {Pose} from '@core/models/pose.model';
 
 export interface NodeSavePayload {
   name: string;
   config: Record<string, any>;
   definition: NodeDefinition;
   existingNode: Partial<NodeConfig>;
+  pose?: Pose;
 }
 
 @Injectable()
@@ -22,7 +24,7 @@ export class NodeEditorFacadeService {
   private toast = inject(ToastService);
 
   async saveNode(payload: NodeSavePayload): Promise<boolean> {
-    const {name, config: rawConfig, definition, existingNode} = payload;
+    const {name, config: rawConfig, definition, existingNode, pose} = payload;
 
     const validation = await this.validateSensorConfig(rawConfig, definition);
     if (!validation.valid) {
@@ -42,6 +44,7 @@ export class NodeEditorFacadeService {
         definition.category === 'operation'
           ? {op_type: definition.type, ...config}
           : config,
+      pose,
       x: existingNode.x ?? 100,
       y: existingNode.y ?? 100,
     };

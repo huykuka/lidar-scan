@@ -1,16 +1,16 @@
-import { Component, CUSTOM_ELEMENTS_SCHEMA, OnDestroy, computed, effect, inject, output, signal } from '@angular/core';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Subscription } from 'rxjs';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { NodeEditorFacadeService } from '../../../features/settings/services/node-editor-facade.service';
-import { NodeEditorComponent } from '@core/models/node-plugin.model';
-import { NodeEditorHeaderComponent } from '@plugins/shared/node-editor-header/node-editor-header.component';
+import {Component, computed, effect, inject, OnDestroy, output, signal} from '@angular/core';
+import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
+import {Subscription} from 'rxjs';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {NodeEditorFacadeService} from '../../../features/settings/services/node-editor-facade.service';
+import {NodeEditorComponent} from '@core/models/node-plugin.model';
+import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
 
 @Component({
   selector: 'app-fusion-node-editor',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './fusion-node-editor.component.html',

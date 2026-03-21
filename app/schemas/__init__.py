@@ -5,10 +5,12 @@ from app.schemas.status import (
     NodeStatusUpdate,
     SystemStatusBroadcast,
 )
+from app.schemas.pose import Pose
 
 __all__ = [
     "OperationalState",
     "ApplicationState",
     "NodeStatusUpdate",
     "SystemStatusBroadcast",
+    "Pose",
 ]

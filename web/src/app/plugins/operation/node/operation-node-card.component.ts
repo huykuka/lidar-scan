@@ -1,4 +1,4 @@
-import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, input} from '@angular/core';
+import {Component, computed, input} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
@@ -7,7 +7,7 @@ import {NodeCardComponent} from '@core/models/node-plugin.model';
 @Component({
   selector: 'app-operation-node-card',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   imports: [SynergyComponentsModule],
   templateUrl: './operation-node-card.component.html',
   styleUrl: './operation-node-card.component.css',

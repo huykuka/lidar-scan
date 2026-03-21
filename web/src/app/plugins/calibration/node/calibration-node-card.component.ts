@@ -1,4 +1,4 @@
-import {Component, computed, CUSTOM_ELEMENTS_SCHEMA, inject, input} from '@angular/core';
+import {Component, computed, inject, input} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
@@ -9,7 +9,7 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
 @Component({
   selector: 'app-calibration-node-card',
   standalone: true,
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+
   imports: [SynergyComponentsModule],
   templateUrl: './calibration-node-card.component.html',
   styleUrl: './calibration-node-card.component.css',

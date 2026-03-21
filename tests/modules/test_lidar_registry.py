@@ -372,16 +372,15 @@ class TestBuildSensorIntegration:
                 "hostname": "192.168.0.1",
                 "port": 2112,
                 "throttle_ms": 0,
-                "x": 1.5, "y": 2.5, "z": 0.3,
-                "roll": 0.1, "pitch": 0.2, "yaw": 1.57
-            }
+            },
+            "pose": {"x": 1.5, "y": 2.5, "z": 0.3, "roll": 0.1, "pitch": 0.2, "yaw": 1.57}
         }
         
         sensor = build_sensor(node, mock_service_context, [])
         
         # The sensor is created with the pose - it's used internally for transformation
         # but not necessarily in the launch_args (which are only device connection params)
-        assert sensor.get_pose_params()["x"] == 1.5
+        assert sensor.get_pose_params().x == 1.5
 
 
 @pytest.fixture

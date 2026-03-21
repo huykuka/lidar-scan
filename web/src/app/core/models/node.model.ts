@@ -1,3 +1,5 @@
+import {Pose} from './pose.model';
+
 export interface NodeConfig {
   id: string;
   name: string;
@@ -6,6 +8,7 @@ export interface NodeConfig {
   enabled: boolean;
   visible?: boolean; // defaults to true if omitted (legacy compat)
   config: Record<string, any>;
+  pose?: Pose;
   x: number;
   y: number;
 }
@@ -21,7 +24,7 @@ export interface Edge {
 export interface PropertySchema {
   name: string;
   label: string;
-  type: 'string' | 'number' | 'boolean' | 'select' | 'vec3' | 'list';
+  type: 'string' | 'number' | 'boolean' | 'select' | 'vec3' | 'list' | 'pose';
   default?: any;
   options?: { label: string; value: any }[];
   required?: boolean;

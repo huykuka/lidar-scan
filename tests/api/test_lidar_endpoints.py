@@ -337,9 +337,8 @@ class TestNodeOperationsWithLidarType:
                 "hostname": "192.168.0.100",
                 "port": 2112,
                 "throttle_ms": 0,
-                "x": 0.0, "y": 0.0, "z": 0.0,
-                "roll": 0.0, "pitch": 0.0, "yaw": 0.0
             },
+            "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
             "x": 200,
             "y": 100
         }
