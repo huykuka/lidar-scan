@@ -5,8 +5,8 @@ import {NavigationService, ToastService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {StatusWebSocketService} from '@core/services/status-websocket.service';
 import {SystemStatusService} from '@core/services/system-status.service';
-import {ConfigApiService} from '@core/services/api/config-api.service';
 import {DagApiService} from '@core/services/api/dag-api.service';
+import {ConfigTransferService} from '@core/services/api/config-transfer.service';
 import {ConfigExport, ConfigValidationResponse,} from '@core/models/config.model';
 import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
 import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
@@ -21,7 +21,6 @@ import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
   standalone: true,
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
-  providers: [CanvasEditStoreService],
   imports: [
     FormsModule,
     SynergyComponentsModule,
@@ -54,7 +53,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
   private navService = inject(NavigationService);
   private statusWs = inject(StatusWebSocketService);
-  private configApi = inject(ConfigApiService);
+  private configTransfer = inject(ConfigTransferService);
   private dagApi = inject(DagApiService);
   private dialog = inject(DialogService);
   private toast = inject(ToastService);
@@ -161,38 +160,38 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
   }
 
-  async onExportConfig() {
+  onExportConfig() {
     this.isExporting.set(true);
-    try {
-      const config = await this.configApi.exportConfig();
+    this.configTransfer.downloadConfig().subscribe({
+      next: ({blob, filename}) => {
+        // Trigger browser download — UI concern, stays in the component
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        window.URL.revokeObjectURL(url);
 
-      // Create blob and download
-      const blob = new Blob([JSON.stringify(config, null, 2)], {type: 'application/json'});
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `lidar-config-${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-      window.URL.revokeObjectURL(url);
-
-      this.toast.success('Configuration exported successfully.');
-    } catch (error) {
-      console.error('Failed to export config', error);
-      this.toast.danger('Failed to export configuration.');
-    } finally {
-      this.isExporting.set(false);
-    }
+        this.toast.success('Configuration exported successfully.');
+        this.isExporting.set(false);
+      },
+      error: (error) => {
+        console.error('Failed to export config', error);
+        this.toast.danger('Failed to export configuration.');
+        this.isExporting.set(false);
+      },
+    });
   }
 
   onImportConfigClick() {
-    // Trigger file input
+    // Trigger file input — UI concern, stays in the component
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = async (event: any) => {
+    input.onchange = (event: any) => {
       const file = event.target.files?.[0];
       if (file) {
-        await this.readAndValidateConfigFile(file);
+        this.readAndValidateConfigFile(file);
       }
     };
     input.click();
@@ -205,49 +204,48 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.isImporting.set(false);
   }
 
-  async onConfirmImport() {
+  onConfirmImport() {
     const config = this.pendingImportConfig();
     if (!config) return;
 
-    try {
-      const result = await this.configApi.importConfig(config, this.importMergeMode());
+    this.configTransfer.importConfig(config, this.importMergeMode()).subscribe({
+      next: (result) => {
+        this.showValidationDialog.set(false);
+        this.validationResult.set(null);
+        this.pendingImportConfig.set(null);
 
-      this.showValidationDialog.set(false);
-      this.validationResult.set(null);
-      this.pendingImportConfig.set(null);
-
-      // Phase 4.3: after config import, sync the canvas from the backend
-      this.toast.success(
-        `Configuration imported: ${result.imported.lidars} lidars, ${result.imported.fusions} fusions.`,
-      );
-      this.onSync();
-    } catch (error) {
-      console.error('Failed to import config', error);
-      this.toast.danger('Failed to import configuration.');
-    } finally {
-      this.isImporting.set(false);
-    }
+        // Phase 4.3: after config import, sync the canvas from the backend
+        this.toast.success(
+          `Configuration imported: ${result.imported.lidars} lidars, ${result.imported.fusions} fusions.`,
+        );
+        this.onSync();
+        this.isImporting.set(false);
+      },
+      error: (error) => {
+        console.error('Failed to import config', error);
+        this.toast.danger('Failed to import configuration.');
+        this.isImporting.set(false);
+      },
+    });
   }
 
-  private async readAndValidateConfigFile(file: File) {
+  private readAndValidateConfigFile(file: File) {
     this.isImporting.set(true);
-    try {
-      const text = await file.text();
-      const config = JSON.parse(text) as ConfigExport;
+    this.configTransfer.readAndValidate(file).subscribe({
+      next: ({config, validation}) => {
+        this.validationResult.set(validation);
+        this.pendingImportConfig.set(config);
+        this.showValidationDialog.set(true);
 
-      // Validate the config
-      const validation = await this.configApi.validateConfig(config);
-      this.validationResult.set(validation);
-      this.pendingImportConfig.set(config);
-      this.showValidationDialog.set(true);
-
-      if (!validation.valid) {
-        this.toast.warning('Configuration has validation errors. Please review.');
-      }
-    } catch (error) {
-      console.error('Failed to read or validate config file', error);
-      this.toast.danger('Failed to read configuration file. Please check the file format.');
-      this.isImporting.set(false);
-    }
+        if (!validation.valid) {
+          this.toast.warning('Configuration has validation errors. Please review.');
+        }
+      },
+      error: (error) => {
+        console.error('Failed to read or validate config file', error);
+        this.toast.danger('Failed to read configuration file. Please check the file format.');
+        this.isImporting.set(false);
+      },
+    });
   }
 }

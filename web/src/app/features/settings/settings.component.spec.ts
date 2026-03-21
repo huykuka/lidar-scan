@@ -1,5 +1,6 @@
 import {signal} from '@angular/core';
 import {TestBed} from '@angular/core/testing';
+import {of} from 'rxjs';
 
 import {SettingsComponent} from './settings.component';
 import {NavigationService} from '../../core/services/navigation.service';
@@ -10,10 +11,17 @@ import {LidarStoreService} from '../../core/services/stores/lidar-store.service'
 import {FusionStoreService} from '../../core/services/stores/fusion-store.service';
 import {NodesApiService} from '../../core/services/api/nodes-api.service';
 import {StatusWebSocketService} from '../../core/services/status-websocket.service';
-import {ConfigApiService} from '../../core/services/api/config-api.service';
+import {ConfigTransferService} from '../../core/services/api/config-transfer.service';
 import {RecordingStoreService} from '../../core/services/stores/recording-store.service';
 import {DagApiService} from '../../core/services/api/dag-api.service';
 import {NodePluginRegistry} from '../../core/services/node-plugin-registry.service';
+
+/** Minimal stub that satisfies ConfigTransferService's public API */
+const configTransferStub = {
+  downloadConfig: () => of({blob: new Blob(['{}'], {type: 'application/json'}), filename: 'lidar-config-test.json'}),
+  readAndValidate: () => of({config: {version: '1', lidars: [], fusions: []}, validation: {valid: true, errors: [], warnings: [], summary: {nodes: 0, edges: 0}}}),
+  importConfig: () => of({success: true, mode: 'replace', imported: {lidars: 0, fusions: 0}, lidar_ids: [], fusion_ids: []}),
+};
 
 describe('SettingsComponent', () => {
   it('loads config on init without errors', async () => {
@@ -88,19 +96,7 @@ describe('SettingsComponent', () => {
             disconnect: () => {},
           },
         },
-        {
-          provide: ConfigApiService,
-          useValue: {
-            exportConfig: async () => ({}),
-            importConfig: async () => ({}),
-            validateConfig: async () => ({
-              valid: true,
-              errors: [],
-              warnings: [],
-              summary: {nodes: 0, edges: 0},
-            }),
-          },
-        },
+        {provide: ConfigTransferService, useValue: configTransferStub},
         {
           provide: RecordingStoreService, useValue: {
             loadRecordings: async () => {}
@@ -150,7 +146,7 @@ describe('SettingsComponent', () => {
         {provide: FusionApiService, useValue: {getFusions: async () => ({fusions: []}), setEnabled: async () => ({}), deleteFusion: async () => ({}), saveFusion: async () => ({})}},
         {provide: NodesApiService, useValue: {getNodesStatus: async () => ({lidars: [], fusions: []}), getNodeDefinitions: async () => []}},
         {provide: StatusWebSocketService, useValue: {status: signal(null), connected: signal(false), connect: () => {}, disconnect: () => {}}},
-        {provide: ConfigApiService, useValue: {exportConfig: async () => ({}), importConfig: async () => ({}), validateConfig: async () => ({valid: true, errors: [], warnings: [], summary: {nodes: 0, edges: 0}})}},
+        {provide: ConfigTransferService, useValue: configTransferStub},
         {provide: RecordingStoreService, useValue: {loadRecordings: async () => {}}},
         {provide: DagApiService, useValue: {getDagConfig, saveDagConfig: async () => ({config_version: 2, node_id_map: {}})}},
         {provide: NodePluginRegistry, useValue: {loadFromBackend, getAll: () => [], get: () => undefined}},
@@ -179,7 +175,7 @@ describe('SettingsComponent', () => {
         {provide: FusionApiService, useValue: {getFusions: async () => ({fusions: []}), setEnabled: async () => ({}), deleteFusion: async () => ({}), saveFusion: async () => ({})}},
         {provide: NodesApiService, useValue: {getNodesStatus: async () => ({lidars: [], fusions: []}), getNodeDefinitions: async () => []}},
         {provide: StatusWebSocketService, useValue: {status: signal(null), connected: signal(false), connect: () => {}, disconnect: () => {}}},
-        {provide: ConfigApiService, useValue: {exportConfig: async () => ({}), importConfig: async () => ({}), validateConfig: async () => ({valid: true, errors: [], warnings: [], summary: {nodes: 0, edges: 0}})}},
+        {provide: ConfigTransferService, useValue: configTransferStub},
         {provide: RecordingStoreService, useValue: {loadRecordings: async () => {}}},
         {provide: DagApiService, useValue: {getDagConfig: async () => ({config_version: 1, nodes: [], edges: []}), saveDagConfig: async () => ({config_version: 2, node_id_map: {}})}},
         {provide: NodePluginRegistry, useValue: {loadFromBackend: async () => {}, getAll: () => [], get: () => undefined}},
