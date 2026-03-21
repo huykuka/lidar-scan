@@ -1,12 +1,10 @@
 import {inject, Injectable} from '@angular/core';
 import {NodesApiService} from '@core/services/api/nodes-api.service';
-import {EdgesApiService} from '@core/services/api/edges-api.service';
-
-import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {ToastService} from '@core/services';
 import {NodeConfig, NodeDefinition, PropertySchema,} from '@core/models/node.model';
 import {LidarConfigValidationRequest,} from '@core/models';
 import {Pose} from '@core/models/pose.model';
+import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 
 export interface NodeSavePayload {
   name: string;
@@ -19,9 +17,8 @@ export interface NodeSavePayload {
 @Injectable()
 export class NodeEditorFacadeService {
   private nodesApi = inject(NodesApiService);
-  private edgesApi = inject(EdgesApiService);
-  private nodeStore = inject(NodeStoreService);
   private toast = inject(ToastService);
+  private canvasEditStore = inject(CanvasEditStoreService);
 
   async saveNode(payload: NodeSavePayload): Promise<boolean> {
     const {name, config: rawConfig, definition, existingNode, pose} = payload;
@@ -49,22 +46,16 @@ export class NodeEditorFacadeService {
       y: existingNode.y ?? 100,
     };
 
-    try {
-      await this.nodesApi.upsertNode(nodePayload);
-
-      const [nodes, edges] = await Promise.all([
-        this.nodesApi.getNodes(),
-        this.edgesApi.getEdges(),
-      ]);
-      this.nodeStore.setState({nodes, edges});
-
-      this.toast.success(`Node "${name}" saved.`);
-      return true;
-    } catch (error) {
-      console.error('Failed to save node', error);
-      this.toast.danger('Failed to save configuration.');
-      return false;
+    // Phase 3: stage locally instead of calling the API
+    const isTempId = !existingNode.id || existingNode.id.startsWith('__new__');
+    if (!isTempId && existingNode.id) {
+      this.canvasEditStore.updateNode(existingNode.id, nodePayload);
+    } else {
+      this.canvasEditStore.addNode(nodePayload);
     }
+
+    this.toast.success(`Node "${name}" staged for save.`);
+    return true;
   }
 
   private buildConfig(

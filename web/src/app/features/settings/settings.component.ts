@@ -1,22 +1,26 @@
-import {Component, inject, OnDestroy, OnInit, signal, viewChild} from '@angular/core';
+import {Component, effect, HostListener, inject, OnDestroy, OnInit, signal} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
 import {NavigationService, ToastService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodesApiService} from '@core/services/api/nodes-api.service';
 import {StatusWebSocketService} from '@core/services/status-websocket.service';
 import {SystemStatusService} from '@core/services/system-status.service';
 import {ConfigApiService} from '@core/services/api/config-api.service';
+import {DagApiService} from '@core/services/api/dag-api.service';
 import {ConfigExport, ConfigValidationResponse,} from '@core/models/config.model';
 import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
 import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {DialogService} from '@core/services/dialog.service';
 
 @Component({
   selector: 'app-settings',
   standalone: true,
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
+  providers: [CanvasEditStoreService],
   imports: [
     FormsModule,
     SynergyComponentsModule,
@@ -25,7 +29,6 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
   ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
-  protected flowCanvas = viewChild.required(FlowCanvasComponent);
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
   protected lidars = this.nodeStore.sensorNodes;
@@ -33,7 +36,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected fusions = this.nodeStore.fusionNodes;
   protected operations = this.nodeStore.operationNodes;
   protected isSystemRunning = this.systemStatus.isRunning;
-  // Loading state for individual nodes
+
+  // Phase 4.1: feature-scoped canvas edit store
+  protected canvasEditStore = inject(CanvasEditStoreService);
 
   // Import/Export state
   protected isExporting = signal(false);
@@ -43,23 +48,59 @@ export class SettingsComponent implements OnInit, OnDestroy {
   protected pendingImportConfig = signal<ConfigExport | null>(null);
   protected importMergeMode = signal(false);
 
-  // Computed signal for unsaved changes
-  protected hasUnsavedChanges = signal(false);
   private navService = inject(NavigationService);
-  private nodesApi = inject(NodesApiService);
   private statusWs = inject(StatusWebSocketService);
   private configApi = inject(ConfigApiService);
+  private dagApi = inject(DagApiService);
+  private dialog = inject(DialogService);
   private toast = inject(ToastService);
+
+  constructor() {
+    // Phase 4.6: dirty indicator title effect
+    effect(() => {
+      const dirty = this.canvasEditStore.isDirty();
+      this.navService.setPageConfig({
+        title: dirty ? 'Settings ●' : 'Settings',
+        subtitle: 'Configure LiDAR sensors, fusion nodes, and recording settings',
+        showActionsSlot: false,
+      });
+    });
+
+    // Phase 4.5: subscribe to conflict events
+    this.canvasEditStore.conflictDetected$
+      .pipe(takeUntilDestroyed())
+      .subscribe((detail) => {
+        this.dialog
+          .confirm({
+            title: 'DAG Conflict Detected',
+            message: `Another save has occurred. Your unsaved changes are preserved but cannot be saved. Click "Sync & Discard" to load the latest configuration.`,
+            confirmLabel: 'Sync & Discard My Changes',
+            cancelLabel: 'Stay & Keep Editing',
+            variant: 'neutral',
+          })
+          .then((confirmed) => {
+            if (confirmed) this.canvasEditStore.syncFromBackend(true);
+          });
+      });
+  }
 
   async ngOnInit() {
     this.navService.setPageConfig({
       title: 'Settings',
       subtitle: 'Configure LiDAR sensors, fusion nodes, and recording settings',
     });
-    await this.loadConfig();
 
     // Connect to WebSocket for real-time status updates
     this.statusWs.connect();
+
+    // Phase 4.2: load DAG config from backend and initialise the local-edit store
+    try {
+      const dagConfig = await this.dagApi.getDagConfig();
+      this.canvasEditStore.initFromBackend(dagConfig);
+    } catch (error) {
+      console.error('Failed to load DAG config', error);
+      this.toast.danger('Failed to load DAG configuration.');
+    }
   }
 
   ngOnDestroy(): void {
@@ -67,37 +108,25 @@ export class SettingsComponent implements OnInit, OnDestroy {
     this.statusWs.disconnect();
   }
 
-  async loadConfig() {
-    this.nodeStore.set('isLoading', true);
-    try {
-      const [nodes] = await Promise.all([
-        this.nodesApi.getNodes(),
-      ]);
-      this.nodeStore.set('nodes', nodes);
-      this.nodeStore.set('isLoading', false);
-    } catch (error) {
-      console.error('Failed to load configuration', error);
-      this.toast.warning('Unable to load configuration.');
-      this.nodeStore.set('isLoading', false);
+  // Phase 4.4: prevent accidental page-leave when dirty
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent) {
+    if (this.canvasEditStore.isDirty()) {
+      event.preventDefault();
     }
   }
 
-  async onReloadConfig() {
-    this.nodeStore.set('isLoading', true);
-    try {
-      // Save any unsaved node positions before reloading
-      const flowCanvas = this.flowCanvas();
-      if (flowCanvas && flowCanvas.hasUnsavedChanges()) {
-        await flowCanvas.saveAllPositions();
-      }
+  // Phase 4.3: action handlers
+  onSaveAndReload() {
+    this.canvasEditStore.saveAndReload();
+  }
 
-      await this.nodesApi.reloadConfig();
-      await this.loadConfig();
-      this.toast.success('Configuration and LiDAR profiles reloaded.');
-    } catch (error) {
-      console.error('Failed to reload config:', error);
-      this.toast.danger('Failed to reload backend configuration.');
-    }
+  onSync() {
+    this.canvasEditStore.syncFromBackend();
+  }
+
+  onReloadRuntime() {
+    this.canvasEditStore.reloadRuntime();
   }
 
   async onStartSystem() {
@@ -143,7 +172,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
   }
 
-    onImportConfigClick() {
+  onImportConfigClick() {
     // Trigger file input
     const input = document.createElement('input');
     input.type = 'file';
@@ -175,11 +204,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
       this.validationResult.set(null);
       this.pendingImportConfig.set(null);
 
-      await this.onReloadConfig();
-
+      // Phase 4.3: after config import, sync the canvas from the backend
       this.toast.success(
         `Configuration imported: ${result.imported.lidars} lidars, ${result.imported.fusions} fusions.`,
       );
+      this.onSync();
     } catch (error) {
       console.error('Failed to import config', error);
       this.toast.danger('Failed to import configuration.');

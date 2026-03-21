@@ -6,4 +6,5 @@ export const environment = {
     return `${protocol}//${window.location.host}/api/v1/ws/${topic}`;
   },
   mockStatus: false, // Never use mocks in production
+  useMockDag: false, // Never use mocks in production
 };

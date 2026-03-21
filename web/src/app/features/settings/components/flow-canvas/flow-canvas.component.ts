@@ -6,7 +6,6 @@ import {
   inject,
   OnDestroy,
   OnInit,
-  output,
   signal,
   untracked,
 } from '@angular/core';
@@ -32,11 +31,12 @@ import {
 } from '@features/settings/components/dynamic-node-editor/dynamic-node-editor.component';
 import {NodePlugin} from '@core/models';
 import {NodeStoreService} from '@core/services/stores';
-import {EdgesApiService, NodesApiService} from '@core/services/api';
+import {NodesApiService} from '@core/services/api';
 import {DialogService, ToastService} from '@core/services';
 import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 import {StatusWebSocketService} from '@core/services/status-websocket.service';
 import {NodeConfig} from '@core/models/node.model';
+import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 
 @Component({
   selector: 'app-flow-canvas',
@@ -54,8 +54,6 @@ import {NodeConfig} from '@core/models/node.model';
   styleUrl: './flow-canvas.component.css',
 })
 export class FlowCanvasComponent implements OnInit, OnDestroy {
-  hasUnsavedChangesChange = output<boolean>();
-  public hasUnsavedChanges = signal(false);
   protected drag = inject(FlowCanvasDragService);
   protected drawerOpen = signal(false);
   protected availablePlugins = signal<NodePlugin[]>([]);
@@ -80,19 +78,21 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected isPaletteLoading = signal(true);
   protected isCanvasLoading = signal(true);
   protected nodeLoadingStates = signal<Record<string, boolean>>({});
+
   private nodeStore = inject(NodeStoreService);
-  protected nodes = this.nodeStore.nodes;
-  protected edges = this.nodeStore.edges;
+  // Phase 2.2: drive canvasNodes + connections from the local-edit store
+  private canvasEditStore = inject(CanvasEditStoreService);
+  protected nodes = this.canvasEditStore.localNodes;
+  protected edges = this.canvasEditStore.localEdges;
   private nodesApi = inject(NodesApiService);
-  private edgesApi = inject(EdgesApiService);
   private toast = inject(ToastService);
   private dialog = inject(DialogService);
   private pluginRegistry = inject(NodePluginRegistry);
   private statusWs = inject(StatusWebSocketService);
   protected nodesStatus = this.statusWs.status;
-  private unsavedPositions = new Map<string, { x: number; y: number }>();
 
   constructor() {
+    // Phase 2.2: react to localNodes from the store
     effect(() => {
       const nodes = this.nodes();
       untracked(() => {
@@ -101,6 +101,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       });
     });
 
+    // Phase 2.2: react to localEdges from the store
     effect(() => {
       const edges = this.edges();
       untracked(() => this.updateConnections());
@@ -108,7 +109,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.loadGraphData();
     this.statusWs.connect();
   }
 
@@ -156,7 +156,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
         const def = this.nodeStore.nodeDefinitions().find((d) => d.type === fromNode.data.type);
         const outputPorts = def?.outputs ?? [];
         const totalOutputs = outputPorts.length;
-        
+
         const fromX = fromNode.position.x + 192 + 6; // node width + tab center (6px)
         const fromY = fromNode.position.y + this.calculatePortY(pending.fromPortIndex, totalOutputs);
         const cp = Math.max(Math.abs(toX - fromX) * 0.5, 40);
@@ -174,9 +174,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
     const dropped = this.drag.endNodeDrag();
     if (dropped) {
-      this.unsavedPositions.set(dropped.nodeId, dropped.position);
-      this.hasUnsavedChanges.set(true);
-      this.hasUnsavedChangesChange.emit(true);
+      // Phase 2.6: persist final drag position into the local-edit store
+      this.canvasEditStore.moveNode(dropped.nodeId, dropped.position.x, dropped.position.y);
       this.updateConnections();
     }
 
@@ -195,43 +194,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
-  /**
-   * Save all unsaved node positions to the backend
-   * Called explicitly by the parent component (e.g., Save & Reload button)
-   */
-  async saveAllPositions(): Promise<void> {
-    if (this.unsavedPositions.size === 0) {
-      return; // Nothing to save
-    }
-
-    const savePromises: Promise<void>[] = [];
-
-    this.unsavedPositions.forEach((position, nodeId) => {
-      const node = this.nodes().find((n) => n.id === nodeId);
-      if (node) {
-        savePromises.push(
-          this.nodesApi
-            .upsertNode({
-              ...node,
-              x: position.x,
-              y: position.y,
-            })
-            .then(() => {}),
-        );
-      }
-    });
-
-    try {
-      await Promise.all(savePromises);
-      this.unsavedPositions.clear();
-      this.hasUnsavedChanges.set(false);
-      this.hasUnsavedChangesChange.emit(false);
-    } catch (error) {
-      console.error('Failed to save node positions', error);
-      throw error; // Re-throw to let parent handle
-    }
-  }
-
   /** Called when user starts dragging from an output port on a node. */
   onPortDragStart(event: { nodeId: string; portType: 'input' | 'output'; portId: string; portIndex: number; event: MouseEvent }) {
     if (event.portType !== 'output') return;
@@ -239,7 +201,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   /** Called when user releases on an input port on a node. */
-  async onPortDrop(event: { nodeId: string; portType: 'input' | 'output' }) {
+  onPortDrop(event: { nodeId: string; portType: 'input' | 'output' }) {
     const pending = this.drag.pendingConnection();
     if (!pending || event.portType !== 'input') {
       this.drag.cancelConnectionDrag();
@@ -254,8 +216,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Check for duplicate edge (same source node, target node, and source port)
-    const exists = this.edges().some(
+    // Phase 2.3: Check for duplicate edge against localEdges, then stage locally
+    const exists = this.canvasEditStore.localEdges().some(
       (e) => e.source_node === sourceId && e.target_node === targetId && e.source_port === pending.fromPortId,
     );
     if (exists) {
@@ -264,25 +226,13 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    try {
-      await this.edgesApi.createEdge({ 
-        source_node: sourceId, 
-        target_node: targetId,
-        source_port: pending.fromPortId,
-        target_port: 'in' // Default input port
-      });
-      const [nodes, edges] = await Promise.all([
-        this.nodesApi.getNodes(),
-        this.edgesApi.getEdges(),
-      ]);
-      this.nodeStore.setState({ nodes, edges });
-      this.toast.success('Connection created.');
-    } catch (err) {
-      console.error('Failed to create edge', err);
-      this.toast.danger('Failed to create connection.');
-    } finally {
-      this.drag.cancelConnectionDrag();
-    }
+    this.canvasEditStore.addEdge({
+      source_node: sourceId,
+      source_port: pending.fromPortId,
+      target_node: targetId,
+      target_port: 'in',
+    });
+    this.drag.cancelConnectionDrag();
   }
 
   onCanvasWheel(event: WheelEvent) {
@@ -332,48 +282,24 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.drawerOpen.set(true);
   }
 
+  // Phase 2.5: deleteNode now delegates to the store
   async onDeleteNode(node: CanvasNode) {
     const name = node.data.name || node.id;
     if (!(await this.dialog.confirm(`Are you sure you want to delete ${name}?`))) return;
 
-    try {
-      await this.nodesApi.deleteNode(node.id);
-
-      // Remove node from local state
-      this.nodeStore.set(
-        'nodes',
-        this.nodes().filter((n) => n.id !== node.id),
-      );
-
-      // Backend automatically deletes attached edges, we must also remove them locally
-      this.nodeStore.set(
-        'edges',
-        this.edges().filter((e) => e.source_node !== node.id && e.target_node !== node.id),
-      );
-
-      this.toast.success(`${name} deleted.`);
-    } catch (error) {
-      console.error('Failed to delete node', error);
-      this.toast.danger(`Failed to delete ${name}.`);
-    }
+    this.canvasEditStore.deleteNode(node.id);
+    this.toast.success(`${name} deleted.`);
   }
 
+  // Phase 2.4: deleteEdge now delegates to the store
   async onDeleteEdge(edgeId: string) {
     if (!(await this.dialog.confirm('Are you sure you want to delete this connection?'))) return;
-    try {
-      await this.edgesApi.deleteEdge(edgeId);
-      this.nodeStore.set(
-        'edges',
-        this.edges().filter((e) => e.id !== edgeId),
-      );
-      this.updateConnections();
-      this.toast.success('Connection removed.');
-    } catch (error) {
-      console.error('Failed to delete connection', error);
-      this.toast.danger('Failed to delete connection.');
-    }
+    this.canvasEditStore.deleteEdge(edgeId);
+    this.updateConnections();
+    this.toast.success('Connection removed.');
   }
 
+  // Phase 2.8: after live enable/disable, sync localNodes via the store
   async onToggleNodeEnabled(node: CanvasNode, enabled: boolean) {
     this.nodeLoadingStates.update((states) => ({ ...states, [node.id]: true }));
 
@@ -381,7 +307,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       await this.nodesApi.setNodeEnabled(node.id, enabled);
       const name = node.data.name || node.id;
       this.toast.success(`${name} ${enabled ? 'enabled' : 'disabled'}.`);
-      await this.loadGraphData();
+      // Keep localNodes in sync without marking isDirty (pass-through update)
+      this.canvasEditStore.updateNode(node.id, { enabled });
     } catch (error) {
       console.error('Failed to toggle node', error);
       this.toast.danger(`Failed to update node.`);
@@ -410,8 +337,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
       // Call backend API
       await this.nodesApi.setNodeVisible(node.id, visible);
-
-      const name = node.data.name || node.id;
     } catch (error) {
       console.error('Failed to toggle node visibility', error);
 
@@ -462,28 +387,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   onDrawerRequestClose(event: Event) {
     if ((event as CustomEvent).detail?.source === 'overlay') {
       event.preventDefault();
-    }
-  }
-
-  private async loadGraphData() {
-    this.isPaletteLoading.set(true);
-    this.isCanvasLoading.set(true);
-    try {
-      const [nodes, edges] = await Promise.all([
-        this.nodesApi.getNodes(),
-        this.edgesApi.getEdges(),
-      ]);
-      // loadFromBackend fetches definitions AND populates NodeStore + registry
-      await this.pluginRegistry.loadFromBackend();
-      this.availablePlugins.set(this.pluginRegistry.getAll());
-      this.isPaletteLoading.set(false); // Palette has fetched its templates
-
-      this.nodeStore.setState({ nodes, edges });
-    } catch (error) {
-      console.error('Failed to load graph data', error);
-      this.toast.danger('Failed to load infrastructure graph.');
-      this.isPaletteLoading.set(false);
-      this.isCanvasLoading.set(false);
     }
   }
 
