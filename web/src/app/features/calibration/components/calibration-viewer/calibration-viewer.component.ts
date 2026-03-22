@@ -3,18 +3,15 @@ import {toSignal} from '@angular/core/rxjs-interop';
 import {KeyValuePipe} from '@angular/common';
 import {ActivatedRoute, Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {CalibrationStoreService} from '../../../../core/services/stores/calibration-store.service';
-import {NodeStoreService} from '../../../../core/services/stores/node-store.service';
-import {NavigationService} from '../../../../core/services/navigation.service';
-import {ToastService} from '../../../../core/services/toast.service';
+import {CalibrationStoreService, NodeStoreService} from '@core/services/stores';
+import {NavigationService, ToastService} from '@core/services';
 import {
   CalibrationHistoryRecord,
   CalibrationNodeStatusResponse,
   PendingCalibrationResult,
   PoseDelta,
-} from '../../../../core/models/calibration.model';
-import {NodeConfig} from '../../../../core/models/node.model';
-import {ProcessingChainComponent} from '../processing-chain/processing-chain.component';
+} from '@core/models';
+import {NodeConfig} from '@core/models/node.model';
 
 @Component({
   selector: 'app-calibration-viewer',
@@ -22,7 +19,6 @@ import {ProcessingChainComponent} from '../processing-chain/processing-chain.com
   imports: [
     SynergyComponentsModule,
     KeyValuePipe,
-    ProcessingChainComponent,
   ],
   templateUrl: './calibration-viewer.component.html',
 })
@@ -147,7 +143,7 @@ export class CalibrationViewerComponent implements OnDestroy {
       dyaw: result.pose_after.yaw - result.pose_before.yaw,
     };
   }
-  
+
 
   getSensorName(sensorId: string): string {
     const nodes = this.nodeStore.nodes();

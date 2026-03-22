@@ -34,7 +34,7 @@
 
     @if (hasActiveFilters()) {
       <syn-button size="small" variant="text" (click)="clearFilters()">
-        <syn-icon name="filter_alt_off" slot="prefix" />
+        <syn-icon name="filter_alt_off" slot="prefix"/>
         Clear filters
       </syn-button>
     }
@@ -54,7 +54,7 @@
   <!-- Empty State -->
   @if (filteredRecords().length === 0) {
     <div class="text-center py-12 text-neutral-500">
-      <syn-icon class="text-5xl mb-3" name="history" />
+      <syn-icon class="text-5xl mb-3" name="history"/>
       <p class="m-0">No calibration records match the current filters.</p>
       @if (hasActiveFilters()) {
         <syn-button class="mt-4" size="small" variant="text" (click)="clearFilters()">
@@ -67,38 +67,38 @@
     <div class="overflow-x-auto rounded-lg border border-neutral-200 bg-white">
       <table class="w-full text-sm" role="table" aria-label="Calibration history">
         <thead class="bg-neutral-50 border-b border-neutral-200">
-          <tr>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Timestamp
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Sensor ID
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Source Sensor
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Processing Chain
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Run ID
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Fitness
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              RMSE
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Quality
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Accepted
-            </th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
-              Actions
-            </th>
-          </tr>
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Timestamp
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Sensor ID
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Source Sensor
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Processing Chain
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Run ID
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Fitness
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            RMSE
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Quality
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Accepted
+          </th>
+          <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-700 uppercase tracking-wide">
+            Actions
+          </th>
+        </tr>
         </thead>
         <tbody class="divide-y divide-neutral-100">
           @for (record of filteredRecords(); track record.id) {
@@ -126,30 +126,9 @@
                   >
                     {{ shortId(record.source_sensor_id) }}
                   </syn-badge>
-                } @else {
-                  <syn-badge
-                    variant="neutral"
-                    size="small"
-                    title="Legacy record: source sensor not tracked"
-                    aria-label="Legacy record — source sensor not tracked"
-                  >
-                    Legacy
-                  </syn-badge>
                 }
               </td>
 
-              <!-- Processing Chain (NEW) -->
-              <td class="px-4 py-3">
-                @if (getChainLength(record) > 0) {
-                  <app-processing-chain
-                    [processingChain]="record.processing_chain ?? []"
-                    displayMode="compact"
-                    [showLastNode]="true"
-                  />
-                } @else {
-                  <span class="text-xs text-neutral-400 italic">—</span>
-                }
-              </td>
 
               <!-- Run ID (NEW) — clickable to filter -->
               <td class="px-4 py-3">
@@ -220,7 +199,7 @@
                   (click)="onViewDetail(record)"
                   aria-label="View detail for this calibration record"
                 >
-                  <syn-icon name="visibility" slot="prefix" />
+                  <syn-icon name="visibility" slot="prefix"/>
                   Detail
                 </syn-button>
               </td>

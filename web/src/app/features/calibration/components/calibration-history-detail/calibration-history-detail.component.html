@@ -2,14 +2,14 @@
   <!-- Header -->
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <syn-icon class="text-3xl text-primary-600" name="history" />
+      <syn-icon class="text-3xl text-primary-600" name="history"/>
       <div>
         <h2 class="text-lg font-semibold text-neutral-900 m-0">Calibration Record</h2>
         <p class="text-xs font-mono text-neutral-500 m-0">{{ record().id }}</p>
       </div>
     </div>
     <syn-button size="small" variant="text" (click)="onClose()">
-      <syn-icon name="close" slot="prefix" />
+      <syn-icon name="close" slot="prefix"/>
       Close
     </syn-button>
   </div>
@@ -17,16 +17,18 @@
   <!-- Legacy badge -->
   @if (isLegacyRecord()) {
     <syn-alert open variant="neutral">
-      <syn-icon name="info" slot="icon" />
+      <syn-icon name="info" slot="icon"/>
       <strong>Legacy Record</strong>
-      <div>This record was created before provenance tracking was introduced. Source sensor, processing chain, and run ID are not available.</div>
+      <div>This record was created before provenance tracking was introduced. Source sensor, processing chain, and run
+        ID are not available.
+      </div>
     </syn-alert>
   }
 
   <!-- Provenance Section (NEW) -->
   <syn-card>
     <h3 class="text-sm font-semibold text-neutral-700 m-0 mb-3 uppercase tracking-wide">Provenance</h3>
-    <syn-divider />
+    <syn-divider/>
 
     <div class="flex flex-col gap-4 mt-4">
       <!-- Source Sensor ID -->
@@ -43,9 +45,9 @@
           <syn-badge
             variant="primary"
             [attr.title]="record().source_sensor_id"
-            [attr.aria-label]="'Source sensor: ' + record().source_sensor_id"
+            [attr.aria-label]="'Source sensor: ' + getSensorName(record().source_sensor_id)"
           >
-            {{ record().source_sensor_id }}
+            {{ getSensorName(record().source_sensor_id) }}
           </syn-badge>
         } @else {
           <syn-badge variant="neutral" aria-label="Not available for legacy record">N/A</syn-badge>
@@ -95,11 +97,6 @@
             class="p-3 bg-neutral-50 rounded-lg border border-neutral-200"
             aria-label="Processing chain visualization"
           >
-            <app-processing-chain
-              [processingChain]="processingChain()"
-              displayMode="full"
-              [showLastNode]="true"
-            />
             <p class="text-xs text-neutral-500 mt-2 m-0">
               <span aria-hidden="true">📊</span>
               {{ processingChain().length }} node{{ processingChain().length !== 1 ? 's' : '' }} in chain
@@ -115,17 +112,17 @@
   <!-- Calibration Metadata -->
   <syn-card>
     <h3 class="text-sm font-semibold text-neutral-700 m-0 mb-3 uppercase tracking-wide">Calibration Metadata</h3>
-    <syn-divider />
+    <syn-divider/>
 
     <div class="grid grid-cols-2 gap-4 mt-4">
       <div class="flex justify-between items-center text-sm">
-        <span class="text-neutral-600">Sensor ID</span>
-        <span class="font-mono text-xs">{{ record().sensor_id }}</span>
+        <span class="text-neutral-600">Sensor</span>
+        <span class="text-xs">{{ getSensorName(record().sensor_id) }}</span>
       </div>
 
       <div class="flex justify-between items-center text-sm">
         <span class="text-neutral-600">Reference Sensor</span>
-        <span class="font-mono text-xs">{{ record().reference_sensor_id }}</span>
+        <span class="text-xs">{{ getSensorName(record().reference_sensor_id) }}</span>
       </div>
 
       <div class="flex justify-between items-center text-sm">
@@ -190,7 +187,7 @@
   @if (record().pose_before || record().pose_after) {
     <syn-card>
       <h3 class="text-sm font-semibold text-neutral-700 m-0 mb-3 uppercase tracking-wide">Pose Transformation</h3>
-      <syn-divider />
+      <syn-divider/>
 
       <!-- Δ-pose table -->
       @if (record().pose_before && record().pose_after) {
@@ -198,24 +195,36 @@
           <table class="w-full text-xs border-collapse">
             <caption class="text-left text-neutral-500 mb-1">Pose Change</caption>
             <thead>
-              <tr class="bg-neutral-100">
-                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δx (mm)</th>
-                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δy (mm)</th>
-                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δz (mm)</th>
-                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δroll (°)</th>
-                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δpitch (°)</th>
-                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δyaw (°)</th>
-              </tr>
+            <tr class="bg-neutral-100">
+              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δx (mm)</th>
+              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δy (mm)</th>
+              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δz (mm)</th>
+              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δroll (°)</th>
+              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δpitch (°)</th>
+              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δyaw (°)</th>
+            </tr>
             </thead>
             <tbody>
-              <tr>
-                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.x - record().pose_before!.x).toFixed(2) }}</td>
-                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.y - record().pose_before!.y).toFixed(2) }}</td>
-                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.z - record().pose_before!.z).toFixed(2) }}</td>
-                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.roll - record().pose_before!.roll).toFixed(4) }}</td>
-                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.pitch - record().pose_before!.pitch).toFixed(4) }}</td>
-                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.yaw - record().pose_before!.yaw).toFixed(4) }}</td>
-              </tr>
+            <tr>
+              <td
+                class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.x - record().pose_before!.x).toFixed(2) }}
+              </td>
+              <td
+                class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.y - record().pose_before!.y).toFixed(2) }}
+              </td>
+              <td
+                class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.z - record().pose_before!.z).toFixed(2) }}
+              </td>
+              <td
+                class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.roll - record().pose_before!.roll).toFixed(4) }}
+              </td>
+              <td
+                class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.pitch - record().pose_before!.pitch).toFixed(4) }}
+              </td>
+              <td
+                class="px-2 py-1 font-mono border border-neutral-200">{{ (record().pose_after!.yaw - record().pose_before!.yaw).toFixed(4) }}
+              </td>
+            </tr>
             </tbody>
           </table>
         </div>
@@ -224,11 +233,13 @@
       <div class="grid grid-cols-2 gap-4 mt-4">
         <div class="flex flex-col gap-2">
           <span class="text-xs font-semibold text-neutral-600">Before</span>
-          <pre class="text-xs font-mono bg-neutral-50 border border-neutral-200 rounded p-3 m-0 overflow-x-auto whitespace-pre-wrap">{{ formatPose(record().pose_before) }}</pre>
+          <pre
+            class="text-xs font-mono bg-neutral-50 border border-neutral-200 rounded p-3 m-0 overflow-x-auto whitespace-pre-wrap">{{ formatPose(record().pose_before) }}</pre>
         </div>
         <div class="flex flex-col gap-2">
           <span class="text-xs font-semibold text-success-600">After</span>
-          <pre class="text-xs font-mono bg-success-50 border border-success-200 rounded p-3 m-0 overflow-x-auto whitespace-pre-wrap">{{ formatPose(record().pose_after) }}</pre>
+          <pre
+            class="text-xs font-mono bg-success-50 border border-success-200 rounded p-3 m-0 overflow-x-auto whitespace-pre-wrap">{{ formatPose(record().pose_after) }}</pre>
         </div>
       </div>
     </syn-card>
@@ -243,8 +254,12 @@
         (click)="onRollback()"
         [disabled]="isRollingBack()"
       >
-        <syn-icon name="restore" slot="prefix" />
-        @if (isRollingBack()) { Rolling back… } @else { Rollback to This }
+        <syn-icon name="restore" slot="prefix"/>
+        @if (isRollingBack()) {
+          Rolling back…
+        } @else {
+          Rollback to This
+        }
       </syn-button>
     </div>
   }

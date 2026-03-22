@@ -205,15 +205,6 @@ describe('CalibrationComponent', () => {
     expect(spy).toHaveBeenCalledWith(['/calibration', 'node-1']);
   });
 
-  it('viewHistory should navigate to /calibration/:id/history', () => {
-    const router = TestBed.inject(Router);
-    const spy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-    component.viewHistory('node-1');
-
-    expect(spy).toHaveBeenCalledWith(['/calibration', 'node-1', 'history']);
-  });
-
   it('goToSettings should navigate to /settings', () => {
     const router = TestBed.inject(Router);
     const spy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
@@ -271,17 +262,17 @@ describe('CalibrationComponent', () => {
     expect(component.isCalibrationDisabled()('unknown-node')).toBe(false);
   });
 
-  it('isCalibrationDisabled should return true when source_sensor_ids has only 1 sensor', async () => {
+  it('isCalibrationDisabled should return false when source_sensor_ids has only 1 sensor', async () => {
     nodeStatusesSignal.set({
       'node-1': {
         node_id: 'node-1',
         calibration_state: 'idle',
-        source_sensor_ids: ['sensor-a'], // only 1 — not enough for ICP
+        source_sensor_ids: ['sensor-a'], // 1 source sensor is valid for ICP (reference + 1 source)
       },
     });
     await flushEffects(fixture);
 
-    expect(component.isCalibrationDisabled()('node-1')).toBe(true);
+    expect(component.isCalibrationDisabled()('node-1')).toBe(false);
   });
 
   it('isCalibrationDisabled should return true when source_sensor_ids is empty', async () => {
@@ -360,7 +351,7 @@ describe('CalibrationComponent', () => {
 
   it('should expose the correct tooltip message for disabled calibration', () => {
     expect(component.calibrationDisabledTooltip).toBe(
-      'At least 2 input sensors are required for calibration.',
+      'At least 1 source sensor is required for calibration.',
     );
   });
 });

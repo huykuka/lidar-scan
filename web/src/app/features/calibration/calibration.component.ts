@@ -2,14 +2,15 @@ import {Component, computed, effect, inject, OnDestroy} from '@angular/core';
 import {KeyValuePipe} from '@angular/common';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {CalibrationStoreService} from '../../core/services/stores/calibration-store.service';
-import {NodeStoreService} from '../../core/services/stores/node-store.service';
-import {ToastService} from '../../core/services/toast.service';
-import {NavigationService} from '../../core/services';
-import {CalibrationNodeStatusResponse} from '../../core/models/calibration.model';
+import {CalibrationStoreService, NodeStoreService} from '@core/services/stores';
+import {NavigationService, ToastService} from '@core/services';
+import {CalibrationNodeStatusResponse} from '@core/models';
 
-/** Minimum number of source sensors required to run ICP calibration. */
-const ICP_MIN_SOURCE_SENSORS = 2;
+/** Minimum number of source sensors required to run ICP calibration.
+ * ICP needs a reference sensor (implicit) + at least 1 source sensor.
+ * The `source_sensor_ids` array only contains source sensors, so the threshold is 1.
+ */
+const ICP_MIN_SOURCE_SENSORS = 1;
 
 @Component({
   selector: 'app-calibration',
@@ -50,7 +51,7 @@ export class CalibrationComponent implements OnDestroy {
 
   /** Tooltip message shown when "Run Calibration" is disabled due to insufficient sensors. */
   readonly calibrationDisabledTooltip =
-    'At least 2 input sensors are required for calibration.';
+    'At least 1 source sensor is required for calibration.';
 
   /**
    * Returns true when "View History" should be shown for the given node.
@@ -93,6 +94,11 @@ export class CalibrationComponent implements OnDestroy {
     this.calibrationStore.stopPolling();
   }
 
+  getSensorName(sensorId: string): string {
+    const node = this.nodeStore.nodes().find((n: any) => n.id === sensorId);
+    return node?.name ?? sensorId;
+  }
+
   async triggerCalibration(nodeId: string): Promise<void> {
     await this.calibrationStore.triggerCalibration(nodeId, {});
   }
@@ -118,10 +124,6 @@ export class CalibrationComponent implements OnDestroy {
 
   viewDetails(nodeId: string): void {
     void this.router.navigate(['/calibration', nodeId]);
-  }
-
-  viewHistory(nodeId: string): void {
-    void this.router.navigate(['/calibration', nodeId, 'history']);
   }
 
   goToSettings(): void {

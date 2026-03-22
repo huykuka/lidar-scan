@@ -110,10 +110,6 @@
 
     <!-- Right-aligned Unit-specific Controls -->
     <div class="flex items-center">
-      @if (isNodeEnabled() && isCalibrationNode()) {
-        <app-node-calibration-controls [node]="node()" [status]="status()"/>
-      }
-
       @if (isNodeEnabled() && hasOutputPort() && isWebsocketEnabled()) {
         <app-node-recording-controls [node]="node()"/>
       }

@@ -16,15 +16,6 @@
           <p class="text-xs font-mono text-neutral-600 m-0">{{ nodeId() }}</p>
         </div>
       </div>
-
-      <div class="ml-auto flex gap-2">
-        @if (hasHistory()) {
-          <syn-button (click)="viewHistory()" size="small" variant="text">
-            <syn-icon name="history" slot="prefix"/>
-            View History
-          </syn-button>
-        }
-      </div>
     </div>
   </header>
 
@@ -110,6 +101,7 @@
                 [disabled]="!isCalibrationDisabled()"
               >
                 <syn-button
+                  size="small"
                   (click)="triggerCalibration()"
                   [disabled]="isTriggering() || isCalibrationDisabled()"
                   variant="filled"
@@ -161,17 +153,6 @@
                         RMSE: <strong>{{ result.rmse.toFixed(5) }} m</strong>
                       </span>
                     </div>
-
-                    <!-- Processing Chain -->
-                    @if (result.processing_chain.length > 0) {
-                      <div class="mb-3">
-                        <app-processing-chain
-                          [processingChain]="result.processing_chain"
-                          [displayMode]="'full'"
-                          [showLastNode]="false"
-                        />
-                      </div>
-                    }
 
                     <!-- Δ-pose table -->
                     <div class="overflow-x-auto">
@@ -232,6 +213,7 @@
               <!-- Accept / Reject actions -->
               <div class="flex gap-3 mt-4">
                 <syn-button
+                  size="small"
                   variant="filled"
                   (click)="acceptCalibration()"
                   [disabled]="isAccepting() || isRejecting()"
@@ -247,6 +229,7 @@
 
                 <syn-button
                   variant="outline"
+                  size="small"
                   (click)="rejectCalibration()"
                   [disabled]="isAccepting() || isRejecting()"
                 >

@@ -1,8 +1,9 @@
 import {Component, computed, inject, input, output} from '@angular/core';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {CalibrationHistoryRecord} from '../../../../core/models/calibration.model';
-import {ProcessingChainComponent} from '../processing-chain/processing-chain.component';
+import {CalibrationHistoryRecord} from '@core/models';
+import {NodeStoreService} from '../../../../core/services/stores/node-store.service';
+import {NodeConfig} from '../../../../core/models/node.model';
 
 /**
  * Presentation component: shows full detail for a single CalibrationHistoryRecord.
@@ -11,7 +12,7 @@ import {ProcessingChainComponent} from '../processing-chain/processing-chain.com
 @Component({
   selector: 'app-calibration-history-detail',
   standalone: true,
-  imports: [SynergyComponentsModule, ProcessingChainComponent],
+  imports: [SynergyComponentsModule],
   templateUrl: './calibration-history-detail.component.html',
 })
 export class CalibrationHistoryDetailComponent {
@@ -30,7 +31,14 @@ export class CalibrationHistoryDetailComponent {
   /** Emits when user closes/goes back */
   close = output<void>();
 
+  private readonly nodeStore = inject(NodeStoreService);
   private router = inject(Router);
+
+  getSensorName(sensorId: string | null | undefined): string {
+    if (!sensorId) return '—';
+    const node = this.nodeStore.nodes().find((n: NodeConfig) => n.id === sensorId);
+    return node?.name ?? sensorId;
+  }
 
   isLegacyRecord = computed(() => {
     const r = this.record();

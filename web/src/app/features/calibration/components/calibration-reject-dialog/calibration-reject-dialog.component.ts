@@ -1,6 +1,6 @@
 import {Component, computed, input, output} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {CalibrationNodeStatus} from '../../../../core/models/calibration.model';
+import {CalibrationNodeStatus} from '@core/models';
 
 /**
  * Presentation dialog component: reject calibration confirmation.

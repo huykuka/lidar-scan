@@ -10,7 +10,7 @@
       <div class="px-6 py-4 border-b border-neutral-200">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <syn-icon class="text-2xl text-success-600" name="check_circle" />
+            <syn-icon class="text-2xl text-success-600" name="check_circle"/>
             <div>
               <h2 class="text-base font-semibold text-neutral-900 m-0">
                 Review Calibration Results
@@ -28,7 +28,7 @@
             (click)="onClose()"
             aria-label="Close dialog"
           >
-            <syn-icon name="close" />
+            <syn-icon name="close"/>
           </syn-button>
         </div>
       </div>
@@ -38,7 +38,7 @@
         <!-- Run ID banner -->
         @if (runId()) {
           <div class="flex items-center gap-2 p-3 bg-primary-50 border border-primary-200 rounded-lg">
-            <syn-icon class="text-primary-600" name="tag" />
+            <syn-icon class="text-primary-600" name="tag"/>
             <div class="flex-1">
               <p class="text-sm font-semibold text-primary-800 m-0">
                 Calibration Run: {{ runId() }}
@@ -87,13 +87,13 @@
                 }
 
                 <div class="flex-1">
-                  <!-- Sensor ID + Quality -->
+                  <!-- Sensor name + Quality -->
                   <div class="flex items-center justify-between mb-2">
                     <div class="flex flex-col gap-0.5">
-                      <span class="text-sm font-semibold text-neutral-900 font-mono">
-                        {{ result.sensorId }}
+                      <span class="text-sm font-semibold text-neutral-900">
+                        {{ getSensorName(result.sensorId) }}
                       </span>
-                      <!-- Source Sensor ID -->
+                      <!-- Source Sensor name -->
                       @if (result.source_sensor_id) {
                         <div class="flex items-center gap-1">
                           <span class="text-xs text-neutral-500">Source:</span>
@@ -101,9 +101,9 @@
                             variant="primary"
                             size="small"
                             [attr.title]="result.source_sensor_id"
-                            [attr.aria-label]="'This sensor will receive the transformation patch: ' + result.source_sensor_id"
+                            [attr.aria-label]="'This sensor will receive the transformation patch: ' + getSensorName(result.source_sensor_id)"
                           >
-                            {{ shortId(result.source_sensor_id) }}
+                            {{ getSensorName(result.source_sensor_id) }}
                           </syn-badge>
                           <syn-icon
                             class="text-xs text-neutral-400"
@@ -129,11 +129,6 @@
                           title="Ordered list of DAG nodes from sensor to calibration node"
                         />
                       </div>
-                      <app-processing-chain
-                        [processingChain]="result.processing_chain"
-                        displayMode="full"
-                        [showLastNode]="false"
-                      />
                     </div>
                   }
 
@@ -160,7 +155,7 @@
 
         <!-- Warning: source sensor will be patched -->
         <syn-alert open variant="warning">
-          <syn-icon name="warning" slot="icon" />
+          <syn-icon name="warning" slot="icon"/>
           <strong>Confirm sensor transformation</strong>
           <div>
             Accepting will write the transformation patch to the source sensor's pose configuration.
@@ -181,9 +176,9 @@
           aria-label="Reject calibration and discard results"
         >
           @if (rejecting()) {
-            <syn-spinner size="small" slot="prefix" />
+            <syn-spinner size="small" slot="prefix"/>
           } @else {
-            <syn-icon name="close" slot="prefix" />
+            <syn-icon name="close" slot="prefix"/>
           }
           Reject
         </syn-button>
@@ -204,9 +199,9 @@
             aria-label="Accept selected calibration results and apply transformation"
           >
             @if (accepting()) {
-              <syn-spinner size="small" slot="prefix" />
+              <syn-spinner size="small" slot="prefix"/>
             } @else {
-              <syn-icon name="check" slot="prefix" />
+              <syn-icon name="check" slot="prefix"/>
             }
             Accept
             @if (pendingResultsList().length > 1) {
