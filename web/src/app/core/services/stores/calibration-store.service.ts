@@ -122,6 +122,7 @@ export class CalibrationStoreService
     this.setState({isTriggering: true, error: null});
     try {
       await this.calibrationApi.triggerCalibration(nodeId, request);
+      await this._fetchStatus(nodeId); // refresh status immediately after trigger
     } catch (err) {
       this.setState({error: this._extractError(err)});
     } finally {

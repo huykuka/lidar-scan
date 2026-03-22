@@ -330,6 +330,25 @@ describe('CalibrationStoreService', () => {
     expect(store.error()).toBe('ICP failed');
   });
 
+  it('triggerCalibration should immediately fetch status after successful trigger', async () => {
+    apiSpy.triggerCalibration.mockResolvedValue(MOCK_TRIGGER_RESPONSE);
+    apiSpy.getNodeStatus.mockResolvedValue(MOCK_STATUS_PENDING);
+
+    await store.triggerCalibration('node-1', {});
+
+    expect(apiSpy.getNodeStatus).toHaveBeenCalledWith('node-1');
+    expect(store.nodeStatuses()['node-1']).toEqual(MOCK_STATUS_PENDING);
+  });
+
+  it('triggerCalibration should NOT fetch status when the trigger call fails', async () => {
+    apiSpy.triggerCalibration.mockRejectedValue(new Error('ICP failed'));
+
+    await store.triggerCalibration('node-1', {});
+
+    expect(apiSpy.getNodeStatus).not.toHaveBeenCalled();
+    expect(store.error()).toBe('ICP failed');
+  });
+
   // ── acceptCalibration ─────────────────────────────────────────────────────
 
   it('acceptCalibration should call api and refresh status on success', async () => {
