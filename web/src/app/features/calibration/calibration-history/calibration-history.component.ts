@@ -2,6 +2,8 @@ import {Component, computed, effect, inject, signal} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CalibrationApiService} from '../../../core/services/api/calibration-api.service';
+import {CalibrationStoreService} from '../../../core/services/stores/calibration-store.service';
+import {ToastService} from '../../../core/services/toast.service';
 import {NavigationService} from '../../../core/services';
 import {
   CalibrationHistoryRecord,
@@ -43,10 +45,15 @@ export class CalibrationHistoryComponent {
   statistics = signal<CalibrationStatistics | null>(null);
   selectedRecord = signal<CalibrationHistoryRecord | null>(null);
 
+  // --- Store ---
+  protected readonly calibrationStore = inject(CalibrationStoreService);
+  isRollingBack = computed(() => this.calibrationStore.isRollingBack());
+
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private calibrationApi = inject(CalibrationApiService);
   private navigationService = inject(NavigationService);
+  private toast = inject(ToastService);
 
   constructor() {
     // Extract nodeId from route params
@@ -67,6 +74,12 @@ export class CalibrationHistoryComponent {
       },
       {allowSignalWrites: true},
     );
+
+    // Show error toasts from store
+    effect(() => {
+      const error = this.calibrationStore.error();
+      if (error) this.toast.danger(error);
+    });
   }
 
   async loadHistory(nodeId: string, sourceSensorId?: string, runId?: string): Promise<void> {
@@ -95,7 +108,7 @@ export class CalibrationHistoryComponent {
 
   onFilterByRunId(runId: string): void {
     // Update URL query params so link is shareable
-    this.router.navigate([], {
+    void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: {run_id: runId},
       queryParamsHandling: 'merge',
@@ -116,12 +129,16 @@ export class CalibrationHistoryComponent {
     this.onFilterByRunId(runId);
   }
 
+  async onRollback(sensorId: string, recordId: string): Promise<void> {
+    await this.calibrationStore.rollbackHistory(sensorId, recordId);
+  }
+
   setTab(tab: TabId): void {
     this.activeTab.set(tab);
   }
 
   goBack(): void {
-    this.router.navigate(['/calibration']);
+    void this.router.navigate(['/calibration']);
   }
 }
 

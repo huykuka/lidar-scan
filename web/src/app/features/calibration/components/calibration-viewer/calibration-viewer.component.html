@@ -7,17 +7,17 @@
         Back
       </syn-button>
 
-      @if (calibrationNode()) {
-        <div class="flex items-center gap-3">
-          <syn-icon class="text-3xl text-primary-600" name="tune" />
-          <div>
-            <h1 class="text-xl font-semibold text-neutral-900 m-0">{{ calibrationNode()?.name }}</h1>
-            <p class="text-xs font-mono text-neutral-600 m-0">{{ nodeId() }}</p>
-          </div>
+      <div class="flex items-center gap-3">
+        <syn-icon class="text-3xl text-primary-600" name="tune" />
+        <div>
+          <h1 class="text-xl font-semibold text-neutral-900 m-0">
+            {{ calibrationNode()?.node_name ?? nodeId() ?? 'Calibration' }}
+          </h1>
+          <p class="text-xs font-mono text-neutral-600 m-0">{{ nodeId() }}</p>
         </div>
-      }
+      </div>
 
-      <div class="ml-auto">
+      <div class="ml-auto flex gap-2">
         <syn-button (click)="viewHistory()" size="small" variant="text">
           <syn-icon name="history" slot="prefix" />
           View History
@@ -28,24 +28,20 @@
 
   <!-- Content -->
   <div class="flex-1 overflow-auto p-6">
-    @if (isLoading()) {
-      <!-- Loading State -->
+
+    @if (!calibrationNode() && !isLoadingStatus()) {
+      <!-- Loading/waiting state (before first poll response) -->
       <div class="flex flex-col items-center justify-center h-96 gap-4 text-neutral-600">
         <syn-spinner size="large" />
-        <p>Loading calibration node...</p>
+        <p>Loading calibration node…</p>
       </div>
-    } @else if (!calibrationNode()) {
-      <!-- Error State -->
-      <syn-alert open variant="danger">
-        <syn-icon name="error" slot="icon" />
-        <strong>Node Not Found</strong>
-        <div>Calibration node {{ nodeId() }} does not exist.</div>
-      </syn-alert>
-    } @else {
-      <!-- Two Column Layout -->
+    } @else if (calibrationNode(); as node) {
+
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
-        <!-- Left Column: Status & Results -->
+
+        <!-- Left column: Status + Pending Results -->
         <div class="flex flex-col gap-6">
+
           <!-- Status Card -->
           <syn-card>
             <h2 class="text-base font-semibold text-neutral-900 m-0 mb-3">Status</h2>
@@ -53,179 +49,195 @@
 
             <div class="flex flex-col gap-4 mt-4">
               <div class="flex justify-between items-center text-sm">
+                <span class="text-neutral-600 font-medium">State</span>
+                @if (node.calibration_state === 'pending') {
+                  <syn-badge variant="warning">Pending Approval</syn-badge>
+                } @else {
+                  <syn-badge variant="neutral">Idle</syn-badge>
+                }
+              </div>
+
+              <div class="flex justify-between items-center text-sm">
                 <span class="text-neutral-600 font-medium">Enabled</span>
-                <syn-badge [variant]="calibrationNode()!.enabled ? 'success' : 'neutral'">
-                  {{ calibrationNode()!.enabled ? 'Yes' : 'No' }}
+                <syn-badge [variant]="node.enabled ? 'success' : 'neutral'">
+                  {{ node.enabled ? 'Yes' : 'No' }}
                 </syn-badge>
               </div>
 
               <div class="flex justify-between items-center text-sm">
-                <span class="text-neutral-600 font-medium">Buffered Sensors</span>
-                <span class="text-neutral-900">
-                  <syn-badge variant="primary">
-                    {{ getBufferedFrameCount(calibrationNode()!.buffered_frames) }}
-                  </syn-badge>
-                </span>
+                <span class="text-neutral-600 font-medium">Last Calibration</span>
+                <span class="text-neutral-900">{{ formatDate(node.last_calibration_time) }}</span>
               </div>
 
-              @if (calibrationNode()!.reference_sensor) {
+              @if (node.reference_sensor_id) {
                 <div class="flex justify-between items-start text-sm">
                   <span class="text-neutral-600 font-medium">Reference Sensor</span>
-                  <span class="text-neutral-900 text-right">
-                    <div class="font-mono text-xs">
-                      {{ getSensorName(calibrationNode()!.reference_sensor!) }}
-                      <span class="text-neutral-500 ml-1">
-                        ({{ calibrationNode()!.reference_sensor!.slice(0, 8) }})
-                      </span>
-                    </div>
-                  </span>
+                  <span class="font-mono text-xs text-neutral-900">{{ node.reference_sensor_id }}</span>
                 </div>
               }
 
-              @if (calibrationNode()!.source_sensors.length > 0) {
+              @if (node.source_sensor_ids.length > 0) {
                 <div class="flex justify-between items-start text-sm">
                   <span class="text-neutral-600 font-medium">Source Sensors</span>
-                  <div class="flex flex-col gap-1 items-end">
-                    @for (sensorId of calibrationNode()!.source_sensors; track sensorId) {
-                      <div class="text-sm">
-                        {{ getSensorName(sensorId) }}
-                        <span class="text-neutral-500 font-mono text-xs ml-1">
-                          ({{ sensorId.slice(0, 8) }})
-                        </span>
-                      </div>
+                  <div class="flex flex-col items-end gap-1">
+                    @for (sensorId of node.source_sensor_ids; track sensorId) {
+                      <span class="text-xs font-mono text-neutral-900">{{ getSensorName(sensorId) }}</span>
                     }
                   </div>
                 </div>
               }
 
-              @if (calibrationNode()!.last_calibration_time) {
-                <div class="flex justify-between items-center text-sm">
-                  <span class="text-neutral-600 font-medium">Last Calibration</span>
-                  <span class="text-neutral-900">
-                    {{ formatDate(calibrationNode()!.last_calibration_time!) }}
-                  </span>
+              <!-- Buffered Frames -->
+              @if ((node.buffered_frames | keyvalue).length > 0) {
+                <div class="flex justify-between items-start text-sm">
+                  <span class="text-neutral-600 font-medium">Buffered Frames</span>
+                  <div class="flex flex-col items-end gap-1">
+                    @for (entry of node.buffered_frames | keyvalue; track entry.key) {
+                      <span class="text-xs text-neutral-700">
+                        {{ entry.key }}: <strong>{{ entry.value }}</strong>
+                      </span>
+                    }
+                  </div>
                 </div>
               }
+            </div>
+
+            <div class="mt-4">
+              <syn-button
+                (click)="triggerCalibration()"
+                [disabled]="isTriggering()"
+                variant="filled"
+              >
+                @if (isTriggering()) {
+                  <syn-spinner size="small" slot="prefix" />
+                  Running…
+                } @else {
+                  <syn-icon name="tune" slot="prefix" />
+                  Run Calibration
+                }
+              </syn-button>
             </div>
           </syn-card>
 
           <!-- Pending Results Card -->
-          @if (hasPendingResults()) {
+          @if (node.calibration_state === 'pending') {
             <syn-card>
               <div class="flex justify-between items-center mb-3">
-                <h2 class="text-base font-semibold text-neutral-900 m-0 flex items-center gap-2">
-                  <syn-icon class="text-success-600" name="check_circle" />
-                  Pending Results
-                </h2>
+                <h2 class="text-base font-semibold text-neutral-900 m-0">Pending Results</h2>
                 <syn-badge variant="warning">Needs Review</syn-badge>
               </div>
               <syn-divider />
 
-              <!-- Run ID display -->
-              @if (runId()) {
-                <div class="mt-3 mb-2 flex items-center gap-2 text-sm">
-                  <syn-icon class="text-primary-600 text-xs" name="tag" />
-                  <span class="text-neutral-600">Run:</span>
-                  <span class="font-mono text-xs text-primary-700 font-semibold">{{ runId() }}</span>
-                </div>
-              }
-
               <div class="flex flex-col gap-4 mt-4">
-                @for (result of pendingResultsList(); track result.sensorId) {
+                @for (entry of pendingResultEntries(); track entry[0]) {
+                  @let sensorId = entry[0];
+                  @let result = entry[1];
+                  @let delta = computePoseDelta(result);
+
                   <div class="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
-                    <div class="flex justify-between items-center mb-4">
-                      <div class="flex flex-col gap-0.5">
-                        <span class="text-sm font-semibold text-neutral-900">
-                          {{ getSensorName(result.sensorId) }}
-                        </span>
-                        <span class="text-xs font-mono text-neutral-500">
-                          {{ result.sensorId.slice(0, 8) }}
-                        </span>
-                        
-                        <!-- Source sensor ID badge (NEW) -->
-                        @if (result.source_sensor_id && result.source_sensor_id !== result.sensorId) {
-                          <div class="mt-1 flex items-center gap-1">
-                            <span class="text-xs text-neutral-600">Source:</span>
-                            <syn-badge
-                              variant="primary"
-                              size="small"
-                              [attr.title]="result.source_sensor_id"
-                              [attr.aria-label]="'Source sensor that will be patched: ' + result.source_sensor_id"
-                            >
-                              {{ result.source_sensor_id.slice(0, 8) }}
-                            </syn-badge>
-                          </div>
-                        }
-                      </div>
+                    <div class="flex justify-between items-center mb-3">
+                      <h3 class="text-sm font-semibold text-neutral-900 m-0">
+                        {{ getSensorName(sensorId) }}
+                        <span class="font-mono text-xs text-neutral-500 ml-1">({{ sensorId.slice(0, 8) }})</span>
+                      </h3>
                       <syn-badge [variant]="getQualityVariant(result.quality)">
                         {{ result.quality }}
                       </syn-badge>
                     </div>
 
-                    <!-- Processing Chain Display (NEW) -->
-                    @if (result.processing_chain && result.processing_chain.length > 0) {
-                      <div class="mb-3 p-2 bg-white border border-neutral-200 rounded">
-                        <span class="text-xs text-neutral-600 mb-1 block">Processing Chain</span>
-                        <app-processing-chain 
+                    <!-- Quality metrics -->
+                    <div class="flex gap-4 text-sm mb-3">
+                      <span class="text-neutral-600">
+                        Fitness: <strong>{{ (result.fitness * 100).toFixed(1) }}%</strong>
+                      </span>
+                      <span class="text-neutral-600">
+                        RMSE: <strong>{{ result.rmse.toFixed(5) }} m</strong>
+                      </span>
+                    </div>
+
+                    <!-- Processing Chain -->
+                    @if (result.processing_chain.length > 0) {
+                      <div class="mb-3">
+                        <app-processing-chain
                           [processingChain]="result.processing_chain"
                           [displayMode]="'full'"
-                          [showLastNode]="false" />
+                          [showLastNode]="false"
+                        />
                       </div>
                     }
 
-                    <div class="grid grid-cols-2 gap-4">
-                      <div class="flex gap-2 items-center">
-                        <span class="text-2xl">📊</span>
-                        <div class="flex flex-col gap-0.5">
-                          <span class="text-xs text-neutral-600">Fitness Score</span>
-                          <span class="text-base font-bold text-neutral-900">
-                            {{ (result.fitness * 100).toFixed(2) }}%
-                          </span>
-                        </div>
-                      </div>
-
-                      <div class="flex gap-2 items-center">
-                        <span class="text-2xl">📏</span>
-                        <div class="flex flex-col gap-0.5">
-                          <span class="text-xs text-neutral-600">RMSE</span>
-                          <span class="text-base font-bold text-neutral-900">
-                            {{ result.rmse.toFixed(4) }} m
-                          </span>
-                        </div>
-                      </div>
+                    <!-- Δ-pose table -->
+                    <div class="overflow-x-auto">
+                      <table class="w-full text-xs border-collapse">
+                        <thead>
+                          <tr class="bg-neutral-100">
+                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δx (mm)</th>
+                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δy (mm)</th>
+                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δz (mm)</th>
+                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δroll (°)</th>
+                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δpitch (°)</th>
+                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δyaw (°)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dx.toFixed(2) }}</td>
+                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dy.toFixed(2) }}</td>
+                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dz.toFixed(2) }}</td>
+                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.droll.toFixed(4) }}</td>
+                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dpitch.toFixed(4) }}</td>
+                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dyaw.toFixed(4) }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
+
+                    <!-- 4×4 transformation matrix (expandable) -->
+                    <syn-details class="mt-3" summary="Transformation Matrix (translation in meters)">
+                      <div class="overflow-x-auto">
+                        <table class="text-xs font-mono border-collapse">
+                          @for (row of result.transformation_matrix; track $index) {
+                            <tr>
+                              @for (cell of row; track $index) {
+                                <td class="px-2 py-1 border border-neutral-200">{{ cell.toFixed(6) }}</td>
+                              }
+                            </tr>
+                          }
+                        </table>
+                      </div>
+                    </syn-details>
                   </div>
                 }
               </div>
 
-              <!-- Accept/Reject buttons — open dialogs -->
-              <div class="flex gap-2 mt-4">
+              <!-- Accept / Reject actions -->
+              <div class="flex gap-3 mt-4">
                 <syn-button
-                  (click)="openAcceptDialog()"
-                  [disabled]="isAccepting() || isRejecting()"
                   variant="filled"
-                  aria-label="Open accept calibration dialog"
+                  (click)="acceptCalibration()"
+                  [disabled]="isAccepting() || isRejecting()"
                 >
                   @if (isAccepting()) {
                     <syn-spinner size="small" slot="prefix" />
+                    Accepting…
                   } @else {
                     <syn-icon name="check" slot="prefix" />
+                    Accept Calibration
                   }
-                  Accept & Apply
                 </syn-button>
 
                 <syn-button
-                  (click)="openRejectDialog()"
-                  [disabled]="isAccepting() || isRejecting()"
                   variant="outline"
-                  aria-label="Open reject calibration dialog"
+                  (click)="rejectCalibration()"
+                  [disabled]="isAccepting() || isRejecting()"
                 >
                   @if (isRejecting()) {
                     <syn-spinner size="small" slot="prefix" />
+                    Rejecting…
                   } @else {
                     <syn-icon name="close" slot="prefix" />
+                    Reject
                   }
-                  Reject
                 </syn-button>
               </div>
             </syn-card>
@@ -233,82 +245,90 @@
             <syn-alert open variant="neutral">
               <syn-icon name="info" slot="icon" />
               <strong>No Pending Results</strong>
-              <div>Trigger calibration from the Settings page to see results here.</div>
+              <div>Trigger calibration to see pending results here.</div>
             </syn-alert>
           }
+
         </div>
 
-        <!-- Right Column: Buffered Frames Info -->
+        <!-- Right column: Calibration History -->
         <div class="flex flex-col gap-6">
           <syn-card>
-            <h2 class="text-base font-semibold text-neutral-900 m-0 mb-3">Buffered Frames</h2>
+            <h2 class="text-base font-semibold text-neutral-900 m-0 mb-3">Calibration History</h2>
             <syn-divider />
 
-            @if (getBufferedFrameCount(calibrationNode()!.buffered_frames) === 0) {
-              <div class="text-center py-12">
-                <syn-icon class="text-5xl text-neutral-400 mb-4" name="cloud_off" />
-                <p class="text-neutral-600 mb-1 m-0">No frames buffered yet</p>
-                <p class="text-sm text-neutral-500 m-0">
-                  Connect sensors to this calibration node and start the system
-                </p>
+            @if (historyForNode().length === 0) {
+              <div class="text-center py-8 text-neutral-500">
+                <syn-icon name="history" class="text-4xl mb-2" />
+                <p class="m-0">No calibration history yet.</p>
               </div>
             } @else {
               <div class="flex flex-col gap-2 mt-4">
-                @for (entry of getBufferedFrameEntries(calibrationNode()!.buffered_frames); track entry.sensorId) {
-                  <div class="flex items-center gap-2 p-2 bg-neutral-50 rounded-lg">
-                    <syn-icon class="text-primary-600" name="sensors" />
-                    <div class="flex-1 flex flex-col gap-0.5">
-                      <span class="text-sm font-medium text-neutral-900">
-                        {{ getSensorName(entry.sensorId) }}
+                @for (record of historyForNode(); track record.id) {
+                  <syn-details
+                    [summary]="formatDate(record.timestamp) + ' — ' + (record.quality ?? 'unknown')"
+                  >
+                    <div class="text-sm flex flex-col gap-2">
+                      <div class="flex gap-4">
+                        <span class="text-neutral-600">
+                        Fitness: <strong>{{ (record.fitness * 100).toFixed(1) }}%</strong>
                       </span>
-                      <span class="text-xs font-mono text-neutral-500">
-                        {{ entry.sensorId.slice(0, 8) }}
-                      </span>
+                      <span class="text-neutral-600">
+                        RMSE: <strong>{{ record.rmse.toFixed(5) }} m</strong>
+                        </span>
+                        <syn-badge [variant]="record.accepted ? 'success' : 'neutral'" size="small">
+                          {{ record.accepted ? 'Accepted' : 'Rejected' }}
+                        </syn-badge>
+                      </div>
+
+                      @if (record.pose_before && record.pose_after) {
+                        <div class="overflow-x-auto mt-2">
+                          <table class="w-full text-xs border-collapse">
+                            <caption class="text-left text-neutral-500 mb-1">Pose Change</caption>
+                            <thead>
+                              <tr class="bg-neutral-100">
+                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δx (mm)</th>
+                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δy (mm)</th>
+                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δz (mm)</th>
+                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δroll (°)</th>
+                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δpitch (°)</th>
+                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δyaw (°)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.x - record.pose_before.x).toFixed(2) }}</td>
+                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.y - record.pose_before.y).toFixed(2) }}</td>
+                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.z - record.pose_before.z).toFixed(2) }}</td>
+                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.roll - record.pose_before.roll).toFixed(4) }}</td>
+                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.pitch - record.pose_before.pitch).toFixed(4) }}</td>
+                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.yaw - record.pose_before.yaw).toFixed(4) }}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      }
+
+                      @if (record.accepted) {
+                        <syn-button
+                          size="small"
+                          variant="outline"
+                          (click)="rollbackToEntry(record)"
+                          [disabled]="isRollingBack()"
+                        >
+                          <syn-icon name="restore" slot="prefix" />
+                          @if (isRollingBack()) { Rolling back… } @else { Rollback to This }
+                        </syn-button>
+                      }
                     </div>
-                    <syn-badge size="small" variant="success">
-                      <syn-icon name="check_circle" slot="prefix" />
-                      {{ entry.count }} frame{{ entry.count !== 1 ? 's' : '' }}
-                    </syn-badge>
-                  </div>
+                  </syn-details>
                 }
-              </div>
-
-              <syn-divider />
-
-              <div class="flex gap-2 p-2 bg-primary-50 rounded-lg mt-4">
-                <syn-icon class="text-primary-600 flex-shrink-0" name="info" />
-                <p class="text-sm text-neutral-700 m-0">
-                  {{ getBufferedFrameCount(calibrationNode()!.buffered_frames) }} sensor(s) have buffered point
-                  cloud data. You can trigger calibration from the Settings page.
-                </p>
               </div>
             }
           </syn-card>
         </div>
+
       </div>
     }
   </div>
-
-  <!-- Accept Dialog -->
-  <app-calibration-accept-dialog
-    [open]="showAcceptDialog()"
-    [nodeStatus]="calibrationNode()"
-    [runId]="runId()"
-    [accepting]="isAccepting()"
-    [rejecting]="isRejecting()"
-    (accepted)="acceptCalibration($event)"
-    (rejected)="rejectCalibration()"
-    (closed)="showAcceptDialog.set(false)"
-  />
-
-  <!-- Reject Dialog -->
-  <app-calibration-reject-dialog
-    [open]="showRejectDialog()"
-    [nodeStatus]="calibrationNode()"
-    [runId]="runId()"
-    [rejecting]="isRejecting()"
-    (rejected)="rejectCalibration()"
-    (closed)="showRejectDialog.set(false)"
-  />
 </div>
-

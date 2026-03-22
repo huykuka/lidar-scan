@@ -1,4 +1,4 @@
-import {Component, computed, inject, input, output, signal} from '@angular/core';
+import {Component, computed, inject, input, output} from '@angular/core';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CalibrationHistoryRecord} from '../../../../core/models/calibration.model';
@@ -17,6 +17,12 @@ import {ProcessingChainComponent} from '../processing-chain/processing-chain.com
 export class CalibrationHistoryDetailComponent {
   /** The record to display */
   record = input.required<CalibrationHistoryRecord>();
+
+  /** Whether a rollback operation is in progress */
+  isRollingBack = input<boolean>(false);
+
+  /** Emits the record.id when user requests rollback to this entry */
+  rollback = output<string>();
 
   /** Emits when user clicks "View all in run" */
   viewRun = output<string>();
@@ -53,6 +59,10 @@ export class CalibrationHistoryDetailComponent {
   formatPose(pose: any): string {
     if (!pose) return '—';
     return `x:${pose.x?.toFixed(3)} y:${pose.y?.toFixed(3)} z:${pose.z?.toFixed(3)} r:${pose.roll?.toFixed(3)} p:${pose.pitch?.toFixed(3)} y:${pose.yaw?.toFixed(3)}`;
+  }
+
+  onRollback(): void {
+    this.rollback.emit(this.record().id);
   }
 
   onViewRun(runId: string): void {

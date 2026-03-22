@@ -89,6 +89,8 @@
       <div class="w-full max-w-2xl bg-white border-l border-neutral-200 shadow-2xl overflow-y-auto p-6">
         <app-calibration-history-detail
           [record]="selectedRecord()!"
+          [isRollingBack]="isRollingBack()"
+          (rollback)="onRollback(selectedRecord()!.source_sensor_id ?? selectedRecord()!.sensor_id, $event)"
           (viewRun)="onViewRun($event)"
           (close)="onCloseDetail()"
         />

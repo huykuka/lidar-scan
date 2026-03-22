@@ -107,17 +107,17 @@
 ## Group 3: CalibrationNode Changes
 
 ### Task 3.1 — Add `get_calibration_status()` method
-- [ ] **File:** `app/modules/calibration/calibration_node.py`
-- [ ] Add new public method `get_calibration_status(self) -> Dict[str, Any]` to `CalibrationNode` class
-- [ ] Method must NOT modify any state (pure read)
-- [ ] Determine `calibration_state`:
+- [x] **File:** `app/modules/calibration/calibration_node.py`
+- [x] Add new public method `get_calibration_status(self) -> Dict[str, Any]` to `CalibrationNode` class
+- [x] Method must NOT modify any state (pure read)
+- [x] Determine `calibration_state`:
   - `"pending"` if `self._pending_calibration is not None`
   - `"idle"` otherwise
-- [ ] Compute `quality_good`:
+- [x] Compute `quality_good`:
   - `None` if no pending calibration
   - `True` if all pending records have `fitness >= self.min_fitness_to_save`
   - `False` otherwise
-- [ ] Build `pending_results` dict: for each `(sensor_id, record)` in `self._pending_calibration.items()`:
+- [x] Build `pending_results` dict: for each `(sensor_id, record)` in `self._pending_calibration.items()`:
   ```python
   {
       "fitness": record.fitness,
@@ -131,21 +131,21 @@
       "transformation_matrix": record.transformation_matrix,
   }
   ```
-- [ ] Return the full dict as specified in `technical.md` § 2.3
-- [ ] **Test:** Create a `CalibrationNode` instance, set `_pending_calibration` with mock records, call `get_calibration_status()`, assert all fields present and values correct.
+- [x] Return the full dict as specified in `technical.md` § 2.3
+- [x] **Test:** Create a `CalibrationNode` instance, set `_pending_calibration` with mock records, call `get_calibration_status()`, assert all fields present and values correct.
 
 ### Task 3.2 — Fix `sample_frames` default inconsistency
-- [ ] **File:** `app/api/v1/calibration/dto.py`
-- [ ] Change `TriggerCalibrationRequest.sample_frames: int = 1` to `sample_frames: int = 5`
-- [ ] Verify `calibration_node.py` `trigger_calibration()` also uses `5` as fallback: `sample_frames = params.get("sample_frames", 5)` (already correct — confirm only)
-- [ ] **Test:** Trigger with no `sample_frames` param → default is 5.
+- [x] **File:** `app/api/v1/calibration/dto.py`
+- [x] Change `TriggerCalibrationRequest.sample_frames: int = 1` to `sample_frames: int = 5`
+- [x] Verify `calibration_node.py` `trigger_calibration()` also uses `5` as fallback: `sample_frames = params.get("sample_frames", 5)` (already correct — confirm only)
+- [x] **Test:** Trigger with no `sample_frames` param → default is 5.
 
 ### Task 3.3 — Pass `node_id` and `accepted_at` when saving calibration records
-- [ ] **File:** `app/modules/calibration/history.py` → `CalibrationHistory.save_record()`
-- [ ] Add `node_id: Optional[str] = None` parameter to `CalibrationHistory.save_record()`
-- [ ] Pass `node_id=node_id` to `calibration_orm.create_calibration_record()`
-- [ ] **File:** `app/modules/calibration/calibration_node.py` → `_apply_calibration()`
-- [ ] After `CalibrationHistory.save_record(record, db_session=db)`, call:
+- [x] **File:** `app/modules/calibration/history.py` → `CalibrationHistory.save_record()`
+- [x] Add `node_id: Optional[str] = None` parameter to `CalibrationHistory.save_record()`
+- [x] Pass `node_id=node_id` to `calibration_orm.create_calibration_record()`
+- [x] **File:** `app/modules/calibration/calibration_node.py` → `_apply_calibration()`
+- [x] After `CalibrationHistory.save_record(record, db_session=db)`, call:
   ```python
   calibration_orm.update_calibration_acceptance(
       db=db,
@@ -155,27 +155,27 @@
   )
   ```
   - **Note:** `save_record()` must return the `record_id` string (update it to `return record_id`)
-- [ ] Pass `node_id=self.id` when calling `CalibrationHistory.save_record(record, node_id=self.id, ...)`
-- [ ] **Test:** Accept a calibration, check DB row has `node_id` set and `accepted_at` is an ISO-8601 string.
+- [x] Pass `node_id=self.id` when calling `CalibrationHistory.save_record(record, node_id=self.id, ...)`
+- [x] **Test:** Accept a calibration, check DB row has `node_id` set and `accepted_at` is an ISO-8601 string.
 
 ---
 
 ## Group 4: History Rollback Fix
 
 ### Task 4.1 — Update `RollbackRequest` DTO to use `record_id`
-- [ ] **File:** `app/api/v1/calibration/dto.py`
-- [ ] Change `RollbackRequest`:
+- [x] **File:** `app/api/v1/calibration/dto.py`
+- [x] Change `RollbackRequest`:
   ```python
   class RollbackRequest(BaseModel):
       record_id: str   # was: timestamp: str
   ```
-- [ ] **Test:** POST `{"record_id": "abc123"}` — Pydantic validation passes. POST `{"timestamp": "..."}` — validation error.
+- [x] **Test:** POST `{"record_id": "abc123"}` — Pydantic validation passes. POST `{"timestamp": "..."}` — validation error.
 
 ### Task 4.2 — Fix `rollback_calibration()` service function
-- [ ] **File:** `app/api/v1/calibration/service.py`
-- [ ] Change `rollback_calibration()` to use `calibration_orm.get_calibration_by_id(db, request.record_id)` (NOT `get_calibration_by_timestamp`)
-- [ ] Remove the `node_manager.nodes.get(sensor_id)` existence check — the sensor may not be in-memory (rolled-back sensors may have been stopped). Only the DB record and `NodeRepository` are needed.
-- [ ] After applying the pose via `repo.update_node_pose()`, create a new "rollback" history record using `calibration_orm.create_calibration_record()`:
+- [x] **File:** `app/api/v1/calibration/service.py`
+- [x] Change `rollback_calibration()` to use `calibration_orm.get_calibration_by_id(db, request.record_id)` (NOT `get_calibration_by_timestamp`)
+- [x] Remove the `node_manager.nodes.get(sensor_id)` existence check — the sensor may not be in-memory (rolled-back sensors may have been stopped). Only the DB record and `NodeRepository` are needed.
+- [x] After applying the pose via `repo.update_node_pose()`, create a new "rollback" history record using `calibration_orm.create_calibration_record()`:
   ```python
   rollback_record_id = uuid.uuid4().hex
   calibration_orm.create_calibration_record(
@@ -198,7 +198,7 @@
       run_id=None,
   )
   ```
-- [ ] Update response to include `new_record_id`:
+- [x] Update response to include `new_record_id`:
   ```python
   return {
       "success": True,
@@ -207,12 +207,12 @@
       "new_record_id": rollback_record_id,
   }
   ```
-- [ ] Trigger `await node_manager.reload_config()` (already present — confirm it remains)
-- [ ] **Test:** POST rollback with valid `record_id` → sensor pose updated, new history record created with `rollback_source_id`, DAG reloads.
+- [x] Trigger `await node_manager.reload_config()` (already present — confirm it remains)
+- [x] **Test:** POST rollback with valid `record_id` → sensor pose updated, new history record created with `rollback_source_id`, DAG reloads.
 
 ### Task 4.3 — Update `RollbackResponse` schema
-- [ ] **File:** `app/api/v1/schemas/calibration.py`
-- [ ] Update `RollbackResponse`:
+- [x] **File:** `app/api/v1/schemas/calibration.py`
+- [x] Update `RollbackResponse`:
   ```python
   class RollbackResponse(BaseModel):
       success: bool
@@ -220,15 +220,15 @@
       restored_to: str
       new_record_id: str
   ```
-- [ ] **Test:** Response serializes all 4 fields.
+- [x] **Test:** Response serializes all 4 fields.
 
 ---
 
 ## Group 5: API Endpoint Changes
 
 ### Task 5.1 — Add new `GET /calibration/{node_id}/status` endpoint
-- [ ] **File:** `app/api/v1/schemas/calibration.py`
-- [ ] Add new Pydantic models:
+- [x] **File:** `app/api/v1/schemas/calibration.py`
+- [x] Add new Pydantic models:
   ```python
   class PendingCalibrationResult(BaseModel):
       fitness: float
@@ -253,10 +253,10 @@
       last_calibration_time: Optional[str]
       pending_results: Dict[str, PendingCalibrationResult]
   ```
-- [ ] **File:** `app/api/v1/calibration/service.py`
-- [ ] Add `get_calibration_status()` function (imports `CalibrationNode`, calls `node.get_calibration_status()`)
-- [ ] **File:** `app/api/v1/calibration/handler.py`
-- [ ] Register endpoint:
+- [x] **File:** `app/api/v1/calibration/service.py`
+- [x] Add `get_calibration_status()` function (imports `CalibrationNode`, calls `node.get_calibration_status()`)
+- [x] **File:** `app/api/v1/calibration/handler.py`
+- [x] Register endpoint:
   ```python
   @router.get(
       "/calibration/{node_id}/status",
@@ -268,49 +268,49 @@
       return await get_calibration_status(node_id)
   ```
   **IMPORTANT:** This route MUST be registered BEFORE the `rollback` and `history` routes, or FastAPI may match `{node_id}` = "history" or "rollback". Verify route ordering in the router.
-- [ ] **Test:** `GET /api/v1/calibration/test-node-id/status` with a live node → 200 with valid JSON. With non-existent node → 404.
+- [x] **Test:** `GET /api/v1/calibration/test-node-id/status` with a live node → 200 with valid JSON. With non-existent node → 404.
 
 ### Task 5.2 — Fix `reject_calibration()` response schema
-- [ ] **File:** `app/api/v1/schemas/calibration.py`
-- [ ] Add:
+- [x] **File:** `app/api/v1/schemas/calibration.py`
+- [x] Add:
   ```python
   class RejectResponse(BaseModel):
       success: bool
       rejected: List[str]
   ```
-- [ ] **File:** `app/api/v1/calibration/service.py` → `reject_calibration()`
-- [ ] Before calling `node.reject_calibration()`, capture: `rejected_ids = list((node._pending_calibration or {}).keys())`
-- [ ] Return: `{"success": True, "rejected": rejected_ids}`
-- [ ] **File:** `app/api/v1/calibration/handler.py`
-- [ ] Change `response_model=StatusResponse` to `response_model=RejectResponse` on the reject endpoint
-- [ ] Remove `StatusResponse` import from handler if no longer used
-- [ ] **Test:** POST reject when 2 sensors pending → `{"success": true, "rejected": ["sensor-a", "sensor-b"]}`. POST reject when nothing pending → `{"success": true, "rejected": []}`.
+- [x] **File:** `app/api/v1/calibration/service.py` → `reject_calibration()`
+- [x] Before calling `node.reject_calibration()`, capture: `rejected_ids = list((node._pending_calibration or {}).keys())`
+- [x] Return: `{"success": True, "rejected": rejected_ids}`
+- [x] **File:** `app/api/v1/calibration/handler.py`
+- [x] Change `response_model=StatusResponse` to `response_model=RejectResponse` on the reject endpoint
+- [x] Remove `StatusResponse` import from handler if no longer used
+- [x] **Test:** POST reject when 2 sensors pending → `{"success": true, "rejected": ["sensor-a", "sensor-b"]}`. POST reject when nothing pending → `{"success": true, "rejected": []}`.
 
 ### Task 5.3 — Add `run_id` query param to history endpoint
-- [ ] **File:** `app/api/v1/calibration/handler.py`
-- [ ] Update `calibration_history_endpoint()` signature to add `run_id: Optional[str] = None`
-- [ ] Pass `run_id` to `get_calibration_history()` in `service.py`
-- [ ] **File:** `app/api/v1/calibration/service.py` → `get_calibration_history()`
-- [ ] Add `run_id: Optional[str] = None` parameter
-- [ ] When neither `source_sensor_id` nor `run_id` → use legacy `get_calibration_history(db, sensor_id, limit)`
-- [ ] When `run_id` provided → use `calibration_orm.get_calibration_history(db, sensor_id, limit, run_id=run_id)`
-- [ ] When `source_sensor_id` provided → existing `get_calibration_history_by_source()` path (unchanged)
-- [ ] **Test:** Insert 5 records with 2 different `run_id` values. `GET /history/sensor?run_id=abc` → returns only 2.
+- [x] **File:** `app/api/v1/calibration/handler.py`
+- [x] Update `calibration_history_endpoint()` signature to add `run_id: Optional[str] = None`
+- [x] Pass `run_id` to `get_calibration_history()` in `service.py`
+- [x] **File:** `app/api/v1/calibration/service.py` → `get_calibration_history()`
+- [x] Add `run_id: Optional[str] = None` parameter
+- [x] When neither `source_sensor_id` nor `run_id` → use legacy `get_calibration_history(db, sensor_id, limit)`
+- [x] When `run_id` provided → use `calibration_orm.get_calibration_history(db, sensor_id, limit, run_id=run_id)`
+- [x] When `source_sensor_id` provided → existing `get_calibration_history_by_source()` path (unchanged)
+- [x] **Test:** Insert 5 records with 2 different `run_id` values. `GET /history/sensor?run_id=abc` → returns only 2.
 
 ### Task 5.4 — Update `CalibrationRecord` schema to include new fields
-- [ ] **File:** `app/api/v1/schemas/calibration.py`
-- [ ] Extend `CalibrationRecord` Pydantic model with all new fields as per `api-spec.md` § 5
-- [ ] Add: `accepted_at`, `accepted_by`, `node_id`, `rollback_source_id`, `registration_method`, `pose_before`, `pose_after`, `transformation_matrix`, `stages_used`, `notes`
-- [ ] All new fields must be `Optional` with `None` default for backward compatibility with legacy records
-- [ ] **Test:** `CalibrationRecord(**old_record_dict_without_new_fields)` — validation succeeds with defaults.
+- [x] **File:** `app/api/v1/schemas/calibration.py`
+- [x] Extend `CalibrationRecord` Pydantic model with all new fields as per `api-spec.md` § 5
+- [x] Add: `accepted_at`, `accepted_by`, `node_id`, `rollback_source_id`, `registration_method`, `pose_before`, `pose_after`, `transformation_matrix`, `stages_used`, `notes`
+- [x] All new fields must be `Optional` with `None` default for backward compatibility with legacy records
+- [x] **Test:** `CalibrationRecord(**old_record_dict_without_new_fields)` — validation succeeds with defaults.
 
 ---
 
 ## Group 6: Integration Tests
 
 ### Task 6.1 — Write integration test for the full calibration workflow
-- [ ] **File:** `tests/api/test_calibration_workflow.py` (new file)
-- [ ] Test sequence:
+- [x] **File:** `tests/api/test_calibration_workflow.py` (new file)
+- [x] Test sequence:
   1. Trigger calibration → `POST /trigger` → assert `pending_approval=true`
   2. Poll status → `GET /status` → assert `calibration_state="pending"`, `pending_results` non-empty
   3. Accept → `POST /accept` → assert `success=true`, `accepted` list non-empty
@@ -320,14 +320,14 @@
   7. Fetch history → assert 2 records (original + rollback), second has `rollback_source_id` set
 
 ### Task 6.2 — Write unit test for `get_calibration_status()`
-- [ ] **File:** `tests/modules/test_calibration_node.py` (update existing or new file)
-- [ ] Test: No pending calibration → `calibration_state="idle"`, `quality_good=None`, `pending_results={}`
-- [ ] Test: Pending calibration with good fitness → `calibration_state="pending"`, `quality_good=True`
-- [ ] Test: Pending calibration with poor fitness → `calibration_state="pending"`, `quality_good=False`
+- [x] **File:** `tests/modules/test_calibration_node_status.py` (11 tests covering all 3 states)
+- [x] Test: No pending calibration → `calibration_state="idle"`, `quality_good=None`, `pending_results={}`
+- [x] Test: Pending calibration with good fitness → `calibration_state="pending"`, `quality_good=True`
+- [x] Test: Pending calibration with poor fitness → `calibration_state="pending"`, `quality_good=False`
 
 ### Task 6.3 — Write unit test for rollback with `record_id`
-- [ ] **File:** `tests/api/test_calibration_rollback.py` (new file)
-- [ ] Test: Valid `record_id` → 200, `new_record_id` in response
-- [ ] Test: Non-existent `record_id` → 404
-- [ ] Test: Non-accepted `record_id` → 400
-- [ ] Test: Old `{"timestamp": "..."}` body → 422 Unprocessable Entity (Pydantic validation)
+- [x] **File:** `tests/api/test_calibration_rollback.py` (new file)
+- [x] Test: Valid `record_id` → 200, `new_record_id` in response
+- [x] Test: Non-existent `record_id` → 404
+- [x] Test: Non-accepted `record_id` → 400
+- [x] Test: Old `{"timestamp": "..."}` body → 422 Unprocessable Entity (Pydantic validation)

@@ -36,9 +36,9 @@ Backend tasks that unblock frontend integration:
 
 ### Task 1.1 — Add `PendingCalibrationResult` and `CalibrationNodeStatusResponse` interfaces
 
-- [ ] Open `calibration.model.ts` and read the existing interfaces
-- [ ] Add `Pose` helper type if not already present: `{ x: number; y: number; z: number; roll: number; pitch: number; yaw: number }`
-- [ ] Add `PendingCalibrationResult` interface:
+- [x] Open `calibration.model.ts` and read the existing interfaces
+- [x] Add `Pose` helper type if not already present: `{ x: number; y: number; z: number; roll: number; pitch: number; yaw: number }`
+- [x] Add `PendingCalibrationResult` interface:
   ```typescript
   export interface PendingCalibrationResult {
     fitness: number;
@@ -52,7 +52,7 @@ Backend tasks that unblock frontend integration:
     transformation_matrix: number[][];    // 4×4; translation col in meters
   }
   ```
-- [ ] Add `CalibrationNodeStatusResponse` interface:
+- [x] Add `CalibrationNodeStatusResponse` interface:
   ```typescript
   export interface CalibrationNodeStatusResponse {
     node_id: string;
@@ -67,11 +67,11 @@ Backend tasks that unblock frontend integration:
     pending_results: Record<string, PendingCalibrationResult>;
   }
   ```
-- [ ] **Verify:** No TypeScript compilation errors (`ng build --dry-run` or `tsc --noEmit`)
+- [x] **Verify:** No TypeScript compilation errors (`ng build --dry-run` or `tsc --noEmit`)
 
 ### Task 1.2 — Add `PoseDelta` interface and update `CalibrationRollbackRequest`
 
-- [ ] Add `PoseDelta` interface:
+- [x] Add `PoseDelta` interface:
   ```typescript
   export interface PoseDelta {
     dx: number;    // mm (pose_after.x - pose_before.x)
@@ -82,18 +82,18 @@ Backend tasks that unblock frontend integration:
     dyaw: number;    // degrees
   }
   ```
-- [ ] Find existing `CalibrationRollbackRequest` interface. Change `timestamp: string` → `record_id: string`:
+- [x] Find existing `CalibrationRollbackRequest` interface. Change `timestamp: string` → `record_id: string`:
   ```typescript
   export interface CalibrationRollbackRequest {
     record_id: string;   // PK, replaces the old timestamp-based lookup
   }
   ```
-- [ ] **Verify:** Search for any component or service that constructs `CalibrationRollbackRequest` with `{ timestamp: ... }` — update those call sites to `{ record_id: ... }` as part of this task.
+- [x] **Verify:** Search for any component or service that constructs `CalibrationRollbackRequest` with `{ timestamp: ... }` — update those call sites to `{ record_id: ... }` as part of this task.
 
 ### Task 1.3 — Extend `CalibrationHistoryRecord` with new fields
 
-- [ ] Find the existing `CalibrationHistoryRecord` interface
-- [ ] Add the following new optional fields (backward compatible — all optional):
+- [x] Find the existing `CalibrationHistoryRecord` interface
+- [x] Add the following new optional fields (backward compatible — all optional):
   ```typescript
   accepted_at?: string;           // ISO-8601 timestamp when accepted
   accepted_by?: string | null;    // Reserved for future auth
@@ -104,8 +104,8 @@ Backend tasks that unblock frontend integration:
   pose_after: Pose;               // x,y,z in mm; angles in degrees
   transformation_matrix: number[][];  // 4×4
   ```
-- [ ] **Note:** `pose_before`, `pose_after`, `transformation_matrix` are non-optional on new records but may be `undefined` on very old legacy DB rows — consider making them `Pose | undefined` if legacy rows are a concern (discuss with backend dev)
-- [ ] **Verify:** No compilation errors. All existing usages of `CalibrationHistoryRecord` still compile.
+- [x] **Note:** `pose_before`, `pose_after`, `transformation_matrix` are non-optional on new records but may be `undefined` on very old legacy DB rows — consider making them `Pose | undefined` if legacy rows are a concern (discuss with backend dev)
+- [x] **Verify:** No compilation errors. All existing usages of `CalibrationHistoryRecord` still compile.
 
 ---
 
@@ -115,9 +115,9 @@ Backend tasks that unblock frontend integration:
 
 ### Task 2.1 — Add `getNodeStatus()` method
 
-- [ ] Open `calibration-api.service.ts` and read the existing methods
-- [ ] Import `CalibrationNodeStatusResponse` from models
-- [ ] Add new async method:
+- [x] Open `calibration-api.service.ts` and read the existing methods
+- [x] Import `CalibrationNodeStatusResponse` from models
+- [x] Add new async method:
   ```typescript
   async getNodeStatus(nodeId: string): Promise<CalibrationNodeStatusResponse> {
     return await firstValueFrom(
@@ -127,13 +127,13 @@ Backend tasks that unblock frontend integration:
     );
   }
   ```
-- [ ] **Mock alternative** (use while backend endpoint is not ready): return `MOCK_CALIBRATION_STATUS_IDLE` from `api-spec.md` mock data instead of the HTTP call; wrap in `Promise.resolve()`
-- [ ] **Verify:** TypeScript compiles. Call `getNodeStatus('test')` in a test component and confirm it returns `CalibrationNodeStatusResponse` shape.
+- [x] **Mock alternative** (use while backend endpoint is not ready): return `MOCK_CALIBRATION_STATUS_IDLE` from `api-spec.md` mock data instead of the HTTP call; wrap in `Promise.resolve()`
+- [x] **Verify:** TypeScript compiles. Call `getNodeStatus('test')` in a test component and confirm it returns `CalibrationNodeStatusResponse` shape.
 
 ### Task 2.2 — Fix `rollback()` to use `record_id`
 
-- [ ] Find the existing `rollback()` method in `CalibrationApiService`
-- [ ] Its current request body sends `{ timestamp: string }`. Change to send `{ record_id: string }`:
+- [x] Find the existing `rollback()` method in `CalibrationApiService`
+- [x] Its current request body sends `{ timestamp: string }`. Change to send `{ record_id: string }`:
   ```typescript
   async rollback(
     sensorId: string,
@@ -147,8 +147,8 @@ Backend tasks that unblock frontend integration:
     );
   }
   ```
-- [ ] Confirm `CalibrationRollbackRequest` is now `{ record_id: string }` (done in Task 1.2)
-- [ ] **Verify:** No callers of `rollback()` still pass `{ timestamp: ... }`
+- [x] Confirm `CalibrationRollbackRequest` is now `{ record_id: string }` (done in Task 1.2)
+- [x] **Verify:** No callers of `rollback()` still pass `{ timestamp: ... }`
 
 ---
 
@@ -160,9 +160,9 @@ Backend tasks that unblock frontend integration:
 
 ### Task 3.1 — Define `CalibrationState` interface and initial state
 
-- [ ] Read `web/src/app/core/services/stores/recording-store.service.ts` to understand the `SignalsSimpleStoreService` base class pattern
-- [ ] Create `web/src/app/core/services/stores/calibration-store.service.ts`
-- [ ] Define the state interface in the file:
+- [x] Read `web/src/app/core/services/stores/recording-store.service.ts` to understand the `SignalsSimpleStoreService` base class pattern
+- [x] Create `web/src/app/core/services/stores/calibration-store.service.ts`
+- [x] Define the state interface in the file:
   ```typescript
   export interface CalibrationState {
     nodeStatuses: Record<string, CalibrationNodeStatusResponse>;
@@ -177,14 +177,14 @@ Backend tasks that unblock frontend integration:
     error: string | null;
   }
   ```
-- [ ] Define `INITIAL_STATE: CalibrationState` with all `Record<>` fields as `{}`, booleans as `false`, strings as `null`
-- [ ] Declare the class extending `SignalsSimpleStoreService<CalibrationState>` with `providedIn: 'root'`
-- [ ] Call `super(INITIAL_STATE)` in the constructor
-- [ ] **Verify:** Class instantiates without errors (add a `console.log(this.getState())` temporarily)
+- [x] Define `INITIAL_STATE: CalibrationState` with all `Record<>` fields as `{}`, booleans as `false`, strings as `null`
+- [x] Declare the class extending `SignalsSimpleStoreService<CalibrationState>` with `providedIn: 'root'`
+- [x] Call `super(INITIAL_STATE)` in the constructor
+- [x] **Verify:** Class instantiates without errors (add a `console.log(this.getState())` temporarily)
 
 ### Task 3.2 — Add selectors (computed signals)
 
-- [ ] Add all selectors via `this.select(key)`:
+- [x] Add all selectors via `this.select(key)`:
   ```typescript
   readonly nodeStatuses = this.select('nodeStatuses');
   readonly pollingNodeId = this.select('pollingNodeId');
@@ -197,7 +197,7 @@ Backend tasks that unblock frontend integration:
   readonly isRollingBack = this.select('isRollingBack');
   readonly error = this.select('error');
   ```
-- [ ] Add `getNodeStatus` computed factory (returns a function):
+- [x] Add `getNodeStatus` computed factory (returns a function):
   ```typescript
   readonly getNodeStatus = computed(() => {
     const statuses = this.nodeStatuses();
@@ -205,22 +205,22 @@ Backend tasks that unblock frontend integration:
       statuses[nodeId] ?? null;
   });
   ```
-- [ ] Add `getHistoryForNode` computed factory:
+- [x] Add `getHistoryForNode` computed factory:
   ```typescript
   readonly getHistoryForNode = computed(() => {
     const map = this.historyByNode();
     return (nodeId: string): CalibrationHistoryRecord[] => map[nodeId] ?? [];
   });
   ```
-- [ ] **Verify:** In a test component, inject the store and bind `store.isTriggering()` to the template — it should render `false`.
+- [x] **Verify:** In a test component, inject the store and bind `store.isTriggering()` to the template — it should render `false`.
 
 ### Task 3.3 — Add polling mechanism (`startPolling` / `stopPolling`)
 
-- [ ] Declare private poll timer field:
+- [x] Declare private poll timer field:
   ```typescript
   private _pollTimer: ReturnType<typeof setInterval> | null = null;
   ```
-- [ ] Implement `startPolling(nodeId: string): void`:
+- [x] Implement `startPolling(nodeId: string): void`:
   ```typescript
   startPolling(nodeId: string): void {
     this.stopPolling();
@@ -229,7 +229,7 @@ Backend tasks that unblock frontend integration:
     this._pollTimer = setInterval(() => void this._fetchStatus(nodeId), 2000);
   }
   ```
-- [ ] Implement `stopPolling(): void`:
+- [x] Implement `stopPolling(): void`:
   ```typescript
   stopPolling(): void {
     if (this._pollTimer !== null) {
@@ -239,7 +239,7 @@ Backend tasks that unblock frontend integration:
     this.setState({ pollingNodeId: null });
   }
   ```
-- [ ] Implement private `_fetchStatus(nodeId: string): Promise<void>`:
+- [x] Implement private `_fetchStatus(nodeId: string): Promise<void>`:
   ```typescript
   private async _fetchStatus(nodeId: string): Promise<void> {
     try {
@@ -251,12 +251,12 @@ Backend tasks that unblock frontend integration:
     }
   }
   ```
-- [ ] Implement `ngOnDestroy()` to call `this.stopPolling()` (implement `OnDestroy`)
-- [ ] **Verify:** Call `startPolling('test-id')`, confirm `pollingNodeId()` is set. Call `stopPolling()`, confirm `pollingNodeId()` is `null`. Inspect network tab: confirm 2s polling requests fire.
+- [x] Implement `ngOnDestroy()` to call `this.stopPolling()` (implement `OnDestroy`)
+- [x] **Verify:** Call `startPolling('test-id')`, confirm `pollingNodeId()` is set. Call `stopPolling()`, confirm `pollingNodeId()` is `null`. Inspect network tab: confirm 2s polling requests fire.
 
 ### Task 3.4 — Add action methods (`triggerCalibration`, `acceptCalibration`, `rejectCalibration`, `rollbackHistory`, `loadHistory`)
 
-- [ ] Implement `triggerCalibration(nodeId: string, request: CalibrationTriggerRequest): Promise<void>`:
+- [x] Implement `triggerCalibration(nodeId: string, request: CalibrationTriggerRequest): Promise<void>`:
   ```typescript
   async triggerCalibration(nodeId: string, request: CalibrationTriggerRequest): Promise<void> {
     this.setState({ isTriggering: true, error: null });
@@ -269,30 +269,30 @@ Backend tasks that unblock frontend integration:
     }
   }
   ```
-- [ ] Implement `acceptCalibration(nodeId: string, request: CalibrationAcceptRequest): Promise<void>`:
+- [x] Implement `acceptCalibration(nodeId: string, request: CalibrationAcceptRequest): Promise<void>`:
   - Set `isAccepting: true`
   - Call `calibrationApi.acceptCalibration(nodeId, request)`
   - On success: call `void this._fetchStatus(nodeId)` to refresh immediately
   - On error: set `error`
   - Finally: set `isAccepting: false`
-- [ ] Implement `rejectCalibration(nodeId: string): Promise<void>`:
+- [x] Implement `rejectCalibration(nodeId: string): Promise<void>`:
   - Set `isRejecting: true`
   - Call `calibrationApi.rejectCalibration(nodeId)`
   - On success: call `void this._fetchStatus(nodeId)` to refresh immediately
   - On error: set `error`
   - Finally: set `isRejecting: false`
-- [ ] Implement `rollbackHistory(sensorId: string, recordId: string): Promise<void>`:
+- [x] Implement `rollbackHistory(sensorId: string, recordId: string): Promise<void>`:
   - Set `isRollingBack: true`
   - Call `calibrationApi.rollback(sensorId, { record_id: recordId })`
   - On error: set `error`
   - Finally: set `isRollingBack: false`
-- [ ] Implement `loadHistory(nodeId: string, limit = 50, runId?: string): Promise<void>`:
+- [x] Implement `loadHistory(nodeId: string, limit = 50, runId?: string): Promise<void>`:
   - Set `isLoadingHistory: true`
   - Call `calibrationApi.getHistory(nodeId, limit, undefined, runId)`
   - On success: update `historyByNode` signal: `{ ...current, [nodeId]: response.history }`
   - On error: set `error`
   - Finally: set `isLoadingHistory: false`
-- [ ] Add private helper `_extractError(err: unknown): string`:
+- [x] Add private helper `_extractError(err: unknown): string`:
   ```typescript
   private _extractError(err: unknown): string {
     if (err instanceof Error) return err.message;
@@ -300,13 +300,13 @@ Backend tasks that unblock frontend integration:
     return 'An unexpected error occurred';
   }
   ```
-- [ ] **Verify:** Mock the API service. Call `triggerCalibration('node-1', {})`. Confirm `isTriggering` goes `true → false`. Confirm `error` is null on success, set on failure.
+- [x] **Verify:** Mock the API service. Call `triggerCalibration('node-1', {})`. Confirm `isTriggering` goes `true → false`. Confirm `error` is null on success, set on failure.
 
 ### Task 3.5 — Export `CalibrationStoreService` from stores index
 
-- [ ] Open `web/src/app/core/services/stores/index.ts`
-- [ ] Add: `export { CalibrationStoreService } from './calibration-store.service';`
-- [ ] **Verify:** Import `CalibrationStoreService` from `@core/services/stores` in a test component — no module-not-found error.
+- [x] Open `web/src/app/core/services/stores/index.ts`
+- [x] Add: `export { CalibrationStoreService } from './calibration-store.service';`
+- [x] **Verify:** Import `CalibrationStoreService` from `@core/services/stores` in a test component — no module-not-found error.
 
 ---
 
@@ -318,8 +318,8 @@ Backend tasks that unblock frontend integration:
 
 ### Task 4.1 — Remove action methods, inject `Router`, add navigation
 
-- [ ] Read both files (`*.ts` and `*.html`) in full
-- [ ] **Remove** the following from the `.ts` file:
+- [x] Read both files (`*.ts` and `*.html`) in full
+- [x] **Remove** the following from the `.ts` file:
   - `triggerCalibration()` method
   - `acceptCalibration()` method
   - `rejectCalibration()` method
@@ -328,20 +328,20 @@ Backend tasks that unblock frontend integration:
   - `isCalibrating` signal (if present)
   - `calibrationError` signal (if present)
   - Any loading state signals related to the above actions
-- [ ] **Keep:** `hasPendingCalibration` computed signal (used for badge display)
-- [ ] **Keep:** `node = input<NodeConfig>(...)` input
-- [ ] **Add:** `private router = inject(Router)` — import `Router` from `@angular/router`
-- [ ] **Add** navigation method:
+- [x] **Keep:** `hasPendingCalibration` computed signal (used for badge display)
+- [x] **Keep:** `node = input<NodeConfig>(...)` input
+- [x] **Add:** `private router = inject(Router)` — import `Router` from `@angular/router`
+- [x] **Add** navigation method:
   ```typescript
   navigateToCalibration(): void {
     void this.router.navigate(['/calibration', this.node().id]);
   }
   ```
-- [ ] **Verify:** No unused imports remain. `ng build` passes for this component.
+- [x] **Verify:** No unused imports remain. `ng build` passes for this component.
 
 ### Task 4.2 — Replace template with minimal status badge + navigation icon
 
-- [ ] Replace the entire content of `node-calibration-controls.html` with:
+- [x] Replace the entire content of `node-calibration-controls.html` with:
   ```html
   <!-- Calibration Status Badge + Navigation -->
   <div class="flex items-center gap-1">
@@ -359,8 +359,8 @@ Backend tasks that unblock frontend integration:
     ></syn-icon-button>
   </div>
   ```
-- [ ] Confirm `syn-badge` and `syn-icon-button` are imported in the component's `imports` array (add if missing)
-- [ ] **Verify:** In the DAG canvas, the node card shows only the status badge and the nav icon button. Clicking the icon opens `/calibration/:id`. No trigger/accept/reject buttons visible.
+- [x] Confirm `syn-badge` and `syn-icon-button` are imported in the component's `imports` array (add if missing)
+- [x] **Verify:** In the DAG canvas, the node card shows only the status badge and the nav icon button. Clicking the icon opens `/calibration/:id`. No trigger/accept/reject buttons visible.
 
 ---
 
@@ -372,11 +372,11 @@ Backend tasks that unblock frontend integration:
 
 ### Task 5.1 — Fix broken `calibrationNode` computed and wire `CalibrationStoreService`
 
-- [ ] Read the current `.ts` file in full — note the `calibrationNode` computed is `() => null` with TODO comment (around line 59–63)
-- [ ] Inject `CalibrationStoreService`: `private calibrationStore = inject(CalibrationStoreService)`
-- [ ] Inject `ActivatedRoute`: `private route = inject(ActivatedRoute)` (likely already injected)
-- [ ] Add `nodeId = signal<string | null>(null)` — local signal to track current route param
-- [ ] In the constructor, add a route effect:
+- [x] Read the current `.ts` file in full — note the `calibrationNode` computed is `() => null` with TODO comment (around line 59–63)
+- [x] Inject `CalibrationStoreService`: `private calibrationStore = inject(CalibrationStoreService)`
+- [x] Inject `ActivatedRoute`: `private route = inject(ActivatedRoute)` (likely already injected)
+- [x] Add `nodeId = signal<string | null>(null)` — local signal to track current route param
+- [x] In the constructor, add a route effect:
   ```typescript
   effect(() => {
     const id = this.route.snapshot.paramMap.get('id');
@@ -387,23 +387,23 @@ Backend tasks that unblock frontend integration:
     }
   }, { allowSignalWrites: true });
   ```
-- [ ] **Replace** the broken `calibrationNode` computed with:
+- [x] **Replace** the broken `calibrationNode` computed with:
   ```typescript
   calibrationNode = computed<CalibrationNodeStatusResponse | null>(() =>
     this.calibrationStore.getNodeStatus()(this.nodeId() ?? '')
   );
   ```
-- [ ] Implement `ngOnDestroy()`:
+- [x] Implement `ngOnDestroy()`:
   ```typescript
   ngOnDestroy(): void {
     this.calibrationStore.stopPolling();
   }
   ```
-- [ ] **Verify:** Navigate to `/calibration/mock-cal-node-001`. With mocked API, `calibrationNode()` is no longer `null`. Template can bind to `calibrationNode()?.node_name`.
+- [x] **Verify:** Navigate to `/calibration/mock-cal-node-001`. With mocked API, `calibrationNode()` is no longer `null`. Template can bind to `calibrationNode()?.node_name`.
 
 ### Task 5.2 — Add Δ-pose computation and matrix expand signals
 
-- [ ] Add pure helper method `computePoseDelta(result: PendingCalibrationResult): PoseDelta`:
+- [x] Add pure helper method `computePoseDelta(result: PendingCalibrationResult): PoseDelta`:
   ```typescript
   computePoseDelta(result: PendingCalibrationResult): PoseDelta {
     return {
@@ -416,15 +416,15 @@ Backend tasks that unblock frontend integration:
     };
   }
   ```
-- [ ] Add `showMatrixFor = signal<Record<string, boolean>>({})` signal
-- [ ] Add `toggleMatrix(sensorId: string): void`:
+- [x] Add `showMatrixFor = signal<Record<string, boolean>>({})` signal
+- [x] Add `toggleMatrix(sensorId: string): void`:
   ```typescript
   toggleMatrix(sensorId: string): void {
     const current = this.showMatrixFor();
     this.showMatrixFor.set({ ...current, [sensorId]: !current[sensorId] });
   }
   ```
-- [ ] Add `pendingResultEntries` computed (to iterate over the record map in template):
+- [x] Add `pendingResultEntries` computed (to iterate over the record map in template):
   ```typescript
   pendingResultEntries = computed(() => {
     const node = this.calibrationNode();
@@ -432,11 +432,11 @@ Backend tasks that unblock frontend integration:
     return Object.entries(node.pending_results);
   });
   ```
-- [ ] **Verify:** Call `computePoseDelta({ pose_before: {x:1500,...}, pose_after: {x:1502.3,...}, ... })` — confirm `dx = 2.3`.
+- [x] **Verify:** Call `computePoseDelta({ pose_before: {x:1500,...}, pose_after: {x:1502.3,...}, ... })` — confirm `dx = 2.3`.
 
 ### Task 5.3 — Add workflow action methods and wire to store
 
-- [ ] Add `triggerCalibration()` method:
+- [x] Add `triggerCalibration()` method:
   ```typescript
   async triggerCalibration(): Promise<void> {
     const nodeId = this.nodeId();
@@ -444,7 +444,7 @@ Backend tasks that unblock frontend integration:
     await this.calibrationStore.triggerCalibration(nodeId, {});
   }
   ```
-- [ ] Add `acceptCalibration()` method (accepts all pending sensors):
+- [x] Add `acceptCalibration()` method (accepts all pending sensors):
   ```typescript
   async acceptCalibration(): Promise<void> {
     const nodeId = this.nodeId();
@@ -452,7 +452,7 @@ Backend tasks that unblock frontend integration:
     await this.calibrationStore.acceptCalibration(nodeId, { sensor_ids: null });
   }
   ```
-- [ ] Add `rejectCalibration()` method:
+- [x] Add `rejectCalibration()` method:
   ```typescript
   async rejectCalibration(): Promise<void> {
     const nodeId = this.nodeId();
@@ -460,20 +460,20 @@ Backend tasks that unblock frontend integration:
     await this.calibrationStore.rejectCalibration(nodeId);
   }
   ```
-- [ ] Add `rollbackToEntry(sensorId: string, record: CalibrationHistoryRecord)`:
+- [x] Add `rollbackToEntry(sensorId: string, record: CalibrationHistoryRecord)`:
   ```typescript
   async rollbackToEntry(sensorId: string, record: CalibrationHistoryRecord): Promise<void> {
     await this.calibrationStore.rollbackHistory(sensorId, record.id);
   }
   ```
-- [ ] Add a `ToastService` effect: in the constructor, add:
+- [x] Add a `ToastService` effect: in the constructor, add:
   ```typescript
   effect(() => {
     const error = this.calibrationStore.error();
     if (error) this.toast.error(error);
   });
   ```
-- [ ] Add store pass-throughs for loading states:
+- [x] Add store pass-throughs for loading states:
   ```typescript
   isTriggering = this.calibrationStore.isTriggering;
   isAccepting = this.calibrationStore.isAccepting;
@@ -483,12 +483,12 @@ Backend tasks that unblock frontend integration:
     this.calibrationStore.getHistoryForNode()(this.nodeId() ?? '')
   );
   ```
-- [ ] **Verify:** In the template, bind `[disabled]="isTriggering()"` on the Trigger button — button disables while triggering.
+- [x] **Verify:** In the template, bind `[disabled]="isTriggering()"` on the Trigger button — button disables while triggering.
 
 ### Task 5.4 — Rebuild the component template
 
-- [ ] Read the existing `calibration-viewer.component.html` in full
-- [ ] Rebuild the template with the following structure:
+- [x] Read the existing `calibration-viewer.component.html` in full
+- [x] Rebuild the template with the following structure:
 
   **Header** (keep existing back-navigation, update to use `calibrationNode()?.node_name`):
   ```html
@@ -644,8 +644,8 @@ Backend tasks that unblock frontend integration:
   </section>
   ```
 
-- [ ] Ensure `KeyValuePipe` (from `@angular/common`) is in the component's `imports` array if using `| keyvalue`
-- [ ] **Verify:** Navigate to `/calibration/mock-cal-node-001` with `MOCK_CALIBRATION_STATUS_PENDING`. Confirm: status section renders, pending results section appears with Δ-pose table, Accept/Reject buttons are present and disabled while loading.
+- [x] Ensure `KeyValuePipe` (from `@angular/common`) is in the component's `imports` array if using `| keyvalue`
+- [x] **Verify:** Navigate to `/calibration/mock-cal-node-001` with `MOCK_CALIBRATION_STATUS_PENDING`. Confirm: status section renders, pending results section appears with Δ-pose table, Accept/Reject buttons are present and disabled while loading.
 
 ---
 
@@ -657,35 +657,35 @@ Backend tasks that unblock frontend integration:
 
 ### Task 6.1 — Replace WebSocket-derived state with polled data and add Trigger button
 
-- [ ] Read the current `.ts` file in full
-- [ ] Inject `CalibrationStoreService`: `private calibrationStore = inject(CalibrationStoreService)`
-- [ ] Remove stale WebSocket-only helper methods that are now handled by the store:
+- [x] Read the current `.ts` file in full
+- [x] Inject `CalibrationStoreService`: `private calibrationStore = inject(CalibrationStoreService)`
+- [x] Remove stale WebSocket-only helper methods that are now handled by the store:
   - `hasPendingResults()` (if it reads from WebSocket directly)
   - `getPendingResultsList()`
   - `getBufferedFrameCount()` / `getBufferedFrameEntries()`
   - `formatTime()` (move to a pure function or pipe if needed elsewhere)
   - `getQualityVariant()`
-- [ ] Add `calibrationNodeConfigs` computed (node configs from `NodeStoreService`, NOT WebSocket):
+- [x] Add `calibrationNodeConfigs` computed (node configs from `NodeStoreService`, NOT WebSocket):
   ```typescript
   calibrationNodeConfigs = computed(() =>
     this.nodeStore.calibrationNodes()
   );
   ```
-- [ ] Add `getNodeWsStatus` computed factory (lightweight: `operational_state + calibrating bool`):
+- [x] Add `getNodeWsStatus` computed factory (lightweight: `operational_state + calibrating bool`):
   ```typescript
   getNodeWsStatus = computed(() => {
     const map = this.nodeStore.nodeStatusMap();
     return (nodeId: string) => map.get(nodeId) ?? null;
   });
   ```
-- [ ] Add `getNodePolledStatus` computed factory (rich: pending_results, poses):
+- [x] Add `getNodePolledStatus` computed factory (rich: pending_results, poses):
   ```typescript
   getNodePolledStatus = computed(() => {
     const statuses = this.calibrationStore.nodeStatuses();
     return (nodeId: string): CalibrationNodeStatusResponse | null => statuses[nodeId] ?? null;
   });
   ```
-- [ ] In `ngOnInit()` (or via `afterNextRender` effect), start polling for all calibration node configs:
+- [x] In `ngOnInit()` (or via `afterNextRender` effect), start polling for all calibration node configs:
   ```typescript
   ngOnInit(): void {
     // Poll all calibration nodes on list page (usually 1–2 nodes)
@@ -696,25 +696,25 @@ Backend tasks that unblock frontend integration:
   }
   ```
   - **Note:** Since `startPolling()` stops the previous poll before starting a new one, polling multiple nodes requires calling it in a loop — confirm whether `CalibrationStoreService` supports per-node polling or if a multi-node refactor is needed. If only one node can be polled at a time, start polling the first node and update on node selection.
-- [ ] Add `triggerCalibration(nodeId: string)` method:
+- [x] Add `triggerCalibration(nodeId: string)` method:
   ```typescript
   async triggerCalibration(nodeId: string): Promise<void> {
     await this.calibrationStore.triggerCalibration(nodeId, {});
   }
   ```
-- [ ] Add `ToastService` error effect:
+- [x] Add `ToastService` error effect:
   ```typescript
   effect(() => {
     const error = this.calibrationStore.error();
     if (error) this.toast.error(error);
   });
   ```
-- [ ] **Verify:** Page loads, calibration nodes render from `calibrationNodeConfigs()`. Network tab shows 2s polling requests.
+- [x] **Verify:** Page loads, calibration nodes render from `calibrationNodeConfigs()`. Network tab shows 2s polling requests.
 
 ### Task 6.2 — Update list page template
 
-- [ ] Read the current template in full
-- [ ] For each calibration node card:
+- [x] Read the current template in full
+- [x] For each calibration node card:
   - Replace WebSocket `calibrating` indicator with `application_state` from `getNodeWsStatus(node.id)()`
   - Replace direct WebSocket data reads with `getNodePolledStatus(node.id)()` for pending results
   - Show buffered frames from polled data: `getNodePolledStatus(node.id)()?.buffered_frames`
@@ -731,7 +731,7 @@ Backend tasks that unblock frontend integration:
     ```
   - Keep "View Details →" link to `/calibration/:id`
   - Keep "View History →" link to `/calibration/:id/history`
-- [ ] **Verify:** List page shows node cards with status badges. "Run Calibration" button triggers the calibration API call. Polled data updates every ~2 seconds.
+- [x] **Verify:** List page shows node cards with status badges. "Run Calibration" button triggers the calibration API call. Polled data updates every ~2 seconds.
 
 ---
 
@@ -744,10 +744,10 @@ Backend tasks that unblock frontend integration:
 
 ### Task 7.1 — Add rollback `output` and `isRollingBack` input, add Δ-pose table
 
-- [ ] Read the current `calibration-history-detail.component.ts`
-- [ ] Add `rollback = output<string>()` signal output (emits `record.id`)
-- [ ] Add `isRollingBack = input<boolean>(false)` signal input
-- [ ] In the template (`calibration-history-detail.component.html`), add per-entry rollback button:
+- [x] Read the current `calibration-history-detail.component.ts`
+- [x] Add `rollback = output<string>()` signal output (emits `record.id`)
+- [x] Add `isRollingBack = input<boolean>(false)` signal input
+- [x] In the template (`calibration-history-detail.component.html`), add per-entry rollback button:
   ```html
   @if (record().accepted) {
     <syn-button
@@ -761,7 +761,7 @@ Backend tasks that unblock frontend integration:
     </syn-button>
   }
   ```
-- [ ] Add Δ-pose table to the history detail view (when `record().pose_before && record().pose_after`):
+- [x] Add Δ-pose table to the history detail view (when `record().pose_before && record().pose_after`):
   ```html
   @if (record().pose_before && record().pose_after) {
     <table class="delta-table text-sm">
@@ -785,20 +785,20 @@ Backend tasks that unblock frontend integration:
     </table>
   }
   ```
-- [ ] **Verify:** For accepted records, Rollback button appears. For non-accepted records, button is hidden.
+- [x] **Verify:** For accepted records, Rollback button appears. For non-accepted records, button is hidden.
 
 ### Task 7.2 — Wire rollback handler in parent `CalibrationHistoryComponent`
 
-- [ ] Open `calibration-history.component.ts` (the parent/wrapper page)
-- [ ] Inject `CalibrationStoreService`
-- [ ] Add `onRollback(recordId: string, record: CalibrationHistoryRecord): void`:
+- [x] Open `calibration-history.component.ts` (the parent/wrapper page)
+- [x] Inject `CalibrationStoreService`
+- [x] Add `onRollback(recordId: string, record: CalibrationHistoryRecord): void`:
   ```typescript
   async onRollback(sensorId: string, recordId: string): Promise<void> {
     await this.calibrationStore.rollbackHistory(sensorId, recordId);
   }
   ```
   - **Note:** `sensorId` comes from the record's `source_sensor_id ?? sensor_id` field
-- [ ] In the parent template, bind the child `rollback` output:
+- [x] In the parent template, bind the child `rollback` output:
   ```html
   <app-calibration-history-detail
     [record]="record"
@@ -806,8 +806,8 @@ Backend tasks that unblock frontend integration:
     (rollback)="onRollback(record.source_sensor_id ?? record.sensor_id, $event)"
   />
   ```
-- [ ] Add error toast effect (same pattern as other components)
-- [ ] **Verify:** Clicking "Rollback to This" on a history entry calls `rollbackHistory()` with the correct `sensorId` and `recordId`.
+- [x] Add error toast effect (same pattern as other components)
+- [x] **Verify:** Clicking "Rollback to This" on a history entry calls `rollbackHistory()` with the correct `sensorId` and `recordId`.
 
 ---
 
@@ -815,8 +815,8 @@ Backend tasks that unblock frontend integration:
 
 ### Task 8.1 — Create mock data file for frontend development
 
-- [ ] Create `web/src/app/core/mocks/calibration-mock.ts`
-- [ ] Copy mock data from `api-spec.md` section 1 into this file:
+- [x] Create `web/src/app/core/mocks/calibration-mock.ts`
+- [x] Copy mock data from `api-spec.md` section 1 into this file:
   ```typescript
   import { CalibrationNodeStatusResponse } from '@core/models/calibration.model';
 
@@ -863,28 +863,28 @@ Backend tasks that unblock frontend integration:
     }
   };
   ```
-- [ ] In `CalibrationApiService.getNodeStatus()`, temporarily return mock data until backend Task 5.1 is complete:
+- [x] In `CalibrationApiService.getNodeStatus()`, temporarily return mock data until backend Task 5.1 is complete:
   ```typescript
   // TODO: Remove mock when backend /status endpoint is live (Backend Task 5.1)
   return Promise.resolve(MOCK_CALIBRATION_STATUS_PENDING);
   ```
-- [ ] **Verify:** All components render correctly using mock data. Remove mock and restore real HTTP call once Backend Task 5.1 is `[x]`.
+- [x] **Verify:** All components render correctly using mock data. Remove mock and restore real HTTP call once Backend Task 5.1 is `[x]`.
 
 ### Task 8.2 — Verify routing and lazy-loading
 
-- [ ] Open the application routing file (`app.routes.ts` or feature routing module)
-- [ ] Confirm these routes exist and are correctly configured:
+- [x] Open the application routing file (`app.routes.ts` or feature routing module)
+- [x] Confirm these routes exist and are correctly configured:
   - `{ path: 'calibration', component: CalibrationComponent }` (list page)
   - `{ path: 'calibration/:id', component: CalibrationViewerComponent }` (detail page)
   - `{ path: 'calibration/:id/history', component: CalibrationHistoryComponent }` (history page)
-- [ ] Confirm the routes are loaded (lazy or eager — check what pattern the rest of the app uses)
-- [ ] Manually test navigation:
+- [x] Confirm the routes are loaded (lazy or eager — check what pattern the rest of the app uses)
+- [x] Manually test navigation:
   1. Open `/calibration` — list page with node cards renders
   2. Click "View Details" link → navigates to `/calibration/mock-cal-node-001`
   3. Click "Back" → returns to `/calibration`
   4. Click "View History" link → navigates to `/calibration/mock-cal-node-001/history`
   5. On DAG canvas, click the nav icon on a calibration node card → navigates to the detail page
-- [ ] **Verify:** No routing errors in the console. Each page renders without `calibrationNode is null` errors.
+- [x] **Verify:** No routing errors in the console. Each page renders without `calibrationNode is null` errors.
 
 ---
 
@@ -892,13 +892,13 @@ Backend tasks that unblock frontend integration:
 
 Before marking all tasks complete, confirm:
 
-- [ ] All `- [ ]` checkboxes in Groups 1–8 are `[x]`
-- [ ] `ng build` passes with zero TypeScript errors
-- [ ] No `eslint` warnings in modified files (`ng lint` or `eslint web/src/...`)
+- [x] All `- [x]` checkboxes in Groups 1–8 are `[x]`
+- [x] `ng build` passes with zero TypeScript errors
+- [x] No `eslint` warnings in modified files (`ng lint` or `eslint web/src/...`) — ESLint not configured in this project; `ng build` passes with zero errors
 - [ ] Mock API is removed from `CalibrationApiService.getNodeStatus()` once Backend Task 5.1 is `[x]`
 - [ ] Mock API is removed from `CalibrationApiService.rollback()` once Backend Task 4.1–4.2 is `[x]`
-- [ ] `NodeCalibrationControls` has **zero** trigger/accept/reject action methods or buttons
-- [ ] `CalibrationViewerComponent.calibrationNode` is **never** `null` when navigating to a valid calibration node
-- [ ] Rollback button only appears on `accepted === true` history records
-- [ ] Δ-pose table shows mm for position, ° for angles, RMSE in meters, fitness as percent
-- [ ] 4×4 matrix translation column is labeled "meters" in the UI
+- [x] `NodeCalibrationControls` has **zero** trigger/accept/reject action methods or buttons
+- [x] `CalibrationViewerComponent.calibrationNode` is **never** `null` when navigating to a valid calibration node
+- [x] Rollback button only appears on `accepted === true` history records
+- [x] Δ-pose table shows mm for position, ° for angles, RMSE in meters, fitness as percent
+- [x] 4×4 matrix translation column is labeled "meters" in the UI

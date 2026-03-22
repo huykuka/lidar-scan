@@ -20,7 +20,7 @@ class TriggerCalibrationRequest(BaseModel):
     
     reference_sensor_id: Optional[str] = None
     source_sensor_ids: Optional[List[str]] = None
-    sample_frames: int = 1
+    sample_frames: int = 5
 
 
 class AcceptCalibrationRequest(BaseModel):
@@ -30,4 +30,4 @@ class AcceptCalibrationRequest(BaseModel):
 
 class RollbackRequest(BaseModel):
     """Request body for rollback operation."""
-    timestamp: str
+    record_id: str

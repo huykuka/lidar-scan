@@ -1,91 +1,66 @@
-import {Component, computed, inject} from '@angular/core';
-
+import {Component, computed, effect, inject, OnInit} from '@angular/core';
+import {KeyValuePipe} from '@angular/common';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {StatusWebSocketService} from '../../core/services/status-websocket.service';
-import {CalibrationNodeStatus} from '../../core/models/calibration.model';
+import {CalibrationStoreService} from '../../core/services/stores/calibration-store.service';
+import {NodeStoreService} from '../../core/services/stores/node-store.service';
+import {ToastService} from '../../core/services/toast.service';
 import {NavigationService} from '../../core/services';
+import {CalibrationNodeStatusResponse} from '../../core/models/calibration.model';
 import {ProcessingChainComponent} from './components/processing-chain/processing-chain.component';
 
 @Component({
   selector: 'app-calibration',
   standalone: true,
-  imports: [SynergyComponentsModule, ProcessingChainComponent],
+  imports: [SynergyComponentsModule, KeyValuePipe, ProcessingChainComponent],
   templateUrl: './calibration.component.html',
 })
-export class CalibrationComponent {
-  private statusWs = inject(StatusWebSocketService);
-  calibrationNodes = computed(() => {
-    const statusResponse = this.statusWs.status();
-    if (!statusResponse) return [];
+export class CalibrationComponent implements OnInit {
+  protected readonly calibrationStore = inject(CalibrationStoreService);
+  private readonly nodeStore = inject(NodeStoreService);
+  private readonly navigationService = inject(NavigationService);
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
-    return statusResponse.nodes
-      .filter((status: any) => status.type === 'calibration')
-      .map((status: any) => status as unknown as CalibrationNodeStatus);
+  // Calibration node configs from NodeStore (category === 'calibration')
+  calibrationNodeConfigs = computed(() => this.nodeStore.calibrationNodes());
+
+  // Factory: get polled status for a specific node
+  getNodePolledStatus = computed(() => {
+    const statuses = this.calibrationStore.nodeStatuses();
+    return (nodeId: string): CalibrationNodeStatusResponse | null => statuses[nodeId] ?? null;
   });
-  private navigationService = inject(NavigationService);
-  private router = inject(Router);
 
   constructor() {
     this.navigationService.setPageConfig({
       title: 'Calibration',
       subtitle: 'Manage and monitor calibration nodes',
     });
+
+    // Show error toasts from store
+    effect(() => {
+      const error = this.calibrationStore.error();
+      if (error) this.toast.danger(error);
+    });
   }
 
-  hasPendingResults(node: CalibrationNodeStatus): boolean {
-    return node.pending_results && Object.keys(node.pending_results).length > 0;
-  }
-
-  getPendingResultsList(node: CalibrationNodeStatus) {
-    if (!node.pending_results) return [];
-
-    return Object.entries(node.pending_results).map(([sensorId, result]) => ({
-      sensorId,
-      ...result,
-    }));
-  }
-
-  /**
-   * Get buffered frame count (backward compatible with array and dict formats)
-   */
-  getBufferedFrameCount(bufferedFrames: Record<string, number> | string[]): number {
-    if (Array.isArray(bufferedFrames)) {
-      // Legacy array format
-      return bufferedFrames.length;
-    }
-    // New dict format - return number of sensors
-    return Object.keys(bufferedFrames).length;
-  }
-
-  /**
-   * Get buffered frame entries for display
-   */
-  getBufferedFrameEntries(bufferedFrames: Record<string, number> | string[]): Array<{sensorId: string, count: number}> {
-    if (Array.isArray(bufferedFrames)) {
-      // Legacy array format - convert to entries with unknown count
-      return bufferedFrames.map(sensorId => ({sensorId, count: 1}));
-    }
-    // New dict format
-    return Object.entries(bufferedFrames).map(([sensorId, count]) => ({sensorId, count}));
-  }
-
-  getQualityVariant(quality: string): 'success' | 'warning' | 'danger' | 'neutral' {
-    switch (quality) {
-      case 'excellent':
-        return 'success';
-      case 'good':
-        return 'warning';
-      case 'fair':
-        return 'warning';
-      case 'poor':
-        return 'danger';
-      default:
-        return 'neutral';
+  ngOnInit(): void {
+    // Note: startPolling stops the previous poll when a new one starts.
+    // For multiple calibration nodes, we poll each in sequence — the last one
+    // will be the "active" polled node. Consider upgrading to per-node polling
+    // if the app regularly has >1 calibration node.
+    const nodes = this.calibrationNodeConfigs();
+    for (const node of nodes) {
+      this.calibrationStore.startPolling(node.id);
     }
   }
 
-  formatTime(isoString: string): string {
+  async triggerCalibration(nodeId: string): Promise<void> {
+    await this.calibrationStore.triggerCalibration(nodeId, {});
+  }
+
+  formatTime(isoString: string | null | undefined): string {
+    if (!isoString) return '—';
     try {
       const date = new Date(isoString);
       const now = new Date();
@@ -94,10 +69,8 @@ export class CalibrationComponent {
 
       if (minutes < 1) return 'Just now';
       if (minutes < 60) return `${minutes}m ago`;
-
       const hours = Math.floor(minutes / 60);
       if (hours < 24) return `${hours}h ago`;
-
       const days = Math.floor(hours / 24);
       return `${days}d ago`;
     } catch {
@@ -105,15 +78,15 @@ export class CalibrationComponent {
     }
   }
 
-  viewDetails(nodeId: string) {
-    this.router.navigate(['/calibration', nodeId]);
+  viewDetails(nodeId: string): void {
+    void this.router.navigate(['/calibration', nodeId]);
   }
 
-  viewHistory(nodeId: string) {
-    this.router.navigate(['/calibration', nodeId, 'history']);
+  viewHistory(nodeId: string): void {
+    void this.router.navigate(['/calibration', nodeId, 'history']);
   }
 
-  goToSettings() {
-    this.router.navigate(['/settings']);
+  goToSettings(): void {
+    void this.router.navigate(['/settings']);
   }
 }
