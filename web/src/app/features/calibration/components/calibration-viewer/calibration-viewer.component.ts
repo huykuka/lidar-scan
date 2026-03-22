@@ -94,7 +94,6 @@ export class CalibrationViewerComponent implements OnDestroy {
         const id = this.nodeId();
         if (id) {
           this.calibrationStore.startPolling(id);
-          void this.calibrationStore.loadHistory(id, 50);
           this.navigationService.setPageConfig({
             title: 'Calibration',
             subtitle: `Node: ${id}`,
@@ -103,6 +102,16 @@ export class CalibrationViewerComponent implements OnDestroy {
       },
       {allowSignalWrites: true},
     );
+
+    // Load history once node status resolves and source_sensor_ids are known.
+    // Re-runs whenever calibrationNode() changes (e.g. after polling picks up new sensors).
+    effect(() => {
+      const id = this.nodeId();
+      const node = this.calibrationNode();
+      if (id && node && node.source_sensor_ids.length > 0) {
+        void this.calibrationStore.loadHistoryForNode(id);
+      }
+    });
 
     // Update title when node name is resolved from the API
     effect(() => {
@@ -176,17 +185,21 @@ export class CalibrationViewerComponent implements OnDestroy {
     const nodeId = this.nodeId();
     if (!nodeId) return;
     await this.calibrationStore.acceptCalibration(nodeId, {sensor_ids: undefined});
+    void this.calibrationStore.loadHistoryForNode(nodeId);
   }
 
   async rejectCalibration(): Promise<void> {
     const nodeId = this.nodeId();
     if (!nodeId) return;
     await this.calibrationStore.rejectCalibration(nodeId);
+    void this.calibrationStore.loadHistoryForNode(nodeId);
   }
 
   async rollbackToEntry(record: CalibrationHistoryRecord): Promise<void> {
+    const nodeId = this.nodeId();
     const sensorId = record.source_sensor_id ?? record.sensor_id;
     await this.calibrationStore.rollbackHistory(sensorId, record.id);
+    if (nodeId) void this.calibrationStore.loadHistoryForNode(nodeId);
   }
 
   // ── Navigation ────────────────────────────────────────────────────────────

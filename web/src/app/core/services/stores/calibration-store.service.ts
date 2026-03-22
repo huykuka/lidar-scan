@@ -168,23 +168,55 @@ export class CalibrationStoreService
     }
   }
 
+  /**
+   * Load history for a single sensor ID.
+   * Stores results under the sensorId key in historyByNode.
+   */
   async loadHistory(
-    nodeId: string,
+    sensorId: string,
     limit = 50,
     runId?: string,
   ): Promise<void> {
     this.setState({isLoadingHistory: true, error: null});
     try {
       const response = await this.calibrationApi.getHistory(
-        nodeId,
+        sensorId,
         limit,
         undefined,
         runId,
       );
       const current = this.historyByNode();
       this.setState({
-        historyByNode: {...current, [nodeId]: response.history},
+        historyByNode: {...current, [sensorId]: response.history},
       });
+    } catch (err) {
+      this.setState({error: this._extractError(err)});
+    } finally {
+      this.setState({isLoadingHistory: false});
+    }
+  }
+
+  /**
+   * Load history for all source sensors of a calibration node.
+   * Fetches history per source_sensor_id and merges all records under nodeId,
+   * sorted descending by timestamp.
+   */
+  async loadHistoryForNode(nodeId: string, limit = 50): Promise<void> {
+    const node = this.nodeStatuses()[nodeId];
+    if (!node || node.source_sensor_ids.length === 0) return;
+
+    this.setState({isLoadingHistory: true, error: null});
+    try {
+      const results = await Promise.all(
+        node.source_sensor_ids.map(sensorId =>
+          this.calibrationApi.getHistory(sensorId, limit).then(r => r.history),
+        ),
+      );
+      const merged = results
+        .flat()
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const current = this.historyByNode();
+      this.setState({historyByNode: {...current, [nodeId]: merged}});
     } catch (err) {
       this.setState({error: this._extractError(err)});
     } finally {
