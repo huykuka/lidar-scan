@@ -68,6 +68,11 @@ export class CalibrationComponent implements OnDestroy {
       subtitle: 'Manage and monitor calibration nodes',
     });
 
+    // Ensure nodes are loaded when navigating directly to this page (e.g. on
+    // reload). SettingsComponent normally populates NodeStore; this is a
+    // no-op if nodes are already present.
+    void this.nodeStore.loadNodesIfEmpty();
+
     // Reactive: start polling whenever calibrationNodeConfigs emits new values.
     // This covers cold page reloads where nodes may not be loaded at construction
     // time — the effect re-runs as soon as the NodeStore resolves its node list.
