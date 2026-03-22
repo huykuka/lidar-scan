@@ -91,6 +91,16 @@ def ensure_schema(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE calibration_history ADD COLUMN processing_chain_json TEXT NOT NULL DEFAULT '[]'"))
         if "run_id" not in cal_cols:
             conn.execute(text("ALTER TABLE calibration_history ADD COLUMN run_id TEXT"))
+        if "node_id" not in cal_cols:
+            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN node_id TEXT"))
+        if "accepted_at" not in cal_cols:
+            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN accepted_at TEXT"))
+        if "accepted_by" not in cal_cols:
+            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN accepted_by TEXT"))
+        if "rollback_source_id" not in cal_cols:
+            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN rollback_source_id TEXT"))
+        if "registration_method_json" not in cal_cols:
+            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN registration_method_json TEXT DEFAULT 'null'"))
         
         # Backfill flat pose keys into nested config["pose"] (data-only, no DDL)
         _backfill_pose_into_config(conn)

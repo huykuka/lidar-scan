@@ -138,6 +138,11 @@ class CalibrationHistoryModel(Base):
     source_sensor_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     processing_chain_json: Mapped[str] = mapped_column(String, default="[]")
     run_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    node_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    accepted_at: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    accepted_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    rollback_source_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    registration_method_json: Mapped[str] = mapped_column(String, default="null")
 
     def to_dict(self) -> dict:
         import json
@@ -159,6 +164,11 @@ class CalibrationHistoryModel(Base):
             "source_sensor_id": self.source_sensor_id,
             "processing_chain": json.loads(self.processing_chain_json or "[]"),
             "run_id": self.run_id,
+            "node_id": self.node_id,
+            "accepted_at": self.accepted_at,
+            "accepted_by": self.accepted_by,
+            "rollback_source_id": self.rollback_source_id,
+            "registration_method": json.loads(self.registration_method_json or "null"),
         }
 
 
