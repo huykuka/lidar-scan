@@ -392,7 +392,11 @@ class CalibrationNode(ModuleNode):
                 record = self._pending_calibration[sensor_id]
                 await self._apply_calibration(sensor_id, record, db_session=db)
                 record.accepted = True
-        
+
+        # Clear pending so next trigger starts fresh and status returns to idle
+        self._pending_calibration = None
+        notify_status_change(self.id)
+
         return {"success": True, "accepted": sensors_to_accept}
     
     async def reject_calibration(self) -> Dict[str, Any]:
