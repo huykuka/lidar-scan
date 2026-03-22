@@ -3,12 +3,12 @@
   <header class="bg-white border-b border-neutral-300 px-6 py-3">
     <div class="flex items-center gap-6">
       <syn-button (click)="goBack()" size="small" variant="text">
-        <syn-icon name="arrow_back" slot="prefix" />
+        <syn-icon name="arrow_back" slot="prefix"/>
         Back
       </syn-button>
 
       <div class="flex items-center gap-3">
-        <syn-icon class="text-3xl text-primary-600" name="tune" />
+        <syn-icon class="text-3xl text-primary-600" name="tune"/>
         <div>
           <h1 class="text-xl font-semibold text-neutral-900 m-0">
             {{ calibrationNode()?.node_name ?? nodeId() ?? 'Calibration' }}
@@ -20,7 +20,7 @@
       <div class="ml-auto flex gap-2">
         @if (hasHistory()) {
           <syn-button (click)="viewHistory()" size="small" variant="text">
-            <syn-icon name="history" slot="prefix" />
+            <syn-icon name="history" slot="prefix"/>
             View History
           </syn-button>
         }
@@ -34,7 +34,7 @@
     @if (!calibrationNode() && !isLoadingStatus()) {
       <!-- Loading/waiting state (before first poll response) -->
       <div class="flex flex-col items-center justify-center h-96 gap-4 text-neutral-600">
-        <syn-spinner size="large" />
+        <syn-spinner size="large"/>
         <p>Loading calibration node…</p>
       </div>
     } @else if (calibrationNode(); as node) {
@@ -47,7 +47,7 @@
           <!-- Status Card -->
           <syn-card>
             <h2 class="text-base font-semibold text-neutral-900 m-0 mb-3">Status</h2>
-            <syn-divider />
+            <syn-divider/>
 
             <div class="flex flex-col gap-4 mt-4">
               <div class="flex justify-between items-center text-sm">
@@ -74,7 +74,7 @@
               @if (node.reference_sensor_id) {
                 <div class="flex justify-between items-start text-sm">
                   <span class="text-neutral-600 font-medium">Reference Sensor</span>
-                  <span class="font-mono text-xs text-neutral-900">{{ node.reference_sensor_id }}</span>
+                  <span class="text-neutral-900">{{ getSensorName(node.reference_sensor_id) }}</span>
                 </div>
               }
 
@@ -96,7 +96,7 @@
                   <div class="flex flex-col items-end gap-1">
                     @for (entry of node.buffered_frames | keyvalue; track entry.key) {
                       <span class="text-xs text-neutral-700">
-                        {{ entry.key }}: <strong>{{ entry.value }}</strong>
+                        {{ getSensorName(entry.key) }}: <strong>{{ entry.value }}</strong>
                       </span>
                     }
                   </div>
@@ -115,10 +115,10 @@
                   variant="filled"
                 >
                   @if (isTriggering()) {
-                    <syn-spinner size="small" slot="prefix" />
+                    <syn-spinner size="small" slot="prefix"/>
                     Running…
                   } @else {
-                    <syn-icon name="tune" slot="prefix" />
+                    <syn-icon name="tune" slot="prefix"/>
                     Run Calibration
                   }
                 </syn-button>
@@ -133,7 +133,7 @@
                 <h2 class="text-base font-semibold text-neutral-900 m-0">Pending Results</h2>
                 <syn-badge variant="warning">Needs Review</syn-badge>
               </div>
-              <syn-divider />
+              <syn-divider/>
 
               <div class="flex flex-col gap-4 mt-4">
                 @for (entry of pendingResultEntries(); track entry[0]) {
@@ -177,24 +177,36 @@
                     <div class="overflow-x-auto">
                       <table class="w-full text-xs border-collapse">
                         <thead>
-                          <tr class="bg-neutral-100">
-                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δx (mm)</th>
-                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δy (mm)</th>
-                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δz (mm)</th>
-                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δroll (°)</th>
-                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δpitch (°)</th>
-                            <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δyaw (°)</th>
-                          </tr>
+                        <tr class="bg-neutral-100">
+                          <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δx
+                            (mm)
+                          </th>
+                          <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δy
+                            (mm)
+                          </th>
+                          <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δz
+                            (mm)
+                          </th>
+                          <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δroll
+                            (°)
+                          </th>
+                          <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δpitch
+                            (°)
+                          </th>
+                          <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δyaw
+                            (°)
+                          </th>
+                        </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dx.toFixed(2) }}</td>
-                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dy.toFixed(2) }}</td>
-                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dz.toFixed(2) }}</td>
-                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.droll.toFixed(4) }}</td>
-                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dpitch.toFixed(4) }}</td>
-                            <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dyaw.toFixed(4) }}</td>
-                          </tr>
+                        <tr>
+                          <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dx.toFixed(2) }}</td>
+                          <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dy.toFixed(2) }}</td>
+                          <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dz.toFixed(2) }}</td>
+                          <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.droll.toFixed(4) }}</td>
+                          <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dpitch.toFixed(4) }}</td>
+                          <td class="px-2 py-1 font-mono border border-neutral-200">{{ delta.dyaw.toFixed(4) }}</td>
+                        </tr>
                         </tbody>
                       </table>
                     </div>
@@ -225,10 +237,10 @@
                   [disabled]="isAccepting() || isRejecting()"
                 >
                   @if (isAccepting()) {
-                    <syn-spinner size="small" slot="prefix" />
+                    <syn-spinner size="small" slot="prefix"/>
                     Accepting…
                   } @else {
-                    <syn-icon name="check" slot="prefix" />
+                    <syn-icon name="check" slot="prefix"/>
                     Accept Calibration
                   }
                 </syn-button>
@@ -239,10 +251,10 @@
                   [disabled]="isAccepting() || isRejecting()"
                 >
                   @if (isRejecting()) {
-                    <syn-spinner size="small" slot="prefix" />
+                    <syn-spinner size="small" slot="prefix"/>
                     Rejecting…
                   } @else {
-                    <syn-icon name="close" slot="prefix" />
+                    <syn-icon name="close" slot="prefix"/>
                     Reject
                   }
                 </syn-button>
@@ -250,7 +262,7 @@
             </syn-card>
           } @else {
             <syn-alert open variant="neutral">
-              <syn-icon name="info" slot="icon" />
+              <syn-icon name="info" slot="icon"/>
               <strong>No Pending Results</strong>
               <div>Trigger calibration to see pending results here.</div>
             </syn-alert>
@@ -262,25 +274,25 @@
         <div class="flex flex-col gap-6">
           <syn-card>
             <h2 class="text-base font-semibold text-neutral-900 m-0 mb-3">Calibration History</h2>
-            <syn-divider />
+            <syn-divider/>
 
             @if (historyForNode().length === 0) {
               <div class="text-center py-8 text-neutral-500">
-                <syn-icon name="history" class="text-4xl mb-2" />
+                <syn-icon name="history" class="text-4xl mb-2"/>
                 <p class="m-0">No calibration history yet.</p>
               </div>
             } @else {
               <div class="flex flex-col gap-2 mt-4">
                 @for (record of historyForNode(); track record.id) {
                   <syn-details
-                    [summary]="formatDate(record.timestamp) + ' — ' + (record.quality ?? 'unknown')"
+                    [summary]="formatDate(record.timestamp) + ' — ' + (record.quality)"
                   >
                     <div class="text-sm flex flex-col gap-2">
                       <div class="flex gap-4">
                         <span class="text-neutral-600">
                         Fitness: <strong>{{ (record.fitness * 100).toFixed(1) }}%</strong>
                       </span>
-                      <span class="text-neutral-600">
+                        <span class="text-neutral-600">
                         RMSE: <strong>{{ record.rmse.toFixed(5) }} m</strong>
                         </span>
                         <syn-badge [variant]="record.accepted ? 'success' : 'neutral'" size="small">
@@ -293,24 +305,48 @@
                           <table class="w-full text-xs border-collapse">
                             <caption class="text-left text-neutral-500 mb-1">Pose Change</caption>
                             <thead>
-                              <tr class="bg-neutral-100">
-                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δx (mm)</th>
-                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δy (mm)</th>
-                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δz (mm)</th>
-                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δroll (°)</th>
-                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δpitch (°)</th>
-                                <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δyaw (°)</th>
-                              </tr>
+                            <tr class="bg-neutral-100">
+                              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δx
+                                (mm)
+                              </th>
+                              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δy
+                                (mm)
+                              </th>
+                              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">Δz
+                                (mm)
+                              </th>
+                              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">
+                                Δroll (°)
+                              </th>
+                              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">
+                                Δpitch (°)
+                              </th>
+                              <th class="px-2 py-1 text-left font-medium text-neutral-600 border border-neutral-200">
+                                Δyaw (°)
+                              </th>
+                            </tr>
                             </thead>
                             <tbody>
-                              <tr>
-                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.x - record.pose_before.x).toFixed(2) }}</td>
-                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.y - record.pose_before.y).toFixed(2) }}</td>
-                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.z - record.pose_before.z).toFixed(2) }}</td>
-                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.roll - record.pose_before.roll).toFixed(4) }}</td>
-                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.pitch - record.pose_before.pitch).toFixed(4) }}</td>
-                                <td class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.yaw - record.pose_before.yaw).toFixed(4) }}</td>
-                              </tr>
+                            <tr>
+                              <td
+                                class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.x - record.pose_before.x).toFixed(2) }}
+                              </td>
+                              <td
+                                class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.y - record.pose_before.y).toFixed(2) }}
+                              </td>
+                              <td
+                                class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.z - record.pose_before.z).toFixed(2) }}
+                              </td>
+                              <td
+                                class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.roll - record.pose_before.roll).toFixed(4) }}
+                              </td>
+                              <td
+                                class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.pitch - record.pose_before.pitch).toFixed(4) }}
+                              </td>
+                              <td
+                                class="px-2 py-1 font-mono border border-neutral-200">{{ (record.pose_after.yaw - record.pose_before.yaw).toFixed(4) }}
+                              </td>
+                            </tr>
                             </tbody>
                           </table>
                         </div>
@@ -323,8 +359,12 @@
                           (click)="rollbackToEntry(record)"
                           [disabled]="isRollingBack()"
                         >
-                          <syn-icon name="restore" slot="prefix" />
-                          @if (isRollingBack()) { Rolling back… } @else { Rollback to This }
+                          <syn-icon name="restore" slot="prefix"/>
+                          @if (isRollingBack()) {
+                            Rolling back…
+                          } @else {
+                            Rollback to This
+                          }
                         </syn-button>
                       }
                     </div>

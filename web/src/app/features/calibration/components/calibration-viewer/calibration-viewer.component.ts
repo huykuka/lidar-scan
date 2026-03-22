@@ -66,17 +66,18 @@ export class CalibrationViewerComponent implements OnDestroy {
 
   /**
    * True when "Run Calibration" should be disabled.
-   * ICP requires at least 2 source sensors.
+   * ICP requires a reference sensor + at least 1 source sensor.
+   * Disabled only when source_sensor_ids is empty (no source to calibrate against reference).
    */
   isCalibrationDisabled = computed<boolean>(() => {
     const node = this.calibrationNode();
     if (!node) return false; // not loaded yet — optimistic
-    return node.source_sensor_ids.length < 2;
+    return node.source_sensor_ids.length < 1;
   });
 
   /** Tooltip shown when the calibration trigger button is disabled. */
   readonly calibrationDisabledTooltip =
-    'At least 2 input sensors are required for calibration.';
+    'At least 1 source sensor is required. Connect a sensor upstream in the DAG.';
 
   /** True when at least one history record exists for the current node. */
   hasHistory = computed<boolean>(() => this.historyForNode().length > 0);
@@ -137,11 +138,7 @@ export class CalibrationViewerComponent implements OnDestroy {
       dyaw: result.pose_after.yaw - result.pose_before.yaw,
     };
   }
-
-  toggleMatrix(sensorId: string): void {
-    const current = this.showMatrixFor();
-    this.showMatrixFor.set({...current, [sensorId]: !current[sensorId]});
-  }
+  
 
   getSensorName(sensorId: string): string {
     const nodes = this.nodeStore.nodes();
