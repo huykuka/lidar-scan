@@ -6,6 +6,7 @@ import {
   CalibrationAcceptRequest,
   CalibrationAcceptResponse,
   CalibrationHistoryResponse,
+  CalibrationNodeStatusResponse,
   CalibrationRejectResponse,
   CalibrationRollbackRequest,
   CalibrationRollbackResponse,
@@ -13,6 +14,9 @@ import {
   CalibrationTriggerRequest,
   CalibrationTriggerResponse,
 } from '../../models/calibration.model';
+import {
+  MOCK_CALIBRATION_STATUS_PENDING,
+} from '../../mocks/calibration-mock';
 
 @Injectable({
   providedIn: 'root',
@@ -70,21 +74,20 @@ export class CalibrationApiService {
    * @param runId - Optional: Filter by calibration run ID
    */
   async getHistory(
-    sensorId: string, 
+    sensorId: string,
     limit: number = 10,
     sourceSensorId?: string,
     runId?: string
   ): Promise<CalibrationHistoryResponse> {
     let url = `${environment.apiUrl}/calibration/history/${sensorId}?limit=${limit}`;
-    
-    // NEW: Add optional query parameters for filtering
+
     if (sourceSensorId) {
       url += `&source_sensor_id=${encodeURIComponent(sourceSensorId)}`;
     }
     if (runId) {
       url += `&run_id=${encodeURIComponent(runId)}`;
     }
-    
+
     return await firstValueFrom(
       this.http.get<CalibrationHistoryResponse>(url),
     );
@@ -92,10 +95,12 @@ export class CalibrationApiService {
 
   /**
    * Rollback sensor to a previous calibration
+   * @param sensorId - Sensor ID to rollback
+   * @param request - { record_id: string } identifying the target history record
    */
   async rollback(
     sensorId: string,
-    request: CalibrationRollbackRequest,
+    request: CalibrationRollbackRequest,  // { record_id: string }
   ): Promise<CalibrationRollbackResponse> {
     return await firstValueFrom(
       this.http.post<CalibrationRollbackResponse>(
@@ -115,4 +120,22 @@ export class CalibrationApiService {
       ),
     );
   }
+
+  /**
+   * Get the current calibration status for a node (polling endpoint).
+   * TODO: Remove mock when backend /status endpoint is live (Backend Task 5.1)
+   */
+  async getNodeStatus(nodeId: string): Promise<CalibrationNodeStatusResponse> {
+    // Mock until backend Task 5.1 is complete
+    void nodeId;
+    return Promise.resolve(MOCK_CALIBRATION_STATUS_PENDING);
+    /* Real implementation (uncomment when backend is ready):
+    return await firstValueFrom(
+      this.http.get<CalibrationNodeStatusResponse>(
+        `${environment.apiUrl}/calibration/${nodeId}/status`,
+      ),
+    );
+    */
+  }
 }
+
