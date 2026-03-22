@@ -1,7 +1,6 @@
 import {Component, computed, input, output, signal} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {CalibrationHistoryRecord} from '../../../../core/models/calibration.model';
-import {ProcessingChainComponent} from '../processing-chain/processing-chain.component';
+import {CalibrationHistoryRecord} from '@core/models';
 
 /**
  * Smart component: displays calibration history records with provenance metadata.
@@ -11,7 +10,7 @@ import {ProcessingChainComponent} from '../processing-chain/processing-chain.com
 @Component({
   selector: 'app-calibration-history-table',
   standalone: true,
-  imports: [SynergyComponentsModule, ProcessingChainComponent],
+  imports: [SynergyComponentsModule],
   templateUrl: './calibration-history-table.component.html',
 })
 export class CalibrationHistoryTableComponent {

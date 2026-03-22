@@ -392,7 +392,11 @@ class CalibrationNode(ModuleNode):
                 record = self._pending_calibration[sensor_id]
                 await self._apply_calibration(sensor_id, record, db_session=db)
                 record.accepted = True
-        
+
+        # Clear pending so next trigger starts fresh and status returns to idle
+        self._pending_calibration = None
+        notify_status_change(self.id)
+
         return {"success": True, "accepted": sensors_to_accept}
     
     async def reject_calibration(self) -> Dict[str, Any]:
@@ -444,14 +448,72 @@ class CalibrationNode(ModuleNode):
                 pose_to_write = Pose(**pose_after)
             repo.update_node_pose(target_id, pose_to_write)
             
-            # Save to calibration history
-            CalibrationHistory.save_record(record, db_session=db)
+            # Save to calibration history, passing node_id for provenance
+            now_iso = datetime.now(timezone.utc).isoformat()
+            new_record_id = CalibrationHistory.save_record(record, db_session=db, node_id=self.id)
+            
+            # Mark the new history record as accepted with timestamp
+            from app.repositories import calibration_orm
+            calibration_orm.update_calibration_acceptance(
+                db=db,
+                record_id=new_record_id,
+                accepted=True,
+                accepted_at=now_iso,
+            )
             
             # Trigger NodeManager reload to apply new transforms
             await self.manager.reload_config()
         finally:
             if db_session is None:
                 db.close()
+
+    def get_calibration_status(self) -> Dict[str, Any]:
+        """
+        Return full calibration workflow state for the polling endpoint.
+
+        Unlike emit_status() which is for WebSocket broadcast, this returns
+        the complete state needed by the calibration page. This method is
+        a pure read — it does NOT modify any state.
+
+        Returns:
+            Dict with calibration_state, pending_results, quality metrics, etc.
+        """
+        calibration_state = "pending" if self._pending_calibration is not None else "idle"
+
+        pending_results: Dict[str, Any] = {}
+        if self._pending_calibration:
+            for sensor_id, record in self._pending_calibration.items():
+                pending_results[sensor_id] = {
+                    "fitness": record.fitness,
+                    "rmse": record.rmse,
+                    "quality": record.quality,
+                    "quality_good": record.fitness >= self.min_fitness_to_save,
+                    "source_sensor_id": record.source_sensor_id,
+                    "processing_chain": list(record.processing_chain or []),
+                    "pose_before": record.pose_before.to_flat_dict(),
+                    "pose_after": record.pose_after.to_flat_dict(),
+                    "transformation_matrix": record.transformation_matrix,
+                }
+
+        quality_good: Optional[bool] = None
+        if self._pending_calibration:
+            quality_good = all(
+                r.fitness >= self.min_fitness_to_save
+                for r in self._pending_calibration.values()
+            )
+
+        return {
+            "node_id": self.id,
+            "node_name": self.name,
+            "enabled": self._enabled,
+            "calibration_state": calibration_state,
+            "quality_good": quality_good,
+            "reference_sensor_id": self._reference_sensor_id,
+            "source_sensor_ids": list(self._source_sensor_ids),
+            "buffered_frames": {k: len(v) for k, v in self._frame_buffer.items()},
+            "last_calibration_time": self._last_calibration_time,
+            "pending_results": pending_results,
+        }
 
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardised status for this calibration node.

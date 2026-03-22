@@ -91,20 +91,25 @@ class CalibrationHistory:
     """
     
     @staticmethod
-    def save_record(record: CalibrationRecord, db_session):
+    def save_record(record: CalibrationRecord, db_session, node_id: Optional[str] = None) -> str:
         """
         Store calibration record in database.
         
         Args:
             record: CalibrationRecord to save
             db_session: SQLAlchemy session
+            node_id: Optional calibration node ID for provenance tracking
+            
+        Returns:
+            record_id (hex UUID) of the newly created record
         """
         from app.repositories import calibration_orm
         import uuid
         
+        record_id = uuid.uuid4().hex
         calibration_orm.create_calibration_record(
             db=db_session,
-            record_id=uuid.uuid4().hex,
+            record_id=record_id,
             sensor_id=record.sensor_id,
             reference_sensor_id=record.reference_sensor_id,
             fitness=record.fitness,
@@ -118,8 +123,10 @@ class CalibrationHistory:
             notes=record.notes,
             source_sensor_id=record.source_sensor_id,
             processing_chain=record.processing_chain or [],
-            run_id=record.run_id
+            run_id=record.run_id,
+            node_id=node_id,
         )
+        return record_id
     
     @staticmethod
     def get_history(sensor_id: str, limit: int = 10, db_session=None) -> List[CalibrationRecord]:

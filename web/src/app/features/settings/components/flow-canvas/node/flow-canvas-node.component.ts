@@ -5,7 +5,6 @@ import {NodeConfig, PortSchema} from '@core/models/node.model';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
-import {NodeCalibrationControls} from './node-calibration-controls/node-calibration-controls';
 import {NodeVisibilityToggleComponent} from '../../node-visibility-toggle/node-visibility-toggle.component';
 
 export interface CanvasNode {
@@ -17,7 +16,7 @@ export interface CanvasNode {
 
 @Component({
   selector: 'app-flow-canvas-node',
-  imports: [SynergyComponentsModule, NodeRecordingControls, NodeCalibrationControls, NodeVisibilityToggleComponent],
+  imports: [SynergyComponentsModule, NodeRecordingControls, NodeVisibilityToggleComponent],
   templateUrl: './flow-canvas-node.component.html',
   styleUrl: './flow-canvas-node.component.css',
 })
@@ -53,7 +52,6 @@ export class FlowCanvasNodeComponent {
 
     return this.node().type?.toLowerCase() ?? 'unknown';
   });
-  protected isCalibrationNode = computed(() => this.nodeCategory() === 'calibration');
 
   /**
    * Map semantic color names from application_state to CSS hex colors

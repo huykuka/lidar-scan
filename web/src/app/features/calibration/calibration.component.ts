@@ -1,91 +1,115 @@
-import {Component, computed, inject} from '@angular/core';
-
+import {Component, computed, effect, inject, OnDestroy} from '@angular/core';
+import {KeyValuePipe} from '@angular/common';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {StatusWebSocketService} from '../../core/services/status-websocket.service';
-import {CalibrationNodeStatus} from '../../core/models/calibration.model';
-import {NavigationService} from '../../core/services';
-import {ProcessingChainComponent} from './components/processing-chain/processing-chain.component';
+import {CalibrationStoreService, NodeStoreService} from '@core/services/stores';
+import {NavigationService, ToastService} from '@core/services';
+import {CalibrationNodeStatusResponse} from '@core/models';
+
+/** Minimum number of source sensors required to run ICP calibration.
+ * ICP needs a reference sensor (implicit) + at least 1 source sensor.
+ * The `source_sensor_ids` array only contains source sensors, so the threshold is 1.
+ */
+const ICP_MIN_SOURCE_SENSORS = 1;
 
 @Component({
   selector: 'app-calibration',
   standalone: true,
-  imports: [SynergyComponentsModule, ProcessingChainComponent],
+  imports: [SynergyComponentsModule, KeyValuePipe],
   templateUrl: './calibration.component.html',
 })
-export class CalibrationComponent {
-  private statusWs = inject(StatusWebSocketService);
-  calibrationNodes = computed(() => {
-    const statusResponse = this.statusWs.status();
-    if (!statusResponse) return [];
+export class CalibrationComponent implements OnDestroy {
+  protected readonly calibrationStore = inject(CalibrationStoreService);
+  private readonly nodeStore = inject(NodeStoreService);
+  private readonly navigationService = inject(NavigationService);
+  private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
-    return statusResponse.nodes
-      .filter((status: any) => status.type === 'calibration')
-      .map((status: any) => status as unknown as CalibrationNodeStatus);
+  // Calibration node configs from NodeStore (category === 'calibration')
+  calibrationNodeConfigs = computed(() => this.nodeStore.calibrationNodes());
+
+  // Factory: get polled status for a specific node
+  getNodePolledStatus = computed(() => {
+    const statuses = this.calibrationStore.nodeStatuses();
+    return (nodeId: string): CalibrationNodeStatusResponse | null => statuses[nodeId] ?? null;
   });
-  private navigationService = inject(NavigationService);
-  private router = inject(Router);
+
+  /**
+   * Returns true when "Run Calibration" should be disabled for the given node.
+   * ICP requires at least 2 source sensors. If polled status is not yet
+   * available we fall back to allowing the button (we don't want to block
+   * indefinitely just because the first poll hasn't returned yet).
+   */
+  isCalibrationDisabled = computed(() => {
+    const statuses = this.calibrationStore.nodeStatuses();
+    return (nodeId: string): boolean => {
+      const status = statuses[nodeId];
+      if (!status) return false; // Not yet loaded — allow (optimistic)
+      return status.source_sensor_ids.length < ICP_MIN_SOURCE_SENSORS;
+    };
+  });
+
+  /** Tooltip message shown when "Run Calibration" is disabled due to insufficient sensors. */
+  readonly calibrationDisabledTooltip =
+    'At least 1 source sensor is required for calibration.';
+
+  /**
+   * Returns true when "View History" should be shown for the given node.
+   * The button is hidden when the history record list for that node is empty.
+   */
+  hasHistory = computed(() => {
+    const historyByNode = this.calibrationStore.historyByNode();
+    return (nodeId: string): boolean => (historyByNode[nodeId]?.length ?? 0) > 0;
+  });
 
   constructor() {
     this.navigationService.setPageConfig({
       title: 'Calibration',
       subtitle: 'Manage and monitor calibration nodes',
     });
+
+    // Ensure nodes are loaded when navigating directly to this page (e.g. on
+    // reload). SettingsComponent normally populates NodeStore; this is a
+    // no-op if nodes are already present.
+    void this.nodeStore.loadNodesIfEmpty();
+
+    // Reactive: start polling whenever calibrationNodeConfigs emits new values.
+    // This covers cold page reloads where nodes may not be loaded at construction
+    // time — the effect re-runs as soon as the NodeStore resolves its node list.
+    effect(() => {
+      const nodes = this.calibrationNodeConfigs();
+      if (nodes.length === 0) return;
+      // Note: startPolling cancels the previous poll before starting a new one.
+      // For multiple calibration nodes, we poll each in sequence — the last one
+      // will be the "active" polled node. Consider upgrading to per-node polling
+      // if the app regularly has >1 calibration node.
+      for (const node of nodes) {
+        this.calibrationStore.startPolling(node.id);
+      }
+    });
+
+    // Show error toasts from store
+    effect(() => {
+      const error = this.calibrationStore.error();
+      if (error) this.toast.danger(error);
+    });
   }
 
-  hasPendingResults(node: CalibrationNodeStatus): boolean {
-    return node.pending_results && Object.keys(node.pending_results).length > 0;
+  ngOnDestroy(): void {
+    this.calibrationStore.stopPolling();
   }
 
-  getPendingResultsList(node: CalibrationNodeStatus) {
-    if (!node.pending_results) return [];
-
-    return Object.entries(node.pending_results).map(([sensorId, result]) => ({
-      sensorId,
-      ...result,
-    }));
+  getSensorName(sensorId: string): string {
+    const node = this.nodeStore.nodes().find((n: any) => n.id === sensorId);
+    return node?.name ?? sensorId;
   }
 
-  /**
-   * Get buffered frame count (backward compatible with array and dict formats)
-   */
-  getBufferedFrameCount(bufferedFrames: Record<string, number> | string[]): number {
-    if (Array.isArray(bufferedFrames)) {
-      // Legacy array format
-      return bufferedFrames.length;
-    }
-    // New dict format - return number of sensors
-    return Object.keys(bufferedFrames).length;
+  async triggerCalibration(nodeId: string): Promise<void> {
+    await this.calibrationStore.triggerCalibration(nodeId, {});
   }
 
-  /**
-   * Get buffered frame entries for display
-   */
-  getBufferedFrameEntries(bufferedFrames: Record<string, number> | string[]): Array<{sensorId: string, count: number}> {
-    if (Array.isArray(bufferedFrames)) {
-      // Legacy array format - convert to entries with unknown count
-      return bufferedFrames.map(sensorId => ({sensorId, count: 1}));
-    }
-    // New dict format
-    return Object.entries(bufferedFrames).map(([sensorId, count]) => ({sensorId, count}));
-  }
-
-  getQualityVariant(quality: string): 'success' | 'warning' | 'danger' | 'neutral' {
-    switch (quality) {
-      case 'excellent':
-        return 'success';
-      case 'good':
-        return 'warning';
-      case 'fair':
-        return 'warning';
-      case 'poor':
-        return 'danger';
-      default:
-        return 'neutral';
-    }
-  }
-
-  formatTime(isoString: string): string {
+  formatTime(isoString: string | null | undefined): string {
+    if (!isoString) return '—';
     try {
       const date = new Date(isoString);
       const now = new Date();
@@ -94,10 +118,8 @@ export class CalibrationComponent {
 
       if (minutes < 1) return 'Just now';
       if (minutes < 60) return `${minutes}m ago`;
-
       const hours = Math.floor(minutes / 60);
       if (hours < 24) return `${hours}h ago`;
-
       const days = Math.floor(hours / 24);
       return `${days}d ago`;
     } catch {
@@ -105,15 +127,11 @@ export class CalibrationComponent {
     }
   }
 
-  viewDetails(nodeId: string) {
-    this.router.navigate(['/calibration', nodeId]);
+  viewDetails(nodeId: string): void {
+    void this.router.navigate(['/calibration', nodeId]);
   }
 
-  viewHistory(nodeId: string) {
-    this.router.navigate(['/calibration', nodeId, 'history']);
-  }
-
-  goToSettings() {
-    this.router.navigate(['/settings']);
+  goToSettings(): void {
+    void this.router.navigate(['/settings']);
   }
 }

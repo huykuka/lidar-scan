@@ -1,7 +1,8 @@
-import {Component, computed, input, output, signal} from '@angular/core';
+import {Component, computed, inject, input, output, signal} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CalibrationNodeStatus} from '../../../../core/models/calibration.model';
-import {ProcessingChainComponent} from '../processing-chain/processing-chain.component';
+import {NodeStoreService} from '../../../../core/services/stores/node-store.service';
+import {NodeConfig} from '../../../../core/models/node.model';
 
 export interface PendingResultEntry {
   sensorId: string;
@@ -19,10 +20,11 @@ export interface PendingResultEntry {
 @Component({
   selector: 'app-calibration-accept-dialog',
   standalone: true,
-  imports: [SynergyComponentsModule, ProcessingChainComponent],
+  imports: [SynergyComponentsModule],
   templateUrl: './calibration-accept-dialog.component.html',
 })
 export class CalibrationAcceptDialogComponent {
+  private readonly nodeStore = inject(NodeStoreService);
   /** Whether the dialog is open */
   open = input<boolean>(false);
 
@@ -125,6 +127,12 @@ export class CalibrationAcceptDialogComponent {
   shortRunId(runId: string | null | undefined): string {
     if (!runId) return '—';
     return runId.length > 8 ? runId.slice(0, 8) + '…' : runId;
+  }
+
+  getSensorName(sensorId: string | null | undefined): string {
+    if (!sensorId) return '—';
+    const node = this.nodeStore.nodes().find((n: NodeConfig) => n.id === sensorId);
+    return node?.name ?? sensorId;
   }
 
   shortId(id: string | null | undefined): string {

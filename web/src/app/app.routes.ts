@@ -1,6 +1,6 @@
 import {Routes} from '@angular/router';
-import {MainLayoutComponent} from './layout/main-layout/main-layout.component';
-import {unsavedChangesGuard} from './core/guards/unsaved-changes.guard';
+import {MainLayoutComponent} from '@layout/main-layout/main-layout.component';
+import {unsavedChangesGuard} from '@core/guards/unsaved-changes.guard';
 
 export const routes: Routes = [
   {
@@ -54,13 +54,6 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/calibration/components/calibration-viewer/calibration-viewer.component').then(
             (m) => m.CalibrationViewerComponent,
-          ),
-      },
-      {
-        path: 'calibration/:id/history',
-        loadComponent: () =>
-          import('./features/calibration/calibration-history/calibration-history.component').then(
-            (m) => m.CalibrationHistoryComponent,
           ),
       },
     ],

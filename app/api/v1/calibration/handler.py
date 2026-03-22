@@ -8,14 +8,17 @@ from app.db.models import get_db
 from app.api.v1.schemas.calibration import (
     CalibrationTriggerResponse, 
     AcceptResponse, 
+    RejectResponse,
     RollbackResponse, 
     CalibrationHistoryResponse, 
-    CalibrationStatsResponse
+    CalibrationStatsResponse,
+    CalibrationNodeStatusResponse,
 )
 from app.api.v1.schemas.common import StatusResponse
 from .service import (
     trigger_calibration, accept_calibration, reject_calibration,
     get_calibration_history, rollback_calibration, get_calibration_statistics,
+    get_calibration_status,
     TriggerCalibrationRequest, AcceptCalibrationRequest, RollbackRequest
 )
 
@@ -24,6 +27,20 @@ from .service import (
 router = APIRouter(tags=["Calibration"])
 
 # Endpoint configurations
+@router.get(
+    "/calibration/{node_id}/status",
+    response_model=CalibrationNodeStatusResponse,
+    responses={
+        400: {"description": "Node is not a calibration node"},
+        404: {"description": "Node not found"}
+    },
+    summary="Get Calibration Status",
+    description="Poll the full calibration workflow state for a node (idle / pending results).",
+)
+async def calibration_status_endpoint(node_id: str):
+    return await get_calibration_status(node_id)
+
+
 @router.post(
     "/calibration/{node_id}/trigger",
     response_model=CalibrationTriggerResponse,
@@ -59,7 +76,7 @@ async def calibration_accept_endpoint(
 
 @router.post(
     "/calibration/{node_id}/reject",
-    response_model=StatusResponse,
+    response_model=RejectResponse,
     responses={404: {"description": "Node not found"}},
     summary="Reject Calibration",
     description="Reject pending calibration (discard results).",

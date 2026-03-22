@@ -331,15 +331,17 @@ class TestCalibrationSchemas:
         assert response.accepted == ["sensor-1", "sensor-2"]
         
     def test_rollback_response_creation(self):
-        """RollbackResponse should accept success, sensor_id, restored_to"""
+        """RollbackResponse should accept success, sensor_id, restored_to, new_record_id"""
         response = RollbackResponse(
             success=True,
             sensor_id="sensor-uuid",
-            restored_to="2025-01-01T12:00:00Z"
+            restored_to="2025-01-01T12:00:00Z",
+            new_record_id="new-record-uuid"
         )
         assert response.success is True
         assert response.sensor_id == "sensor-uuid"
         assert response.restored_to == "2025-01-01T12:00:00Z"
+        assert response.new_record_id == "new-record-uuid"
         
     def test_calibration_record_creation(self):
         """CalibrationRecord should accept all calibration history fields"""
