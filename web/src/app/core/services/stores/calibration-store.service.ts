@@ -199,9 +199,11 @@ export class CalibrationStoreService
   /**
    * Load history for all source sensors of a calibration node.
    * Fetches history per source_sensor_id and merges all records under nodeId,
-   * sorted descending by timestamp.
+   * sorted descending by timestamp. Capped at MAX_HISTORY_RECORDS total.
    */
-  async loadHistoryForNode(nodeId: string, limit = 50): Promise<void> {
+  static readonly MAX_HISTORY_RECORDS = 4;
+
+  async loadHistoryForNode(nodeId: string, limit = CalibrationStoreService.MAX_HISTORY_RECORDS): Promise<void> {
     const node = this.nodeStatuses()[nodeId];
     if (!node || node.source_sensor_ids.length === 0) return;
 
@@ -214,7 +216,8 @@ export class CalibrationStoreService
       );
       const merged = results
         .flat()
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, CalibrationStoreService.MAX_HISTORY_RECORDS);
       const current = this.historyByNode();
       this.setState({historyByNode: {...current, [nodeId]: merged}});
     } catch (err) {
