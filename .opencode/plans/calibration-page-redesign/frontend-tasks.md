@@ -895,7 +895,7 @@ Before marking all tasks complete, confirm:
 - [x] All `- [x]` checkboxes in Groups 1–8 are `[x]`
 - [x] `ng build` passes with zero TypeScript errors
 - [x] No `eslint` warnings in modified files (`ng lint` or `eslint web/src/...`) — ESLint not configured in this project; `ng build` passes with zero errors
-- [ ] Mock API is removed from `CalibrationApiService.getNodeStatus()` once Backend Task 5.1 is `[x]`
+- [x] Mock API is removed from `CalibrationApiService.getNodeStatus()` once Backend Task 5.1 is `[x]`
 - [ ] Mock API is removed from `CalibrationApiService.rollback()` once Backend Task 4.1–4.2 is `[x]`
 - [x] `NodeCalibrationControls` has **zero** trigger/accept/reject action methods or buttons
 - [x] `CalibrationViewerComponent.calibrationNode` is **never** `null` when navigating to a valid calibration node

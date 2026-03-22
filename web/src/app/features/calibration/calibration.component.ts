@@ -1,4 +1,4 @@
-import {Component, computed, effect, inject, OnInit} from '@angular/core';
+import {Component, computed, effect, inject, OnDestroy} from '@angular/core';
 import {KeyValuePipe} from '@angular/common';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -7,15 +7,14 @@ import {NodeStoreService} from '../../core/services/stores/node-store.service';
 import {ToastService} from '../../core/services/toast.service';
 import {NavigationService} from '../../core/services';
 import {CalibrationNodeStatusResponse} from '../../core/models/calibration.model';
-import {ProcessingChainComponent} from './components/processing-chain/processing-chain.component';
 
 @Component({
   selector: 'app-calibration',
   standalone: true,
-  imports: [SynergyComponentsModule, KeyValuePipe, ProcessingChainComponent],
+  imports: [SynergyComponentsModule, KeyValuePipe],
   templateUrl: './calibration.component.html',
 })
-export class CalibrationComponent implements OnInit {
+export class CalibrationComponent implements OnDestroy {
   protected readonly calibrationStore = inject(CalibrationStoreService);
   private readonly nodeStore = inject(NodeStoreService);
   private readonly navigationService = inject(NavigationService);
@@ -37,6 +36,21 @@ export class CalibrationComponent implements OnInit {
       subtitle: 'Manage and monitor calibration nodes',
     });
 
+    // Reactive: start polling whenever calibrationNodeConfigs emits new values.
+    // This covers cold page reloads where nodes may not be loaded at construction
+    // time — the effect re-runs as soon as the NodeStore resolves its node list.
+    effect(() => {
+      const nodes = this.calibrationNodeConfigs();
+      if (nodes.length === 0) return;
+      // Note: startPolling cancels the previous poll before starting a new one.
+      // For multiple calibration nodes, we poll each in sequence — the last one
+      // will be the "active" polled node. Consider upgrading to per-node polling
+      // if the app regularly has >1 calibration node.
+      for (const node of nodes) {
+        this.calibrationStore.startPolling(node.id);
+      }
+    });
+
     // Show error toasts from store
     effect(() => {
       const error = this.calibrationStore.error();
@@ -44,15 +58,8 @@ export class CalibrationComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void {
-    // Note: startPolling stops the previous poll when a new one starts.
-    // For multiple calibration nodes, we poll each in sequence — the last one
-    // will be the "active" polled node. Consider upgrading to per-node polling
-    // if the app regularly has >1 calibration node.
-    const nodes = this.calibrationNodeConfigs();
-    for (const node of nodes) {
-      this.calibrationStore.startPolling(node.id);
-    }
+  ngOnDestroy(): void {
+    this.calibrationStore.stopPolling();
   }
 
   async triggerCalibration(nodeId: string): Promise<void> {

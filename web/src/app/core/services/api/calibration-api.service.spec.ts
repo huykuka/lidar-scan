@@ -7,6 +7,7 @@ import {
   CalibrationAcceptResponse,
   CalibrationHistoryRecord,
   CalibrationHistoryResponse,
+  CalibrationNodeStatusResponse,
   CalibrationTriggerResponse,
 } from '../../models/calibration.model';
 
@@ -265,5 +266,108 @@ describe('CalibrationApiService', () => {
     const result = await resultPromise;
     expect(result.sensor_id).toBe('sensor-1');
     expect(result.total_attempts).toBe(5);
+  });
+
+  // --- getNodeStatus (live HTTP, no mock) ---
+
+  it('should GET node status from live endpoint', async () => {
+    const mockStatus: CalibrationNodeStatusResponse = {
+      node_id: 'calib-node-1',
+      node_name: 'ICP Calibration',
+      enabled: true,
+      calibration_state: 'idle',
+      quality_good: null,
+      reference_sensor_id: 'ref-sensor',
+      source_sensor_ids: ['src-sensor'],
+      buffered_frames: {'ref-sensor': 10, 'src-sensor': 8},
+      last_calibration_time: null,
+      pending_results: {},
+    };
+
+    const resultPromise = service.getNodeStatus('calib-node-1');
+
+    const req = httpMock.expectOne(
+      `${environment.apiUrl}/calibration/calib-node-1/status`,
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush(mockStatus);
+
+    const result = await resultPromise;
+    expect(result.node_id).toBe('calib-node-1');
+    expect(result.calibration_state).toBe('idle');
+    expect(result.pending_results).toEqual({});
+  });
+
+  it('should GET node status with pending results', async () => {
+    const mockPendingStatus: CalibrationNodeStatusResponse = {
+      node_id: 'calib-node-1',
+      node_name: 'ICP Calibration',
+      enabled: true,
+      calibration_state: 'pending',
+      quality_good: true,
+      reference_sensor_id: 'ref-sensor',
+      source_sensor_ids: ['src-sensor'],
+      buffered_frames: {'ref-sensor': 28, 'src-sensor': 25},
+      last_calibration_time: '2026-03-22T14:30:00.000Z',
+      pending_results: {
+        'src-sensor': {
+          fitness: 0.921,
+          rmse: 0.00312,
+          quality: 'excellent',
+          quality_good: true,
+          source_sensor_id: 'src-sensor',
+          processing_chain: ['src-sensor', 'calib-node-1'],
+          pose_before: {x: 1500.0, y: -200.0, z: 0.0, roll: 0.0, pitch: 0.0, yaw: 45.0},
+          pose_after: {x: 1502.3, y: -198.7, z: 1.1, roll: 0.12, pitch: -0.08, yaw: 45.31},
+          transformation_matrix: [
+            [0.9999, -0.0054, 0.0021, 0.0023],
+            [0.0054, 0.9999, 0.0008, 0.0013],
+            [-0.0021, -0.0008, 1.0, 0.0000],
+            [0.0, 0.0, 0.0, 1.0],
+          ],
+        },
+      },
+    };
+
+    const resultPromise = service.getNodeStatus('calib-node-1');
+
+    const req = httpMock.expectOne(
+      `${environment.apiUrl}/calibration/calib-node-1/status`,
+    );
+    req.flush(mockPendingStatus);
+
+    const result = await resultPromise;
+    expect(result.calibration_state).toBe('pending');
+    expect(result.quality_good).toBe(true);
+    expect(Object.keys(result.pending_results).length).toBe(1);
+    const pendingResult = result.pending_results['src-sensor'];
+    expect(pendingResult.fitness).toBeCloseTo(0.921);
+    expect(pendingResult.rmse).toBeCloseTo(0.00312);
+    expect(pendingResult.pose_after.x).toBe(1502.3);
+  });
+
+  it('should reject promise on 404 for unknown calibration node', async () => {
+    const resultPromise = service.getNodeStatus('unknown-node');
+
+    const req = httpMock.expectOne(
+      `${environment.apiUrl}/calibration/unknown-node/status`,
+    );
+    req.flush({detail: 'Node not found'}, {status: 404, statusText: 'Not Found'});
+
+    await expect(resultPromise).rejects.toThrow();
+  });
+
+  it('should reject promise on 400 for non-calibration node', async () => {
+    const resultPromise = service.getNodeStatus('lidar-sensor-node');
+
+    const req = httpMock.expectOne(
+      `${environment.apiUrl}/calibration/lidar-sensor-node/status`,
+    );
+    req.flush(
+      {detail: 'Node is not a calibration node'},
+      {status: 400, statusText: 'Bad Request'},
+    );
+
+    await expect(resultPromise).rejects.toThrow();
   });
 });

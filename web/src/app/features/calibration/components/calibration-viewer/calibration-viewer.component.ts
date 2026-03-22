@@ -1,4 +1,5 @@
 import {Component, computed, effect, inject, OnDestroy, signal} from '@angular/core';
+import {toSignal} from '@angular/core/rxjs-interop';
 import {KeyValuePipe} from '@angular/common';
 import {ActivatedRoute, Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -34,8 +35,12 @@ export class CalibrationViewerComponent implements OnDestroy {
   private readonly toast = inject(ToastService);
   private readonly navigationService = inject(NavigationService);
 
-  // ── Route param ───────────────────────────────────────────────────────────
-  nodeId = signal<string | null>(null);
+  // ── Route param as a reactive signal ─────────────────────────────────────
+  // Using toSignal(route.paramMap) ensures this re-evaluates on direct
+  // navigation and after a cold page reload — not just once at construction.
+  private readonly _routeParamMap = toSignal(this.route.paramMap);
+
+  nodeId = computed<string | null>(() => this._routeParamMap()?.get('id') ?? null);
 
   // ── Store pass-throughs ───────────────────────────────────────────────────
   isTriggering = this.calibrationStore.isTriggering;
@@ -63,12 +68,13 @@ export class CalibrationViewerComponent implements OnDestroy {
   showMatrixFor = signal<Record<string, boolean>>({});
 
   constructor() {
-    // Start polling when route param is set
+    // Reactive effect: fires immediately on construction AND whenever nodeId()
+    // changes (e.g. the user navigates to a different calibration node, or the
+    // app is cold-reloaded directly to /calibration/:id).
     effect(
       () => {
-        const id = this.route.snapshot.paramMap.get('id');
+        const id = this.nodeId();
         if (id) {
-          this.nodeId.set(id);
           this.calibrationStore.startPolling(id);
           void this.calibrationStore.loadHistory(id, 50);
           this.navigationService.setPageConfig({
@@ -80,7 +86,7 @@ export class CalibrationViewerComponent implements OnDestroy {
       {allowSignalWrites: true},
     );
 
-    // Update title when node name is resolved from mock/API
+    // Update title when node name is resolved from the API
     effect(() => {
       const node = this.calibrationNode();
       if (node?.node_name) {

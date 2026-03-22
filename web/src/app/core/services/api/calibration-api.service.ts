@@ -14,9 +14,6 @@ import {
   CalibrationTriggerRequest,
   CalibrationTriggerResponse,
 } from '../../models/calibration.model';
-import {
-  MOCK_CALIBRATION_STATUS_PENDING,
-} from '../../mocks/calibration-mock';
 
 @Injectable({
   providedIn: 'root',
@@ -123,19 +120,15 @@ export class CalibrationApiService {
 
   /**
    * Get the current calibration status for a node (polling endpoint).
-   * TODO: Remove mock when backend /status endpoint is live (Backend Task 5.1)
+   * Called every 2 seconds by CalibrationStoreService._fetchStatus().
+   * Endpoint: GET /api/v1/calibration/{node_id}/status
    */
   async getNodeStatus(nodeId: string): Promise<CalibrationNodeStatusResponse> {
-    // Mock until backend Task 5.1 is complete
-    void nodeId;
-    return Promise.resolve(MOCK_CALIBRATION_STATUS_PENDING);
-    /* Real implementation (uncomment when backend is ready):
     return await firstValueFrom(
       this.http.get<CalibrationNodeStatusResponse>(
         `${environment.apiUrl}/calibration/${nodeId}/status`,
       ),
     );
-    */
   }
 }
 
