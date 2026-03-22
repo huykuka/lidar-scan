@@ -123,7 +123,7 @@ export class FlowCanvasNodeComponent {
   protected isWebsocketEnabled = computed(() => {
     const def = this.nodeDefinition();
     // When no definition is found, default to true (backward-compat with unknown types)
-    return def ? def.websocket_enabled !== false : true;
+    return def ? def.websocket_enabled : true;
   });
   private nodeStore = inject(NodeStoreService);
   protected nodeDefinition = computed(() => {

@@ -2,8 +2,10 @@
   <!-- Phase 7.1: Validation errors — shown only when dirty AND invalid -->
   @if (canvasEditStore.isDirty() && !canvasEditStore.isValid()) {
     <div class="shrink-0 mx-3 mt-2 mb-0">
-      <div class="flex items-start gap-2 px-3 py-2 rounded-md border border-syn-color-danger-300 bg-syn-color-danger-50 text-syn-color-danger-800">
-        <syn-icon name="error_outline" class="mt-0.5 shrink-0 text-syn-color-danger-600" style="font-size: 1rem;"></syn-icon>
+      <div
+        class="flex items-start gap-2 px-3 py-2 rounded-md border border-syn-color-danger-300 bg-syn-color-danger-50 text-syn-color-danger-800">
+        <syn-icon name="error_outline" class="mt-0.5 shrink-0 text-syn-color-danger-600"
+                  style="font-size: 1rem;"></syn-icon>
         <div class="flex-1 min-w-0">
           <p class="text-xs font-semibold mb-1">Fix validation errors before saving:</p>
           <ul class="text-xs space-y-0.5 list-disc list-inside">
@@ -34,11 +36,11 @@
         (mouseup)="onCanvasMouseUp($event)"
         (wheel)="onCanvasWheel($event)"
         [style.cursor]="
-          drag.pendingConnection()
+          pendingConnection()
             ? 'crosshair'
-            : drag.isPanning()
+            : isPanning()
               ? 'grabbing'
-              : drag.paletteDragType()
+              : paletteDragType()
                 ? 'copy'
                 : 'default'
         "
@@ -54,14 +56,12 @@
               <circle cx="1" cy="1" [attr.fill]="snapToGrid() ? '#d1d5db' : '#e5e7eb'" r="1"/>
             </pattern>
             <!-- Major cell: bold dot every 4 snap units -->
-            <pattern [attr.height]="gridSize * 4" [attr.width]="gridSize * 4" id="grid-major" patternUnits="userSpaceOnUse">
+            <pattern [attr.height]="gridSize * 4" [attr.width]="gridSize * 4" id="grid-major"
+                     patternUnits="userSpaceOnUse">
               <circle cx="1" cy="1" fill="#9ca3af" r="1.5"/>
             </pattern>
           </defs>
           <rect fill="url(#grid-minor)" height="100%" width="100%"/>
-          @if (snapToGrid()) {
-            <rect fill="url(#grid-major)" height="100%" width="100%"/>
-          }
         </svg>
 
         <!-- Nodes Container -->
@@ -75,7 +75,7 @@
           <!-- Connection Lines Layer (below nodes) -->
           <app-flow-canvas-connections (onDelete)="onDeleteEdge($event)"
                                        [connections]="connections()"
-                                       [pendingPath]="drag.pendingPath()"
+                                       [pendingPath]="pendingPath()"
           />
 
           <!-- Nodes Layer -->
@@ -87,9 +87,9 @@
               [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
               [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
               [class.z-10]="selectedCanvasNode()?.id === node.id"
-              [class.select-none]="!!drag.draggingNode()"
+              [class.select-none]="!!draggingNode()"
               [style.cursor]="
-                drag.draggingNode()?.id === node.id ? 'grabbing' : drag.pendingConnection() ? 'default' : 'grab'
+                draggingNode()?.id === node.id ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
               "
               [style.left.px]="node.position.x"
               [style.top.px]="node.position.y"
@@ -101,7 +101,7 @@
                                     (onToggleVisibility)="onToggleNodeVisibility(node, $event)"
                                     (portDragStart)="onPortDragStart($event)"
                                     (portDrop)="onPortDrop($event)"
-                                    [isDragging]="drag.draggingNode()?.id === node.id"
+                                    [isDragging]="draggingNode()?.id === node.id"
                                     [isLoading]="isNodeLoading(node.id)"
                                     [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
                                     [node]="node"
