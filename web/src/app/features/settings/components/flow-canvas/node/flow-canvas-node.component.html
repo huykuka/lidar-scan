@@ -38,7 +38,7 @@
             portDragStart.emit({ nodeId: node().id, portType: 'output', portId: port.id, portIndex: i, event: $event })
           "
           (mouseup)="$event.stopPropagation()"
-          [class]="' absolute right-0 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 after:absolute after:-inset-4 after:content-[\'\']'"
+          [class]="' absolute right-0 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-[\'\']'"
           [style.top.px]="getOutputPortY(i, outputPorts().length)"
           [title]="port.label + ' — drag to connect'"
         ></div>
