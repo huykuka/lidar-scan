@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone and build sick_scan_xd
-RUN git clone -b 3.8.0 https://github.com/SICKAG/sick_scan_xd.git /workspace/sick_scan_xd \
+RUN git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /workspace/sick_scan_xd \
     && mkdir -p /workspace/build \
     && cd /workspace/build \
     && rm -rf ./* \
