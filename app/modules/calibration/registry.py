@@ -5,11 +5,11 @@ This module registers the calibration node type with the DAG orchestrator.
 Loaded automatically via discover_modules() at application startup.
 """
 from typing import Any, Dict, List
+
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition, PropertySchema, PortSchema, node_schema_registry
 )
-
 
 # --- Schema Definition ---
 # Defines how the calibration node appears in the Angular flow-canvas UI
@@ -81,7 +81,7 @@ node_schema_registry.register(NodeDefinition(
             default=False,
             help_text="Only solve for XYZ position, preserve roll/pitch/yaw (use if sensors have IMU)"
         ),
-        
+
         # Global Registration Settings
         PropertySchema(
             name="enable_global_registration",
@@ -89,6 +89,14 @@ node_schema_registry.register(NodeDefinition(
             type="boolean",
             default=True,
             help_text="Use FPFH+RANSAC for coarse alignment before ICP"
+        ),
+        PropertySchema(
+            name="use_fast_global_registration",
+            label="Use Fast Global Registration (FGR)",
+            type="boolean",
+            default=False,
+            depends_on={"enable_global_registration": [True]},
+            help_text="Use FGR instead of RANSAC — faster and often more accurate, but less robust on noisy data"
         ),
         PropertySchema(
             name="global_voxel_size",
@@ -120,7 +128,7 @@ node_schema_registry.register(NodeDefinition(
             step=10000,
             help_text="Maximum number of RANSAC iterations"
         ),
-        
+
         # Quality Control
         PropertySchema(
             name="min_fitness",
@@ -142,7 +150,7 @@ node_schema_registry.register(NodeDefinition(
             step=0.001,
             help_text="Maximum RMSE threshold in meters (lower is better)"
         ),
-        
+
         # Save Behavior
         PropertySchema(
             name="auto_save",
@@ -174,9 +182,9 @@ node_schema_registry.register(NodeDefinition(
 def build_calibration(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """Build a CalibrationNode instance from persisted node configuration."""
     from .calibration_node import CalibrationNode
-    
+
     config = node.get("config", {})
-    
+
     # Validate and normalize configuration values
     normalized_config = {
         "name": node.get("name", "ICP Calibration"),
@@ -187,6 +195,7 @@ def build_calibration(node: Dict[str, Any], service_context: Any, edges: List[Di
         "normal_max_nn": _parse_int(config.get("normal_max_nn"), 30),
         "translation_only": _parse_bool(config.get("translation_only"), False),
         "enable_global_registration": _parse_bool(config.get("enable_global_registration"), True),
+        "use_fast_global_registration": _parse_bool(config.get("use_fast_global_registration"), False),
         "global_voxel_size": _parse_float(config.get("global_voxel_size"), 0.05),
         "ransac_threshold": _parse_float(config.get("ransac_threshold"), 0.075),
         "ransac_iterations": _parse_int(config.get("ransac_iterations"), 100000),
@@ -195,7 +204,7 @@ def build_calibration(node: Dict[str, Any], service_context: Any, edges: List[Di
         "auto_save": _parse_bool(config.get("auto_save"), False),
         "min_fitness_to_save": _parse_float(config.get("min_fitness_to_save"), 0.8),
     }
-    
+
     return CalibrationNode(
         manager=service_context,
         node_id=node["id"],

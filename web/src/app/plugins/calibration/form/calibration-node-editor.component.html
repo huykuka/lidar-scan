@@ -105,7 +105,7 @@
       <p class="text-[11px] font-bold   uppercase tracking-wide">Global Registration</p>
       <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-3">
         @for (prop of visibleProperties(); track prop.name) {
-          @if (prop.name === 'enable_global_registration' || prop.name === 'global_voxel_size' || prop.name === 'ransac_threshold' || prop.name === 'ransac_iterations') {
+          @if (prop.name === 'enable_global_registration' || prop.name === 'use_fast_global_registration' || prop.name === 'global_voxel_size' || prop.name === 'ransac_threshold' || prop.name === 'ransac_iterations') {
             <div [class.col-span-2]="prop.type === 'boolean'" class="flex flex-col">
               @if (prop.type === 'number') {
                 <syn-input
