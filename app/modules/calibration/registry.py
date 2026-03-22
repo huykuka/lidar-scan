@@ -188,6 +188,7 @@ def build_calibration(node: Dict[str, Any], service_context: Any, edges: List[Di
     # Validate and normalize configuration values
     normalized_config = {
         "name": node.get("name", "ICP Calibration"),
+        "reference_sensor_id": config.get("reference_sensor_id") or None,
         "icp_method": config.get("icp_method", "point_to_plane"),
         "icp_threshold": _parse_float(config.get("icp_threshold"), 0.02),
         "icp_iterations": _parse_int(config.get("icp_iterations"), 50),

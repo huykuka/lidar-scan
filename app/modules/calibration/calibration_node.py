@@ -129,7 +129,11 @@ class CalibrationNode(ModuleNode):
         # Calibration state - REFACTORED: Ring-buffer with provenance tracking
         self._frame_buffer: Dict[str, deque] = {}  # {source_sensor_id: deque[BufferedFrame]}
         self._max_frames = config.get("max_buffered_frames", 30)
-        self._reference_sensor_id: Optional[str] = None
+        # Configured reference sensor (from node editor). When set, role assignment
+        # in on_input is deterministic: this sensor is always reference, everything
+        # else is always source. When None, falls back to first-arrived heuristic.
+        self._configured_reference_id: Optional[str] = config.get("reference_sensor_id") or None
+        self._reference_sensor_id: Optional[str] = self._configured_reference_id
         self._source_sensor_ids: List[str] = []
         self._pending_calibration: Optional[Dict[str, Any]] = None
         self._last_calibration_time: Optional[str] = None
@@ -183,15 +187,27 @@ class CalibrationNode(ModuleNode):
             )
             self._frame_buffer[source_sensor_id].append(frame)
             
-            # Role assignment (reference = first seen)
-            if self._reference_sensor_id is None:
-                self._reference_sensor_id = source_sensor_id
-                logger.info(f"[{self.id}] Set reference sensor: {source_sensor_id[:8]}")
-            elif (source_sensor_id not in self._source_sensor_ids 
-                  and source_sensor_id != self._reference_sensor_id):
-                self._source_sensor_ids.append(source_sensor_id)
-                logger.info(f"[{self.id}] Added source sensor: {source_sensor_id[:8]}. "
-                           f"Total sources: {len(self._source_sensor_ids)}")
+            # Role assignment:
+            # - If reference_sensor_id was configured by the user, it is fixed and
+            #   every other sensor is a source (regardless of arrival order).
+            # - If no reference was configured, fall back to first-arrived heuristic.
+            if self._configured_reference_id:
+                # User-defined reference: deterministic assignment
+                if source_sensor_id != self._configured_reference_id:
+                    if source_sensor_id not in self._source_sensor_ids:
+                        self._source_sensor_ids.append(source_sensor_id)
+                        logger.info(f"[{self.id}] Added source sensor: {source_sensor_id[:8]}. "
+                                   f"Total sources: {len(self._source_sensor_ids)}")
+            else:
+                # Auto heuristic: first seen = reference, rest = sources
+                if self._reference_sensor_id is None:
+                    self._reference_sensor_id = source_sensor_id
+                    logger.info(f"[{self.id}] Auto-set reference sensor: {source_sensor_id[:8]}")
+                elif (source_sensor_id not in self._source_sensor_ids
+                      and source_sensor_id != self._reference_sensor_id):
+                    self._source_sensor_ids.append(source_sensor_id)
+                    logger.info(f"[{self.id}] Added source sensor: {source_sensor_id[:8]}. "
+                               f"Total sources: {len(self._source_sensor_ids)}")
         
         # Forward data through (passthrough mode)
         await self.manager.forward_data(self.id, payload)
