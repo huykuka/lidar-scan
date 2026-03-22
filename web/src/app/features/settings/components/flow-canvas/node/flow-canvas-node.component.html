@@ -38,7 +38,7 @@
             portDragStart.emit({ nodeId: node().id, portType: 'output', portId: port.id, portIndex: i, event: $event })
           "
           (mouseup)="$event.stopPropagation()"
-          [class]="getPortColorClass(port.id) + ' absolute right-0 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 after:absolute after:-inset-4 after:content-[\'\']'"
+          [class]="' absolute right-0 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 after:absolute after:-inset-4 after:content-[\'\']'"
           [style.top.px]="getOutputPortY(i, outputPorts().length)"
           [title]="port.label + ' — drag to connect'"
         ></div>
@@ -48,13 +48,13 @@
 
   <!-- Node Header (Ultra Compact) -->
   <div
-    class="px-2 py-1.5 flex items-center gap-2 cursor-default min-h-[32px] rounded-t-lg transition-colors overflow-hidden"
+    class="px-2 py-1.5 flex items-center gap-2 cursor-default min-h-8 rounded-t-lg transition-colors overflow-hidden"
     [class.bg-syn-color-neutral-50]="isNodeEnabled()"
     [class.bg-syn-color-neutral-200]="!isNodeEnabled()"
   >
     <syn-icon
       [name]="getNodeIcon()"
-      class="text-[16px] shrink-0 flex items-center justify-center -mt-[1px] pointer-events-none"
+      class="text-[16px] shrink-0 flex items-center justify-center -mt-px pointer-events-none"
     />
 
     <div class="flex items-center gap-1.5 min-w-0 flex-1 pointer-events-none">
@@ -63,10 +63,10 @@
       </span>
     </div>
     <syn-icon
-        [name]="operationalIcon().icon"
-        [class]="operationalIcon().css + ' text-[20px] shrink-0'"
-        [title]="status()?.operational_state ?? 'Unknown'"
-      />
+      [name]="operationalIcon().icon"
+      [class]="operationalIcon().css + ' text-[20px] shrink-0'"
+      [title]="status()?.operational_state ?? 'Unknown'"
+    />
   </div>
 
   <!-- Runtime Error Section -->
@@ -75,8 +75,8 @@
       class="px-2 py-1.5 bg-syn-color-danger-50 border-t border-syn-color-danger-100/50 text-[10px] text-syn-color-danger-700 leading-tight italic"
     >
       <div class="flex items-start gap-1">
-        <syn-icon name="error" class="shrink-0 text-xs mt-0.5" />
-        <span class="break-words line-clamp-2" [title]="errorText()">{{ errorText() }}</span>
+        <syn-icon name="error" class="shrink-0 text-xs mt-0.5"/>
+        <span class="wrap-break-word line-clamp-2" [title]="errorText()">{{ errorText() }}</span>
       </div>
     </div>
   }
@@ -111,21 +111,22 @@
     <!-- Right-aligned Unit-specific Controls -->
     <div class="flex items-center">
       @if (isNodeEnabled() && isCalibrationNode()) {
-        <app-node-calibration-controls [node]="node()" [status]="status()" />
+        <app-node-calibration-controls [node]="node()" [status]="status()"/>
       }
 
       @if (isNodeEnabled() && hasOutputPort() && isWebsocketEnabled()) {
-        <app-node-recording-controls [node]="node()" />
+        <app-node-recording-controls [node]="node()"/>
       }
     </div>
   </div>
-  
+
   <!-- Application State Label (Node-RED style: colored square + text, floats below node) -->
   @if (appBadge()) {
     <div class="absolute -bottom-5 left-0 flex items-center gap-1.5 z-10">
       <div class="w-2.5 h-2.5 shrink-0"
            [style.background-color]="appBadge()!.color"></div>
-      <span class="text-[10px] text-gray-500 bg-white px-1 py-0.5 font-normal leading-none">{{ appBadge()!.text }}</span>
+      <span
+        class="text-[10px] text-gray-500 bg-white px-1 py-0.5 font-normal leading-none">{{ appBadge()!.text }}</span>
     </div>
   }
 </div>

@@ -8,6 +8,8 @@ import {NodesApiService} from '@core/services/api/nodes-api.service';
 import {Edge, NodeConfig} from '@core/models/node.model';
 import {DagConfigResponse} from '@core/models/dag.model';
 import {detectCycles, validateRequiredFields, ValidationError,} from '@features/settings/utils/dag-validator';
+import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
+import {Connection} from '@features/settings/components/flow-canvas/connections/flow-canvas-connections.component';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -15,6 +17,8 @@ import {detectCycles, validateRequiredFields, ValidationError,} from '@features/
 function deepEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
+
+const GRID_SIZE = 20; // must match canvas SVG grid pattern size
 
 // ---------------------------------------------------------------------------
 // Service
@@ -25,6 +29,11 @@ function deepEqual(a: unknown, b: unknown): boolean {
  *
  * IMPORTANT: This service must be provided via `providers: [CanvasEditStoreService]`
  * on SettingsComponent. It must NOT be `providedIn: 'root'`.
+ *
+ * This store is the single source of truth for both the edit draft (localNodes /
+ * localEdges) and the derived canvas view state (canvasNodes / connections).
+ * FlowCanvasComponent reads those signals directly instead of maintaining its
+ * own parallel copies.
  */
 @Injectable()
 export class CanvasEditStoreService {
@@ -39,6 +48,11 @@ export class CanvasEditStoreService {
    *  the initial empty-signal state (before HTTP completes) from a real empty node list. */
   private _isInitialized = signal<boolean>(false);
 
+  // ------ View-layer state (owned here, consumed by FlowCanvasComponent) ------
+  /** Mutable view-model for nodes on the canvas. Written by mergeCanvasNodes()
+   *  and directly mutated during drag to keep rendering smooth. */
+  private _canvasNodes = signal<CanvasNode[]>([]);
+
   // ------ Public read-only exposures ------
   readonly localNodes = this._localNodes.asReadonly();
   readonly localEdges = this._localEdges.asReadonly();
@@ -47,6 +61,9 @@ export class CanvasEditStoreService {
   readonly isSyncing = this._isSyncing.asReadonly();
   readonly isReloading = this._isReloading.asReadonly();
   readonly isInitialized = this._isInitialized.asReadonly();
+
+  /** Derived canvas view-model nodes (position + data wrapped for the template). */
+  readonly canvasNodes = this._canvasNodes.asReadonly();
 
   // ------ Conflict event channel ------
   readonly conflictDetected$ = new Subject<string>();
@@ -77,6 +94,28 @@ export class CanvasEditStoreService {
 
   readonly isValid = computed(() => this.validationErrors().length === 0);
 
+  // ------ Computed: SVG connection paths (derived from canvasNodes + localEdges) ------
+  readonly connections = computed<Connection[]>(() => {
+    const nodes = this._canvasNodes();
+    const edges = this._localEdges();
+    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+
+    return edges.flatMap((edge) => {
+      const sourceNode = nodeMap.get(edge.source_node);
+      const targetNode = nodeMap.get(edge.target_node);
+      if (!sourceNode || !targetNode) return [];
+
+      const sourceDef = this.nodeStore.nodeDefinitions().find((d) => d.type === sourceNode.data.type);
+      const outputPorts = sourceDef?.outputs ?? [];
+      const portIndex = outputPorts.findIndex((p) => p.id === edge.source_port);
+
+      let color = '#6366f1';
+
+      const path = this._calculatePath(sourceNode, targetNode, portIndex >= 0 ? portIndex : 0, outputPorts.length);
+      return [{ id: edge.id, from: edge.source_node, to: edge.target_node, path, color }];
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // initFromBackend
   // ---------------------------------------------------------------------------
@@ -86,6 +125,7 @@ export class CanvasEditStoreService {
     this._localEdges.set(structuredClone(config.edges));
     this._baseVersion.set(config.config_version);
     this.nodeStore.setState({ nodes: config.nodes, edges: config.edges });
+    this._mergeCanvasNodes(config.nodes);
     this._isInitialized.set(true);
   }
 
@@ -107,12 +147,14 @@ export class CanvasEditStoreService {
       y: node.y ?? 100,
     };
     this._localNodes.update((nodes) => [...nodes, newNode]);
+    this._mergeCanvasNodes(this._localNodes());
   }
 
   updateNode(id: string, patch: Partial<NodeConfig>): void {
     this._localNodes.update((nodes) =>
       nodes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
     );
+    this._mergeCanvasNodes(this._localNodes());
   }
 
   deleteNode(id: string): void {
@@ -120,6 +162,7 @@ export class CanvasEditStoreService {
     this._localEdges.update((edges) =>
       edges.filter((e) => e.source_node !== id && e.target_node !== id),
     );
+    this._mergeCanvasNodes(this._localNodes());
   }
 
   addEdge(edge: Edge): void {
@@ -144,6 +187,17 @@ export class CanvasEditStoreService {
 
   moveNode(id: string, x: number, y: number): void {
     this.updateNode(id, { x, y });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Canvas view-model helpers (used by FlowCanvasComponent during drag)
+  // ---------------------------------------------------------------------------
+
+  /** Directly update canvasNodes position for a node being dragged (smooth, no store roundtrip). */
+  updateCanvasNodePosition(id: string, position: { x: number; y: number }): void {
+    this._canvasNodes.update((nodes) =>
+      nodes.map((n) => (n.id === id ? { ...n, position } : n)),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -187,6 +241,7 @@ export class CanvasEditStoreService {
         nodes: this._localNodes(),
         edges: this._localEdges(),
       });
+      this._mergeCanvasNodes(this._localNodes());
       this.toast.success('DAG saved and reloading…');
     } catch (error: any) {
       const is409 =
@@ -253,4 +308,79 @@ export class CanvasEditStoreService {
       this._isReloading.set(false);
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Private: canvas view-model derivation
+  // ---------------------------------------------------------------------------
+
+  private _mergeCanvasNodes(nodes: NodeConfig[]): void {
+    const existing = new Map(this._canvasNodes().map((n) => [n.id, n]));
+    const incoming = new Set(nodes.map((n) => n.id));
+
+    const merged: CanvasNode[] = nodes.map((node, index) => {
+      const prev = existing.get(node.id);
+      // Prefer backend-supplied coordinates if present; fall back to the current
+      // canvas position (preserves drag positions not yet persisted) or a default grid slot.
+      const position =
+        node.x != null && node.y != null
+          ? { x: node.x, y: node.y }
+          : prev
+            ? prev.position
+            : { x: 100 + (index % 4) * 300, y: 100 + Math.floor(index / 4) * 250 };
+
+      return {
+        id: node.id,
+        type: (node.category || node.type || 'unknown').toLowerCase(),
+        data: node,
+        position,
+      };
+    });
+
+    const prevIds = [...existing.keys()];
+    const structurallyChanged =
+      merged.length !== prevIds.length || prevIds.some((id) => !incoming.has(id));
+
+    if (structurallyChanged) {
+      this._canvasNodes.set(merged);
+    } else {
+      const mergedById = new Map(merged.map((m) => [m.id, m]));
+      this._canvasNodes.update((current) =>
+        current.map((n) => {
+          const updated = mergedById.get(n.id);
+          if (!updated) return n;
+          return { ...n, data: updated.data, position: updated.position };
+        }),
+      );
+    }
+  }
+
+  private _calculatePath(
+    fromNode: CanvasNode,
+    toNode: CanvasNode,
+    fromPortIndex: number = 0,
+    totalOutputPorts: number = 1,
+  ): string {
+    const fromX = fromNode.position.x + 192 + 6;
+    const fromY = fromNode.position.y + this._portY(fromPortIndex, totalOutputPorts);
+    const toX = toNode.position.x - 6;
+    const toY = toNode.position.y + 16;
+
+    const cp = Math.max(Math.abs(toX - fromX) * 0.5, 40);
+    return `M ${fromX} ${fromY} C ${fromX + cp} ${fromY}, ${toX - cp} ${toY}, ${toX} ${toY}`;
+  }
+
+  /** Y offset of a port within its node, matching FlowCanvasNodeComponent.getOutputPortY(). */
+  private _portY(portIndex: number, totalPorts: number): number {
+    if (totalPorts === 1) return 16;
+    const nodeHeight = 80;
+    const spacing = nodeHeight / (totalPorts + 1);
+    return spacing * (portIndex + 1);
+  }
+
+  /** Snap a value to the nearest grid line. */
+  snapValue(value: number, enabled: boolean): number {
+    if (!enabled) return value;
+    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  }
+  
 }

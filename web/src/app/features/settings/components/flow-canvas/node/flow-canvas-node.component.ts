@@ -1,7 +1,7 @@
-import {Component, computed, inject, input, OnInit, output, signal} from '@angular/core';
+import {Component, computed, inject, input, output} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeConfig, NodeDefinition, PortSchema, PropertySchema} from '@core/models/node.model';
+import {NodeConfig, PortSchema} from '@core/models/node.model';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
@@ -54,8 +54,7 @@ export class FlowCanvasNodeComponent {
     return this.node().type?.toLowerCase() ?? 'unknown';
   });
   protected isCalibrationNode = computed(() => this.nodeCategory() === 'calibration');
-  protected isIfConditionNode = computed(() => this.nodeCategory() === 'flow_control');
-  
+
   /**
    * Map semantic color names from application_state to CSS hex colors
    */
@@ -66,7 +65,7 @@ export class FlowCanvasNodeComponent {
     red: '#dc2626',
     gray: '#6b7280',
   };
-  
+
   /**
    * Compute operational state icon and styling
    */
@@ -75,7 +74,7 @@ export class FlowCanvasNodeComponent {
     if (!status) {
       return { icon: 'radio_button_unchecked', css: 'text-syn-color-neutral-300' };
     }
-    
+
     switch (status.operational_state) {
       case 'INITIALIZE':
         return { icon: 'hourglass_empty', css: 'text-syn-color-warning-600 animate-pulse' };
@@ -89,28 +88,28 @@ export class FlowCanvasNodeComponent {
         return { icon: 'radio_button_unchecked', css: 'text-syn-color-neutral-300' };
     }
   });
-  
+
   /**
    * Compute application-specific state badge (Node-RED style bottom-right badge)
    */
   protected appBadge = computed<{ text: string; color: string } | null>(() => {
     const status = this.status();
     if (!status?.application_state) return null;
-    
+
     const { label, value, color } = status.application_state;
-    
+
     // Convert boolean values to strings
     const displayValue = typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value);
-    
+
     // Map semantic color to hex, defaulting to gray if not provided
     const hexColor = color ? (this.badgeColorMap[color] ?? color) : this.badgeColorMap['gray'];
-    
+
     return {
       text: `${label}: ${displayValue}`,
       color: hexColor,
     };
   });
-  
+
   /**
    * Compute error message (only when operational_state is ERROR)
    */
@@ -119,7 +118,7 @@ export class FlowCanvasNodeComponent {
     if (!status || status.operational_state !== 'ERROR') return null;
     return status.error_message ?? null;
   });
-  
+
   /** True when the node definition has WebSocket streaming enabled (default: true when definition is absent). */
   protected isWebsocketEnabled = computed(() => {
     const def = this.nodeDefinition();
@@ -160,16 +159,5 @@ export class FlowCanvasNodeComponent {
     return spacing * (portIndex + 1);
   }
 
-  /**
-   * Get port color based on port ID for multi-port nodes
-   */
-  getPortColorClass(portId: string): string {
-    if (portId === 'true') {
-      return 'bg-green-600'; // Green for true port
-    } else if (portId === 'false') {
-      return 'bg-orange-500'; // Orange for false port
-    }
-    return 'bg-syn-color-primary-600'; // Default blue for single-port nodes
-  }
 
 }

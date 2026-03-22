@@ -1,47 +1,21 @@
-import {
-  Component,
-  computed,
-  effect,
-  HostListener,
-  inject,
-  OnDestroy,
-  OnInit,
-  signal,
-  untracked,
-} from '@angular/core';
-
+import {Component, computed, effect, HostListener, inject, OnDestroy, OnInit, signal, untracked} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {FlowCanvasDragService} from '@features/settings/components/flow-canvas/flow-canvas-drag';
-import {
-  CanvasNode,
-  FlowCanvasNodeComponent,
-} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import {
-  FlowCanvasPaletteComponent
-} from '@features/settings/components/flow-canvas/palette/flow-canvas-palette.component';
-import {
-  FlowCanvasControlsComponent
-} from '@features/settings/components/flow-canvas/controls/flow-canvas-controls.component';
-import {
-  Connection,
-  FlowCanvasConnectionsComponent,
-} from '@features/settings/components/flow-canvas/connections/flow-canvas-connections.component';
-import {
-  FlowCanvasEmptyStateComponent
-} from '@features/settings/components/flow-canvas/empty-state/flow-canvas-empty-state.component';
-import {
-  DynamicNodeEditorComponent
-} from '@features/settings/components/dynamic-node-editor/dynamic-node-editor.component';
+
 import {NodePlugin} from '@core/models';
 import {NodeStoreService} from '@core/services/stores';
 import {NodesApiService} from '@core/services/api';
 import {DialogService, ToastService} from '@core/services';
 import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 import {StatusWebSocketService} from '@core/services/status-websocket.service';
-import {NodeConfig} from '@core/models/node.model';
 import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 
-const GRID_SIZE = 20; // px — must match the SVG grid pattern size
+import {FlowCanvasDragService} from './flow-canvas-drag';
+import {CanvasNode, FlowCanvasNodeComponent} from './node/flow-canvas-node.component';
+import {FlowCanvasPaletteComponent} from './palette/flow-canvas-palette.component';
+import {FlowCanvasControlsComponent} from './controls/flow-canvas-controls.component';
+import {FlowCanvasConnectionsComponent} from './connections/flow-canvas-connections.component';
+import {FlowCanvasEmptyStateComponent} from './empty-state/flow-canvas-empty-state.component';
+import {DynamicNodeEditorComponent} from '../dynamic-node-editor/dynamic-node-editor.component';
 
 @Component({
   selector: 'app-flow-canvas',
@@ -61,19 +35,32 @@ const GRID_SIZE = 20; // px — must match the SVG grid pattern size
 })
 export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected drag = inject(FlowCanvasDragService);
+
+  // ------ Store ------
+  private nodeStore = inject(NodeStoreService);
+  protected canvasEditStore = inject(CanvasEditStoreService);
+
+  // ------ View state owned by the component ------
   protected drawerOpen = signal(false);
   protected availablePlugins = signal<NodePlugin[]>([]);
-  protected canvasNodes = signal<CanvasNode[]>([]);
-  protected connections = signal<Connection[]>([]);
   protected panOffset = signal({ x: 0, y: 0 });
   protected zoom = signal(1);
   protected selectedCanvasNode = signal<CanvasNode | null>(null);
-  // Raw (unsnapped) drag accumulator — tracks continuous mouse movement so the
-  // node follows the cursor smoothly; snapping is applied only on drop.
+  /** Raw (unsnapped) drag accumulator — tracks continuous mouse movement so the
+   *  node follows the cursor smoothly; snapping is applied only on drop. */
   private rawDragPos = signal<{ x: number; y: number } | null>(null);
   protected isTogglingVisibility = signal<string | null>(null);
   protected snapToGrid = signal(true);
-  readonly gridSize = GRID_SIZE;
+  readonly gridSize = 20; // px — must match the SVG grid pattern size
+  protected isPaletteLoading = signal(true);
+  protected isCanvasLoading = signal(true);
+  protected nodeLoadingStates = signal<Record<string, boolean>>({});
+
+  // ------ Store-sourced signals (single source of truth) ------
+  protected canvasNodes = this.canvasEditStore.canvasNodes;
+  protected connections = this.canvasEditStore.connections;
+
+  // ------ Derived from canvasNodes ------
   protected canvasWidth = computed(() => {
     const nodes = this.canvasNodes();
     if (!nodes.length) return '100%';
@@ -86,15 +73,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const maxY = Math.max(...nodes.map((n) => n.position.y + 250));
     return `calc(max(100%, ${maxY}px) * ${this.zoom()})`;
   });
-  protected isPaletteLoading = signal(true);
-  protected isCanvasLoading = signal(true);
-  protected nodeLoadingStates = signal<Record<string, boolean>>({});
 
-  private nodeStore = inject(NodeStoreService);
-  // Phase 2.2: drive canvasNodes + connections from the local-edit store
-  protected canvasEditStore = inject(CanvasEditStoreService);
-  protected nodes = this.canvasEditStore.localNodes;
-  protected edges = this.canvasEditStore.localEdges;
   private nodesApi = inject(NodesApiService);
   private toast = inject(ToastService);
   private dialog = inject(DialogService);
@@ -103,32 +82,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected nodesStatus = this.statusWs.status;
 
   constructor() {
-    // Phase 2.2: react to localNodes from the store.
-    // canvasEditStore.isInitialized() gates the loading spinner: the effect fires
-    // immediately at construction with the default empty signal, so we must not
-    // clear isCanvasLoading until the store has actually been seeded from the backend.
+    // Clear the canvas loading spinner once the store is initialized.
     effect(() => {
-      const nodes = this.nodes();
-      const initialized = this.canvasEditStore.isInitialized();
-      untracked(() => {
-        this.mergeCanvasNodes(nodes);
-        if (initialized) {
-          this.isCanvasLoading.set(false);
-        }
-      });
+      if (this.canvasEditStore.isInitialized()) {
+        untracked(() => this.isCanvasLoading.set(false));
+      }
     });
 
-    // Phase 2.2: react to localEdges from the store.
-    // NOTE: updateConnections() reads canvasNodes() internally — we must NOT wrap it
-    // in untracked() or the effect won't re-run when canvasNodes changes without an
-    // edge change (e.g. after a node position update from sync).
-    effect(() => {
-      this.updateConnections();
-    });
-
-    // Phase 7.2: derive availablePlugins from nodeStore.nodeDefinitions()
-    // nodeDefinitions are populated by NodePluginRegistry.loadFromBackend() which
-    // is now called in SettingsComponent.ngOnInit() before initFromBackend().
+    // Populate the node palette from registered plugins once definitions arrive.
     effect(() => {
       const definitions = this.nodeStore.nodeDefinitions();
       untracked(() => {
@@ -140,8 +101,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     // WebSocket lifecycle is managed by SettingsComponent (the page owner).
-    // FlowCanvasComponent only consumes the status signal; it must not call
-    // connect/disconnect or it will race with the parent's lifecycle.
+    // FlowCanvasComponent only consumes the status signal.
   }
 
   ngOnDestroy(): void {
@@ -165,21 +125,16 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     } else if (this.drag.draggingNode()) {
       const node = this.drag.draggingNode()!;
       // Accumulate raw (unsnapped) delta so the node follows the cursor exactly.
-      // Snapping is deferred to mouseup so there is no per-frame jitter.
       const prev = this.rawDragPos() ?? node.position;
       const raw = {
         x: prev.x + event.movementX / this.zoom(),
         y: prev.y + event.movementY / this.zoom(),
       };
       this.rawDragPos.set(raw);
-
-      this.canvasNodes.update((nodes) =>
-        nodes.map((n) => (n.id === node.id ? { ...n, position: raw } : n)),
-      );
+      // Update the view-model position directly in the store for smooth rendering.
+      this.canvasEditStore.updateCanvasNodePosition(node.id, raw);
       this.drag.updateDraggingNode({ ...node, position: raw });
-      this.updateConnections();
     } else if (this.drag.pendingConnection()) {
-      // Update the live pending bezier path as the cursor moves
       const pending = this.drag.pendingConnection()!;
       const canvasEl = event.currentTarget as HTMLElement;
       const rect = canvasEl.getBoundingClientRect();
@@ -192,8 +147,8 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
         const outputPorts = def?.outputs ?? [];
         const totalOutputs = outputPorts.length;
 
-        const fromX = fromNode.position.x + 192 + 6; // node width + tab center (6px)
-        const fromY = fromNode.position.y + this.calculatePortY(pending.fromPortIndex, totalOutputs);
+        const fromX = fromNode.position.x + 192 + 6;
+        const fromY = fromNode.position.y + this._portY(pending.fromPortIndex, totalOutputs);
         const cp = Math.max(Math.abs(toX - fromX) * 0.5, 40);
         this.drag.updateConnectionPath(
           `M ${fromX} ${fromY} C ${fromX + cp} ${fromY} ${toX - cp} ${toY} ${toX} ${toY}`,
@@ -209,19 +164,12 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
     const dropped = this.drag.endNodeDrag();
     if (dropped) {
-      // Snap the final position before persisting to the store
-      const snapped = this.snapPos(dropped.position);
+      // Snap the final position before persisting to the store.
+      const snapped = this._snapPos(dropped.position);
       this.canvasEditStore.moveNode(dropped.nodeId, snapped.x, snapped.y);
-      // Reflect the snapped position in canvasNodes too
-      this.canvasNodes.update((nodes) =>
-        nodes.map((n) => (n.id === dropped.nodeId ? { ...n, position: snapped } : n)),
-      );
-      this.updateConnections();
-      // Reset the raw accumulator now that the drag is committed
       this.rawDragPos.set(null);
     }
 
-    // Cancel any pending port connection if released on empty canvas
     if (this.drag.pendingConnection()) {
       this.drag.cancelConnectionDrag();
     }
@@ -230,18 +178,16 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
       const rawX = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
       const rawY = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
-      this.createNodeAtPosition(this.drag.paletteDragType()!, this.snapPos({ x: rawX, y: rawY }));
+      this.createNodeAtPosition(this.drag.paletteDragType()!, this._snapPos({ x: rawX, y: rawY }));
       this.drag.endPaletteDrag();
     }
   }
 
-  /** Called when user starts dragging from an output port on a node. */
   onPortDragStart(event: { nodeId: string; portType: 'input' | 'output'; portId: string; portIndex: number; event: MouseEvent }) {
     if (event.portType !== 'output') return;
     this.drag.startConnectionDrag(event.nodeId, event.portId, event.portIndex);
   }
 
-  /** Called when user releases on an input port on a node. */
   onPortDrop(event: { nodeId: string; portType: 'input' | 'output' }) {
     const pending = this.drag.pendingConnection();
     if (!pending || event.portType !== 'input') {
@@ -257,7 +203,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Phase 2.3: Check for duplicate edge against localEdges, then stage locally
     const exists = this.canvasEditStore.localEdges().some(
       (e) => e.source_node === sourceId && e.target_node === targetId && e.source_port === pending.fromPortId,
     );
@@ -285,8 +230,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   onNodeMouseDown(event: MouseEvent, node: CanvasNode) {
     event.stopPropagation();
     this.selectedCanvasNode.set(node);
-    // Seed the raw accumulator from the node's current position so the first
-    // mousemove delta is applied to the correct base coordinate.
     this.rawDragPos.set({ x: node.position.x, y: node.position.y });
     this.drag.startNodeDrag(node, event.offsetX, event.offsetY);
   }
@@ -316,7 +259,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const rawX = (event.clientX - rect.left - this.panOffset().x) / this.zoom();
     const rawY = (event.clientY - rect.top - this.panOffset().y) / this.zoom();
 
-    this.createNodeAtPosition(type, this.snapPos({ x: rawX, y: rawY }));
+    this.createNodeAtPosition(type, this._snapPos({ x: rawX, y: rawY }));
     this.drag.endPaletteDrag();
   }
 
@@ -326,32 +269,25 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.drawerOpen.set(true);
   }
 
-  // Phase 2.5: deleteNode now delegates to the store
   async onDeleteNode(node: CanvasNode) {
     const name = node.data.name || node.id;
     if (!(await this.dialog.confirm(`Are you sure you want to delete ${name}?`))) return;
-
     this.canvasEditStore.deleteNode(node.id);
     this.toast.success(`${name} deleted.`);
   }
 
-  // Phase 2.4: deleteEdge now delegates to the store
   async onDeleteEdge(edgeId: string) {
     if (!(await this.dialog.confirm('Are you sure you want to delete this connection?'))) return;
     this.canvasEditStore.deleteEdge(edgeId);
-    this.updateConnections();
     this.toast.success('Connection removed.');
   }
 
-  // Phase 2.8: after live enable/disable, sync localNodes via the store
   async onToggleNodeEnabled(node: CanvasNode, enabled: boolean) {
     this.nodeLoadingStates.update((states) => ({ ...states, [node.id]: true }));
-
     try {
       await this.nodesApi.setNodeEnabled(node.id, enabled);
       const name = node.data.name || node.id;
       this.toast.success(`${name} ${enabled ? 'enabled' : 'disabled'}.`);
-      // Keep localNodes in sync without marking isDirty (pass-through update)
       this.canvasEditStore.updateNode(node.id, { enabled });
     } catch (error) {
       console.error('Failed to toggle node', error);
@@ -366,22 +302,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   async onToggleNodeVisibility(node: CanvasNode, visible: boolean) {
-    // Set pending state for this specific node
     this.isTogglingVisibility.set(node.id);
-
-    // Optimistic update via canvasEditStore so localNodes (and canvasNodes) reflect the change immediately
     this.canvasEditStore.updateNode(node.id, { visible });
-
     try {
-      // Call backend API
       await this.nodesApi.setNodeVisible(node.id, visible);
     } catch (error) {
       console.error('Failed to toggle node visibility', error);
-
-      // Rollback: revert optimistic update in the same store
       this.canvasEditStore.updateNode(node.id, { visible: !visible });
     } finally {
-      // Clear pending state
       this.isTogglingVisibility.set(null);
     }
   }
@@ -436,140 +364,32 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
-  private mergeCanvasNodes(nodes: NodeConfig[]): void {
-    const existing = new Map(this.canvasNodes().map((n) => [n.id, n]));
-    const incoming = new Set(nodes.map((n) => n.id));
-
-    const merged: CanvasNode[] = nodes.map((node, index) => {
-      const prev = existing.get(node.id);
-      // Prefer backend-supplied coordinates if present; fall back to the current
-      // canvas position (preserves drag positions not yet persisted) or a default grid slot.
-      const position =
-        node.x != null && node.y != null
-          ? { x: node.x, y: node.y }
-          : prev
-            ? prev.position
-            : { x: 100 + (index % 4) * 300, y: 100 + Math.floor(index / 4) * 250 };
-
-      return {
-        id: node.id,
-        type: (node.category || node.type || 'unknown').toLowerCase(),
-        data: node,
-        position,
-      };
-    });
-
-    const prevIds = [...existing.keys()];
-    const structurallyChanged =
-      merged.length !== prevIds.length || prevIds.some((id) => !incoming.has(id));
-
-    if (structurallyChanged) {
-      this.canvasNodes.set(merged);
-      this.updateConnections();
-    } else {
-      const mergedById = new Map(merged.map((m) => [m.id, m]));
-      this.canvasNodes.update((current) =>
-        current.map((n) => {
-          const updated = mergedById.get(n.id);
-          if (!updated) return n;
-          // Update both data and position so backend coordinate changes are reflected.
-          return { ...n, data: updated.data, position: updated.position };
-        }),
-      );
-    }
-  }
-
-  private updateConnections(): void {
-    const nodes = this.canvasNodes();
-    const edges = this.edges();
-    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
-    // Read the previous connections OUTSIDE the reactive graph so the effect that
-    // calls this method does not treat `connections` as a tracked dependency.
-    // Without untracked() here, the effect would re-schedule itself every time
-    // connections.set() is called below, creating an oscillation loop.
-    const prev = new Map(untracked(() => this.connections()).map((c) => [c.id, c]));
-
-    const next: Connection[] = [];
-
-    edges.forEach((edge) => {
-      const sourceNode = nodeMap.get(edge.source_node);
-      const targetNode = nodeMap.get(edge.target_node);
-      if (!sourceNode || !targetNode) return;
-
-      const sourceDef = this.nodeStore.nodeDefinitions().find((d) => d.type === sourceNode.data.type);
-      const outputPorts = sourceDef?.outputs ?? [];
-      const portIndex = outputPorts.findIndex((p) => p.id === edge.source_port);
-      const totalOutputs = outputPorts.length;
-
-      let color = '#6366f1';
-      if (edge.source_port === 'true') color = '#16a34a';
-      else if (edge.source_port === 'false') color = '#f97316';
-
-      const path = this.calculatePath(sourceNode, targetNode, portIndex >= 0 ? portIndex : 0, totalOutputs);
-
-      const existing = prev.get(edge.id);
-      if (existing && existing.path === path && existing.color === color) {
-        // Path and color unchanged — reuse the same object reference so Angular's
-        // @for track keeps the DOM node alive and the draw-in animation does NOT replay.
-        next.push(existing);
-      } else {
-        next.push({ id: edge.id, from: edge.source_node, to: edge.target_node, path, color });
-      }
-    });
-
-    this.connections.set(next);
-  }
-
-  private calculatePath(fromNode: CanvasNode, toNode: CanvasNode, fromPortIndex: number = 0, totalOutputPorts: number = 1): string {
-    const fromX = fromNode.position.x + 192 + 6; // node width + tab center
-    const fromY = fromNode.position.y + this.calculatePortY(fromPortIndex, totalOutputPorts);
-    const toX = toNode.position.x - 6;           // target tab center
-    const toY = toNode.position.y + 16;
-
-    const controlPointOffset = Math.max(Math.abs(toX - fromX) * 0.5, 40);
-    const cp1x = fromX + controlPointOffset;
-    const cp1y = fromY;
-    const cp2x = toX - controlPointOffset;
-    const cp2y = toY;
-
-    return `M ${fromX} ${fromY} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${toX} ${toY}`;
-  }
-
-  /**
-   * Calculate Y position for a port based on its index and total count
-   * Matches the logic in FlowCanvasNodeComponent.getOutputPortY()
-   */
-  private calculatePortY(portIndex: number, totalPorts: number): number {
-    if (totalPorts === 1) {
-      return 16; // Single port: center at top-4 (original position)
-    }
-    // Multiple ports: distribute evenly
-    const nodeHeight = 80; // Approximate node height in pixels
-    const spacing = nodeHeight / (totalPorts + 1);
-    return spacing * (portIndex + 1);
-  }
-
-  /** Snap a coordinate to the nearest grid line when snap-to-grid is enabled. */
-  private snap(value: number): number {
-    if (!this.snapToGrid()) return value;
-    return Math.round(value / GRID_SIZE) * GRID_SIZE;
-  }
-
-  /** Snap an {x, y} position pair. */
-  private snapPos(pos: { x: number; y: number }): { x: number; y: number } {
-    return { x: this.snap(pos.x), y: this.snap(pos.y) };
-  }
-
   private createNodeAtPosition(type: string, position: { x: number; y: number }) {
     const plugin = this.pluginRegistry.get(type);
     if (!plugin) {
       this.toast.danger(`Unknown node type: ${type}`);
       return;
     }
-
     const defaultData = plugin.createInstance();
     this.nodeStore.set('selectedNode', { ...defaultData, x: position.x, y: position.y });
     this.nodeStore.set('editMode', false);
     this.drawerOpen.set(true);
+  }
+
+  /** Y offset of a port within its node (must match store's _portY). */
+  private _portY(portIndex: number, totalPorts: number): number {
+    if (totalPorts === 1) return 16;
+    const nodeHeight = 80;
+    const spacing = nodeHeight / (totalPorts + 1);
+    return spacing * (portIndex + 1);
+  }
+
+  private _snap(value: number): number {
+    if (!this.snapToGrid()) return value;
+    return Math.round(value / 20) * 20;
+  }
+
+  private _snapPos(pos: { x: number; y: number }): { x: number; y: number } {
+    return { x: this._snap(pos.x), y: this._snap(pos.y) };
   }
 }
