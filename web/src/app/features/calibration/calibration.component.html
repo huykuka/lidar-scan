@@ -105,24 +105,32 @@
 
             <!-- Actions -->
             <div class="flex flex-wrap justify-end gap-2 mt-auto">
-              <syn-button
-                size="small"
-                (click)="triggerCalibration(nodeConfig.id)"
-                [disabled]="calibrationStore.isTriggering()"
+              @let calibDisabled = isCalibrationDisabled()(nodeConfig.id);
+              <syn-tooltip
+                [content]="calibDisabled ? calibrationDisabledTooltip : ''"
+                [disabled]="!calibDisabled"
               >
-                <syn-icon name="tune" slot="prefix" />
-                Run Calibration
-              </syn-button>
+                <syn-button
+                  size="small"
+                  (click)="triggerCalibration(nodeConfig.id)"
+                  [disabled]="calibrationStore.isTriggering() || calibDisabled"
+                >
+                  <syn-icon name="tune" slot="prefix" />
+                  Run Calibration
+                </syn-button>
+              </syn-tooltip>
 
               <syn-button (click)="viewDetails(nodeConfig.id)" size="small" variant="text">
                 <syn-icon name="visibility" slot="prefix" />
                 View Details
               </syn-button>
 
-              <syn-button (click)="viewHistory(nodeConfig.id)" size="small" variant="text">
-                <syn-icon name="history" slot="prefix" />
-                View History
-              </syn-button>
+              @if (hasHistory()(nodeConfig.id)) {
+                <syn-button (click)="viewHistory(nodeConfig.id)" size="small" variant="text">
+                  <syn-icon name="history" slot="prefix" />
+                  View History
+                </syn-button>
+              }
             </div>
           </syn-card>
         }

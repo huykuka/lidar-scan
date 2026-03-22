@@ -8,6 +8,7 @@ import {NodeStoreService} from '../../core/services/stores/node-store.service';
 import {ToastService} from '../../core/services/toast.service';
 import {NavigationService} from '../../core/services';
 import {NodeConfig} from '../../core/models/node.model';
+import {CalibrationHistoryRecord} from '../../core/models/calibration.model';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,24 @@ function makeCalibrationNode(id: string, name: string): NodeConfig {
     config: {},
     x: 0,
     y: 0,
+  };
+}
+
+function makeHistoryRecord(id: string, sensorId = 'sensor-1'): CalibrationHistoryRecord {
+  return {
+    id,
+    sensor_id: sensorId,
+    reference_sensor_id: 'ref-sensor',
+    timestamp: new Date().toISOString(),
+    fitness: 0.9,
+    rmse: 0.003,
+    quality: 'excellent',
+    stages_used: [],
+    pose_before: {x: 0, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0},
+    pose_after: {x: 1, y: 0, z: 0, roll: 0, pitch: 0, yaw: 0},
+    transformation_matrix: [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],
+    accepted: true,
+    notes: '',
   };
 }
 
@@ -42,6 +61,7 @@ describe('CalibrationComponent', () => {
     stopPolling: ReturnType<typeof vi.fn>;
     triggerCalibration: ReturnType<typeof vi.fn>;
     nodeStatuses: ReturnType<typeof signal>;
+    historyByNode: ReturnType<typeof signal>;
     error: ReturnType<typeof signal>;
     isTriggering: ReturnType<typeof signal>;
   };
@@ -49,12 +69,14 @@ describe('CalibrationComponent', () => {
   // Writable signals for the spies
   let nodeSignal: ReturnType<typeof signal<NodeConfig[]>>;
   let nodeStatusesSignal: ReturnType<typeof signal<Record<string, any>>>;
+  let historyByNodeSignal: ReturnType<typeof signal<Record<string, CalibrationHistoryRecord[]>>>;
   let errorSignal: ReturnType<typeof signal<string | null>>;
   let isTriggeringSignal: ReturnType<typeof signal<boolean>>;
 
   beforeEach(async () => {
     nodeSignal = signal<NodeConfig[]>([]);
     nodeStatusesSignal = signal<Record<string, any>>({});
+    historyByNodeSignal = signal<Record<string, CalibrationHistoryRecord[]>>({});
     errorSignal = signal<string | null>(null);
     isTriggeringSignal = signal<boolean>(false);
 
@@ -63,6 +85,7 @@ describe('CalibrationComponent', () => {
       stopPolling: vi.fn(),
       triggerCalibration: vi.fn().mockResolvedValue(undefined),
       nodeStatuses: nodeStatusesSignal,
+      historyByNode: historyByNodeSignal,
       error: errorSignal,
       isTriggering: isTriggeringSignal,
     };
@@ -239,5 +262,105 @@ describe('CalibrationComponent', () => {
     await flushEffects(fixture);
 
     expect(component.getNodePolledStatus()('node-1')).toEqual(mockStatus);
+  });
+
+  // ── isCalibrationDisabled ─────────────────────────────────────────────────
+
+  it('isCalibrationDisabled should return false when polled status is not yet available', () => {
+    // nodeStatusesSignal is empty — no polled data yet
+    expect(component.isCalibrationDisabled()('unknown-node')).toBe(false);
+  });
+
+  it('isCalibrationDisabled should return true when source_sensor_ids has only 1 sensor', async () => {
+    nodeStatusesSignal.set({
+      'node-1': {
+        node_id: 'node-1',
+        calibration_state: 'idle',
+        source_sensor_ids: ['sensor-a'], // only 1 — not enough for ICP
+      },
+    });
+    await flushEffects(fixture);
+
+    expect(component.isCalibrationDisabled()('node-1')).toBe(true);
+  });
+
+  it('isCalibrationDisabled should return true when source_sensor_ids is empty', async () => {
+    nodeStatusesSignal.set({
+      'node-1': {
+        node_id: 'node-1',
+        calibration_state: 'idle',
+        source_sensor_ids: [],
+      },
+    });
+    await flushEffects(fixture);
+
+    expect(component.isCalibrationDisabled()('node-1')).toBe(true);
+  });
+
+  it('isCalibrationDisabled should return false when source_sensor_ids has 2 or more sensors', async () => {
+    nodeStatusesSignal.set({
+      'node-1': {
+        node_id: 'node-1',
+        calibration_state: 'idle',
+        source_sensor_ids: ['sensor-a', 'sensor-b'],
+      },
+    });
+    await flushEffects(fixture);
+
+    expect(component.isCalibrationDisabled()('node-1')).toBe(false);
+  });
+
+  it('isCalibrationDisabled should return false when source_sensor_ids has 3 sensors', async () => {
+    nodeStatusesSignal.set({
+      'node-1': {
+        node_id: 'node-1',
+        calibration_state: 'idle',
+        source_sensor_ids: ['sensor-a', 'sensor-b', 'sensor-c'],
+      },
+    });
+    await flushEffects(fixture);
+
+    expect(component.isCalibrationDisabled()('node-1')).toBe(false);
+  });
+
+  // ── hasHistory ────────────────────────────────────────────────────────────
+
+  it('hasHistory should return false when historyByNode is empty for a node', () => {
+    // historyByNodeSignal starts empty
+    expect(component.hasHistory()('node-1')).toBe(false);
+  });
+
+  it('hasHistory should return false when history array for node is empty', async () => {
+    historyByNodeSignal.set({'node-1': []});
+    await flushEffects(fixture);
+
+    expect(component.hasHistory()('node-1')).toBe(false);
+  });
+
+  it('hasHistory should return true when history records exist for the node', async () => {
+    historyByNodeSignal.set({
+      'node-1': [makeHistoryRecord('rec-1'), makeHistoryRecord('rec-2')],
+    });
+    await flushEffects(fixture);
+
+    expect(component.hasHistory()('node-1')).toBe(true);
+  });
+
+  it('hasHistory should be scoped per node (node-1 has history, node-2 does not)', async () => {
+    historyByNodeSignal.set({
+      'node-1': [makeHistoryRecord('rec-1')],
+    });
+    await flushEffects(fixture);
+
+    expect(component.hasHistory()('node-1')).toBe(true);
+    expect(component.hasHistory()('node-2')).toBe(false);
+  });
+
+  // ── calibrationDisabledTooltip ────────────────────────────────────────────
+
+  it('should expose the correct tooltip message for disabled calibration', () => {
+    expect(component.calibrationDisabledTooltip).toBe(
+      'At least 2 input sensors are required for calibration.',
+    );
   });
 });

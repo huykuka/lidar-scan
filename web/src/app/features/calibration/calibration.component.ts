@@ -8,6 +8,9 @@ import {ToastService} from '../../core/services/toast.service';
 import {NavigationService} from '../../core/services';
 import {CalibrationNodeStatusResponse} from '../../core/models/calibration.model';
 
+/** Minimum number of source sensors required to run ICP calibration. */
+const ICP_MIN_SOURCE_SENSORS = 2;
+
 @Component({
   selector: 'app-calibration',
   standalone: true,
@@ -28,6 +31,34 @@ export class CalibrationComponent implements OnDestroy {
   getNodePolledStatus = computed(() => {
     const statuses = this.calibrationStore.nodeStatuses();
     return (nodeId: string): CalibrationNodeStatusResponse | null => statuses[nodeId] ?? null;
+  });
+
+  /**
+   * Returns true when "Run Calibration" should be disabled for the given node.
+   * ICP requires at least 2 source sensors. If polled status is not yet
+   * available we fall back to allowing the button (we don't want to block
+   * indefinitely just because the first poll hasn't returned yet).
+   */
+  isCalibrationDisabled = computed(() => {
+    const statuses = this.calibrationStore.nodeStatuses();
+    return (nodeId: string): boolean => {
+      const status = statuses[nodeId];
+      if (!status) return false; // Not yet loaded — allow (optimistic)
+      return status.source_sensor_ids.length < ICP_MIN_SOURCE_SENSORS;
+    };
+  });
+
+  /** Tooltip message shown when "Run Calibration" is disabled due to insufficient sensors. */
+  readonly calibrationDisabledTooltip =
+    'At least 2 input sensors are required for calibration.';
+
+  /**
+   * Returns true when "View History" should be shown for the given node.
+   * The button is hidden when the history record list for that node is empty.
+   */
+  hasHistory = computed(() => {
+    const historyByNode = this.calibrationStore.historyByNode();
+    return (nodeId: string): boolean => (historyByNode[nodeId]?.length ?? 0) > 0;
   });
 
   constructor() {

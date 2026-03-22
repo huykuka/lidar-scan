@@ -18,10 +18,12 @@
       </div>
 
       <div class="ml-auto flex gap-2">
-        <syn-button (click)="viewHistory()" size="small" variant="text">
-          <syn-icon name="history" slot="prefix" />
-          View History
-        </syn-button>
+        @if (hasHistory()) {
+          <syn-button (click)="viewHistory()" size="small" variant="text">
+            <syn-icon name="history" slot="prefix" />
+            View History
+          </syn-button>
+        }
       </div>
     </div>
   </header>
@@ -103,19 +105,24 @@
             </div>
 
             <div class="mt-4">
-              <syn-button
-                (click)="triggerCalibration()"
-                [disabled]="isTriggering()"
-                variant="filled"
+              <syn-tooltip
+                [content]="isCalibrationDisabled() ? calibrationDisabledTooltip : ''"
+                [disabled]="!isCalibrationDisabled()"
               >
-                @if (isTriggering()) {
-                  <syn-spinner size="small" slot="prefix" />
-                  Running…
-                } @else {
-                  <syn-icon name="tune" slot="prefix" />
-                  Run Calibration
-                }
-              </syn-button>
+                <syn-button
+                  (click)="triggerCalibration()"
+                  [disabled]="isTriggering() || isCalibrationDisabled()"
+                  variant="filled"
+                >
+                  @if (isTriggering()) {
+                    <syn-spinner size="small" slot="prefix" />
+                    Running…
+                  } @else {
+                    <syn-icon name="tune" slot="prefix" />
+                    Run Calibration
+                  }
+                </syn-button>
+              </syn-tooltip>
             </div>
           </syn-card>
 

@@ -64,6 +64,23 @@ export class CalibrationViewerComponent implements OnDestroy {
     this.calibrationStore.getHistoryForNode()(this.nodeId() ?? ''),
   );
 
+  /**
+   * True when "Run Calibration" should be disabled.
+   * ICP requires at least 2 source sensors.
+   */
+  isCalibrationDisabled = computed<boolean>(() => {
+    const node = this.calibrationNode();
+    if (!node) return false; // not loaded yet — optimistic
+    return node.source_sensor_ids.length < 2;
+  });
+
+  /** Tooltip shown when the calibration trigger button is disabled. */
+  readonly calibrationDisabledTooltip =
+    'At least 2 input sensors are required for calibration.';
+
+  /** True when at least one history record exists for the current node. */
+  hasHistory = computed<boolean>(() => this.historyForNode().length > 0);
+
   // ── UI state ──────────────────────────────────────────────────────────────
   showMatrixFor = signal<Record<string, boolean>>({});
 
