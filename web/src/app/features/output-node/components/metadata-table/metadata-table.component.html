@@ -1,0 +1,48 @@
+@if (!metadata()) {
+  <div class="flex flex-col items-center justify-center py-16 text-syn-color-neutral-500 gap-3">
+    <syn-spinner size="large"></syn-spinner>
+    <span class="text-sm">Waiting for data...</span>
+  </div>
+} @else if (entries().length === 0) {
+  <div class="flex flex-col items-center justify-center py-16 text-syn-color-neutral-400 gap-2">
+    <syn-icon name="inbox" class="text-2xl"></syn-icon>
+    <span class="text-sm">No metadata fields received</span>
+  </div>
+} @else {
+  <div class="overflow-x-auto rounded border border-syn-color-neutral-200">
+    <table class="w-full text-sm border-collapse">
+      <thead class="sticky top-0 bg-syn-color-neutral-100">
+        <tr>
+          <th class="px-4 py-2 text-left font-semibold text-syn-color-neutral-700 border-b border-syn-color-neutral-200">
+            Field
+          </th>
+          <th class="px-4 py-2 text-left font-semibold text-syn-color-neutral-700 border-b border-syn-color-neutral-200">
+            Value
+          </th>
+          <th class="px-4 py-2 text-left font-semibold text-syn-color-neutral-700 border-b border-syn-color-neutral-200 w-20">
+            Type
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of entries(); track entry[0]; let even = $even) {
+          <tr [class]="even ? 'bg-white' : 'bg-syn-color-neutral-50'">
+            <td class="px-4 py-2 font-mono text-xs text-syn-color-neutral-800 align-top border-b border-syn-color-neutral-100">
+              {{ entry[0] }}
+            </td>
+            <td class="px-4 py-2 align-top border-b border-syn-color-neutral-100 max-w-xs">
+              @if (isComplex(entry[1])) {
+                <pre class="font-mono text-xs text-syn-color-neutral-700 overflow-x-auto whitespace-pre-wrap break-words">{{ renderValue(entry[1]) }}</pre>
+              } @else {
+                <span class="font-mono text-xs text-syn-color-neutral-700">{{ renderValue(entry[1]) }}</span>
+              }
+            </td>
+            <td class="px-4 py-2 align-top border-b border-syn-color-neutral-100">
+              <syn-badge variant="neutral" size="small">{{ typeLabel(entry[1]) }}</syn-badge>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

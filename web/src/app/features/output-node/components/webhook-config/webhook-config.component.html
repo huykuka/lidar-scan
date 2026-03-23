@@ -1,0 +1,143 @@
+<div class="flex flex-col gap-4">
+  <div class="flex items-center justify-between">
+    <span class="text-sm font-semibold text-syn-color-neutral-700">Webhook</span>
+    <syn-switch
+      [checked]="formState().webhook_enabled"
+      size="small"
+      (syn-change)="onToggleEnabled($event)"
+    >
+      {{ formState().webhook_enabled ? 'Enabled' : 'Disabled' }}
+    </syn-switch>
+  </div>
+
+  @if (formState().webhook_enabled) {
+    <!-- URL -->
+    <div class="flex flex-col gap-1">
+      <syn-input
+        label="Webhook POST URL"
+        size="small"
+        placeholder="https://api.example.com/webhook"
+        [value]="formState().webhook_url"
+        (input)="onUrlChange($event)"
+      />
+      @if (urlValidationError()) {
+        <span class="text-xs text-syn-color-danger-600">{{ urlValidationError() }}</span>
+      } @else if (urlWarning()) {
+        <span class="text-xs text-syn-color-warning-700">{{ urlWarning() }}</span>
+      }
+    </div>
+
+    <!-- Auth type -->
+    <syn-select
+      label="Authentication"
+      size="small"
+      [value]="formState().webhook_auth_type"
+      (syn-change)="onAuthTypeChange($event)"
+    >
+      <syn-option value="none">None</syn-option>
+      <syn-option value="bearer">Bearer Token</syn-option>
+      <syn-option value="basic">Basic Auth</syn-option>
+      <syn-option value="api_key">API Key</syn-option>
+    </syn-select>
+
+    <!-- Credential fields -->
+    @switch (formState().webhook_auth_type) {
+      @case ('bearer') {
+        <syn-input
+          label="Bearer Token"
+          size="small"
+          type="password"
+          placeholder="my-secret-token"
+          [value]="formState().webhook_auth_token ?? ''"
+          (input)="onTokenChange($event)"
+        />
+      }
+      @case ('basic') {
+        <syn-input
+          label="Username"
+          size="small"
+          [value]="formState().webhook_auth_username ?? ''"
+          (input)="onUsernameChange($event)"
+        />
+        <syn-input
+          label="Password"
+          size="small"
+          type="password"
+          [value]="formState().webhook_auth_password ?? ''"
+          (input)="onPasswordChange($event)"
+        />
+      }
+      @case ('api_key') {
+        <syn-input
+          label="Header Name"
+          size="small"
+          placeholder="X-API-Key"
+          [value]="formState().webhook_auth_key_name ?? 'X-API-Key'"
+          (input)="onKeyNameChange($event)"
+        />
+        <syn-input
+          label="Key Value"
+          size="small"
+          type="password"
+          [value]="formState().webhook_auth_key_value ?? ''"
+          (input)="onKeyValueChange($event)"
+        />
+      }
+    }
+
+    <!-- Custom headers -->
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-syn-color-neutral-700">Custom Headers</span>
+        <syn-button variant="text" size="small" type="button" (click)="addHeader()">
+          <syn-icon slot="prefix" name="add"></syn-icon>
+          Add Header
+        </syn-button>
+      </div>
+
+      @for (row of customHeaders(); track $index; let i = $index) {
+        <div class="flex gap-2 items-center">
+          <syn-input
+            size="small"
+            placeholder="Header name"
+            [value]="row.key"
+            (input)="onHeaderKeyChange(i, $event)"
+            class="flex-1"
+          />
+          <syn-input
+            size="small"
+            placeholder="Value"
+            [value]="row.value"
+            (input)="onHeaderValueChange(i, $event)"
+            class="flex-1"
+          />
+          <syn-icon-button
+            name="delete"
+            label="Remove"
+            size="small"
+            (click)="removeHeader(i)"
+          ></syn-icon-button>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Actions -->
+  <div class="flex gap-2 justify-end pt-2 border-t border-syn-color-neutral-200">
+    <syn-button variant="outline" size="small" type="button" (click)="onCancel()">
+      Cancel
+    </syn-button>
+    <syn-button
+      variant="filled"
+      size="small"
+      type="button"
+      [disabled]="urlValidationError() !== null || isSaving()"
+      (click)="onSave()"
+    >
+      @if (isSaving()) {
+        <syn-spinner slot="prefix" size="small"></syn-spinner>
+      }
+      Save Webhook
+    </syn-button>
+  </div>
+</div>

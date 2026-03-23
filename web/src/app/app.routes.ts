@@ -56,6 +56,13 @@ export const routes: Routes = [
             (m) => m.CalibrationViewerComponent,
           ),
       },
+      {
+        path: 'output/:nodeId',
+        loadComponent: () =>
+          import('./features/output-node/output-node.component').then(
+            (m) => m.OutputNodeComponent,
+          ),
+      },
     ],
   },
   {
