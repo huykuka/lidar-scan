@@ -1,46 +1,43 @@
-<div class="flex flex-col gap-2.5 bg-white border border-neutral-200 rounded-2xl shadow-xl px-4 py-3 w-[200px]">
-
-  <!-- Zoom row: label · − · percentage · + -->
-  <div class="flex items-center justify-between gap-1">
-    <span class="text-[9px] font-semibold uppercase tracking-widest text-neutral-400 mr-auto">Zoom</span>
-    <button
-      (click)="onZoomOut.emit()"
-      title="Zoom out"
-      class="w-5 h-5 flex items-center justify-center rounded-full border border-neutral-200 text-neutral-500 hover:bg-neutral-100 transition-colors text-[13px] font-bold leading-none select-none"
-    >−</button>
-    <span class="text-[11px] font-mono font-bold text-neutral-700 w-9 text-center">
-      {{ (zoom() * 100).toFixed(0) }}%
-    </span>
-    <button
-      (click)="onZoomIn.emit()"
-      title="Zoom in"
-      class="w-5 h-5 flex items-center justify-center rounded-full border border-neutral-200 text-neutral-500 hover:bg-neutral-100 transition-colors text-[13px] font-bold leading-none select-none"
-    >+</button>
-  </div>
+<!-- Compact horizontal toolbar: [reset] | − | zoom% | [snap] | + -->
+<div class="flex items-center gap-px bg-white border border-neutral-200 rounded-lg shadow-md overflow-hidden h-7">
 
   <!-- Reset View -->
   <button
     (click)="onResetView.emit()"
-    class="flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-full border border-neutral-300 text-[12px] font-bold text-neutral-800 bg-white hover:bg-neutral-50 transition-colors"
+    title="Reset view"
+    class="flex items-center justify-center w-7 h-7 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border-r border-neutral-200"
   >
-    <syn-icon name="center_focus_strong" class="text-sm" />
-    Reset View
+    <syn-icon name="map" style="font-size:14px" />
   </button>
+
+  <!-- Zoom out -->
+  <button
+    (click)="onZoomOut.emit()"
+    title="Zoom out"
+    class="flex items-center justify-center w-6 h-7 text-neutral-500 hover:bg-neutral-100 transition-colors text-sm font-bold select-none"
+  >−</button>
+
+  <!-- Zoom level -->
+  <span class="text-[11px] font-mono font-semibold text-neutral-600 w-8 text-center select-none">
+    {{ (zoom() * 100).toFixed(0) }}%
+  </span>
 
   <!-- Snap to Grid toggle -->
   <button
     (click)="onSnapToggle.emit()"
-    [class.bg-blue-600]="snapToGrid()"
-    [class.text-white]="snapToGrid()"
-    [class.border-blue-600]="snapToGrid()"
-    [class.bg-white]="!snapToGrid()"
-    [class.text-neutral-500]="!snapToGrid()"
-    [class.border-neutral-300]="!snapToGrid()"
-    [title]="snapToGrid() ? 'Snap to grid: on — click to disable' : 'Snap to grid: off — click to enable'"
-    class="flex items-center justify-center gap-1.5 w-full px-3 py-2 rounded-full border text-[12px] font-bold transition-colors"
+    [class.text-blue-600]="snapToGrid()"
+    [class.text-neutral-400]="!snapToGrid()"
+    [title]="snapToGrid() ? 'Snap to grid: on' : 'Snap to grid: off'"
+    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors"
   >
-    <syn-icon name="grid_4x4" class="text-sm" />
-    Snap to Grid
+    <syn-icon name="grid_4x4" style="font-size:14px" />
   </button>
+
+  <!-- Zoom in -->
+  <button
+    (click)="onZoomIn.emit()"
+    title="Zoom in"
+    class="flex items-center justify-center w-6 h-7 text-neutral-500 hover:bg-neutral-100 transition-colors text-sm font-bold select-none border-l border-neutral-200"
+  >+</button>
 
 </div>

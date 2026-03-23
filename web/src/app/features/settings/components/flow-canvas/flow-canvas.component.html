@@ -26,98 +26,108 @@
                              [plugins]="availablePlugins()"
     />
 
-    <!-- Canvas Area -->
-    <div class="flex-1 relative overflow-auto">
-      <div
-        (dragover)="onCanvasDragOver($event)"
-        (drop)="onCanvasDrop($event)"
-        (mousedown)="onCanvasMouseDown($event)"
-        (mousemove)="onCanvasMouseMove($event)"
-        (mouseup)="onCanvasMouseUp($event)"
-        (wheel)="onCanvasWheel($event)"
-        [style.cursor]="
-          pendingConnection()
-            ? 'crosshair'
-            : isPanning()
-              ? 'grabbing'
-              : paletteDragType()
-                ? 'copy'
-                : 'default'
-        "
-        [style.min-height]="canvasHeight()"
-        [style.min-width]="canvasWidth()"
-        class="relative"
-      >
-        <!-- Grid Background: dot grid at minor interval, line grid at major interval -->
-        <svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <!-- Minor cell: one dot per snap unit -->
-            <pattern [attr.height]="gridSize" [attr.width]="gridSize" id="grid-minor" patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" [attr.fill]="snapToGrid() ? '#d1d5db' : '#e5e7eb'" r="1"/>
-            </pattern>
-            <!-- Major cell: bold dot every 4 snap units -->
-            <pattern [attr.height]="gridSize * 4" [attr.width]="gridSize * 4" id="grid-major"
-                     patternUnits="userSpaceOnUse">
-              <circle cx="1" cy="1" fill="#9ca3af" r="1.5"/>
-            </pattern>
-          </defs>
-          <rect fill="url(#grid-minor)" height="100%" width="100%"/>
-        </svg>
-
-        <!-- Nodes Container -->
+    <!-- Canvas Area: relative container holds both the scrollable canvas and the fixed controls overlay -->
+    <div class="flex-1 relative overflow-hidden">
+      <!-- Scrollable canvas surface -->
+      <div class="absolute inset-0 overflow-auto">
         <div
-          [style.transform-origin]="'0 0'"
-          [style.transform]="
-            'translate(' + panOffset().x + 'px, ' + panOffset().y + 'px) scale(' + zoom() + ')'
+          (dragover)="onCanvasDragOver($event)"
+          (drop)="onCanvasDrop($event)"
+          (mousedown)="onCanvasMouseDown($event)"
+          (mousemove)="onCanvasMouseMove($event)"
+          (mouseup)="onCanvasMouseUp($event)"
+          (wheel)="onCanvasWheel($event)"
+          [style.cursor]="
+            pendingConnection()
+              ? 'crosshair'
+              : isPanning()
+                ? 'grabbing'
+                : paletteDragType()
+                  ? 'copy'
+                  : 'default'
           "
-          class="absolute inset-0"
+          [style.min-height]="canvasHeight()"
+          [style.min-width]="canvasWidth()"
+          class="relative"
         >
-          <!-- Connection Lines Layer (below nodes) -->
-          <app-flow-canvas-connections (onDelete)="onDeleteEdge($event)"
-                                       [connections]="connections()"
-                                       [pendingPath]="pendingPath()"
-          />
+          <!-- Grid Background: dots scale with zoom and track pan offset -->
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Minor cell: one dot per snap unit, scaled by zoom -->
+              <pattern
+                [attr.height]="gridSize * zoom()"
+                [attr.width]="gridSize * zoom()"
+                [attr.x]="panOffset().x % (gridSize * zoom())"
+                [attr.y]="panOffset().y % (gridSize * zoom())"
+                id="grid-minor"
+                patternUnits="userSpaceOnUse"
+              >
+                <circle
+                  [attr.cx]="zoom()"
+                  [attr.cy]="zoom()"
+                  [attr.fill]="snapToGrid() ? '#d1d5db' : '#e5e7eb'"
+                  [attr.r]="zoom() < 0.5 ? 0.5 : zoom()"
+                />
+              </pattern>
+            </defs>
+            <rect fill="url(#grid-minor)" height="100%" width="100%"/>
+          </svg>
 
-          <!-- Nodes Layer -->
-          @for (node of canvasNodes(); track node.id) {
-            <div
-              (dblclick)="onEditNode(node)"
-              (mousedown)="onNodeMouseDown($event, node)"
-              [class.ring-2]="selectedCanvasNode()?.id === node.id"
-              [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
-              [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
-              [class.z-10]="selectedCanvasNode()?.id === node.id"
-              [class.select-none]="!!draggingNode()"
-              [style.cursor]="
-                draggingNode()?.id === node.id ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
-              "
-              [style.left.px]="node.position.x"
-              [style.top.px]="node.position.y"
-              class="absolute transition-shadow rounded-lg"
-              title="Double-click to edit"
-            >
-              <app-flow-canvas-node (onEdit)="onEditNode(node)"
-                                    (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
-                                    (onToggleVisibility)="onToggleNodeVisibility(node, $event)"
-                                    (portDragStart)="onPortDragStart($event)"
-                                    (portDrop)="onPortDrop($event)"
-                                    [isDragging]="draggingNode()?.id === node.id"
-                                    [isLoading]="isNodeLoading(node.id)"
-                                    [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
-                                    [node]="node"
-                                    [status]="getNodeStatus(node)"
-              />
-            </div>
+          <!-- Nodes Container -->
+          <div
+            [style.transform-origin]="'0 0'"
+            [style.transform]="
+              'translate(' + panOffset().x + 'px, ' + panOffset().y + 'px) scale(' + zoom() + ')'
+            "
+            class="absolute inset-0"
+          >
+            <!-- Connection Lines Layer (below nodes) -->
+            <app-flow-canvas-connections (onDelete)="onDeleteEdge($event)"
+                                         [connections]="connections()"
+                                         [pendingPath]="pendingPath()"
+            />
+
+            <!-- Nodes Layer -->
+            @for (node of canvasNodes(); track node.id) {
+              <div
+                (dblclick)="onEditNode(node)"
+                (mousedown)="onNodeMouseDown($event, node)"
+                [class.ring-2]="selectedCanvasNode()?.id === node.id"
+                [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
+                [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
+                [class.z-10]="selectedCanvasNode()?.id === node.id"
+                [class.select-none]="!!draggingNode()"
+                [style.cursor]="
+                  draggingNode()?.id === node.id ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
+                "
+                [style.left.px]="node.position.x"
+                [style.top.px]="node.position.y"
+                class="absolute transition-shadow rounded-lg"
+                title="Double-click to edit"
+              >
+                <app-flow-canvas-node (onEdit)="onEditNode(node)"
+                                      (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
+                                      (onToggleVisibility)="onToggleNodeVisibility(node, $event)"
+                                      (portDragStart)="onPortDragStart($event)"
+                                      (portDrop)="onPortDrop($event)"
+                                      [isDragging]="draggingNode()?.id === node.id"
+                                      [isLoading]="isNodeLoading(node.id)"
+                                      [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
+                                      [node]="node"
+                                      [status]="getNodeStatus(node)"
+                />
+              </div>
+            }
+          </div>
+
+          <!-- Empty State -->
+          @if (canvasNodes().length === 0) {
+            <app-flow-canvas-empty-state/>
           }
         </div>
-
-        <!-- Empty State -->
-        @if (canvasNodes().length === 0) {
-          <app-flow-canvas-empty-state/>
-        }
       </div>
 
-      <!-- Bottom-right canvas controls: zoom indicator, reset view, snap toggle -->
+      <!-- Bottom-right canvas controls: always fixed to the visible viewport corner -->
       <div class="absolute bottom-4 right-4 z-20 pointer-events-auto">
         <app-flow-canvas-controls
           (onResetView)="resetView()"
