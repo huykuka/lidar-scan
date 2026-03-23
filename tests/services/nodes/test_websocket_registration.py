@@ -279,3 +279,89 @@ class TestRealNodeDefinitions:
             assert definition is not None, f"{node_type} definition not found"
             assert definition.websocket_enabled is True, \
                 f"{node_type} should have websocket_enabled=True"
+
+
+# ---------------------------------------------------------------------------
+# B6.4 — Output Node WebSocket registration test
+# ---------------------------------------------------------------------------
+
+class TestOutputNodeWebSocketRegistration:
+    """
+    Tests that output_node has websocket_enabled=False and that the ConfigLoader
+    never registers a WebSocket topic for it.
+    """
+
+    @pytest.fixture(autouse=True)
+    def import_output_registry(self):
+        """
+        Force-reload all registries so the schema is fully populated even when a
+        preceding test class (TestWebSocketRegistrationLogic) clears _definitions.
+        Uses importlib.reload() because Python's import cache prevents simple
+        re-imports from re-running module-level register() calls.
+        """
+        import importlib
+        import app.modules.lidar.registry
+        import app.modules.fusion.registry
+        import app.modules.calibration.registry
+        import app.modules.pipeline.registry
+        import app.modules.flow_control.if_condition.registry
+        import app.modules.flow_control.output.registry
+
+        importlib.reload(app.modules.lidar.registry)
+        importlib.reload(app.modules.fusion.registry)
+        importlib.reload(app.modules.calibration.registry)
+        importlib.reload(app.modules.pipeline.registry)
+        importlib.reload(app.modules.flow_control.if_condition.registry)
+        importlib.reload(app.modules.flow_control.output.registry)
+        yield
+
+    def test_output_node_definition_has_websocket_enabled_false(self):
+        """output_node definition must have websocket_enabled=False."""
+        from app.services.nodes.schema import node_schema_registry
+
+        definition = node_schema_registry.get("output_node")
+        assert definition is not None, "output_node definition not found in registry"
+        assert definition.websocket_enabled is False, (
+            "output_node must have websocket_enabled=False — "
+            "it uses the system_status topic, not a node-specific WS topic"
+        )
+
+    @patch("app.services.nodes.managers.config.manager")
+    @patch("app.services.nodes.managers.config.NodeFactory")
+    def test_output_node_skips_websocket_topic_registration(
+        self, mock_node_factory, mock_ws_manager
+    ):
+        """ConfigLoader._create_node must NOT register a WS topic for output_node."""
+        from app.services.nodes.managers.config import ConfigLoader
+        from unittest.mock import Mock, MagicMock
+
+        manager = Mock()
+        manager.nodes = {}
+        manager.node_runtime_status = {}
+        manager.downstream_map = {}
+        manager._throttle_config = {}
+        manager._last_process_time = {}
+        manager._throttled_count = {}
+        loader = ConfigLoader(manager)
+
+        node_data = {
+            "id": "out-ws-test-1",
+            "type": "output_node",
+            "category": "flow_control",
+            "visible": True,  # visible=True but websocket_enabled=False — topic must not register
+            "config": {},
+        }
+
+        mock_node_instance = Mock()
+        mock_node_instance.name = "My Output"
+        mock_node_factory.create.return_value = mock_node_instance
+        mock_ws_manager.register_topic = MagicMock()
+
+        loader._create_node(node_data, "flow_control", [])
+
+        # WebSocket topic should NOT be registered
+        mock_ws_manager.register_topic.assert_not_called()
+
+        # _ws_topic on the node instance must be None
+        assert hasattr(mock_node_instance, "_ws_topic")
+        assert mock_node_instance._ws_topic is None
