@@ -383,8 +383,8 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
   /**
    * Copy text to clipboard and show toast
    */
-  protected copyToClipboard(text: string): void {
-    navigator.clipboard.writeText(text).then(() => {
+  protected copyToClipboard(text: string): Promise<void> {
+    return navigator.clipboard.writeText(text).then(() => {
       this.toast.success('URL copied to clipboard');
     }).catch((err) => {
       console.error('Failed to copy to clipboard:', err);
