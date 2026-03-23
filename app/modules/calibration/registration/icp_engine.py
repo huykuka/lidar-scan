@@ -77,7 +77,8 @@ class ICPEngine:
         self,
         source: np.ndarray,
         target: np.ndarray,
-        initial_transform: Optional[np.ndarray] = None
+        initial_transform: Optional[np.ndarray] = None,
+        has_prior_pose: bool = False,
     ) -> RegistrationResult:
         """
         Perform two-stage registration: Global → ICP.
@@ -86,6 +87,9 @@ class ICPEngine:
             source: Source point cloud as (N, 3+) numpy array
             target: Target point cloud as (M, 3+) numpy array
             initial_transform: Initial 4x4 transformation (optional)
+            has_prior_pose: When True, the point clouds are already approximately
+                aligned (source was pre-transformed by its existing calibrated pose).
+                Global registration is skipped so it cannot degrade the close init.
             
         Returns:
             RegistrationResult with transformation and quality metrics
@@ -104,8 +108,14 @@ class ICPEngine:
             else:
                 init_transform = initial_transform
             
-            # Stage 1: Global registration (if needed)
-            if self.enable_global:
+            # Stage 1: Global registration (if enabled).
+            # Skipped when has_prior_pose=True: the source cloud is already
+            # in world frame and approximately aligned with the reference
+            # (because LidarSensor pre-applies the existing pose transform).
+            # Running FPFH/RANSAC in this case would clobber a good near-identity
+            # init with a potentially worse coarse estimate.
+            if self.enable_global and not has_prior_pose:
+                assert self.global_reg is not None  # set in __init__ when enable_global=True
                 global_result = self.global_reg.register(source, target)
                 if global_result.converged:
                     init_transform = global_result.transformation
