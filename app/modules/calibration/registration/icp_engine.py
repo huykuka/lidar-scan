@@ -6,14 +6,15 @@ with optional global registration fallback for poor initial poses.
 
 Uses Open3D legacy API for maximum algorithm support.
 """
+import asyncio
 from dataclasses import dataclass
 from typing import Dict, Any, List, Optional
-import asyncio
+
 import numpy as np
 import open3d as o3d
 
 from .global_registration import GlobalRegistration
-from .quality import QualityEvaluator, QualityMetrics
+from .quality import QualityEvaluator
 
 
 @dataclass
@@ -27,6 +28,29 @@ class RegistrationResult:
     stages_used: List[str]  # ["global", "icp"] or ["icp"]
 
 
+def _extract_translation_only(
+        icp_transform: np.ndarray,
+        initial_transform: np.ndarray
+) -> np.ndarray:
+    """
+    Extract only translation from ICP result, preserve rotation from initial transform.
+
+    This is useful when sensors have IMU and already output level point clouds.
+    We only need to solve for relative position (X, Y, Z), not orientation.
+
+    Args:
+        icp_transform: 4x4 transformation from ICP
+        initial_transform: 4x4 initial transformation
+
+    Returns:
+        4x4 transformation with ICP translation + initial rotation
+    """
+    result = initial_transform.copy()
+    # Replace translation with ICP result
+    result[:3, 3] = icp_transform[:3, 3]
+    return result
+
+
 class ICPEngine:
     """
     Two-stage point cloud registration engine.
@@ -36,7 +60,7 @@ class ICPEngine:
     
     Uses Open3D legacy API for broader algorithm support.
     """
-    
+
     def __init__(self, config: Dict[str, Any]):
         """
         Initialize ICP engine.
@@ -58,27 +82,26 @@ class ICPEngine:
         self.threshold = config.get("icp_threshold", 0.02)
         self.max_iterations = config.get("icp_iterations", 50)
         self.translation_only = config.get("translation_only", False)
-        
+
         # Normal estimation parameters
         self.normal_search_radius = config.get("normal_search_radius", 0.1)
         self.normal_max_nn = config.get("normal_max_nn", 30)
-        
+
         # Global registration
         self.enable_global = config.get("enable_global_registration", True)
         self.global_reg = GlobalRegistration(config) if self.enable_global else None
-        
+
         # Quality evaluation
         self.quality_evaluator = QualityEvaluator(
             min_fitness=config.get("min_fitness", 0.7),
             max_rmse=config.get("max_rmse", 0.05)
         )
-    
+
     async def register(
-        self,
-        source: np.ndarray,
-        target: np.ndarray,
-        initial_transform: Optional[np.ndarray] = None,
-        has_prior_pose: bool = False,
+            self,
+            source: np.ndarray,
+            target: np.ndarray,
+            initial_transform: Optional[np.ndarray] = None,
     ) -> RegistrationResult:
         """
         Perform two-stage registration: Global → ICP.
@@ -87,40 +110,38 @@ class ICPEngine:
             source: Source point cloud as (N, 3+) numpy array
             target: Target point cloud as (M, 3+) numpy array
             initial_transform: Initial 4x4 transformation (optional)
-            has_prior_pose: When True, the point clouds are already approximately
-                aligned (source was pre-transformed by its existing calibrated pose).
-                Global registration is skipped so it cannot degrade the close init.
             
         Returns:
             RegistrationResult with transformation and quality metrics
         """
+
         # Run registration off main thread
         def _register():
             stages_used = []
-            
+
             # Convert to Open3D legacy PointCloud
             source_pcd = self._numpy_to_legacy_pcd(source)
             target_pcd = self._numpy_to_legacy_pcd(target)
-            
+
             # Determine initial transformation
             if initial_transform is None:
                 init_transform = np.eye(4)
             else:
                 init_transform = initial_transform
-            
+
             # Stage 1: Global registration (if enabled).
-            # Skipped when has_prior_pose=True: the source cloud is already
-            # in world frame and approximately aligned with the reference
-            # (because LidarSensor pre-applies the existing pose transform).
-            # Running FPFH/RANSAC in this case would clobber a good near-identity
-            # init with a potentially worse coarse estimate.
-            if self.enable_global and not has_prior_pose:
+            # Always runs when enable_global=True, regardless of whether the sensor
+            # has a prior pose.  The source cloud may still be offset from the
+            # reference by more than the ICP correspondence threshold even when an
+            # approximate prior pose exists, so skipping global registration would
+            # leave ICP with no correspondences and a near-zero translation correction.
+            if self.enable_global:
                 assert self.global_reg is not None  # set in __init__ when enable_global=True
                 global_result = self.global_reg.register(source, target)
                 if global_result.converged:
                     init_transform = global_result.transformation
                     stages_used.append("global")
-            
+
             # Stage 2: ICP refinement
             # Estimate normals (required for point-to-plane)
             # Use configurable search parameters for normal estimation
@@ -136,18 +157,18 @@ class ICPEngine:
                     max_nn=self.normal_max_nn
                 )
             )
-            
+
             # Choose estimation method
             if self.method == "point_to_plane":
                 estimation = o3d.pipelines.registration.TransformationEstimationPointToPlane()
             else:
                 estimation = o3d.pipelines.registration.TransformationEstimationPointToPoint()
-            
+
             # ICP convergence criteria
             criteria = o3d.pipelines.registration.ICPConvergenceCriteria(
                 max_iteration=self.max_iterations
             )
-            
+
             # Run ICP
             icp_result = o3d.pipelines.registration.registration_icp(
                 source_pcd,
@@ -157,24 +178,24 @@ class ICPEngine:
                 estimation_method=estimation,
                 criteria=criteria
             )
-            
+
             stages_used.append("icp")
-            
+
             # If translation-only mode, extract only translation from ICP result
             # and preserve rotation from initial transform
             final_transform = icp_result.transformation
             if self.translation_only:
-                final_transform = self._extract_translation_only(
+                final_transform = _extract_translation_only(
                     icp_result.transformation,
                     init_transform
                 )
-            
+
             # Evaluate quality
             quality_metrics = self.quality_evaluator.evaluate(
                 icp_result.fitness,
                 icp_result.inlier_rmse
             )
-            
+
             return RegistrationResult(
                 transformation=final_transform,
                 fitness=icp_result.fitness,
@@ -183,9 +204,9 @@ class ICPEngine:
                 quality=quality_metrics.quality,
                 stages_used=stages_used
             )
-        
+
         return await asyncio.to_thread(_register)
-    
+
     def _needs_global_registration(self, transform: np.ndarray) -> bool:
         """
         Check if global registration is needed based on initial transform.
@@ -204,41 +225,18 @@ class ICPEngine:
         translation = np.linalg.norm(transform[:3, 3])
         if translation > 1.0:
             return True
-        
+
         # Check rotation angle (using trace of rotation matrix)
         # trace(R) = 1 + 2*cos(theta), so theta = arccos((trace(R) - 1) / 2)
         rotation_matrix = transform[:3, :3]
         trace = np.trace(rotation_matrix)
         rotation_angle = np.arccos(np.clip((trace - 1) / 2, -1, 1))
-        
+
         if rotation_angle > np.radians(30):
             return True
-        
+
         return False
-    
-    def _extract_translation_only(
-        self,
-        icp_transform: np.ndarray,
-        initial_transform: np.ndarray
-    ) -> np.ndarray:
-        """
-        Extract only translation from ICP result, preserve rotation from initial transform.
-        
-        This is useful when sensors have IMU and already output level point clouds.
-        We only need to solve for relative position (X, Y, Z), not orientation.
-        
-        Args:
-            icp_transform: 4x4 transformation from ICP
-            initial_transform: 4x4 initial transformation
-            
-        Returns:
-            4x4 transformation with ICP translation + initial rotation
-        """
-        result = initial_transform.copy()
-        # Replace translation with ICP result
-        result[:3, 3] = icp_transform[:3, 3]
-        return result
-    
+
     def _numpy_to_legacy_pcd(self, points: np.ndarray) -> o3d.geometry.PointCloud:
         """
         Convert numpy array to Open3D legacy PointCloud.

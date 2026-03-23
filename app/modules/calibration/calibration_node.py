@@ -325,21 +325,16 @@ class CalibrationNode(ModuleNode):
             # Build initial transformation from current pose
             T_current = create_transformation_matrix(**current_pose.to_flat_dict())
 
-            # Detect whether this sensor has a previously accepted calibrated pose.
-            # Point clouds arriving here are already in world frame (LidarSensor
-            # applies self.transformation before forwarding), so when a prior pose
-            # exists the source cloud is already approximately aligned with the
-            # reference.  We pass has_prior_pose to the engine so it can skip the
-            # FPFH/RANSAC global stage — it would only degrade an already-close init.
-            has_prior_pose = not np.allclose(T_current, np.eye(4), atol=1e-6)
-
             # Run ICP registration.
-            # ICP init is always np.eye(4) because the points are world-frame; the
-            # prior pose is implicitly encoded in the already-transformed clouds.
+            # Point clouds arriving here are already in world frame (LidarSensor
+            # applies self.transformation before forwarding).  Even when a prior
+            # calibrated pose exists the residual offset between source and reference
+            # may still exceed the ICP correspondence threshold, so global registration
+            # (FPFH+RANSAC) is always used when enabled — it handles any residual gap
+            # and provides a better init for ICP refinement.
             reg_result = await self.icp_engine.register(
                 source=source_points,
                 target=ref_points,
-                has_prior_pose=has_prior_pose,
             )
 
             # Compose: T_new = T_icp_delta @ T_current
