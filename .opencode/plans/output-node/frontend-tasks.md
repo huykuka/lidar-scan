@@ -203,11 +203,11 @@
 
 ## Phase 6 — Canvas Navigation Integration
 
-- [ ] **F6.1** Locate the Output Node click handler in `web/src/app/features/settings/` (the node canvas click logic)
-- [ ] **F6.2** Add navigation: when a node with `type === 'output_node'` is clicked in the canvas, call `router.navigate(['/output', node.id])`
+- [x] **F6.1** Locate the Output Node click handler in `web/src/app/features/settings/` (the node canvas click logic)
+- [x] **F6.2** Add navigation: when a node with `type === 'output_node'` is clicked in the canvas, call `router.navigate(['/output', node.id])`
   - Keep existing behavior for all other node types unchanged
   - Recommendation: open config drawer AND show a "View Live Data →" link button inside the drawer pointing to `/output/:id`
-- [ ] **F6.3** Integrate `WebhookConfigComponent` into the Output Node's config drawer section in the Settings feature:
+- [x] **F6.3** Integrate `WebhookConfigComponent` into the Output Node's config drawer section in the Settings feature:
   - Render `<app-webhook-config [config]="webhookConfig()" [nodeId]="node.id" (webhookSaved)="onWebhookSaved($event)" />` when drawer is for an `output_node`
   - Load current webhook config via `OutputNodeApiService.getWebhookConfig(nodeId)` when drawer opens
 

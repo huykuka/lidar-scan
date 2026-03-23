@@ -1,0 +1,46 @@
+<app-node-editor-header
+  icon="dashboard"
+  iconColor="text-syn-color-primary-500"
+  title="Output Node"
+  description="Displays live metadata from upstream. Configure the optional webhook below."
+  [saveDisabled]="isSaving()"
+  (save)="onSave()"
+  (cancel)="onCancel()"
+/>
+
+<div class="px-4 py-3 space-y-4">
+  <!-- Node Name -->
+  <syn-input
+    label="Node Name"
+    [value]="form.get('name')?.value"
+    (syn-input)="form.get('name')?.setValue($any($event).target.value)"
+    required
+  ></syn-input>
+
+  <!-- View Live Data Link (only when editing existing node) -->
+  @if (isEditMode()) {
+    <div class="flex items-center gap-2 p-3 rounded-md bg-syn-color-neutral-100 border border-syn-color-neutral-200">
+      <syn-icon name="open_in_new" class="text-syn-color-primary-600"></syn-icon>
+      <span class="text-sm text-syn-color-neutral-700 flex-1">View live metadata stream</span>
+      <syn-button variant="text" size="small" (click)="navigateToLiveData()">
+        View Live Data →
+      </syn-button>
+    </div>
+  }
+
+  <!-- Webhook Config (loaded after ngOnInit resolves) -->
+  @if (webhookLoaded()) {
+    <div class="border-t border-syn-color-neutral-200 pt-4">
+      <h3 class="text-sm font-semibold text-syn-color-neutral-700 mb-3">Webhook Configuration</h3>
+      <app-webhook-config
+        [config]="webhookConfig()"
+        [nodeId]="nodeId() ?? ''"
+        (webhookSaved)="onWebhookSaved($event)"
+      />
+    </div>
+  } @else {
+    <div class="flex justify-center py-4">
+      <syn-spinner></syn-spinner>
+    </div>
+  }
+</div>

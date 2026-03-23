@@ -13,6 +13,8 @@ import {CalibrationNodeCardComponent} from '@plugins/calibration/node/calibratio
 import {CalibrationNodeEditorComponent} from '@plugins/calibration/form/calibration-node-editor.component';
 import {IfConditionCardComponent} from '@plugins/flow-control/node/if-condition-card.component';
 import {IfConditionEditorComponent} from '@plugins/flow-control/form/if-condition-editor.component';
+import {OutputNodeCardComponent} from '@plugins/output-node/node/output-node-card/output-node-card.component';
+import {OutputNodeEditorComponent} from '@plugins/output-node/form/output-node-editor/output-node-editor.component';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
 const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
@@ -21,6 +23,7 @@ const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
   calibration: {color: '#f59e0b', icon: 'tune'},
   operation: {color: '#64748b', icon: 'settings_input_component'},
   flow_control: {color: '#9c27b0', icon: 'call_split'},
+  output: {color: '#0ea5e9', icon: 'dashboard'},
 };
 
 function definitionToPlugin(def: NodeDefinition): NodePlugin {
@@ -93,6 +96,15 @@ export class NodePluginRegistry {
 
   private registerPluginComponents(): void {
     this.plugins.forEach((plugin, type) => {
+      // output_node gets its own dedicated card + editor (must be checked BEFORE flow_control)
+      if (type === 'output_node') {
+        this.plugins.set(type, {
+          ...plugin,
+          cardComponent: OutputNodeCardComponent,
+          editorComponent: OutputNodeEditorComponent,
+        });
+        return;
+      }
       if (plugin.category === 'sensor') {
         this.plugins.set(type, {
           ...plugin,

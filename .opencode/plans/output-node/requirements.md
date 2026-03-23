@@ -99,32 +99,32 @@ The Output Node acts as a **terminal visualization node** in the processing pipe
 - [x] Handles missing or malformed metadata gracefully (logs warning, sends empty metadata object)
 
 #### F3: Dedicated Angular Page
-- [ ] Each Output Node has a dedicated page at route `/output/{node_id}`
-- [ ] Page displays metadata in a **table layout** with columns:
+- [x] Each Output Node has a dedicated page at route `/output/{node_id}`
+- [x] Page displays metadata in a **table layout** with columns:
   - **Field Name**: Metadata key
   - **Value**: Metadata value (primitives displayed as-is, objects/arrays as JSON)
   - **Type**: Data type (string, number, boolean, object, array, null)
-- [ ] Table rows are automatically generated from metadata fields (no hardcoded schema)
-- [ ] Page updates in real-time as new metadata arrives via WebSocket
+- [x] Table rows are automatically generated from metadata fields (no hardcoded schema)
+- [x] Page updates in real-time as new metadata arrives via WebSocket
 
 #### F4: Navigation from DAG Canvas
-- [ ] Clicking an Output Node in the DAG canvas opens its dedicated page
-- [ ] Navigation uses Angular router: `router.navigate(['/output', node_id])`
-- [ ] Page includes breadcrumb or back button to return to DAG editor
-- [ ] If Output Node is deleted from DAG, navigating to its page shows "Node not found" error
+- [x] Clicking an Output Node in the DAG canvas opens its dedicated page
+- [x] Navigation uses Angular router: `router.navigate(['/output', node_id])`
+- [x] Page includes breadcrumb or back button to return to DAG editor
+- [x] If Output Node is deleted from DAG, navigating to its page shows "Node not found" error
 
 #### F5: Real-Time WebSocket Updates
-- [ ] Angular page subscribes to **system topic** WebSocket on page load
-- [ ] Filters messages by `type === "output_node_metadata"` and `node_id === current_node_id`
-- [ ] Updates table display immediately when new metadata arrives (< 100ms latency)
-- [ ] Displays "Waiting for data..." placeholder when no metadata has been received yet
-- [ ] Handles WebSocket disconnection gracefully (shows "Disconnected" status, attempts reconnect)
+- [x] Angular page subscribes to **system topic** WebSocket on page load
+- [x] Filters messages by `type === "output_node_metadata"` and `node_id === current_node_id`
+- [x] Updates table display immediately when new metadata arrives (< 100ms latency)
+- [x] Displays "Waiting for data..." placeholder when no metadata has been received yet
+- [x] Handles WebSocket disconnection gracefully (shows "Disconnected" status, attempts reconnect)
 
 #### F6: Error Handling
 - [ ] Missing input connection: Node displays warning in DAG canvas, page shows "No input connected"
 - [ ] Malformed metadata: Logs backend error, sends empty metadata object to frontend
 - [ ] WebSocket errors: Frontend displays reconnection status, retries connection
-- [ ] Invalid node_id in route: Shows 404-style error page with link back to DAG editor
+- [x] Invalid node_id in route: Shows 404-style error page with link back to DAG editor
 
 #### F7: Node Registration in DAG Editor
 - [x] Output Node appears in node palette under category: `output` or `visualization`
@@ -172,7 +172,7 @@ The Output Node acts as a **terminal visualization node** in the processing pipe
   - Metadata extraction from input payloads
   - WebSocket broadcast logic
   - Error handling for malformed metadata
-- [ ] Frontend unit tests:
+- [x] Frontend unit tests:
   - Angular page component rendering
   - WebSocket subscription and filtering
   - Table generation from dynamic metadata

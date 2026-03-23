@@ -72,6 +72,7 @@ export const MOCK_METADATA_MESSAGES = (nodeId: string) => [
 
 /**
  * Mock implementation of OutputNodeApiService for use in tests.
+ * Callers should pass vi.fn() wrappers in test files for spy functionality.
  */
 export const createMockOutputNodeApiService = (overrides?: {
   getNode?: (nodeId: string) => Promise<NodeConfig>;
@@ -81,10 +82,11 @@ export const createMockOutputNodeApiService = (overrides?: {
     config: WebhookConfig,
   ) => Promise<{status: string; node_id: string}>;
 }) => ({
-  getNode: overrides?.getNode ?? vi.fn().mockResolvedValue(MOCK_OUTPUT_NODE),
+  getNode: overrides?.getNode ?? (() => Promise.resolve(MOCK_OUTPUT_NODE)),
   getWebhookConfig:
-    overrides?.getWebhookConfig ?? vi.fn().mockResolvedValue(MOCK_WEBHOOK_CONFIG_DISABLED),
+    overrides?.getWebhookConfig ?? (() => Promise.resolve(MOCK_WEBHOOK_CONFIG_DISABLED)),
   updateWebhookConfig:
     overrides?.updateWebhookConfig ??
-    vi.fn().mockResolvedValue({status: 'ok', node_id: 'mock-node-id'}),
+    ((_nodeId: string, _config: WebhookConfig) =>
+      Promise.resolve({status: 'ok', node_id: 'mock-node-id'})),
 });
