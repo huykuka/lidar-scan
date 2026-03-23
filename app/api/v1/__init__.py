@@ -11,6 +11,7 @@ from .lidar import router as lidar_router
 from .assets import router as assets_router
 from .flow_control import router as flow_control_router
 from .dag import router as dag_router
+from .output import router as output_router
 
 router = APIRouter(prefix="/api/v1")
 router.include_router(system_router)
@@ -23,5 +24,6 @@ router.include_router(calibration_router)
 router.include_router(lidar_router)
 router.include_router(assets_router)
 router.include_router(flow_control_router)
+router.include_router(output_router)
 router.include_router(dag_router)
 router.include_router(ws_router)
