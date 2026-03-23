@@ -84,9 +84,9 @@ The Output Node acts as a **terminal visualization node** in the processing pipe
 - [ ] Example: Connecting `LidarSensor → OutputNode` works. Connecting `LidarSensor → OutputNode` + `FilterNode → OutputNode` is rejected with validation error.
 
 #### F2: Metadata Collection & Broadcasting
-- [ ] On receiving input data, Output Node extracts metadata dictionary from payload
-- [ ] Metadata is broadcast via WebSocket on the **system topic** (not node-specific topic)
-- [ ] WebSocket payload format:
+- [x] On receiving input data, Output Node extracts metadata dictionary from payload
+- [x] Metadata is broadcast via WebSocket on the **system topic** (not node-specific topic)
+- [x] WebSocket payload format:
   ```typescript
   {
     type: "output_node_metadata",
@@ -95,8 +95,8 @@ The Output Node acts as a **terminal visualization node** in the processing pipe
     metadata: Record<string, any>  // All custom fields from input
   }
   ```
-- [ ] Does NOT forward data to downstream nodes (terminal node behavior)
-- [ ] Handles missing or malformed metadata gracefully (logs warning, sends empty metadata object)
+- [x] Does NOT forward data to downstream nodes (terminal node behavior)
+- [x] Handles missing or malformed metadata gracefully (logs warning, sends empty metadata object)
 
 #### F3: Dedicated Angular Page
 - [ ] Each Output Node has a dedicated page at route `/output/{node_id}`
@@ -127,12 +127,12 @@ The Output Node acts as a **terminal visualization node** in the processing pipe
 - [ ] Invalid node_id in route: Shows 404-style error page with link back to DAG editor
 
 #### F7: Node Registration in DAG Editor
-- [ ] Output Node appears in node palette under category: `output` or `visualization`
-- [ ] Display name: `Output`
-- [ ] Icon: `visibility` or `dashboard` (Material Icons)
-- [ ] Node type: `output_node`
-- [ ] Registered via `app/modules/output/registry.py`
-- [ ] Factory builder: `@NodeFactory.register("output_node")`
+- [x] Output Node appears in node palette under category: `output` or `visualization`
+- [x] Display name: `Output`
+- [x] Icon: `visibility` or `dashboard` (Material Icons)
+- [x] Node type: `output_node`
+- [x] Registered via `app/modules/output/registry.py`
+- [x] Factory builder: `@NodeFactory.register("output_node")`
 
 ---
 
@@ -145,19 +145,19 @@ The Output Node acts as a **terminal visualization node** in the processing pipe
 - [ ] No memory leaks during continuous operation (24-hour stress test)
 
 #### NF2: Logging & Observability
-- [ ] Logs when Output Node receives metadata at DEBUG level: `"OutputNode {node_id}: Received metadata with {field_count} fields"`
-- [ ] Logs WebSocket broadcast errors at ERROR level
-- [ ] Node status includes:
+- [x] Logs when Output Node receives metadata at DEBUG level: `"OutputNode {node_id}: Received metadata with {field_count} fields"`
+- [x] Logs WebSocket broadcast errors at ERROR level
+- [x] Node status includes:
   - `connected`: boolean (has input connection)
   - `last_update`: timestamp of most recent metadata
   - `metadata_count`: total number of metadata messages processed
   - `error_count`: number of errors encountered
 
 #### NF3: WebSocket Protocol
-- [ ] Uses **system topic** (not individual node topic per existing WebSocket topic cleanup rules)
-- [ ] Message type: `output_node_metadata` (distinct from other system messages)
-- [ ] Cleanup: When Output Node is deleted, stops broadcasting but does not affect system topic itself
-- [ ] Follows existing WebSocket lifecycle: Graceful close with code `1001` when node is removed
+- [x] Uses **system topic** (not individual node topic per existing WebSocket topic cleanup rules)
+- [x] Message type: `output_node_metadata` (distinct from other system messages)
+- [x] Cleanup: When Output Node is deleted, stops broadcasting but does not affect system topic itself
+- [x] Follows existing WebSocket lifecycle: Graceful close with code `1001` when node is removed
 
 #### NF4: UI/UX Guidelines
 - [ ] Table uses Synergy UI components (if available) or Tailwind-styled table
@@ -167,7 +167,7 @@ The Output Node acts as a **terminal visualization node** in the processing pipe
 - [ ] Empty states: Shows helpful message when no metadata available
 
 #### NF5: Testing Requirements
-- [ ] Backend unit tests:
+- [x] Backend unit tests:
   - Output Node creation and registration
   - Metadata extraction from input payloads
   - WebSocket broadcast logic
