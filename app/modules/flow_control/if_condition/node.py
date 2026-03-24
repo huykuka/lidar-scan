@@ -4,12 +4,11 @@ IfConditionNode - Conditional routing node for DAG orchestration.
 Evaluates boolean expressions against payload metadata and routes data
 to dual output ports (true/false) based on the result.
 """
-import time
 from typing import Any, Dict, Optional
 
-from app.services.nodes.base_module import ModuleNode
 from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
+from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 from .expression_parser import ExpressionParser
 
@@ -36,14 +35,14 @@ class IfConditionNode(ModuleNode):
         _ws_topic: WebSocket topic (None for invisible nodes)
         _parser: Expression parser instance
     """
-    
+
     def __init__(
-        self,
-        manager: Any,
-        node_id: str,
-        name: str,
-        expression: str,
-        throttle_ms: float = 0
+            self,
+            manager: Any,
+            node_id: str,
+            name: str,
+            expression: str,
+            throttle_ms: float = 0
     ):
         """
         Initialize IF condition node.
@@ -60,14 +59,15 @@ class IfConditionNode(ModuleNode):
         self.manager = manager
         self.expression = expression
         self.external_state: Optional[bool] = None  # None = use expression, True/False = external control
-        self.state: Optional[bool] = None  # Current routing state (True = route to 'true' port, False = route to 'false' port)
+        self.state: Optional[
+            bool] = None  # Current routing state (True = route to 'true' port, False = route to 'false' port)
         self.last_evaluation: Optional[bool] = None  # Most recent condition result
         self.last_error: Optional[str] = None
         self._ws_topic: Optional[str] = None  # Invisible node by default
         self._parser = ExpressionParser()
-        
+
         logger.debug(f"Created IfConditionNode {node_id} with expression: {expression}")
-    
+
     async def on_input(self, payload: Dict[str, Any]) -> None:
         """
         Evaluate expression and route to appropriate output port.
@@ -85,38 +85,39 @@ class IfConditionNode(ModuleNode):
         else:
             # Use expression evaluation
             context = self._build_context(payload)
-            
+
             try:
                 # Evaluate expression
                 result = self._parser.evaluate(self.expression, context)
-                
+
                 # Update status
                 self.state = result
                 self.last_error = None
-                
+
                 logger.debug(f"Node {self.id}: Expression '{self.expression}' evaluated to {result}")
-                
+
             except Exception as e:
                 # Fail-safe: route to false port on any error
                 error_msg = f"Expression evaluation failed: {e}"
                 self.last_error = error_msg
                 self.state = False
                 result = False
-                
+
                 logger.error(f"Node {self.id}: {error_msg}", exc_info=True)
-        
+
         # Add condition result to payload for debugging
         payload["condition_result"] = result
-        
+        payload["metadata"] = result
+
         # Keep last_evaluation in sync with evaluated result
         self.last_evaluation = result
-        
+
         # Notify status aggregator on every evaluation
         notify_status_change(self.id)
 
         # Route to appropriate downstream nodes
         await self._route_to_port("true" if result else "false", payload)
-    
+
     def _build_context(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Build evaluation context from payload metadata.
@@ -129,12 +130,12 @@ class IfConditionNode(ModuleNode):
         """
         # Start with copy of payload (to avoid modifying original)
         context = payload.copy()
-        
+
         # Remove 'points' array to avoid exposing large data in expressions
         context.pop("points", None)
-        
+
         return context
-    
+
     async def _route_to_port(self, port_id: str, payload: Dict[str, Any]) -> None:
         """
         Route data to downstream nodes connected to a specific output port.
@@ -150,7 +151,7 @@ class IfConditionNode(ModuleNode):
         """
         await self.manager.forward_data(self.id, payload, active_port=port_id)
         logger.debug(f"Node {self.id}: routed payload via port '{port_id}'")
-    
+
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardised status for this if-condition node.
 

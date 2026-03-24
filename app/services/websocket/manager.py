@@ -1,13 +1,11 @@
 import asyncio
-from typing import List, Dict, Any, TYPE_CHECKING
+from typing import List, Dict, Any
 
 from fastapi import WebSocket
 
-
-
-
 # System topics that should not be listed in the /topics endpoint
 SYSTEM_TOPICS = {
+    "output",
     "system_status",  # Real-time node status updates
 }
 
@@ -42,8 +40,9 @@ class ConnectionManager:
                     except Exception:
                         # Already closed or errored — ignore
                         pass
+
                 close_coros.append(close_ws())
-            
+
             # Close all connections in parallel
             await asyncio.gather(*close_coros, return_exceptions=True)
 
@@ -57,9 +56,8 @@ class ConnectionManager:
         """Returns True if there are active websocket connections OR active interceptors listening to this topic."""
         has_ws = bool(self.active_connections.get(topic))
         has_interceptors = bool(self._interceptors.get(topic))
-        
-        return has_ws or has_interceptors
 
+        return has_ws or has_interceptors
 
     def reset_active_connections(self):
         self.active_connections.clear()
@@ -79,7 +77,7 @@ class ConnectionManager:
                 pass
 
     async def broadcast(self, topic: str, message: Any):
-        
+
         # Handle active websocket connections
         if topic in self.active_connections:
             for connection in self.active_connections[topic]:
@@ -87,7 +85,7 @@ class ConnectionManager:
                     # Drop this frame for this specific client to avoid blocking the backend 
                     # and prevent Starlette "Concurrent call to send" RuntimeError.
                     continue
-                    
+
                 async def _send(conn=connection, msg=message):
                     conn._is_sending = True
                     try:
@@ -102,7 +100,7 @@ class ConnectionManager:
                             pass
                     finally:
                         conn._is_sending = False
-                            
+
                 # Fire and forget instead of awaiting sequentially
                 asyncio.create_task(_send())
 
@@ -117,7 +115,7 @@ class ConnectionManager:
         """Waits for the next message broadcast on a specific topic."""
         loop = asyncio.get_running_loop()
         future = loop.create_future()
-        
+
         if topic not in self._interceptors:
             self._interceptors[topic] = []
         self._interceptors[topic].append(future)

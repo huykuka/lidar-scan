@@ -12,16 +12,13 @@ import asyncio
 import time
 from typing import Any, Dict, Optional
 
-from app.services.nodes.base_module import ModuleNode
 from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
+from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 from .webhook import WebhookSender
 
 logger = get_logger(__name__)
-
-# Payload keys that are stripped from metadata (not JSON-serializable or internal fields)
-_EXCLUDED_KEYS = frozenset({"points", "node_id", "processed_by"})
 
 
 class OutputNode(ModuleNode):
@@ -41,11 +38,11 @@ class OutputNode(ModuleNode):
     """
 
     def __init__(
-        self,
-        manager: Any,
-        node_id: str,
-        name: str,
-        config: Dict[str, Any],
+            self,
+            manager: Any,
+            node_id: str,
+            name: str,
+            config: Dict[str, Any],
     ) -> None:
         self.manager = manager
         self.id = node_id
@@ -78,7 +75,7 @@ class OutputNode(ModuleNode):
 
             # Broadcast via system topic (fire-and-forget, non-blocking)
             from app.services.websocket.manager import manager as ws_manager  # Lazy import — avoids circular dep
-            asyncio.create_task(ws_manager.broadcast("system_status", message))
+            asyncio.create_task(ws_manager.broadcast("output", message))
 
             # Optional webhook delivery (fire-and-forget)
             if self._webhook is not None:
@@ -99,26 +96,13 @@ class OutputNode(ModuleNode):
             notify_status_change(self.id)
 
     def _extract_metadata(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Extract JSON-serializable metadata from payload.
-
-        Strips excluded keys (points, node_id, processed_by) and coerces
-        numpy scalar types to Python native types via item().
-        Returns {} on failure rather than raising.
-        """
         try:
-            result: Dict[str, Any] = {}
-            for key, value in payload.items():
-                if key in _EXCLUDED_KEYS:
-                    continue
-                # Coerce numpy scalars (and similar) to Python native types
-                if hasattr(value, "item"):
-                    try:
-                        value = value.item()
-                    except Exception:
-                        value = str(value)
-                result[key] = value
-            return result
+            metadata = payload.get("metadata", {})
+            if not isinstance(metadata, dict):
+                return {}
+
+            return metadata
+
         except Exception as e:
             logger.error(f"OutputNode {self.id}: _extract_metadata failed: {e}", exc_info=True)
             return {}

@@ -1,0 +1,33 @@
+/* Panel slide-in animation when expanding from collapsed state */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Message card pop-in animation */
+@keyframes msgFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Applied when the panel transitions to expanded */
+.panel-expanded {
+  animation: slideInFromLeft 0.25s ease-out forwards;
+}
+
+/* Each new message card animates in */
+.msg-card {
+  animation: msgFadeIn 0.18s ease-out both;
+}

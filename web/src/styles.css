@@ -59,3 +59,42 @@ router-outlet + * {
   min-height: 0;
   width: 100%;
 }
+
+/* 1. Setup the scrollbar dimensions */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 2. Style the thumb but make it transparent by default */
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0); /* Fully transparent */
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+/* 3. Show the thumb when the CONTAINER is hovered */
+/* This is the magic part: targeting the thumb when the element itself is hovered */
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* 4. Darken the thumb when the user actually hovers over the scrollbar itself */
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent; /* Thumb and Track transparent */
+  transition: scrollbar-color 0.1s ease;
+}
+
+*:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}

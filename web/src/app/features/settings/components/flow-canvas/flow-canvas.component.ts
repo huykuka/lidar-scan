@@ -15,6 +15,7 @@ import {FlowCanvasControlsComponent} from './controls/flow-canvas-controls.compo
 import {FlowCanvasConnectionsComponent} from './connections/flow-canvas-connections.component';
 import {FlowCanvasEmptyStateComponent} from './empty-state/flow-canvas-empty-state.component';
 import {DynamicNodeEditorComponent} from '../dynamic-node-editor/dynamic-node-editor.component';
+import {OutputViewerComponent} from '@features/settings/components/flow-canvas/output-viewer/output-viewer.component';
 
 @Component({
   selector: 'app-flow-canvas',
@@ -27,6 +28,7 @@ import {DynamicNodeEditorComponent} from '../dynamic-node-editor/dynamic-node-ed
     FlowCanvasConnectionsComponent,
     FlowCanvasEmptyStateComponent,
     DynamicNodeEditorComponent,
+    OutputViewerComponent,
   ],
   templateUrl: './flow-canvas.component.html',
   styleUrl: './flow-canvas.component.css',

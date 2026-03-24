@@ -7,9 +7,6 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {ToastService} from '@core/services/toast.service';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
-import {WebhookConfigComponent} from '@features/output-node/components/webhook-config/webhook-config.component';
-import {OutputNodeApiService} from '@features/output-node/services/output-node-api.service';
-import {WebhookConfig, DEFAULT_WEBHOOK_CONFIG} from '@core/models/output-node.model';
 
 /**
  * Drawer editor for Output Node configuration.
@@ -23,9 +20,8 @@ import {WebhookConfig, DEFAULT_WEBHOOK_CONFIG} from '@core/models/output-node.mo
     SynergyComponentsModule,
     SynergyFormsModule,
     NodeEditorHeaderComponent,
-    WebhookConfigComponent,
   ],
-  providers: [NodeEditorFacadeService, OutputNodeApiService],
+  providers: [NodeEditorFacadeService],
   templateUrl: './output-node-editor.component.html',
   styleUrl: './output-node-editor.component.css',
 })
@@ -37,11 +33,8 @@ export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {
   private toast = inject(ToastService);
   private facade = inject(NodeEditorFacadeService);
   private router = inject(Router);
-  private outputNodeApi = inject(OutputNodeApiService);
 
   protected isSaving = signal(false);
-  protected webhookConfig = signal<WebhookConfig>({...DEFAULT_WEBHOOK_CONFIG});
-  protected webhookLoaded = signal(false);
 
   protected nodeId = computed(() => this.nodeStore.selectedNode()?.id ?? null);
 
@@ -61,19 +54,7 @@ export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {
   }
 
   async ngOnInit(): Promise<void> {
-    const id = this.nodeId();
-    if (!id) {
-      this.webhookLoaded.set(true);
-      return;
-    }
-    try {
-      const cfg = await this.outputNodeApi.getWebhookConfig(id);
-      this.webhookConfig.set(cfg);
-    } catch {
-      // Silently ignore — show defaults
-    } finally {
-      this.webhookLoaded.set(true);
-    }
+    // Webhook config skipped — not yet implemented.
   }
 
   protected navigateToLiveData(): void {
@@ -81,10 +62,6 @@ export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {
     if (id) {
       this.router.navigate(['/output', id]);
     }
-  }
-
-  protected onWebhookSaved(config: WebhookConfig): void {
-    this.webhookConfig.set(config);
   }
 
   async onSave(): Promise<void> {
