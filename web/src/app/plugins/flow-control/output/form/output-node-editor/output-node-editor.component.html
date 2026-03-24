@@ -8,7 +8,7 @@
   (cancel)="onCancel()"
 />
 
-<div class="px-4 py-3 space-y-4">
+<div class=" space-y-4">
   <!-- Node Name -->
   <syn-input
     label="Node Name"
@@ -19,13 +19,13 @@
 
   <!-- View Live Data Link (only when editing existing node) -->
   @if (isEditMode()) {
-    <div class="flex items-center gap-2 p-3 rounded-md bg-syn-color-neutral-100 border border-syn-color-neutral-200">
-      <syn-icon name="open_in_new" class="text-syn-color-primary-600"></syn-icon>
-      <span class="text-sm text-syn-color-neutral-700 flex-1">View live metadata stream</span>
-      <syn-button variant="text" size="small" (click)="navigateToLiveData()">
-        View Live Data →
-      </syn-button>
-    </div>
+    <!--    <div class="flex items-center gap-2 p-3 rounded-md bg-syn-color-neutral-100 border border-syn-color-neutral-200">-->
+      <!--      <syn-icon name="open_in_new" class="text-syn-color-primary-600"></syn-icon>-->
+      <!--      <span class="text-sm text-syn-color-neutral-700 flex-1">View live metadata stream</span>-->
+      <!--      <syn-button variant="text" size="small" (click)="navigateToLiveData()">-->
+      <!--        View Live Data →-->
+      <!--      </syn-button>-->
+      <!--    </div>-->
   }
 
 

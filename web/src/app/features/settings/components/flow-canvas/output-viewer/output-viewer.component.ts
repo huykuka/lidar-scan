@@ -1,5 +1,6 @@
 import {Component, computed, effect, ElementRef, inject, OnDestroy, signal, viewChild} from '@angular/core';
 import {DatePipe} from '@angular/common';
+import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {MultiWebsocketService} from '@core/services/multi-websocket.service';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
@@ -113,6 +114,38 @@ export class OutputViewerComponent implements OnDestroy {
   }
 
   readonly objectKeys = Object.keys;
+
+  private readonly sanitizer = inject(DomSanitizer);
+
+  /**
+   * Returns syntax-highlighted HTML for the metadata object.
+   * Keys are neutral-500, strings cyan-700, numbers/booleans primary, null grey.
+   */
+  formatJson(metadata: Record<string, unknown>): SafeHtml {
+    const json = JSON.stringify(metadata, null, 2);
+    const html = json.replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+      (match) => {
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            // JSON key
+            return `<span class="json-key">${match}</span>`;
+          }
+          // string value
+          return `<span class="json-str">${match}</span>`;
+        }
+        if (/true|false/.test(match)) {
+          return `<span class="json-bool">${match}</span>`;
+        }
+        if (/null/.test(match)) {
+          return `<span class="json-null">${match}</span>`;
+        }
+        // number
+        return `<span class="json-num">${match}</span>`;
+      },
+    );
+    return this.sanitizer.bypassSecurityTrustHtml(html);
+  }
 
   private connectWs(): void {
     if (this.subscription) return; // already connected

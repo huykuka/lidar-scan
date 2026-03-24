@@ -11,10 +11,10 @@ import {OperationNodeCardComponent} from '@plugins/operation/node/operation-node
 import {OperationNodeEditorComponent} from '@plugins/operation/form/operation-node-editor.component';
 import {CalibrationNodeCardComponent} from '@plugins/calibration/node/calibration-node-card.component';
 import {CalibrationNodeEditorComponent} from '@plugins/calibration/form/calibration-node-editor.component';
-import {IfConditionCardComponent} from '@plugins/flow-control/node/if-condition-card.component';
-import {IfConditionEditorComponent} from '@plugins/flow-control/form/if-condition-editor.component';
-import {OutputNodeCardComponent} from '@plugins/output-node/node/output-node-card/output-node-card.component';
-import {OutputNodeEditorComponent} from '@plugins/output-node/form/output-node-editor/output-node-editor.component';
+import {IfConditionCardComponent} from '@plugins/flow-control/if-block/node/if-condition-card.component';
+import {IfConditionEditorComponent} from '@plugins/flow-control/if-block/form/if-condition-editor.component';
+import {OutputNodeCardComponent} from '@plugins/flow-control/output/node/output-node-card/output-node-card.component';
+import {OutputNodeEditorComponent} from '@plugins/flow-control/output/form/output-node-editor/output-node-editor.component';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
 const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
