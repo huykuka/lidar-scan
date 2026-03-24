@@ -72,7 +72,6 @@ class OutputNode(ModuleNode):
                 "timestamp": payload.get("timestamp") or time.time(),
                 "metadata": metadata,
             }
-
             # Broadcast via system topic (fire-and-forget, non-blocking)
             from app.services.websocket.manager import manager as ws_manager  # Lazy import — avoids circular dep
             asyncio.create_task(ws_manager.broadcast("output", message))
@@ -83,11 +82,6 @@ class OutputNode(ModuleNode):
 
             self.last_metadata_at = time.time()
             self.metadata_count += 1
-
-            logger.debug(
-                f"OutputNode {self.id}: Received metadata with {len(metadata)} fields"
-            )
-
             notify_status_change(self.id)
 
         except Exception as e:
@@ -98,9 +92,6 @@ class OutputNode(ModuleNode):
     def _extract_metadata(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
             metadata = payload.get("metadata", {})
-            if not isinstance(metadata, dict):
-                return {}
-
             return metadata
 
         except Exception as e:

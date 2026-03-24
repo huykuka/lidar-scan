@@ -8,9 +8,10 @@ import {environment} from '@env/environment';
 import {Subscription} from 'rxjs';
 
 export interface OutputMessage {
+  type: string;
   node_id: string;
   timestamp: number;
-  metadata: Record<string, unknown>;
+  metadata: unknown;
   receivedAt: Date;
 }
 
@@ -51,7 +52,7 @@ export class OutputViewerComponent implements OnDestroy {
 
   /** node_id → human-readable name derived from the global node store. */
   private readonly nodeStore = inject(NodeStoreService);
-  private readonly nodeNameMap = computed<Map<string, string>>(() =>
+  protected readonly nodeName = computed<Map<string, string>>(() =>
     new Map(this.nodeStore.nodes().map((n) => [n.id, n.name])),
   );
 
@@ -108,30 +109,18 @@ export class OutputViewerComponent implements OnDestroy {
     this.isFrozen.set(false);
   }
 
-  /** Resolve a node_id to its human-readable name, falling back to the raw id. */
-  nodeName(id: string): string {
-    return this.nodeNameMap().get(id) ?? id;
-  }
-
-  readonly objectKeys = Object.keys;
-
   private readonly sanitizer = inject(DomSanitizer);
 
-  /**
-   * Returns syntax-highlighted HTML for the metadata object.
-   * Keys are neutral-500, strings cyan-700, numbers/booleans primary, null grey.
-   */
-  formatJson(metadata: Record<string, unknown>): SafeHtml {
-    const json = JSON.stringify(metadata, null, 2);
+  /** Returns syntax-highlighted HTML for any JSON-serialisable value. */
+  formatJson(payload: unknown): SafeHtml {
+    const json = JSON.stringify(payload, null, 2);
     const html = json.replace(
       /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
       (match) => {
         if (/^"/.test(match)) {
           if (/:$/.test(match)) {
-            // JSON key
             return `<span class="json-key">${match}</span>`;
           }
-          // string value
           return `<span class="json-str">${match}</span>`;
         }
         if (/true|false/.test(match)) {
@@ -140,7 +129,6 @@ export class OutputViewerComponent implements OnDestroy {
         if (/null/.test(match)) {
           return `<span class="json-null">${match}</span>`;
         }
-        // number
         return `<span class="json-num">${match}</span>`;
       },
     );
@@ -165,23 +153,20 @@ export class OutputViewerComponent implements OnDestroy {
 
   private handleMessage(data: unknown): void {
     try {
-      const raw = typeof data === 'string' ? JSON.parse(data) : data;
-      if (raw?.type !== 'output_node_metadata') return;
-
+      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
       const msg: OutputMessage = {
-        node_id: raw.node_id ?? 'unknown',
-        timestamp: raw.timestamp ?? Date.now() / 1000,
-        metadata: raw.metadata ?? {},
+        type: (parsed as any).type ?? '',
+        node_id: (parsed as any).node_id ?? '',
+        timestamp: (parsed as any).timestamp ?? Date.now() / 1000,
+        metadata: (parsed as any).metadata ?? {},
         receivedAt: new Date(),
       };
-
-      // Always buffer, even when frozen — user sees new count on unfreeze.
       this.allMessages.update((prev) => {
         const next = [...prev, msg];
         return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
       });
     } catch {
-      // Silently drop unparseable frames (e.g. binary LIDR frames on this topic).
     }
   }
 }
+

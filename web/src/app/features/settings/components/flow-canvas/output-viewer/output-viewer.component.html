@@ -82,7 +82,7 @@
         <p class="text-[11px] text-center mt-4" style="color: var(--syn-color-neutral-400)">No output yet</p>
       }
 
-      @for (msg of visibleMessages(); track msg.node_id + msg.timestamp) {
+      @for (msg of visibleMessages(); track msg.receivedAt) {
         <div
           class="msg-card mr-1 rounded border p-2 text-[11px] leading-snug"
           style="background: var(--syn-color-neutral-0); border-color: var(--syn-color-neutral-200)"
@@ -93,19 +93,13 @@
               class="font-medium truncate max-w-32"
               [title]="msg.node_id"
               style="color: var(--syn-color-neutral-700)"
-            >
-              {{ nodeName(msg.node_id) }}
-            </span>
+            >{{ nodeName().get(msg.node_id) ?? msg.node_id }}</span>
             <span class="text-[10px] shrink-0" style="color: var(--syn-color-neutral-400)">
               {{ msg.receivedAt | date:'HH:mm:ss' }}
             </span>
           </div>
-          <!-- Metadata as formatted JSON -->
-          @if (objectKeys(msg.metadata).length > 0) {
-            <pre class="json-block" [innerHTML]="formatJson(msg.metadata)"></pre>
-          } @else {
-            <span class="italic" style="color: var(--syn-color-neutral-400)">no metadata</span>
-          }
+          <!-- metadata — displayed as formatted JSON whatever the shape -->
+          <pre class="json-block" [innerHTML]="formatJson(msg.metadata)"></pre>
         </div>
       }
     </div>
