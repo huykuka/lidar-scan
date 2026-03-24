@@ -16,20 +16,6 @@ import {SystemStatusService} from '@core/services/system-status.service';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './notices-status.component.html',
-  styles: `
-    :host {
-      display: inline-flex;
-      position: relative;
-      align-items: center;
-    }
-    syn-icon-button {
-      color: var(--syn-color-neutral-500);
-      transition: color 0.15s ease;
-    }
-    :host:hover syn-icon-button {
-      color: var(--syn-color-primary-600);
-    }
-  `,
 })
 export class NoticesStatusComponent {
   readonly acknowledge = output<void>();
