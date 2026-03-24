@@ -58,25 +58,31 @@ class OutputNode(ModuleNode):
         logger.debug(f"Created OutputNode {node_id} (webhook={'enabled' if self._webhook else 'disabled'})")
 
     async def on_input(self, payload: Dict[str, Any]) -> None:
-        """
-        Receive payload from upstream node, extract metadata, and broadcast.
-
-        Does NOT forward data downstream (terminal node).
-        All exceptions are caught and counted — never re-raised.
-        """
         try:
             metadata = self._extract_metadata(payload)
+
+            # CASE 1: metadata missing → DO NOTHING
+            if metadata is None and "metadata" not in payload:
+                return
+
+            # CASE 2: metadata exists but empty dict → DO NOTHING
+            if metadata == {}:
+                return
+
+            # CASE 3: metadata is None (explicit null) → SEND
+            # CASE 4: metadata has data → SEND
+
             message: Dict[str, Any] = {
                 "type": "output_node_metadata",
                 "node_id": self.id,
                 "timestamp": payload.get("timestamp") or time.time(),
-                "metadata": metadata,
+                "metadata": metadata,  # can be None or dict
             }
-            # Broadcast via system topic (fire-and-forget, non-blocking)
-            from app.services.websocket.manager import manager as ws_manager  # Lazy import — avoids circular dep
+
+            from app.services.websocket.manager import manager as ws_manager
+
             asyncio.create_task(ws_manager.broadcast("output", message))
 
-            # Optional webhook delivery (fire-and-forget)
             if self._webhook is not None:
                 asyncio.create_task(self._webhook.send(message))
 
@@ -89,14 +95,16 @@ class OutputNode(ModuleNode):
             logger.error(f"OutputNode {self.id}: on_input error: {e}", exc_info=True)
             notify_status_change(self.id)
 
-    def _extract_metadata(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _extract_metadata(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         try:
-            metadata = payload.get("metadata", {})
-            return metadata
+            if "metadata" not in payload:
+                return None  # <-- missing → skip
+
+            return payload["metadata"]  # can be None, {}, or dict
 
         except Exception as e:
             logger.error(f"OutputNode {self.id}: _extract_metadata failed: {e}", exc_info=True)
-            return {}
+            return None
 
     def emit_status(self) -> NodeStatusUpdate:
         """
