@@ -1,0 +1,108 @@
+<div
+  [class.border-none]="isCollapsed()"
+  [class.w-0]="isCollapsed()"
+  [class.w-70]="!isCollapsed()"
+  class="border-l h-full flex flex-col relative transition-all duration-300 z-10"
+  style="background: var(--syn-color-neutral-0)"
+>
+  <!-- Toggle button -->
+  <button
+    (click)="toggleCollapse()"
+    [class.-left-10]="isCollapsed()"
+    [class.-left-3]="!isCollapsed()"
+    class="absolute top-4 z-20 w-6 h-6 border rounded-full flex items-center justify-center shadow-md transition-all duration-300"
+    style="background: var(--syn-color-neutral-0);"
+  >
+    <syn-icon [name]="!isCollapsed() ? 'chevron_right' : 'chevron_left'"
+              class="text-sm"
+    />
+  </button>
+
+  <div
+    [class.opacity-0]="isCollapsed()"
+    [class.pointer-events-none]="isCollapsed()"
+    [class.panel-expanded]="!isCollapsed()"
+    class="flex-1 flex flex-col overflow-hidden w-full transition-opacity duration-300"
+    style="background: var(--syn-color-neutral-50)"
+  >
+    <!-- Header -->
+    <div
+      class="flex items-center justify-between px-3 py-2 border-b shrink-0"
+      style="background: var(--syn-color-neutral-0);"
+    >
+      <span
+        class="text-xs font-semibold uppercase tracking-wide ml-3"
+        style="color: var(--syn-color-neutral-600)"
+      >Output</span>
+      <div class="flex items-center gap-0.5">
+
+        <!-- Freeze toggle -->
+        <syn-icon-button
+          (click)="toggleFreeze()"
+          [name]="isFrozen() ? 'lock_open_fill' : 'lock_open'"
+          [label]="isFrozen() ? 'Unfreeze — resume live feed' : 'Freeze — lock current view'"
+          [color]="isFrozen() ? 'primary' : 'neutral'"
+          size="small"
+        />
+
+        @if (totalCount() > 0) {
+          <syn-icon-button
+            (click)="clearMessages()"
+            name="delete_forever"
+            label="Clear all messages"
+            color="neutral"
+            size="small"
+          />
+        }
+      </div>
+    </div>
+
+    <!-- Frozen banner -->
+    @if (isFrozen()) {
+      <div
+        class="flex items-center gap-1.5 px-3 py-1 border-b shrink-0"
+        style="background: var(--syn-color-warning-100); border-color: var(--syn-color-warning-300)"
+      >
+        <syn-icon name="lock_open_fill" class="text-[10px]" style="color: var(--syn-color-warning-700)"/>
+        <span class="text-[10px] font-medium" style="color: var(--syn-color-warning-700)">Frozen</span>
+        @if (totalCount() > visibleMessages().length) {
+          <span class="text-[10px] ml-auto" style="color: var(--syn-color-warning-600)">
+            +{{ totalCount() - visibleMessages().length }} new
+          </span>
+        }
+      </div>
+    }
+
+    <!-- Message log -->
+    <div
+      #logContainer
+      class="log-scroll flex-1 overflow-y-auto flex flex-col gap-1 py-2 pl-2 pr-1"
+    >
+      @if (visibleMessages().length === 0) {
+        <p class="text-[11px] text-center mt-4" style="color: var(--syn-color-neutral-400)">No output yet</p>
+      }
+
+      @for (msg of visibleMessages(); track msg.receivedAt) {
+        <div
+          class="msg-card mr-1 rounded border p-2 text-[11px] leading-snug"
+          style="background: var(--syn-color-neutral-0); border-color: var(--syn-color-neutral-200)"
+        >
+          <!-- Top row: node name + time -->
+          <div class="flex items-center justify-between mb-1 gap-1">
+            <span
+              class="font-medium truncate max-w-32"
+              [title]="msg.node_id"
+              style="color: var(--syn-color-neutral-700)"
+            >{{ nodeName().get(msg.node_id) ?? msg.node_id }}</span>
+            <span class="text-[10px] shrink-0" style="color: var(--syn-color-neutral-400)">
+              {{ msg.receivedAt | date:'HH:mm:ss' }}
+            </span>
+          </div>
+          <!-- metadata — displayed as formatted JSON whatever the shape -->
+          <pre class="json-block" [innerHTML]="formatJson(msg.metadata)"></pre>
+        </div>
+      }
+    </div>
+
+  </div>
+</div>

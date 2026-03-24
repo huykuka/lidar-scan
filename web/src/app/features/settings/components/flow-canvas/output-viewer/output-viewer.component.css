@@ -1,0 +1,85 @@
+/* ─── JSON syntax highlighting ───────────────────────────────────────────── */
+.json-block {
+  margin: 4px 0 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--syn-color-neutral-700);
+  background: transparent;
+  border: none;
+}
+
+/* Angular emulated encapsulation cannot reach [innerHTML] children directly —
+   use ::ng-deep to pierce into dynamically-injected spans. */
+:host ::ng-deep .json-key   { color: var(--syn-color-neutral-600); }
+:host ::ng-deep .json-str   { color: var(--syn-interactive-emphasis-color); }
+:host ::ng-deep .json-num   { color: var(--syn-color-success-700, #2e7d32); }
+:host ::ng-deep .json-bool  { color: var(--syn-color-warning-700, #b45309); }
+:host ::ng-deep .json-null  { color: var(--syn-color-neutral-400); font-style: italic; }
+
+/* ─── Scrollbar: invisible by default, fade in on hover ─────────────────── */
+.log-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s ease;
+}
+
+.log-scroll:hover {
+  scrollbar-color: var(--syn-color-neutral-300) transparent;
+}
+
+/* WebKit (Chrome / Edge / Safari) */
+.log-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.log-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.log-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+  transition: background 0.2s ease;
+}
+
+.log-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--syn-color-neutral-300);
+}
+
+/* ─── Panel animations ───────────────────────────────────────────────────── */
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Message card pop-in animation */
+@keyframes msgFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Applied when the panel transitions to expanded */
+.panel-expanded {
+  animation: slideInFromLeft 0.25s ease-out forwards;
+}
+
+/* Each new message card animates in */
+.msg-card {
+  animation: msgFadeIn 0.18s ease-out both;
+}

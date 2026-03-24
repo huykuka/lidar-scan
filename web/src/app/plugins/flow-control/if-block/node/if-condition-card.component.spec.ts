@@ -84,18 +84,43 @@ describe('IfConditionCardComponent', () => {
     expect(shortExpr).toBe(shortExpression);
   });
 
-  it('should show TRUE badge when last_evaluation=true', () => {
+  it('should show TRUE badge when state=true', () => {
     const status: IfNodeStatus = {
-      node_id: 'node-1',
+      id: 'node-1',
       name: 'Test IF Node',
       type: 'if_condition',
-      status: 'active',
-      config: {
-        expression: 'point_count > 1000',
-        throttle_ms: 0,
-      },
-      last_evaluation: true,
-      external_state: null,
+      category: 'operation',
+      enabled: true,
+      visible: true,
+      running: true,
+      expression: 'point_count > 1000',
+      state: true,
+      last_error: null,
+    };
+
+    componentRef.setInput('status', status);
+    fixture.detectChanges();
+
+    // syn-badge Lit elements may not populate textContent in jsdom — check inner text node
+    const compiled = fixture.nativeElement as HTMLElement;
+    const badge = compiled.querySelector('syn-badge');
+    expect(badge).toBeTruthy();
+    // Fallback: check the text content of the badge's light-DOM slot
+    const badgeText = badge?.textContent ?? badge?.innerHTML ?? '';
+    expect(badgeText.trim()).toContain('TRUE');
+  });
+
+  it('should show FALSE badge when state=false', () => {
+    const status: IfNodeStatus = {
+      id: 'node-1',
+      name: 'Test IF Node',
+      type: 'if_condition',
+      category: 'operation',
+      enabled: true,
+      visible: true,
+      running: true,
+      expression: 'point_count > 1000',
+      state: false,
       last_error: null,
     };
 
@@ -105,21 +130,21 @@ describe('IfConditionCardComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const badge = compiled.querySelector('syn-badge');
     expect(badge).toBeTruthy();
-    expect(badge?.textContent?.trim()).toContain('TRUE');
+    const badgeText = badge?.textContent ?? badge?.innerHTML ?? '';
+    expect(badgeText.trim()).toContain('FALSE');
   });
 
-  it('should show FALSE badge when last_evaluation=false', () => {
+  it('should show "—" badge when state is null (no evaluation yet)', () => {
     const status: IfNodeStatus = {
-      node_id: 'node-1',
+      id: 'node-1',
       name: 'Test IF Node',
       type: 'if_condition',
-      status: 'active',
-      config: {
-        expression: 'point_count > 1000',
-        throttle_ms: 0,
-      },
-      last_evaluation: false,
-      external_state: null,
+      category: 'operation',
+      enabled: true,
+      visible: true,
+      running: true,
+      expression: 'point_count > 1000',
+      state: null,
       last_error: null,
     };
 
@@ -129,44 +154,22 @@ describe('IfConditionCardComponent', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     const badge = compiled.querySelector('syn-badge');
     expect(badge).toBeTruthy();
-    expect(badge?.textContent?.trim()).toContain('FALSE');
-  });
-
-  it('should show "Ext: ON" badge when external_state=true', () => {
-    const status: IfNodeStatus = {
-      node_id: 'node-1',
-      name: 'Test IF Node',
-      type: 'if_condition',
-      status: 'active',
-      config: {
-        expression: 'point_count > 1000',
-        throttle_ms: 0,
-      },
-      last_evaluation: true,
-      external_state: true,
-      last_error: null,
-    };
-
-    componentRef.setInput('status', status);
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    const text = compiled.textContent || '';
-    expect(text).toContain('Ext: ON');
+    // When state is null the template renders '—'
+    const badgeText = badge?.textContent ?? badge?.innerHTML ?? '';
+    expect(badgeText.trim()).toContain('—');
   });
 
   it('should show error badge when last_error present', () => {
     const status: IfNodeStatus = {
-      node_id: 'node-1',
+      id: 'node-1',
       name: 'Test IF Node',
       type: 'if_condition',
-      status: 'error',
-      config: {
-        expression: 'invalid expression',
-        throttle_ms: 0,
-      },
-      last_evaluation: null,
-      external_state: null,
+      category: 'operation',
+      enabled: true,
+      visible: true,
+      running: false,
+      expression: 'invalid expression',
+      state: null,
       last_error: 'Syntax error in expression',
     };
 

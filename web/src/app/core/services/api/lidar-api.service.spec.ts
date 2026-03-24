@@ -11,6 +11,7 @@ describe('LidarApiService', () => {
   let store: LidarStoreService;
 
   beforeEach(() => {
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
     });
@@ -24,9 +25,17 @@ describe('LidarApiService', () => {
   });
 
   it('getLidars() updates store', async () => {
+    // getLidars() uses sequential awaits: first /nodes, then /nodes/pipelines.
+    // Start the call but do NOT await — we need to flush requests as they arrive.
     const p = service.getLidars();
 
-    const reqNodes = httpMock.expectOne((r) => r.method === 'GET' && r.url.endsWith('/nodes'));
+    // Microtask tick: let the first `await firstValueFrom(http.get('/nodes'))` register its request
+    await Promise.resolve();
+
+    // Only /nodes is pending at this point (sequential await)
+    const reqNodes = httpMock.expectOne(
+      (r) => r.method === 'GET' && r.url.endsWith('/nodes') && !r.url.endsWith('/nodes/pipelines'),
+    );
     reqNodes.flush([
       {
         id: 'a',
@@ -37,6 +46,9 @@ describe('LidarApiService', () => {
         config: {hostname: '', mode: 'real'},
       },
     ]);
+
+    // Allow the second await to fire
+    await Promise.resolve();
 
     const reqPipelines = httpMock.expectOne(
       (r) => r.method === 'GET' && r.url.endsWith('/nodes/pipelines'),

@@ -14,7 +14,7 @@ from app.services.nodes.schema import (
 
 node_schema_registry.register(NodeDefinition(
     type="if_condition",
-    display_name="Conditional If",
+    display_name="If Block",
     category="flow_control",
     description="Routes data based on boolean expression",
     icon="call_split",
@@ -64,11 +64,11 @@ def build_if_condition(node: Dict[str, Any], service_context: Any, edges: List[D
         IfConditionNode instance
     """
     from .node import IfConditionNode  # Lazy import to avoid circular dependencies
-    
+
     config = node.get("config", {})
     expression = config.get("expression", "true")
     throttle_ms = float(config.get("throttle_ms", 0))
-    
+
     return IfConditionNode(
         manager=service_context,
         node_id=node["id"],

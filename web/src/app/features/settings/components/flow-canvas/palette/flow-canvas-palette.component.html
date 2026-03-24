@@ -1,3 +1,4 @@
+<script src="flow-canvas-palette.component.ts"></script>
 <div
   [class.border-none]="isCollapsed()"
   [class.w-0]="isCollapsed()"
@@ -24,7 +25,7 @@
   >
     <!-- Simple Search Bar -->
     <div class="px-3 py-2 border-r border-b bg-white flex items-center gap-2 ">
-      <syn-icon name="search" class="text-xs text-neutral-400" />
+      <syn-icon name="search" class="text-xs text-neutral-400"/>
       <input
         [value]="searchQuery()"
         (input)="onSearch($event)"
@@ -37,16 +38,16 @@
     <div class="flex-1 overflow-y-auto syn-scrollbar border-r ">
       @if (isLoading()) {
         <div class="p-8 flex justify-center opacity-20">
-          <syn-spinner />
+          <syn-spinner/>
         </div>
       }
 
       @if (!isLoading()) {
         @if (groupedPlugins().length === 0 && searchQuery()) {
-           <div class="flex flex-col items-center justify-center py-16 px-4 text-center">
-             <syn-icon name="search_off" class="text-3xl text-neutral-300 mb-2" />
-             <p class="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">No nodes found</p>
-           </div>
+          <div class="flex flex-col items-center justify-center py-16 px-4 text-center">
+            <syn-icon name="search_off" class="text-3xl text-neutral-300 mb-2"/>
+            <p class="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">No nodes found</p>
+          </div>
         }
 
         @for (group of groupedPlugins(); track group.category) {
@@ -76,18 +77,20 @@
                     draggable="true"
                   >
                     <!-- Port Decorators (Visual only, to match screenshot) -->
-                    <div class="absolute left-0 top-1/2 -translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
-                    <div class="absolute right-0 top-1/2 translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
+                    <div
+                      class="absolute left-0 top-1/2 -translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
+                    <div
+                      class="absolute right-0 top-1/2 translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
 
-                    <div 
+                    <div
                       class="flex items-stretch h-8 rounded border border-black/20 shadow-sm overflow-hidden"
                       [style.background-color]="plugin.style.color"
                     >
                       <!-- Left Icon Section -->
                       <div class="w-8 flex items-center justify-center bg-black/10 border-r border-black/5 shrink-0">
-                        <syn-icon [name]="plugin.icon || 'extension'" class="text-lg text-white/90 drop-shadow-sm" />
+                        <syn-icon [name]="plugin.icon || 'extension'" class="text-lg text-white/90 drop-shadow-sm"/>
                       </div>
-                      
+
                       <!-- Label Section -->
                       <div class="flex-1 flex items-center justify-center px-2 min-w-0">
                         <span class="text-[11px] font-bold text-black truncate leading-none text-center px-1">

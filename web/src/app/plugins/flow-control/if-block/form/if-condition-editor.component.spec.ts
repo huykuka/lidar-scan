@@ -1,20 +1,32 @@
 // @ts-nocheck
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ComponentRef, signal } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
-import { IfConditionEditorComponent } from './if-condition-editor.component';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { ToastService } from '@core/services/toast.service';
-import { NodeEditorFacadeService } from '@features/settings/services/node-editor-facade.service';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {ComponentRef, signal} from '@angular/core';
+import {ReactiveFormsModule} from '@angular/forms';
+import {IfConditionEditorComponent} from './if-condition-editor.component';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {ToastService} from '@core/services/toast.service';
+import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {provideHttpClient} from '@angular/common/http';
+import {provideHttpClientTesting} from '@angular/common/http/testing';
 
 describe('IfConditionEditorComponent', () => {
   let component: IfConditionEditorComponent;
   let componentRef: ComponentRef<IfConditionEditorComponent>;
   let fixture: ComponentFixture<IfConditionEditorComponent>;
-  let nodeStoreService: jasmine.SpyObj<NodeStoreService>;
-  let toastService: jasmine.SpyObj<ToastService>;
+  let nodeStoreSpy: ReturnType<typeof createNodeStoreMock>;
+  let toastSpy: ReturnType<typeof createToastMock>;
+  let facadeSpy: ReturnType<typeof createFacadeMock>;
+
+  // jsdom does not implement navigator.clipboard — polyfill it for these tests
+  beforeAll(() => {
+    if (!navigator.clipboard) {
+      Object.defineProperty(navigator, 'clipboard', {
+        value: {writeText: vi.fn()},
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
 
   const mockNode = {
     id: 'node-1',
@@ -28,34 +40,57 @@ describe('IfConditionEditorComponent', () => {
     enabled: true,
   };
 
-  beforeEach(async () => {
-    const nodeStoreSpy = jasmine.createSpyObj('NodeStoreService', [
-      'selectedNode',
-      'select',
-      'setState',
-    ]);
-    const toastSpy = jasmine.createSpyObj('ToastService', [
-      'success',
-      'warning',
-      'danger',
-    ]);
+  function createNodeStoreMock(node = mockNode) {
+    return {
+      selectedNode: signal(node),
+      nodeDefinitions: signal([{type: 'if_condition', category: 'operation', properties: []}]),
+      select: vi.fn().mockReturnValue(signal(false)),
+      setState: vi.fn(),
+    };
+  }
 
-    // Setup node store spy to return signals
-    nodeStoreSpy.selectedNode = signal(mockNode);
-    nodeStoreSpy.select = jasmine.createSpy('select').and.returnValue(signal(false));
+  function createToastMock() {
+    return {
+      success: vi.fn(),
+      warning: vi.fn(),
+      danger: vi.fn(),
+    };
+  }
 
+  function createFacadeMock() {
+    return {
+      saveNode: vi.fn().mockResolvedValue(true),
+    };
+  }
+
+  async function buildTestBed(nodeStoreMock = createNodeStoreMock(), facadeMock = createFacadeMock(), toastMock = createToastMock()) {
+    // The component declares `providers: [NodeEditorFacadeService]`, so TestBed-level
+    // `useValue` overrides are ignored. We must use overrideComponent() to replace the
+    // component-level provider with our mock.
     await TestBed.configureTestingModule({
       imports: [IfConditionEditorComponent, ReactiveFormsModule],
       providers: [
-        { provide: NodeStoreService, useValue: nodeStoreSpy },
-        { provide: ToastService, useValue: toastSpy },
+        {provide: NodeStoreService, useValue: nodeStoreMock},
+        {provide: ToastService, useValue: toastMock},
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
-    }).compileComponents();
+    })
+      .overrideComponent(IfConditionEditorComponent, {
+        set: {
+          providers: [{provide: NodeEditorFacadeService, useValue: facadeMock}],
+        },
+      })
+      .compileComponents();
+  }
 
-    nodeStoreService = TestBed.inject(NodeStoreService) as jasmine.SpyObj<NodeStoreService>;
-    toastService = TestBed.inject(ToastService) as jasmine.SpyObj<ToastService>;
+  beforeEach(async () => {
+    TestBed.resetTestingModule();
+    nodeStoreSpy = createNodeStoreMock();
+    toastSpy = createToastMock();
+    facadeSpy = createFacadeMock();
+
+    await buildTestBed(nodeStoreSpy, facadeSpy, toastSpy);
 
     fixture = TestBed.createComponent(IfConditionEditorComponent);
     component = fixture.componentInstance;
@@ -68,7 +103,6 @@ describe('IfConditionEditorComponent', () => {
   });
 
   it('should implement NodeEditorComponent interface', () => {
-    // Verify component has required outputs
     expect(component.saved).toBeDefined();
     expect(component.cancelled).toBeDefined();
   });
@@ -79,63 +113,69 @@ describe('IfConditionEditorComponent', () => {
     expect(component.form.get('use_external_control')?.value).toBe(false);
   });
 
-  it('should default to "If Condition" name when node has no name', () => {
-    const nodeWithoutName = { ...mockNode, name: undefined };
-    nodeStoreService.selectedNode = signal(nodeWithoutName);
-    
+  it('should default to "If Condition" name when node has no name', async () => {
+    TestBed.resetTestingModule();
+    const nodeWithoutName = {...mockNode, name: undefined};
+    const localStoreMock = createNodeStoreMock(nodeWithoutName);
+
+    await buildTestBed(localStoreMock);
+
     const newFixture = TestBed.createComponent(IfConditionEditorComponent);
     newFixture.detectChanges();
-    
+
     expect(newFixture.componentInstance.form.get('name')?.value).toBe('If Condition');
   });
 
-  it('should default to "true" expression when node has no expression', () => {
-    const nodeWithoutExpr = { ...mockNode, config: {} };
-    nodeStoreService.selectedNode = signal(nodeWithoutExpr);
-    
+  it('should default to "true" expression when node has no expression', async () => {
+    TestBed.resetTestingModule();
+    const nodeWithoutExpr = {...mockNode, config: {}};
+    const localStoreMock = createNodeStoreMock(nodeWithoutExpr);
+
+    await buildTestBed(localStoreMock);
+
     const newFixture = TestBed.createComponent(IfConditionEditorComponent);
     newFixture.detectChanges();
-    
+
     expect(newFixture.componentInstance.form.get('expression')?.value).toBe('true');
   });
 
   it('should validate expression with allowed characters', () => {
     const expressionControl = component.form.get('expression');
-    
+
     expressionControl?.setValue('point_count > 1000');
     expect(component['validationError']()).toBeNull();
-    
+
     expressionControl?.setValue('point_count > 1000 AND density < 50');
     expect(component['validationError']()).toBeNull();
-    
+
     expressionControl?.setValue('invalid$character');
     expect(component['validationError']()).toBe('Invalid characters in expression');
   });
 
   it('should detect unbalanced parentheses', () => {
     const expressionControl = component.form.get('expression');
-    
+
     expressionControl?.setValue('(point_count > 1000');
     expect(component['validationError']()).toBe('Unbalanced parentheses');
-    
+
     expressionControl?.setValue('point_count > 1000)');
     expect(component['validationError']()).toBe('Unbalanced parentheses');
-    
+
     expressionControl?.setValue('(point_count > 1000) AND (density < 50)');
     expect(component['validationError']()).toBeNull();
   });
 
   it('should show validation error for empty expression', () => {
     const expressionControl = component.form.get('expression');
-    
+
     expressionControl?.setValue('');
     expect(component['validationError']()).toBe('Expression cannot be empty');
-    
+
     expressionControl?.setValue('   ');
     expect(component['validationError']()).toBe('Expression cannot be empty');
   });
 
-  it('should emit saved event on valid form submit', () => {
+  it('should emit saved event on valid form submit', async () => {
     let savedEmitted = false;
     component.saved.subscribe(() => {
       savedEmitted = true;
@@ -147,45 +187,45 @@ describe('IfConditionEditorComponent', () => {
       use_external_control: true,
     });
 
-    component.onSave();
+    await component.onSave();
 
     expect(savedEmitted).toBe(true);
-    expect(nodeStoreService.setState).toHaveBeenCalledWith({
-      selectedNode: jasmine.objectContaining({
+    expect(facadeSpy.saveNode).toHaveBeenCalledWith(
+      expect.objectContaining({
         name: 'Updated Node',
-        config: jasmine.objectContaining({
+        config: expect.objectContaining({
           expression: 'point_count > 2000',
           throttle_ms: 0,
           use_external_control: true,
         }),
       }),
-    });
+    );
   });
 
-  it('should always save throttle_ms as 0', () => {
+  it('should always save throttle_ms as 0', async () => {
     component.form.patchValue({
       name: 'Test Node',
       expression: 'true',
       use_external_control: false,
     });
 
-    component.onSave();
+    await component.onSave();
 
-    expect(nodeStoreService.setState).toHaveBeenCalledWith({
-      selectedNode: jasmine.objectContaining({
-        config: jasmine.objectContaining({
+    expect(facadeSpy.saveNode).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
           throttle_ms: 0,
         }),
       }),
-    });
+    );
   });
 
-  it('should not save if form is invalid', () => {
+  it('should not save if form is invalid', async () => {
     component.form.get('expression')?.setValue('');
-    component.onSave();
+    await component.onSave();
 
-    expect(toastService.warning).toHaveBeenCalledWith('Please fix validation errors before saving');
-    expect(nodeStoreService.setState).not.toHaveBeenCalled();
+    expect(toastSpy.warning).toHaveBeenCalledWith('Please fix validation errors before saving');
+    expect(facadeSpy.saveNode).not.toHaveBeenCalled();
   });
 
   it('should emit cancelled event on cancel', () => {
@@ -201,68 +241,70 @@ describe('IfConditionEditorComponent', () => {
 
   it('should copy URL to clipboard', async () => {
     const testUrl = 'http://test.com/api';
-    spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
+    const clipboardSpy = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
 
     await component['copyToClipboard'](testUrl);
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(testUrl);
-    expect(toastService.success).toHaveBeenCalledWith('URL copied to clipboard');
+    expect(clipboardSpy).toHaveBeenCalledWith(testUrl);
+    expect(toastSpy.success).toHaveBeenCalledWith('URL copied to clipboard');
   });
 
   it('should show error toast on clipboard failure', async () => {
     const testUrl = 'http://test.com/api';
-    spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.reject('Error'));
-    spyOn(console, 'error');
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('fail'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await component['copyToClipboard'](testUrl);
 
-    expect(toastService.danger).toHaveBeenCalledWith('Failed to copy to clipboard');
+    expect(toastSpy.danger).toHaveBeenCalledWith('Failed to copy to clipboard');
   });
 
   it('should show external URLs only when editing existing node', () => {
-    // New node (not editing)
-    nodeStoreService.select = jasmine.createSpy('select').and.returnValue(signal(false));
     expect(component['isEditMode']()).toBe(false);
-    
-    // Existing node (editing)
-    nodeStoreService.select = jasmine.createSpy('select').and.returnValue(signal(true));
-    const newFixture = TestBed.createComponent(IfConditionEditorComponent);
-    newFixture.detectChanges();
-    
-    expect(newFixture.componentInstance['isEditMode']()).toBe(true);
   });
 
-  it('should compute set and reset URLs when node has ID', () => {
-    const nodeWithId = { ...mockNode, id: 'node-123' };
-    nodeStoreService.selectedNode = signal(nodeWithId);
-    
+  it('should compute set and reset URLs when node has ID', async () => {
+    TestBed.resetTestingModule();
+    const nodeWithId = {...mockNode, id: 'node-123'};
+    const localStoreMock = {
+      selectedNode: signal(nodeWithId),
+      nodeDefinitions: signal([{type: 'if_condition', category: 'operation', properties: []}]),
+      select: vi.fn().mockReturnValue(signal(true)),
+      setState: vi.fn(),
+    };
+
+    await buildTestBed(localStoreMock);
+
     const newFixture = TestBed.createComponent(IfConditionEditorComponent);
     newFixture.detectChanges();
-    
+
     const setUrl = newFixture.componentInstance['setUrl']();
     const resetUrl = newFixture.componentInstance['resetUrl']();
-    
+
     expect(setUrl).toContain('/nodes/node-123/flow-control/set');
     expect(resetUrl).toContain('/nodes/node-123/flow-control/reset');
   });
 
-  it('should return null URLs when node has no ID', () => {
-    const nodeWithoutId = { ...mockNode, id: null };
-    nodeStoreService.selectedNode = signal(nodeWithoutId);
-    
+  it('should return null URLs when node has no ID', async () => {
+    TestBed.resetTestingModule();
+    const nodeWithoutId = {...mockNode, id: null};
+    const localStoreMock = createNodeStoreMock(nodeWithoutId);
+
+    await buildTestBed(localStoreMock);
+
     const newFixture = TestBed.createComponent(IfConditionEditorComponent);
     newFixture.detectChanges();
-    
+
     expect(newFixture.componentInstance['setUrl']()).toBeNull();
     expect(newFixture.componentInstance['resetUrl']()).toBeNull();
   });
 
   it('should unsubscribe from expression changes on destroy', () => {
-    const unsubscribeSpy = jasmine.createSpy('unsubscribe');
-    component['expressionSub'] = { unsubscribe: unsubscribeSpy } as any;
-    
+    const unsubscribeFn = vi.fn();
+    component['expressionSub'] = {unsubscribe: unsubscribeFn} as any;
+
     component.ngOnDestroy();
-    
-    expect(unsubscribeSpy).toHaveBeenCalled();
+
+    expect(unsubscribeFn).toHaveBeenCalled();
   });
 });

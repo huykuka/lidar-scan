@@ -1,0 +1,11 @@
+<div class="output-card p-2">
+  <div class="flex items-center gap-1">
+    <syn-icon name="dashboard" class="text-xs"></syn-icon>
+    <span class="text-xs text-syn-color-neutral-600">Live Data</span>
+  </div>
+  @if (webhookEnabled()) {
+    <syn-badge variant="success" size="small" class="mt-1">Webhook ON</syn-badge>
+  } @else {
+    <syn-badge variant="neutral" size="small" class="mt-1">Webhook OFF</syn-badge>
+  }
+</div>
