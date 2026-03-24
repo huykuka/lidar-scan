@@ -1,38 +1,19 @@
 <syn-header #header [label]="label()">
-  <nav class="flex items-center gap-2" slot="meta-navigation">
-    <button
-      (click)="refreshStatus()"
-      [ngClass]="statusPillClass()"
-      class="flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-widest transition-colors"
-      title="Backend status (click to refresh)"
-      type="button"
-    >
-      <span [ngClass]="statusDotClass()" class="inline-flex h-2.5 w-2.5 rounded-full"></span>
-      <span class="">{{ backendLabel() }}</span>
-      @if (backendVersion()) {
-        <span class="text-syn-color-neutral-400">v{{ backendVersion() }}</span>
-      }
-      @if (activeSensors().length) {
-        <span class="text-syn-color-neutral-400">· {{ activeSensors().length }} sensors</span>
-      }
-    </button>
+  <nav slot="meta-navigation" class="flex items-center">
+    <!-- Backend connectivity -->
+    <app-connection-status (refresh)="onRefresh()" />
 
-    <button
-      (click)="acknowledgeNotices()"
-      [title]="noticeText()"
-      class="flex items-center gap-2 rounded-xl border  bg-white px-3 py-1 text-[11px] font-black uppercase tracking-widest hover:bg-syn-color-neutral-50 transition-colors"
-      type="button"
-    >
-      <syn-icon [name]="noticeIcon()" class=" " />
-      <span class="">Status</span>
-      @if (unreadCount() > 0) {
-        <span
-          class="ml-1 inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-syn-color-danger-500 px-1.5 text-[10px] text-white"
-        >{{ unreadCount() }}</span
-        >
-      }
-    </button>
+    <syn-divider [vertical]="true"></syn-divider>
 
+    <!-- Sensor nodes health -->
+    <app-sensor-status />
+
+    <syn-divider [vertical]="true"></syn-divider>
+
+    <!-- System errors / notices -->
+    <app-notices-status (acknowledge)="onAcknowledge()" />
+
+    <!-- Per-page actions injected by child routes -->
     <ng-content select="[meta-nav]" />
   </nav>
 </syn-header>

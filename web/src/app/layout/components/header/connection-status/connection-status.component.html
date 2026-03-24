@@ -1,0 +1,12 @@
+<div
+  class="relative inline-flex items-center"
+  [title]="label()"
+  [style.--status-color]="statusColor()"
+>
+  <syn-icon-button
+    [name]="icon()"
+    [label]="label()"
+    size="large"
+    (click)="onRefresh()"
+  ></syn-icon-button>
+</div>

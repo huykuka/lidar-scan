@@ -1,58 +1,41 @@
-import {Component, computed, inject, input, viewChild} from '@angular/core';
-import {NgClass} from '@angular/common';
+import {Component, inject, input, viewChild} from '@angular/core';
 import {SynergyComponentsModule, SynHeaderComponent} from '@synergy-design-system/angular';
 import {SystemStatusService} from '../../../core/services/system-status.service';
+import {NavigationService} from '../../../core/services/navigation.service';
+import {ConnectionStatusComponent} from './connection-status/connection-status.component';
+import {SensorStatusComponent} from './sensor-status/sensor-status.component';
+import {NoticesStatusComponent} from './notices-status/notices-status.component';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [SynergyComponentsModule, NgClass],
+  imports: [
+    SynergyComponentsModule,
+    ConnectionStatusComponent,
+    SensorStatusComponent,
+    NoticesStatusComponent,
+  ],
   templateUrl: './header.component.html',
   styleUrl: './header.component.css',
 })
 export class HeaderComponent {
   label = input<string>('Lidar 3D Control Cockpit');
   readonly synHeader = viewChild.required<SynHeaderComponent>('header');
-  protected readonly statusDotClass = computed(() => {
-    const online = this.backendOnline();
-    if (online === null) return 'bg-syn-color-neutral-300';
-    return online ? 'bg-syn-color-success-500' : 'bg-syn-color-danger-500';
-  });
-  protected readonly statusPillClass = computed(() => {
-    const online = this.backendOnline();
-    if (online === null) return ' bg-white';
-    return online
-      ? 'border-syn-color-success-200 bg-syn-color-success-50'
-      : 'border-syn-color-danger-200 bg-syn-color-danger-50';
-  });
-  protected readonly noticeIcon = computed(() => {
-    const notice = this.lastNotice();
-    if (!notice) return 'info';
-    if (notice.level === 'error') return 'error';
-    if (notice.level === 'warning') return 'warning';
-    return 'info';
-  });
-  protected readonly noticeText = computed(() => {
-    const notice = this.lastNotice();
-    return notice?.message || 'No notifications';
-  });
-  private systemStatus = inject(SystemStatusService);
-  protected readonly backendOnline = this.systemStatus.backendOnline;
-  protected readonly backendLabel = this.systemStatus.backendLabel;
-  protected readonly backendVersion = this.systemStatus.backendVersion;
-  protected readonly activeSensors = this.systemStatus.activeSensors;
-  protected readonly unreadCount = this.systemStatus.unreadCount;
-  protected readonly lastNotice = this.systemStatus.lastNotice;
+
+  private readonly systemStatus = inject(SystemStatusService);
+  private readonly navService = inject(NavigationService);
+
+  protected readonly currentPage = this.navService.headline;
 
   get nativeElement() {
     return this.synHeader().nativeElement;
   }
 
-  protected acknowledgeNotices() {
-    this.systemStatus.acknowledge();
+  protected onRefresh(): void {
+    this.systemStatus.refreshNow();
   }
 
-  protected refreshStatus() {
-    this.systemStatus.refreshNow();
+  protected onAcknowledge(): void {
+    this.systemStatus.acknowledge();
   }
 }
