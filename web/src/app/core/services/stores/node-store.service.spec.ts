@@ -1,27 +1,27 @@
 // @ts-nocheck
 import { TestBed } from '@angular/core/testing';
 import { NodeStoreService } from './node-store.service';
-import { StatusWebSocketService } from '../status-websocket.service';
+import { NodeStatusService } from '../node-status.service';
 import { NodesStatusResponse } from '../../models/node-status.model';
 
 describe('NodeStoreService', () => {
   let service: NodeStoreService;
-  let mockStatusWebSocketService: jasmine.SpyObj<StatusWebSocketService>;
+  let mockStatusWebSocketService: jasmine.SpyObj<NodeStatusService>;
 
   beforeEach(() => {
-    const statusServiceSpy = jasmine.createSpyObj('StatusWebSocketService', [], {
+    const statusServiceSpy = jasmine.createSpyObj('NodeStatusService', [], {
       status: jasmine.createSpy('status'),
     });
 
     TestBed.configureTestingModule({
       providers: [
         NodeStoreService,
-        { provide: StatusWebSocketService, useValue: statusServiceSpy },
+        { provide: NodeStatusService, useValue: statusServiceSpy },
       ],
     });
 
     service = TestBed.inject(NodeStoreService);
-    mockStatusWebSocketService = TestBed.inject(StatusWebSocketService) as jasmine.SpyObj<StatusWebSocketService>;
+    mockStatusWebSocketService = TestBed.inject(NodeStatusService) as jasmine.SpyObj<NodeStatusService>;
   });
 
   describe('nodeStatusMap', () => {

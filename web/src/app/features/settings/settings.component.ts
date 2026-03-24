@@ -3,7 +3,7 @@ import {Component, effect, HostListener, inject, OnDestroy, OnInit, signal} from
 import {FormsModule} from '@angular/forms';
 import {NavigationService, ToastService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {StatusWebSocketService} from '@core/services/status-websocket.service';
+import {NodeStatusService} from '@core/services/node-status.service';
 import {SystemStatusService} from '@core/services/system-status.service';
 import {DagApiService} from '@core/services/api/dag-api.service';
 import {ConfigTransferService} from '@core/services/api/config-transfer.service';
@@ -50,7 +50,7 @@ export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
   protected importMergeMode = signal(false);
 
   private navService = inject(NavigationService);
-  private statusWs = inject(StatusWebSocketService);
+  private statusWs = inject(NodeStatusService);
   private configTransfer = inject(ConfigTransferService);
   private dagApi = inject(DagApiService);
   private dialog = inject(DialogService);

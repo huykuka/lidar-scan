@@ -10,7 +10,7 @@ import {ToastService} from '../../core/services/toast.service';
 import {LidarStoreService} from '../../core/services/stores/lidar-store.service';
 import {FusionStoreService} from '../../core/services/stores/fusion-store.service';
 import {NodesApiService} from '../../core/services/api/nodes-api.service';
-import {StatusWebSocketService} from '../../core/services/status-websocket.service';
+import {NodeStatusService} from '../../core/services/node-status.service';
 import {ConfigTransferService} from '../../core/services/api/config-transfer.service';
 import {RecordingStoreService} from '../../core/services/stores/recording-store.service';
 import {DagApiService} from '../../core/services/api/dag-api.service';
@@ -88,7 +88,7 @@ describe('SettingsComponent', () => {
           },
         },
         {
-          provide: StatusWebSocketService,
+          provide: NodeStatusService,
           useValue: {
             status: signal(null),
             connected: signal(false),
@@ -145,7 +145,7 @@ describe('SettingsComponent', () => {
         {provide: LidarApiService, useValue: {getLidars: async () => ({lidars: [], available_pipelines: []}), setEnabled: async () => ({}), deleteLidar: async () => ({}), reloadConfig: async () => ({}), saveLidar: async () => ({})}},
         {provide: FusionApiService, useValue: {getFusions: async () => ({fusions: []}), setEnabled: async () => ({}), deleteFusion: async () => ({}), saveFusion: async () => ({})}},
         {provide: NodesApiService, useValue: {getNodesStatus: async () => ({lidars: [], fusions: []}), getNodeDefinitions: async () => []}},
-        {provide: StatusWebSocketService, useValue: {status: signal(null), connected: signal(false), connect: () => {}, disconnect: () => {}}},
+        {provide: NodeStatusService, useValue: {status: signal(null), connected: signal(false), connect: () => {}, disconnect: () => {}}},
         {provide: ConfigTransferService, useValue: configTransferStub},
         {provide: RecordingStoreService, useValue: {loadRecordings: async () => {}}},
         {provide: DagApiService, useValue: {getDagConfig, saveDagConfig: async () => ({config_version: 2, node_id_map: {}})}},
@@ -174,7 +174,7 @@ describe('SettingsComponent', () => {
         {provide: LidarApiService, useValue: {getLidars: async () => ({lidars: [], available_pipelines: []}), setEnabled: async () => ({}), deleteLidar: async () => ({}), reloadConfig: async () => ({}), saveLidar: async () => ({})}},
         {provide: FusionApiService, useValue: {getFusions: async () => ({fusions: []}), setEnabled: async () => ({}), deleteFusion: async () => ({}), saveFusion: async () => ({})}},
         {provide: NodesApiService, useValue: {getNodesStatus: async () => ({lidars: [], fusions: []}), getNodeDefinitions: async () => []}},
-        {provide: StatusWebSocketService, useValue: {status: signal(null), connected: signal(false), connect: () => {}, disconnect: () => {}}},
+        {provide: NodeStatusService, useValue: {status: signal(null), connected: signal(false), connect: () => {}, disconnect: () => {}}},
         {provide: ConfigTransferService, useValue: configTransferStub},
         {provide: RecordingStoreService, useValue: {loadRecordings: async () => {}}},
         {provide: DagApiService, useValue: {getDagConfig: async () => ({config_version: 1, nodes: [], edges: []}), saveDagConfig: async () => ({config_version: 2, node_id_map: {}})}},

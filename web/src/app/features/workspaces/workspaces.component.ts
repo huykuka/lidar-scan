@@ -5,7 +5,7 @@ import {NavigationService} from '@core/services/navigation.service';
 import {MultiWebsocketService} from '@core/services/multi-websocket.service';
 import {TopicApiService} from '@core/services/api/topic-api.service';
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
-import {StatusWebSocketService} from '@core/services/status-websocket.service';
+import {NodeStatusService} from '@core/services/node-status.service';
 import {PointCloudComponent} from '@features/workspaces/components/point-cloud/point-cloud.component';
 import {
   WorkspaceTelemetryComponent
@@ -39,7 +39,7 @@ export class WorkspacesComponent implements OnInit, AfterViewInit, OnDestroy {
   private wsService = inject(MultiWebsocketService);
   private topicApi = inject(TopicApiService);
   private workspaceStore = inject(WorkspaceStoreService);
-  private statusWs = inject(StatusWebSocketService);
+  private statusWs = inject(NodeStatusService);
   protected pointSize = this.workspaceStore.pointSize;
   protected showCockpit = this.workspaceStore.showCockpit;
   protected showGrid = this.workspaceStore.showGrid;

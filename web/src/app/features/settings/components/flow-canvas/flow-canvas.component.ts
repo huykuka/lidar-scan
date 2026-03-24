@@ -6,7 +6,7 @@ import {NodeStoreService} from '@core/services/stores';
 import {NodesApiService} from '@core/services/api';
 import {DialogService, ToastService} from '@core/services';
 import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
-import {StatusWebSocketService} from '@core/services/status-websocket.service';
+import {NodeStatusService} from '@core/services/node-status.service';
 import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 
 import {CanvasNode, FlowCanvasNodeComponent} from './node/flow-canvas-node.component';
@@ -88,7 +88,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   private toast = inject(ToastService);
   private dialog = inject(DialogService);
   private pluginRegistry = inject(NodePluginRegistry);
-  private statusWs = inject(StatusWebSocketService);
+  private statusWs = inject(NodeStatusService);
   protected nodesStatus = this.statusWs.status;
 
   constructor() {

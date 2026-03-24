@@ -7,7 +7,7 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
 import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
 import {NodeConfig, NodeDefinition} from '@core/models/node.model';
-import {StatusWebSocketService} from '@core/services/status-websocket.service';
+import {NodeStatusService} from '@core/services/node-status.service';
 import {Pose, ZERO_POSE} from '@core/models';
 
 const mockDefinition: NodeDefinition = {
@@ -68,7 +68,7 @@ describe('SensorNodeEditorComponent', () => {
       providers: [
         { provide: NodeStoreService, useValue: mockNodeStore },
         { provide: LidarProfilesApiService, useValue: mockLidarProfilesApi },
-        { provide: StatusWebSocketService, useValue: mockStatusWs },
+        { provide: NodeStatusService, useValue: mockStatusWs },
       ],
     })
     .overrideComponent(SensorNodeEditorComponent, {

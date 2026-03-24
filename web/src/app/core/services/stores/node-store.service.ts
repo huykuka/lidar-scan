@@ -1,7 +1,7 @@
 import {computed, inject, Injectable} from '@angular/core';
-import {SignalsSimpleStoreService} from '../signals-simple-store.service';
+import {SignalsSimpleStoreService} from '@core/services';
 import {Edge, NodeConfig, NodeDefinition} from '../../models/node.model';
-import {StatusWebSocketService} from '../status-websocket.service';
+import {NodeStatusService} from '../node-status.service';
 import {NodeStatusUpdate} from '@core/models';
 import {DagApiService} from '@core/services/api';
 
@@ -29,7 +29,7 @@ const initialState: NodeState = {
   providedIn: 'root',
 })
 export class NodeStoreService extends SignalsSimpleStoreService<NodeState> {
-  private statusWebSocket = inject(StatusWebSocketService);
+  private statusWebSocket = inject(NodeStatusService);
   private dagApi = inject(DagApiService);
 
   // Reactive Selectors

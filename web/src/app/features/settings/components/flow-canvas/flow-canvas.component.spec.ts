@@ -5,7 +5,7 @@ import {FlowCanvasComponent} from './flow-canvas.component';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
-import {StatusWebSocketService} from '@core/services/status-websocket.service';
+import {NodeStatusService} from '@core/services/node-status.service';
 import {NodesApiService} from '@core/services/api/nodes-api.service';
 import {ToastService} from '@core/services/toast.service';
 import {DialogService} from '@core/services/dialog.service';
@@ -118,7 +118,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodeStoreService, useValue: nodeStoreMock},
         {provide: CanvasEditStoreService, useValue: canvasEditStoreMock},
         {provide: NodePluginRegistry, useValue: pluginRegistryMock},
-        {provide: StatusWebSocketService, useValue: statusWsMock},
+        {provide: NodeStatusService, useValue: statusWsMock},
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
@@ -142,7 +142,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodeStoreService, useValue: nodeStoreMock},
         {provide: CanvasEditStoreService, useValue: canvasEditStoreMock},
         {provide: NodePluginRegistry, useValue: pluginRegistryMock},
-        {provide: StatusWebSocketService, useValue: statusWsMock},
+        {provide: NodeStatusService, useValue: statusWsMock},
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
@@ -168,7 +168,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodeStoreService, useValue: nodeStoreMock},
         {provide: CanvasEditStoreService, useValue: canvasEditStoreMock},
         {provide: NodePluginRegistry, useValue: pluginRegistryMock},
-        {provide: StatusWebSocketService, useValue: statusWsMock},
+        {provide: NodeStatusService, useValue: statusWsMock},
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
@@ -197,7 +197,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodeStoreService, useValue: nodeStoreMock},
         {provide: CanvasEditStoreService, useValue: canvasEditStoreMock},
         {provide: NodePluginRegistry, useValue: pluginRegistryMock},
-        {provide: StatusWebSocketService, useValue: statusWsMock},
+        {provide: NodeStatusService, useValue: statusWsMock},
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
@@ -234,7 +234,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodeStoreService, useValue: nodeStoreMock},
         {provide: CanvasEditStoreService, useValue: canvasEditStoreMock},
         {provide: NodePluginRegistry, useValue: pluginRegistryMock},
-        {provide: StatusWebSocketService, useValue: statusWsMock},
+        {provide: NodeStatusService, useValue: statusWsMock},
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
@@ -267,7 +267,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodeStoreService, useValue: nodeStoreMock},
         {provide: CanvasEditStoreService, useValue: canvasEditStoreMock},
         {provide: NodePluginRegistry, useValue: pluginRegistryMock},
-        {provide: StatusWebSocketService, useValue: statusWsMock},
+        {provide: NodeStatusService, useValue: statusWsMock},
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
@@ -292,7 +292,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodeStoreService, useValue: nodeStoreMock},
         {provide: CanvasEditStoreService, useValue: canvasEditStoreMock},
         {provide: NodePluginRegistry, useValue: pluginRegistryMock},
-        {provide: StatusWebSocketService, useValue: statusWsMock},
+        {provide: NodeStatusService, useValue: statusWsMock},
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},

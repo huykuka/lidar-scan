@@ -1,11 +1,6 @@
 import {Injectable} from '@angular/core';
 import {Observable, Subject} from 'rxjs';
 
-export interface WebSocketMessage {
-  topic: string;
-  data: any;
-}
-
 interface TopicConnection {
   socket: WebSocket | null;
   subject: Subject<any>;
@@ -16,7 +11,7 @@ interface TopicConnection {
   intentionallyClosed: boolean;
 }
 
-const MAX_RECONNECT_ATTEMPTS = 10;
+const MAX_RECONNECT_ATTEMPTS = 100;
 const RECONNECT_DELAY_MS = 1000;
 
 /**
@@ -87,13 +82,6 @@ export class MultiWebsocketService {
   isConnected(topic: string): boolean {
     const conn = this.connections.get(topic);
     return conn?.socket?.readyState === WebSocket.OPEN;
-  }
-
-  /**
-   * Get all active topic connections.
-   */
-  getActiveTopics(): string[] {
-    return Array.from(this.connections.keys());
   }
 
   // ---------------------------------------------------------------------------
