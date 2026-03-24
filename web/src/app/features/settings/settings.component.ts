@@ -1,9 +1,8 @@
-import {Component, effect, HostListener, inject, OnDestroy, OnInit, signal} from '@angular/core';
+import {Component, effect, HostListener, inject, OnInit, signal} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
 import {NavigationService, ToastService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeStatusService} from '@core/services/node-status.service';
 import {SystemStatusService} from '@core/services/system-status.service';
 import {DagApiService} from '@core/services/api/dag-api.service';
 import {ConfigTransferService} from '@core/services/api/config-transfer.service';
@@ -30,7 +29,7 @@ import {HasUnsavedChanges} from '@core/guards/unsaved-changes.guard';
     FlowCanvasComponent
   ],
 })
-export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
+export class SettingsComponent implements OnInit, HasUnsavedChanges {
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
   protected isSystemRunning = this.systemStatus.isRunning;
@@ -50,7 +49,6 @@ export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
   protected importMergeMode = signal(false);
 
   private navService = inject(NavigationService);
-  private statusWs = inject(NodeStatusService);
   private configTransfer = inject(ConfigTransferService);
   private dagApi = inject(DagApiService);
   private dialog = inject(DialogService);
@@ -92,11 +90,9 @@ export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
       subtitle: 'Configure LiDAR sensors, fusion nodes, and recording settings',
     });
 
-    // Connect to WebSocket for real-time status updates
-    this.statusWs.connect();
-
     // Phase 7.2: load node definitions + DAG config in parallel so both are
     // available before the canvas becomes interactive (fixes empty palette bug).
+    // Note: NodeStatusService WS is now started at app level by MainLayoutComponent.
     this.isInitializing.set(true);
     try {
       const [dagConfig] = await Promise.all([
@@ -110,11 +106,6 @@ export class SettingsComponent implements OnInit, OnDestroy, HasUnsavedChanges {
     } finally {
       this.isInitializing.set(false);
     }
-  }
-
-  ngOnDestroy(): void {
-    // Disconnect WebSocket when component is destroyed
-    this.statusWs.disconnect();
   }
 
   hasUnsavedChanges(): boolean {

@@ -16,6 +16,14 @@ import {SystemStatusService} from '@core/services/system-status.service';
   imports: [SynergyComponentsModule],
   templateUrl: './connection-status.component.html',
   styles: `
+    :host {
+      display: inline-flex;
+      position: relative;
+      align-items: center;
+    }
+    syn-icon-button {
+      color: var(--status-color);
+    }
     .status-dot {
       background-color: var(--status-color);
     }
