@@ -1,18 +1,10 @@
 <div class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500">
-  <!-- Local Action Bar -->
-  <div class="fixed top-20 right-5 z-40">
+  <!-- Unified action bar: layout presets (left) + hide controls (right) -->
+  <div class="flex items-center justify-between mb-2 shrink-0">
+    <app-view-toolbar/>
     <syn-button
       (click)="toggleCockpit()"
-      class="text-syn-color-primary-600 lg:hidden"
-      size="small"
-      variant="text"
-    >
-      <syn-icon name="tune" slot="prefix"/>
-      Controls
-    </syn-button>
-    <syn-button
-      (click)="toggleCockpit()"
-      class="text-syn-color-primary-600 hidden lg:flex"
+      class="text-syn-color-primary-600"
       size="small"
       variant="text"
     >
@@ -21,53 +13,39 @@
     </syn-button>
   </div>
 
-  <div class="flex flex-col lg:flex-row gap-4 flex-1 h-full w-full min-h-0">
-    <!-- Live View Container (Main Area) -->
-    <div
-      class="flex-1 h-full relative bg-[#2a2a2b] rounded-2xl overflow-hidden border border-syn-color-neutral-300 group"
-    >
-      <app-point-cloud #pointCloud
-                       [backgroundColor]="backgroundColor()"
-                       [pointSize]="pointSize()"
-                       [showAxes]="showAxes()"
-                       [showGrid]="showGrid()"
-                       class="w-full h-full"
-      />
+  @if (isNarrowScreen() && !isSinglePane()) {
+    <!-- Responsive guard: <1024px in multi-pane mode -->
+    <div class="flex flex-col items-center justify-center flex-1 text-center p-8">
+      <syn-icon name="desktop_windows" class="text-4xl text-syn-color-neutral-400 mb-4"/>
+      <p class="text-syn-color-neutral-600 font-semibold">
+        Split-view requires desktop screen (min. 1024px width)
+      </p>
+    </div>
+  } @else {
 
-      <!-- Stats Overlay (Floating inside the view) -->
-      <app-workspace-telemetry/>
+    <!-- Main split-pane area + cockpit -->
+    <div class="flex flex-row gap-4 flex-1 min-h-0">
+      <div class="flex-1 relative overflow-hidden rounded-2xl min-h-0">
+        <app-split-pane-container class="w-full h-full"/>
 
-      <!-- UI Controls Overlay (Bottom Center) -->
-      <app-workspace-view-controls (onClearPoints)="clearPoints()"
-                                   (onFitToPoints)="fitToPoints()"
-                                   (onFrontView)="setFrontView()"
-                                   (onIsometricView)="setIsometricView()"
-                                   (onResetCamera)="resetCamera()"
-                                   (onScreenshot)="captureScreenshot()"
-                                   (onSideView)="setSideView()"
-                                   (onTopView)="setTopView()"
-      />
+        <!-- HUD telemetry: only in single-pane mode -->
+        @if (isSinglePane() && !isNarrowScreen()) {
+          <app-workspace-telemetry/>
+        }
+      </div>
+
     </div>
 
-    <!-- Control Cockpit (Desktop View) -->
-    <div
-      [ngClass]="showCockpit() ? 'w-90 opacity-100' : 'w-0 opacity-0 -ml-4'"
-      class="hidden lg:block overflow-hidden transition-all duration-500 ease-in-out shrink-0"
-    >
-      <app-workspace-controls [class.opacity-0]="!showCockpit()"
-                              class="block w-90 h-full transition-opacity duration-300"
-      />
-    </div>
+  }
 
-    <!-- Control Cockpit (Mobile View using Drawer) -->
-    <syn-drawer
-      (synHideEvent)="closeCockpit()"
-      [open]="showCockpit()"
-      class="lg:hidden"
-      label="Workspace Controls"
-      placement="end"
-    >
-      <app-workspace-controls class="block w-full h-full bg-white"/>
-    </syn-drawer>
-  </div>
+  <!-- Control Cockpit Drawer -->
+  <syn-drawer
+    (synRequestCloseEvent)="onDrawerRequestClose($event)"
+    [open]="showCockpit()"
+    label="Workspace Controls"
+    placement="end"
+  >
+    <app-workspace-controls class="block w-full h-full bg-white"/>
+  </syn-drawer>
+
 </div>

@@ -100,41 +100,6 @@
         </div>
       }
 
-      <!-- Legacy Single Topic (for backwards compatibility) -->
-      @if (selectedTopics().length === 0) {
-        <div class="field">
-          <label class="field__label">Legacy Single Topic</label>
-          <syn-select
-            (synChangeEvent)="onLegacyTopicChange($event)"
-            [value]="currentTopic()"
-            class="w-full"
-            placeholder="Select topic..."
-          >
-            @for (topic of topics(); track topic) {
-              <syn-option
-                [title]="topic"
-                [value]="topic"
-              >
-                {{ topic }}
-              </syn-option>
-            }
-          </syn-select>
-          <!-- Capture PCD for legacy mode -->
-          <div class="actions mt-3">
-            <syn-button
-              (click)="onCapturePcd(currentTopic())"
-              [disabled]="!currentTopic()"
-              class="w-full"
-              size="small"
-              variant="outline"
-            >
-              <syn-icon name="download" slot="prefix" />
-              Capture PCD
-            </syn-button>
-          </div>
-        </div>
-      }
-
       <div [class.status--bad]="!isConnected()" [class.status--ok]="isConnected()" class="status">
         <div class="status__dot">
           <span class="status__ping"></span>
@@ -158,9 +123,9 @@
           <syn-badge pill variant="neutral">{{ pointSize() | number: '1.2-2' }}</syn-badge>
         </div>
         <syn-range (synInputEvent)="onPointSizeChange($event)"
-          [max]="0.1"
-          [min]="0.01"
-          [step]="0.01"
+          [max]="8"
+          [min]="1"
+          [step]="0.5"
           [value]="pointSize().toString()"
          />
       </div>

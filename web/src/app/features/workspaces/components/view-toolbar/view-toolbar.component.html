@@ -1,0 +1,12 @@
+<div class="flex items-center gap-0.5">
+
+  @for (preset of presets; track preset.id) {
+    <syn-icon-button
+      [name]="preset.icon"
+      (click)="applyPreset(preset.id)"
+      [label]="preset.title"
+      size="medium"
+      [color]="activeMode() === preset.id ? 'primary' : 'neutral'">
+    </syn-icon-button>
+  }
+</div>

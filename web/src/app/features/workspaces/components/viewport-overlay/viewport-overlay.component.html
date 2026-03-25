@@ -1,0 +1,34 @@
+<!-- Viewport overlay: positioned absolutely over the Three.js canvas -->
+<div class="absolute inset-0 pointer-events-none z-10">
+
+  <!-- Top-left: orientation dropdown only -->
+  <div class="absolute top-4 left-4 flex items-center pointer-events-auto">
+    <select
+      class="text-[10px] font-semibold bg-black/50 text-white border border-white/20 rounded
+             px-1.5 py-0.5 backdrop-blur-sm cursor-pointer uppercase tracking-widest
+             focus:outline-none focus:ring-1 focus:ring-white/40"
+      (change)="changeOrientation($event)"
+      [attr.aria-label]="'Change orientation of ' + pane().orientation + ' view'"
+    >
+      @for (opt of orientationOptions; track opt.value) {
+        <option [value]="opt.value" [selected]="opt.value === pane().orientation">{{ opt.label }}</option>
+      }
+    </select>
+  </div>
+
+
+  <!-- Empty state overlay: shown when no point cloud data is loaded -->
+  @if (!hasData()) {
+    <div
+      class="absolute inset-0 flex flex-col items-center justify-center
+             bg-black/20 backdrop-blur-[1px] pointer-events-none"
+    >
+      <span
+        class="text-2xl font-black uppercase tracking-widest
+               text-white/30 select-none"
+      >{{ pane().orientation }} VIEW</span>
+      <span class="text-xs text-white/20 mt-1 select-none">No point cloud loaded</span>
+    </div>
+  }
+
+</div>

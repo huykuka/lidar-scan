@@ -1,6 +1,5 @@
 export * from './navigation.service';
 export * from './toast.service';
-export * from './websocket.service';
 export * from './signals-simple-store.service';
 export * from './dialog.service';
 export * from './api/lidar-api.service';
