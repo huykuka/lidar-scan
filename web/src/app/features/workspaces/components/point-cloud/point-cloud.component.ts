@@ -1,6 +1,8 @@
-import {AfterViewInit, Component, effect, ElementRef, input, OnDestroy, OnInit, viewChild} from '@angular/core';
+import {AfterViewInit, Component, effect, ElementRef, inject, input, OnDestroy, OnInit, viewChild} from '@angular/core';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
+import {PointCloudDataService} from '@core/services/point-cloud-data.service';
+import {ViewOrientation} from '@core/services/split-layout-store.service';
 
 @Component({
   selector: 'app-point-cloud',
@@ -28,14 +30,28 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   showAxes = input<boolean>(true);
   backgroundColor = input<string>('#000000');
 
+  // ── New signal inputs (FE-04) ─────────────────────────────────────────────
+  /** Camera mode: perspective (default) or orthographic (top/front/side) */
+  viewType = input<ViewOrientation>('perspective');
+  /** Stable pane ID — used to key into PointCloudDataService.frames() */
+  viewId = input<string>('');
+  /** When true, caps rendering at MAX_POINTS_LOD to reduce GPU load */
+  adaptiveLod = input<boolean>(false);
+
   // Three.js instances
   private scene!: THREE.Scene;
-  private camera!: THREE.PerspectiveCamera;
+  /** Perspective camera — active when viewType() === 'perspective' */
+  private perspCamera!: THREE.PerspectiveCamera;
+  /** Orthographic camera — active for top / front / side views */
+  private orthoCamera!: THREE.OrthographicCamera;
   private renderer!: THREE.WebGLRenderer;
   private controls!: OrbitControls;
 
+  /** Injected data service — provides shared frame signals per topic */
+  readonly dataService = inject(PointCloudDataService);
+
   // Multiple point clouds support
-  private pointClouds: Map<
+  readonly pointClouds: Map<
     string,
     {
       pointsObj: THREE.Points;
@@ -52,7 +68,26 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   private currentGridSize = 50;
 
   private animationId?: number;
-  private readonly MAX_POINTS = 50000;
+  /** Full-quality cap (default: no adaptive LOD) */
+  readonly MAX_POINTS = 50_000;
+  /** Reduced cap used when adaptiveLod input is true */
+  readonly MAX_POINTS_LOD = 25_000;
+
+  /**
+   * Returns the active Three.js camera based on the current viewType input.
+   * Perspective view → PerspectiveCamera; all orthometric views → OrthographicCamera.
+   */
+  private get activeCamera(): THREE.Camera {
+    return this.viewType() === 'perspective' ? this.perspCamera : this.orthoCamera;
+  }
+
+  /**
+   * Returns the effective MAX_POINTS limit, respecting adaptiveLod flag.
+   * Exposed as a helper so it can be tested without a live WebGL context.
+   */
+  getEffectiveMaxPoints(lodActive: boolean): number {
+    return lodActive ? this.MAX_POINTS_LOD : this.MAX_POINTS;
+  }
 
   constructor() {
     // React to input changes
@@ -86,6 +121,26 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
         this.scene.background = new THREE.Color(color);
       }
     });
+
+    // ── FE-04: React to viewType changes → switch camera preset ──────────────
+    effect(() => {
+      const vt = this.viewType();
+      if (this.controls) {
+        // Only call initCamera once Three.js is bootstrapped
+        this.initCamera(vt);
+      }
+    });
+
+    // ── FE-04: Subscribe to PointCloudDataService frames signal ──────────────
+    effect(() => {
+      const frames = this.dataService.frames();
+      if (!frames.size) return;
+      frames.forEach((frame, topic) => {
+        if (this.pointClouds.has(topic)) {
+          this.updatePointsForTopic(topic, frame.points, frame.count);
+        }
+      });
+    });
   }
 
   ngOnInit() {
@@ -109,7 +164,11 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       material.dispose();
     });
     this.pointClouds.clear();
-    this.renderer.dispose();
+    // Dispose renderer if it was ever initialized
+    this.renderer?.dispose();
+    // Null cameras for GC (Three.js cameras have no .dispose())
+    this.perspCamera = null as unknown as THREE.PerspectiveCamera;
+    this.orthoCamera = null as unknown as THREE.OrthographicCamera;
   }
 
   /**
@@ -176,16 +235,19 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     const cloud = this.pointClouds.get(topic);
     if (!cloud) return;
 
-    cloud.lastCount = count;
+    // ── FE-04: Adaptive LOD — cap points when pane is small ──────────────────
+    const effectiveMax = this.getEffectiveMaxPoints(this.adaptiveLod());
+
+    cloud.lastCount = Math.min(count, effectiveMax);
 
     const positions = cloud.geometry.attributes['position'].array as Float32Array;
-    const limit = Math.min(count * 3, this.MAX_POINTS * 3);
+    const limit = Math.min(count * 3, effectiveMax * 3);
 
     if (count > 0) {
       positions.set(positionsArray.subarray(0, limit));
     }
 
-    cloud.geometry.setDrawRange(0, count);
+    cloud.geometry.setDrawRange(0, cloud.lastCount);
     cloud.geometry.attributes['position'].needsUpdate = true;
   }
 
@@ -215,7 +277,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   resetCamera() {
-    this.camera.position.set(15, 15, 15);
+    this.perspCamera.position.set(15, 15, 15);
     this.controls.target.set(0, 0, 0);
     this.controls.update();
   }
@@ -224,30 +286,21 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
    * Set camera to top view (looking down at XZ plane)
    */
   setTopView() {
-    const distance = 30;
-    this.camera.position.set(0, distance, 0);
-    this.controls.target.set(0, 0, 0);
-    this.controls.update();
+    this.initCamera('top');
   }
 
   /**
    * Set camera to front view (looking along Y axis)
    */
   setFrontView() {
-    const distance = 30;
-    this.camera.position.set(0, 0, distance);
-    this.controls.target.set(0, 0, 0);
-    this.controls.update();
+    this.initCamera('front');
   }
 
   /**
    * Set camera to side view (looking along X axis)
    */
   setSideView() {
-    const distance = 30;
-    this.camera.position.set(distance, 0, 0);
-    this.controls.target.set(0, 0, 0);
-    this.controls.update();
+    this.initCamera('side');
   }
 
   /**
@@ -255,7 +308,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   setIsometricView() {
     const distance = 30;
-    this.camera.position.set(distance, distance, distance);
+    this.perspCamera.position.set(distance, distance, distance);
     this.controls.target.set(0, 0, 0);
     this.controls.update();
   }
@@ -298,15 +351,16 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     const size = new THREE.Vector3(maxX - minX, maxY - minY, maxZ - minZ);
     const radius = Math.max(size.x, size.y, size.z) / 2;
 
-    const fov = (this.camera.fov * Math.PI) / 180;
+    const fov = (this.perspCamera.fov * Math.PI) / 180;
     const distance = (radius / Math.tan(fov / 2)) * paddingFactor + 0.1;
 
     // Keep the current view direction but reposition to fit
+    const activePos = this.activeCamera.position;
     const dir = new THREE.Vector3()
-      .subVectors(this.camera.position, this.controls.target)
+      .subVectors(activePos, this.controls.target)
       .normalize();
     this.controls.target.copy(center);
-    this.camera.position.copy(center.clone().add(dir.multiplyScalar(distance)));
+    activePos.copy(center.clone().add(dir.multiplyScalar(distance)));
     this.controls.update();
   }
 
@@ -331,28 +385,53 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     const w = container.clientWidth;
     const h = container.clientHeight;
     if (w > 0 && h > 0) {
-      this.camera.aspect = w / h;
-      this.camera.updateProjectionMatrix();
+      const aspect = w / h;
+
+      // Update perspective camera
+      if (this.perspCamera) {
+        this.perspCamera.aspect = aspect;
+        this.perspCamera.updateProjectionMatrix();
+      }
+
+      // Update orthographic camera frustum
+      if (this.orthoCamera) {
+        const frustumSize = 40;
+        this.orthoCamera.left = (-frustumSize * aspect) / 2;
+        this.orthoCamera.right = (frustumSize * aspect) / 2;
+        this.orthoCamera.top = frustumSize / 2;
+        this.orthoCamera.bottom = -frustumSize / 2;
+        this.orthoCamera.updateProjectionMatrix();
+      }
+
       this.renderer.setSize(w, h);
     }
   }
 
   private initThree() {
     const container = this.containerRef().nativeElement;
+    const aspect = container.clientWidth / Math.max(container.clientHeight, 1);
+    const frustumSize = 40;
 
     // Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(this.backgroundColor());
 
-    // Camera
-    this.camera = new THREE.PerspectiveCamera(
-      50,
-      container.clientWidth / container.clientHeight,
+    // ── Perspective camera (default / perspective view) ───────────────────────
+    this.perspCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
+    this.perspCamera.position.set(15, 15, 15);
+    this.perspCamera.lookAt(0, 0, 0);
+
+    // ── Orthographic camera (top / front / side views) ────────────────────────
+    this.orthoCamera = new THREE.OrthographicCamera(
+      (-frustumSize * aspect) / 2,
+      (frustumSize * aspect) / 2,
+      frustumSize / 2,
+      -frustumSize / 2,
       0.1,
       1000,
     );
-    this.camera.position.set(15, 15, 15);
-    this.camera.lookAt(0, 0, 0);
+    this.orthoCamera.position.set(0, 30, 0);
+    this.orthoCamera.lookAt(0, 0, 0);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
@@ -360,10 +439,13 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(this.renderer.domElement);
 
-    // Controls
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    // Controls — always attach to the active camera's type
+    this.controls = new OrbitControls(this.perspCamera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.target.set(0, 0, 0);
+
+    // Apply initial camera preset from viewType input
+    this.initCamera(this.viewType());
 
     // Grid & Axes
     this.rebuildGrid();
@@ -393,21 +475,58 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     resizeObserver.observe(container);
   }
 
+  /**
+   * Configure the camera position and controls based on the view orientation.
+   * Perspective → PerspectiveCamera at (15,15,15), rotation enabled.
+   * top/front/side → OrthographicCamera at respective axis positions, rotation disabled.
+   */
+  private initCamera(viewType: ViewOrientation): void {
+    if (!this.controls) return;
+
+    const distance = 30;
+
+    if (viewType === 'perspective') {
+      this.perspCamera.position.set(15, 15, 15);
+      this.perspCamera.lookAt(0, 0, 0);
+      this.controls.object = this.perspCamera;
+      this.controls.enableRotate = true;
+    } else {
+      switch (viewType) {
+        case 'top':
+          this.orthoCamera.position.set(0, distance, 0);
+          break;
+        case 'front':
+          this.orthoCamera.position.set(0, 0, distance);
+          break;
+        case 'side':
+          this.orthoCamera.position.set(distance, 0, 0);
+          break;
+      }
+      this.orthoCamera.lookAt(0, 0, 0);
+      this.controls.object = this.orthoCamera;
+      this.controls.enableRotate = false;
+    }
+
+    this.controls.target.set(0, 0, 0);
+    this.controls.update();
+  }
+
   private animate() {
     this.animationId = requestAnimationFrame(() => this.animate());
     this.controls.update();
 
-    // Dynamically scale text sprites based on camera distance
+    // Dynamically scale text sprites based on active camera distance
+    const cam = this.activeCamera;
     const spritesToScale = [...this.gridLabels, ...this.axesLabels];
     spritesToScale.forEach((label) => {
       if (!label.visible) return;
-      const distance = this.camera.position.distanceTo(label.position);
+      const distance = cam.position.distanceTo(label.position);
       // Determine a base scale factor that makes it readable but appropriately small
       const scaleBase = Math.max(0.2, distance * 0.05);
       label.scale.set(scaleBase * 2, scaleBase, 1);
     });
 
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, this.activeCamera);
   }
 
   private rebuildGrid() {

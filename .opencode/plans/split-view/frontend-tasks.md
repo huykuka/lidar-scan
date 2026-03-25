@@ -80,21 +80,21 @@ cd web && ng g service core/services/point-cloud-data --skip-tests=false
 
 > **IMPORTANT**: All changes are purely additive. Do not remove or rename any existing methods.
 
-- [ ] Add `viewType = input<ViewOrientation>('perspective')` signal input
-- [ ] Add `viewId = input<string>('')` signal input
-- [ ] Add `adaptiveLod = input<boolean>(false)` signal input
-- [ ] Declare `private orthoCamera!: THREE.OrthographicCamera`
-- [ ] Add private getter `get activeCamera(): THREE.Camera` that returns either `perspCamera` or `orthoCamera` depending on `viewType()`
-- [ ] Rename existing `private camera` to `private perspCamera` (adjust all internal references)
-- [ ] In `initThree()`: initialize both `perspCamera` and `orthoCamera`; configure OrthographicCamera frustum from container aspect ratio
-- [ ] Add `private initCamera(viewType: ViewOrientation): void` — sets position and `controls.enableRotate` per the table in `technical.md §3.6`
-- [ ] Add `effect()` in constructor: when `viewType()` changes → call `initCamera(viewType())`
-- [ ] In `animate()`: replace `this.camera` references with `this.activeCamera`
-- [ ] In `syncSize()`: update both cameras' aspect/frustum on resize
-- [ ] In `ngOnDestroy()`: dispose both cameras
-- [ ] Implement adaptive LOD: add `private readonly MAX_POINTS_LOD = 25_000` constant; use `this.adaptiveLod() ? this.MAX_POINTS_LOD : this.MAX_POINTS` in `updatePointsForTopic()`
-- [ ] Wire `PointCloudDataService` injection; add `effect()` to subscribe to `frames()` signal and call `updatePointsForTopic()` for all active topics
-- [ ] Verify existing `setTopView()`, `setFrontView()`, `setSideView()` still work (they now delegate to `initCamera()` internally)
+- [x] Add `viewType = input<ViewOrientation>('perspective')` signal input
+- [x] Add `viewId = input<string>('')` signal input
+- [x] Add `adaptiveLod = input<boolean>(false)` signal input
+- [x] Declare `private orthoCamera!: THREE.OrthographicCamera`
+- [x] Add private getter `get activeCamera(): THREE.Camera` that returns either `perspCamera` or `orthoCamera` depending on `viewType()`
+- [x] Rename existing `private camera` to `private perspCamera` (adjust all internal references)
+- [x] In `initThree()`: initialize both `perspCamera` and `orthoCamera`; configure OrthographicCamera frustum from container aspect ratio
+- [x] Add `private initCamera(viewType: ViewOrientation): void` — sets position and `controls.enableRotate` per the table in `technical.md §3.6`
+- [x] Add `effect()` in constructor: when `viewType()` changes → call `initCamera(viewType())`
+- [x] In `animate()`: replace `this.camera` references with `this.activeCamera`
+- [x] In `syncSize()`: update both cameras' aspect/frustum on resize
+- [x] In `ngOnDestroy()`: dispose both cameras
+- [x] Implement adaptive LOD: add `private readonly MAX_POINTS_LOD = 25_000` constant; use `this.adaptiveLod() ? this.MAX_POINTS_LOD : this.MAX_POINTS` in `updatePointsForTopic()`
+- [x] Wire `PointCloudDataService` injection; add `effect()` to subscribe to `frames()` signal and call `updatePointsForTopic()` for all active topics
+- [x] Verify existing `setTopView()`, `setFrontView()`, `setSideView()` still work (they now delegate to `initCamera()` internally)
 
 ---
 
