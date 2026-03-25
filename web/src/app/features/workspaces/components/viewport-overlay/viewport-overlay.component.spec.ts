@@ -19,7 +19,6 @@ describe('ViewportOverlayComponent', () => {
     mockLayout = {
       paneCount: signal(1),
       setPaneOrientation: vi.fn(),
-      removePane: vi.fn(),
     };
 
     mockDataService = {
@@ -49,26 +48,21 @@ describe('ViewportOverlayComponent', () => {
     expect(badge?.textContent?.toLowerCase()).toContain('perspective');
   });
 
-  it('should disable close button when isLastPane (paneCount === 1)', () => {
-    mockLayout.paneCount.set(1);
-    fixture.detectChanges();
-    const closeBtn = fixture.nativeElement.querySelector('button[disabled], button:disabled');
-    expect(closeBtn).toBeTruthy();
+  it('should not render a close button', () => {
+    const closeBtn = fixture.nativeElement.querySelector('button');
+    expect(closeBtn).toBeFalsy();
   });
 
-  it('should enable close button when paneCount > 1', () => {
-    mockLayout.paneCount.set(2);
-    fixture.detectChanges();
-    const closeBtn = fixture.nativeElement.querySelector('button:not([disabled])');
-    expect(closeBtn).toBeTruthy();
+  it('should render the orientation dropdown', () => {
+    const select = fixture.nativeElement.querySelector('select');
+    expect(select).toBeTruthy();
   });
 
-  it('should call removePane when close button is clicked (paneCount > 1)', () => {
-    mockLayout.paneCount.set(2);
-    fixture.detectChanges();
-    const closeBtn: HTMLButtonElement = fixture.nativeElement.querySelector('button:not([disabled])');
-    closeBtn?.click();
-    expect(mockLayout.removePane).toHaveBeenCalledWith('p1');
+  it('should call setPaneOrientation when orientation is changed', () => {
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector('select');
+    select.value = 'top';
+    select.dispatchEvent(new Event('change'));
+    expect(mockLayout.setPaneOrientation).toHaveBeenCalledWith('p1', 'top');
   });
 
   it('should show empty state when frames map is empty (no data)', () => {

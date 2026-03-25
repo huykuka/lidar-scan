@@ -5,6 +5,7 @@ import { SignalsSimpleStoreService } from './signals-simple-store.service';
 
 export type ViewOrientation = 'perspective' | 'top' | 'front' | 'side';
 export type SplitAxis = 'horizontal' | 'vertical';
+export type LayoutMode = 'single' | 'h-split' | 'v-split' | '4-grid';
 
 export interface ViewPane {
   /** Stable UUID generated at pane creation time */
@@ -34,6 +35,8 @@ export interface SplitLayoutState {
   paneCount: number;
   /** Prevents rapid add/remove operations during transitions */
   isTransitioning: boolean;
+  /** Active layout preset — drives rendering strategy in SplitPaneContainerComponent */
+  layoutMode: LayoutMode;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -53,6 +56,7 @@ export const DEFAULT_SPLIT_LAYOUT: SplitLayoutState = {
   focusedPaneId: null,
   paneCount: 1,
   isTransitioning: false,
+  layoutMode: 'single',
 };
 
 // ── Service ───────────────────────────────────────────────────────────────────
@@ -68,6 +72,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
   focusedPaneId   = this.select('focusedPaneId');
   paneCount       = this.select('paneCount');
   isTransitioning = this.select('isTransitioning');
+  layoutMode      = this.select('layoutMode');
 
   // ── Computed signals ──────────────────────────────────────────────────────
   allPanes   = computed(() => this.groups().flatMap(g => g.panes));
@@ -230,6 +235,59 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     this.setState(this.getDefaultState());
   }
 
+  /** Set a horizontal 2-split (top/bottom): top pane perspective, bottom pane top-view. */
+  setHorizontalSplit(): void {
+    this.setState({
+      groups: [{
+        axis: 'horizontal',
+        panes: [
+          { id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
+          { id: crypto.randomUUID(), orientation: 'top',         sizeFraction: 0.5 },
+        ],
+      }],
+      focusedPaneId: null,
+      paneCount: 2,
+      isTransitioning: false,
+      layoutMode: 'h-split',
+    });
+  }
+
+  /** Set a vertical 2-split (left/right): left pane perspective, right pane front-view. */
+  setVerticalSplit(): void {
+    this.setState({
+      groups: [{
+        axis: 'vertical',
+        panes: [
+          { id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
+          { id: crypto.randomUUID(), orientation: 'front',       sizeFraction: 0.5 },
+        ],
+      }],
+      focusedPaneId: null,
+      paneCount: 2,
+      isTransitioning: false,
+      layoutMode: 'v-split',
+    });
+  }
+
+  /** Set a 4-pane grid (2×2): perspective (TL), top (TR), front (BL), side (BR). */
+  setFourPaneGrid(): void {
+    this.setState({
+      groups: [{
+        axis: 'vertical',
+        panes: [
+          { id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 0.25 },
+          { id: crypto.randomUUID(), orientation: 'top',         sizeFraction: 0.25 },
+          { id: crypto.randomUUID(), orientation: 'front',       sizeFraction: 0.25 },
+          { id: crypto.randomUUID(), orientation: 'side',        sizeFraction: 0.25 },
+        ],
+      }],
+      focusedPaneId: null,
+      paneCount: 4,
+      isTransitioning: false,
+      layoutMode: '4-grid',
+    });
+  }
+
   // ── Private Helpers ───────────────────────────────────────────────────────
 
   private loadFromStorage(): void {
@@ -291,10 +349,13 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       return { ...group, panes: sanitisedPanes };
     });
 
+    const VALID_MODES: ReadonlySet<string> = new Set(['single', 'h-split', 'v-split', '4-grid']);
+
     return {
       ...state,
       groups: sanitisedGroups,
       isTransitioning: false,
+      layoutMode: VALID_MODES.has(state.layoutMode) ? state.layoutMode : 'single',
     };
   }
 
@@ -307,6 +368,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       focusedPaneId: null,
       paneCount: 1,
       isTransitioning: false,
+      layoutMode: 'single',
     };
   }
 }

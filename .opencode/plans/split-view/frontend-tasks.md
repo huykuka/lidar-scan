@@ -166,12 +166,12 @@ cd web && ng g component features/workspaces/components/view-toolbar/view-toolba
 - [x] Run CLI scaffolding command above
 - [x] Set `changeDetection: ChangeDetectionStrategy.OnPush`
 - [x] Inject `SplitLayoutStoreService`
-- [x] Declare `viewTypes` array with `{ value, label, icon }` entries for all 4 orientations (use Synergy icons from `technical.md §3.9`)
-- [x] Render "Add View:" label + 4 `<syn-button>` components using `SynergyComponentsModule`
-- [x] Bind `[disabled]="!canAdd()"` on all add buttons
-- [x] Implement "Reset Layout" `<syn-button>` calling `layout.resetToDefault()`
+- [x] Declare `presets` array with `{ id, label, title, icon }` entries for all 4 layout presets (single, h-split, v-split, 4-grid)
+- [x] Render "Layout:" label + 4 preset buttons using `SynergyComponentsModule` icons
+- [x] Implement `applyPreset(id)` dispatching to `resetToDefault()`, `setHorizontalSplit()`, `setVerticalSplit()`, `setFourPaneGrid()` on `SplitLayoutStoreService`
+- [x] Added `setHorizontalSplit()`, `setVerticalSplit()`, `setFourPaneGrid()` to `SplitLayoutStoreService`
 - [x] Use Tailwind `flex items-center gap-2 px-4 py-2 border-b` for toolbar layout
-- [x] Show brief `ToastService` notification "Maximum 4 views reached" (inject `ToastService`) — but only from the **keyboard service**, not from button clicks (buttons are already disabled)
+- [x] 8/8 tests passing
 
 ---
 
@@ -201,19 +201,19 @@ cd web && ng g service core/services/workspace-keyboard --skip-tests=false
 
 **File**: `web/src/app/features/workspaces/workspaces.component.ts`
 
-- [ ] Remove `viewChild.required<PointCloudComponent>('pointCloud')` — no longer a single reference
-- [ ] Remove all WebSocket subscription fields and logic (`wsSubscriptions`, `frameCountPerTopic`, `fpsUpdateInterval`, `syncWebSocketConnections`, `connectToTopic`, `disconnectFromTopic`, `handleWsMessage`, `parseBinaryPointCloud`, `extractPointsFromJson`)
-- [ ] Remove the `effect()` for `selectedTopics` — now handled by `PointCloudDataService`
-- [ ] Inject `PointCloudDataService` (this ensures it starts up and manages WS connections)
-- [ ] Inject `WorkspaceKeyboardService` (this ensures it registers keyboard listeners)
-- [ ] Add `protected isNarrowScreen = signal(window.innerWidth < 1024)` with `matchMedia` listener
-- [ ] Keep the `effect()` for `NodeStatusService` status changes and `refreshTopics()` calls (unchanged)
-- [ ] Keep cockpit toggle methods (`toggleCockpit`, `closeCockpit`)
-- [ ] Remove `resetCamera`, `setTopView`, `setFrontView`, `setSideView`, `setIsometricView`, `fitToPoints`, `captureScreenshot`, `clearPoints`, `toggleGrid`, `toggleAxes` — these are now handled per-pane inside `ViewportOverlayComponent`/`SplitPaneContainerComponent`
-- [ ] Update template (per `technical.md §3.12`): replace single `<app-point-cloud>` with `<app-view-toolbar>` + `<app-split-pane-container>`
-- [ ] Remove `WorkspaceViewControlsComponent` import (its actions are now per-pane in overlay)
-- [ ] Add `SplitPaneContainerComponent`, `ViewToolbarComponent` to imports array
-- [ ] Keep `WorkspaceTelemetryComponent`, `WorkspaceControlsComponent`, `SynergyComponentsModule`, `NgClass` imports
+- [x] Remove `viewChild.required<PointCloudComponent>('pointCloud')` — no longer a single reference
+- [x] Remove all WebSocket subscription fields and logic (`wsSubscriptions`, `frameCountPerTopic`, `fpsUpdateInterval`, `syncWebSocketConnections`, `connectToTopic`, `disconnectFromTopic`, `handleWsMessage`, `parseBinaryPointCloud`, `extractPointsFromJson`)
+- [x] Remove the `effect()` for `selectedTopics` — now handled by `PointCloudDataService`
+- [x] Inject `PointCloudDataService` (this ensures it starts up and manages WS connections)
+- [x] Inject `WorkspaceKeyboardService` (this ensures it registers keyboard listeners)
+- [x] Add `protected isNarrowScreen = signal(window.innerWidth < 1024)` with `matchMedia` listener
+- [x] Keep the `effect()` for `NodeStatusService` status changes and `refreshTopics()` calls (unchanged)
+- [x] Keep cockpit toggle methods (`toggleCockpit`, `closeCockpit`)
+- [x] Remove `resetCamera`, `setTopView`, `setFrontView`, `setSideView`, `setIsometricView`, `fitToPoints`, `captureScreenshot`, `clearPoints`, `toggleGrid`, `toggleAxes` — these are now handled per-pane inside `ViewportOverlayComponent`/`SplitPaneContainerComponent`
+- [x] Update template (per `technical.md §3.12`): replace single `<app-point-cloud>` with `<app-view-toolbar>` + `<app-split-pane-container>`
+- [x] Remove `WorkspaceViewControlsComponent` import (its actions are now per-pane in overlay)
+- [x] Add `SplitPaneContainerComponent`, `ViewToolbarComponent` to imports array
+- [x] Keep `WorkspaceTelemetryComponent`, `WorkspaceControlsComponent`, `SynergyComponentsModule`, `NgClass` imports
 
 ---
 

@@ -1,19 +1,12 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core';
-import { SplitLayoutStoreService, SplitGroup, ViewPane } from '@core/services/split-layout-store.service';
-import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
-import { PointCloudComponent } from '../../point-cloud/point-cloud.component';
-import { ViewportOverlayComponent } from '../../viewport-overlay/viewport-overlay.component';
-import { ResizableDividerDirective } from '../resizable-divider.directive';
+import {Component, computed, inject,} from '@angular/core';
+import {SplitGroup, SplitLayoutStoreService, ViewPane} from '@core/services/split-layout-store.service';
+import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
+import {PointCloudComponent} from '../../point-cloud/point-cloud.component';
+import {ViewportOverlayComponent} from '../../viewport-overlay/viewport-overlay.component';
 
 @Component({
   selector: 'app-split-pane-container',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PointCloudComponent, ViewportOverlayComponent, ResizableDividerDirective],
+  imports: [PointCloudComponent, ViewportOverlayComponent],
   templateUrl: './split-pane-container.component.html',
   styleUrl: './split-pane-container.component.css',
 })
@@ -21,8 +14,15 @@ export class SplitPaneContainerComponent {
   protected layout = inject(SplitLayoutStoreService);
   protected store  = inject(WorkspaceStoreService);
 
-  protected groups   = computed(() => this.layout.groups());
-  protected paneCount = computed(() => this.layout.paneCount());
+  protected groups     = computed(() => this.layout.groups());
+  protected paneCount  = computed(() => this.layout.paneCount());
+  protected layoutMode = computed(() => this.layout.layoutMode());
+
+  /** True when the active layout is the 2×2 grid preset */
+  protected isGridLayout = computed(() => this.layout.layoutMode() === '4-grid');
+
+  /** All panes flattened — used by the grid template */
+  protected allPanes = computed(() => this.layout.allPanes());
 
   /** CSS class for the flex direction of a group */
   groupClass(group: SplitGroup): string {
@@ -39,8 +39,18 @@ export class SplitPaneContainerComponent {
     return this.paneCount() > 1 && pane.sizeFraction < 0.5;
   }
 
-  /** Inline flex style for a single pane div */
+  /** Inline flex style for a single pane div (flex layouts only) */
   paneStyle(pane: ViewPane): Record<string, string> {
     return { flex: String(pane.sizeFraction) };
+  }
+
+  /**
+   * Track expression for groups — stable enough to avoid canvas recreation,
+   * but changes when the layout mode changes so the wrapper div re-animates.
+   * We key on axis + pane count (not layoutMode) to avoid destroying panes
+   * whose IDs haven't changed.
+   */
+  groupKey(group: SplitGroup, index: number): string {
+    return `${index}-${group.axis}-${group.panes.length}`;
   }
 }

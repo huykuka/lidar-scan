@@ -1,37 +1,18 @@
-<div class="flex items-center gap-2 px-4 py-2 border-b border-[hsl(var(--syn-color-neutral-300))] bg-[hsl(var(--syn-color-neutral-0))]">
-  <span class="text-sm font-medium text-[hsl(var(--syn-color-neutral-700))] mr-1">Add View:</span>
+<div class="flex items-center gap-1.5 px-4 py-2 bg-white">
+  <span class="text-xs font-semibold text-[hsl(var(--syn-color-neutral-500))] mr-2 uppercase tracking-wide select-none">Layout</span>
 
-  @for (vt of viewTypes; track vt.value) {
+  @for (preset of presets; track preset.id) {
     <button
-      [attr.data-view-type]="vt.value"
-      [disabled]="!canAdd() || null"
-      (click)="addView(vt.value)"
-      class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border
-             border-[hsl(var(--syn-color-neutral-300))]
-             bg-[hsl(var(--syn-color-neutral-0))]
-             hover:bg-[hsl(var(--syn-color-neutral-100))]
-             disabled:opacity-40 disabled:cursor-not-allowed
-             transition-colors duration-150"
-      [title]="'Add ' + vt.label + ' view'"
+      [attr.data-preset]="preset.id"
+      (click)="applyPreset(preset.id)"
+      [class]="activeMode() === preset.id
+        ? 'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all duration-150 border-[hsl(var(--syn-color-primary-600))] bg-[hsl(var(--syn-color-primary-600))] text-white shadow-sm'
+        : 'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-all duration-150 border-[hsl(var(--syn-color-neutral-300))] bg-white text-[hsl(var(--syn-color-neutral-700))] hover:bg-[hsl(var(--syn-color-neutral-100))] hover:border-[hsl(var(--syn-color-neutral-400))]'"
+      [title]="preset.title"
+      [attr.aria-pressed]="activeMode() === preset.id"
     >
-      <syn-icon [name]="vt.icon" class="text-base"></syn-icon>
-      <span>{{ vt.label }}</span>
+      <syn-icon [name]="preset.icon" class="text-base leading-none"></syn-icon>
+      <span>{{ preset.label }}</span>
     </button>
   }
-
-  <div class="flex-1"></div>
-
-  <button
-    (click)="resetLayout()"
-    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border
-           border-[hsl(var(--syn-color-neutral-300))]
-           bg-[hsl(var(--syn-color-neutral-0))]
-           hover:bg-[hsl(var(--syn-color-neutral-100))]
-           transition-colors duration-150"
-    title="Reset to single perspective view"
-  >
-    <syn-icon name="settings_backup_restore" class="text-base"></syn-icon>
-    <span>Reset Layout</span>
-  </button>
 </div>
-

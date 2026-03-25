@@ -5,11 +5,12 @@ import {
   inject,
 } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { SplitLayoutStoreService, ViewOrientation } from '@core/services/split-layout-store.service';
+import { SplitLayoutStoreService, LayoutMode } from '@core/services/split-layout-store.service';
 
-interface ViewTypeEntry {
-  value: ViewOrientation;
+interface LayoutPreset {
+  id: LayoutMode;
   label: string;
+  title: string;
   icon: string;
 }
 
@@ -23,21 +24,22 @@ interface ViewTypeEntry {
 export class ViewToolbarComponent {
   protected layout = inject(SplitLayoutStoreService);
 
-  /** Exposed as a computed so the template and tests can read it easily. */
-  canAdd = computed(() => this.layout.canAddPane());
+  /** Current active layout mode — drives button highlight */
+  protected activeMode = computed(() => this.layout.layoutMode());
 
-  readonly viewTypes: ViewTypeEntry[] = [
-    { value: 'perspective', label: 'Perspective', icon: '3d_rotation'   },
-    { value: 'top',         label: 'Top',         icon: 'vertical_align_top' },
-    { value: 'front',       label: 'Front',       icon: 'front_hand'    },
-    { value: 'side',        label: 'Side',        icon: 'side_navigation' },
+  readonly presets: LayoutPreset[] = [
+    { id: 'single',  label: '1',   title: 'Single pane (perspective)',      icon: 'crop_square'       },
+    { id: 'h-split', label: '2H',  title: 'Horizontal split (top/bottom)',  icon: 'horizontal_split'  },
+    { id: 'v-split', label: '2V',  title: 'Vertical split (left/right)',    icon: 'vertical_split'    },
+    { id: '4-grid',  label: '4',   title: '4-pane grid (2×2)',              icon: 'grid_view'         },
   ];
 
-  addView(orientation: ViewOrientation): void {
-    this.layout.addPane(orientation);
-  }
-
-  resetLayout(): void {
-    this.layout.resetToDefault();
+  applyPreset(id: LayoutMode): void {
+    switch (id) {
+      case 'single':  this.layout.resetToDefault();     break;
+      case 'h-split': this.layout.setHorizontalSplit(); break;
+      case 'v-split': this.layout.setVerticalSplit();   break;
+      case '4-grid':  this.layout.setFourPaneGrid();    break;
+    }
   }
 }

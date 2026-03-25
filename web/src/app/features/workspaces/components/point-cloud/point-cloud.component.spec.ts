@@ -13,7 +13,16 @@ import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { PointCloudComponent } from './point-cloud.component';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { PointCloudDataService } from '@core/services/point-cloud-data.service';
+import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
 import { ViewOrientation } from '@core/services/split-layout-store.service';
+
+// ── Mock ResizeObserver (not available in jsdom) ──────────────────────────────
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+(globalThis as any).ResizeObserver = MockResizeObserver;
 
 // ── Minimal stub for PointCloudDataService ────────────────────────────────────
 
@@ -22,6 +31,12 @@ const mockFrames = signal(new Map());
 const mockDataService = {
   frames: mockFrames,
   isConnected: signal(false),
+};
+
+// ── Minimal stub for WorkspaceStoreService ────────────────────────────────────
+
+const mockWorkspaceStore = {
+  selectedTopics: signal<Array<{ topic: string; color: string; enabled: boolean }>>([]),
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -74,6 +89,7 @@ describe('PointCloudComponent — FE-04 Extensions', () => {
       imports: [PointCloudComponent],
       providers: [
         { provide: PointCloudDataService, useValue: mockDataService },
+        { provide: WorkspaceStoreService, useValue: mockWorkspaceStore },
       ],
       schemas: [NO_ERRORS_SCHEMA],
     }).compileComponents();

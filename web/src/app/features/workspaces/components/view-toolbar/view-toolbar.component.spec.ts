@@ -12,9 +12,11 @@ describe('ViewToolbarComponent', () => {
 
   beforeEach(async () => {
     mockLayout = {
-      canAddPane: signal(true),
-      addPane: vi.fn(),
-      resetToDefault: vi.fn(),
+      resetToDefault:     vi.fn(),
+      setHorizontalSplit: vi.fn(),
+      setVerticalSplit:   vi.fn(),
+      setFourPaneGrid:    vi.fn(),
+      layoutMode:         signal('single'),
     };
 
     await TestBed.configureTestingModule({
@@ -33,39 +35,42 @@ describe('ViewToolbarComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should render 4 add-view buttons', () => {
-    const allButtons = fixture.nativeElement.querySelectorAll('syn-button, button');
-    expect(allButtons.length).toBeGreaterThanOrEqual(4);
+  it('should expose 4 preset entries', () => {
+    expect(component.presets.length).toBe(4);
+    const ids = component.presets.map(p => p.id);
+    expect(ids).toEqual(['single', 'h-split', 'v-split', '4-grid']);
   });
 
-  it('should call addPane("perspective") when Perspective button is clicked', () => {
-    component.addView('perspective');
-    expect(mockLayout.addPane).toHaveBeenCalledWith('perspective');
+  it('should render 4 preset buttons', () => {
+    const buttons = fixture.nativeElement.querySelectorAll('button[data-preset]');
+    expect(buttons.length).toBe(4);
   });
 
-  it('should call addPane("top") when Top button is clicked', () => {
-    component.addView('top');
-    expect(mockLayout.addPane).toHaveBeenCalledWith('top');
+  it('applyPreset("single") calls resetToDefault()', () => {
+    component.applyPreset('single');
+    expect(mockLayout.resetToDefault).toHaveBeenCalledOnce();
   });
 
-  it('should call addPane("front") when Front button is clicked', () => {
-    component.addView('front');
-    expect(mockLayout.addPane).toHaveBeenCalledWith('front');
+  it('applyPreset("h-split") calls setHorizontalSplit()', () => {
+    component.applyPreset('h-split');
+    expect(mockLayout.setHorizontalSplit).toHaveBeenCalledOnce();
   });
 
-  it('should call addPane("side") when Side button is clicked', () => {
-    component.addView('side');
-    expect(mockLayout.addPane).toHaveBeenCalledWith('side');
+  it('applyPreset("v-split") calls setVerticalSplit()', () => {
+    component.applyPreset('v-split');
+    expect(mockLayout.setVerticalSplit).toHaveBeenCalledOnce();
   });
 
-  it('should call resetToDefault() when Reset Layout is clicked', () => {
-    component.resetLayout();
-    expect(mockLayout.resetToDefault).toHaveBeenCalled();
+  it('applyPreset("4-grid") calls setFourPaneGrid()', () => {
+    component.applyPreset('4-grid');
+    expect(mockLayout.setFourPaneGrid).toHaveBeenCalledOnce();
   });
 
-  it('should expose canAdd as a signal from the layout store', () => {
-    mockLayout.canAddPane.set(false);
+  it('clicking a preset button invokes applyPreset', () => {
+    const spy = vi.spyOn(component, 'applyPreset');
+    const btn = fixture.nativeElement.querySelector('button[data-preset="v-split"]');
+    btn?.click();
     fixture.detectChanges();
-    expect(component.canAdd()).toBeFalsy();
+    expect(spy).toHaveBeenCalledWith('v-split');
   });
 });

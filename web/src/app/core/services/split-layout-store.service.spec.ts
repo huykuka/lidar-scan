@@ -270,6 +270,7 @@ describe('SplitLayoutStoreService', () => {
         focusedPaneId: null,
         paneCount: 2,
         isTransitioning: false,
+        layoutMode: 'h-split',
       };
       localStorage.setItem('lidar_split_layout_v1', JSON.stringify(state));
 
@@ -298,6 +299,7 @@ describe('SplitLayoutStoreService', () => {
         focusedPaneId: null,
         paneCount: 5,
         isTransitioning: false,
+        layoutMode: 'single',
       };
       localStorage.setItem('lidar_split_layout_v1', JSON.stringify(invalid));
       TestBed.resetTestingModule();
@@ -319,6 +321,7 @@ describe('SplitLayoutStoreService', () => {
         focusedPaneId: null,
         paneCount: 2,
         isTransitioning: false,
+        layoutMode: 'h-split',
       };
       localStorage.setItem('lidar_split_layout_v1', JSON.stringify(badFraction));
       TestBed.resetTestingModule();
@@ -341,6 +344,7 @@ describe('SplitLayoutStoreService', () => {
         focusedPaneId: null,
         paneCount: 1,
         isTransitioning: false,
+        layoutMode: 'single',
       };
       localStorage.setItem('lidar_split_layout_v1', JSON.stringify(badOrientation));
       TestBed.resetTestingModule();

@@ -1,43 +1,53 @@
-@for (group of groups(); track $index) {
-  <div [class]="groupClass(group)">
-
-    @for (pane of group.panes; track pane.id; let last = $last; let i = $index) {
-
-      <!-- Pane wrapper: relative position for overlay, transition for smooth resize -->
+@if (isGridLayout()) {
+  <!-- ── 4-pane 2×2 CSS grid layout ─────────────────────────────────────── -->
+  <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-2 p-2 layout-enter">
+    @for (pane of allPanes(); track pane.id) {
       <div
-        class="relative min-w-[200px] min-h-[200px] overflow-hidden transition-all duration-[250ms] ease-in-out"
-        [style]="paneStyle(pane)"
+        class="relative min-w-0 min-h-0 overflow-hidden rounded-xl"
         [attr.data-pane-id]="pane.id"
       >
-        <!-- Three.js point cloud renderer -->
         <app-point-cloud
           class="w-full h-full block"
           [backgroundColor]="store.backgroundColor()"
           [pointSize]="store.pointSize()"
           [showAxes]="store.showAxes()"
           [showGrid]="store.showGrid()"
+          [viewType]="pane.orientation"
+          [viewId]="pane.id"
+          [adaptiveLod]="true"
         ></app-point-cloud>
 
-        <!-- Per-pane overlay (orientation badge, close button, empty state) -->
-        <app-viewport-overlay
-          [pane]="pane"
-        ></app-viewport-overlay>
+        <app-viewport-overlay [pane]="pane"></app-viewport-overlay>
       </div>
-
-      <!-- Divider between panes (not after the last pane) -->
-      @if (!last) {
-        <div
-          appResizableDivider
-          [axis]="group.axis"
-          [paneId]="pane.id"
-          class="split-divider flex-shrink-0 z-20 transition-colors duration-150"
-          [class]="group.axis === 'horizontal'
-            ? 'w-1.5 h-full cursor-col-resize bg-[hsl(var(--syn-color-neutral-300))] hover:bg-[hsl(var(--syn-color-primary-600))]'
-            : 'h-1.5 w-full cursor-row-resize bg-[hsl(var(--syn-color-neutral-300))] hover:bg-[hsl(var(--syn-color-primary-600))]'"
-        ></div>
-      }
-
     }
   </div>
-}
+} @else {
+  <!-- ── Flex split layout (single / h-split / v-split) ─────────────────── -->
+  @for (group of groups(); track groupKey(group, $index)) {
+    <div [class]="groupClass(group) + ' layout-enter gap-2 p-2'">
 
+      @for (pane of group.panes; track pane.id; let last = $last) {
+
+        <div
+          class="relative min-w-[200px] min-h-[200px] overflow-hidden rounded-xl transition-all duration-[250ms] ease-in-out"
+          [style]="paneStyle(pane)"
+          [attr.data-pane-id]="pane.id"
+        >
+          <app-point-cloud
+            class="w-full h-full block"
+            [backgroundColor]="store.backgroundColor()"
+            [pointSize]="store.pointSize()"
+            [showAxes]="store.showAxes()"
+            [showGrid]="store.showGrid()"
+            [viewType]="pane.orientation"
+            [viewId]="pane.id"
+            [adaptiveLod]="isSmallPane(pane)"
+          ></app-point-cloud>
+
+          <app-viewport-overlay [pane]="pane"></app-viewport-overlay>
+        </div>
+
+      }
+    </div>
+  }
+}

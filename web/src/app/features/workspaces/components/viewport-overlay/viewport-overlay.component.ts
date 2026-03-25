@@ -27,9 +27,6 @@ export class ViewportOverlayComponent {
   protected layout      = inject(SplitLayoutStoreService);
   protected dataService = inject(PointCloudDataService);
 
-  /** True when this is the only pane (cannot close). */
-  protected isLastPane = computed(() => this.layout.paneCount() <= 1);
-
   /** True when there is no point cloud data loaded. */
   protected hasData = computed(() => this.dataService.frames().size > 0);
 
@@ -51,11 +48,5 @@ export class ViewportOverlayComponent {
   changeOrientation(event: Event): void {
     const value = (event.target as HTMLSelectElement | HTMLInputElement).value as ViewOrientation;
     this.layout.setPaneOrientation(this.pane().id, value);
-  }
-
-  closePane(): void {
-    if (!this.isLastPane()) {
-      this.layout.removePane(this.pane().id);
-    }
   }
 }

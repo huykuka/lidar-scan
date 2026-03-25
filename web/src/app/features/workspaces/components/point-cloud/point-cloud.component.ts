@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {PointCloudDataService} from '@core/services/point-cloud-data.service';
 import {ViewOrientation} from '@core/services/split-layout-store.service';
+import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
 
 @Component({
   selector: 'app-point-cloud',
@@ -47,8 +48,14 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   private renderer!: THREE.WebGLRenderer;
   private controls!: OrbitControls;
 
+  /** ResizeObserver — keeps canvas size in sync when pane dimensions change */
+  private resizeObserver?: ResizeObserver;
+
   /** Injected data service — provides shared frame signals per topic */
   readonly dataService = inject(PointCloudDataService);
+
+  /** Injected workspace store — provides selected topics with colors */
+  private readonly workspaceStore = inject(WorkspaceStoreService);
 
   // Multiple point clouds support
   readonly pointClouds: Map<
@@ -101,7 +108,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
 
     effect(() => {
       if (this.gridHelper) {
-        const isVisible = !!this.showGrid();
+        const isVisible = this.showGrid();
         this.gridHelper.visible = isVisible;
         this.gridLabels.forEach((l) => (l.visible = isVisible));
       }
@@ -109,7 +116,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
 
     effect(() => {
       if (this.axesHelper) {
-        const isVisible = !!this.showAxes();
+        const isVisible = this.showAxes();
         this.axesHelper.visible = isVisible;
         this.axesLabels.forEach((l) => (l.visible = isVisible));
       }
@@ -131,6 +138,11 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
+    effect(() => {
+      if (!this.scene) return;
+      this.syncTopicClouds();
+    });
+
     // ── FE-04: Subscribe to PointCloudDataService frames signal ──────────────
     effect(() => {
       const frames = this.dataService.frames();
@@ -148,16 +160,21 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     this.initThree();
+    // Initialize point clouds for all currently selected topics now that
+    // the Three.js scene is ready. Subsequent changes are handled by effect().
+    this.syncTopicClouds();
     this.animate();
-    // Re-sync size after the first paint — the route animation may have caused
-    // the container to be zero-sized at ngOnInit time.
-    requestAnimationFrame(() => this.syncSize());
+    // ResizeObserver keeps canvas in sync whenever the pane is resized
+    // (including the initial paint, layout-switch re-paints, and divider drags).
+    this.resizeObserver = new ResizeObserver(() => this.syncSize());
+    this.resizeObserver.observe(this.containerRef().nativeElement);
   }
 
   ngOnDestroy() {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
     }
+    this.resizeObserver?.disconnect();
     // Dispose all point clouds
     this.pointClouds.forEach(({geometry, material}) => {
       geometry.dispose();
@@ -251,30 +268,6 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     cloud.geometry.attributes['position'].needsUpdate = true;
   }
 
-  /**
-   * Legacy method for backwards compatibility - updates the first point cloud
-   */
-  updatePoints(positionsArray: Float32Array, count: number) {
-    // If no point clouds exist, create a default one
-    if (this.pointClouds.size === 0) {
-      this.addOrUpdatePointCloud('default', '#00ff00');
-    }
-
-    // Update first (or only) point cloud
-    const firstTopic = Array.from(this.pointClouds.keys())[0];
-    this.updatePointsForTopic(firstTopic, positionsArray, count);
-  }
-
-  /**
-   * Get total point count across all clouds
-   */
-  getTotalPointCount(): number {
-    let total = 0;
-    this.pointClouds.forEach(({lastCount}) => {
-      total += lastCount;
-    });
-    return total;
-  }
 
   resetCamera() {
     this.perspCamera.position.set(15, 15, 15);
@@ -282,101 +275,27 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     this.controls.update();
   }
 
-  /**
-   * Set camera to top view (looking down at XZ plane)
-   */
-  setTopView() {
-    this.initCamera('top');
-  }
 
   /**
-   * Set camera to front view (looking along Y axis)
+   * Synchronise Three.js point cloud objects with the currently selected topics.
+   * Called once from ngAfterViewInit (after scene is ready) and from the
+   * selectedTopics effect() for subsequent changes.
    */
-  setFrontView() {
-    this.initCamera('front');
-  }
+  private syncTopicClouds(): void {
+    const selectedTopics = this.workspaceStore.selectedTopics();
+    const enabledSet = new Set(selectedTopics.filter(t => t.enabled).map(t => t.topic));
 
-  /**
-   * Set camera to side view (looking along X axis)
-   */
-  setSideView() {
-    this.initCamera('side');
-  }
-
-  /**
-   * Set camera to isometric view (45° angle)
-   */
-  setIsometricView() {
-    const distance = 30;
-    this.perspCamera.position.set(distance, distance, distance);
-    this.controls.target.set(0, 0, 0);
-    this.controls.update();
-  }
-
-  fitToPoints(paddingFactor = 1.25) {
-    if (!this.controls) return;
-    if (this.pointClouds.size === 0) return;
-
-    let minX = Infinity,
-      minY = Infinity,
-      minZ = Infinity;
-    let maxX = -Infinity,
-      maxY = -Infinity,
-      maxZ = -Infinity;
-
-    // Calculate bounding box across all point clouds
-    this.pointClouds.forEach(({geometry, lastCount}) => {
-      if (lastCount <= 0) return;
-
-      const attr = geometry.getAttribute('position') as THREE.BufferAttribute;
-      const positions = attr.array as Float32Array;
-      const count = Math.min(lastCount, this.MAX_POINTS);
-
-      for (let i = 0; i < count; i++) {
-        const x = positions[i * 3];
-        const y = positions[i * 3 + 1];
-        const z = positions[i * 3 + 2];
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (z < minZ) minZ = z;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-        if (z > maxZ) maxZ = z;
+    // Remove clouds for topics no longer enabled
+    Array.from(this.pointClouds.keys()).forEach(topic => {
+      if (!enabledSet.has(topic)) {
+        this.removePointCloud(topic);
       }
     });
 
-    if (!isFinite(minX) || !isFinite(maxX)) return;
-
-    const center = new THREE.Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
-    const size = new THREE.Vector3(maxX - minX, maxY - minY, maxZ - minZ);
-    const radius = Math.max(size.x, size.y, size.z) / 2;
-
-    const fov = (this.perspCamera.fov * Math.PI) / 180;
-    const distance = (radius / Math.tan(fov / 2)) * paddingFactor + 0.1;
-
-    // Keep the current view direction but reposition to fit
-    const activePos = this.activeCamera.position;
-    const dir = new THREE.Vector3()
-      .subVectors(activePos, this.controls.target)
-      .normalize();
-    this.controls.target.copy(center);
-    activePos.copy(center.clone().add(dir.multiplyScalar(distance)));
-    this.controls.update();
-  }
-
-  capturePng(filename = 'workspace.png') {
-    if (!this.renderer) return;
-    const dataUrl = this.renderer.domElement.toDataURL('image/png');
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = filename;
-    a.click();
-  }
-
-  clear() {
-    // Clear all point clouds
-    this.pointClouds.forEach((cloud, topic) => {
-      this.updatePointsForTopic(topic, new Float32Array(0), 0);
+    // Add or update clouds for enabled topics
+    selectedTopics.forEach(({ topic, color, enabled }) => {
+      if (!enabled) return;
+      this.addOrUpdatePointCloud(topic, color);
     });
   }
 
@@ -558,13 +477,13 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
 
       const spriteX = this.createTextSprite(`${i}m`);
       spriteX.position.set(i, 0, halfSize + stepLines * 0.2);
-      spriteX.visible = !!this.showGrid();
+      spriteX.visible = this.showGrid();
       this.gridLabels.push(spriteX);
       this.scene.add(spriteX);
 
       const spriteZ = this.createTextSprite(`${i}m`);
       spriteZ.position.set(halfSize + stepLines * 0.2, 0, i);
-      spriteZ.visible = !!this.showGrid();
+      spriteZ.visible = this.showGrid();
       this.gridLabels.push(spriteZ);
       this.scene.add(spriteZ);
     }
