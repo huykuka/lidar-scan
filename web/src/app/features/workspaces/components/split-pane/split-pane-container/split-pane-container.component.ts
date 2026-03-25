@@ -3,10 +3,11 @@ import {SplitGroup, SplitLayoutStoreService, ViewPane} from '@core/services/spli
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
 import {PointCloudComponent} from '../../point-cloud/point-cloud.component';
 import {ViewportOverlayComponent} from '../../viewport-overlay/viewport-overlay.component';
+import {ResizableDividerDirective} from '../resizable-divider.directive';
 
 @Component({
   selector: 'app-split-pane-container',
-  imports: [PointCloudComponent, ViewportOverlayComponent],
+  imports: [PointCloudComponent, ViewportOverlayComponent, ResizableDividerDirective],
   templateUrl: './split-pane-container.component.html',
   styleUrl: './split-pane-container.component.css',
 })
@@ -19,10 +20,14 @@ export class SplitPaneContainerComponent {
   protected layoutMode = computed(() => this.layout.layoutMode());
 
   /** True when the active layout is the 2×2 grid preset */
-  protected isGridLayout = computed(() => this.layout.layoutMode() === '4-grid');
+  protected isGridLayout  = computed(() => this.layout.layoutMode() === '4-grid');
+  protected isOneTwoLayout = computed(() => this.layout.layoutMode() === '1+2');
 
   /** All panes flattened — used by the grid template */
   protected allPanes = computed(() => this.layout.allPanes());
+
+  /** Outer column fractions for 1+2 layout */
+  protected oneTwoFractions = computed(() => this.layout.oneTwoColumnFractions());
 
   /** CSS class for the flex direction of a group */
   groupClass(group: SplitGroup): string {
@@ -47,8 +52,6 @@ export class SplitPaneContainerComponent {
   /**
    * Track expression for groups — stable enough to avoid canvas recreation,
    * but changes when the layout mode changes so the wrapper div re-animates.
-   * We key on axis + pane count (not layoutMode) to avoid destroying panes
-   * whose IDs haven't changed.
    */
   groupKey(group: SplitGroup, index: number): string {
     return `${index}-${group.axis}-${group.panes.length}`;

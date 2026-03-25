@@ -69,7 +69,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
       title: 'Workspaces',
       subtitle: 'Real-time 3D visualization of point cloud streams',
     });
-    this.initWorkspace();
+    this.refreshTopics();
   }
 
   ngOnDestroy() {
@@ -77,28 +77,20 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     this._narrowMql.removeEventListener('change', this._narrowListener);
   }
 
+  /** Only allow closing via the close button — block overlay click and Esc. */
+  protected onDrawerRequestClose(event: CustomEvent) {
+    if (event.detail.source !== 'close-button') {
+      event.preventDefault();
+      return
+    }
+    this.workspaceStore.set('showCockpit', false);
+
+  }
+
   protected toggleCockpit() {
     this.workspaceStore.set('showCockpit', !this.showCockpit());
   }
 
-  private async initWorkspace() {
-    const topics = await this.topicApi.getTopics();
-    this.workspaceStore.set('topics', topics);
-
-    // Validate and clean up persisted topics
-    const selectedTopics = this.workspaceStore.getValue('selectedTopics');
-    const validSelectedTopics = selectedTopics.filter((st) => topics.includes(st.topic));
-
-    // Update store with only valid topics
-    if (validSelectedTopics.length !== selectedTopics.length) {
-      this.workspaceStore.set('selectedTopics', validSelectedTopics);
-    }
-
-    // Auto-select first topic if no valid topics are selected
-    if (topics.length > 0 && validSelectedTopics.length === 0) {
-      this.workspaceStore.addTopic(topics[0]);
-    }
-  }
 
   private async refreshTopics() {
     const topics = await this.topicApi.getTopics();

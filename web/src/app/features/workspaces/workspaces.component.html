@@ -8,8 +8,8 @@
       size="small"
       variant="text"
     >
-      <syn-icon name="visibility" slot="prefix"/>
-      Show Controls
+      <syn-icon [name]="showCockpit() ? 'visibility_off' : 'visibility'" slot="prefix"/>
+      {{ showCockpit() ? 'Hide Controls' : 'Show Controls' }}
     </syn-button>
   </div>
 
@@ -38,8 +38,9 @@
 
   }
 
-  <!-- Control Cockpit (Mobile Drawer) -->
+  <!-- Control Cockpit Drawer -->
   <syn-drawer
+    (synRequestCloseEvent)="onDrawerRequestClose($event)"
     [open]="showCockpit()"
     label="Workspace Controls"
     placement="end"

@@ -5,7 +5,7 @@ import { SignalsSimpleStoreService } from './signals-simple-store.service';
 
 export type ViewOrientation = 'perspective' | 'top' | 'front' | 'side';
 export type SplitAxis = 'horizontal' | 'vertical';
-export type LayoutMode = 'single' | 'h-split' | 'v-split' | '4-grid';
+export type LayoutMode = 'single' | 'h-split' | 'v-split' | '4-grid' | '1+2';
 
 export interface ViewPane {
   /** Stable UUID generated at pane creation time */
@@ -77,6 +77,18 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
   // ── Computed signals ──────────────────────────────────────────────────────
   allPanes   = computed(() => this.groups().flatMap(g => g.panes));
   canAddPane = computed(() => this.paneCount() < this.MAX_PANES);
+
+  /**
+   * In '1+2' mode the outer horizontal split fraction is driven by the single
+   * pane in groups[0]. This computed exposes [leftFrac, rightFrac] for the
+   * container to apply as flex values on the two column wrappers.
+   */
+  oneTwoColumnFractions = computed<[number, number]>(() => {
+    const gs = this.groups();
+    if (this.layoutMode() !== '1+2' || gs.length < 2) return [0.5, 0.5];
+    const leftFrac = gs[0].panes[0]?.sizeFraction ?? 0.5;
+    return [leftFrac, 1 - leftFrac];
+  });
 
   constructor() {
     super();
@@ -175,17 +187,11 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
   /** Update the orientation of a single pane. */
   setPaneOrientation(paneId: string, orientation: ViewOrientation): void {
     const groups = this.groups();
-    const group = groups[0];
-    if (!group) return;
-
-    const paneIndex = group.panes.findIndex(p => p.id === paneId);
-    if (paneIndex === -1) return;
-
-    const updatedPanes = group.panes.map(p =>
-      p.id === paneId ? { ...p, orientation } : p,
-    );
-
-    this.setState({ groups: [{ ...group, panes: updatedPanes }] });
+    const updatedGroups = groups.map(group => ({
+      ...group,
+      panes: group.panes.map(p => p.id === paneId ? { ...p, orientation } : p),
+    }));
+    this.setState({ groups: updatedGroups });
   }
 
   /**
@@ -195,14 +201,25 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
    */
   resizePane(paneId: string, newFraction: number, containerPx: number): void {
     const groups = this.groups();
-    const group = groups[0];
+
+    // Find which group contains this pane
+    let targetGroupIdx = groups.findIndex(g => g.panes.some(p => p.id === paneId));
+
+    // In '1+2' mode the outer column divider is keyed to groups[0]'s pane —
+    // treat it as a special outer-column resize.
+    if (this.layoutMode() === '1+2' && targetGroupIdx === 0) {
+      this.resizeOneTwoColumns(newFraction, containerPx);
+      return;
+    }
+
+    if (targetGroupIdx === -1) targetGroupIdx = 0;
+    const group = groups[targetGroupIdx];
     if (!group) return;
 
     const idx = group.panes.findIndex(p => p.id === paneId);
     if (idx === -1 || idx === group.panes.length - 1) return;
 
     const minFraction = this.MIN_PX / containerPx;
-    const maxFraction = 1 - minFraction;
 
     // Total size budget for these two panes
     const budget = group.panes[idx].sizeFraction + group.panes[idx + 1].sizeFraction;
@@ -222,12 +239,36 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       return p;
     });
 
-    this.setState({ groups: [{ ...group, panes: updatedPanes }] });
+    // Preserve all groups — only update the target group
+    const updatedGroups = groups.map((g, i) =>
+      i === targetGroupIdx ? { ...g, panes: updatedPanes } : g,
+    );
+
+    this.setState({ groups: updatedGroups });
   }
 
   /** Set keyboard-navigation focus to a pane (or clear with null). */
   setFocusedPane(paneId: string | null): void {
     this.set('focusedPaneId', paneId);
+  }
+
+  /**
+   * In '1+2' mode: resize the outer left/right column split.
+   * newLeftFrac is the desired fraction for the left column.
+   */
+  resizeOneTwoColumns(newLeftFrac: number, containerPx: number): void {
+    const groups = this.groups();
+    if (this.layoutMode() !== '1+2' || groups.length < 2) return;
+
+    const minFraction = this.MIN_PX / containerPx;
+    const clamped = Math.max(minFraction, Math.min(1 - minFraction, newLeftFrac));
+    const round10 = (n: number) => Math.round(n * 1e10) / 1e10;
+
+    const updatedGroups = [
+      { ...groups[0], panes: [{ ...groups[0].panes[0], sizeFraction: round10(clamped) }] },
+      groups[1],
+    ];
+    this.setState({ groups: updatedGroups });
   }
 
   /** Restore the default single-perspective-pane layout. */
@@ -285,6 +326,34 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       paneCount: 4,
       isTransitioning: false,
       layoutMode: '4-grid',
+    });
+  }
+
+  /**
+   * Set a 1+2 layout: left half = perspective, right half = top (upper) + front (lower).
+   * Groups[0] = left pane (horizontal axis, sizeFraction 0.5).
+   * Groups[1] = right column with two vertical panes (each 0.5 within that column).
+   * The outer container renders groups side-by-side.
+   */
+  setSplitOneTwo(): void {
+    this.setState({
+      groups: [
+        {
+          axis: 'horizontal',
+          panes: [{ id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 0.5 }],
+        },
+        {
+          axis: 'vertical',
+          panes: [
+            { id: crypto.randomUUID(), orientation: 'top',   sizeFraction: 0.5 },
+            { id: crypto.randomUUID(), orientation: 'front', sizeFraction: 0.5 },
+          ],
+        },
+      ],
+      focusedPaneId: null,
+      paneCount: 3,
+      isTransitioning: false,
+      layoutMode: '1+2',
     });
   }
 
@@ -349,7 +418,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       return { ...group, panes: sanitisedPanes };
     });
 
-    const VALID_MODES: ReadonlySet<string> = new Set(['single', 'h-split', 'v-split', '4-grid']);
+    const VALID_MODES: ReadonlySet<string> = new Set(['single', 'h-split', 'v-split', '4-grid', '1+2']);
 
     return {
       ...state,

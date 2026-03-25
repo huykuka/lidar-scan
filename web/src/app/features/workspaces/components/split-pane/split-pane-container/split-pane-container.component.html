@@ -1,4 +1,69 @@
-@if (isGridLayout()) {
+@if (isOneTwoLayout()) {
+  <!-- ── 1+2 layout: left = perspective, right = vertical stack of 2 ──────── -->
+  <div class="flex flex-row w-full h-full gap-0 layout-enter">
+
+    <!-- Left column: single perspective pane -->
+    <div
+      class="relative min-w-0 min-h-0 overflow-hidden rounded-xl"
+      [style.flex]="oneTwoFractions()[0]"
+    >
+      <app-point-cloud
+        class="w-full h-full block"
+        [backgroundColor]="store.backgroundColor()"
+        [pointSize]="store.pointSize()"
+        [showAxes]="store.showAxes()"
+        [showGrid]="store.showGrid()"
+        [viewType]="groups()[0].panes[0].orientation"
+        [viewId]="groups()[0].panes[0].id"
+      />
+      <app-viewport-overlay [pane]="groups()[0].panes[0]"/>
+    </div>
+
+    <!-- Outer column divider (resizes left vs right column) -->
+    <div
+      appResizableDivider
+      axis="horizontal"
+      [paneId]="groups()[0].panes[0].id"
+      class="divider divider--vertical"
+    ></div>
+
+    <!-- Right column: vertical stack of 2 panes -->
+    <div
+      class="flex flex-col min-w-0 min-h-0 overflow-hidden"
+      [style.flex]="oneTwoFractions()[1]"
+    >
+      @for (pane of groups()[1].panes; track pane.id; let last = $last) {
+        <div
+          class="relative min-w-0 overflow-hidden rounded-xl"
+          [style.flex]="pane.sizeFraction"
+        >
+          <app-point-cloud
+            class="w-full h-full block"
+            [backgroundColor]="store.backgroundColor()"
+            [pointSize]="store.pointSize()"
+            [showAxes]="store.showAxes()"
+            [showGrid]="store.showGrid()"
+            [viewType]="pane.orientation"
+            [viewId]="pane.id"
+          />
+          <app-viewport-overlay [pane]="pane"/>
+        </div>
+
+        <!-- Inner row divider between the two right panes -->
+        @if (!last) {
+          <div
+            appResizableDivider
+            axis="vertical"
+            [paneId]="pane.id"
+            class="divider divider--horizontal"
+          ></div>
+        }
+      }
+    </div>
+
+  </div>
+
+} @else if (isGridLayout()) {
   <!-- ── 4-pane 2×2 CSS grid layout ─────────────────────────────────────── -->
   <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-2 layout-enter">
     @for (pane of allPanes(); track pane.id) {
@@ -14,16 +79,16 @@
           [showGrid]="store.showGrid()"
           [viewType]="pane.orientation"
           [viewId]="pane.id"
-        ></app-point-cloud>
-
-        <app-viewport-overlay [pane]="pane"></app-viewport-overlay>
+        />
+        <app-viewport-overlay [pane]="pane"/>
       </div>
     }
   </div>
+
 } @else {
   <!-- ── Flex split layout (single / h-split / v-split) ─────────────────── -->
   @for (group of groups(); track groupKey(group, $index)) {
-    <div [class]="groupClass(group) + ' layout-enter gap-2'">
+    <div [class]="groupClass(group) + ' layout-enter gap-0'">
 
       @for (pane of group.panes; track pane.id; let last = $last) {
 
@@ -40,10 +105,19 @@
             [showGrid]="store.showGrid()"
             [viewType]="pane.orientation"
             [viewId]="pane.id"
-          ></app-point-cloud>
-
-          <app-viewport-overlay [pane]="pane"></app-viewport-overlay>
+          />
+          <app-viewport-overlay [pane]="pane"/>
         </div>
+
+        <!-- Resizable divider between panes (not after the last pane) -->
+        @if (!last) {
+          <div
+            appResizableDivider
+            [axis]="group.axis"
+            [paneId]="pane.id"
+            [class]="group.axis === 'horizontal' ? 'divider divider--vertical' : 'divider divider--horizontal'"
+          ></div>
+        }
 
       }
     </div>

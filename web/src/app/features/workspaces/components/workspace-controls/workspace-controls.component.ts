@@ -2,6 +2,7 @@ import {Component, computed, inject, output} from '@angular/core';
 import {DecimalPipe} from '@angular/common';
 import {TopicApiService, WorkspaceStoreService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {PointCloudDataService} from '@core/services/point-cloud-data.service';
 
 @Component({
   selector: 'app-workspace-controls',
@@ -11,18 +12,17 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 })
 export class WorkspaceControlsComponent {
   readonly actionTaken = output<void>();
-  // Track newly selected topic in dropdown
   protected selectedNewTopic = '';
-  // Computed list of available topics (excluding already selected ones)
   protected availableTopics = computed(() => {
     const all = this.topics();
     const selected = this.selectedTopics().map((t) => t.topic);
     return all.filter((t) => !selected.includes(t));
   });
   private store = inject(WorkspaceStoreService);
+  private dataService = inject(PointCloudDataService);
   protected topics = this.store.topics;
   protected selectedTopics = this.store.selectedTopics;
-  protected isConnected = this.store.isConnected;
+  protected isConnected = this.dataService.isConnected;
   protected pointSize = this.store.pointSize;
   protected backgroundColor = this.store.backgroundColor;
   private topicApi = inject(TopicApiService);

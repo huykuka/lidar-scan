@@ -22,10 +22,11 @@ export class ViewToolbarComponent {
   protected activeMode = computed(() => this.layout.layoutMode());
 
   readonly presets: LayoutPreset[] = [
-    { id: 'single',  label: '1',   title: 'Single pane (perspective)',      icon: 'crop_square'       },
-    { id: 'h-split', label: '2H',  title: 'Horizontal split (top/bottom)',  icon: 'horizontal_split'  },
-    { id: 'v-split', label: '2V',  title: 'Vertical split (left/right)',    icon: 'vertical_split'    },
-    { id: '4-grid',  label: '4',   title: '4-pane grid (2×2)',              icon: 'grid_view'         },
+    { id: 'single',  label: '1',    title: 'Single pane (perspective)',             icon: 'crop_square'        },
+    { id: 'h-split', label: '2H',   title: 'Horizontal split (top/bottom)',         icon: 'horizontal_split'   },
+    { id: 'v-split', label: '2V',   title: 'Vertical split (left/right)',           icon: 'vertical_split'     },
+    { id: '1+2',     label: '1+2',  title: '1+2 split (perspective + top/front)',   icon: 'view_sidebar'       },
+    { id: '4-grid',  label: '4',    title: '4-pane grid (2×2)',                     icon: 'grid_view'          },
   ];
 
   applyPreset(id: LayoutMode): void {
@@ -33,6 +34,7 @@ export class ViewToolbarComponent {
       case 'single':  this.layout.resetToDefault();     break;
       case 'h-split': this.layout.setHorizontalSplit(); break;
       case 'v-split': this.layout.setVerticalSplit();   break;
+      case '1+2':     this.layout.setSplitOneTwo();     break;
       case '4-grid':  this.layout.setFourPaneGrid();    break;
     }
   }
