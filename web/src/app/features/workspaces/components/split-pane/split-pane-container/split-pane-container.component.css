@@ -73,3 +73,42 @@
   min-width: 32px;
   height: 2px;
 }
+
+/* ── Drag-ghost: full-span line shown while dragging, before commit ────────── */
+
+/* Ensure the divider element itself is positioned so the ghost ::before
+   can be placed relative to it and extend across the full pane height/width. */
+.divider--dragging {
+  overflow: visible;
+  z-index: 100;
+}
+
+/* Ghost line: a full-height/width semi-transparent blue line that follows
+   the divider translate during drag. Rendered in ::before so it doesn't
+   interfere with the handle glyph in ::after. */
+.divider--dragging::before {
+  content: '';
+  position: absolute;
+  background: #3b82f6;
+  opacity: 0.5;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+/* Vertical ghost (horizontal-axis split, col-resize) */
+.divider--vertical.divider--dragging::before {
+  top: -100vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 300vh; /* span well beyond the container */
+}
+
+/* Horizontal ghost (vertical-axis split, row-resize) */
+.divider--horizontal.divider--dragging::before {
+  left: -100vw;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 300vw;
+  height: 2px;
+}
