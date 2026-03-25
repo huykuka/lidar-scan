@@ -1,7 +1,20 @@
 <div class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500">
+  <!-- Unified action bar: layout presets (left) + hide controls (right) -->
+  <div class="flex items-center justify-between mb-2 shrink-0">
+    <app-view-toolbar/>
+    <syn-button
+      (click)="toggleCockpit()"
+      class="text-syn-color-primary-600"
+      size="small"
+      variant="text"
+    >
+      <syn-icon name="visibility" slot="prefix"/>
+      Show Controls
+    </syn-button>
+  </div>
 
-  @if (isNarrowScreen()) {
-    <!-- Responsive guard: <1024px -->
+  @if (isNarrowScreen() && !isSinglePane()) {
+    <!-- Responsive guard: <1024px in multi-pane mode -->
     <div class="flex flex-col items-center justify-center flex-1 text-center p-8">
       <syn-icon name="desktop_windows" class="text-4xl text-syn-color-neutral-400 mb-4"/>
       <p class="text-syn-color-neutral-600 font-semibold">
@@ -9,63 +22,29 @@
       </p>
     </div>
   } @else {
-    <!-- Local Action Bar: only visible in single-pane mode -->
-    @if (isSinglePane()) {
-      <div class="fixed top-20 right-5 z-40">
-        <syn-button
-          (click)="toggleCockpit()"
-          class="text-syn-color-primary-600"
-          size="small"
-          variant="text"
-        >
-          <syn-icon [name]="showCockpit() ? 'visibility_off' : 'visibility'" slot="prefix"/>
-          {{ showCockpit() ? 'Hide Controls' : 'Show Controls' }}
-        </syn-button>
-      </div>
-    }
-
-    <!-- View toolbar (layout preset buttons) -->
-    <app-view-toolbar />
 
     <!-- Main split-pane area + cockpit -->
-    <div class="flex flex-row gap-4 flex-1 h-full w-full min-h-0">
-      <div
-        class="flex-1 h-full relative overflow-hidden rounded-2xl border border-[hsl(var(--syn-color-neutral-200))]"
-      >
-        <app-split-pane-container class="w-full h-full" />
+    <div class="flex flex-row gap-4 flex-1 min-h-0">
+      <div class="flex-1 relative overflow-hidden rounded-2xl min-h-0">
+        <app-split-pane-container class="w-full h-full"/>
 
         <!-- HUD telemetry: only in single-pane mode -->
-        @if (isSinglePane()) {
-          <app-workspace-telemetry />
+        @if (isSinglePane() && !isNarrowScreen()) {
+          <app-workspace-telemetry/>
         }
       </div>
 
-      <!-- Control Cockpit (Desktop): only in single-pane mode -->
-      @if (isSinglePane()) {
-        <div
-          [ngClass]="showCockpit() ? 'w-90 opacity-100' : 'w-0 opacity-0 -ml-4'"
-          class="hidden lg:block overflow-hidden transition-all duration-500 ease-in-out shrink-0"
-        >
-          <app-workspace-controls
-            [class.opacity-0]="!showCockpit()"
-            class="block w-90 h-full transition-opacity duration-300"
-          />
-        </div>
-      }
     </div>
 
-    <!-- Control Cockpit (Mobile Drawer): only in single-pane mode -->
-    @if (isSinglePane()) {
-      <syn-drawer
-        (synHideEvent)="closeCockpit()"
-        [open]="showCockpit()"
-        class="lg:hidden"
-        label="Workspace Controls"
-        placement="end"
-      >
-        <app-workspace-controls class="block w-full h-full bg-white" />
-      </syn-drawer>
-    }
   }
+
+  <!-- Control Cockpit (Mobile Drawer) -->
+  <syn-drawer
+    [open]="showCockpit()"
+    label="Workspace Controls"
+    placement="end"
+  >
+    <app-workspace-controls class="block w-full h-full bg-white"/>
+  </syn-drawer>
 
 </div>

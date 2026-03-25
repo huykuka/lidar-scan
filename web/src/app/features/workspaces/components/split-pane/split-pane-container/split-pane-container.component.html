@@ -1,6 +1,6 @@
 @if (isGridLayout()) {
   <!-- ── 4-pane 2×2 CSS grid layout ─────────────────────────────────────── -->
-  <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-2 p-2 layout-enter">
+  <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-2 layout-enter">
     @for (pane of allPanes(); track pane.id) {
       <div
         class="relative min-w-0 min-h-0 overflow-hidden rounded-xl"
@@ -14,7 +14,6 @@
           [showGrid]="store.showGrid()"
           [viewType]="pane.orientation"
           [viewId]="pane.id"
-          [adaptiveLod]="true"
         ></app-point-cloud>
 
         <app-viewport-overlay [pane]="pane"></app-viewport-overlay>
@@ -24,12 +23,12 @@
 } @else {
   <!-- ── Flex split layout (single / h-split / v-split) ─────────────────── -->
   @for (group of groups(); track groupKey(group, $index)) {
-    <div [class]="groupClass(group) + ' layout-enter gap-2 p-2'">
+    <div [class]="groupClass(group) + ' layout-enter gap-2'">
 
       @for (pane of group.panes; track pane.id; let last = $last) {
 
         <div
-          class="relative min-w-[200px] min-h-[200px] overflow-hidden rounded-xl transition-all duration-[250ms] ease-in-out"
+          class="relative min-w-50 min-h-50 overflow-hidden rounded-xl transition-all duration-250 ease-in-out"
           [style]="paneStyle(pane)"
           [attr.data-pane-id]="pane.id"
         >
@@ -41,7 +40,6 @@
             [showGrid]="store.showGrid()"
             [viewType]="pane.orientation"
             [viewId]="pane.id"
-            [adaptiveLod]="isSmallPane(pane)"
           ></app-point-cloud>
 
           <app-viewport-overlay [pane]="pane"></app-viewport-overlay>

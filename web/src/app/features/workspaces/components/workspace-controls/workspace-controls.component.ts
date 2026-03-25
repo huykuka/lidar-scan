@@ -21,7 +21,6 @@ export class WorkspaceControlsComponent {
   });
   private store = inject(WorkspaceStoreService);
   protected topics = this.store.topics;
-  protected currentTopic = this.store.currentTopic;
   protected selectedTopics = this.store.selectedTopics;
   protected isConnected = this.store.isConnected;
   protected pointSize = this.store.pointSize;
@@ -52,16 +51,6 @@ export class WorkspaceControlsComponent {
 
   protected onTopicColorChange(topic: string, event: any) {
     this.store.updateTopicColor(topic, event.target.value);
-  }
-
-  // Legacy method for backwards compatibility
-  protected onLegacyTopicChange(event: any) {
-    this.store.set('currentTopic', event.target.value);
-    // Auto-add to selected topics if using legacy mode
-    if (event.target.value) {
-      this.store.addTopic(event.target.value);
-    }
-    this.actionTaken.emit();
   }
 
   protected onCapturePcd(topic: string) {

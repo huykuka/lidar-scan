@@ -1,11 +1,6 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { SplitLayoutStoreService, LayoutMode } from '@core/services/split-layout-store.service';
+import {Component, computed, inject,} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {LayoutMode, SplitLayoutStoreService} from '@core/services/split-layout-store.service';
 
 interface LayoutPreset {
   id: LayoutMode;
@@ -16,7 +11,6 @@ interface LayoutPreset {
 
 @Component({
   selector: 'app-view-toolbar',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SynergyComponentsModule],
   templateUrl: './view-toolbar.component.html',
   styleUrl: './view-toolbar.component.css',

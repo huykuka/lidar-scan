@@ -1,18 +1,12 @@
-<div class="flex items-center gap-1.5 px-4 py-2 bg-white">
-  <span class="text-xs font-semibold text-[hsl(var(--syn-color-neutral-500))] mr-2 uppercase tracking-wide select-none">Layout</span>
+<div class="flex items-center gap-0.5">
 
   @for (preset of presets; track preset.id) {
-    <button
-      [attr.data-preset]="preset.id"
+    <syn-icon-button
+      [name]="preset.icon"
       (click)="applyPreset(preset.id)"
-      [class]="activeMode() === preset.id
-        ? 'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-all duration-150 border-[hsl(var(--syn-color-primary-600))] bg-[hsl(var(--syn-color-primary-600))] text-white shadow-sm'
-        : 'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border transition-all duration-150 border-[hsl(var(--syn-color-neutral-300))] bg-white text-[hsl(var(--syn-color-neutral-700))] hover:bg-[hsl(var(--syn-color-neutral-100))] hover:border-[hsl(var(--syn-color-neutral-400))]'"
-      [title]="preset.title"
-      [attr.aria-pressed]="activeMode() === preset.id"
-    >
-      <syn-icon [name]="preset.icon" class="text-base leading-none"></syn-icon>
-      <span>{{ preset.label }}</span>
-    </button>
+      [label]="preset.title"
+      size="medium"
+      [color]="activeMode() === preset.id ? 'primary' : 'neutral'">
+    </syn-icon-button>
   }
 </div>

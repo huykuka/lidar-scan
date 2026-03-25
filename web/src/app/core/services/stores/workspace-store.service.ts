@@ -52,7 +52,7 @@ const initialState: WorkspaceState = {
   showHud: true,
   showGrid: true,
   showAxes: true,
-  showCockpit: true,
+  showCockpit: false,
   backgroundColor: '#000000',
 };
 
@@ -92,7 +92,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
       pointSize: (persistedState.pointSize != null && persistedState.pointSize < 1)
         ? initialState.pointSize
         : (persistedState.pointSize ?? initialState.pointSize),
-      showCockpit:true,
+      showCockpit: false, // Always start hidden; user opens explicitly
       isConnected: false, // Don't persist connection status
       topics: [], // Don't persist topics
       selectedTopics: persistedState.selectedTopics || [], // Persist topic selections
@@ -107,7 +107,6 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
         showHud: state.showHud,
         showGrid: state.showGrid,
         showAxes: state.showAxes,
-        showCockpit: state.showCockpit,
         backgroundColor: state.backgroundColor,
         currentTopic: state.currentTopic,
         selectedTopics: state.selectedTopics,

@@ -1,23 +1,33 @@
-import {AfterViewInit, Component, effect, ElementRef, inject, input, OnDestroy, OnInit, viewChild} from '@angular/core';
+import {AfterViewInit, Component, effect, ElementRef, inject, input, OnDestroy, OnInit, signal, viewChild} from '@angular/core';
 import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {PointCloudDataService} from '@core/services/point-cloud-data.service';
 import {ViewOrientation} from '@core/services/split-layout-store.service';
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
 
 @Component({
   selector: 'app-point-cloud',
+  imports: [SynergyComponentsModule],
   template: `
     <div
       #container
-      class="w-full h-full min-h-0 bg-transparent rounded-lg overflow-hidden"
-    ></div>`,
+      class="w-full h-full min-h-0 bg-transparent rounded-md overflow-hidden"
+    ></div>
+    @if (hasError()) {
+      <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg z-10 p-4 text-center">
+        <syn-icon name="error" class="text-4xl text-red-400 mb-2"></syn-icon>
+        <p class="text-white font-semibold text-sm">Rendering Error</p>
+        <p class="text-syn-color-neutral-300 text-xs mt-1 break-all">{{ errorMessage() }}</p>
+      </div>
+    }`,
   styles: [
     `
       :host {
         display: block;
         width: 100%;
         height: 100%;
+        position: relative;
       }
     `,
   ],
@@ -36,8 +46,12 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   viewType = input<ViewOrientation>('perspective');
   /** Stable pane ID — used to key into PointCloudDataService.frames() */
   viewId = input<string>('');
-  /** When true, caps rendering at MAX_POINTS_LOD to reduce GPU load */
-  adaptiveLod = input<boolean>(false);
+
+  // ── FE-12: Error boundary signals ────────────────────────────────────────
+  /** Set to true if initThree() throws — causes the error overlay to appear. */
+  readonly hasError = signal(false);
+  /** Human-readable error message captured from the caught exception. */
+  readonly errorMessage = signal('');
 
   // Three.js instances
   private scene!: THREE.Scene;
@@ -138,9 +152,21 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
+    // Re-sync Three.js point cloud objects whenever selected topics change
     effect(() => {
+      const selectedTopics = this.workspaceStore.selectedTopics(); // tracked signal
       if (!this.scene) return;
-      this.syncTopicClouds();
+      const enabledSet = new Set(selectedTopics.filter(t => t.enabled).map(t => t.topic));
+
+      // Remove clouds for topics no longer enabled
+      Array.from(this.pointClouds.keys()).forEach(topic => {
+        if (!enabledSet.has(topic)) this.removePointCloud(topic);
+      });
+
+      // Add or update clouds for enabled topics
+      selectedTopics.forEach(({ topic, color, enabled }) => {
+        if (enabled) this.addOrUpdatePointCloud(topic, color);
+      });
     });
 
     // ── FE-04: Subscribe to PointCloudDataService frames signal ──────────────
@@ -159,7 +185,15 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
-    this.initThree();
+    try {
+      this.initThree();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[PointCloudComponent] Failed to initialize Three.js renderer:', err);
+      this.hasError.set(true);
+      this.errorMessage.set(message);
+      return; // Don't attempt syncTopicClouds or animate
+    }
     // Initialize point clouds for all currently selected topics now that
     // the Three.js scene is ready. Subsequent changes are handled by effect().
     this.syncTopicClouds();
@@ -256,19 +290,15 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     const cloud = this.pointClouds.get(topic);
     if (!cloud) return;
 
-    // ── FE-04: Adaptive LOD — cap points when pane is small ──────────────────
-    const effectiveMax = this.getEffectiveMaxPoints(this.adaptiveLod());
-
-    cloud.lastCount = Math.min(count, effectiveMax);
-
     const positions = cloud.geometry.attributes['position'].array as Float32Array;
-    const limit = Math.min(count * 3, effectiveMax * 3);
 
-    if (count > 0) {
-      positions.set(positionsArray.subarray(0, limit));
-    }
+    // Copy incoming point data into the pre-allocated buffer
+    const copyCount = Math.min(count, this.MAX_POINTS);
+    positions.set(positionsArray.subarray(0, copyCount * 3));
 
-    cloud.geometry.setDrawRange(0, cloud.lastCount);
+    // Update draw range and mark attribute dirty
+    cloud.lastCount = copyCount;
+    cloud.geometry.setDrawRange(0, copyCount);
     cloud.geometry.attributes['position'].needsUpdate = true;
   }
 

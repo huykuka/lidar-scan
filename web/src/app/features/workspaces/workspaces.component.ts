@@ -1,12 +1,9 @@
 import {Component, computed, effect, inject, OnDestroy, OnInit, signal} from '@angular/core';
-import {NgClass} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NavigationService} from '@core/services/navigation.service';
 import {TopicApiService} from '@core/services/api/topic-api.service';
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
 import {NodeStatusService} from '@core/services/node-status.service';
-import {PointCloudDataService} from '@core/services/point-cloud-data.service';
-import {WorkspaceKeyboardService} from '@core/services/workspace-keyboard.service';
 import {SplitLayoutStoreService} from '@core/services/split-layout-store.service';
 import {
   WorkspaceTelemetryComponent
@@ -17,9 +14,7 @@ import {
 import {
   SplitPaneContainerComponent
 } from '@features/workspaces/components/split-pane/split-pane-container/split-pane-container.component';
-import {
-  ViewToolbarComponent
-} from '@features/workspaces/components/view-toolbar/view-toolbar.component';
+import {ViewToolbarComponent} from '@features/workspaces/components/view-toolbar/view-toolbar.component';
 
 @Component({
   selector: 'app-workspaces',
@@ -29,7 +24,6 @@ import {
     WorkspaceControlsComponent,
     SplitPaneContainerComponent,
     ViewToolbarComponent,
-    NgClass,
   ],
   templateUrl: './workspaces.component.html',
   styleUrl: './workspaces.component.css',
@@ -40,13 +34,6 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
   private workspaceStore = inject(WorkspaceStoreService);
   private statusWs = inject(NodeStatusService);
   private splitLayout = inject(SplitLayoutStoreService);
-
-  // ── FE-10: Inject services to bootstrap them (they register their own logic) ─
-  // DataService manages all WebSocket connections and the frames signal.
-  // KeyboardService registers global keyboard shortcuts on construction.
-  readonly dataService = inject(PointCloudDataService);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private _keyboard = inject(WorkspaceKeyboardService);
 
   protected showCockpit = this.workspaceStore.showCockpit;
 
@@ -86,15 +73,12 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.workspaceStore.set('showCockpit', false);
     this._narrowMql.removeEventListener('change', this._narrowListener);
   }
 
   protected toggleCockpit() {
     this.workspaceStore.set('showCockpit', !this.showCockpit());
-  }
-
-  protected closeCockpit() {
-    this.workspaceStore.set('showCockpit', false);
   }
 
   private async initWorkspace() {

@@ -349,4 +349,54 @@ describe('PointCloudComponent — FE-04 Extensions', () => {
       expect(cmp.dataService.frames()).toBeInstanceOf(Map);
     });
   });
+
+  // ── FE-12: Error boundary ─────────────────────────────────────────────────
+  describe('FE-12: Error boundary', () => {
+    it('should expose hasError signal defaulting to false', () => {
+      const cmp = createSut().componentInstance as any;
+      expect(cmp.hasError).toBeDefined();
+      expect(cmp.hasError()).toBe(false);
+    });
+
+    it('should expose errorMessage signal defaulting to empty string', () => {
+      const cmp = createSut().componentInstance as any;
+      expect(cmp.errorMessage).toBeDefined();
+      expect(cmp.errorMessage()).toBe('');
+    });
+
+    it('should set hasError to true and capture errorMessage when initThree throws', async () => {
+      // Restore the spy so the real initThree can be called
+      initThreeSpy.mockRestore();
+
+      // Make initThree throw by providing a broken container
+      const throwSpy = vi.spyOn(
+        (PointCloudComponent as any).prototype,
+        'initThree',
+      ).mockImplementation(function (this: any) {
+        throw new Error('WebGL context creation failed');
+      });
+      // Also stub animate so it doesn't crash
+      const animSpy = vi.spyOn(
+        (PointCloudComponent as any).prototype,
+        'animate',
+      ).mockImplementation(() => {});
+
+      const fixture = TestBed.createComponent(PointCloudComponent);
+      fixture.detectChanges(); // triggers ngAfterViewInit
+
+      const cmp = fixture.componentInstance as any;
+      expect(cmp.hasError()).toBe(true);
+      expect(cmp.errorMessage()).toContain('WebGL context creation failed');
+
+      throwSpy.mockRestore();
+      animSpy.mockRestore();
+    });
+
+    it('should NOT set hasError when initThree succeeds', () => {
+      // The default createSut already mocks initThree successfully
+      const cmp = createSut().componentInstance as any;
+      expect(cmp.hasError()).toBe(false);
+      expect(cmp.errorMessage()).toBe('');
+    });
+  });
 });
