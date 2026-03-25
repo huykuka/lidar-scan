@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,7 @@ from .dto import (
 from .service import (
     start_recording, stop_recording, list_recordings, get_recording,
     delete_recording, download_recording, get_recording_viewer_info,
-    get_recording_frame_as_pcd, get_recording_thumbnail
+    get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording
 )
 
 
@@ -22,6 +22,29 @@ from .service import (
 router = APIRouter(tags=["Recordings"])
 
 # Endpoint configurations
+@router.post(
+    "/recordings/upload",
+    response_model=RecordingResponse,
+    responses={
+        400: {"description": "Invalid or corrupt recording file"},
+        500: {"description": "Internal server error"},
+    },
+    summary="Upload Recording",
+    description=(
+        "Upload a recording ZIP archive to import it into the library. "
+        "The file must be a valid ZIP produced by the recorder (contains metadata.json and frame PCD files). "
+        "An optional `name` field overrides the display name."
+    ),
+)
+async def recordings_upload_endpoint(
+    background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(get_db)],
+    file: UploadFile = File(..., description="Recording ZIP archive"),
+    name: str | None = Form(None, description="Optional display name for the recording"),
+):
+    return await upload_recording(file, name, background_tasks, db)
+
+
 @router.post(
     "/recordings/start",
     responses={

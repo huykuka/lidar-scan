@@ -1,4 +1,4 @@
-import {Component, computed, inject, OnInit, signal} from '@angular/core';
+import {Component, computed, ElementRef, inject, OnInit, signal, ViewChild} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {RecordingStoreService} from '@core/services/stores/recording-store.service';
@@ -8,6 +8,7 @@ import {Router} from '@angular/router';
 import {Recording} from '@core/models';
 import {RecordingCardComponent} from './components/recording-card/recording-card.component';
 import {DialogService} from '@core/services/dialog.service';
+import {firstValueFrom} from 'rxjs';
 
 @Component({
   selector: 'app-recordings',
@@ -17,9 +18,13 @@ import {DialogService} from '@core/services/dialog.service';
   styleUrl: './recordings.component.css',
 })
 export class RecordingsComponent implements OnInit {
+  @ViewChild('fileInput') private fileInputRef!: ElementRef<HTMLInputElement>;
+
   protected searchQuery = signal<string>('');
   protected selectedRecording = signal<Recording | null>(null);
   protected isDeleting = signal<boolean>(false);
+  protected isUploading = signal<boolean>(false);
+  protected uploadError = signal<string | null>(null);
   // Selection state
   protected isSelectionMode = signal<boolean>(false);
   protected selectedRecordingIds = signal<Set<string>>(new Set());
@@ -172,4 +177,32 @@ export class RecordingsComponent implements OnInit {
       this.isDeleting.set(false);
     }
   }
+
+  // --- Upload Methods ---
+
+  protected triggerUpload(): void {
+    this.uploadError.set(null);
+    this.fileInputRef.nativeElement.value = '';
+    this.fileInputRef.nativeElement.click();
+  }
+
+  protected async onFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    this.isUploading.set(true);
+    this.uploadError.set(null);
+    try {
+      await firstValueFrom(this.recordingApi.uploadRecording(file));
+      await this.recordingStore.loadRecordings();
+    } catch (err: any) {
+      const detail = err?.error?.detail ?? err?.message ?? 'Upload failed.';
+      this.uploadError.set(detail);
+      console.error('Failed to upload recording:', err);
+    } finally {
+      this.isUploading.set(false);
+    }
+  }
 }
+

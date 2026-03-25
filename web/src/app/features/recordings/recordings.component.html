@@ -1,4 +1,13 @@
 <div class="flex flex-col min-h-0 flex-1">
+  <!-- Hidden file input for recording upload -->
+  <input
+    #fileInput
+    (change)="onFileSelected($event)"
+    accept=".zip"
+    class="hidden"
+    type="file"
+  />
+
   <!-- Toolbar -->
   <div class="rounded-lg border mb-6 shadow-sm">
     <div class="p-4">
@@ -42,6 +51,20 @@
             </syn-button>
           } @else {
             <syn-button
+              (click)="triggerUpload()"
+              [disabled]="isUploading()"
+              size="medium"
+              variant="outline"
+            >
+              @if (isUploading()) {
+                <syn-spinner slot="prefix" size="small"/>
+                Uploading...
+              } @else {
+                <syn-icon name="upload_file" slot="prefix"/>
+                Upload
+              }
+            </syn-button>
+            <syn-button
               (click)="toggleSelectionMode()"
               [disabled]="isLoading() || filteredRecordings().length === 0"
               size="medium"
@@ -62,6 +85,17 @@
           }
         </div>
       </div>
+
+      <!-- Upload error banner -->
+      @if (uploadError()) {
+        <div class="mt-3 flex items-center gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+          <syn-icon name="error" class="shrink-0 text-red-500"/>
+          <span>{{ uploadError() }}</span>
+          <button (click)="uploadError.set(null)" class="ml-auto text-red-400 hover:text-red-600" aria-label="Dismiss">
+            <syn-icon name="close"/>
+          </button>
+        </div>
+      }
     </div>
   </div>
 
@@ -79,7 +113,7 @@
           @if (searchQuery()) {
             Try adjusting your search query
           } @else {
-            Start recording from the Settings page to create your first recording
+            Start recording from the Settings page, or upload an existing recording file
           }
         </p>
       </div>
@@ -102,3 +136,4 @@
     }
   </div>
 </div>
+

@@ -90,4 +90,17 @@ export class RecordingApiService {
       responseType: 'blob',
     });
   }
+
+  /**
+   * Upload a recording ZIP file and import it into the library.
+   * Reports upload progress via HttpClient reportProgress.
+   */
+  uploadRecording(file: File, name?: string): Observable<Recording> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    if (name) {
+      formData.append('name', name);
+    }
+    return this.http.post<Recording>(`${this.baseUrl}/upload`, formData);
+  }
 }

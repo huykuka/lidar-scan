@@ -2,12 +2,15 @@
 
 import logging
 import os
+import shutil
 import tempfile
 import asyncio
+import uuid
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import BackgroundTasks, HTTPException
+from fastapi import BackgroundTasks, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -404,6 +407,139 @@ async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, backgr
     except Exception as e:
         logger.error(f"Error reading frame {frame_index} from recording {recording_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to read frame: {str(e)}")
+
+
+async def upload_recording(file: UploadFile, name: str | None, background_tasks: BackgroundTasks, db: Session):
+    """
+    Upload a recording ZIP archive and register it in the database.
+
+    The uploaded file must be a valid ZIP archive containing ``metadata.json``
+    and at least one ``frame_NNNNN.pcd`` entry (standard recording format).
+
+    Args:
+        file: Multipart-uploaded ZIP file.
+        name: Optional display name. Falls back to the filename stem.
+        background_tasks: FastAPI background tasks (used for thumbnail generation).
+        db: Database session.
+
+    Returns:
+        RecordingResponse for the newly created entry.
+
+    Raises:
+        HTTPException 400: If the file is not a valid recording ZIP.
+        HTTPException 500: If saving fails unexpectedly.
+    """
+    recordings_dir = Path("recordings")
+    recordings_dir.mkdir(parents=True, exist_ok=True)
+
+    recording_id = str(uuid.uuid4()).replace("-", "")
+    original_stem = Path(file.filename or "upload").stem
+    display_name = name or original_stem
+
+    dest_path = recordings_dir / f"{recording_id}.zip"
+    tmp_path: Path | None = None
+
+    try:
+        # Stream upload to a temporary file first so we can validate before committing
+        with tempfile.NamedTemporaryFile(
+            dir=str(recordings_dir), suffix=".zip.tmp", delete=False
+        ) as tmp_f:
+            tmp_path = Path(tmp_f.name)
+            content = await file.read()
+            tmp_f.write(content)
+
+        # Validate ZIP structure
+        if not zipfile.is_zipfile(str(tmp_path)):
+            raise HTTPException(status_code=400, detail="Uploaded file is not a valid ZIP archive.")
+
+        with zipfile.ZipFile(str(tmp_path), "r") as zf:
+            names_in_zip = zf.namelist()
+            if "metadata.json" not in names_in_zip:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid recording file: missing metadata.json inside the ZIP.",
+                )
+            frame_files = [n for n in names_in_zip if n.startswith("frame_") and n.endswith(".pcd")]
+            if not frame_files:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid recording file: no frame_NNNNN.pcd entries found.",
+                )
+
+        # Move to final destination
+        shutil.move(str(tmp_path), str(dest_path))
+        tmp_path = None
+
+        # Read metadata from the ZIP
+        reader = RecordingReader(dest_path)
+        info = reader.get_info()
+        meta: dict = reader.metadata
+
+        recording_timestamp = meta.get(
+            "recording_timestamp",
+            meta.get("start_timestamp", datetime.now(timezone.utc).isoformat()),
+        )
+        # Ensure recording_timestamp is a string (may be a float unix epoch)
+        if isinstance(recording_timestamp, (int, float)):
+            recording_timestamp = datetime.fromtimestamp(recording_timestamp, tz=timezone.utc).isoformat()
+
+        recording_data: dict = {
+            "id": recording_id,
+            "name": display_name,
+            "node_id": meta.get("node_id", "uploaded"),
+            "sensor_id": meta.get("sensor_id"),
+            "file_path": str(dest_path),
+            "file_size_bytes": info["file_size_bytes"],
+            "frame_count": info["frame_count"],
+            "duration_seconds": info["duration_seconds"],
+            "recording_timestamp": recording_timestamp,
+            "metadata": meta,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        repo = RecordingRepository(db)
+        created = repo.create(recording_data)
+
+        # Attempt thumbnail generation in the background
+        async def _generate_thumbnail() -> None:
+            try:
+                from app.services.shared.thumbnail import generate_thumbnail_from_file
+
+                thumbnail_path = dest_path.with_suffix(".png")
+                success = await asyncio.to_thread(
+                    generate_thumbnail_from_file, dest_path, output_path=thumbnail_path
+                )
+                if success:
+                    from app.db.models import get_db as _get_db
+
+                    bg_db_gen = _get_db()
+                    bg_db = next(bg_db_gen)
+                    try:
+                        RecordingRepository(bg_db).update(
+                            recording_id, {"thumbnail_path": str(thumbnail_path)}
+                        )
+                    finally:
+                        bg_db.close()
+            except Exception as exc:
+                logger.warning(f"Thumbnail generation failed for uploaded recording {recording_id}: {exc}")
+
+        background_tasks.add_task(_generate_thumbnail)
+
+        logger.info(f"Uploaded recording '{display_name}' saved as {recording_id}")
+        return created
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Failed to upload recording: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to save uploaded recording: {exc}")
+    finally:
+        # Clean up temp file if something went wrong before the move
+        if tmp_path and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
 
 
 async def get_recording_thumbnail(recording_id: str, db: Session):
