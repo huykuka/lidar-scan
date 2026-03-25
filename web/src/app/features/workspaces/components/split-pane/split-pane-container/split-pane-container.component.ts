@@ -1,5 +1,5 @@
-import {Component, computed, inject,} from '@angular/core';
-import {SplitGroup, SplitLayoutStoreService, ViewPane} from '@core/services/split-layout-store.service';
+import {Component, computed, effect, inject, signal} from '@angular/core';
+import {SplitGroup, SplitLayoutStoreService, LayoutMode, ViewPane} from '@core/services/split-layout-store.service';
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
 import {PointCloudComponent} from '../../point-cloud/point-cloud.component';
 import {ViewportOverlayComponent} from '../../viewport-overlay/viewport-overlay.component';
@@ -20,7 +20,7 @@ export class SplitPaneContainerComponent {
   protected layoutMode = computed(() => this.layout.layoutMode());
 
   /** True when the active layout is the 2×2 grid preset */
-  protected isGridLayout  = computed(() => this.layout.layoutMode() === '4-grid');
+  protected isGridLayout   = computed(() => this.layout.layoutMode() === '4-grid');
   protected isOneTwoLayout = computed(() => this.layout.layoutMode() === '1+2');
 
   /** All panes flattened — used by the grid template */
@@ -28,6 +28,35 @@ export class SplitPaneContainerComponent {
 
   /** Outer column fractions for 1+2 layout */
   protected oneTwoFractions = computed(() => this.layout.oneTwoColumnFractions());
+
+  /**
+   * True only for one animation cycle after the layout MODE changes.
+   * Fraction/pane-count updates within the same mode do NOT set this.
+   * Resets itself automatically when the animation ends (see template).
+   */
+  protected animateEnter = signal(false);
+
+  private prevMode: LayoutMode | null = null;
+
+  constructor() {
+    // Fire the enter animation only when the layout mode itself changes,
+    // not when sizeFraction values are updated (e.g. after a drag).
+    effect(() => {
+      const mode = this.layout.layoutMode();
+      if (mode !== this.prevMode) {
+        this.prevMode = mode;
+        // Toggle off→on so the animation re-triggers even for the same class
+        this.animateEnter.set(false);
+        // Microtask flush ensures the class removal is rendered before re-adding
+        queueMicrotask(() => this.animateEnter.set(true));
+      }
+    });
+  }
+
+  /** Called by (animationend) on the layout wrapper — removes the class once done. */
+  protected onEnterAnimationEnd(): void {
+    this.animateEnter.set(false);
+  }
 
   /** CSS class for the flex direction of a group */
   groupClass(group: SplitGroup): string {
@@ -51,7 +80,7 @@ export class SplitPaneContainerComponent {
 
   /**
    * Track expression for groups — stable enough to avoid canvas recreation,
-   * but changes when the layout mode changes so the wrapper div re-animates.
+   * but changes when the layout mode changes so Angular updates the DOM.
    */
   groupKey(group: SplitGroup, index: number): string {
     return `${index}-${group.axis}-${group.panes.length}`;

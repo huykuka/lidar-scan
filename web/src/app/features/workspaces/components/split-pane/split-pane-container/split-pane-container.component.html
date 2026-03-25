@@ -1,6 +1,9 @@
 @if (isOneTwoLayout()) {
   <!-- ── 1+2 layout: left = perspective, right = vertical stack of 2 ──────── -->
-  <div class="flex flex-row w-full h-full gap-0 layout-enter">
+  <div
+    [class]="'flex flex-row w-full h-full gap-0' + (animateEnter() ? ' layout-enter' : '')"
+    (animationend)="onEnterAnimationEnd()"
+  >
 
     <!-- Left column: single perspective pane -->
     <div
@@ -65,7 +68,10 @@
 
 } @else if (isGridLayout()) {
   <!-- ── 4-pane 2×2 CSS grid layout ─────────────────────────────────────── -->
-  <div class="grid grid-cols-2 grid-rows-2 w-full h-full gap-2 layout-enter">
+  <div
+    [class]="'grid grid-cols-2 grid-rows-2 w-full h-full gap-2' + (animateEnter() ? ' layout-enter' : '')"
+    (animationend)="onEnterAnimationEnd()"
+  >
     @for (pane of allPanes(); track pane.id) {
       <div
         class="relative min-w-0 min-h-0 overflow-hidden rounded-xl"
@@ -88,7 +94,8 @@
 } @else {
   <!-- ── Flex split layout (single / h-split / v-split) ─────────────────── -->
   @for (group of groups(); track groupKey(group, $index)) {
-    <div [class]="groupClass(group) + ' layout-enter gap-0'">
+    <div [class]="groupClass(group) + ' gap-0' + (animateEnter() ? ' layout-enter' : '')"
+         (animationend)="onEnterAnimationEnd()">
 
       @for (pane of group.panes; track pane.id; let last = $last) {
 
