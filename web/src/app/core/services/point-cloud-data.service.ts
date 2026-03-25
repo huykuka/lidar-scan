@@ -1,9 +1,9 @@
-import { effect, inject, Injectable, OnDestroy, signal } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { MultiWebsocketService } from './multi-websocket.service';
-import { WorkspaceStoreService, TopicConfig } from './stores/workspace-store.service';
-import { FramePayload, parseLidrFrame, parseJsonPointCloud } from './lidr-parser';
-import { environment } from '@env/environment';
+import {effect, inject, Injectable, OnDestroy, signal} from '@angular/core';
+import {Subscription} from 'rxjs';
+import {MultiWebsocketService} from './multi-websocket.service';
+import {TopicConfig, WorkspaceStoreService} from '@core/services/stores';
+import {FramePayload, parseJsonPointCloud, parseLidrFrame} from './lidr-parser';
+import {environment} from '@env/environment';
 
 export type { FramePayload };
 
@@ -30,7 +30,7 @@ export class PointCloudDataService implements OnDestroy {
 
   private subscriptions      = new Map<string, Subscription>();
   private frameCountPerTopic = new Map<string, number>();
-  private fpsInterval?: ReturnType<typeof setInterval>;
+  private readonly fpsInterval?: ReturnType<typeof setInterval>;
 
   constructor() {
     // React to topic selection changes → sync WebSocket connections
@@ -110,18 +110,49 @@ export class PointCloudDataService implements OnDestroy {
   }
 
   private onTopicComplete(topic: string): void {
+    // The server closed the stream (code 1001 or natural end).
+    // Clean up our local subscription — MultiWebsocketService already deleted
+    // its connection entry. Do NOT remove the topic from the workspace store;
+    // the user still wants it selected. Re-connect so the stream resumes when
+    // the backend comes back.
     this.subscriptions.delete(topic);
     this.frameCountPerTopic.delete(topic);
-    this.workspaceStore.removeTopic(topic);
 
     const next = new Map(this.frames());
     next.delete(topic);
     this.frames.set(next);
+
+    // Re-connect if the topic is still enabled in the store.
+    const stillEnabled = this.workspaceStore
+      .selectedTopics()
+      .some(t => t.topic === topic && t.enabled);
+    if (stillEnabled) {
+      // Small delay so the backend has time to recover before we hammer it.
+      setTimeout(() => this.connectTopic(topic), 1500);
+    }
   }
 
   private onTopicError(topic: string): void {
+    // A hard socket error occurred. MultiWebsocketService will attempt its own
+    // reconnect cycle on the underlying socket, but our RxJS subscription is now
+    // dead (error terminates an Observable). Clean up and re-subscribe so that
+    // when the socket recovers, frames start flowing again.
+    const sub = this.subscriptions.get(topic);
+    sub?.unsubscribe();
     this.subscriptions.delete(topic);
     this.frameCountPerTopic.delete(topic);
+
+    const next = new Map(this.frames());
+    next.delete(topic);
+    this.frames.set(next);
+
+    // Re-connect if the topic is still enabled.
+    const stillEnabled = this.workspaceStore
+      .selectedTopics()
+      .some(t => t.topic === topic && t.enabled);
+    if (stillEnabled) {
+      setTimeout(() => this.connectTopic(topic), 1500);
+    }
   }
 
   private handleMessage(topic: string, data: any): void {
