@@ -1,0 +1,43 @@
+@for (group of groups(); track $index) {
+  <div [class]="groupClass(group)">
+
+    @for (pane of group.panes; track pane.id; let last = $last; let i = $index) {
+
+      <!-- Pane wrapper: relative position for overlay, transition for smooth resize -->
+      <div
+        class="relative min-w-[200px] min-h-[200px] overflow-hidden transition-all duration-[250ms] ease-in-out"
+        [style]="paneStyle(pane)"
+        [attr.data-pane-id]="pane.id"
+      >
+        <!-- Three.js point cloud renderer -->
+        <app-point-cloud
+          class="w-full h-full block"
+          [backgroundColor]="store.backgroundColor()"
+          [pointSize]="store.pointSize()"
+          [showAxes]="store.showAxes()"
+          [showGrid]="store.showGrid()"
+        ></app-point-cloud>
+
+        <!-- Per-pane overlay (orientation badge, close button, empty state) -->
+        <app-viewport-overlay
+          [pane]="pane"
+        ></app-viewport-overlay>
+      </div>
+
+      <!-- Divider between panes (not after the last pane) -->
+      @if (!last) {
+        <div
+          appResizableDivider
+          [axis]="group.axis"
+          [paneId]="pane.id"
+          class="split-divider flex-shrink-0 z-20 transition-colors duration-150"
+          [class]="group.axis === 'horizontal'
+            ? 'w-1.5 h-full cursor-col-resize bg-[hsl(var(--syn-color-neutral-300))] hover:bg-[hsl(var(--syn-color-primary-600))]'
+            : 'h-1.5 w-full cursor-row-resize bg-[hsl(var(--syn-color-neutral-300))] hover:bg-[hsl(var(--syn-color-primary-600))]'"
+        ></div>
+      }
+
+    }
+  </div>
+}
+

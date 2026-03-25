@@ -1,0 +1,64 @@
+<!-- Viewport overlay: positioned absolutely over the Three.js canvas -->
+<div class="absolute inset-0 pointer-events-none z-10">
+
+  <!-- Top-left: orientation badge + dropdown -->
+  <div class="absolute top-2 left-2 flex items-center gap-1 pointer-events-auto">
+    <span
+      class="text-[10px] font-black uppercase tracking-widest
+             px-1.5 py-0.5 rounded
+             bg-black/50 text-white backdrop-blur-sm select-none"
+    >{{ pane().orientation }}</span>
+
+    <select
+      class="text-[10px] bg-black/50 text-white border border-white/20 rounded
+             px-1 py-0.5 backdrop-blur-sm cursor-pointer
+             focus:outline-none focus:ring-1 focus:ring-white/40"
+      [value]="pane().orientation"
+      (change)="changeOrientation($event)"
+      [attr.aria-label]="'Change orientation of ' + pane().orientation + ' view'"
+    >
+      @for (opt of orientationOptions; track opt.value) {
+        <option [value]="opt.value">{{ opt.label }}</option>
+      }
+    </select>
+  </div>
+
+  <!-- Top-right: close button + LOD warning -->
+  <div class="absolute top-2 right-2 flex items-center gap-1 pointer-events-auto">
+    @if (adaptiveLodActive()) {
+      <span
+        class="text-[10px] font-medium px-1.5 py-0.5 rounded
+               bg-yellow-500/80 text-yellow-900 backdrop-blur-sm"
+        title="Point density reduced for performance"
+      >LOD</span>
+    }
+
+    <button
+      (click)="closePane()"
+      [disabled]="isLastPane() || null"
+      class="w-5 h-5 flex items-center justify-center rounded
+             bg-black/50 text-white backdrop-blur-sm
+             hover:bg-red-600/80
+             disabled:opacity-30 disabled:cursor-not-allowed
+             transition-colors duration-150 text-xs leading-none"
+      title="Close view"
+      aria-label="Close view"
+    >×</button>
+  </div>
+
+  <!-- Empty state overlay: shown when no point cloud data is loaded -->
+  @if (!hasData()) {
+    <div
+      class="absolute inset-0 flex flex-col items-center justify-center
+             bg-black/20 backdrop-blur-[1px] pointer-events-none"
+    >
+      <span
+        class="text-2xl font-black uppercase tracking-widest
+               text-white/30 select-none"
+      >{{ pane().orientation }} VIEW</span>
+      <span class="text-xs text-white/20 mt-1 select-none">No point cloud loaded</span>
+    </div>
+  }
+
+</div>
+

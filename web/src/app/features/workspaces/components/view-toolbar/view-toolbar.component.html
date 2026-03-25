@@ -1,0 +1,37 @@
+<div class="flex items-center gap-2 px-4 py-2 border-b border-[hsl(var(--syn-color-neutral-300))] bg-[hsl(var(--syn-color-neutral-0))]">
+  <span class="text-sm font-medium text-[hsl(var(--syn-color-neutral-700))] mr-1">Add View:</span>
+
+  @for (vt of viewTypes; track vt.value) {
+    <button
+      [attr.data-view-type]="vt.value"
+      [disabled]="!canAdd() || null"
+      (click)="addView(vt.value)"
+      class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border
+             border-[hsl(var(--syn-color-neutral-300))]
+             bg-[hsl(var(--syn-color-neutral-0))]
+             hover:bg-[hsl(var(--syn-color-neutral-100))]
+             disabled:opacity-40 disabled:cursor-not-allowed
+             transition-colors duration-150"
+      [title]="'Add ' + vt.label + ' view'"
+    >
+      <syn-icon [name]="vt.icon" class="text-base"></syn-icon>
+      <span>{{ vt.label }}</span>
+    </button>
+  }
+
+  <div class="flex-1"></div>
+
+  <button
+    (click)="resetLayout()"
+    class="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border
+           border-[hsl(var(--syn-color-neutral-300))]
+           bg-[hsl(var(--syn-color-neutral-0))]
+           hover:bg-[hsl(var(--syn-color-neutral-100))]
+           transition-colors duration-150"
+    title="Reset to single perspective view"
+  >
+    <syn-icon name="settings_backup_restore" class="text-base"></syn-icon>
+    <span>Reset Layout</span>
+  </button>
+</div>
+
