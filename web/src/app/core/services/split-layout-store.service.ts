@@ -1,6 +1,24 @@
 import { computed, effect, Injectable } from '@angular/core';
 import { SignalsSimpleStoreService } from './signals-simple-store.service';
 
+/**
+ * Generates a RFC 4122 v4 UUID.
+ * Uses crypto.randomUUID() when available (HTTPS / secure context),
+ * falls back to crypto.getRandomValues() for plain-HTTP deployments.
+ */
+function randomUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // Fallback: manual v4 UUID via getRandomValues
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant bits
+  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0'));
+  return `${hex.slice(0,4).join('')}-${hex.slice(4,6).join('')}-${hex.slice(6,8).join('')}-${hex.slice(8,10).join('')}-${hex.slice(10).join('')}`;
+}
+
 // ── Public Type Exports (API Spec §2.1) ───────────────────────────────────────
 
 export type ViewOrientation = 'perspective' | 'top' | 'front' | 'side';
@@ -119,7 +137,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     const halfFraction = largestPane.sizeFraction / 2;
 
     const newPane: ViewPane = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       orientation,
       sizeFraction: halfFraction,
     };
@@ -282,8 +300,8 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       groups: [{
         axis: 'horizontal',
         panes: [
-          { id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
-          { id: crypto.randomUUID(), orientation: 'top',         sizeFraction: 0.5 },
+          { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
+          { id: randomUUID(), orientation: 'top',         sizeFraction: 0.5 },
         ],
       }],
       focusedPaneId: null,
@@ -299,8 +317,8 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       groups: [{
         axis: 'vertical',
         panes: [
-          { id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
-          { id: crypto.randomUUID(), orientation: 'front',       sizeFraction: 0.5 },
+          { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
+          { id: randomUUID(), orientation: 'front',       sizeFraction: 0.5 },
         ],
       }],
       focusedPaneId: null,
@@ -316,10 +334,10 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       groups: [{
         axis: 'vertical',
         panes: [
-          { id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 0.25 },
-          { id: crypto.randomUUID(), orientation: 'top',         sizeFraction: 0.25 },
-          { id: crypto.randomUUID(), orientation: 'front',       sizeFraction: 0.25 },
-          { id: crypto.randomUUID(), orientation: 'side',        sizeFraction: 0.25 },
+          { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.25 },
+          { id: randomUUID(), orientation: 'top',         sizeFraction: 0.25 },
+          { id: randomUUID(), orientation: 'front',       sizeFraction: 0.25 },
+          { id: randomUUID(), orientation: 'side',        sizeFraction: 0.25 },
         ],
       }],
       focusedPaneId: null,
@@ -340,13 +358,13 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       groups: [
         {
           axis: 'horizontal',
-          panes: [{ id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 0.5 }],
+          panes: [{ id: randomUUID(), orientation: 'perspective', sizeFraction: 0.5 }],
         },
         {
           axis: 'vertical',
           panes: [
-            { id: crypto.randomUUID(), orientation: 'top',   sizeFraction: 0.5 },
-            { id: crypto.randomUUID(), orientation: 'front', sizeFraction: 0.5 },
+            { id: randomUUID(), orientation: 'top',   sizeFraction: 0.5 },
+            { id: randomUUID(), orientation: 'front', sizeFraction: 0.5 },
           ],
         },
       ],
@@ -432,7 +450,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     return {
       groups: [{
         axis: 'horizontal',
-        panes: [{ id: crypto.randomUUID(), orientation: 'perspective', sizeFraction: 1 }],
+        panes: [{ id: randomUUID(), orientation: 'perspective', sizeFraction: 1 }],
       }],
       focusedPaneId: null,
       paneCount: 1,
