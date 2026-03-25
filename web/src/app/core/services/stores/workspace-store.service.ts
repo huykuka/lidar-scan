@@ -42,7 +42,10 @@ const initialState: WorkspaceState = {
   selectedTopics: [],
   isConnected: false,
   pointCount: 0,
-  pointSize: 0.1,
+  // Bug fix: pointSize is now in screen-pixels (PointsMaterial sizeAttenuation: false).
+  // Previously 0.1 world-units; 2px gives a comparable visual result at the
+  // default camera distance. The UI slider range has been updated to match.
+  pointSize: 2,
   pointColor: '#00ff00',
   fps: 0,
   lidarTime: '--:--:--',
@@ -84,6 +87,11 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
     this.setState({
       ...initialState,
       ...persistedState,
+      // Migrate old world-unit pointSize (< 1) to the new pixel-space default.
+      // sizeAttenuation was changed to false, so values must now be in pixels.
+      pointSize: (persistedState.pointSize != null && persistedState.pointSize < 1)
+        ? initialState.pointSize
+        : (persistedState.pointSize ?? initialState.pointSize),
       showCockpit:true,
       isConnected: false, // Don't persist connection status
       topics: [], // Don't persist topics

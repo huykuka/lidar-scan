@@ -311,7 +311,31 @@ describe('PointCloudComponent — FE-04 Extensions', () => {
     });
   });
 
-  // ── PointCloudDataService wiring ──────────────────────────────────────────
+  // ── Bug fix: sizeAttenuation = false ─────────────────────────────────────
+  // Regression guard: ensures PointsMaterial is always created with
+  // sizeAttenuation: false so point size is screen-pixel-consistent across
+  // perspective AND orthographic panels (Bug 1 fix).
+  describe('addOrUpdatePointCloud — sizeAttenuation: false', () => {
+    it('should create PointsMaterial with sizeAttenuation: false', () => {
+      const cmp = createSut().componentInstance as any;
+
+      // Stub the scene (initThree spy already initialises it, but we need add/remove)
+      cmp.scene = { add: vi.fn(), remove: vi.fn(), background: null };
+
+      cmp.addOrUpdatePointCloud('test-topic', '#00ff00');
+
+      const cloud = cmp.pointClouds.get('test-topic');
+      expect(cloud).toBeDefined();
+      // sizeAttenuation must be false so all camera types render at the same pixel size
+      expect(cloud.material.sizeAttenuation).toBe(false);
+
+      // Cleanup
+      cloud.geometry.dispose?.();
+      cloud.material.dispose?.();
+    });
+  });
+
+
 
   describe('PointCloudDataService wiring', () => {
     it('should inject PointCloudDataService', () => {

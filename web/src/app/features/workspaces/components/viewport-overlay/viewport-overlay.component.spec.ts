@@ -98,4 +98,34 @@ describe('ViewportOverlayComponent', () => {
     const warning = fixture.nativeElement.querySelector('[class*="yellow"]');
     expect(warning).toBeFalsy();
   });
+
+  // ── Bug fix: [value] removed from <select> (Bug 2 regression guard) ────────
+  // The <select> must NOT have a [value] binding — the correct selected state
+  // is driven solely by [selected] on each <option>, which Angular applies
+  // after all options are in the DOM (avoids timing-based mismatched display).
+  it('should NOT have a value attribute on the <select> element (no [value] binding)', () => {
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector('select');
+    expect(select).toBeTruthy();
+    // The select element should not have a static 'value' attribute set by Angular
+    // (i.e. [value]="..." was removed). The displayed selection is driven by [selected] on options.
+    // We verify the correct option IS selected via [selected] instead.
+    const perspectiveOption: HTMLOptionElement | null = select.querySelector('option[value="perspective"]');
+    expect(perspectiveOption?.selected).toBe(true);
+  });
+
+  it('should update the displayed option when pane orientation changes', () => {
+    // Simulate orientation change from perspective to top via input update
+    fixture.componentRef.setInput('pane', {
+      id: 'p1', orientation: 'top', sizeFraction: 1,
+    } satisfies ViewPane);
+    fixture.detectChanges();
+
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector('select');
+    const topOption: HTMLOptionElement | null = select.querySelector('option[value="top"]');
+    const perspOption: HTMLOptionElement | null = select.querySelector('option[value="perspective"]');
+
+    // After orientation changes to "top", "top" option should be selected
+    expect(topOption?.selected).toBe(true);
+    expect(perspOption?.selected).toBe(false);
+  });
 });

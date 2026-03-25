@@ -209,6 +209,10 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     const material = new THREE.PointsMaterial({
       size: this.pointSize(),
       color: color,
+      // Bug fix: sizeAttenuation: false keeps point size in screen-pixels (not
+      // world units), so all panels — perspective AND orthographic — render dots
+      // at the same pixel size regardless of camera type or frustum dimensions.
+      sizeAttenuation: false,
     });
 
     const pointsObj = new THREE.Points(geometry, material);
