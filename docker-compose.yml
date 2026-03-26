@@ -5,8 +5,8 @@ services:
     restart: unless-stopped
     network_mode: "host"
     volumes:
-      - config:/config
-      - recordings:/recordings
+      - config:/app/config
+      - recordings:/app/recordings
 
 volumes:
   config:
