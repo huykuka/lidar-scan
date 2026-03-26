@@ -1,29 +1,33 @@
 #!/bin/bash
 
 timestamp() {
-  date +"%Y%m%d%H%M%S" # current time
+  date +"%Y%m%d%H%M%S"
 }
 
 # ------------------------------
 # Variables
 # ------------------------------
-APP_ENV=amd
 DOCKERFILE="docker/Dockerfile"
-DOCKER_REGISTRY="artifactory.sick.com"
-DOCKER_REPO_NAME="ssc07-eh-docker-local/lidar-studio-$APP_ENV"
-TAG_LATEST="$DOCKER_REPO_NAME:latest"
+DOCKER_USERNAME="010497"   # <-- change this
+DOCKER_REPO_NAME="lidar-studio"
+TAG_LATEST="$DOCKER_USERNAME/$DOCKER_REPO_NAME:latest"
 
+# ------------------------------
+# Cleanup
+# ------------------------------
 docker image prune --force
 docker container prune --force
 docker network prune --force
 
 # ------------------------------
-# Build, tag and push the image
+# Login (required)
+# ------------------------------
+docker login
+
+# ------------------------------
+# Build, tag and push
 # ------------------------------
 docker build -f $DOCKERFILE . -t "$TAG_LATEST"
 
-# Tag the image
-docker tag "$TAG_LATEST" "$DOCKER_REGISTRY/$TAG_LATEST"
-#
-## Push the image to the registry
-#docker push "$DOCKER_REGISTRY/$TAG_LATEST"
+# Push to Docker Hub
+docker push "$TAG_LATEST"

@@ -1,6 +1,13 @@
 services:
   lidar-standalone:
-    image: ssc07-eh-docker-local/lidar-studio-amd:latest  
+    image: 010497/lidar-studio:latest
     container_name: lidar-standalone
     restart: unless-stopped
     network_mode: "host"
+    volumes:
+      - config:/config
+      - recordings:/recordings
+
+volumes:
+  config:
+  recordings:
