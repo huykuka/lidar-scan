@@ -26,7 +26,7 @@ RUN git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /workspace/sic
 # ----------------------------------------
 # Stage 2: Build Angular frontend
 # ----------------------------------------
-FROM node:24-slim AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:24-slim AS frontend-builder
 WORKDIR /web
 # Copy package manifests first for caching
 COPY web/package*.json ./
@@ -59,7 +59,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && \
   # Clean up only pycache
-  find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+  (find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true)
 
 # Copy backend setup artifacts
 COPY --from=backend-builder /workspace/build/libsick_scan_xd_shared_lib.so ./build/

@@ -1,33 +1,31 @@
 #!/bin/bash
 
-timestamp() {
-  date +"%Y%m%d%H%M%S"
-}
-
-# ------------------------------
-# Variables
-# ------------------------------
-DOCKERFILE="docker/Dockerfile"
-DOCKER_USERNAME="010497"   # <-- change this
-DOCKER_REPO_NAME="lidar-studio"
-TAG_LATEST="$DOCKER_USERNAME/$DOCKER_REPO_NAME:latest"
-
-# ------------------------------
-# Cleanup
-# ------------------------------
-docker image prune --force
-docker container prune --force
-docker network prune --force
-
 # ------------------------------
 # Login (required)
 # ------------------------------
 docker login
 
 # ------------------------------
-# Build, tag and push
+# Set up shared multi-architecture builder
 # ------------------------------
-docker build -f $DOCKERFILE . -t "$TAG_LATEST"
+echo "======================================"
+echo "Setting up shared Buildx cache..."
+echo "======================================"
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes || true
+docker buildx create --name lidar-builder --use 2>/dev/null || true
+docker buildx inspect --bootstrap
 
-# Push to Docker Hub
-docker push "$TAG_LATEST"
+# ------------------------------
+# Variables
+# ------------------------------
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# ------------------------------
+# Run architecture deployments
+# ------------------------------
+bash "$SCRIPT_DIR/deploy_amd.sh"
+# bash "$SCRIPT_DIR/deploy_arm.sh"
+
+echo "======================================"
+echo "Deployment for all architectures completed!"
+echo "======================================"
