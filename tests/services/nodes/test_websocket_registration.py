@@ -230,12 +230,21 @@ class TestRealNodeDefinitions:
     @pytest.fixture(autouse=True)
     def import_all_registries(self):
         """Import all node registry modules to populate node_schema_registry"""
+        import importlib
         # Import all registry modules to trigger @register decorators
         import app.modules.lidar.registry
         import app.modules.fusion.registry
         import app.modules.calibration.registry
         import app.modules.pipeline.registry
         import app.modules.flow_control.if_condition.registry
+
+        # Reload each module to re-run module-level register() calls,
+        # since a preceding test class may have cleared the registry.
+        importlib.reload(app.modules.lidar.registry)
+        importlib.reload(app.modules.fusion.registry)
+        importlib.reload(app.modules.calibration.registry)
+        importlib.reload(app.modules.pipeline.registry)
+        importlib.reload(app.modules.flow_control.if_condition.registry)
         yield
     
     def test_sensor_nodes_have_websocket_enabled_true(self):

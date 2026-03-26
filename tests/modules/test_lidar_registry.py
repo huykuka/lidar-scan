@@ -89,13 +89,18 @@ class TestRegistrySchema:
         assert "multiscan" in udp_ip_prop.depends_on["lidar_type"]
     
     def test_imu_udp_port_depends_on_multiscan(self):
-        """imu_udp_port should only show for multiScan"""
+        """imu_udp_port should show for multiScan and picoScan IMU-capable models"""
         from app.services.nodes.schema import node_schema_registry
+        from app.modules.lidar.profiles import get_all_profiles
         sensor_def = node_schema_registry.get("sensor")
         imu_prop = next(p for p in sensor_def.properties if p.name == "imu_udp_port")
         assert imu_prop.depends_on is not None
         assert "lidar_type" in imu_prop.depends_on
-        assert imu_prop.depends_on["lidar_type"] == ["multiscan"]
+        # multiscan must always be present
+        assert "multiscan" in imu_prop.depends_on["lidar_type"]
+        # value must match the profiles that have IMU UDP port support
+        expected = [p.model_id for p in get_all_profiles() if p.has_imu_udp_port]
+        assert imu_prop.depends_on["lidar_type"] == expected
     
     def test_pcd_path_depends_on_sim_mode(self):
         """pcd_path should only show when mode == 'sim'"""

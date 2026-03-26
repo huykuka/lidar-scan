@@ -6,3 +6,4 @@ uvicorn[standard]
 open3d
 numpy
 sqlalchemy>=2.0.0
+python-multipart

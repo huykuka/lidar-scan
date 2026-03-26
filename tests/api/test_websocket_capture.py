@@ -13,7 +13,7 @@ class TestWebSocketCapture:
     """Test suite for WebSocket capture API"""
     
     @pytest.mark.asyncio
-    @patch('app.api.v1.websocket.manager')
+    @patch('app.api.v1.websocket.service.manager')
     async def test_capture_frame_returns_503_on_topic_removal(self, mock_manager):
         """Test capture_frame returns 503 when topic is removed during wait"""
         # Setup manager.wait_for_next to raise CancelledError
@@ -30,7 +30,7 @@ class TestWebSocketCapture:
         assert "Topic was removed while waiting for frame. Please retry." in str(exc_info.value.detail)
     
     @pytest.mark.asyncio 
-    @patch('app.api.v1.websocket.manager')
+    @patch('app.api.v1.websocket.service.manager')
     async def test_capture_frame_returns_504_on_timeout(self, mock_manager):
         """Test capture_frame returns 504 on timeout (existing behavior)"""
         # Setup manager.wait_for_next to raise TimeoutError
@@ -47,7 +47,7 @@ class TestWebSocketCapture:
         assert "Timeout waiting for frame" in str(exc_info.value.detail)
     
     @pytest.mark.asyncio
-    @patch('app.api.v1.websocket.manager')
+    @patch('app.api.v1.websocket.service.manager')
     async def test_capture_frame_success_returns_data(self, mock_manager):
         """Test capture_frame successfully returns data on success"""
         # Setup manager.wait_for_next to return mock data
@@ -64,7 +64,7 @@ class TestWebSocketCapture:
         assert response.media_type == "application/octet-stream"
     
     @pytest.mark.asyncio
-    @patch('app.api.v1.websocket.manager')
+    @patch('app.api.v1.websocket.service.manager')
     async def test_capture_frame_concurrent_cancellation_scenario(self, mock_manager):
         """Test realistic scenario where topic is removed while wait_for_next is pending"""
         

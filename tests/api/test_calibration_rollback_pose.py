@@ -17,25 +17,34 @@ class TestCalibrationRollbackPose:
     def test_rollback_writes_nested_pose_not_flat_keys(self, client):
         """After rollback, node must have config_json["pose"] without flat pose keys."""
         # Create a sensor node first
-        sensor_payload = {
-            "name": "Rollback Test Sensor",
-            "type": "sensor",
-            "category": "sensor",
-            "enabled": True,
-            "visible": True,
-            "config": {
-                "lidar_type": "multiscan",
-                "hostname": "192.168.1.10",
-                "mode": "sim",
-            },
-            "pose": {
-                "x": 0.0, "y": 0.0, "z": 0.0,
-                "roll": 0.0, "pitch": 0.0, "yaw": 0.0,
-            },
+        sensor_id = "rollback-sensor-01"
+        dag_payload = {
+            "base_version": 0,
+            "nodes": [
+                {
+                    "id": sensor_id,
+                    "name": "Rollback Test Sensor",
+                    "type": "sensor",
+                    "category": "sensor",
+                    "enabled": True,
+                    "visible": True,
+                    "config": {
+                        "lidar_type": "multiscan",
+                        "hostname": "192.168.1.10",
+                        "mode": "sim",
+                    },
+                    "pose": {
+                        "x": 0.0, "y": 0.0, "z": 0.0,
+                        "roll": 0.0, "pitch": 0.0, "yaw": 0.0,
+                    },
+                    "x": 100.0,
+                    "y": 100.0,
+                }
+            ],
+            "edges": [],
         }
-        create_resp = client.post("/api/v1/nodes", json=sensor_payload)
+        create_resp = client.put("/api/v1/dag/config", json=dag_payload)
         assert create_resp.status_code == 200
-        sensor_id = create_resp.json()["id"]
 
         # After rollback, GET /nodes/{id} should have nested pose
         get_resp = client.get(f"/api/v1/nodes/{sensor_id}")

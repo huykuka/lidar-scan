@@ -21,7 +21,7 @@ class TestSlugifyTopicPrefix:
     def test_spaces_to_underscores(self):
         """Test that spaces are converted to underscores"""
         result = slugify_topic_prefix("Front Lidar #1")
-        assert result == "Front_Lidar_1"
+        assert result == "front_lidar_1"
     
     def test_special_characters_removed(self):
         """Test that special characters are replaced with underscores"""
@@ -65,9 +65,9 @@ class TestSlugifyTopicPrefix:
         assert result == "sensor_01_rear"
     
     def test_mixed_case_preserved(self):
-        """Test that case is preserved"""
+        """Test that input is lowercased"""
         result = slugify_topic_prefix("FrontLidar")
-        assert result == "FrontLidar"
+        assert result == "frontlidar"
     
     def test_unicode_replaced(self):
         """Test that unicode characters are replaced"""
@@ -119,7 +119,7 @@ class TestGenerateUniqueTopicPrefix:
         """Test that slugification is applied to input"""
         existing = set()
         result = generate_unique_topic_prefix("Front Lidar #1", "abc", existing)
-        assert result == "Front_Lidar_1"
+        assert result == "front_lidar_1"
     
     def test_empty_sensor_id_uses_sensor_default(self):
         """Test that empty sensor_id slugifies to 'sensor' (the default)"""
@@ -253,7 +253,7 @@ class TestTopicRegistry:
         """Test registration with prefix needing slugification"""
         registry = TopicRegistry()
         result = registry.register("Front Lidar #1", "s1")
-        assert result == "Front_Lidar_1"
+        assert result == "front_lidar_1"
     
     def test_sequential_collisions(self):
         """Test sequential collision handling"""

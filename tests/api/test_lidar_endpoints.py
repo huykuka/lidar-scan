@@ -326,23 +326,29 @@ class TestNodeOperationsWithLidarType:
     def test_create_sensor_node_with_lidar_type(self, api_client):
         """Create sensor node with lidar_type in config"""
         payload = {
-            "id": "test-sensor-001",
-            "name": "Test LiDAR",
-            "type": "sensor",
-            "category": "sensor",
-            "enabled": True,
-            "config": {
-                "lidar_type": "tim_7xx",
-                "mode": "real",
-                "hostname": "192.168.0.100",
-                "port": 2112,
-                "throttle_ms": 0,
-            },
-            "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
-            "x": 200,
-            "y": 100
+            "base_version": 0,
+            "nodes": [
+                {
+                    "id": "test-sensor-001",
+                    "name": "Test LiDAR",
+                    "type": "sensor",
+                    "category": "sensor",
+                    "enabled": True,
+                    "config": {
+                        "lidar_type": "tim_7xx",
+                        "mode": "real",
+                        "hostname": "192.168.0.100",
+                        "port": 2112,
+                        "throttle_ms": 0,
+                    },
+                    "pose": {"x": 0.0, "y": 0.0, "z": 0.0, "roll": 0.0, "pitch": 0.0, "yaw": 0.0},
+                    "x": 200.0,
+                    "y": 100.0,
+                }
+            ],
+            "edges": [],
         }
-        response = api_client.post("/api/v1/nodes", json=payload)
+        response = api_client.put("/api/v1/dag/config", json=payload)
         assert response.status_code in [200, 201]
     
     def test_get_node_status_includes_lidar_type(self, api_client):

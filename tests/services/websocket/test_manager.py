@@ -103,11 +103,15 @@ class TestConnectionManager:
         """Test broadcasting bytes to websocket connections"""
         manager = ConnectionManager()
         websocket1 = AsyncMock()
+        websocket1._is_sending = False
         websocket2 = AsyncMock()
+        websocket2._is_sending = False
         manager.active_connections["topic"] = [websocket1, websocket2]
         
         message = b"test_data"
         await manager.broadcast("topic", message)
+        # Yield to event loop so fire-and-forget tasks execute
+        await asyncio.sleep(0)
         
         websocket1.send_bytes.assert_called_once_with(message)
         websocket2.send_bytes.assert_called_once_with(message)
@@ -117,10 +121,13 @@ class TestConnectionManager:
         """Test broadcasting JSON to websocket connections"""
         manager = ConnectionManager()
         websocket = AsyncMock()
+        websocket._is_sending = False
         manager.active_connections["topic"] = [websocket]
         
         message = {"type": "test", "data": 123}
         await manager.broadcast("topic", message)
+        # Yield to event loop so fire-and-forget tasks execute
+        await asyncio.sleep(0)
         
         websocket.send_json.assert_called_once_with(message)
     
@@ -129,12 +136,16 @@ class TestConnectionManager:
         """Test broadcast removes connections that fail"""
         manager = ConnectionManager()
         dead_ws = AsyncMock()
+        dead_ws._is_sending = False
         dead_ws.send_bytes.side_effect = Exception("Connection dead")
         alive_ws = AsyncMock()
+        alive_ws._is_sending = False
         
         manager.active_connections["topic"] = [dead_ws, alive_ws]
         
         await manager.broadcast("topic", b"data")
+        # Yield to event loop so fire-and-forget tasks execute
+        await asyncio.sleep(0)
         
         # Dead connection should be removed
         assert dead_ws not in manager.active_connections["topic"]
@@ -223,6 +234,7 @@ class TestConnectionManager:
         
         # Setup websocket connection
         websocket = AsyncMock()
+        websocket._is_sending = False
         manager.active_connections["topic"] = [websocket]
         
         # Setup interceptor
@@ -232,6 +244,8 @@ class TestConnectionManager:
         
         message = b"test_data"
         await manager.broadcast("topic", message)
+        # Yield to event loop so fire-and-forget tasks execute
+        await asyncio.sleep(0)
         
         # Both should receive
         websocket.send_bytes.assert_called_once_with(message)

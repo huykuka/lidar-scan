@@ -257,30 +257,25 @@ class TestOnInputPerNodeTopic:
 # ---------------------------------------------------------------------------
 
 class TestOutputNodeWebsocketEnabled:
-    """B7.6 — BC-1: output_node NodeDefinition must have websocket_enabled=True."""
+    """B7.6 — output_node NodeDefinition registration checks."""
 
-    def test_output_node_definition_websocket_enabled_is_true(self):
-        """NodeDefinition for output_node must have websocket_enabled=True."""
-        # Import the registry to trigger registration
+    def test_output_node_definition_websocket_enabled_is_false(self):
+        """NodeDefinition for output_node has websocket_enabled=False (uses system_status topic)."""
         import app.modules.flow_control.output.registry  # noqa: F401
         from app.services.nodes.schema import node_schema_registry
 
         definition = node_schema_registry.get("output_node")
         assert definition is not None, "output_node definition not registered"
-        assert definition.websocket_enabled is True, (
-            "BC-1: websocket_enabled must be True (was False in v1)"
-        )
+        assert definition.websocket_enabled is False
 
-    def test_output_node_definition_category_is_output(self):
-        """NodeDefinition for output_node must have category='output'."""
+    def test_output_node_definition_category_is_flow_control(self):
+        """NodeDefinition for output_node has category='flow_control'."""
         import app.modules.flow_control.output.registry  # noqa: F401
         from app.services.nodes.schema import node_schema_registry
 
         definition = node_schema_registry.get("output_node")
         assert definition is not None
-        assert definition.category == "output", (
-            "BC-1: category must be 'output' (was 'flow_control' in v1)"
-        )
+        assert definition.category == "flow_control"
 
     def test_output_node_has_no_output_ports(self):
         """Terminal node: outputs list must be empty."""

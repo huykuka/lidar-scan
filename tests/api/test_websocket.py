@@ -12,7 +12,7 @@ class TestWebSocketTopicsEndpoint:
     
     def test_list_topics_empty(self):
         """Test /topics returns empty list when no topics"""
-        with patch('app.api.v1.websocket.manager') as mock_manager:
+        with patch('app.api.v1.websocket.service.manager') as mock_manager:
             mock_manager.get_public_topics.return_value = []
             
             client = TestClient(app)
@@ -26,7 +26,7 @@ class TestWebSocketTopicsEndpoint:
     
     def test_list_topics_with_lidar_topics(self):
         """Test /topics returns lidar topics"""
-        with patch('app.api.v1.websocket.manager') as mock_manager:
+        with patch('app.api.v1.websocket.service.manager') as mock_manager:
             mock_manager.get_public_topics.return_value = [
                 "sensor1_raw_points",
                 "sensor1_processed_points"
@@ -43,7 +43,7 @@ class TestWebSocketTopicsEndpoint:
     
     def test_list_topics_excludes_system_topics(self):
         """Test /topics does not return system topics"""
-        with patch('app.api.v1.websocket.manager') as mock_manager:
+        with patch('app.api.v1.websocket.service.manager') as mock_manager:
             # Manager should already filter, but verify endpoint calls right method
             mock_manager.get_public_topics.return_value = [
                 "sensor1_raw_points",
@@ -63,7 +63,7 @@ class TestWebSocketTopicsEndpoint:
     
     def test_list_topics_includes_description(self):
         """Test /topics includes topic descriptions"""
-        with patch('app.api.v1.websocket.manager') as mock_manager:
+        with patch('app.api.v1.websocket.service.manager') as mock_manager:
             mock_manager.get_public_topics.return_value = []
             
             client = TestClient(app)

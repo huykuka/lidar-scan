@@ -24,12 +24,15 @@ def _make_node(config=None):
 
     manager = Mock()
     manager.downstream_map = {}
-    return OutputNode(
+    node = OutputNode(
         manager=manager,
         node_id="out-node-1",
         name="Test Output",
         config=config or {},
     )
+    # Simulate orchestrator assignment: use system_status topic for v1 tests
+    node._ws_topic = "system_status"
+    return node
 
 
 # ---------------------------------------------------------------------------

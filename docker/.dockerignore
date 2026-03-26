@@ -1,0 +1,25 @@
+node_modules
+npm - debug.log
+yarn - error.log
+.DS_Store
+.git
+.gitignore
+.dockerignore
+.env
+.dockerfile
+LICENSE
+README.md
+.next
+cache
+Dockerfile
+pgdata
+__pycache__/
+*.pyc
+.env
+.venv/
+
+cropped_regions/
+processed_regions/
+results/
+images/
+config
