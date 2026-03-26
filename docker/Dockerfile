@@ -62,7 +62,9 @@ RUN pip install --no-cache-dir -r requirements.txt && \
   find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
 # Copy backend setup artifacts
-COPY --from=backend-builder /workspace/build/ ./build/
+COPY --from=backend-builder /workspace/build/libsick_scan_xd_shared_lib.so ./build/
+COPY --from=backend-builder /workspace/build/sick_generic_caller ./build/
+COPY --from=backend-builder /workspace/build/sick_scan_xd_api_test ./build/
 COPY --from=backend-builder /workspace/sick_scan_xd/launch/ ./launch/
 
 # Copy application files (This might include a stale local app/static directory)

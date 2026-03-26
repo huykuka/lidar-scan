@@ -325,8 +325,10 @@ class TestNodeOperationsWithLidarType:
     
     def test_create_sensor_node_with_lidar_type(self, api_client):
         """Create sensor node with lidar_type in config"""
+        # Fetch current config_version to avoid optimistic-lock conflict
+        current_version = api_client.get("/api/v1/dag/config").json().get("config_version", 0)
         payload = {
-            "base_version": 0,
+            "base_version": current_version,
             "nodes": [
                 {
                     "id": "test-sensor-001",
