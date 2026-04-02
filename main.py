@@ -29,4 +29,5 @@ if __name__ == "__main__":
         reload=reload_enabled,
         reload_dirs=reload_dirs,
         workers=1 if reload_enabled else 4,
+        ws="wsproto",
     )

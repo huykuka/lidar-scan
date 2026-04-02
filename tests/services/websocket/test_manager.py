@@ -103,10 +103,9 @@ class TestConnectionManager:
         """Test broadcasting bytes to websocket connections"""
         manager = ConnectionManager()
         websocket1 = AsyncMock()
-        websocket1._is_sending = False
         websocket2 = AsyncMock()
-        websocket2._is_sending = False
-        manager.active_connections["topic"] = [websocket1, websocket2]
+        await manager.connect(websocket1, "topic")
+        await manager.connect(websocket2, "topic")
         
         message = b"test_data"
         await manager.broadcast("topic", message)
@@ -121,8 +120,7 @@ class TestConnectionManager:
         """Test broadcasting JSON to websocket connections"""
         manager = ConnectionManager()
         websocket = AsyncMock()
-        websocket._is_sending = False
-        manager.active_connections["topic"] = [websocket]
+        await manager.connect(websocket, "topic")
         
         message = {"type": "test", "data": 123}
         await manager.broadcast("topic", message)
@@ -136,12 +134,11 @@ class TestConnectionManager:
         """Test broadcast removes connections that fail"""
         manager = ConnectionManager()
         dead_ws = AsyncMock()
-        dead_ws._is_sending = False
         dead_ws.send_bytes.side_effect = Exception("Connection dead")
         alive_ws = AsyncMock()
-        alive_ws._is_sending = False
         
-        manager.active_connections["topic"] = [dead_ws, alive_ws]
+        await manager.connect(dead_ws, "topic")
+        await manager.connect(alive_ws, "topic")
         
         await manager.broadcast("topic", b"data")
         # Yield to event loop so fire-and-forget tasks execute
@@ -234,8 +231,7 @@ class TestConnectionManager:
         
         # Setup websocket connection
         websocket = AsyncMock()
-        websocket._is_sending = False
-        manager.active_connections["topic"] = [websocket]
+        await manager.connect(websocket, "topic")
         
         # Setup interceptor
         loop = asyncio.get_running_loop()

@@ -14,6 +14,7 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self._interceptors: Dict[str, List[asyncio.Future]] = {}
+        self._write_locks: Dict[int, asyncio.Lock] = {}
 
     def register_topic(self, topic: str):
         """Pre-registers a topic so it appears in the topic list even with no active connections."""
@@ -62,12 +63,14 @@ class ConnectionManager:
     def reset_active_connections(self):
         self.active_connections.clear()
         self._interceptors.clear()
+        self._write_locks.clear()
 
     async def connect(self, websocket: WebSocket, topic: str):
         await websocket.accept()
         if topic not in self.active_connections:
             self.active_connections[topic] = []
         self.active_connections[topic].append(websocket)
+        self._write_locks[id(websocket)] = asyncio.Lock()
 
     def disconnect(self, websocket: WebSocket, topic: str):
         if topic in self.active_connections:
@@ -75,33 +78,33 @@ class ConnectionManager:
                 self.active_connections[topic].remove(websocket)
             except ValueError:
                 pass
+        self._write_locks.pop(id(websocket), None)
 
     async def broadcast(self, topic: str, message: Any):
 
         # Handle active websocket connections
         if topic in self.active_connections:
             for connection in self.active_connections[topic]:
-                if getattr(connection, '_is_sending', False):
-                    # Drop this frame for this specific client to avoid blocking the backend 
-                    # and prevent Starlette "Concurrent call to send" RuntimeError.
+                lock = self._write_locks.get(id(connection))
+                if lock is None:
+                    continue
+                if lock.locked():
                     continue
 
-                async def _send(conn=connection, msg=message):
-                    conn._is_sending = True
+                async def _send(conn=connection, msg=message, wlock=lock):
                     try:
-                        if isinstance(msg, bytes):
-                            await conn.send_bytes(msg)
-                        else:
-                            await conn.send_json(msg)
+                        async with wlock:
+                            if isinstance(msg, bytes):
+                                await conn.send_bytes(msg)
+                            else:
+                                await conn.send_json(msg)
                     except Exception:
                         try:
                             self.active_connections[topic].remove(conn)
-                        except ValueError:
+                        except (ValueError, KeyError):
                             pass
-                    finally:
-                        conn._is_sending = False
+                        self._write_locks.pop(id(conn), None)
 
-                # Fire and forget instead of awaiting sequentially
                 asyncio.create_task(_send())
 
         # Handle pending interceptors (for HTTP capture etc)

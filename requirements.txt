@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+wsproto>=1.2.0
 open3d-cpu
 numpy
 sqlalchemy>=2.0.0
