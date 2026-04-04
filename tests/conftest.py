@@ -2,6 +2,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    """Register custom pytest marks."""
+    config.addinivalue_line(
+        "markers", "slow: mark test as slow-running benchmark (deselect with -m 'not slow')"
+    )
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     db_file = tmp_path / "test.db"
