@@ -28,7 +28,9 @@ from app.core.logging import get_logger
 from app.services.shared.topics import TopicRegistry
 from app.services.websocket.manager import manager as websocket_manager, SYSTEM_TOPICS
 
-from .managers import ConfigLoader, LifecycleManager, DataRouter, ThrottleManager
+from .managers import ConfigLoader, LifecycleManager, DataRouter, ThrottleManager, SelectiveReloadManager
+from .config_hasher import ConfigHashStore, compute_node_config_hash
+from .input_gate import NodeInputGate
 
 logger = get_logger(__name__)
 
@@ -75,6 +77,13 @@ class NodeManager:
         self._lifecycle_manager = LifecycleManager(self)
         self._data_router = DataRouter(self)
         self._throttle_manager = ThrottleManager(self)
+        self._selective_reload_manager = SelectiveReloadManager(self)
+
+        # Selective reload state
+        self._config_hash_store = ConfigHashStore()
+        self._input_gates: Dict[str, NodeInputGate] = {}   # downstream_id -> gate (during reload)
+        self._rollback_slot: Dict[str, Any] = {}            # node_id -> old_instance (during reload)
+        self._active_reload_node_id: Optional[str] = None  # set during selective_reload_node()
 
     # ========================================
     # Configuration Management
@@ -94,6 +103,16 @@ class NodeManager:
             self.nodes_data, self.edges_data, enabled_nodes = self._config_loader.load_from_database()
             self._config_loader.initialize_nodes(enabled_nodes, self.edges_data)
             self.downstream_map = self._config_loader.build_downstream_map(self.edges_data)
+
+            # Populate config hash store for change detection during selective reload.
+            # On full reload, clear first so stale hashes from removed nodes don't linger.
+            self._config_hash_store.clear()
+            for node_data in self.nodes_data:
+                if node_data.get("enabled", True):
+                    self._config_hash_store.update(
+                        node_data["id"],
+                        compute_node_config_hash(node_data),
+                    )
             
             logger.info(f"Initialized {len(self.nodes)} nodes. Downstream map: {dict(self.downstream_map)}")
         except Exception as e:
@@ -157,6 +176,69 @@ class NodeManager:
                 self.start(loop or self._loop)
             
             logger.info("Config reload complete.")
+
+    async def selective_reload_node(self, node_id: str):
+        """
+        Reload a single node in-place without a full DAG teardown.
+
+        Acquires ``_reload_lock`` to prevent concurrent reloads, broadcasts
+        WebSocket reload-progress events, and delegates to
+        ``SelectiveReloadManager.reload_single_node()``.
+
+        Args:
+            node_id: ID of the node to reload.
+
+        Returns:
+            SelectiveReloadResult describing the outcome.
+
+        Raises:
+            ValueError: If *node_id* is not present in the running pipeline.
+        """
+        from app.api.v1.schemas.nodes import SelectiveReloadResult
+
+        async with self._reload_lock:
+            self._active_reload_node_id = node_id
+            try:
+                await self._broadcast_reload_event(node_id, "reloading", "selective")
+                result = await self._selective_reload_manager.reload_single_node(node_id)
+                status = "ready" if result.status == "reloaded" else "error"
+                await self._broadcast_reload_event(
+                    node_id, status, "selective", result.error_message
+                )
+                return result
+            finally:
+                self._active_reload_node_id = None
+
+    async def _broadcast_reload_event(
+        self,
+        node_id: Optional[str],
+        status: str,
+        reload_mode: str,
+        error_message: Optional[str] = None,
+    ) -> None:
+        """Broadcast a reload progress event on the system_status WebSocket topic.
+
+        Args:
+            node_id: The node being reloaded (None for full DAG reload).
+            status: One of ``"reloading"``, ``"ready"``, ``"error"``.
+            reload_mode: ``"selective"`` or ``"full"``.
+            error_message: Optional error details when status is ``"error"``.
+        """
+        try:
+            from app.schemas.status import SystemStatusBroadcast, ReloadEvent
+
+            event = ReloadEvent(
+                node_id=node_id,
+                status=status,  # type: ignore[arg-type]
+                reload_mode=reload_mode,  # type: ignore[arg-type]
+                error_message=error_message,
+            )
+            broadcast = SystemStatusBroadcast(nodes=[], reload_event=event)
+            await websocket_manager.broadcast("system_status", broadcast.model_dump())
+        except Exception as exc:
+            logger.warning(
+                f"[NodeManager] _broadcast_reload_event failed: {exc!r}"
+            )
 
     def _cleanup_all_nodes(self):
         """

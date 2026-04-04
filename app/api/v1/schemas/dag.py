@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import Dict, List, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.v1.schemas.edges import EdgeRecord
 from app.api.v1.schemas.nodes import NodeRecord
@@ -79,3 +79,16 @@ class DagConfigSaveResponse(BaseModel):
 
     config_version: int
     node_id_map: Dict[str, str]
+    reload_mode: Literal["selective", "full", "none"] = Field(
+        "full",
+        description=(
+            "Which reload path was taken: "
+            "'selective' = only param-changed nodes reloaded, "
+            "'full' = entire DAG reloaded (topology change), "
+            "'none' = no runtime reload needed (cosmetic changes only)."
+        ),
+    )
+    reloaded_node_ids: List[str] = Field(
+        default_factory=list,
+        description="IDs of nodes that were selectively reloaded. Empty when reload_mode != 'selective'.",
+    )

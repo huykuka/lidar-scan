@@ -1,7 +1,7 @@
 """Node-related schema models for DAG processing nodes."""
 
-from typing import Dict, Any, List, Optional
-from pydantic import BaseModel, ConfigDict
+from typing import Dict, Any, List, Literal, Optional
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.pose import Pose
 
@@ -85,3 +85,49 @@ class NodeStatusItem(BaseModel):
 class NodesStatusResponse(BaseModel):
     """Response containing status information for all nodes."""
     nodes: List[NodeStatusItem]
+
+
+# ---------------------------------------------------------------------------
+# Reload schemas (node-reload-improvement feature)
+# ---------------------------------------------------------------------------
+
+class SelectiveReloadResult(BaseModel):
+    """Internal result model returned by SelectiveReloadManager.reload_single_node().
+
+    Not exposed via REST directly — used as the service-layer return type.
+    Spec: .opencode/plans/node-reload-improvement/api-spec.md § 5
+    """
+    node_id: str = Field(..., description="ID of the reloaded node.")
+    status: Literal["reloaded", "error"] = Field(..., description="Outcome of the reload attempt.")
+    duration_ms: float = Field(..., description="Wall-clock duration of the reload in milliseconds.")
+    ws_topic: Optional[str] = Field(None, description="WebSocket topic that was preserved (None if no WS topic).")
+    error_message: Optional[str] = Field(None, description="Error description when status='error'.")
+    rolled_back: bool = Field(False, description="True if the old instance was restored after a failed reload.")
+
+
+class NodeReloadResponse(BaseModel):
+    """REST response for POST /api/v1/nodes/{node_id}/reload.
+
+    Spec: .opencode/plans/node-reload-improvement/api-spec.md § 2
+    """
+    node_id: str = Field(..., description="ID of the reloaded node.")
+    status: Literal["reloaded"] = Field(..., description="Always 'reloaded' on HTTP 200.")
+    duration_ms: float = Field(..., description="Actual reload duration in milliseconds.")
+    ws_topic: Optional[str] = Field(None, description="The WebSocket topic that was preserved.")
+
+
+class ReloadStatusResponse(BaseModel):
+    """REST response for GET /api/v1/nodes/reload/status.
+
+    Spec: .opencode/plans/node-reload-improvement/api-spec.md § 3
+    """
+    locked: bool = Field(..., description="True if _reload_lock is currently held.")
+    reload_in_progress: bool = Field(..., description="Alias for locked (convenience).")
+    active_reload_node_id: Optional[str] = Field(
+        None,
+        description="Node currently being selectively reloaded. None for full reload or when idle.",
+    )
+    estimated_completion_ms: Optional[int] = Field(
+        None,
+        description="Static time estimate: 150ms for selective, 3000ms for full. None when idle.",
+    )

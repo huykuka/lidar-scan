@@ -2,6 +2,7 @@
 Standardized node status Pydantic schemas.
 
 Spec: .opencode/plans/node-status-standardization/api-spec.md § 1.1
+      .opencode/plans/node-reload-improvement/api-spec.md § 4
 
 This module defines the contract for node status reporting across all DAG nodes.
 """
@@ -9,7 +10,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -58,6 +59,33 @@ class NodeStatusUpdate(BaseModel):
     model_config = {"use_enum_values": True}
 
 
+class ReloadEvent(BaseModel):
+    """Reload progress event embedded in the system_status WebSocket broadcast.
+
+    Spec: .opencode/plans/node-reload-improvement/api-spec.md § 4
+    """
+    node_id: Optional[str] = Field(
+        None,
+        description="Node being reloaded. null for full DAG reloads.",
+    )
+    status: Literal["reloading", "ready", "error"] = Field(
+        ..., description="Current reload lifecycle state."
+    )
+    error_message: Optional[str] = Field(
+        None, description="Present only when status='error'."
+    )
+    reload_mode: Literal["selective", "full"] = Field(
+        ..., description="Which reload path triggered this event."
+    )
+    timestamp: float = Field(
+        default_factory=time.time, description="Unix epoch seconds."
+    )
+
+
 class SystemStatusBroadcast(BaseModel):
     """WebSocket payload broadcast on the system_status topic."""
     nodes: list[NodeStatusUpdate] = Field(..., description="All registered node statuses")
+    reload_event: Optional[ReloadEvent] = Field(
+        None,
+        description="Present only during or after a reload; absent on normal status polls.",
+    )
