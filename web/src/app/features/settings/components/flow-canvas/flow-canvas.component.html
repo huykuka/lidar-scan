@@ -96,7 +96,7 @@
                 [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
                 [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
                 [class.z-10]="selectedCanvasNode()?.id === node.id"
-                [class.select-none]="!!draggingNode()"
+                [class.select-none]="!!draggingNode() || !!pendingConnection()"
                 [style.cursor]="
                   draggingNode()?.id === node.id ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
                 "

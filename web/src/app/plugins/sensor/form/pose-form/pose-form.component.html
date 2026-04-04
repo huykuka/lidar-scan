@@ -21,16 +21,16 @@
 
   <!-- Position -->
   <div class="flex flex-col gap-2 px-3 py-2.5">
-    <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-400">Position</span>
+    <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-400">Position <span class="font-normal">(mm)</span></span>
     <div class="grid grid-cols-3 gap-2">
       @for (axis of ['x', 'y', 'z']; track axis) {
         <div class="flex flex-col gap-1">
-          <span
-            class="text-[11px] font-bold uppercase tracking-wide text-syn-color-neutral-700">{{ axis | uppercase }}</span>
+          <span class="text-[11px] font-bold uppercase tracking-wide text-syn-color-neutral-700">{{ axis | uppercase }}</span>
           <syn-input
             [formControlName]="axis"
             type="number"
             size="small"
+            [step]="0.1"
             (synInputEvent)="onXyzInput($any(axis), $event)"
           >
           </syn-input>
@@ -41,33 +41,40 @@
 
   <!-- Orientation -->
   <div class="flex flex-col gap-3 px-3 py-2.5">
-    <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-400">Orientation</span>
+    <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-400">Orientation <span class="font-normal">(deg)</span></span>
 
     @for (axis of [
       {key: 'roll', label: 'Roll'},
       {key: 'pitch', label: 'Pitch'},
       {key: 'yaw', label: 'Yaw'}
     ]; track axis.key) {
-      <div class="flex flex-col gap-0.5">
-        <div class="flex items-center justify-between">
-          <span class="text-[11px] font-semibold text-syn-color-neutral-600">{{ axis.label }}</span>
-          <span class="text-[11px] tabular-nums font-semibold text-syn-color-neutral-700 min-w-12 text-right">
-            {{ poseFormGroup.get(axis.key)?.value }} °
-          </span>
+      <div class="flex flex-col gap-1">
+        <span class="text-[11px] font-semibold text-syn-color-neutral-600">{{ axis.label }}</span>
+        <div class="flex items-center gap-3">
+          <syn-range
+            class="flex-1"
+            [min]="-180"
+            [max]="180"
+            [step]="0.1"
+            [value]="poseFormGroup.get(axis.key)?.value?.toString()"
+            [tooltipFormatter]="angleLabelFn"
+            size="small"
+            (synInputEvent)="onAngleInput($any(axis.key), $event)"
+            (synChangeEvent)="onAngleChange($any(axis.key), $event)"
+          />
+          <syn-input
+            [formControlName]="axis.key"
+            type="number"
+            size="small"
+            [step]="0.01"
+            class="w-24 shrink-0"
+            (synInputEvent)="onAngleInput($any(axis.key), $event)"
+          >
+          </syn-input>
         </div>
-        <syn-range
-          [min]="-180"
-          [max]="180"
-          [step]="1"
-          [value]="poseFormGroup.get(axis.key)?.value?.toString()"
-          [tooltipFormatter]="angleLabelFn"
-          size="small"
-          (synInputEvent)="onRangeInput($any(axis.key), $event)"
-          (synChangeEvent)="onRangeChange($any(axis.key), $event)"
-        />
         @if (poseFormGroup.get(axis.key)?.dirty && poseFormGroup.get(axis.key)?.invalid) {
           <span class="text-[10px] text-syn-color-danger-600 mt-0.5">{{ axis.label }}
-            must be between -180 ° and +180 °</span>
+            must be between -180 and +180 deg</span>
         }
       </div>
     }

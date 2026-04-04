@@ -23,7 +23,7 @@ describe('PoseFormComponent', () => {
   });
 
   describe('Form initialization', () => {
-    it('should initialize form with ZERO_POSE by default', () => {
+    it('should initialize form with ZERO_POSE by default (all zeros)', () => {
       expect(component.poseFormGroup.value).toEqual(ZERO_POSE);
     });
 
@@ -32,6 +32,34 @@ describe('PoseFormComponent', () => {
       controls.forEach(name => {
         expect(component.poseFormGroup.get(name)).toBeTruthy();
       });
+    });
+  });
+
+  describe('meters ↔ mm conversion', () => {
+    it('should convert meters input to mm in form controls', async () => {
+      // Input pose is in meters: 0.1m = 100mm, 0.2m = 200mm, 0.3m = 300mm
+      const poseInMeters: Pose = { x: 0.1, y: 0.2, z: 0.3, roll: 10, pitch: 20, yaw: 30 };
+      fixture.componentRef.setInput('pose', poseInMeters);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      expect(component.poseFormGroup.get('x')?.value).toBe(100);
+      expect(component.poseFormGroup.get('y')?.value).toBe(200);
+      expect(component.poseFormGroup.get('z')?.value).toBe(300);
+      // Angles pass through unchanged
+      expect(component.poseFormGroup.get('roll')?.value).toBe(10);
+    });
+
+    it('should emit pose with position in meters when user types mm', () => {
+      const emitted: Pose[] = [];
+      component.poseChange.subscribe((p: Pose) => emitted.push(p));
+
+      // User types 500 mm into x input
+      const fakeEvent = { target: { value: '500' } } as unknown as Event;
+      component.onXyzInput('x', fakeEvent);
+
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].x).toBe(0.5); // 500mm = 0.5m
     });
   });
 
@@ -54,13 +82,13 @@ describe('PoseFormComponent', () => {
     });
   });
 
-  describe('onRangeInput()', () => {
+  describe('onAngleInput()', () => {
     it('should patch the form control and emit poseChange when synInputEvent fires for roll', () => {
       const emitted: Pose[] = [];
       component.poseChange.subscribe((p: Pose) => emitted.push(p));
 
       const fakeEvent = { target: { value: '45' } } as unknown as Event;
-      component.onRangeInput('roll', fakeEvent);
+      component.onAngleInput('roll', fakeEvent);
 
       expect(component.poseFormGroup.get('roll')?.value).toBe(45);
       expect(emitted.length).toBe(1);
@@ -69,32 +97,32 @@ describe('PoseFormComponent', () => {
 
     it('should patch pitch control', () => {
       const fakeEvent = { target: { value: '-30' } } as unknown as Event;
-      component.onRangeInput('pitch', fakeEvent);
+      component.onAngleInput('pitch', fakeEvent);
       expect(component.poseFormGroup.get('pitch')?.value).toBe(-30);
     });
 
     it('should patch yaw control', () => {
       const fakeEvent = { target: { value: '180' } } as unknown as Event;
-      component.onRangeInput('yaw', fakeEvent);
+      component.onAngleInput('yaw', fakeEvent);
       expect(component.poseFormGroup.get('yaw')?.value).toBe(180);
     });
 
     it('should set NaN on invalid string input (browser range always emits numeric, but guard is NaN)', () => {
       const fakeEvent = { target: { value: 'abc' } } as unknown as Event;
-      component.onRangeInput('roll', fakeEvent);
+      component.onAngleInput('roll', fakeEvent);
       // NaN means the control has NaN which triggers invalid state
       const value = component.poseFormGroup.get('roll')?.value;
       expect(isNaN(value)).toBe(true);
     });
   });
 
-  describe('onRangeChange()', () => {
+  describe('onAngleChange()', () => {
     it('should mark the roll control as dirty when synChangeEvent fires', () => {
       const rollControl = component.poseFormGroup.get('roll')!;
       expect(rollControl.dirty).toBe(false);
 
       const fakeEvent = {} as Event;
-      component.onRangeChange('roll', fakeEvent);
+      component.onAngleChange('roll', fakeEvent);
 
       expect(rollControl.dirty).toBe(true);
     });
@@ -145,14 +173,17 @@ describe('PoseFormComponent', () => {
     });
   });
 
-  describe('Input signal → form sync', () => {
-    it('should sync form when pose input changes', async () => {
-      const newPose: Pose = { x: 100, y: 200, z: 300, roll: 10, pitch: 20, yaw: 30 };
+  describe('Input signal → form sync (meters → mm)', () => {
+    it('should convert meters to mm when pose input changes', async () => {
+      // 0.1m = 100mm, 0.2m = 200mm, 0.3m = 300mm
+      const newPose: Pose = { x: 0.1, y: 0.2, z: 0.3, roll: 10, pitch: 20, yaw: 30 };
       fixture.componentRef.setInput('pose', newPose);
       await fixture.whenStable();
       fixture.detectChanges();
 
       expect(component.poseFormGroup.get('x')?.value).toBe(100);
+      expect(component.poseFormGroup.get('y')?.value).toBe(200);
+      expect(component.poseFormGroup.get('z')?.value).toBe(300);
       expect(component.poseFormGroup.get('roll')?.value).toBe(10);
     });
   });

@@ -197,6 +197,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   onPortDragStart(event: { nodeId: string; portType: 'input' | 'output'; portId: string; portIndex: number; event: MouseEvent }) {
     if (event.portType !== 'output') return;
+    event.event.preventDefault();
     this.pendingConnection.set({
       fromNodeId: event.nodeId,
       fromPortId: event.portId,
