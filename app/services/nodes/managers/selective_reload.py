@@ -15,7 +15,6 @@ from typing import Any, TYPE_CHECKING
 
 from app.core.logging import get_logger
 from app.repositories import NodeRepository
-from app.services.websocket.manager import manager as websocket_manager
 
 from ..node_factory import NodeFactory
 from ..config_hasher import compute_node_config_hash

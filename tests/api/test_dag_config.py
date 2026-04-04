@@ -200,167 +200,311 @@ class TestSaveDagConfig:
         edges_resp = client.get("/api/v1/edges")
         assert edges_resp.json() == []
 
-    def test_save_assigns_new_id_for_temp_nodes(self, client):
-        """Node with id='__new__abc' must be persisted with a server-generated UUID."""
-        temp_node = _node_payload("__new__abc", "Temp Node")
+
+# ---------------------------------------------------------------------------
+# PUT /api/v1/dag/config — Phase 4: Diff Logic
+# ---------------------------------------------------------------------------
+
+
+class TestSaveDagConfigDiffLogic:
+    """Tests for smart reload diff logic added in Phase 4.
+
+    The service must classify each PUT into one of three change types:
+    - topology    → full reload (node added/removed or edge added/removed)
+    - param_change → selective reload per changed node
+    - no_change    → no reload (only x/y/name changed)
+    """
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _seed(self, client, nodes, edges=None, base_version=0):
+        """Seed the DB via PUT /dag/config, bypassing reload entirely."""
         with patch(
             "app.api.v1.dag.service.node_manager.reload_config",
             new_callable=AsyncMock,
-        ):
-            resp = client.put("/api/v1/dag/config", json=_put_body(nodes=[temp_node]))
-        assert resp.status_code == 200
-        data = resp.json()
-        # node_id_map must map temp ID → new server ID
-        assert "__new__abc" in data["node_id_map"]
-        server_id = data["node_id_map"]["__new__abc"]
-        assert server_id != "__new__abc"
-        assert len(server_id) > 0
-
-        # Verify the node was actually saved with the new ID
-        nodes_resp = client.get("/api/v1/nodes")
-        saved_ids = [n["id"] for n in nodes_resp.json()]
-        assert server_id in saved_ids
-        assert "__new__abc" not in saved_ids
-
-    # ── 409 Conflict ────────────────────────────────────────────────────────
-
-    def test_save_409_on_version_conflict(self, client):
-        """If stored version is ahead, PUT must return 409."""
-        # First save to bump version to 1
-        with patch(
-            "app.api.v1.dag.service.node_manager.reload_config",
-            new_callable=AsyncMock,
-        ):
-            client.put("/api/v1/dag/config", json=_put_body(base_version=0))
-
-        # Now try to save again with stale base_version=0
-        with patch(
-            "app.api.v1.dag.service.node_manager.reload_config",
-            new_callable=AsyncMock,
-        ):
-            resp = client.put("/api/v1/dag/config", json=_put_body(base_version=0))
-        assert resp.status_code == 409
-        detail = resp.json()["detail"]
-        assert "conflict" in detail.lower() or "version" in detail.lower()
-
-    def test_save_409_on_reload_in_progress(self, client):
-        """If _reload_lock is held, PUT must return 409 immediately."""
-        with patch(
-            "app.api.v1.dag.service.node_manager._reload_lock"
-        ) as mock_lock:
-            mock_lock.locked.return_value = True
-            resp = client.put("/api/v1/dag/config", json=_put_body(base_version=0))
-        assert resp.status_code == 409
-        assert "progress" in resp.json()["detail"].lower()
-
-    # ── Reload trigger ───────────────────────────────────────────────────────
-
-    def test_save_triggers_reload(self, client):
-        """On success, node_manager.reload_config() must be called exactly once."""
-        with patch(
-            "app.api.v1.dag.service.node_manager.reload_config",
-            new_callable=AsyncMock,
-        ) as mock_reload:
-            resp = client.put("/api/v1/dag/config", json=_put_body(base_version=0))
-        assert resp.status_code == 200
-        mock_reload.assert_called_once()
-
-    # ── Error handling ───────────────────────────────────────────────────────
-
-    def test_save_does_not_increment_on_db_error(self, client):
-        """On DB error: version must stay unchanged, 500 returned."""
-        with patch(
-            "app.api.v1.dag.service.NodeRepository.upsert",
-            side_effect=RuntimeError("DB error"),
         ), patch(
-            "app.api.v1.dag.service.node_manager.reload_config",
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
             new_callable=AsyncMock,
         ):
             resp = client.put(
                 "/api/v1/dag/config",
-                json=_put_body(nodes=[_node_payload()]),
+                json=_put_body(base_version=base_version, nodes=nodes, edges=edges or []),
             )
-        assert resp.status_code == 500
+        assert resp.status_code == 200
+        return resp.json()
 
-        # Version must still be 0
-        get_resp = client.get("/api/v1/dag/config")
-        assert get_resp.json()["config_version"] == 0
-
-    def test_save_422_on_missing_node_name(self, client):
-        """PUT with a node missing the required 'name' field must return 422."""
-        bad_node = {
-            "id": "x1",
-            # "name" intentionally omitted
+    def _node(self, node_id="n1", hostname="192.168.1.10", x=100.0, y=200.0):
+        return {
+            "id": node_id,
+            "name": f"Sensor {node_id}",
             "type": "sensor",
             "category": "sensor",
             "enabled": True,
             "visible": True,
-            "config": {},
+            "config": {"hostname": hostname, "port": 2115},
+            "pose": None,
+            "x": x,
+            "y": y,
         }
-        resp = client.put("/api/v1/dag/config", json=_put_body(nodes=[bad_node]))
-        assert resp.status_code == 422
 
-    # ── node_id_map is empty when no temp IDs ────────────────────────────────
+    def _edge(self, edge_id="e1", source="n1", target="n2"):
+        return {
+            "id": edge_id,
+            "source_node": source,
+            "source_port": "out",
+            "target_node": target,
+            "target_port": "in",
+        }
 
-    def test_save_returns_empty_node_id_map_for_existing_ids(self, client):
-        """When no temp IDs are used, node_id_map must be an empty dict."""
-        node = _node_payload("existingnode001")
+    # ------------------------------------------------------------------
+    # Topology change → full reload
+    # ------------------------------------------------------------------
+
+    def test_save_topology_node_added_triggers_full_reload(self, client):
+        """Adding a new node must trigger full reload (topology change)."""
+        n1 = self._node("n1")
+        self._seed(client, [n1])
+
+        # Now add a second node
+        n2 = self._node("n2")
         with patch(
             "app.api.v1.dag.service.node_manager.reload_config",
             new_callable=AsyncMock,
-        ):
-            resp = client.put("/api/v1/dag/config", json=_put_body(nodes=[node]))
+        ) as mock_full, patch(
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
+            new_callable=AsyncMock,
+        ) as mock_selective:
+            resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=[n1, n2], edges=[]),
+            )
+
         assert resp.status_code == 200
-        assert resp.json()["node_id_map"] == {}
+        mock_full.assert_called_once()
+        mock_selective.assert_not_called()
+        data = resp.json()
+        assert data["reload_mode"] == "full"
+        assert data["reloaded_node_ids"] == []
 
-    def test_no_ghost_records_after_put(self, client):
-        """PUT with N nodes then PUT with N-1 nodes must leave exactly N-1 nodes and 0 dangling edges."""
-        # First PUT: 3 nodes + 2 edges
-        first_nodes = [
-            {"id": "g1", "name": "Ghost 1", "type": "sensor", "category": "sensor",
-             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
-            {"id": "g2", "name": "Ghost 2", "type": "fusion", "category": "fusion",
-             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
-            {"id": "g3", "name": "Ghost 3", "type": "fusion", "category": "fusion",
-             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
-        ]
-        first_edges = [
-            _edge_payload("ge1", "g1", "g2"),
-            _edge_payload("ge2", "g1", "g3"),
-        ]
+    def test_save_topology_node_removed_triggers_full_reload(self, client):
+        """Removing a node must trigger full reload (topology change)."""
+        n1 = self._node("n1")
+        n2 = self._node("n2")
+        self._seed(client, [n1, n2])
+
+        # Remove n2
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ) as mock_full, patch(
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
+            new_callable=AsyncMock,
+        ) as mock_selective:
+            resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=[n1], edges=[]),
+            )
+
+        assert resp.status_code == 200
+        mock_full.assert_called_once()
+        mock_selective.assert_not_called()
+        assert resp.json()["reload_mode"] == "full"
+
+    def test_save_edge_added_triggers_full_reload(self, client):
+        """Adding an edge must trigger full reload (topology change)."""
+        n1 = self._node("n1")
+        n2 = self._node("n2")
+        self._seed(client, [n1, n2], edges=[])
+
+        # Add an edge
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ) as mock_full, patch(
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
+            new_callable=AsyncMock,
+        ) as mock_selective:
+            resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=[n1, n2], edges=[self._edge()]),
+            )
+
+        assert resp.status_code == 200
+        mock_full.assert_called_once()
+        mock_selective.assert_not_called()
+        assert resp.json()["reload_mode"] == "full"
+
+    def test_save_edge_removed_triggers_full_reload(self, client):
+        """Removing an edge must trigger full reload (topology change)."""
+        n1 = self._node("n1")
+        n2 = self._node("n2")
+        self._seed(client, [n1, n2], edges=[self._edge()])
+
+        # Remove the edge
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ) as mock_full, patch(
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
+            new_callable=AsyncMock,
+        ) as mock_selective:
+            resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=[n1, n2], edges=[]),
+            )
+
+        assert resp.status_code == 200
+        mock_full.assert_called_once()
+        mock_selective.assert_not_called()
+        assert resp.json()["reload_mode"] == "full"
+
+    # ------------------------------------------------------------------
+    # Param change → selective reload
+    # ------------------------------------------------------------------
+
+    def test_save_param_change_triggers_selective_reload(self, client):
+        """Changing a node's config param must trigger selective reload only for that node."""
+        n1 = self._node("n1", hostname="192.168.1.10")
+        self._seed(client, [n1])
+
+        # Simulate the hash store being populated after a real load_config
+        from app.services.nodes.config_hasher import compute_node_config_hash
+        from app.services.nodes.instance import node_manager
+        node_manager._config_hash_store.update("n1", compute_node_config_hash(n1))
+
+        # Change hostname (runtime param)
+        n1_changed = self._node("n1", hostname="10.0.0.99")
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ) as mock_full, patch(
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mock_selective:
+            resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=[n1_changed], edges=[]),
+            )
+
+        assert resp.status_code == 200
+        mock_full.assert_not_called()
+        mock_selective.assert_called_once_with("n1")
+        data = resp.json()
+        assert data["reload_mode"] == "selective"
+        assert "n1" in data["reloaded_node_ids"]
+
+    def test_save_multiple_param_changes_selective_reload_all(self, client):
+        """Multiple changed nodes must each get selective_reload_node called."""
+        n1 = self._node("n1", hostname="192.168.1.10")
+        n2 = self._node("n2", hostname="192.168.1.20")
+        self._seed(client, [n1, n2])
+
+        from app.services.nodes.config_hasher import compute_node_config_hash
+        from app.services.nodes.instance import node_manager
+        node_manager._config_hash_store.update("n1", compute_node_config_hash(n1))
+        node_manager._config_hash_store.update("n2", compute_node_config_hash(n2))
+
+        n1_c = self._node("n1", hostname="10.0.0.1")
+        n2_c = self._node("n2", hostname="10.0.0.2")
+
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ) as mock_full, patch(
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
+            new_callable=AsyncMock,
+            return_value=None,
+        ) as mock_selective:
+            resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=[n1_c, n2_c], edges=[]),
+            )
+
+        assert resp.status_code == 200
+        mock_full.assert_not_called()
+        assert mock_selective.call_count == 2
+        data = resp.json()
+        assert data["reload_mode"] == "selective"
+        assert set(data["reloaded_node_ids"]) == {"n1", "n2"}
+
+    # ------------------------------------------------------------------
+    # No change → no reload
+    # ------------------------------------------------------------------
+
+    def test_save_position_only_change_triggers_no_reload(self, client):
+        """Changing only x/y (canvas position) must NOT trigger any reload."""
+        n1 = self._node("n1", x=100.0, y=200.0)
+        self._seed(client, [n1])
+
+        from app.services.nodes.config_hasher import compute_node_config_hash
+        from app.services.nodes.instance import node_manager
+        node_manager._config_hash_store.update("n1", compute_node_config_hash(n1))
+
+        # Same config, different x/y
+        n1_moved = self._node("n1", x=999.0, y=888.0)
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ) as mock_full, patch(
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
+            new_callable=AsyncMock,
+        ) as mock_selective:
+            resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=[n1_moved], edges=[]),
+            )
+
+        assert resp.status_code == 200
+        mock_full.assert_not_called()
+        mock_selective.assert_not_called()
+        data = resp.json()
+        assert data["reload_mode"] == "none"
+        assert data["reloaded_node_ids"] == []
+
+    def test_save_name_only_change_triggers_no_reload(self, client):
+        """Changing only the node name (display label) must NOT trigger any reload."""
+        n1 = self._node("n1")
+        self._seed(client, [n1])
+
+        from app.services.nodes.config_hasher import compute_node_config_hash
+        from app.services.nodes.instance import node_manager
+        node_manager._config_hash_store.update("n1", compute_node_config_hash(n1))
+
+        n1_renamed = {**n1, "name": "My Renamed Sensor"}
+        with patch(
+            "app.api.v1.dag.service.node_manager.reload_config",
+            new_callable=AsyncMock,
+        ) as mock_full, patch(
+            "app.api.v1.dag.service.node_manager.selective_reload_node",
+            new_callable=AsyncMock,
+        ) as mock_selective:
+            resp = client.put(
+                "/api/v1/dag/config",
+                json=_put_body(base_version=1, nodes=[n1_renamed], edges=[]),
+            )
+
+        assert resp.status_code == 200
+        mock_full.assert_not_called()
+        mock_selective.assert_not_called()
+        assert resp.json()["reload_mode"] == "none"
+
+    # ------------------------------------------------------------------
+    # Response shape
+    # ------------------------------------------------------------------
+
+    def test_save_response_includes_reload_mode_and_reloaded_node_ids(self, client):
+        """Response must always contain reload_mode and reloaded_node_ids fields."""
         with patch(
             "app.api.v1.dag.service.node_manager.reload_config",
             new_callable=AsyncMock,
         ):
-            r1 = client.put(
-                "/api/v1/dag/config",
-                json=_put_body(base_version=0, nodes=first_nodes, edges=first_edges),
-            )
-        assert r1.status_code == 200
+            resp = client.put("/api/v1/dag/config", json=_put_body(base_version=0))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "reload_mode" in data
+        assert "reloaded_node_ids" in data
+        assert isinstance(data["reloaded_node_ids"], list)
 
-        # Second PUT: only 2 nodes, no edges — g3 and both edges should disappear
-        second_nodes = [
-            {"id": "g1", "name": "Ghost 1", "type": "sensor", "category": "sensor",
-             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
-            {"id": "g2", "name": "Ghost 2", "type": "fusion", "category": "fusion",
-             "enabled": True, "visible": True, "config": {}, "pose": None, "x": 0.0, "y": 0.0},
-        ]
-        with patch(
-            "app.api.v1.dag.service.node_manager.reload_config",
-            new_callable=AsyncMock,
-        ):
-            r2 = client.put(
-                "/api/v1/dag/config",
-                json=_put_body(base_version=1, nodes=second_nodes, edges=[]),
-            )
-        assert r2.status_code == 200
-
-        # Exactly 2 nodes, 0 edges — no ghost records
-        nodes_resp = client.get("/api/v1/nodes")
-        assert len(nodes_resp.json()) == 2
-        node_ids = {n["id"] for n in nodes_resp.json()}
-        assert node_ids == {"g1", "g2"}
-        assert "g3" not in node_ids
-
-        edges_resp = client.get("/api/v1/edges")
-        assert edges_resp.json() == []

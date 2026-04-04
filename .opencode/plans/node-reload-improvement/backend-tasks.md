@@ -12,12 +12,12 @@
 ## Phase 1: Foundation — New Services and Data Structures
 
 ### 1.1 Config Hasher Module
-- [ ] Create `app/services/nodes/config_hasher.py`
-  - [ ] Implement `compute_node_config_hash(node_data: Dict[str, Any]) -> str`
+- [x] Create `app/services/nodes/config_hasher.py`
+  - [x] Implement `compute_node_config_hash(node_data: Dict[str, Any]) -> str`
     - SHA-256 over canonicalized JSON of keys: `id, type, category, enabled, visible, config, pose`
     - Explicitly exclude `x`, `y` (canvas-only, no runtime effect)
     - Use `json.dumps(sorted_dict, sort_keys=True, default=str)` for deterministic serialization
-  - [ ] Implement `ConfigHashStore` class:
+  - [x] Implement `ConfigHashStore` class:
     - `def update(self, node_id: str, hash_val: str) -> None`
     - `def get(self, node_id: str) -> Optional[str]`
     - `def remove(self, node_id: str) -> None`
@@ -25,8 +25,8 @@
     - Internal: `_hashes: Dict[str, str] = {}`
 
 ### 1.2 Input Gate Module
-- [ ] Create `app/services/nodes/input_gate.py`
-  - [ ] Implement `NodeInputGate` class:
+- [x] Create `app/services/nodes/input_gate.py`
+  - [x] Implement `NodeInputGate` class:
     - `__init__(self, capacity: int = 30)` — creates `asyncio.Event` (initially set = open) and `asyncio.Queue(maxsize=capacity)`
     - `def is_open(self) -> bool` — returns `self._gate.is_set()`
     - `async def pause(self) -> None` — clears the gate event
@@ -34,25 +34,25 @@
     - `def buffer_nowait(self, payload: Any) -> bool` — `put_nowait`, returns False (with DEBUG log) if queue full
 
 ### 1.3 Schema Updates
-- [ ] Update `app/schemas/status.py`:
-  - [ ] Add `ReloadEvent` Pydantic model (fields: `node_id`, `status`, `error_message`, `reload_mode`, `timestamp`)
-  - [ ] Add optional `reload_event: Optional[ReloadEvent] = None` field to `SystemStatusBroadcast`
-- [ ] Update `app/api/v1/schemas/dag.py`:
-  - [ ] Add `reload_mode: Literal["selective", "full", "none"]` to `DagConfigSaveResponse`
-  - [ ] Add `reloaded_node_ids: List[str]` to `DagConfigSaveResponse`
-- [ ] Create new schemas in `app/api/v1/schemas/nodes.py` (or new file):
-  - [ ] `NodeReloadResponse` model
-  - [ ] `ReloadStatusResponse` model
-  - [ ] `SelectiveReloadResult` internal model (not exposed via REST directly, used in service layer)
+- [x] Update `app/schemas/status.py`:
+  - [x] Add `ReloadEvent` Pydantic model (fields: `node_id`, `status`, `error_message`, `reload_mode`, `timestamp`)
+  - [x] Add optional `reload_event: Optional[ReloadEvent] = None` field to `SystemStatusBroadcast`
+- [x] Update `app/api/v1/schemas/dag.py`:
+  - [x] Add `reload_mode: Literal["selective", "full", "none"]` to `DagConfigSaveResponse`
+  - [x] Add `reloaded_node_ids: List[str]` to `DagConfigSaveResponse`
+- [x] Create new schemas in `app/api/v1/schemas/nodes.py` (or new file):
+  - [x] `NodeReloadResponse` model
+  - [x] `ReloadStatusResponse` model
+  - [x] `SelectiveReloadResult` internal model (not exposed via REST directly, used in service layer)
 
 ---
 
 ## Phase 2: Selective Reload Manager
 
 ### 2.1 Create `SelectiveReloadManager`
-- [ ] Create `app/services/nodes/managers/selective_reload.py`
-  - [ ] Class `SelectiveReloadManager` with `__init__(self, manager_ref)`
-  - [ ] Implement `async def reload_single_node(self, node_id: str) -> SelectiveReloadResult`:
+- [x] Create `app/services/nodes/managers/selective_reload.py`
+  - [x] Class `SelectiveReloadManager` with `__init__(self, manager_ref)`
+  - [x] Implement `async def reload_single_node(self, node_id: str) -> SelectiveReloadResult`:
     1. Record start timestamp
     2. Read `old_instance = self.manager.nodes[node_id]` (KeyError → raise ValueError)
     3. Read `preserved_topic = old_instance._ws_topic` (may be None)
@@ -73,31 +73,31 @@
     16. For each downstream: `await gate.resume_and_drain(downstream_node_instance)`; delete gate from `self.manager._input_gates`
     17. Clear rollback slot: `self.manager._rollback_slot.pop(node_id, None)`
     18. Return `SelectiveReloadResult(status="reloaded", duration_ms=elapsed, ...)`
-  - [ ] Implement error handling within `reload_single_node`:
+  - [x] Implement error handling within `reload_single_node`:
     - On any exception after step 8 (node removed): attempt rollback — restore old instance from `_rollback_slot`, call `old_instance.start()` or `old_instance.enable()` if running
     - Always clean up input gates on exception (resume all paused downstream nodes before propagating)
     - Return `SelectiveReloadResult(status="error", ...)` on non-recoverable error
 
 ### 2.2 Register NodeRepository `get()` method if missing
-- [ ] Verify `app/repositories/__init__.py` and `NodeRepository` have a `.get(node_id: str) -> dict` method
-- [ ] If absent, add it to `NodeRepository` (single-row lookup by primary key)
+- [x] Verify `app/repositories/__init__.py` and `NodeRepository` have a `.get(node_id: str) -> dict` method
+- [x] If absent, add it to `NodeRepository` (single-row lookup by primary key)
 
 ### 2.3 Update `app/services/nodes/managers/__init__.py`
-- [ ] Export `SelectiveReloadManager` from the package
+- [x] Export `SelectiveReloadManager` from the package
 
 ---
 
 ## Phase 3: NodeManager Integration
 
 ### 3.1 Update `NodeManager.__init__`
-- [ ] Add `_selective_reload_manager = SelectiveReloadManager(self)` (after existing sub-managers)
-- [ ] Add `_config_hash_store = ConfigHashStore()` 
-- [ ] Add `_input_gates: Dict[str, NodeInputGate] = {}` (active gates during reload)
-- [ ] Add `_rollback_slot: Dict[str, Any] = {}` (old instances during reload)
-- [ ] Add `_active_reload_node_id: Optional[str] = None` (for status endpoint)
+- [x] Add `_selective_reload_manager = SelectiveReloadManager(self)` (after existing sub-managers)
+- [x] Add `_config_hash_store = ConfigHashStore()` 
+- [x] Add `_input_gates: Dict[str, NodeInputGate] = {}` (active gates during reload)
+- [x] Add `_rollback_slot: Dict[str, Any] = {}` (old instances during reload)
+- [x] Add `_active_reload_node_id: Optional[str] = None` (for status endpoint)
 
 ### 3.2 Update `NodeManager.load_config`
-- [ ] After `initialize_nodes()` completes, populate the hash store:
+- [x] After `initialize_nodes()` completes, populate the hash store:
   ```python
   for node_data in self.nodes_data:
       if node_data.get("enabled", True):
@@ -106,10 +106,10 @@
               compute_node_config_hash(node_data)
           )
   ```
-- [ ] On full reload, call `self._config_hash_store.clear()` before re-populating
+- [x] On full reload, call `self._config_hash_store.clear()` before re-populating
 
 ### 3.3 Add `NodeManager.selective_reload_node()`
-- [ ] Implement `async def selective_reload_node(self, node_id: str) -> SelectiveReloadResult`:
+- [x] Implement `async def selective_reload_node(self, node_id: str) -> SelectiveReloadResult`:
   ```python
   async with self._reload_lock:
       self._active_reload_node_id = node_id
@@ -122,7 +122,7 @@
       finally:
           self._active_reload_node_id = None
   ```
-- [ ] Implement `async def _broadcast_reload_event(self, node_id, status, reload_mode, error_message=None)`:
+- [x] Implement `async def _broadcast_reload_event(self, node_id, status, reload_mode, error_message=None)`:
   - Constructs `SystemStatusBroadcast(nodes=[], reload_event=ReloadEvent(...))`
   - Calls `manager.broadcast("system_status", payload.model_dump())`
 
@@ -131,7 +131,7 @@
 ## Phase 4: DAG Save Service — Diff Logic
 
 ### 4.1 Add Change Classification to `save_dag_config`
-- [ ] In `app/api/v1/dag/service.py`, after the DB transaction (step 3), add diff logic:
+- [x] In `app/api/v1/dag/service.py`, after the DB transaction (step 3), add diff logic:
   ```python
   def _classify_dag_changes(
       node_manager,
@@ -148,7 +148,7 @@
   - Return `("param_change", changed_ids)` or `("no_change", [])`
 
 ### 4.2 Update the reload trigger in `save_dag_config`
-- [ ] Replace the current Step 4 (always calls `reload_config()`) with:
+- [x] Replace the current Step 4 (always calls `reload_config()`) with:
   ```python
   change_type, changed_ids = _classify_dag_changes(...)
   if change_type == "topology":
@@ -164,17 +164,17 @@
       reload_mode = "none"
       reloaded_ids = []
   ```
-- [ ] Update `DagConfigSaveResponse` construction to include `reload_mode` and `reloaded_node_ids`
+- [x] Update `DagConfigSaveResponse` construction to include `reload_mode` and `reloaded_node_ids`
 
 ### 4.3 Snapshot existing edges before transaction for diff
-- [ ] Read `existing_edges = edge_repo.list()` before the delete/upsert block (needed for edge diff)
+- [x] Read `existing_edges = edge_repo.list()` before the delete/upsert block (needed for edge diff)
 
 ---
 
 ## Phase 5: New REST Endpoints
 
 ### 5.1 Add `POST /api/v1/nodes/{node_id}/reload` endpoint
-- [ ] Create `app/api/v1/nodes/reload_handler.py` (or add to existing nodes handler):
+- [x] Create `app/api/v1/nodes/reload_handler.py` (or add to existing nodes handler):
   - `POST /nodes/{node_id}/reload` → calls `node_manager.selective_reload_node(node_id)`
   - Returns `NodeReloadResponse`
   - Returns 404 if `node_id not in node_manager.nodes`
@@ -182,21 +182,21 @@
   - Returns 500 with rollback status message on failure
 
 ### 5.2 Add `GET /api/v1/nodes/reload/status` endpoint
-- [ ] Add to reload handler or nodes service:
+- [x] Add to reload handler or nodes service:
   - Returns `ReloadStatusResponse`
   - Reads `node_manager._reload_lock.locked()`
   - Reads `node_manager._active_reload_node_id`
   - `estimated_completion_ms`: 150 for selective, 3000 for full (static estimate for v1)
 
 ### 5.3 Register new routes in `app/api/v1/router.py` (or equivalent)
-- [ ] Register the new nodes reload endpoints under `/api/v1/nodes`
+- [x] Register the new nodes reload endpoints under `/api/v1/nodes`
 
 ---
 
 ## Phase 6: DataRouter — Input Gate Integration
 
 ### 6.1 Update `DataRouter._forward_to_downstream_nodes`
-- [ ] Add gate check before calling `_send_to_target_node`:
+- [x] Add gate check before calling `_send_to_target_node`:
   ```python
   gate = self.manager._input_gates.get(target_id)
   if gate is not None:
@@ -204,73 +204,73 @@
           gate.buffer_nowait(payload)
           continue
   ```
-- [ ] Ensure the gate check is **O(1)** dict lookup — no additional overhead when no gates are active
-- [ ] Add a comment explaining the gate lifecycle (created at pause, deleted after drain)
+- [x] Ensure the gate check is **O(1)** dict lookup — no additional overhead when no gates are active
+- [x] Add a comment explaining the gate lifecycle (created at pause, deleted after drain)
 
 ---
 
 ## Phase 7: Tests
 
 ### 7.1 Unit Tests — `ConfigHasher`
-- [ ] Create `tests/services/nodes/test_config_hasher.py`
-  - [ ] `test_hash_is_deterministic`: same input → same hash
-  - [ ] `test_hash_differs_on_config_change`: modify `config.hostname` → different hash
-  - [ ] `test_hash_ignores_position`: same config, different x/y → same hash
-  - [ ] `test_hash_differs_on_pose_change`: modify `pose.yaw` → different hash
-  - [ ] `test_hash_differs_on_enabled_toggle`: `enabled=False` → different hash
-  - [ ] `test_config_hash_store_update_get`: update/get/remove/clear lifecycle
+- [x] Create `tests/services/nodes/test_config_hasher.py`
+  - [x] `test_hash_is_deterministic`: same input → same hash
+  - [x] `test_hash_differs_on_config_change`: modify `config.hostname` → different hash
+  - [x] `test_hash_ignores_position`: same config, different x/y → same hash
+  - [x] `test_hash_differs_on_pose_change`: modify `pose.yaw` → different hash
+  - [x] `test_hash_differs_on_enabled_toggle`: `enabled=False` → different hash
+  - [x] `test_config_hash_store_update_get`: update/get/remove/clear lifecycle
 
 ### 7.2 Unit Tests — `NodeInputGate`
-- [ ] Create `tests/services/nodes/test_input_gate.py`
-  - [ ] `test_gate_open_by_default`: `is_open()` returns True on construction
-  - [ ] `test_pause_blocks_is_open`: after `pause()`, `is_open()` returns False
-  - [ ] `test_buffer_nowait_when_paused`: payload stored in queue
-  - [ ] `test_buffer_drops_when_full`: at capacity 1, second put returns False
-  - [ ] `test_resume_drains_buffer_in_order`: 3 buffered frames delivered in FIFO order
-  - [ ] `test_resume_calls_on_input_for_each_frame`: mock target node; verify `on_input` call count
+- [x] Create `tests/services/nodes/test_input_gate.py`
+  - [x] `test_gate_open_by_default`: `is_open()` returns True on construction
+  - [x] `test_pause_blocks_is_open`: after `pause()`, `is_open()` returns False
+  - [x] `test_buffer_nowait_when_paused`: payload stored in queue
+  - [x] `test_buffer_drops_when_full`: at capacity 1, second put returns False
+  - [x] `test_resume_drains_buffer_in_order`: 3 buffered frames delivered in FIFO order
+  - [x] `test_resume_calls_on_input_for_each_frame`: mock target node; verify `on_input` call count
 
 ### 7.3 Unit Tests — `SelectiveReloadManager`
-- [ ] Create `tests/services/nodes/test_selective_reload.py`
-  - [ ] `test_selective_reload_replaces_node_instance`: new instance in `nodes[node_id]`
-  - [ ] `test_selective_reload_preserves_ws_topic`: `new_instance._ws_topic == old_instance._ws_topic`
-  - [ ] `test_selective_reload_no_unregister_topic_called`: `websocket_manager.unregister_topic` NOT called
-  - [ ] `test_selective_reload_pauses_downstream_before_stop`: gate.pause() called before old_instance.stop()
-  - [ ] `test_selective_reload_resumes_downstream_after_start`: gate.resume_and_drain() called after new instance starts
-  - [ ] `test_selective_reload_rollback_on_factory_failure`: NodeFactory raises → old instance restored
-  - [ ] `test_selective_reload_rollback_on_start_failure`: start() raises → old instance restored
-  - [ ] `test_selective_reload_updates_hash_store`: new hash stored after success
+- [x] Create `tests/services/nodes/test_selective_reload.py`
+  - [x] `test_selective_reload_replaces_node_instance`: new instance in `nodes[node_id]`
+  - [x] `test_selective_reload_preserves_ws_topic`: `new_instance._ws_topic == old_instance._ws_topic`
+  - [x] `test_selective_reload_no_unregister_topic_called`: `websocket_manager.unregister_topic` NOT called
+  - [x] `test_selective_reload_pauses_downstream_before_stop`: gate.pause() called before old_instance.stop()
+  - [x] `test_selective_reload_resumes_downstream_after_start`: gate.resume_and_drain() called after new instance starts
+  - [x] `test_selective_reload_rollback_on_factory_failure`: NodeFactory raises → old instance restored
+  - [x] `test_selective_reload_rollback_on_start_failure`: start() raises → old instance restored
+  - [x] `test_selective_reload_updates_hash_store`: new hash stored after success
 
 ### 7.4 Integration Tests — `save_dag_config` diff logic
-- [ ] Update `tests/api/test_dag_config.py` → `TestSaveDagConfig`:
-  - [ ] `test_save_param_change_triggers_selective_reload`: mock `selective_reload_node`, not `reload_config`
-  - [ ] `test_save_topology_change_triggers_full_reload`: add new node → `reload_config` called
-  - [ ] `test_save_edge_change_triggers_full_reload`: add/remove edge → `reload_config` called
-  - [ ] `test_save_position_only_change_triggers_no_reload`: only x/y changed → neither reload called
-  - [ ] `test_save_response_includes_reload_mode`: response has `reload_mode` and `reloaded_node_ids`
+- [x] Update `tests/api/test_dag_config.py` → `TestSaveDagConfig`:
+  - [x] `test_save_param_change_triggers_selective_reload`: mock `selective_reload_node`, not `reload_config`
+  - [x] `test_save_topology_change_triggers_full_reload`: add new node → `reload_config` called
+  - [x] `test_save_edge_change_triggers_full_reload`: add/remove edge → `reload_config` called
+  - [x] `test_save_position_only_change_triggers_no_reload`: only x/y changed → neither reload called
+  - [x] `test_save_response_includes_reload_mode`: response has `reload_mode` and `reloaded_node_ids`
   - [ ] `test_save_409_when_lock_held`: concurrent save rejected with 409
 
 ### 7.5 Integration Tests — new endpoints
-- [ ] Create `tests/api/test_node_selective_reload.py`:
-  - [ ] `test_post_node_reload_success`: 200 with NodeReloadResponse
-  - [ ] `test_post_node_reload_404_unknown_node`: 404
-  - [ ] `test_post_node_reload_409_lock_held`: 409
-  - [ ] `test_get_reload_status_idle`: locked=False
-  - [ ] `test_get_reload_status_during_reload`: locked=True, active_reload_node_id set
+- [x] Create `tests/api/test_node_selective_reload.py`:
+  - [x] `test_post_node_reload_success`: 200 with NodeReloadResponse
+  - [x] `test_post_node_reload_404_unknown_node`: 404
+  - [x] `test_post_node_reload_409_lock_held`: 409
+  - [x] `test_get_reload_status_idle`: locked=False
+  - [x] `test_get_reload_status_during_reload`: locked=True, active_reload_node_id set
 
 ### 7.6 Tests — DataRouter gate integration
-- [ ] Update `tests/services/nodes/test_routing.py` (or create):
-  - [ ] `test_forward_skips_paused_downstream`: when gate is paused, payload buffered, on_input NOT called
-  - [ ] `test_forward_normal_when_no_gate`: gate=None, on_input called normally
+- [x] Update `tests/services/nodes/test_routing.py` (or create):
+  - [x] `test_forward_skips_paused_downstream`: when gate is paused, payload buffered, on_input NOT called
+  - [x] `test_forward_normal_when_no_gate`: gate=None, on_input called normally
 
 ---
 
 ## Phase 8: Linting & Quality
 
-- [ ] Run `ruff check app/` and fix all issues in new files
-- [ ] Run `mypy app/services/nodes/managers/selective_reload.py` — ensure strict type compliance
-- [ ] Run `mypy app/services/nodes/config_hasher.py`
-- [ ] Run `mypy app/services/nodes/input_gate.py`
-- [ ] Verify no circular imports: `python -c "from app.services.nodes.managers.selective_reload import SelectiveReloadManager"`
+- [x] Run `ruff check app/` and fix all issues in new files
+- [x] Run `mypy app/services/nodes/managers/selective_reload.py` — ensure strict type compliance (no new errors; pre-existing errors in unrelated files only)
+- [x] Run `mypy app/services/nodes/config_hasher.py`
+- [x] Run `mypy app/services/nodes/input_gate.py`
+- [x] Verify no circular imports: `python -c "from app.services.nodes.managers.selective_reload import SelectiveReloadManager"`
 
 ---
 

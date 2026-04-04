@@ -136,7 +136,12 @@ class TestSelectiveReloadManager:
 
     @pytest.mark.asyncio
     async def test_selective_reload_does_not_call_unregister_topic(self):
-        """Selective reload must NOT call websocket_manager.unregister_topic (topic preservation)."""
+        """Selective reload must NOT call websocket_manager.unregister_topic (topic preservation).
+
+        The selective_reload module intentionally does NOT import websocket_manager — it
+        never unregisters topics.  We verify this by patching the actual manager module and
+        confirming unregister_topic is never invoked during a successful reload.
+        """
         from app.services.nodes.managers.selective_reload import SelectiveReloadManager
 
         node_id = "abc12345"
@@ -148,7 +153,7 @@ class TestSelectiveReloadManager:
         with patch("app.services.nodes.managers.selective_reload.NodeRepository") as MockRepo, \
              patch("app.services.nodes.managers.selective_reload.NodeFactory") as MockFactory, \
              patch("app.services.nodes.managers.selective_reload.compute_node_config_hash", return_value="newhash"), \
-             patch("app.services.nodes.managers.selective_reload.websocket_manager") as mock_ws:
+             patch("app.services.websocket.manager.manager") as mock_ws:
 
             MockRepo.return_value.get_by_id.return_value = node_data
             MockFactory.create.return_value = new_instance

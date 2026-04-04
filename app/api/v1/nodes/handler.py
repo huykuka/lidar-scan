@@ -7,11 +7,17 @@ PUT /api/v1/dag/config. This router retains read-only and live-action endpoints.
 
 from fastapi import APIRouter
 from app.services.nodes.schema import NodeDefinition
-from app.api.v1.schemas.nodes import NodeRecord, NodesStatusResponse
+from app.api.v1.schemas.nodes import (
+    NodeRecord,
+    NodesStatusResponse,
+    NodeReloadResponse,
+    ReloadStatusResponse,
+)
 from app.api.v1.schemas.common import StatusResponse
 from .service import (
     list_nodes, list_node_definitions, get_node,
     set_node_enabled, set_node_visible, reload_all_config, get_nodes_status,
+    reload_single_node, get_reload_status,
     NodeStatusToggle, NodeVisibilityToggle
 )
 
@@ -38,6 +44,42 @@ async def nodes_list_endpoint():
 )
 async def nodes_definitions_endpoint():
     return await list_node_definitions()
+
+
+@router.get(
+    "/nodes/reload/status",
+    response_model=ReloadStatusResponse,
+    summary="Get Reload Status",
+    description="Returns the current state of the reload lock and any in-progress selective reload.",
+)
+async def nodes_reload_status_endpoint():
+    return await get_reload_status()
+
+
+@router.post(
+    "/nodes/reload",
+    response_model=StatusResponse,
+    responses={409: {"description": "Reload in progress"}},
+    summary="Reload Configuration",
+    description="Reload all node configurations from database.",
+)
+async def nodes_reload_endpoint():
+    return await reload_all_config()
+
+
+@router.post(
+    "/nodes/{node_id}/reload",
+    response_model=NodeReloadResponse,
+    responses={
+        404: {"description": "Node not found in running DAG"},
+        409: {"description": "A reload is already in progress"},
+        500: {"description": "Reload failed"},
+    },
+    summary="Selective Node Reload",
+    description="Reload a single node's runtime in-place without affecting other nodes or WebSocket connections.",
+)
+async def node_reload_endpoint(node_id: str):
+    return await reload_single_node(node_id)
 
 
 @router.get(
@@ -73,17 +115,6 @@ async def node_visible_endpoint(node_id: str, req: NodeVisibilityToggle):
 )
 async def node_enabled_endpoint(node_id: str, req: NodeStatusToggle):
     return await set_node_enabled(node_id, req)
-
-
-@router.post(
-    "/nodes/reload",
-    response_model=StatusResponse,
-    responses={409: {"description": "Reload in progress"}},
-    summary="Reload Configuration",
-    description="Reload all node configurations from database.",
-)
-async def nodes_reload_endpoint():
-    return await reload_all_config()
 
 
 @router.get(

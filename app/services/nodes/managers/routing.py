@@ -159,6 +159,11 @@ class DataRouter:
         are forwarded.  String-format (legacy, portless) edges are always forwarded
         when active_port is None, and skipped when active_port is set (they carry no
         port information so they cannot match).
+
+        Input-gate awareness: if a NodeInputGate exists for a target in
+        ``manager._input_gates`` and that gate is paused (closed), the payload is
+        buffered via ``gate.buffer_nowait()`` instead of calling ``on_input``.
+        This is an O(1) dict lookup — no overhead when no gates are active.
         
         Args:
             source_id: Source node ID
@@ -179,7 +184,16 @@ class DataRouter:
             
             if self._should_skip_due_to_throttling(source_id, target_id):
                 continue
-            
+
+            # ── Input-gate check (O(1) dict lookup) ──────────────────────
+            # Gate lifecycle: created at pause, deleted after drain in SelectiveReloadManager.
+            # When gate is paused, buffer the payload rather than forwarding — the gate will
+            # drain the buffer and call on_input after the new node instance is started.
+            gate = self.manager._input_gates.get(target_id)
+            if gate is not None and not gate.is_open():
+                gate.buffer_nowait(payload)
+                continue
+
             await self._send_to_target_node(source_id, target_id, payload)
     
     def _should_skip_due_to_throttling(self, source_id: str, target_id: str) -> bool:
