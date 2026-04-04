@@ -1,4 +1,4 @@
-import {Component, effect, HostListener, inject, OnInit, signal} from '@angular/core';
+import {Component, computed, effect, HostListener, inject, OnInit, signal} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
 import {NavigationService, ToastService} from '@core/services';
@@ -33,6 +33,18 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
   protected isSystemRunning = this.systemStatus.isRunning;
+
+  /** Derived status text for the reload feedback line (disappears on 'ready'). */
+  protected reloadStatusText = computed<string | null>(() => {
+    const event = this.systemStatus.lastReloadEvent();
+    if (!event || event.status === 'ready') return null;
+    if (event.status === 'error') return null; // error is shown via toast
+    // status === 'reloading'
+    return event.reload_mode === 'full' ? 'Reloading DAG…' : 'Reloading node…';
+  });
+
+  /** True when at least one node is currently reloading — used to disable the Save button. */
+  protected isNodeReloading = computed(() => this.systemStatus.reloadingNodeIds().size > 0);
 
   // Phase 4.1: feature-scoped canvas edit store
   protected canvasEditStore = inject(CanvasEditStoreService);

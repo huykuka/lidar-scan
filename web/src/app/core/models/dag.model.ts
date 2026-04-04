@@ -15,6 +15,8 @@ export interface DagConfigSaveRequest {
 export interface DagConfigSaveResponse {
   config_version: number;
   node_id_map: Record<string, string>;
+  reload_mode: 'selective' | 'full' | 'none';
+  reloaded_node_ids: string[];
 }
 
 export interface DagConflictError {

@@ -26,6 +26,7 @@ export class FlowCanvasNodeComponent {
   isLoading = input<boolean>(false);
   isDragging = input<boolean>(false);
   isTogglingVisibility = input<boolean>(false);
+  isReloading = input<boolean>(false);
   onEdit = output<void>();
   onToggleEnabled = output<boolean>();
   onToggleVisibility = output<boolean>();

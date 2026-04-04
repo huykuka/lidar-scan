@@ -29,6 +29,8 @@ const MOCK_DAG_CONFIG: DagConfigResponse = {
 const MOCK_SAVE_RESPONSE: DagConfigSaveResponse = {
   config_version: 2,
   node_id_map: {},
+  reload_mode: 'selective',
+  reloaded_node_ids: ['mock-node-001'],
 };
 
 // ---------------------------------------------------------------------------

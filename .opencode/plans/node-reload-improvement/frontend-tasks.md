@@ -48,12 +48,12 @@
 ## Phase 3: SystemStatusService — Reload Event Handling
 
 ### 3.1 Parse `reload_event` from incoming `system_status` broadcasts
-- [ ] Update `web/src/app/core/services/system-status.service.ts`:
-  - [ ] Add private signal: `private _reloadingNodeIds = signal<Set<string>>(new Set())`
-  - [ ] Add private signal: `private _lastReloadEvent = signal<ReloadEvent | null>(null)`
-  - [ ] Expose as readonly: `readonly reloadingNodeIds = this._reloadingNodeIds.asReadonly()`
-  - [ ] Expose as readonly: `readonly lastReloadEvent = this._lastReloadEvent.asReadonly()`
-  - [ ] In the WebSocket message handler (`onmessage` / Observable subscription), add:
+- [x] Update `web/src/app/core/services/system-status.service.ts`:
+  - [x] Add private signal: `private _reloadingNodeIds = signal<Set<string>>(new Set())`
+  - [x] Add private signal: `private _lastReloadEvent = signal<ReloadEvent | null>(null)`
+  - [x] Expose as readonly: `readonly reloadingNodeIds = this._reloadingNodeIds.asReadonly()`
+  - [x] Expose as readonly: `readonly lastReloadEvent = this._lastReloadEvent.asReadonly()`
+  - [x] In the WebSocket message handler (`onmessage` / Observable subscription), add:
     ```typescript
     if (broadcast.reload_event) {
       this._lastReloadEvent.set(broadcast.reload_event);
@@ -72,10 +72,10 @@
       }
     }
     ```
-  - [ ] Clear `_reloadingNodeIds` on WebSocket disconnect / reconnect events
+  - [x] Clear `_reloadingNodeIds` on WebSocket disconnect / reconnect events
 
 ### 3.2 Add mock replay in dev mode
-- [ ] Add a `triggerMockReloadSequence(nodeId: string): void` method (dev/test only, guarded by `!environment.production`)
+- [x] Add a `triggerMockReloadSequence(nodeId: string): void` method (dev/test only, guarded by `!environment.production`)
   - Uses `setTimeout` to simulate reloading → ready sequence from `api-spec.md` mock data
 
 ---
@@ -83,79 +83,38 @@
 ## Phase 4: `CanvasEditStoreService` — Debounce and Reload Feedback
 
 ### 4.1 Add 150ms debounce to `saveAndReload()`
-- [ ] Update `web/src/app/features/settings/services/canvas-edit-store.service.ts`:
-  - [ ] Add private field: `private _saveDebounceTimer: ReturnType<typeof setTimeout> | null = null`
-  - [ ] Wrap the `saveAndReload()` implementation in a 150ms debounce:
-    ```typescript
-    async saveAndReload(): Promise<void> {
-      if (this._saveDebounceTimer) {
-        clearTimeout(this._saveDebounceTimer);
-      }
-      return new Promise((resolve) => {
-        this._saveDebounceTimer = setTimeout(async () => {
-          this._saveDebounceTimer = null;
-          await this._executeSaveAndReload();
-          resolve();
-        }, 150);
-      });
-    }
-    
-    private async _executeSaveAndReload(): Promise<void> {
-      // existing saveAndReload body goes here
-    }
-    ```
-  - [ ] Ensure `_saveDebounceTimer` is cleared in `ngOnDestroy` or service cleanup
+- [x] Update `web/src/app/features/settings/services/canvas-edit-store.service.ts`:
+  - [x] Add private field: `private _saveDebounceTimer: ReturnType<typeof setTimeout> | null = null`
+  - [x] Wrap the `saveAndReload()` implementation in a 150ms debounce:
+  - [x] Ensure `_saveDebounceTimer` is cleared in `ngOnDestroy` or service cleanup
 
 ### 4.2 Update 409 handling for reload-in-progress vs version conflict
-- [ ] In `_executeSaveAndReload()` error handling:
-  ```typescript
-  const detail = error?.error?.detail ?? '';
-  const isVersionConflict = detail.toLowerCase().includes('version conflict');
-  const isLockConflict = detail.toLowerCase().includes('reload is already in progress');
-  
-  if (isVersionConflict) {
-    this.conflictDetected$.next(detail);
-  } else if (isLockConflict) {
-    this.toast.warning('A reload is already in progress. Please wait a moment and try again.');
-  } else {
-    this.toast.danger(`Save failed: ${detail || error?.message}`);
-  }
-  ```
+- [x] In `_executeSaveAndReload()` error handling:
 
 ### 4.3 Show appropriate success toast based on `reload_mode`
-- [ ] Update the success path in `_executeSaveAndReload()`:
-  ```typescript
-  const mode = response.reload_mode;
-  if (mode === 'selective') {
-    this.toast.success(`Configuration saved. Reloading ${response.reloaded_node_ids.length} node(s)…`);
-  } else if (mode === 'full') {
-    this.toast.success('Configuration saved. Reloading DAG…');
-  } else {
-    this.toast.success('Configuration saved.');
-  }
-  ```
+- [x] Update the success path in `_executeSaveAndReload()`
 
 ---
 
 ## Phase 5: Node Reload Visual Indicator
 
 ### 5.1 Update `FlowCanvasNodeComponent` to accept reload state
-- [ ] Locate `web/src/app/features/settings/components/flow-canvas/node/flow-canvas-node.component.ts`
-- [ ] Add signal input: `readonly isReloading = input<boolean>(false)`
-- [ ] In the component template, apply conditional Tailwind classes when `isReloading()` is true:
+- [x] Locate `web/src/app/features/settings/components/flow-canvas/node/flow-canvas-node.component.ts`
+- [x] Add signal input: `readonly isReloading = input<boolean>(false)`
+- [x] In the component template, apply conditional Tailwind classes when `isReloading()` is true:
   - Apply `animate-pulse` and `opacity-70` on the node card container element
   - Add a small spinner badge: use a Synergy UI spinner or a Tailwind CSS `animate-spin` element
   - **Do NOT** change node size, position, or port connector locations (would break edge rendering)
   - **Do NOT** use `ngIf` / `@if` to show/hide the entire node card (would cause DOM re-flow)
-- [ ] Add an accessible label: `aria-label="Node is reloading"` on the spinner element
+- [x] Add an accessible label: `aria-label="Node is reloading"` on the spinner element
 
 ### 5.2 Pass reload state from `FlowCanvasComponent` to each node
-- [ ] Update `web/src/app/features/settings/components/flow-canvas/flow-canvas.component.ts`:
-  - [ ] Inject `SystemStatusService`
-  - [ ] Read `systemStatus.reloadingNodeIds` signal
-  - [ ] Add computed signal: `reloadingNodeIdsSet = this.systemStatus.reloadingNodeIds`
-  - [ ] Pass `[isReloading]="reloadingNodeIdsSet().has(canvasNode.data.id)"` to each `<app-flow-canvas-node>`
-- [ ] Do NOT trigger `@for` track change or node re-render for non-reloading nodes — only the specific node's input signal changes
+- [x] Update `web/src/app/features/settings/components/flow-canvas/flow-canvas.component.ts`:
+  - [x] Inject `SystemStatusService`
+  - [x] Read `systemStatus.reloadingNodeIds` signal
+  - [x] Add computed signal: `reloadingNodeIdsSet = this.systemStatus.reloadingNodeIds`
+  - [x] Pass `[isReloading]="reloadingNodeIdsSet().has(canvasNode.data.id)"` to each `<app-flow-canvas-node>`
+- [x] Do NOT trigger `@for` track change or node re-render for non-reloading nodes — only the specific node's input signal changes
 
 ### 5.3 Visual design specification
 - **Reloading state**: `animate-pulse opacity-70` on node card + small spinner icon (top-right corner of node badge)
@@ -169,16 +128,16 @@
 ## Phase 6: Settings Component Updates
 
 ### 6.1 Display reload mode in toolbar or feedback area
-- [ ] Update `web/src/app/features/settings/settings.component.ts`:
-  - [ ] Inject `SystemStatusService`
-  - [ ] Add computed signal that reads `lastReloadEvent` and derives a status text
-  - [ ] In the template: show a subtle status line below the Save button when reload is in progress, e.g.:
+- [x] Update `web/src/app/features/settings/settings.component.ts`:
+  - [x] Inject `SystemStatusService`
+  - [x] Add computed signal that reads `lastReloadEvent` and derives a status text
+  - [x] In the template: show a subtle status line below the Save button when reload is in progress, e.g.:
     - "Reloading node…" (selective)
     - "Reloading DAG…" (full)
     - Disappears when `ready` event arrives
 
 ### 6.2 Disable Save button during reload
-- [ ] In `settings.component.html`, bind the Save button disabled state:
+- [x] In `settings.component.html`, bind the Save button disabled state:
   ```html
   [disabled]="canvasEditStore.isSaving() || systemStatus.reloadingNodeIds().size > 0"
   ```

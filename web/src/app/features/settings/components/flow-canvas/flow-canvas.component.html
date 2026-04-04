@@ -112,6 +112,7 @@
                                       (portDrop)="onPortDrop($event)"
                                       [isDragging]="draggingNode()?.id === node.id"
                                       [isLoading]="isNodeLoading(node.id)"
+                                      [isReloading]="reloadingNodeIds().has(node.data.id)"
                                       [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
                                       [node]="node"
                                       [status]="getNodeStatus(node)"

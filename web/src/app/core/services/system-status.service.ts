@@ -5,6 +5,7 @@ import {catchError, firstValueFrom, interval, of, switchMap, tap} from 'rxjs';
 import {environment} from '../../../environments/environment';
 import {ToastService} from './toast.service';
 import {TOAST_ON_ERROR} from '../interceptors/http-toast.interceptor';
+import {ReloadEvent} from '@core/models/status.model';
 
 export type SystemNoticeLevel = 'info' | 'warning' | 'error';
 
@@ -35,6 +36,13 @@ export class SystemStatusService {
     if (online === null) return 'Checking';
     return online ? 'Online' : 'Offline';
   });
+
+  // ------ Reload event signals ------
+  private _reloadingNodeIds = signal<Set<string>>(new Set());
+  private _lastReloadEvent = signal<ReloadEvent | null>(null);
+  readonly reloadingNodeIds = this._reloadingNodeIds.asReadonly();
+  readonly lastReloadEvent = this._lastReloadEvent.asReadonly();
+
   private http = inject(HttpClient);
   private toast = inject(ToastService);
   private destroyRef = inject(DestroyRef);
@@ -125,5 +133,59 @@ export class SystemStatusService {
     this.lastOfflineToastAt = now;
     this.toast.warning('Backend unreachable. Some actions may fail.');
     this.report('warning', 'Backend unreachable.');
+  }
+
+  /**
+   * Apply a reload event received from the WebSocket broadcast.
+   * Called by NodeStatusService when it parses a `reload_event` field
+   * from the `system_status` topic message.
+   */
+  applyReloadEvent(event: ReloadEvent): void {
+    this._lastReloadEvent.set(event);
+
+    if (!event.node_id) {
+      // Full reload — clear all per-node reload indicators
+      this._reloadingNodeIds.set(new Set());
+    } else if (event.status === 'reloading') {
+      this._reloadingNodeIds.update((ids) => new Set([...ids, event.node_id!]));
+    } else if (event.status === 'ready' || event.status === 'error') {
+      this._reloadingNodeIds.update((ids) => {
+        const next = new Set(ids);
+        next.delete(event.node_id!);
+        return next;
+      });
+    }
+  }
+
+  /** Clear all reload state (called on WebSocket disconnect/reconnect). */
+  clearReloadingState(): void {
+    this._reloadingNodeIds.set(new Set());
+    this._lastReloadEvent.set(null);
+  }
+
+  /**
+   * Dev/test helper — simulates a selective reload sequence for a given node.
+   * Guarded by !environment.production so it never ships to prod.
+   */
+  triggerMockReloadSequence(nodeId: string): void {
+    if ((environment as any).production) return;
+
+    this.applyReloadEvent({
+      node_id: nodeId,
+      status: 'reloading',
+      error_message: null,
+      reload_mode: 'selective',
+      timestamp: Date.now() / 1000,
+    });
+
+    setTimeout(() => {
+      this.applyReloadEvent({
+        node_id: nodeId,
+        status: 'ready',
+        error_message: null,
+        reload_mode: 'selective',
+        timestamp: Date.now() / 1000,
+      });
+    }, 800);
   }
 }

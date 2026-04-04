@@ -201,10 +201,25 @@ export class CanvasEditStoreService {
   }
 
   // ---------------------------------------------------------------------------
-  // saveAndReload
+  // saveAndReload (with 150ms debounce)
   // ---------------------------------------------------------------------------
 
+  private _saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
   async saveAndReload(): Promise<void> {
+    if (this._saveDebounceTimer) {
+      clearTimeout(this._saveDebounceTimer);
+    }
+    return new Promise((resolve) => {
+      this._saveDebounceTimer = setTimeout(async () => {
+        this._saveDebounceTimer = null;
+        await this._executeSaveAndReload();
+        resolve();
+      }, 150);
+    });
+  }
+
+  private async _executeSaveAndReload(): Promise<void> {
     if (!this.isDirty()) return;
 
     if (!this.isValid()) {
@@ -242,20 +257,28 @@ export class CanvasEditStoreService {
         edges: this._localEdges(),
       });
       this._mergeCanvasNodes(this._localNodes());
-      this.toast.success('DAG saved and reloading…');
-    } catch (error: any) {
-      const is409 =
-        error?.status === 409 ||
-        (typeof error?.error?.detail === 'string' &&
-          error.error.detail.toLowerCase().includes('version conflict'));
 
-      if (is409) {
-        const detail =
-          error?.error?.detail ?? 'Version conflict. Another save has occurred.';
-        this.conflictDetected$.next(detail);
+      // Show appropriate toast based on reload_mode from response
+      const mode = (response as any).reload_mode as 'selective' | 'full' | 'none' | undefined;
+      const reloadedIds: string[] = (response as any).reloaded_node_ids ?? [];
+      if (mode === 'selective') {
+        this.toast.success(`Configuration saved. Reloading ${reloadedIds.length} node(s)…`);
+      } else if (mode === 'full') {
+        this.toast.success('Configuration saved. Reloading DAG…');
       } else {
-        const message =
-          error?.error?.detail ?? error?.message ?? String(error);
+        this.toast.success('Configuration saved.');
+      }
+    } catch (error: any) {
+      const detail = error?.error?.detail ?? '';
+      const isVersionConflict = detail.toLowerCase().includes('version conflict');
+      const isLockConflict = detail.toLowerCase().includes('reload is already in progress');
+
+      if (isVersionConflict || error?.status === 409 && !isLockConflict && !detail) {
+        this.conflictDetected$.next(detail || 'Version conflict. Another save has occurred.');
+      } else if (isLockConflict) {
+        this.toast.warning('A reload is already in progress. Please wait a moment and try again.');
+      } else {
+        const message = detail || (error?.message ?? String(error));
         this.toast.danger(`Save failed: ${message}`);
       }
     } finally {

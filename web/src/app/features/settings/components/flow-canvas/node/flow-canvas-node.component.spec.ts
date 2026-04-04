@@ -3,7 +3,6 @@ import { FlowCanvasNodeComponent, CanvasNode } from './flow-canvas-node.componen
 import { NodeStoreService } from '@core/services/stores/node-store.service';
 import { NodeStatusUpdate } from '@core/models/node-status.model';
 import { NodeDefinition } from '@core/models/node.model';
-import { signal, Signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 
 describe('FlowCanvasNodeComponent', () => {
@@ -37,10 +36,10 @@ describe('FlowCanvasNodeComponent', () => {
     fixture = TestBed.createComponent(FlowCanvasNodeComponent);
     component = fixture.componentInstance;
     nodeStore = TestBed.inject(NodeStoreService);
-    
+
     // Initialize with empty state
     nodeStore.set('nodeDefinitions', []);
-    
+
     fixture.componentRef.setInput('node', mockNode);
   });
 
@@ -55,10 +54,10 @@ describe('FlowCanvasNodeComponent', () => {
         operational_state: 'INITIALIZE',
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const icon = component['operationalIcon']();
       expect(icon.icon).toBe('hourglass_empty');
       expect(icon.css).toContain('animate-pulse');
@@ -71,10 +70,10 @@ describe('FlowCanvasNodeComponent', () => {
         operational_state: 'RUNNING',
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const icon = component['operationalIcon']();
       expect(icon.icon).toBe('play_circle');
       expect(icon.css).toBe('text-syn-color-success-600');
@@ -86,10 +85,10 @@ describe('FlowCanvasNodeComponent', () => {
         operational_state: 'STOPPED',
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const icon = component['operationalIcon']();
       expect(icon.icon).toBe('pause_circle');
       expect(icon.css).toBe('text-syn-color-neutral-400');
@@ -102,10 +101,10 @@ describe('FlowCanvasNodeComponent', () => {
         error_message: 'Test error',
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const icon = component['operationalIcon']();
       expect(icon.icon).toBe('error');
       expect(icon.css).toBe('text-syn-color-danger-600');
@@ -124,10 +123,10 @@ describe('FlowCanvasNodeComponent', () => {
         },
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const badge = component['appBadge']();
       expect(badge).not.toBeNull();
       expect(badge?.text).toBe('processing: true');
@@ -140,10 +139,10 @@ describe('FlowCanvasNodeComponent', () => {
         operational_state: 'RUNNING',
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const badge = component['appBadge']();
       expect(badge).toBeNull();
     });
@@ -168,10 +167,10 @@ describe('FlowCanvasNodeComponent', () => {
           },
           timestamp: Date.now() / 1000
         };
-        
+
         fixture.componentRef.setInput('status', status);
         fixture.detectChanges();
-        
+
         const badge = component['appBadge']();
         expect(badge?.color).toBe(hex);
       });
@@ -188,10 +187,10 @@ describe('FlowCanvasNodeComponent', () => {
         },
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const badge = component['appBadge']();
       expect(badge?.color).toBe('#6b7280'); // gray fallback
     });
@@ -237,10 +236,10 @@ describe('FlowCanvasNodeComponent', () => {
         },
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', trueStatus);
       fixture.detectChanges();
-      
+
       let badge = component['appBadge']();
       expect(badge?.text).toBe('processing: true');
 
@@ -252,10 +251,10 @@ describe('FlowCanvasNodeComponent', () => {
           color: 'gray'
         }
       };
-      
+
       fixture.componentRef.setInput('status', falseStatus);
       fixture.detectChanges();
-      
+
       badge = component['appBadge']();
       expect(badge?.text).toBe('processing: false');
     });
@@ -269,10 +268,10 @@ describe('FlowCanvasNodeComponent', () => {
         error_message: 'Test error message',
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const errorText = component['errorText']();
       expect(errorText).toBe('Test error message');
     });
@@ -283,10 +282,10 @@ describe('FlowCanvasNodeComponent', () => {
         operational_state: 'RUNNING',
         timestamp: Date.now() / 1000
       };
-      
+
       fixture.componentRef.setInput('status', status);
       fixture.detectChanges();
-      
+
       const errorText = component['errorText']();
       expect(errorText).toBeNull();
     });
@@ -311,12 +310,12 @@ describe('FlowCanvasNodeComponent', () => {
       const node: CanvasNode = {
         id: 'cal-1',
         type: 'calibration',
-        data: { 
+        data: {
           id: 'cal-1',
-          type: 'calibration', 
+          type: 'calibration',
           name: 'Test Calibration',
           category: 'calibration',
-          enabled: true, 
+          enabled: true,
           config: {},
           x: 0,
           y: 0
@@ -568,6 +567,49 @@ describe('FlowCanvasNodeComponent', () => {
       fixture.detectChanges();
 
       expect(component['isWebsocketEnabled']()).toBe(true);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Reload Indicator (Phase 5)
+  // ---------------------------------------------------------------------------
+  describe('Reload Indicator', () => {
+    it('should NOT have animate-pulse class when isReloading is false (default)', () => {
+      fixture.detectChanges();
+      const card = fixture.nativeElement.querySelector('[data-testid="node-card"]');
+      expect(card).toBeTruthy();
+      expect(card.classList.contains('animate-pulse')).toBe(false);
+    });
+
+    it('should have animate-pulse and opacity-70 classes when isReloading is true', () => {
+      fixture.componentRef.setInput('isReloading', true);
+      fixture.detectChanges();
+      const card = fixture.nativeElement.querySelector('[data-testid="node-card"]');
+      expect(card).toBeTruthy();
+      expect(card.classList.contains('animate-pulse')).toBe(true);
+      expect(card.classList.contains('opacity-70')).toBe(true);
+    });
+
+    it('should render spinner element when isReloading is true', () => {
+      fixture.componentRef.setInput('isReloading', true);
+      fixture.detectChanges();
+      const spinner = fixture.nativeElement.querySelector('[data-testid="reload-spinner"]');
+      expect(spinner).toBeTruthy();
+    });
+
+    it('should NOT render spinner element when isReloading is false', () => {
+      fixture.componentRef.setInput('isReloading', false);
+      fixture.detectChanges();
+      const spinner = fixture.nativeElement.querySelector('[data-testid="reload-spinner"]');
+      expect(spinner).toBeNull();
+    });
+
+    it('should have aria-label on the spinner for accessibility', () => {
+      fixture.componentRef.setInput('isReloading', true);
+      fixture.detectChanges();
+      const spinner = fixture.nativeElement.querySelector('[data-testid="reload-spinner"]');
+      expect(spinner).toBeTruthy();
+      expect(spinner.getAttribute('aria-label')).toBe('Node is reloading');
     });
   });
 });
