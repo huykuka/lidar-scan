@@ -19,4 +19,5 @@ echo "======================================"
 # ------------------------------
 # Build, tag and push
 # ------------------------------
-docker buildx build --platform linux/amd64 -f $DOCKERFILE . -t "$TAG_LATEST" --push
+docker build --platform linux/amd64 -f $DOCKERFILE . -t "$TAG_LATEST"
+docker push "$TAG_LATEST"

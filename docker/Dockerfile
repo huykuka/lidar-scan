@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libegl1 \  
   libgl1 \
   libgomp1 \
+  vim \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
