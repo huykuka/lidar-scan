@@ -1,6 +1,6 @@
 services:
   lidar-standalone:
-    image: 010497/lidar-studio:latest
+    image: 010497/lidar-studio:latest-amd64
     container_name: lidar-standalone
     restart: unless-stopped
     network_mode: "host"
