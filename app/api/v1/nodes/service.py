@@ -8,7 +8,7 @@ per-node calls.
 """
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Optional
 from fastapi import HTTPException
 from pydantic import BaseModel
 
@@ -98,6 +98,89 @@ async def reload_all_config():
     return {"status": "success"}
 
 
+async def reload_single_node(node_id: str):
+    """Selectively reload a single node in-place.
+
+    Returns ``NodeReloadResponse`` on success.
+    Raises:
+        HTTPException(404): Node not in the running DAG.
+        HTTPException(409): Reload lock is held.
+        HTTPException(500): Reload failed (with rollback info in detail).
+    """
+    from app.api.v1.schemas.nodes import NodeReloadResponse
+
+    # ── 409: Lock check ────────────────────────────────────────────────────
+    if node_manager._reload_lock.locked():
+        raise HTTPException(
+            status_code=409,
+            detail="A configuration reload is already in progress. Please wait and retry.",
+        )
+
+    # ── 404: Node existence check ──────────────────────────────────────────
+    if node_id not in node_manager.nodes:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Node '{node_id}' not found in running DAG. Ensure the node is enabled.",
+        )
+
+    # ── Perform selective reload ───────────────────────────────────────────
+    result = await node_manager.selective_reload_node(node_id)
+
+    if result is not None and result.status == "error":
+        if result.rolled_back:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    f"Reload failed for node '{node_id}': {result.error_message}. "
+                    "Node has been restored to previous configuration."
+                ),
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    f"Reload failed for node '{node_id}' and rollback also failed. "
+                    "Node is offline. Manual intervention required."
+                ),
+            )
+
+    ws_topic = getattr(result, "ws_topic", None) if result else None
+    duration_ms = getattr(result, "duration_ms", 0.0) if result else 0.0
+
+    return NodeReloadResponse(
+        node_id=node_id,
+        status="reloaded",
+        duration_ms=duration_ms,
+        ws_topic=ws_topic,
+    )
+
+
+async def get_reload_status():
+    """Return the current state of the reload lock.
+
+    Returns ``ReloadStatusResponse``.
+    Spec: .opencode/plans/node-reload-improvement/api-spec.md § 3
+    """
+    from app.api.v1.schemas.nodes import ReloadStatusResponse
+
+    locked = node_manager._reload_lock.locked()
+    active_id: Optional[str] = node_manager._active_reload_node_id
+
+    if not locked:
+        estimated_completion_ms = None
+    elif active_id is not None:
+        estimated_completion_ms = 150   # selective reload estimate
+    else:
+        estimated_completion_ms = 3000  # full reload estimate
+
+    return ReloadStatusResponse(
+        locked=locked,
+        reload_in_progress=locked,
+        active_reload_node_id=active_id,
+        estimated_completion_ms=estimated_completion_ms,
+    )
+
+
 async def get_nodes_status():
     """Returns runtime status of all nodes using the standardised emit_status() interface."""
     status_updates = []
@@ -145,3 +228,4 @@ async def get_nodes_status():
         status_updates.append(entry)
 
     return {"nodes": status_updates}
+

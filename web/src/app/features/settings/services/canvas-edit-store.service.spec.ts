@@ -437,4 +437,183 @@ describe('CanvasEditStoreService', () => {
       expect(toastMock.danger).toHaveBeenCalled();
     });
   });
+
+  // -------------------------------------------------------------------------
+  // saveAndReload debounce (Phase 4.1)
+  // -------------------------------------------------------------------------
+  describe('saveAndReload() — 150ms debounce', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should debounce rapid consecutive calls and issue only one HTTP request', async () => {
+      const node = makeNode('n1');
+      nodeStoreMock._setNodes([node]);
+      service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
+      service.moveNode('n1', 999, 888);
+
+      // Call saveAndReload three times rapidly — don't await intermediate calls.
+      // Each new call cancels the previous timer; only the last one fires.
+      service.saveAndReload(); // fire-and-forget (p1 will never resolve as it's pre-empted)
+      service.saveAndReload(); // fire-and-forget (p2 will never resolve as it's pre-empted)
+      const p3 = service.saveAndReload(); // last call — this one fires
+
+      // Advance timers past the debounce threshold so the last queued save executes
+      await vi.runAllTimersAsync();
+      await p3;
+
+      // Only one HTTP call should have been made
+      expect(dagApiMock.saveDagConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it('should still call saveDagConfig after the 150ms debounce window', async () => {
+      const node = makeNode('n1');
+      nodeStoreMock._setNodes([node]);
+      service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
+      service.moveNode('n1', 100, 200);
+
+      const p = service.saveAndReload();
+      await vi.runAllTimersAsync();
+      await p;
+
+      expect(dagApiMock.saveDagConfig).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // saveAndReload 409 handling (Phase 4.2)
+  // -------------------------------------------------------------------------
+  describe('saveAndReload() — 409 error handling', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should emit on conflictDetected$ for version-conflict 409', async () => {
+      const node = makeNode('n1');
+      nodeStoreMock._setNodes([node]);
+      service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
+      service.moveNode('n1', 999, 888);
+
+      dagApiMock.saveDagConfig.mockRejectedValueOnce({
+        status: 409,
+        error: { detail: 'Version conflict — base_version is stale' },
+      });
+
+      const emitted: string[] = [];
+      service.conflictDetected$.subscribe((v) => emitted.push(v));
+
+      const p = service.saveAndReload();
+      await vi.runAllTimersAsync();
+      await p;
+
+      expect(emitted.length).toBe(1);
+      expect(emitted[0].toLowerCase()).toContain('version conflict');
+    });
+
+    it('should show warning toast for lock-conflict 409 (reload already in progress)', async () => {
+      const node = makeNode('n1');
+      nodeStoreMock._setNodes([node]);
+      service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
+      service.moveNode('n1', 999, 888);
+
+      dagApiMock.saveDagConfig.mockRejectedValueOnce({
+        status: 409,
+        error: { detail: 'Reload is already in progress. Please wait.' },
+      });
+
+      const p = service.saveAndReload();
+      await vi.runAllTimersAsync();
+      await p;
+
+      expect(toastMock.warning).toHaveBeenCalled();
+      expect(toastMock.warning.mock.calls[0][0]).toContain('reload is already in progress');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // saveAndReload toast messages based on reload_mode (Phase 4.3)
+  // -------------------------------------------------------------------------
+  describe('saveAndReload() — reload_mode toast messages', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should show selective toast when reload_mode is "selective"', async () => {
+      const node = makeNode('n1');
+      nodeStoreMock._setNodes([node]);
+      service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
+      service.moveNode('n1', 100, 200);
+
+      dagApiMock.saveDagConfig.mockResolvedValueOnce({
+        config_version: 6,
+        node_id_map: {},
+        reload_mode: 'selective',
+        reloaded_node_ids: ['n1', 'n2'],
+      });
+
+      const p = service.saveAndReload();
+      await vi.runAllTimersAsync();
+      await p;
+
+      expect(toastMock.success).toHaveBeenCalled();
+      const msg: string = toastMock.success.mock.calls[0][0];
+      expect(msg.toLowerCase()).toContain('2 node');
+    });
+
+    it('should show full-reload toast when reload_mode is "full"', async () => {
+      const node = makeNode('n1');
+      nodeStoreMock._setNodes([node]);
+      service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
+      service.moveNode('n1', 100, 200);
+
+      dagApiMock.saveDagConfig.mockResolvedValueOnce({
+        config_version: 6,
+        node_id_map: {},
+        reload_mode: 'full',
+        reloaded_node_ids: [],
+      });
+
+      const p = service.saveAndReload();
+      await vi.runAllTimersAsync();
+      await p;
+
+      expect(toastMock.success).toHaveBeenCalled();
+      const msg: string = toastMock.success.mock.calls[0][0];
+      expect(msg.toLowerCase()).toContain('reloading dag');
+    });
+
+    it('should show generic saved toast when reload_mode is "none"', async () => {
+      const node = makeNode('n1');
+      nodeStoreMock._setNodes([node]);
+      service.initFromBackend({ config_version: 5, nodes: [node], edges: [] });
+      service.moveNode('n1', 100, 200);
+
+      dagApiMock.saveDagConfig.mockResolvedValueOnce({
+        config_version: 6,
+        node_id_map: {},
+        reload_mode: 'none',
+        reloaded_node_ids: [],
+      });
+
+      const p = service.saveAndReload();
+      await vi.runAllTimersAsync();
+      await p;
+
+      expect(toastMock.success).toHaveBeenCalled();
+      const msg: string = toastMock.success.mock.calls[0][0];
+      expect(msg.toLowerCase()).toContain('saved');
+    });
+  });
 });

@@ -90,7 +90,7 @@
         <syn-button
           size="small"
           variant="filled"
-          [disabled]="!canvasEditStore.isDirty() || canvasEditStore.isSaving() || !canvasEditStore.isValid()"
+          [disabled]="!canvasEditStore.isDirty() || canvasEditStore.isSaving() || !canvasEditStore.isValid() || isNodeReloading()"
           (click)="onSaveAndReload()"
         >
           @if (canvasEditStore.isSaving()) {
@@ -101,6 +101,12 @@
             Apply
           }
         </syn-button>
+
+        @if (reloadStatusText()) {
+          <span class="text-xs text-syn-color-neutral-500 animate-pulse" data-testid="reload-status-text">
+            {{ reloadStatusText() }}
+          </span>
+        }
       </div>
     </div>
 

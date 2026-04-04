@@ -7,6 +7,7 @@ import {NodesApiService} from '@core/services/api';
 import {DialogService, ToastService} from '@core/services';
 import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 import {NodeStatusService} from '@core/services/node-status.service';
+import {SystemStatusService} from '@core/services/system-status.service';
 import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 
 import {CanvasNode, FlowCanvasNodeComponent} from './node/flow-canvas-node.component';
@@ -89,7 +90,10 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   private dialog = inject(DialogService);
   private pluginRegistry = inject(NodePluginRegistry);
   private statusWs = inject(NodeStatusService);
+  private systemStatus = inject(SystemStatusService);
   protected nodesStatus = this.statusWs.status;
+  /** Set of node IDs currently undergoing a selective reload — used to show per-node spinner. */
+  protected reloadingNodeIds = this.systemStatus.reloadingNodeIds;
 
   constructor() {
     // Clear the canvas loading spinner once the store is initialized.

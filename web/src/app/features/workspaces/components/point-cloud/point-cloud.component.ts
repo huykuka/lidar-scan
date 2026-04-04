@@ -46,6 +46,8 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   viewType = input<ViewOrientation>('perspective');
   /** Stable pane ID — used to key into PointCloudDataService.frames() */
   viewId = input<string>('');
+  /** When true, reduces MAX_POINTS cap to MAX_POINTS_LOD for performance */
+  adaptiveLod = input<boolean>(false);
 
   // ── FE-12: Error boundary signals ────────────────────────────────────────
   /** Set to true if initThree() throws — causes the error overlay to appear. */

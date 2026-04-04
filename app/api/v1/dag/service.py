@@ -9,8 +9,9 @@ Design contract:
 
 from __future__ import annotations
 
+import json
 import uuid
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from fastapi import HTTPException
 
@@ -25,6 +26,7 @@ from app.core.logging import get_logger
 from app.db.session import SessionLocal
 from app.repositories import EdgeRepository, NodeRepository
 from app.repositories.dag_meta_orm import DagMetaRepository
+from app.services.nodes.config_hasher import compute_node_config_hash
 from app.services.nodes.instance import node_manager
 
 logger = get_logger(__name__)
@@ -36,6 +38,77 @@ _TEMP_ID_PREFIX = "__new__"
 def _is_temp_id(node_id: str) -> bool:
     """Return True when the node ID is a client-side temporary placeholder."""
     return node_id.startswith(_TEMP_ID_PREFIX)
+
+
+def _classify_dag_changes(
+    new_nodes: List[NodeRecord],
+    new_edges: List[Dict],
+    existing_nodes: List[Dict],
+    existing_edges: List[Dict],
+) -> Tuple[str, List[str]]:
+    """Classify the type of changes between the existing and incoming DAG snapshot.
+
+    Returns a tuple of ``(change_type, changed_node_ids)`` where *change_type* is one of:
+
+    - ``"topology"``     — node set or edge set changed (full reload required)
+    - ``"param_change"`` — only node parameter hashes changed (selective reload per node)
+    - ``"no_change"``    — only cosmetic fields changed (x, y, name); no reload needed
+
+    Args:
+        new_nodes: Incoming nodes from the PUT request.
+        new_edges: Remapped edges after temp-ID resolution (dicts).
+        existing_nodes: Current nodes from DB before the transaction.
+        existing_edges: Current edges from DB before the transaction.
+
+    Returns:
+        Tuple of (change_type, changed_node_ids).
+    """
+    # ── Topology check: node set ───────────────────────────────────────
+    existing_ids = {n["id"] for n in existing_nodes}
+    # Exclude temp-ID nodes from the new set (they are always additions)
+    new_ids = {n.id for n in new_nodes if not _is_temp_id(n.id)}
+
+    if existing_ids != new_ids:
+        return "topology", []
+
+    # If any new node has a temp ID, that is also a topology change (addition)
+    if any(_is_temp_id(n.id) for n in new_nodes):
+        return "topology", []
+
+    # ── Topology check: edge set ───────────────────────────────────────
+    def _edge_key(e: Dict) -> str:
+        return json.dumps(
+            {
+                "source_node": e.get("source_node"),
+                "source_port": e.get("source_port"),
+                "target_node": e.get("target_node"),
+                "target_port": e.get("target_port"),
+            },
+            sort_keys=True,
+        )
+
+    existing_edge_keys = {_edge_key(e) for e in existing_edges}
+    new_edge_keys = {_edge_key(e.model_dump() if hasattr(e, "model_dump") else e) for e in new_edges}
+
+    if existing_edge_keys != new_edge_keys:
+        return "topology", []
+
+    # ── Param change check: compare config hashes ─────────────────────
+    changed_ids: List[str] = []
+    for node in new_nodes:
+        stored_hash = node_manager._config_hash_store.get(node.id)
+        if stored_hash is None:
+            # Hash not known (e.g. node was disabled) — treat as changed to be safe
+            changed_ids.append(node.id)
+            continue
+        new_hash = compute_node_config_hash(node.model_dump())
+        if new_hash != stored_hash:
+            changed_ids.append(node.id)
+
+    if changed_ids:
+        return "param_change", changed_ids
+
+    return "no_change", []
 
 
 async def get_dag_config() -> DagConfigResponse:
@@ -59,12 +132,13 @@ async def get_dag_config() -> DagConfigResponse:
 
 
 async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
-    """Atomically replace nodes + edges, increment version, then reload.
+    """Atomically replace nodes + edges, increment version, then reload smartly.
 
     Steps:
     1. Reject immediately if ``_reload_lock`` is held (409).
     2. Read current version; reject if stale (409).
-    3. Within a single DB session/transaction:
+    3. Snapshot existing nodes + edges for diff (before transaction).
+    4. Within a single DB session/transaction:
        a. Determine which node IDs are new (temp) vs existing.
        b. Delete nodes that are no longer in the request.
        c. Upsert all requested nodes, collecting temp→real ID remapping.
@@ -72,8 +146,11 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
           the ID remap to ``source_node`` / ``target_node`` references.
        e. Increment ``config_version`` by 1.
        f. Commit.
-    4. Trigger ``node_manager.reload_config()`` outside the DB transaction.
-    5. Return ``DagConfigSaveResponse``.
+    5. Classify changes and trigger the appropriate reload:
+       - topology     → full ``reload_config()``
+       - param_change → ``selective_reload_node()`` per changed node
+       - no_change    → skip reload
+    6. Return ``DagConfigSaveResponse`` with reload_mode and reloaded_node_ids.
 
     On any exception inside the DB block the session is rolled back and a
     500 is raised.  The ``config_version`` is NOT incremented on failure.
@@ -108,7 +185,13 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
             ),
         )
 
-    # ── Step 3: Atomic DB transaction ───────────────────────────────────────
+    # ── Step 3: Snapshot existing state for diff ────────────────────────────
+    snapshot_node_repo = NodeRepository()
+    snapshot_edge_repo = EdgeRepository()
+    existing_nodes_snapshot = snapshot_node_repo.list()
+    existing_edges_snapshot = snapshot_edge_repo.list()
+
+    # ── Step 4: Atomic DB transaction ───────────────────────────────────────
     node_id_map: Dict[str, str] = {}
     new_version: int = current_version + 1
 
@@ -171,13 +254,43 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
     finally:
         session.close()
 
-    # ── Step 4: Trigger runtime reload (outside DB transaction) ─────────────
-    try:
-        await node_manager.reload_config()
-    except Exception as exc:
-        logger.error(f"save_dag_config: reload_config() failed: {exc}")
-        # Version was already committed; report error but don't rollback version.
-        raise HTTPException(status_code=500, detail=f"Save succeeded but reload failed: {str(exc)}")
+    # ── Step 5: Classify changes and trigger the appropriate reload ──────────
+    # Use the pre-transaction snapshot for diff — new_edges still use original IDs
+    # but the remapped_edges reflect the actual persisted state. We pass req.edges
+    # (with ID remap applied) to the classifier.
+    change_type, changed_ids = _classify_dag_changes(
+        new_nodes=req.nodes,
+        new_edges=req.edges,  # type: ignore[arg-type]
+        existing_nodes=existing_nodes_snapshot,
+        existing_edges=existing_edges_snapshot,
+    )
 
-    # ── Step 5: Return ───────────────────────────────────────────────────────
-    return DagConfigSaveResponse(config_version=new_version, node_id_map=node_id_map)
+    reload_mode: str
+    reloaded_ids: List[str]
+
+    try:
+        if change_type == "topology":
+            await node_manager.reload_config()
+            reload_mode = "full"
+            reloaded_ids = []
+        elif change_type == "param_change":
+            for node_id in changed_ids:
+                await node_manager.selective_reload_node(node_id)
+            reload_mode = "selective"
+            reloaded_ids = changed_ids
+        else:  # no_change
+            reload_mode = "none"
+            reloaded_ids = []
+    except Exception as exc:
+        logger.error(f"save_dag_config: reload failed ({change_type}): {exc}")
+        raise HTTPException(
+            status_code=500, detail=f"Save succeeded but reload failed: {str(exc)}"
+        )
+
+    # ── Step 6: Return ───────────────────────────────────────────────────────
+    return DagConfigSaveResponse(
+        config_version=new_version,
+        node_id_map=node_id_map,
+        reload_mode=reload_mode,  # type: ignore[arg-type]
+        reloaded_node_ids=reloaded_ids,
+    )

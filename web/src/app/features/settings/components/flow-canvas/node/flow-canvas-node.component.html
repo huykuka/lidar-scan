@@ -1,10 +1,13 @@
 <div
+  data-testid="node-card"
   draggable="false"
   (click)="$event.stopPropagation()"
   [class.grayscale]="!isNodeEnabled()"
   [class.opacity-40]="!isNodeEnabled()"
   [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
-  class="bg-white rounded-lg shadow border w-48 hover:shadow-md transition-shadow relative flex flex-col"
+  [class.animate-pulse]="isReloading()"
+  [class.opacity-70]="isReloading()"
+  class="bg-white rounded-lg shadow border w-48 hover:shadow-md transition-shadow transition-opacity duration-200 relative flex flex-col"
 >
   <!-- Input Port -->
   @if (hasInputPort()) {
@@ -44,6 +47,17 @@
         ></div>
       }
     }
+  }
+
+  <!-- Reload Spinner Badge (top-right corner, only visible while reloading) -->
+  @if (isReloading()) {
+    <div
+      aria-label="Node is reloading"
+      class="absolute top-1 right-1 z-30 flex items-center justify-center"
+      data-testid="reload-spinner"
+    >
+      <div class="h-3 w-3 animate-spin rounded-full border border-t-transparent border-syn-color-primary-600"></div>
+    </div>
   }
 
   <!-- Node Header (Ultra Compact) -->
