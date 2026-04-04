@@ -38,9 +38,9 @@ Optimize the DAG node orchestration reload mechanism to enable fast, granular re
 - [ ] Node state after failed reload is clearly communicated to frontend
 
 **Frontend Integration:**
-- [ ] Visual indicator shows reload status on affected nodes (e.g., pulsing, dimmed, loading spinner)
-- [ ] DAG visualization remains stable without full re-render
-- [ ] Frontend updates only the affected node visuals during reload
+- [x] Visual indicator shows reload status on affected nodes (e.g., pulsing, dimmed, loading spinner)
+- [x] DAG visualization remains stable without full re-render
+- [x] Frontend updates only the affected node visuals during reload
 
 **Success Metrics:**
 - [ ] Reload time < 500ms for single node configuration change (measured from save trigger to node operational)

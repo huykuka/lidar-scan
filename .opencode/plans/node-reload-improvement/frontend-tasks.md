@@ -175,10 +175,10 @@
 
 ## Phase 8: Lint and Build Verification
 
-- [ ] Run `cd web && ng lint` — zero new warnings or errors
-- [ ] Run `cd web && ng build` — zero compilation errors
-- [ ] Verify Angular strict template mode is satisfied (no `any` types, no implicit undefined)
-- [ ] Check bundle size delta — `reload_event` parsing should add <1KB
+- [x] Run `cd web && ng lint` — zero new warnings or errors
+- [x] Run `cd web && ng build` — zero compilation errors
+- [x] Verify Angular strict template mode is satisfied (no `any` types, no implicit undefined)
+- [x] Check bundle size delta — `reload_event` parsing should add <1KB
 
 ---
 
