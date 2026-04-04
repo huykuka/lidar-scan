@@ -209,6 +209,35 @@ node_schema_registry.register(NodeDefinition(
     outputs=[PortSchema(id="out", label="Output")]
 ))
 
+# Generate Plane Schema
+node_schema_registry.register(NodeDefinition(
+    type="generate_plane",
+    display_name="Generate Plane Mesh",
+    category="operation",
+    description="Generates a planar triangle mesh from segmented point cloud",
+    icon="grid_on",
+    websocket_enabled=True,   # Streams mesh vertices as point positions
+    properties=[
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between frames (0 = no limit)"),
+        PropertySchema(name="mode", label="Mode", type="select", default="square",
+                       options=[
+                           {"label": "Square (origin-centered)", "value": "square"},
+                           {"label": "Boundary-Fitted", "value": "boundary"},
+                       ],
+                       help_text="Mesh generation mode"),
+        PropertySchema(name="size", label="Size (m)", type="number", default=1.0, step=0.1, min=0.01,
+                       help_text="Side length in meters (square mode only)"),
+        PropertySchema(name="voxel_size", label="Vertex Spacing (m)", type="number",
+                       default=0.05, step=0.005, min=0.001,
+                       help_text="Grid vertex spacing in meters"),
+        PropertySchema(name="plane_model", label="Plane Model [a,b,c,d]", type="vec4", default=None,
+                       help_text="Optional override: plane coefficients. If None, auto-fitted via RANSAC."),
+    ],
+    inputs=[PortSchema(id="in", label="Input")],
+    outputs=[PortSchema(id="out", label="Vertices (as points)")]
+))
+
 
 # --- Factory Builder ---
 
@@ -252,7 +281,7 @@ def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict
 # Register all specific operation types so NodeFactory can find them by node.type
 _OPERATION_TYPES = [
     "crop", "downsample", "outlier_removal", "radius_outlier_removal", "plane_segmentation",
-    "clustering", "boundary_detection", "debug_save", "filter_by_key"
+    "clustering", "boundary_detection", "debug_save", "filter_by_key", "generate_plane"
 ]
 for _op in _OPERATION_TYPES:
     NodeFactory._registry[_op] = NodeFactory._registry["operation"]

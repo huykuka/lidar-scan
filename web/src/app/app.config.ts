@@ -5,7 +5,7 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import {provideRouter} from '@angular/router';
+import {PreloadAllModules, provideRouter, withPreloading} from '@angular/router';
 import {provideHttpClient, withInterceptors} from '@angular/common/http';
 
 import {routes} from './app.routes';
@@ -19,7 +19,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideAnimationsAsync(),
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    provideRouter(routes, withPreloading(PreloadAllModules)),
     provideHttpClient(withInterceptors([httpToastInterceptor])),
     {provide: ErrorHandler, useClass: GlobalErrorHandler},
     provideAppInitializer(() => inject(SystemStatusService).start()),

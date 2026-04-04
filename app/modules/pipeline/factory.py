@@ -12,7 +12,8 @@ from app.modules.pipeline.operations import (
     FilterByKey,
     BoundaryDetection,
     DebugSave,
-    SaveDataStructure
+    SaveDataStructure,
+    GeneratePlane,
 )
 _OP_MAP: Dict[str, Type[PipelineOperation]] = {
     "crop": Crop,
@@ -27,7 +28,8 @@ _OP_MAP: Dict[str, Type[PipelineOperation]] = {
     "filter_by_key": FilterByKey,
     "boundary_detection": BoundaryDetection,
     "debug_save": DebugSave,
-    "save_structure": SaveDataStructure
+    "save_structure": SaveDataStructure,
+    "generate_plane": GeneratePlane,
 }
 
 class OperationFactory:
