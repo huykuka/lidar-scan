@@ -144,6 +144,13 @@ describe('CanvasEditStoreService', () => {
   // isDirty
   // -------------------------------------------------------------------------
   describe('isDirty()', () => {
+    it('should be false before initFromBackend is called (not yet initialized)', () => {
+      // Before any init, isDirty must not report true — even if the
+      // nodeStore already has data from another page's load.
+      nodeStoreMock._setNodes([makeNode('stale')]);
+      expect(service.isDirty()).toBe(false);
+    });
+
     it('should be false initially after init with empty state', () => {
       service.initFromBackend({ config_version: 1, nodes: [], edges: [] });
       expect(service.isDirty()).toBe(false);

@@ -76,11 +76,18 @@ export class CanvasEditStoreService {
   private readonly nodesApi = inject(NodesApiService);
 
   // ------ Computed: dirty ------
-  readonly isDirty = computed(
-    () =>
+  /**
+   * True when local edits diverge from the last-known backend state.
+   * Returns false before initFromBackend() completes to prevent the
+   * "Unsaved" badge from flashing during initial canvas loading.
+   */
+  readonly isDirty = computed(() => {
+    if (!this._isInitialized()) return false;
+    return (
       !deepEqual(this._localNodes(), this.nodeStore.nodes()) ||
-      !deepEqual(this._localEdges(), this.nodeStore.edges()),
-  );
+      !deepEqual(this._localEdges(), this.nodeStore.edges())
+    );
+  });
 
   // ------ Computed: validation ------
   readonly validationErrors = computed<ValidationError[]>(() => {
@@ -121,11 +128,16 @@ export class CanvasEditStoreService {
   // ---------------------------------------------------------------------------
 
   initFromBackend(config: DagConfigResponse): void {
-    this._localNodes.set(structuredClone(config.nodes));
-    this._localEdges.set(structuredClone(config.edges));
+    const nodes = structuredClone(config.nodes);
+    const edges = structuredClone(config.edges);
+
+    // Set the nodeStore (baseline) FIRST so that isDirty never sees a
+    // transient mismatch between _localNodes and nodeStore.nodes().
+    this.nodeStore.setState({ nodes, edges });
+    this._localNodes.set(nodes);
+    this._localEdges.set(edges);
     this._baseVersion.set(config.config_version);
-    this.nodeStore.setState({ nodes: config.nodes, edges: config.edges });
-    this._mergeCanvasNodes(config.nodes);
+    this._mergeCanvasNodes(nodes);
     this._isInitialized.set(true);
   }
 
