@@ -30,15 +30,12 @@ class PoissonDensify(DensityAlgorithmBase):
 
     Args:
         params:    DensifyPoissonParams instance, or None to use production defaults.
-        log_level: Logging verbosity ('minimal' | 'full' | 'none').
     """
 
     def __init__(
         self,
         params: DensifyPoissonParams | None = None,
-        log_level: str = "minimal",
     ) -> None:
-        super().__init__(log_level=log_level)
         self.params: DensifyPoissonParams = params if params is not None else DensifyPoissonParams()
 
     def apply(
@@ -69,11 +66,10 @@ class PoissonDensify(DensityAlgorithmBase):
                 )
                 pcd_legacy.normalize_normals()
 
-            if self.log_level == "full":
-                logger.debug(
-                    "Densify[poisson]: n_orig=%d, n_new=%d, depth=%d, q=%.2f",
-                    len(pts_orig), n_new, p.depth, p.density_threshold_quantile,
-                )
+            logger.debug(
+                "Densify[poisson]: n_orig=%d, n_new=%d, depth=%d, q=%.2f",
+                len(pts_orig), n_new, p.depth, p.density_threshold_quantile,
+            )
 
             # Poisson reconstruction on the complete cloud
             mesh, densities = (

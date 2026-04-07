@@ -35,8 +35,6 @@ from .density_base import DensityAlgorithmBase
 # Enums
 from .density_base import (
     DensifyAlgorithm,
-    DensifyLogLevel,
-    DensifyQualityPreset,
     DensifyStatus,
 )
 
@@ -54,7 +52,6 @@ from .density_base import (
 from .density_base import (
     MAX_MULTIPLIER,
     MIN_INPUT_POINTS,
-    PRESET_ALGORITHM_MAP,
 )
 
 __all__ = [
@@ -69,8 +66,6 @@ __all__ = [
     "DensityAlgorithmBase",
     # Enums
     "DensifyAlgorithm",
-    "DensifyLogLevel",
-    "DensifyQualityPreset",
     "DensifyStatus",
     # Models
     "DensifyConfig",
@@ -82,5 +77,4 @@ __all__ = [
     # Constants
     "MAX_MULTIPLIER",
     "MIN_INPUT_POINTS",
-    "PRESET_ALGORITHM_MAP",
 ]

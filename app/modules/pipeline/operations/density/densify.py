@@ -13,7 +13,7 @@ It dispatches to the appropriate algorithm class based on configuration:
 The Densify class inherits from PipelineOperation and handles:
   - Input validation and normalisation (tensor/legacy PointCloud)
   - Enabled/disabled/insufficient-points skip logic
-  - Algorithm resolution (explicit algorithm vs quality_preset)
+  - Algorithm resolution (explicit algorithm selection)
   - Delegation to the correct algorithm subclass
   - Normal estimation for synthetic points
   - Metadata assembly (status, counts, timing)
@@ -25,7 +25,6 @@ All algorithm implementations live in their own modules under the
 from __future__ import annotations
 
 import logging
-import os
 import time
 from typing import Any, Dict, Optional, Tuple
 
@@ -36,20 +35,14 @@ from ...base import PipelineOperation, _tensor_map_keys
 from .density_base import (
     MIN_INPUT_POINTS,
     MAX_MULTIPLIER,
-    PRESET_ALGORITHM_MAP,
     _VALID_ALGORITHMS,
-    _VALID_PRESETS,
-    _VALID_LOG_LEVELS,
-    _ENV_LOG_LEVEL,
     DensityAlgorithmBase,
     DensifyAlgorithm,
     DensifyConfig,
-    DensifyLogLevel,
     DensifyMetadata,
     DensifyMLSParams,
     DensifyNNParams,
     DensifyPoissonParams,
-    DensifyQualityPreset,
     DensifyStatisticalParams,
     DensifyStatus,
 )
@@ -78,11 +71,9 @@ class Densify(PipelineOperation):
 
     Args:
         enabled:              Enable/disable toggle (default True).
-        algorithm:            Algorithm key string, or None to use quality_preset.
+        algorithm:            Algorithm key string (default 'nearest_neighbor').
         density_multiplier:   Target density factor (default 2.0, range [1.0, 8.0]).
-        quality_preset:       'fast' | 'medium' | 'high' (default 'fast').
         preserve_normals:     Interpolate normals for synthetic points (default True).
-        log_level:            'minimal' | 'full' | 'none' (default from env or 'minimal').
         nn_params:            DensifyNNParams instance or None (use defaults).
         mls_params:           DensifyMLSParams instance or None (use defaults).
         statistical_params:   DensifyStatisticalParams instance or None (use defaults).
@@ -92,18 +83,17 @@ class Densify(PipelineOperation):
     def __init__(
         self,
         enabled: bool = True,
-        algorithm: Optional[str] = None,
+        algorithm: str = "nearest_neighbor",
         density_multiplier: float = 2.0,
-        quality_preset: str = "fast",
         preserve_normals: bool = True,
-        log_level: Optional[str] = None,
         nn_params: Optional[Any] = None,
         mls_params: Optional[Any] = None,
         statistical_params: Optional[Any] = None,
         poisson_params: Optional[Any] = None,
+        **kwargs: Any,
     ) -> None:
         # Validate algorithm
-        if algorithm is not None and algorithm not in _VALID_ALGORITHMS:
+        if algorithm not in _VALID_ALGORITHMS:
             raise ValueError(
                 f"algorithm must be one of {sorted(_VALID_ALGORITHMS)}, got '{algorithm}'"
             )
@@ -114,26 +104,10 @@ class Densify(PipelineOperation):
                 f"density_multiplier must be in [1.0, 8.0], got {density_multiplier}"
             )
 
-        # Validate quality_preset
-        if quality_preset not in _VALID_PRESETS:
-            raise ValueError(
-                f"quality_preset must be one of {sorted(_VALID_PRESETS)}, got '{quality_preset}'"
-            )
-
-        # Resolve log_level: explicit arg > env var > 'minimal'
-        resolved_log_level = self._resolve_log_level(log_level)
-        if resolved_log_level not in _VALID_LOG_LEVELS:
-            raise ValueError(
-                f"log_level must be one of {sorted(_VALID_LOG_LEVELS)}, "
-                f"got '{resolved_log_level}'"
-            )
-
         self.enabled: bool = bool(enabled)
-        self.algorithm: Optional[str] = algorithm
+        self.algorithm: str = algorithm
         self.density_multiplier: float = float(density_multiplier)
-        self.quality_preset: str = quality_preset
         self.preserve_normals: bool = bool(preserve_normals)
-        self.log_level: str = resolved_log_level
 
         # Per-algorithm parameter objects — coerce dicts to typed models
         self.nn_params: Optional[DensifyNNParams] = self._coerce_params(
@@ -149,16 +123,12 @@ class Densify(PipelineOperation):
             poisson_params, DensifyPoissonParams
         )
 
-        # Emit init log only in full mode to avoid spamming at startup
-        if self.log_level == "full":
-            logger.info(
-                "Densify: Initialized — algorithm=%s, multiplier=%s, preset=%s, "
-                "log_level=%s (volumetric mode — global KDTree, all spatial directions)",
-                algorithm if algorithm is not None else f"<preset:{quality_preset}>",
-                density_multiplier,
-                quality_preset,
-                resolved_log_level,
-            )
+        logger.debug(
+            "Densify: Initialized — algorithm=%s, multiplier=%s "
+            "(volumetric mode — global KDTree, all spatial directions)",
+            algorithm,
+            density_multiplier,
+        )
 
     # ─── Public API ──────────────────────────────────────────────────────────
 
@@ -200,12 +170,11 @@ class Densify(PipelineOperation):
         # ── 2. insufficient points check ─────────────────────────────────────
         if original_count < MIN_INPUT_POINTS:
             elapsed = (time.monotonic() - start_time) * 1000.0
-            if self.log_level != "none":
-                logger.warning(
-                    "Densify: Skipping — insufficient input points (%d < %d)",
-                    original_count,
-                    MIN_INPUT_POINTS,
-                )
+            logger.warning(
+                "Densify: Skipping — insufficient input points (%d < %d)",
+                original_count,
+                MIN_INPUT_POINTS,
+            )
             return original_pcd, self._make_skip_meta(
                 original_count=original_count,
                 reason=f"Insufficient input points ({original_count} < minimum {MIN_INPUT_POINTS})",
@@ -221,13 +190,12 @@ class Densify(PipelineOperation):
         # ── 5. already dense check ───────────────────────────────────────────
         if target_count <= original_count:
             elapsed = (time.monotonic() - start_time) * 1000.0
-            if self.log_level == "full":
-                logger.info(
-                    "Densify: Skipping — input already meets or exceeds target density "
-                    "(current: %d, target: %d)",
-                    original_count,
-                    target_count,
-                )
+            logger.info(
+                "Densify: Skipping — input already meets or exceeds target density "
+                "(current: %d, target: %d)",
+                original_count,
+                target_count,
+            )
             return original_pcd, self._make_skip_meta(
                 original_count=original_count,
                 reason=(
@@ -267,23 +235,14 @@ class Densify(PipelineOperation):
         densified_count = self._get_count(result_pcd)
         density_ratio = densified_count / original_count if original_count > 0 else 1.0
 
-        if self.log_level == "full":
-            logger.debug(
-                "Densify: [%s] %d→%d pts in %.1fms (ratio=%.2f)",
-                effective_algorithm,
-                original_count,
-                densified_count,
-                elapsed,
-                density_ratio,
-            )
-        elif self.log_level == "minimal":
-            logger.debug(
-                "Densify: %s %d→%d pts in %.1fms",
-                effective_algorithm,
-                original_count,
-                densified_count,
-                elapsed,
-            )
+        logger.debug(
+            "Densify: [%s] %d→%d pts in %.1fms (ratio=%.2f)",
+            effective_algorithm,
+            original_count,
+            densified_count,
+            elapsed,
+            density_ratio,
+        )
 
         return result_pcd, {
             "status": "success",
@@ -297,16 +256,6 @@ class Densify(PipelineOperation):
         }
 
     # ─── Private helpers ──────────────────────────────────────────────────────
-
-    @staticmethod
-    def _resolve_log_level(explicit: Optional[str]) -> str:
-        """Resolve effective log level: explicit kwarg > env var > 'minimal'."""
-        if explicit is not None:
-            return explicit
-        env_val = os.environ.get(_ENV_LOG_LEVEL, "").strip().lower()
-        if env_val in _VALID_LOG_LEVELS:
-            return env_val
-        return "minimal"
 
     @staticmethod
     def _coerce_params(value: Optional[Any], model_cls: type) -> Optional[Any]:
@@ -343,9 +292,7 @@ class Densify(PipelineOperation):
 
     def _resolve_effective_algorithm(self) -> str:
         """Return the algorithm string to execute."""
-        if self.algorithm is not None:
-            return self.algorithm
-        return PRESET_ALGORITHM_MAP[self.quality_preset]
+        return self.algorithm
 
     def _compute_target_count(self, original_count: int) -> int:
         """Compute the target point count using density_multiplier."""
@@ -363,28 +310,20 @@ class Densify(PipelineOperation):
         if n_new <= 0:
             return pcd
 
-        # Build algorithm instance with its params and the current log_level
+        # Build algorithm instance with its params
         algo_instance = self._build_algorithm(algorithm)
         return algo_instance.apply(pcd, n_new)
 
     def _build_algorithm(self, algorithm: str) -> DensityAlgorithmBase:
         """Instantiate the algorithm class for the given algorithm key."""
         if algorithm == "nearest_neighbor":
-            return NearestNeighborDensify(
-                params=self.nn_params, log_level=self.log_level
-            )
+            return NearestNeighborDensify(params=self.nn_params)
         elif algorithm == "mls":
-            return MLSDensify(
-                params=self.mls_params, log_level=self.log_level
-            )
+            return MLSDensify(params=self.mls_params)
         elif algorithm == "poisson":
-            return PoissonDensify(
-                params=self.poisson_params, log_level=self.log_level
-            )
+            return PoissonDensify(params=self.poisson_params)
         elif algorithm == "statistical":
-            return StatisticalDensify(
-                params=self.statistical_params, log_level=self.log_level
-            )
+            return StatisticalDensify(params=self.statistical_params)
         else:
             raise ValueError(f"Unknown algorithm: {algorithm}")
 
@@ -399,10 +338,9 @@ class Densify(PipelineOperation):
         """Estimate normals for synthetic points (indices n_original onward)."""
         orig_keys = _tensor_map_keys(original_pcd.point)
         if "normals" not in orig_keys:
-            if self.log_level == "full":
-                logger.info(
-                    "Densify: Input cloud has no normals — skipping normal estimation"
-                )
+            logger.info(
+                "Densify: Input cloud has no normals — skipping normal estimation"
+            )
             return result_pcd
 
         orig_normals = original_pcd.point["normals"].numpy()

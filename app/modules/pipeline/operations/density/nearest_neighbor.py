@@ -34,15 +34,12 @@ class NearestNeighborDensify(DensityAlgorithmBase):
 
     Args:
         params:    DensifyNNParams instance, or None to use production defaults.
-        log_level: Logging verbosity ('minimal' | 'full' | 'none').
     """
 
     def __init__(
         self,
         params: DensifyNNParams | None = None,
-        log_level: str = "minimal",
     ) -> None:
-        super().__init__(log_level=log_level)
         self.params: DensifyNNParams = params if params is not None else DensifyNNParams()
 
     def apply(
@@ -68,12 +65,11 @@ class NearestNeighborDensify(DensityAlgorithmBase):
         # Compute mean NN distance using a global scipy KDTree over ALL points.
         mean_nn_dist = self._compute_mean_nn_dist_global(pts)
 
-        if self.log_level == "full":
-            logger.debug(
-                "Densify[nn]: n_orig=%d, n_new=%d, mean_nn_dist=%.4f, "
-                "disp=[%.3f, %.3f]×mean_nn",
-                n_orig, n_new, mean_nn_dist, p.displacement_min, p.displacement_max,
-            )
+        logger.debug(
+            "Densify[nn]: n_orig=%d, n_new=%d, mean_nn_dist=%.4f, "
+            "disp=[%.3f, %.3f]×mean_nn",
+            n_orig, n_new, mean_nn_dist, p.displacement_min, p.displacement_max,
+        )
 
         rng = np.random.default_rng()
         synthetic = np.empty((n_new, 3), dtype=np.float32)

@@ -31,15 +31,12 @@ class StatisticalDensify(DensityAlgorithmBase):
 
     Args:
         params:    DensifyStatisticalParams instance, or None for production defaults.
-        log_level: Logging verbosity ('minimal' | 'full' | 'none').
     """
 
     def __init__(
         self,
         params: DensifyStatisticalParams | None = None,
-        log_level: str = "minimal",
     ) -> None:
-        super().__init__(log_level=log_level)
         self.params: DensifyStatisticalParams = (
             params if params is not None else DensifyStatisticalParams()
         )
@@ -90,13 +87,12 @@ class StatisticalDensify(DensityAlgorithmBase):
         sparse_mask = local_density < percentile_val
         sparse_indices = np.where(sparse_mask)[0]
 
-        if self.log_level == "full":
-            logger.debug(
-                "Densify[statistical]: n_orig=%d, n_new=%d, k=%d, "
-                "sparse_pct=%.0f, n_sparse=%d, min_dist=%.4f",
-                n_orig, n_new, p.k_neighbors, p.sparse_percentile,
-                len(sparse_indices), min_dist,
-            )
+        logger.debug(
+            "Densify[statistical]: n_orig=%d, n_new=%d, k=%d, "
+            "sparse_pct=%.0f, n_sparse=%d, min_dist=%.4f",
+            n_orig, n_new, p.k_neighbors, p.sparse_percentile,
+            len(sparse_indices), min_dist,
+        )
 
         rng = np.random.default_rng()
         synthetic_list = []
@@ -127,7 +123,7 @@ class StatisticalDensify(DensityAlgorithmBase):
             # Fallback to NN if statistical produced nothing
             from .nearest_neighbor import NearestNeighborDensify
 
-            nn_algo = NearestNeighborDensify(log_level=self.log_level)
+            nn_algo = NearestNeighborDensify()
             return nn_algo.apply(pcd, n_new)
 
         synthetic = np.array(synthetic_list, dtype=np.float32)

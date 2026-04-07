@@ -12,7 +12,7 @@ Defines:
 All algorithm implementations (NearestNeighborDensify, MLSDensify, PoissonDensify,
 StatisticalDensify) must:
   1. Inherit from DensityAlgorithmBase.
-  2. Implement the abstract ``apply(pcd, n_new, log_level)`` method.
+  2. Implement the abstract ``apply(pcd, n_new)`` method.
   3. Accept their corresponding params model in ``__init__``.
 """
 from __future__ import annotations
@@ -35,17 +35,7 @@ logger = logging.getLogger(__name__)
 MIN_INPUT_POINTS: int = 10
 MAX_MULTIPLIER: float = 8.0
 
-PRESET_ALGORITHM_MAP: Dict[str, str] = {
-    "fast": "nearest_neighbor",
-    "medium": "statistical",
-    "high": "mls",
-}
-
 _VALID_ALGORITHMS = frozenset({"nearest_neighbor", "mls", "poisson", "statistical"})
-_VALID_PRESETS = frozenset({"fast", "medium", "high"})
-_VALID_LOG_LEVELS = frozenset({"minimal", "full", "none"})
-
-_ENV_LOG_LEVEL = "DENSIFY_LOG_LEVEL"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -62,39 +52,12 @@ class DensifyAlgorithm(str, Enum):
     STATISTICAL = "statistical"
 
 
-class DensifyQualityPreset(str, Enum):
-    """Quality preset — determines default algorithm and latency target."""
-
-    FAST = "fast"       # → nearest_neighbor, target <100ms
-    MEDIUM = "medium"   # → statistical,      target <300ms
-    HIGH = "high"       # → mls,              target <2s
-
-
 class DensifyStatus(str, Enum):
     """Outcome status embedded in the metadata dict returned by apply()."""
 
     SUCCESS = "success"
     SKIPPED = "skipped"
     ERROR = "error"
-
-
-class DensifyLogLevel(str, Enum):
-    """
-    Controls verbosity of Densify log output.
-
-    Attributes:
-        MINIMAL: One summary line per invocation (INFO on skip/error, DEBUG on
-                 success). No per-step or intermediate messages. Production default.
-        FULL:    Full DEBUG logging with per-step timing and intermediate results.
-        NONE:    Completely silent except for ERROR-level messages (algorithm failures).
-
-    Can also be set via the ``DENSIFY_LOG_LEVEL`` environment variable.
-    Explicit constructor ``log_level=`` arg always takes precedence over env var.
-    """
-
-    MINIMAL = "minimal"
-    FULL = "full"
-    NONE = "none"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -250,12 +213,9 @@ class DensifyConfig(BaseModel):
         default=True,
         description="Enable/disable this operation. Disabled nodes pass through unchanged.",
     )
-    algorithm: Optional[DensifyAlgorithm] = Field(
-        default=None,
-        description=(
-            "Densification algorithm. All algorithms use global KDTree searches. "
-            "If set explicitly (not None), takes precedence over quality_preset."
-        ),
+    algorithm: DensifyAlgorithm = Field(
+        default=DensifyAlgorithm.NEAREST_NEIGHBOR,
+        description="Densification algorithm. All algorithms use global KDTree searches.",
     )
     density_multiplier: float = Field(
         default=2.0,
@@ -263,17 +223,9 @@ class DensifyConfig(BaseModel):
         le=8.0,
         description="Target density increase factor. 2.0 doubles the point count.",
     )
-    quality_preset: DensifyQualityPreset = Field(
-        default=DensifyQualityPreset.FAST,
-        description="Quality/speed preset. Determines default algorithm.",
-    )
     preserve_normals: bool = Field(
         default=True,
         description="If True, estimate surface normals for synthetic points.",
-    )
-    log_level: DensifyLogLevel = Field(
-        default=DensifyLogLevel.MINIMAL,
-        description="Logging verbosity: 'minimal' | 'full' | 'none'.",
     )
 
     # Per-algorithm parameter sub-dicts
@@ -322,13 +274,7 @@ class DensityAlgorithmBase(ABC):
     Each concrete subclass implements a single densification strategy
     (nearest_neighbor, mls, poisson, statistical) and is responsible only
     for generating ``n_new`` synthetic points from the input tensor PointCloud.
-
-    Args:
-        log_level: Logging verbosity string ('minimal' | 'full' | 'none').
     """
-
-    def __init__(self, log_level: str = "minimal") -> None:
-        self.log_level = log_level
 
     @abstractmethod
     def apply(

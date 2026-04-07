@@ -1,4 +1,8 @@
 #!/bin/bash
+set -e
+
+# Change to the root of the project
+cd "$(dirname "$0")/.."
 
 timestamp() {
   date +"%Y%m%d%H%M%S"

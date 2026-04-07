@@ -248,37 +248,91 @@ node_schema_registry.register(NodeDefinition(
     websocket_enabled=True,
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
-                       help_text="Minimum time between frames (0 = no limit)"),
+                       help_text="Wait time between updates. 0 means as fast as possible."),
         PropertySchema(
             name="algorithm", label="Algorithm", type="select",
             default="nearest_neighbor",
             options=[
-                {"label": "Nearest Neighbor (Real-time, <100ms)",        "value": "nearest_neighbor"},
-                {"label": "Statistical Upsampling (Balanced, <300ms)",   "value": "statistical"},
-                {"label": "Moving Least Squares (High Quality, <500ms)", "value": "mls"},
-                {"label": "Poisson Reconstruction (Best Quality, <2s)",  "value": "poisson"},
+                {"label": "Nearest Neighbor (Fast)",        "value": "nearest_neighbor"},
+                {"label": "Statistical (Balanced)",         "value": "statistical"},
+                {"label": "Moving Least Squares (Smooth)",  "value": "mls"},
+                {"label": "Poisson (Best, Slow)",           "value": "poisson"},
             ],
-            help_text="Densification algorithm. Overrides quality_preset if set."
+            help_text="Pick how new points are created. Top options are faster, bottom ones look better."
         ),
         PropertySchema(
-            name="density_multiplier", label="Density Multiplier", type="number",
+            name="density_multiplier", label="Multiply By", type="number",
             default=2.0, min=1.0, max=8.0, step=0.5,
-            help_text="Target density increase factor (e.g. 2.0 = 2× input points)"
+            help_text="How many times more points you want. 2 = twice as many, 4 = four times as many."
         ),
         PropertySchema(
-            name="quality_preset", label="Quality Preset", type="select",
-            default="fast",
-            options=[
-                {"label": "Fast (<100ms, real-time)",       "value": "fast"},
-                {"label": "Medium (<300ms, interactive)",   "value": "medium"},
-                {"label": "High (<2s, batch)",              "value": "high"},
-            ],
-            help_text="Preset. Manual algorithm selection takes precedence."
-        ),
-        PropertySchema(
-            name="preserve_normals", label="Preserve Normals", type="boolean",
+            name="preserve_normals", label="Keep Normals", type="boolean",
             default=True,
-            help_text="Interpolate surface normals for new synthetic points"
+            help_text="Keep lighting and shading correct on new points. Turn off to speed things up."
+        ),
+        # ── Nearest Neighbor params ──────────────────────────────────────────
+        PropertySchema(
+            name="nn_params.displacement_min", label="Min Spread", type="number",
+            default=0.05, min=0.0, max=1.0, step=0.01,
+            depends_on={"algorithm": ["nearest_neighbor"]},
+            help_text="New points won't be placed closer than this. Lower = tighter clusters."
+        ),
+        PropertySchema(
+            name="nn_params.displacement_max", label="Max Spread", type="number",
+            default=0.50, min=0.0, max=1.0, step=0.01,
+            depends_on={"algorithm": ["nearest_neighbor"]},
+            help_text="New points won't be placed farther than this. Higher = fills bigger gaps but may look rougher."
+        ),
+        # ── MLS params ───────────────────────────────────────────────────────
+        PropertySchema(
+            name="mls_params.k_neighbors", label="Smoothness", type="number",
+            default=20, min=3, max=100, step=1,
+            depends_on={"algorithm": ["mls"]},
+            help_text="How many nearby points to look at when fitting the surface. Higher = smoother but slower."
+        ),
+        PropertySchema(
+            name="mls_params.projection_radius_factor", label="Spread", type="number",
+            default=0.5, min=0.01, max=2.0, step=0.05,
+            depends_on={"algorithm": ["mls"]},
+            help_text="How far from each point new ones can appear. Bigger = wider coverage."
+        ),
+        PropertySchema(
+            name="mls_params.min_dist_factor", label="Min Gap", type="number",
+            default=0.05, min=0.0, max=1.0, step=0.01,
+            depends_on={"algorithm": ["mls"]},
+            help_text="Keeps new points from piling up on top of existing ones."
+        ),
+        # ── Statistical params ───────────────────────────────────────────────
+        PropertySchema(
+            name="statistical_params.k_neighbors", label="Scan Range", type="number",
+            default=10, min=2, max=100, step=1,
+            depends_on={"algorithm": ["statistical"]},
+            help_text="How many nearby points to check when looking for thin areas. Higher = more thorough but slower."
+        ),
+        PropertySchema(
+            name="statistical_params.sparse_percentile", label="Fill Amount (%)", type="number",
+            default=50.0, min=1.0, max=100.0, step=1.0,
+            depends_on={"algorithm": ["statistical"]},
+            help_text="What portion of thin areas to fill. 50 = fill half, 80 = fill most gaps."
+        ),
+        PropertySchema(
+            name="statistical_params.min_dist_factor", label="Min Gap", type="number",
+            default=0.3, min=0.0, max=1.0, step=0.01,
+            depends_on={"algorithm": ["statistical"]},
+            help_text="Keeps new points from piling up on top of existing ones."
+        ),
+        # ── Poisson params ───────────────────────────────────────────────────
+        PropertySchema(
+            name="poisson_params.depth", label="Detail", type="number",
+            default=8, min=4, max=12, step=1,
+            depends_on={"algorithm": ["poisson"]},
+            help_text="How much detail to capture. Higher = sharper edges but much slower."
+        ),
+        PropertySchema(
+            name="poisson_params.density_threshold_quantile", label="Edge Cleanup", type="number",
+            default=0.1, min=0.0, max=0.5, step=0.01,
+            depends_on={"algorithm": ["poisson"]},
+            help_text="Trims stray points around the edges. Higher = cleaner edges, but may cut into the shape."
         ),
     ],
     inputs=[PortSchema(id="in", label="Input")],

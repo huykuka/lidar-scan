@@ -2,7 +2,7 @@
 TDD Tests for Densify pipeline operation.
 
 Written BEFORE full implementation (TDD Phase 0 gate).
-Tests must be collectable (importable) once densify.py skeleton exists, even if they
+Tests must be collectable (importable) once density package exists, even if they
 fail until each algorithm is implemented.
 
 Covers:
@@ -83,12 +83,12 @@ def get_positions(pcd) -> np.ndarray:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Lazy import helper – fails loudly until densify.py skeleton exists
+# Lazy import helper – fails loudly until density package exists
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 def _import_densify():
-    from app.modules.pipeline.operations.densify import Densify
+    from app.modules.pipeline.operations.density import Densify
 
     return Densify
 
@@ -111,17 +111,11 @@ class TestClassConstruction:
         assert op.preserve_normals is True
         assert op.enabled is True
 
-    def test_densify_default_algorithm_is_none_or_nearest_neighbor(self):
-        """Default algorithm is either None (use-preset) or 'nearest_neighbor'."""
+    def test_densify_default_algorithm(self):
+        """Default algorithm is 'nearest_neighbor'."""
         Densify = _import_densify()
         op = Densify()
-        assert op.algorithm in (None, "nearest_neighbor")
-
-    def test_densify_default_quality_preset(self):
-        """Default quality_preset is 'fast'."""
-        Densify = _import_densify()
-        op = Densify()
-        assert op.quality_preset == "fast"
+        assert op.algorithm == "nearest_neighbor"
 
     def test_densify_custom_config_stored(self):
         """Custom constructor args are stored as attributes."""
@@ -129,13 +123,11 @@ class TestClassConstruction:
         op = Densify(
             algorithm="mls",
             density_multiplier=4.0,
-            quality_preset="high",
             preserve_normals=False,
             enabled=False,
         )
         assert op.algorithm == "mls"
         assert op.density_multiplier == 4.0
-        assert op.quality_preset == "high"
         assert op.preserve_normals is False
         assert op.enabled is False
 
@@ -158,12 +150,6 @@ class TestClassConstruction:
         Densify = _import_densify()
         with pytest.raises(ValueError, match="density_multiplier"):
             Densify(density_multiplier=0.5)
-
-    def test_densify_invalid_preset(self):
-        """Unknown quality_preset raises ValueError."""
-        Densify = _import_densify()
-        with pytest.raises(ValueError, match="quality_preset"):
-            Densify(quality_preset="ultra")
 
     def test_densify_boundary_multiplier_exactly_1(self):
         """density_multiplier=1.0 is the minimum valid value (no error)."""
@@ -578,47 +564,6 @@ class TestPoisson:
         assert meta["processing_time_ms"] < 2000.0, (
             f"Too slow: {meta['processing_time_ms']:.1f}ms (SLA: 2000ms)"
         )
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Phase 7: Quality Preset System
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-class TestQualityPresets:
-    """Phase 7 – Preset → algorithm resolution."""
-
-    def test_preset_fast_uses_nn(self):
-        """quality_preset='fast', no explicit algorithm → nearest_neighbor."""
-        Densify = _import_densify()
-        op = Densify(quality_preset="fast")
-        pcd = make_pcd(500)
-        _, meta = op.apply(pcd)
-        assert meta["algorithm_used"] == "nearest_neighbor"
-
-    def test_preset_medium_uses_statistical(self):
-        """quality_preset='medium', no explicit algorithm → statistical."""
-        Densify = _import_densify()
-        op = Densify(quality_preset="medium")
-        pcd = make_pcd(500)
-        _, meta = op.apply(pcd)
-        assert meta["algorithm_used"] == "statistical"
-
-    def test_preset_high_uses_mls(self):
-        """quality_preset='high', no explicit algorithm → mls."""
-        Densify = _import_densify()
-        op = Densify(quality_preset="high")
-        pcd = make_pcd(500)
-        _, meta = op.apply(pcd)
-        assert meta["algorithm_used"] == "mls"
-
-    def test_explicit_algorithm_overrides_preset(self):
-        """Explicit algorithm='poisson' beats quality_preset='fast'."""
-        Densify = _import_densify()
-        op = Densify(algorithm="poisson", quality_preset="fast")
-        pcd = make_pcd_with_normals(300)
-        _, meta = op.apply(pcd)
-        assert meta["algorithm_used"] == "poisson"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1129,7 +1074,7 @@ class TestVerticalGapFilling:
         The global mean NN distance should be dominated by the z-gap, not the
         within-layer XY spacing.
         """
-        from app.modules.pipeline.operations.densify import Densify as DensifyClass
+        from app.modules.pipeline.operations.density import Densify as DensifyClass
 
         # Dense within-layer spacing (XY gap ≈ 0.1) but large z-gap (10.0)
         rng = np.random.default_rng(42)
@@ -1217,207 +1162,6 @@ class TestVerticalGapFilling:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Phase 14: Log Level / Log Mode Configuration
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-class TestLogLevel:
-    """
-    Phase 14 — Log level configuration and log spam reduction.
-
-    Covers:
-    - DensifyLogLevel enum values: 'minimal', 'full', 'none'
-    - DensifyConfig.log_level field (default='minimal')
-    - DENSIFY_LOG_LEVEL env-var override
-    - Densify.__init__ log_level parameter storage
-    - Per-call log reduction: single INFO line in 'minimal' mode
-    - 'none' mode: no INFO/WARNING logs during apply()
-    - 'full' mode: DEBUG log emitted per successful apply()
-    - Backward compat: default config (no log_level) behaves as 'minimal'
-    """
-
-    def test_log_level_enum_values_exist(self):
-        """DensifyLogLevel enum must have minimal, full, none."""
-        from app.modules.pipeline.operations.densify import DensifyLogLevel
-
-        assert hasattr(DensifyLogLevel, "MINIMAL")
-        assert hasattr(DensifyLogLevel, "FULL")
-        assert hasattr(DensifyLogLevel, "NONE")
-        assert DensifyLogLevel.MINIMAL.value == "minimal"
-        assert DensifyLogLevel.FULL.value == "full"
-        assert DensifyLogLevel.NONE.value == "none"
-
-    def test_densify_config_has_log_level_field(self):
-        """DensifyConfig must have a log_level field defaulting to 'minimal'."""
-        from app.modules.pipeline.operations.densify import DensifyConfig
-
-        cfg = DensifyConfig()
-        assert hasattr(cfg, "log_level")
-        assert cfg.log_level == "minimal"
-
-    def test_densify_init_accepts_log_level_param(self):
-        """Densify.__init__ must accept log_level kwarg and store it."""
-        Densify = _import_densify()
-        op = Densify(log_level="full")
-        assert op.log_level == "full"
-
-        op2 = Densify(log_level="none")
-        assert op2.log_level == "none"
-
-    def test_densify_default_log_level_is_minimal(self):
-        """Densify() with no log_level uses 'minimal' by default."""
-        Densify = _import_densify()
-        op = Densify()
-        assert op.log_level == "minimal"
-
-    def test_densify_invalid_log_level_raises(self):
-        """Unknown log_level raises ValueError."""
-        Densify = _import_densify()
-        with pytest.raises(ValueError, match="log_level"):
-            Densify(log_level="verbose")
-
-    def test_log_level_minimal_single_info_log_on_success(self, caplog):
-        """
-        In 'minimal' mode, apply() on a successful densification emits
-        exactly ONE summary log at INFO or DEBUG level (not multiple step logs).
-        """
-        import logging
-
-        Densify = _import_densify()
-        op = Densify(algorithm="nearest_neighbor", density_multiplier=2.0, log_level="minimal")
-        pcd = make_pcd(500)
-
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
-            op.apply(pcd)
-
-        info_records = [r for r in caplog.records if r.levelno >= logging.INFO]
-        # In minimal mode, at most 1 INFO/WARNING record for a clean success
-        assert len(info_records) <= 1, (
-            f"'minimal' log_level produced {len(info_records)} INFO+ records; "
-            f"expected ≤1. Messages: {[r.getMessage() for r in info_records]}"
-        )
-
-    def test_log_level_none_no_info_logs_on_success(self, caplog):
-        """
-        In 'none' mode, apply() must emit ZERO INFO/WARNING logs on success.
-        """
-        import logging
-
-        Densify = _import_densify()
-        op = Densify(algorithm="nearest_neighbor", density_multiplier=2.0, log_level="none")
-        pcd = make_pcd(500)
-
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
-            op.apply(pcd)
-
-        info_and_above = [r for r in caplog.records if r.levelno >= logging.INFO]
-        assert len(info_and_above) == 0, (
-            f"'none' log_level produced {len(info_and_above)} INFO+ record(s). "
-            f"Messages: {[r.getMessage() for r in info_and_above]}"
-        )
-
-    def test_log_level_none_no_warning_on_skip(self, caplog):
-        """
-        In 'none' mode, apply() on an insufficient-points input must not emit
-        WARNING logs — status=skipped must be silent.
-        """
-        import logging
-
-        Densify = _import_densify()
-        op = Densify(log_level="none")
-        pcd = make_pcd(5)  # too few points → skip
-
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
-            _, meta = op.apply(pcd)
-
-        assert meta["status"] == "skipped"
-        warn_and_above = [r for r in caplog.records if r.levelno >= logging.WARNING]
-        assert len(warn_and_above) == 0, (
-            f"'none' log_level still emitted {len(warn_and_above)} WARNING+ logs on skip."
-        )
-
-    def test_log_level_full_emits_debug_on_success(self, caplog):
-        """
-        In 'full' mode, a successful apply() must emit at least one DEBUG record
-        containing point-count and timing information.
-        """
-        import logging
-
-        Densify = _import_densify()
-        op = Densify(algorithm="nearest_neighbor", density_multiplier=2.0, log_level="full")
-        pcd = make_pcd(500)
-
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
-            _, meta = op.apply(pcd)
-
-        assert meta["status"] == "success"
-        debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
-        assert len(debug_records) >= 1, (
-            "'full' log_level must emit at least one DEBUG record on success."
-        )
-
-    def test_log_level_error_always_logged_regardless_of_level(self, caplog):
-        """
-        ERROR logs (algorithm failure) must always be emitted regardless of
-        log_level setting — even in 'none' mode.
-        """
-        import logging
-        from unittest.mock import patch
-
-        Densify = _import_densify()
-        op = Densify(log_level="none")
-        pcd = make_pcd(1000)
-
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
-            with patch.object(op, "_run_algorithm", side_effect=RuntimeError("fatal err")):
-                _, meta = op.apply(pcd)
-
-        assert meta["status"] == "error"
-        error_records = [r for r in caplog.records if r.levelno >= logging.ERROR]
-        assert len(error_records) >= 1, (
-            "ERROR log must be emitted even with log_level='none'."
-        )
-
-    def test_log_level_env_var_override(self, monkeypatch):
-        """
-        DENSIFY_LOG_LEVEL env variable must override the default.
-        When env var is 'full', Densify() (no explicit arg) must default to 'full'.
-        """
-        monkeypatch.setenv("DENSIFY_LOG_LEVEL", "full")
-        Densify = _import_densify()
-        op = Densify()  # no explicit log_level
-        assert op.log_level == "full", (
-            "DENSIFY_LOG_LEVEL=full env var must override the default 'minimal'."
-        )
-
-    def test_explicit_log_level_overrides_env_var(self, monkeypatch):
-        """
-        Explicit log_level constructor arg must beat the env var.
-        """
-        monkeypatch.setenv("DENSIFY_LOG_LEVEL", "full")
-        Densify = _import_densify()
-        op = Densify(log_level="none")  # explicit override
-        assert op.log_level == "none"
-
-    def test_backward_compat_no_log_level_in_factory(self):
-        """
-        OperationFactory.create('densify', {}) (no log_level key) must still
-        work — defaults to 'minimal'.
-        """
-        from app.modules.pipeline.factory import OperationFactory
-
-        op = OperationFactory.create("densify", {})
-        assert op.log_level == "minimal"
-
-    def test_factory_passes_log_level(self):
-        """OperationFactory.create passes log_level kwarg to Densify constructor."""
-        from app.modules.pipeline.factory import OperationFactory
-
-        op = OperationFactory.create("densify", {"log_level": "none"})
-        assert op.log_level == "none"
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # Phase 15: Per-Algorithm Parameter Exposure
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1442,7 +1186,7 @@ class TestAlgorithmParams:
 
     def test_nn_params_model_exists_with_defaults(self):
         """DensifyNNParams must have displacement_min, displacement_max defaults."""
-        from app.modules.pipeline.operations.densify import DensifyNNParams
+        from app.modules.pipeline.operations.density import DensifyNNParams
 
         p = DensifyNNParams()
         assert hasattr(p, "displacement_min")
@@ -1451,7 +1195,7 @@ class TestAlgorithmParams:
 
     def test_mls_params_model_exists_with_defaults(self):
         """DensifyMLSParams must have k_neighbors and projection_radius_factor."""
-        from app.modules.pipeline.operations.densify import DensifyMLSParams
+        from app.modules.pipeline.operations.density import DensifyMLSParams
 
         p = DensifyMLSParams()
         assert hasattr(p, "k_neighbors")
@@ -1461,7 +1205,7 @@ class TestAlgorithmParams:
 
     def test_statistical_params_model_exists_with_defaults(self):
         """DensifyStatisticalParams must have k_neighbors, sparse_percentile, min_dist_factor."""
-        from app.modules.pipeline.operations.densify import DensifyStatisticalParams
+        from app.modules.pipeline.operations.density import DensifyStatisticalParams
 
         p = DensifyStatisticalParams()
         assert hasattr(p, "k_neighbors")
@@ -1473,7 +1217,7 @@ class TestAlgorithmParams:
 
     def test_poisson_params_model_exists_with_defaults(self):
         """DensifyPoissonParams must have depth, density_threshold_quantile."""
-        from app.modules.pipeline.operations.densify import DensifyPoissonParams
+        from app.modules.pipeline.operations.density import DensifyPoissonParams
 
         p = DensifyPoissonParams()
         assert hasattr(p, "depth")
@@ -1485,7 +1229,7 @@ class TestAlgorithmParams:
 
     def test_densify_config_has_optional_nn_params(self):
         """DensifyConfig.nn_params is Optional and defaults to None."""
-        from app.modules.pipeline.operations.densify import DensifyConfig
+        from app.modules.pipeline.operations.density import DensifyConfig
 
         cfg = DensifyConfig()
         assert hasattr(cfg, "nn_params")
@@ -1493,21 +1237,21 @@ class TestAlgorithmParams:
 
     def test_densify_config_has_optional_mls_params(self):
         """DensifyConfig.mls_params is Optional and defaults to None."""
-        from app.modules.pipeline.operations.densify import DensifyConfig
+        from app.modules.pipeline.operations.density import DensifyConfig
 
         cfg = DensifyConfig()
         assert cfg.mls_params is None
 
     def test_densify_config_has_optional_statistical_params(self):
         """DensifyConfig.statistical_params is Optional and defaults to None."""
-        from app.modules.pipeline.operations.densify import DensifyConfig
+        from app.modules.pipeline.operations.density import DensifyConfig
 
         cfg = DensifyConfig()
         assert cfg.statistical_params is None
 
     def test_densify_config_has_optional_poisson_params(self):
         """DensifyConfig.poisson_params is Optional and defaults to None."""
-        from app.modules.pipeline.operations.densify import DensifyConfig
+        from app.modules.pipeline.operations.density import DensifyConfig
 
         cfg = DensifyConfig()
         assert cfg.poisson_params is None
@@ -1516,7 +1260,7 @@ class TestAlgorithmParams:
 
     def test_densify_init_accepts_nn_params(self):
         """Densify(nn_params=DensifyNNParams(...)) stores nn_params attribute."""
-        from app.modules.pipeline.operations.densify import DensifyNNParams
+        from app.modules.pipeline.operations.density import DensifyNNParams
 
         Densify = _import_densify()
         params = DensifyNNParams(displacement_min=0.1, displacement_max=0.8)
@@ -1527,7 +1271,7 @@ class TestAlgorithmParams:
 
     def test_densify_init_accepts_mls_params(self):
         """Densify(mls_params=DensifyMLSParams(...)) stores mls_params attribute."""
-        from app.modules.pipeline.operations.densify import DensifyMLSParams
+        from app.modules.pipeline.operations.density import DensifyMLSParams
 
         Densify = _import_densify()
         params = DensifyMLSParams(k_neighbors=30)
@@ -1537,7 +1281,7 @@ class TestAlgorithmParams:
 
     def test_densify_init_accepts_statistical_params(self):
         """Densify(statistical_params=...) stores statistical_params attribute."""
-        from app.modules.pipeline.operations.densify import DensifyStatisticalParams
+        from app.modules.pipeline.operations.density import DensifyStatisticalParams
 
         Densify = _import_densify()
         params = DensifyStatisticalParams(k_neighbors=15, sparse_percentile=40)
@@ -1547,7 +1291,7 @@ class TestAlgorithmParams:
 
     def test_densify_init_accepts_poisson_params(self):
         """Densify(poisson_params=...) stores poisson_params attribute."""
-        from app.modules.pipeline.operations.densify import DensifyPoissonParams
+        from app.modules.pipeline.operations.density import DensifyPoissonParams
 
         Densify = _import_densify()
         params = DensifyPoissonParams(depth=9)
@@ -1571,7 +1315,7 @@ class TestAlgorithmParams:
         nn_params.displacement_max=0.01 (very tight) vs default should produce
         synthetic points much closer to source points.
         """
-        from app.modules.pipeline.operations.densify import DensifyNNParams
+        from app.modules.pipeline.operations.density import DensifyNNParams
 
         Densify = _import_densify()
         pcd = make_pcd(500)
@@ -1597,7 +1341,7 @@ class TestAlgorithmParams:
         statistical_params.k_neighbors value must be accepted without error
         and algorithm must succeed.
         """
-        from app.modules.pipeline.operations.densify import DensifyStatisticalParams
+        from app.modules.pipeline.operations.density import DensifyStatisticalParams
 
         Densify = _import_densify()
         pcd = make_pcd(500)
@@ -1613,7 +1357,7 @@ class TestAlgorithmParams:
         """
         mls_params.k_neighbors=10 (vs default 20) must run without error.
         """
-        from app.modules.pipeline.operations.densify import DensifyMLSParams
+        from app.modules.pipeline.operations.density import DensifyMLSParams
 
         Densify = _import_densify()
         pcd = make_pcd(300)
@@ -1628,7 +1372,7 @@ class TestAlgorithmParams:
         """
         poisson_params.depth value must be accepted without error.
         """
-        from app.modules.pipeline.operations.densify import DensifyPoissonParams
+        from app.modules.pipeline.operations.density import DensifyPoissonParams
 
         Densify = _import_densify()
         pcd = make_pcd_with_normals(300)
@@ -1658,7 +1402,7 @@ class TestAlgorithmParams:
         The factory should accept nested dicts and convert them to param objects.
         """
         from app.modules.pipeline.factory import OperationFactory
-        from app.modules.pipeline.operations.densify import DensifyNNParams
+        from app.modules.pipeline.operations.density import DensifyNNParams
 
         # Factory receives raw dict config — nested dict for nn_params
         op = OperationFactory.create(
@@ -1674,7 +1418,7 @@ class TestAlgorithmParams:
 
     def test_nn_params_validation_bounds(self):
         """DensifyNNParams rejects displacement_min >= displacement_max."""
-        from app.modules.pipeline.operations.densify import DensifyNNParams
+        from app.modules.pipeline.operations.density import DensifyNNParams
         from pydantic import ValidationError
 
         with pytest.raises((ValueError, ValidationError)):
@@ -1682,7 +1426,7 @@ class TestAlgorithmParams:
 
     def test_statistical_params_validation_k_neighbors(self):
         """DensifyStatisticalParams rejects k_neighbors < 2."""
-        from app.modules.pipeline.operations.densify import DensifyStatisticalParams
+        from app.modules.pipeline.operations.density import DensifyStatisticalParams
         from pydantic import ValidationError
 
         with pytest.raises((ValueError, ValidationError)):
@@ -1690,7 +1434,7 @@ class TestAlgorithmParams:
 
     def test_mls_params_validation_k_neighbors(self):
         """DensifyMLSParams rejects k_neighbors < 3."""
-        from app.modules.pipeline.operations.densify import DensifyMLSParams
+        from app.modules.pipeline.operations.density import DensifyMLSParams
         from pydantic import ValidationError
 
         with pytest.raises((ValueError, ValidationError)):
@@ -1698,7 +1442,7 @@ class TestAlgorithmParams:
 
     def test_poisson_params_validation_depth(self):
         """DensifyPoissonParams rejects depth < 4."""
-        from app.modules.pipeline.operations.densify import DensifyPoissonParams
+        from app.modules.pipeline.operations.density import DensifyPoissonParams
         from pydantic import ValidationError
 
         with pytest.raises((ValueError, ValidationError)):
@@ -1708,7 +1452,7 @@ class TestAlgorithmParams:
 
     def test_densify_config_with_nn_params_serializes(self):
         """DensifyConfig with nn_params round-trips through JSON."""
-        from app.modules.pipeline.operations.densify import DensifyConfig, DensifyNNParams
+        from app.modules.pipeline.operations.density import DensifyConfig, DensifyNNParams
 
         cfg = DensifyConfig(
             algorithm="nearest_neighbor",
@@ -1720,7 +1464,7 @@ class TestAlgorithmParams:
 
     def test_densify_config_with_all_params_serializes(self):
         """DensifyConfig with all param sub-dicts serializes without error."""
-        from app.modules.pipeline.operations.densify import (
+        from app.modules.pipeline.operations.density import (
             DensifyConfig, DensifyNNParams, DensifyMLSParams,
             DensifyStatisticalParams, DensifyPoissonParams,
         )

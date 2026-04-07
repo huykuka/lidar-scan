@@ -7,5 +7,5 @@ from .filter import Filter, FilterByKey
 from .boundary import BoundaryDetection
 from .debug import DebugSave, SaveDataStructure
 from .generate_plane import GeneratePlane
-from .densify import Densify
+from .density import Densify
 

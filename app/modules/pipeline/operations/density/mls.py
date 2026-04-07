@@ -32,15 +32,12 @@ class MLSDensify(DensityAlgorithmBase):
 
     Args:
         params:    DensifyMLSParams instance, or None to use production defaults.
-        log_level: Logging verbosity ('minimal' | 'full' | 'none').
     """
 
     def __init__(
         self,
         params: DensifyMLSParams | None = None,
-        log_level: str = "minimal",
     ) -> None:
-        super().__init__(log_level=log_level)
         self.params: DensifyMLSParams = params if params is not None else DensifyMLSParams()
 
     def apply(
@@ -80,12 +77,11 @@ class MLSDensify(DensityAlgorithmBase):
             projection_radius = mean_nn_dist * p.projection_radius_factor
             min_dist = mean_nn_dist * p.min_dist_factor
 
-            if self.log_level == "full":
-                logger.debug(
-                    "Densify[mls]: n_orig=%d, n_new=%d, k=%d, "
-                    "proj_r=%.4f, min_dist=%.4f",
-                    n_orig, n_new, p.k_neighbors, projection_radius, min_dist,
-                )
+            logger.debug(
+                "Densify[mls]: n_orig=%d, n_new=%d, k=%d, "
+                "proj_r=%.4f, min_dist=%.4f",
+                n_orig, n_new, p.k_neighbors, projection_radius, min_dist,
+            )
 
             # Global KDTree for duplicate filtering
             kd_tree = KDTree(pts)
