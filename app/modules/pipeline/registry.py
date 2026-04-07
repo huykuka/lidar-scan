@@ -238,6 +238,58 @@ node_schema_registry.register(NodeDefinition(
     outputs=[PortSchema(id="out", label="Vertices (as points)")]
 ))
 
+# Densify Point Cloud Schema
+node_schema_registry.register(NodeDefinition(
+    type="densify",
+    display_name="Point Cloud Densify",
+    category="operation",
+    description="Increases point cloud density by interpolating synthetic points",
+    icon="blur_circular",
+    websocket_enabled=True,
+    properties=[
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between frames (0 = no limit)"),
+        PropertySchema(
+            name="algorithm", label="Algorithm", type="select",
+            default="nearest_neighbor",
+            options=[
+                {"label": "Nearest Neighbor (Real-time, <100ms)",        "value": "nearest_neighbor"},
+                {"label": "Statistical Upsampling (Balanced, <300ms)",   "value": "statistical"},
+                {"label": "Moving Least Squares (High Quality, <500ms)", "value": "mls"},
+                {"label": "Poisson Reconstruction (Best Quality, <2s)",  "value": "poisson"},
+            ],
+            help_text="Densification algorithm. Overrides quality_preset if set."
+        ),
+        PropertySchema(
+            name="density_multiplier", label="Density Multiplier", type="number",
+            default=2.0, min=1.0, max=8.0, step=0.5,
+            help_text="Target density increase factor (e.g. 2.0 = 2× input points)"
+        ),
+        PropertySchema(
+            name="target_layer_count", label="Target Layer Count (optional)", type="number",
+            default=None, min=1, step=1,
+            help_text="Override multiplier: simulate N-layer LIDAR (e.g. 32 for 16→32)"
+        ),
+        PropertySchema(
+            name="quality_preset", label="Quality Preset", type="select",
+            default="fast",
+            options=[
+                {"label": "Fast (<100ms, real-time)",       "value": "fast"},
+                {"label": "Medium (<300ms, interactive)",   "value": "medium"},
+                {"label": "High (<2s, batch)",              "value": "high"},
+            ],
+            help_text="Preset. Manual algorithm selection takes precedence."
+        ),
+        PropertySchema(
+            name="preserve_normals", label="Preserve Normals", type="boolean",
+            default=True,
+            help_text="Interpolate surface normals for new synthetic points"
+        ),
+    ],
+    inputs=[PortSchema(id="in", label="Input")],
+    outputs=[PortSchema(id="out", label="Output")]
+))
+
 
 # --- Factory Builder ---
 
@@ -281,7 +333,8 @@ def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict
 # Register all specific operation types so NodeFactory can find them by node.type
 _OPERATION_TYPES = [
     "crop", "downsample", "outlier_removal", "radius_outlier_removal", "plane_segmentation",
-    "clustering", "boundary_detection", "debug_save", "filter_by_key", "generate_plane"
+    "clustering", "boundary_detection", "debug_save", "filter_by_key", "generate_plane",
+    "densify"
 ]
 for _op in _OPERATION_TYPES:
     NodeFactory._registry[_op] = NodeFactory._registry["operation"]

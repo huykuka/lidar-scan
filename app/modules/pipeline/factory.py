@@ -14,6 +14,7 @@ from app.modules.pipeline.operations import (
     DebugSave,
     SaveDataStructure,
     GeneratePlane,
+    Densify,
 )
 _OP_MAP: Dict[str, Type[PipelineOperation]] = {
     "crop": Crop,
@@ -30,6 +31,7 @@ _OP_MAP: Dict[str, Type[PipelineOperation]] = {
     "debug_save": DebugSave,
     "save_structure": SaveDataStructure,
     "generate_plane": GeneratePlane,
+    "densify": Densify,
 }
 
 class OperationFactory:
