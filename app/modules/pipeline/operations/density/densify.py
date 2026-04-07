@@ -48,15 +48,7 @@ from .mls import MLSDensify
 from .poisson import PoissonDensify
 from .statistical import StatisticalDensify
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Logger
-# ─────────────────────────────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Main dispatcher class
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class Densify(PipelineOperation):

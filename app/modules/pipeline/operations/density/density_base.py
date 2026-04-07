@@ -29,19 +29,11 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Module-level constants (shared across all algorithm modules)
-# ─────────────────────────────────────────────────────────────────────────────
 MIN_INPUT_POINTS: int = 10
 MIN_MULTIPLIER: float = 1.0
-MAX_MULTIPLIER: float = 15.0
+MAX_MULTIPLIER: float = 8.0
 
 _VALID_ALGORITHMS = frozenset({"nearest_neighbor", "mls", "poisson", "statistical"})
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Enums
-# ─────────────────────────────────────────────────────────────────────────────
 
 
 class DensifyAlgorithm(str, Enum):
