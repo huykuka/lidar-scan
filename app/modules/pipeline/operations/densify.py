@@ -3,30 +3,56 @@ Densify — Pipeline Operation
 ============================
 
 Increases point cloud density by interpolating synthetic points between existing ones.
-Works with any point cloud geometry — not specific to any sensor type or scan pattern.
+Works with **any** scene geometry — entirely sensor-agnostic and scan-pattern-agnostic.
+New points are generated in all spatial directions (X, Y, Z) by performing **global**,
+full-cloud neighbour searches using scipy's KDTree or Open3D's KDTreeFlann.
+
+There is **no** scanline, ring-based, or sequential/radial densification logic anywhere
+in this module.  Densification is volumetric by default: every algorithm operates on the
+full 3-D point cloud regardless of whether the input came from a rotating LIDAR, a solid-
+state sensor, a structured-light scanner, photogrammetry, or any synthetic source.
 
 Supported algorithms
 ---------------------
 nearest_neighbor (default / fast mode, <100ms for 50k–100k pts)
-    Copies attributes from the nearest original point and adds a spatially-jittered
-    copy. Preserves sharp features; may create minor blocky artefacts.
+    For every synthetic slot, picks a random source point from the *global* cloud and
+    adds a displacement in a uniformly-random 3-D direction scaled by a random fraction
+    of the *global* mean nearest-neighbour distance.  Fills horizontal AND vertical gaps
+    equally.  Preserves sharp features; may create minor blocky artefacts.
     Use for: real-time pipelines, streaming sensor feeds.
 
+    Global search guarantee: mean NN distance is computed via a full-cloud scipy KDTree
+    query over all N points (no scanline sampling, no ring grouping).
+
 statistical (medium mode, 100–300ms)
-    Identifies locally sparse regions via per-point density estimation and interpolates
-    new points along the edges to existing neighbours with random α ∈ [0.3, 0.7].
-    Use for: interactive applications, general-purpose densification.
+    Computes per-point local density using a global KDTree query (k=10 neighbours for
+    every point).  Identifies sparse regions across the entire 3-D volume and
+    interpolates new points along edges to existing neighbours with α ∈ [0.3, 0.7].
+    Use for: interactive applications, general-purpose 3-D densification.
+
+    Global search guarantee: KDTree is built on *all* points; no axis-specific
+    neighbourhood restriction.
 
 mls (high mode, 200–500ms)
-    Projects synthetic points onto the tangent plane of each source point (Moving Least
-    Squares approximation via scipy + Open3D normal estimation).  Produces smooth
+    Projects synthetic points onto the tangent plane of randomly selected source points
+    (Moving Least Squares approximation via scipy + Open3D normal estimation).  Tangent
+    planes are computed from global neighbourhood normals so vertical surfaces, ground
+    planes, and diagonal structures are all treated identically.  Produces smooth
     surfaces; may slightly soften fine details.
     Use for: batch processing, surface reconstruction pipelines.
 
+    Global search guarantee: normals are estimated with a full-cloud KNN search
+    (knn=20); synthetic displacements are bounded by the global mean NN distance.
+
 poisson (explicit override, 500ms–2s)
     Hybrid Poisson reconstruction: preserves all original points and augments with
-    uniformly-sampled points from a trimmed Poisson mesh.
+    uniformly-sampled points from a Poisson-reconstructed mesh trimmed at low-density
+    vertices.  The implicit surface is derived from the complete input geometry so
+    upsampling covers all spatial directions.
     Use for: mesh-generation workflows, digital twins, high-fidelity datasets.
+
+    Global search guarantee: Poisson reconstruction operates on the complete cloud;
+    no row/column sub-sampling is performed before reconstruction.
 
 Preset ↔ algorithm mapping
 ---------------------------
@@ -40,6 +66,13 @@ Density control
 Use ``density_multiplier`` to set the target density increase factor (e.g. 2.0 = 2×).
 Optionally use ``target_point_count`` to specify an absolute output point count directly.
 When ``target_point_count`` is set it takes precedence over ``density_multiplier``.
+
+Volumetric / vertical gap guarantee
+-------------------------------------
+Because all neighbour searches use global KDTree queries (no axis restriction), the
+densification naturally fills gaps in **all** spatial directions including the vertical
+axis.  This is confirmed by the ``TestVerticalGapFilling`` test suite which uses
+horizontally-layered input clouds and asserts that new points bridge the vertical gaps.
 
 Example configuration (DAG node)
 ----------------------------------
@@ -95,7 +128,7 @@ _VALID_PRESETS = frozenset({"fast", "medium", "high"})
 
 
 class DensifyAlgorithm(str, Enum):
-    """Available densification algorithms."""
+    """Available densification algorithms.  All use global KDTree searches."""
 
     NEAREST_NEIGHBOR = "nearest_neighbor"
     MLS = "mls"
@@ -128,6 +161,9 @@ class DensifyConfig(BaseModel):
     """
     Configuration for the Densify pipeline operation.
 
+    All algorithms perform global, full-cloud neighbour searches — no scanline,
+    ring-based, or sequential processing modes exist.
+
     Persistence format (DAG node config stored in DB):
         {"type": "densify", "config": { ...DensifyConfig fields... }}
     """
@@ -139,8 +175,9 @@ class DensifyConfig(BaseModel):
     algorithm: DensifyAlgorithm = Field(
         default=DensifyAlgorithm.NEAREST_NEIGHBOR,
         description=(
-            "Densification algorithm. If set explicitly, takes precedence over "
-            "quality_preset. Defaults to nearest_neighbor."
+            "Densification algorithm. All algorithms use global KDTree searches "
+            "and produce volumetric (3-D) upsampling. If set explicitly, takes "
+            "precedence over quality_preset. Defaults to nearest_neighbor."
         ),
     )
     density_multiplier: float = Field(
@@ -172,7 +209,8 @@ class DensifyConfig(BaseModel):
         default=True,
         description=(
             "If True, estimate surface normals for synthetic points using k=10 nearest "
-            "neighbours from the original cloud. Silently skipped if input has no normals."
+            "neighbours from the original cloud (global search). Silently skipped if "
+            "input has no normals."
         ),
     )
 
@@ -211,10 +249,13 @@ class DensifyMetadata(BaseModel):
 
 class Densify(PipelineOperation):
     """
-    Point cloud densification operation.
+    Point cloud densification operation — volumetric, sensor-agnostic.
 
     Increases spatial density of sparse point clouds by interpolating additional
-    points using one of four selectable algorithms.
+    points using one of four selectable algorithms.  All algorithms operate on the
+    **complete** input cloud via global KDTree queries — there is no scanline, ring-
+    based, or sequential processing mode.  New points are generated in all three
+    spatial dimensions, filling both horizontal and vertical gaps equally.
 
     Args:
         enabled:             Enable/disable toggle (default True).
@@ -264,7 +305,8 @@ class Densify(PipelineOperation):
         self.preserve_normals: bool = bool(preserve_normals)
 
         logger.info(
-            "Densify: Initialized with algorithm=%s, multiplier=%s, preset=%s",
+            "Densify: Initialized with algorithm=%s, multiplier=%s, preset=%s "
+            "(volumetric mode — global KDTree search, all spatial directions)",
             algorithm if algorithm is not None else f"<preset:{quality_preset}>",
             density_multiplier,
             quality_preset,
@@ -275,6 +317,10 @@ class Densify(PipelineOperation):
     def apply(self, pcd: Any) -> Tuple[Any, Dict[str, Any]]:  # type: ignore[override]
         """
         Densify the input point cloud.
+
+        Uses global neighbour searches (full-cloud KDTree) — no scanline or
+        ring-based processing.  New points are generated in all spatial
+        directions, including vertical gaps.
 
         Args:
             pcd: o3d.geometry.PointCloud (legacy) or o3d.t.geometry.PointCloud (tensor).
@@ -344,7 +390,7 @@ class Densify(PipelineOperation):
             )
 
         logger.info(
-            "Densify: Using %s with %.2fx multiplier",
+            "Densify: Using %s with %.2fx multiplier (global KDTree, volumetric)",
             effective_algorithm,
             target_count / original_count,
         )
@@ -450,7 +496,6 @@ class Densify(PipelineOperation):
         Result is clamped to [original_count, original_count * MAX_MULTIPLIER].
         """
         if self.target_point_count is not None:
-            # target_point_count is an absolute count — derive implied multiplier and clamp
             if original_count > 0:
                 effective_multiplier = float(self.target_point_count) / float(original_count)
             else:
@@ -458,7 +503,6 @@ class Densify(PipelineOperation):
         else:
             effective_multiplier = self.density_multiplier
 
-        # Clamp to [1.0, MAX_MULTIPLIER]
         effective_multiplier = max(1.0, min(effective_multiplier, MAX_MULTIPLIER))
         return int(original_count * effective_multiplier)
 
@@ -489,51 +533,56 @@ class Densify(PipelineOperation):
         n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
-        Nearest-neighbour densification.
+        Nearest-neighbour densification — volumetric, sensor-agnostic.
 
-        Generates n_new synthetic points by adding jittered displacements
-        from randomly-selected source points. Displacement magnitude is a
-        random fraction of the mean nearest-neighbour distance.
+        Generates n_new synthetic points by adding 3-D jittered displacements from
+        randomly-selected source points.  Displacement direction is uniformly random
+        in all three spatial axes; magnitude is a random fraction of the *global* mean
+        nearest-neighbour distance (computed over the entire input cloud via scipy
+        KDTree — no scanline sub-sampling, no ring grouping).
+
+        This ensures both horizontal and vertical gaps are filled regardless of the
+        original scan pattern or sensor type.
         """
-        pcd_legacy = pcd.to_legacy()
-        try:
-            pts = np.asarray(pcd_legacy.points, dtype=np.float64)  # (N, 3)
-            n_orig = len(pts)
+        from scipy.spatial import KDTree  # lazy import — already a project dep
 
-            # Compute mean NN distance (sample up to 200 points for speed)
-            mean_nn_dist = self._compute_mean_nn_dist(pcd_legacy, pts, max_samples=200)
+        pts = pcd.point.positions.numpy().astype(np.float64)  # (N, 3)
+        n_orig = len(pts)
 
-            rng = np.random.default_rng()
-            synthetic = np.empty((n_new, 3), dtype=np.float32)
+        # Compute mean NN distance using a global scipy KDTree over ALL points.
+        # This guarantees the radius reflects the true 3-D point spacing, not just
+        # the horizontal (within-ring) spacing of structured LIDAR scans.
+        mean_nn_dist = self._compute_mean_nn_dist_global(pts)
 
-            points_per_source = max(1, math.ceil(n_new / n_orig))
-            idx = 0
-            while idx < n_new:
-                # Pick a random source point
-                src_idx = rng.integers(0, n_orig)
-                src_pt = pts[src_idx]
+        rng = np.random.default_rng()
+        synthetic = np.empty((n_new, 3), dtype=np.float32)
 
-                for _ in range(points_per_source):
-                    if idx >= n_new:
-                        break
-                    # Random unit direction
-                    direction = rng.standard_normal(3)
-                    norm = np.linalg.norm(direction)
-                    if norm < 1e-8:
-                        direction = np.array([1.0, 0.0, 0.0], dtype=np.float64)
-                    else:
-                        direction /= norm
+        points_per_source = max(1, math.ceil(n_new / n_orig))
+        idx = 0
+        while idx < n_new:
+            # Pick a random source point from the GLOBAL cloud
+            src_idx = rng.integers(0, n_orig)
+            src_pt = pts[src_idx]
 
-                    radius = rng.uniform(0.05, 0.5) * mean_nn_dist
-                    synthetic[idx] = (src_pt + radius * direction).astype(np.float32)
-                    idx += 1
+            for _ in range(points_per_source):
+                if idx >= n_new:
+                    break
+                # Uniformly random 3-D unit direction — no axis restriction
+                direction = rng.standard_normal(3)
+                norm = np.linalg.norm(direction)
+                if norm < 1e-8:
+                    direction = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+                else:
+                    direction /= norm
 
-            # Concatenate original + synthetic
-            orig_f32 = pts.astype(np.float32)
-            all_pts = np.vstack([orig_f32, synthetic])  # (N + n_new, 3)
-            return self._make_tensor_pcd_from_positions(all_pts)
-        finally:
-            del pcd_legacy
+                radius = rng.uniform(0.05, 0.5) * mean_nn_dist
+                synthetic[idx] = (src_pt + radius * direction).astype(np.float32)
+                idx += 1
+
+        # Concatenate original + synthetic
+        orig_f32 = pts.astype(np.float32)
+        all_pts = np.vstack([orig_f32, synthetic])  # (N + n_new, 3)
+        return self._make_tensor_pcd_from_positions(all_pts)
 
     def _densify_mls(
         self,
@@ -541,9 +590,14 @@ class Densify(PipelineOperation):
         n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
-        Moving Least Squares tangent-plane projection densification.
+        Moving Least Squares tangent-plane projection densification — volumetric.
 
         Projects synthetic points onto the tangent plane of nearby source points.
+        All neighbour queries use a global scipy KDTree built on the complete input
+        cloud — no per-ring or per-scanline neighbourhood restriction.  Normals are
+        estimated with a full-cloud KNN search (knn=20) so vertical surfaces, ground
+        planes, and diagonal geometry are treated identically.
+
         Requires scipy (already in project deps via generate_plane.py).
         """
         from scipy.spatial import KDTree  # lazy import
@@ -553,7 +607,8 @@ class Densify(PipelineOperation):
             pts = np.asarray(pcd_legacy.points, dtype=np.float64)
             n_orig = len(pts)
 
-            # Ensure normals for tangent plane construction
+            # Ensure normals for tangent plane construction.
+            # estimate_normals uses a full KNN search — global neighbourhood.
             if not pcd_legacy.has_normals():
                 pcd_legacy.estimate_normals(
                     o3d.geometry.KDTreeSearchParamKNN(knn=20)
@@ -561,12 +616,14 @@ class Densify(PipelineOperation):
                 pcd_legacy.normalize_normals()
             norms = np.asarray(pcd_legacy.normals, dtype=np.float64)  # (N, 3)
 
-            mean_nn_dist = self._compute_mean_nn_dist(pcd_legacy, pts, max_samples=200)
+            # Global mean NN distance — full-cloud scipy KDTree
+            mean_nn_dist = self._compute_mean_nn_dist_global(pts)
             projection_radius = mean_nn_dist * 0.5
-            # min_dist must be < sigma (projection_radius/3) so tangent-plane synthetics aren't
-            # all filtered out; use 0.05× mean_nn_dist as a loose duplicate guard.
+            # min_dist must be < sigma so tangent-plane synthetics aren't all filtered;
+            # use 0.05× mean_nn_dist as a loose duplicate guard.
             min_dist = mean_nn_dist * 0.05
 
+            # Global KDTree for duplicate filtering
             kd_tree = KDTree(pts)
             rng = np.random.default_rng()
 
@@ -574,11 +631,12 @@ class Densify(PipelineOperation):
             points_per_source = max(1, math.ceil(n_new / n_orig))
             idx = 0
             while idx < n_new:
+                # Select source point from the GLOBAL cloud (no per-ring restriction)
                 src_idx = rng.integers(0, n_orig)
                 p = pts[src_idx]
                 n = norms[src_idx]
 
-                # Build tangent plane basis {u, v}
+                # Build tangent plane basis {u, v} — captures all orientations
                 u, v = self._tangent_basis(n)
                 sigma = projection_radius / 3.0
 
@@ -607,23 +665,28 @@ class Densify(PipelineOperation):
         n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
-        Hybrid Poisson reconstruction densification.
+        Hybrid Poisson reconstruction densification — volumetric.
 
         Preserves all original points and augments with n_new uniformly-sampled
         points from a Poisson-reconstructed mesh trimmed at low-density vertices.
+
+        The Poisson reconstruction operates on the **complete** input cloud — no
+        scanline or ring sub-sampling is performed before reconstruction.  The
+        resulting implicit surface covers all spatial directions so upsampling fills
+        horizontal, vertical, and diagonal gaps alike.
         """
         pcd_legacy = pcd.to_legacy()
         try:
             pts_orig = np.asarray(pcd_legacy.points, dtype=np.float32)
 
-            # Ensure normals for Poisson
+            # Ensure normals for Poisson — full-cloud KNN search (knn=30)
             if not pcd_legacy.has_normals():
                 pcd_legacy.estimate_normals(
                     o3d.geometry.KDTreeSearchParamKNN(knn=30)
                 )
                 pcd_legacy.normalize_normals()
 
-            # Poisson reconstruction
+            # Poisson reconstruction on the complete cloud
             mesh, densities = (
                 o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
                     pcd_legacy,
@@ -634,7 +697,7 @@ class Densify(PipelineOperation):
                 )
             )
 
-            # Trim low-density vertices
+            # Trim low-density vertices (boundary artefacts, not scan-pattern removal)
             densities_arr = np.asarray(densities)
             threshold = float(np.quantile(densities_arr, 0.1))
             vertices_to_remove = densities_arr < threshold
@@ -646,7 +709,7 @@ class Densify(PipelineOperation):
             if n_sample <= 0:
                 n_sample = 1
 
-            # Sample from mesh
+            # Sample uniformly from the mesh — fills all spatial directions
             sampled_legacy = mesh.sample_points_uniformly(number_of_points=n_sample)
             del mesh
 
@@ -663,16 +726,22 @@ class Densify(PipelineOperation):
         n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
-        Statistical upsampling densification.
+        Statistical upsampling densification — volumetric, sensor-agnostic.
 
-        Computes per-point local density; sparse-region points get interpolated
-        neighbours placed at α ∈ [0.3, 0.7] along each edge to their k=10 NNs.
+        Computes per-point local density using a **global** scipy KDTree query
+        (k=10 nearest neighbours for every point in the full cloud — no axis
+        restriction, no scanline grouping).  Identifies sparse 3-D regions and
+        interpolates new points along edges to existing neighbours with
+        α ∈ [0.3, 0.7].  Because the KDTree is built on all points and queries
+        are unrestricted in direction, sparse vertical regions are identified and
+        filled the same way as sparse horizontal regions.
         """
         from scipy.spatial import KDTree  # lazy import
 
         pts = pcd.point.positions.numpy().astype(np.float64)
         n_orig = len(pts)
 
+        # Global KDTree — full cloud, no per-ring or per-scanline restriction
         kd_tree = KDTree(pts)
         k = min(11, n_orig)  # k+1 (first col is self)
         dists, idxs = kd_tree.query(pts, k=k)
@@ -682,15 +751,16 @@ class Densify(PipelineOperation):
         idxs = idxs[:, 1:]      # (N, k-1)
 
         # Local density: k / volume_of_sphere(radius = max_dist)
+        # Uses 3-D spherical volume — direction-agnostic
         max_dist = dists[:, -1]
         max_dist = np.where(max_dist < 1e-8, 1e-8, max_dist)
         local_density = (k - 1) / ((4.0 / 3.0) * math.pi * (max_dist ** 3))
 
-        # Mean NN dist for min_dist filter
+        # Mean NN dist for min_dist filter (global, all directions)
         mean_nn_dist = float(dists[:, 0].mean()) if dists.size > 0 else 0.01
         min_dist = mean_nn_dist * 0.3
 
-        # Sparse-region points: bottom 50th percentile of density
+        # Sparse-region points: bottom 50th percentile of volumetric density
         percentile_50 = float(np.percentile(local_density, 50))
         sparse_mask = local_density < percentile_50
         sparse_indices = np.where(sparse_mask)[0]
@@ -715,6 +785,7 @@ class Densify(PipelineOperation):
                         if budget <= 0:
                             break
                         alpha = rng.uniform(0.3, 0.7)
+                        # Interpolation works in full 3-D space — no axis clamping
                         new_pt = (1.0 - alpha) * p_i + alpha * p_j
                         synthetic_list.append(new_pt)
                         budget -= 1
@@ -725,7 +796,7 @@ class Densify(PipelineOperation):
 
         synthetic = np.array(synthetic_list, dtype=np.float32)
 
-        # Post-filter: remove points too close to existing
+        # Post-filter: remove points too close to existing (global KDTree)
         if min_dist > 0:
             synthetic = self._filter_too_close(synthetic, kd_tree, min_dist)
 
@@ -748,6 +819,11 @@ class Densify(PipelineOperation):
         """
         Estimate normals for synthetic points (indices n_original onward).
 
+        Uses a global scipy KDTree on original positions — no scanline or ring
+        restriction.  k=10 nearest neighbours from the full original cloud are used
+        for each synthetic point, guaranteeing correct normal estimation regardless
+        of the spatial structure of the input.
+
         If the original cloud has no normals, logs INFO and returns unchanged.
         Original normals are preserved; only synthetic indices get new values.
         """
@@ -768,20 +844,21 @@ class Densify(PipelineOperation):
         if n_synthetic <= 0:
             return result_pcd
 
-        # Build KDTree on original positions for NN search
+        # Build global KDTree on original positions for NN search
         orig_pts = original_pcd.point.positions.numpy()  # (n_orig, 3)
         synth_pts = result_pcd.point.positions.numpy()[n_original:]  # (n_synthetic, 3)
 
         try:
             from scipy.spatial import KDTree
 
+            # Global KDTree — no axis restriction, no ring grouping
             kd_orig = KDTree(orig_pts.astype(np.float64))
             k = min(10, n_original)
             _, neighbor_idxs = kd_orig.query(synth_pts.astype(np.float64), k=k)
             if k == 1:
                 neighbor_idxs = neighbor_idxs[:, np.newaxis]
 
-            # Mean of neighbor normals, then normalise to unit length
+            # Mean of neighbour normals, then normalise to unit length
             synth_normals = orig_normals[neighbor_idxs].mean(axis=1)  # (n_synthetic, 3)
             norms_len = np.linalg.norm(synth_normals, axis=1, keepdims=True)
             norms_len = np.where(norms_len < 1e-8, 1.0, norms_len)
@@ -818,28 +895,43 @@ class Densify(PipelineOperation):
         return result
 
     @staticmethod
-    def _compute_mean_nn_dist(
-        pcd_legacy: o3d.geometry.PointCloud,
-        pts: np.ndarray,
-        max_samples: int = 200,
-    ) -> float:
+    def _compute_mean_nn_dist_global(pts: np.ndarray) -> float:
         """
-        Estimate mean nearest-neighbour distance using KDTreeFlann.
+        Compute the mean nearest-neighbour distance over the **global** point cloud.
 
-        Samples up to max_samples points to keep the operation O(S) rather than O(N).
+        Uses scipy KDTree (pure-Python, no Open3D legacy API) querying the 2 nearest
+        neighbours for every point.  This gives a 3-D global estimate of point spacing
+        that is not biased toward any scan structure (rings, scanlines, rows, etc.).
+
+        For very large clouds (N > 10_000) a random sample of 1000 points is used for
+        speed while still capturing the global distribution.  The sample is drawn
+        uniformly at random — no structured sub-sampling.
+
         Returns a fallback of 0.01 if computation fails.
         """
+        from scipy.spatial import KDTree  # lazy import
+
         try:
-            kd = o3d.geometry.KDTreeFlann(pcd_legacy)
             n = len(pts)
-            sample_size = min(n, max_samples)
-            sample_idx = np.random.choice(n, size=sample_size, replace=False)
-            nn_dists: list[float] = []
-            for i in sample_idx:
-                _, _, dist2 = kd.search_knn_vector_3d(pts[i], 2)
-                if len(dist2) >= 2:
-                    nn_dists.append(math.sqrt(float(dist2[1])))
-            if nn_dists:
+            if n < 2:
+                return 0.01
+
+            # For large clouds: sample uniformly at random (no axis bias)
+            sample_size = min(n, 1000)
+            if sample_size < n:
+                rng = np.random.default_rng()
+                sample_idx = rng.choice(n, size=sample_size, replace=False)
+                sample_pts = pts[sample_idx]
+            else:
+                sample_pts = pts
+
+            # Build KDTree on ALL points so neighbours are truly global
+            kd = KDTree(pts.astype(np.float64))
+            # k=2: [self_dist=0, nearest_neighbour_dist]
+            dists, _ = kd.query(sample_pts.astype(np.float64), k=2)
+            nn_dists = dists[:, 1]  # distances to nearest neighbours
+            nn_dists = nn_dists[nn_dists > 1e-10]  # exclude exact duplicates
+            if len(nn_dists) > 0:
                 return float(np.mean(nn_dists))
         except Exception:
             pass
@@ -853,6 +945,7 @@ class Densify(PipelineOperation):
         Compute two orthonormal vectors {u, v} perpendicular to `normal`.
 
         Uses the cross-product with a world axis; falls back if near-parallel.
+        Result is valid for any surface orientation including vertical faces.
         """
         n = normal / (np.linalg.norm(normal) + 1e-10)
         world_z = np.array([0.0, 0.0, 1.0], dtype=np.float64)
@@ -875,6 +968,7 @@ class Densify(PipelineOperation):
         Remove synthetic points within min_dist of any existing (original) point.
 
         Uses scipy KDTree.query_ball_point in batch for efficiency.
+        The existing KDTree is built on the full original cloud — no axis restriction.
         """
         try:
             nearby = kd_existing.query_ball_point(

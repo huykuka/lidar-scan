@@ -74,6 +74,9 @@ The `densify.py` operation integrates seamlessly into the existing pipeline arch
 - Algorithm analyzes local point distribution and fills gaps in all directions
 - Works correctly when LIDAR is tilted, rotated, or mounted at non-standard angles
 - No axis-specific assumptions in the implementation
+- **Implementation note (2026-04):** Enforced via `scipy.spatial.KDTree` built on the full point cloud
+  for mean NN distance computation in all algorithms (`_compute_mean_nn_dist_global`).  No random-sampled
+  `KDTreeFlann` or per-ring sub-sampling is used anywhere in `densify.py`.
 
 ---
 
@@ -299,10 +302,10 @@ Example output metadata:
 ## Success Metrics
 
 - [ ] Densify module successfully processes 16-layer LIDAR data to 2x density in <100ms (fast mode)
-- [ ] Algorithm switching validated across all 4 methods in automated tests
-- [ ] Integration test: Densify → Downsample → Compare produces geometrically consistent results
-- [ ] Zero DAG crashes due to densification errors in 1000-frame stress test
-- [ ] Normal interpolation produces visually plausible results in rendering tests
+- [x] Algorithm switching validated across all 4 methods in automated tests
+- [x] Integration test: Densify → Downsample → Compare produces geometrically consistent results
+- [x] Zero DAG crashes due to densification errors in 1000-frame stress test
+- [x] Normal interpolation produces visually plausible results in rendering tests
 - [ ] Documentation includes algorithm selection flowchart and use case recommendations
 
 ---

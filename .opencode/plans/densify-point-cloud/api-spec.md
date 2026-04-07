@@ -66,11 +66,13 @@ class DensifyConfig(BaseModel):
     )
 
     # ── Algorithm selection ───────────────────────────────────────────────────
-    algorithm: DensifyAlgorithm = Field(
-        default=DensifyAlgorithm.NEAREST_NEIGHBOR,
+    algorithm: Optional[DensifyAlgorithm] = Field(
+        default=None,
         description=(
-            "Densification algorithm. If set explicitly, takes precedence over quality_preset. "
-            "Defaults to nearest_neighbor."
+            "Densification algorithm.  If set explicitly (not None), takes precedence over "
+            "quality_preset.  When None (default), the algorithm is resolved from quality_preset "
+            "via PRESET_ALGORITHM_MAP: fast→nearest_neighbor, medium→statistical, high→mls. "
+            "Implementation note: Densify.__init__ accepts algorithm=None as 'use preset' mode."
         )
     )
 

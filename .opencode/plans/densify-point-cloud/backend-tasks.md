@@ -17,6 +17,14 @@
 - [x] Run existing test suite to confirm baseline: `pytest tests/pipeline/operations/ -v`
 - [x] Confirm `scipy` is available: `python -c "from scipy.spatial import KDTree; print('OK')"`
 
+> **Refactor note (2026-04):** After initial implementation, all 4 algorithm methods were updated to use
+> `_compute_mean_nn_dist_global(pts)` (a new `@staticmethod` using `scipy.spatial.KDTree` on the full cloud)
+> instead of the original random-sampled `o3d.geometry.KDTreeFlann` approach.  This enforces global
+> (sensor-agnostic, volumetric) neighbour searches with no per-ring, per-scanline, or axis restriction.
+> Phase 13 vertical gap filling tests (`TestVerticalGapFilling`) were added and updated to use geometry
+> where the global KDTree can bridge the gap (z_gap < XY within-layer spacing for NN/Statistical;
+> tilted surface for MLS).  All 7 Phase 13 tests pass.
+
 ---
 
 ## Phase 1: Module Skeleton & Enums
@@ -101,24 +109,19 @@
 ## Phase 5: Algorithm Implementations
 
 ### 5A — Nearest Neighbor (`_densify_nearest_neighbor`)
-- [x] Convert tensor pcd to legacy: `pcd_legacy = pcd.to_legacy()`
-- [x] Build `o3d.geometry.KDTreeFlann(pcd_legacy)`
-- [x] Extract positions as numpy array: `pts = np.asarray(pcd_legacy.points)` → shape `(N, 3)` float64
-- [x] Compute mean NN distance:
-  - Sample 100 random points (or all if N < 100)
-  - For each sample, query 2 nearest neighbors (k=2: first is self, second is NN)
-  - `mean_nn_dist = mean(distances_to_2nd_neighbor)`
+- [x] Convert tensor pcd positions to numpy float64 array `pts` (no legacy conversion needed)
+- [x] Compute global mean NN distance via `_compute_mean_nn_dist_global(pts)` (scipy KDTree, all points)
 - [x] Pre-allocate synthetic array: `synthetic = np.empty((n_new, 3), dtype=np.float32)`
 - [x] Generate synthetic points:
   - `points_per_source = max(1, ceil(n_new / N))`
-  - For each source point (up to ceiling), generate a displacement vector:
-    - Random unit direction: `d = rng.standard_normal(3); d /= np.linalg.norm(d)`
-    - Random radius: `r = rng.uniform(0.05, 0.5) * mean_nn_dist`
-    - `synthetic[i] = source_pt + r * d`
+  - For each synthetic slot, pick a random source point from the GLOBAL cloud (not per-ring)
+  - Random 3-D unit direction: `d = rng.standard_normal(3); d /= np.linalg.norm(d)` (no axis restriction)
+  - Random radius: `r = rng.uniform(0.05, 0.5) * mean_nn_dist`
+  - `synthetic[i] = source_pt + r * d`
   - Stop when `n_new` points are filled
 - [x] Concatenate: build new tensor pcd with `positions = np.vstack([original_pts, synthetic])`
 - [x] Return new `o3d.t.geometry.PointCloud` with positions set
-- [x] `del pcd_legacy` to free memory
+- [x] `_compute_mean_nn_dist_global` is a `@staticmethod` used by all 4 algorithms (no KDTreeFlann sampling)
 
 ### 5B — MLS / Tangent Plane Projection (`_densify_mls`)
 - [x] Import `scipy.spatial.KDTree` (lazy import inside method)

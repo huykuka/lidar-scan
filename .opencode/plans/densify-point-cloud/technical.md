@@ -82,6 +82,7 @@ PipelineOperation (ABC)
             │       │       ├── _densify_poisson(pcd, n_new)
             │       │       └── _densify_statistical(pcd, n_new)
             │       └── _estimate_normals(result_pcd, original_pcd, n_original)
+            └── _compute_mean_nn_dist_global(pts) -> float  [static, shared by all algorithms]
 ```
 
 ---
@@ -91,18 +92,31 @@ PipelineOperation (ABC)
 ### 3.1 Nearest Neighbor (`nearest_neighbor`) — Fast Mode
 
 **Target latency:** <100ms for 50k–100k points  
-**Open3D API:** `o3d.geometry.KDTreeFlann` (legacy API — fastest for pure neighbor search)
+**Search API:** `scipy.spatial.KDTree` (global full-cloud search — no per-ring sub-sampling)
+
+> **Refactor note (2026-04):** The original spec referenced `o3d.geometry.KDTreeFlann` with random 100-point
+> sampling for mean NN distance computation.  This was replaced with a global `scipy.spatial.KDTree` over ALL
+> points to eliminate scanline/ring bias and ensure volumetric (sensor-agnostic) point generation.
 
 **Algorithm:**
-1. Build `KDTreeFlann` from the `to_legacy()` conversion of the input tensor cloud.
-2. For each existing point, compute how many synthetic points to generate: `n_synthetic_per_point = ceil(target_count / original_count)` with jitter.
-3. Sample a random unit vector, scale by a random fraction of the mean NN distance (radius ≈ 0.1× mean_nn_dist), and add to the source point XYZ.
-4. Accumulate synthetic points in a pre-allocated `numpy` array (`np.empty((n_new, 3), dtype=np.float32)`).
-5. Concatenate original + synthetic positions back into a new `o3d.t.geometry.PointCloud`.
+1. Extract all point positions as a numpy float64 array `pts` (N × 3).
+2. Compute global mean NN distance via `_compute_mean_nn_dist_global(pts)` — builds a `scipy.spatial.KDTree`
+   on the full cloud and queries k=2 (self + nearest) for up to 1000 uniformly-random sample points.
+   This distance reflects the true 3-D point spacing, not just within-ring XY spacing.
+3. For `n_new` synthetic slots, pick a random source point from the full cloud (uniform over all N points).
+4. Generate a uniformly random 3-D unit direction vector (no axis restriction).
+5. Scale by a random radius in `[0.05, 0.5] × mean_nn_dist` and add to the source point XYZ.
+6. Accumulate synthetic points in a pre-allocated `numpy` array (`np.empty((n_new, 3), dtype=np.float32)`).
+7. Concatenate original + synthetic positions into a new `o3d.t.geometry.PointCloud`.
 
-**Memory:** Pre-allocate full output array at step 4. Never grow a Python list per point.
+**Memory:** Pre-allocate full output array at step 6. Never grow a Python list per point.
 
-**Key parameters:** `search_radius_factor=0.1` (fraction of mean NN distance for jitter spread).
+**Key parameters:** `displacement_factor ∈ [0.05, 0.5]` (fraction of global mean NN distance).
+
+**Volumetric guarantee:** Because source selection is uniform over the full cloud and the direction is an
+isotropic 3-D unit vector, synthetic points are generated in all spatial directions.  Vertical (z-axis)
+gap filling occurs when the z-gap is smaller than the within-layer XY spacing, causing the global
+mean NN distance to be dominated by cross-layer distances.  No axis-specific logic is used.
 
 ### 3.2 Moving Least Squares (`mls`) — Medium/High Mode
 
@@ -114,14 +128,23 @@ PipelineOperation (ABC)
 > achieves MLS-quality results with the available API surface.
 
 **Algorithm:**
-1. Convert to legacy, build `scipy.spatial.KDTree` for neighbor queries.
+1. Convert to legacy, build `scipy.spatial.KDTree` for global duplicate-filter queries.
 2. Estimate normals on the original cloud (`pcd.estimate_normals`, `SearchParamKNN(k=20)`) if not present.
-3. For each "gap" slot (positions between existing points based on their neighbors), project a candidate point onto
-   the tangent plane of its nearest neighbor (tangent plane = point + span{u, v} where u, v ⊥ normal).
-4. Add Gaussian noise in the tangent plane: `new_pt = center + σ_u * u + σ_v * v` where σ ~ `radius / 3`.
-5. Reject points that land within `min_dist = radius / 4` of any existing point (avoid duplicates).
+   Normal estimation is performed via a full-cloud KNN search — no per-ring restriction.
+3. Compute global mean NN distance via `_compute_mean_nn_dist_global(pts)` (same as NN algorithm).
+4. For each synthetic slot, select a random source point from the full cloud and compute its tangent-plane
+   basis `{u, v}` from its normal (cross-product with a world axis, falls back if near-parallel).
+5. Generate `new_pt = p + σ_u * u + σ_v * v` where `σ ~ Uniform(-projection_radius/3, projection_radius/3)`.
+   `projection_radius = mean_nn_dist * 0.5`.
+6. Apply light post-filtering: remove synthetic points within `min_dist = mean_nn_dist * 0.05` of any
+   existing point (using the global KDTree from step 1).
 
 **Key parameters:** `k_neighbors=20`, `projection_radius=mean_nn_dist * 0.5`.
+
+**Volumetric behaviour:** MLS follows each source point's local tangent plane.  For flat horizontal clouds
+the tangent plane is XY, so displacements are horizontal.  For tilted or curved surfaces the tangent plane
+spans the z direction and generates points with vertical spread.  This is the correct surface-following
+behaviour — no axis restriction is imposed.
 
 ### 3.3 Poisson Reconstruction (`poisson`) — High Mode
 
@@ -153,13 +176,18 @@ PipelineOperation (ABC)
 > synthetic points proportionally. Does not use Open3D primitives directly — pure numpy/scipy.
 
 **Algorithm:**
-1. Build `scipy.spatial.KDTree` for the input cloud.
+1. Build `scipy.spatial.KDTree` over ALL input points (global, full-cloud).
 2. For each point, query `k=10` nearest neighbors; compute local density = `k / volume_of_sphere(radius=max_dist)`.
 3. Normalize densities; points in the bottom 50th percentile are "sparse regions."
 4. For sparse-region points, generate `n_extra` synthetic neighbors by:
    a. Interpolating linearly between the point and each of its k neighbors.
    b. Adding slight random perturbation in the direction of the neighbor (α ∈ [0.3, 0.7]).
-5. Post-filter with `min_dist` to prevent stacking.
+5. Post-filter with `min_dist = mean_nn_dist * 0.3` to prevent stacking.
+
+**Volumetric guarantee:** Because the KDTree is built on all points and k=10 queries include cross-layer
+neighbours when z_gap < within-layer XY spacing, interpolated points land inside 3-D gaps.  For the
+common two-layer case the condition is met when layers are sparse (few points per layer), causing the
+global mean NN distance to reflect the cross-layer gap size.
 
 **Key parameters:** `k_neighbors=10`, `sparse_percentile=50`, `min_dist=mean_nn_dist * 0.3`.
 
@@ -409,6 +437,7 @@ from app.modules.pipeline.operations import Densify
 | Q3 | Poisson: preserve originals or fully resample? | **Hybrid: preserve all originals + augment with Poisson-sampled synthetic points** |
 | Q4 | Normal estimation parameters — configurable? | **`preserve_normals` bool is user-facing; `k=10` is hardcoded per spec F4** |
 | Q5 | Memory management for >1M points? | **Chunking out of scope v1; `max_multiplier=8.0` is the memory guard; pre-allocate numpy arrays** |
+| Q6 | Mean NN distance sampling — global or per-ring? | **Global `scipy.spatial.KDTree` over all points (2026-04 refactor).  No random-sampled `KDTreeFlann`.  For N>1000 a uniform random sample of 1000 pts is drawn for speed; the KDTree itself is built on all N points so neighbours are truly global.** |
 
 ---
 

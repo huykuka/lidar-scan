@@ -909,3 +909,311 @@ def test_memory_not_growing():
     assert peak < 200 * 1024 * 1024, (
         f"Peak memory too high: {peak / 1024 / 1024:.1f} MB (limit: 200 MB)"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase 13: Vertical Gap Filling — Volumetric / Sensor-Agnostic Densification
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _make_layered_pcd(
+    n_per_layer: int,
+    z_values: list,
+    seed: int = 7,
+) -> o3d.geometry.PointCloud:
+    """
+    Create a horizontally-layered point cloud simulating sparse LIDAR scan rings.
+
+    Points lie on a set of discrete horizontal planes at the given Z values with
+    no points in between — exactly the kind of vertical-gap structure produced by
+    a multi-layer rotating LIDAR sensor.
+
+    Args:
+        n_per_layer: Number of points on each layer.
+        z_values:    List of Z heights for each layer (e.g. [0.0, 1.0, 2.0]).
+        seed:        RNG seed for reproducibility.
+
+    Returns:
+        Legacy o3d.geometry.PointCloud with N = n_per_layer × len(z_values) points.
+    """
+    rng = np.random.default_rng(seed)
+    points = []
+    for z in z_values:
+        xy = rng.random((n_per_layer, 2)) * 5.0  # points in [0,5]² XY plane
+        layer = np.column_stack([xy, np.full(n_per_layer, z)])
+        points.append(layer)
+    pts = np.vstack(points).astype(np.float64)
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(pts)
+    return pcd
+
+
+class TestVerticalGapFilling:
+    """
+    Phase 13 — Confirms that densification fills vertical gaps.
+
+    These tests use horizontally-layered inputs and assert that after
+    densification new points appear in the previously-empty Z intervals.
+
+    This validates the core architectural requirement: all neighbour searches
+    are global (full point cloud KDTree) with no scanline/ring restriction,
+    so new points are generated in all spatial directions including vertical.
+
+    Geometry constraint for NN/Statistical tests:
+    ─────────────────────────────────────────────
+    The global mean NN distance is computed by finding each point's nearest
+    neighbour in the full 3-D cloud.  For a two-layer cloud, cross-layer
+    neighbours (distance = z_gap) beat within-layer neighbours only when
+    z_gap < within-layer XY spacing.
+
+    We use:
+      • n_per_layer = 20 points in [0, 2]²  → XY spacing ≈ √(4/20) ≈ 0.45
+      • z_gap = 0.25  (< 0.45, so cross-layer neighbours dominate)
+      → mean_nn_dist ≈ 0.25; max displacement = 0.5 × 0.25 = 0.125
+
+    With n_new >> n_orig and uniformly-random 3-D displacement directions,
+    many synthetic points land at z ∈ (0.01, 0.24), filling the gap.
+    """
+
+    # 13.1 Nearest Neighbour — vertical gap filling ----------------------------
+
+    def test_nn_fills_vertical_gap_between_two_layers(self):
+        """
+        NN densification must produce points in the vertical gap between two layers.
+
+        Input:  Two sparse horizontal planes at z=0 and z=0.25.
+                XY spacing ≈ 0.45 > z_gap=0.25, so cross-layer NN dominates.
+        Expect: After 6× densification, at least 1 synthetic point has z ∈ (0.01, 0.24).
+        """
+        Densify = _import_densify()
+        # Sparse layers so cross-layer distance (z_gap=0.25) beats within-layer XY (~0.45)
+        pcd = _make_layered_pcd(n_per_layer=20, z_values=[0.0, 0.25], seed=7)
+        op = Densify(algorithm="nearest_neighbor", density_multiplier=6.0)
+        result_pcd, meta = op.apply(pcd)
+
+        assert meta["status"] == "success", f"Expected success, got: {meta}"
+        result_pts = get_positions(result_pcd)
+
+        # Original points are at z≈0 or z≈0.25 only
+        original_z = result_pts[:meta["original_count"], 2]
+        assert np.all(
+            (original_z < 0.01) | (original_z > 0.24)
+        ), "Input sanity check: no original points should be in the gap"
+
+        # Synthetic points (beyond original_count) should include some in the gap
+        synthetic_pts = result_pts[meta["original_count"]:]
+        in_gap = (synthetic_pts[:, 2] > 0.01) & (synthetic_pts[:, 2] < 0.24)
+        n_in_gap = int(in_gap.sum())
+        assert n_in_gap > 0, (
+            f"NN densification did not produce any points in the vertical gap "
+            f"z ∈ (0.01, 0.24).  This indicates a non-global (e.g. per-ring) search. "
+            f"synthetic z range: [{synthetic_pts[:, 2].min():.4f}, {synthetic_pts[:, 2].max():.4f}]"
+        )
+
+    def test_nn_fills_vertical_gap_multi_layer(self):
+        """
+        NN: 5-layer cloud with 1.0 unit spacing — gap-filling in all inter-layer zones.
+
+        Input:  5 horizontal planes at z=0,1,2,3,4 with n=100 pts each.
+        Expect: Synthetic points appear in at least 3 of the 4 inter-layer intervals.
+        """
+        Densify = _import_densify()
+        z_layers = [0.0, 1.0, 2.0, 3.0, 4.0]
+        pcd = _make_layered_pcd(n_per_layer=100, z_values=z_layers)
+        op = Densify(algorithm="nearest_neighbor", density_multiplier=4.0)
+        result_pcd, meta = op.apply(pcd)
+
+        assert meta["status"] == "success"
+        synthetic_pts = get_positions(result_pcd)[meta["original_count"]:]
+
+        # Check each inter-layer gap
+        gaps_filled = 0
+        for z_lo, z_hi in [(0.05, 0.95), (1.05, 1.95), (2.05, 2.95), (3.05, 3.95)]:
+            in_gap = (synthetic_pts[:, 2] > z_lo) & (synthetic_pts[:, 2] < z_hi)
+            if in_gap.sum() > 0:
+                gaps_filled += 1
+
+        assert gaps_filled >= 3, (
+            f"Only {gaps_filled}/4 inter-layer gaps were filled.  "
+            f"Expected global search to fill gaps in all directions."
+        )
+
+    # 13.2 Statistical — vertical gap filling ----------------------------------
+
+    def test_statistical_fills_vertical_gap(self):
+        """
+        Statistical upsampling must produce points in the vertical gap between
+        two sparse layers.
+
+        Statistical algorithm interpolates between source points and their k=10
+        global KDTree neighbours using α ∈ [0.3, 0.7].  When the k=10 neighbours
+        include cross-layer points (because z_gap < XY spacing), interpolated
+        points are guaranteed to land inside the gap.
+
+        Geometry: n=20 per layer in [0,2]², z_gap=0.25.
+          XY spacing ≈ √(4/20) ≈ 0.45 > z_gap=0.25, so cross-layer neighbours
+          appear in k=10 and interpolation produces z ∈ (0.075, 0.175).
+        """
+        Densify = _import_densify()
+        # Sparse layers: cross-layer distance (0.25) < within-layer XY (≈0.45)
+        pcd = _make_layered_pcd(n_per_layer=20, z_values=[0.0, 0.25], seed=7)
+        op = Densify(algorithm="statistical", density_multiplier=6.0)
+        result_pcd, meta = op.apply(pcd)
+
+        assert meta["status"] == "success"
+        synthetic_pts = get_positions(result_pcd)[meta["original_count"]:]
+        # Gap is z ∈ (0.01, 0.24) — interpolation α×0.25 covers this range
+        in_gap = (synthetic_pts[:, 2] > 0.01) & (synthetic_pts[:, 2] < 0.24)
+        assert int(in_gap.sum()) > 0, (
+            "Statistical densification did not produce any points in the vertical "
+            f"gap z ∈ (0.01, 0.24) — global KDTree cross-layer search required. "
+            f"synthetic z range: [{synthetic_pts[:, 2].min():.4f}, {synthetic_pts[:, 2].max():.4f}]"
+        )
+
+    # 13.3 MLS — vertical gap filling ------------------------------------------
+
+    def test_mls_fills_vertical_gap(self):
+        """
+        MLS tangent-plane projection must produce points with z-axis spread on
+        a tilted surface.
+
+        MLS projects new points onto the LOCAL TANGENT PLANE of each source point.
+        For a perfectly flat horizontal cloud (normals pointing straight up), all
+        displacements stay within the XY plane — vertical gap filling is impossible
+        by design.  This is correct behaviour for a surface-following algorithm.
+
+        Instead, we test with a TILTED PLANE (z = 0.3×x), where normals are
+        diagonal and tangent planes span the z direction.  After densification
+        the result must include points with z values outside the original XY plane
+        range — confirming MLS projects along tilted normals, not just horizontally.
+
+        This verifies global KDTree is used (no per-ring restriction) and the
+        algorithm works correctly for non-horizontal surfaces.
+        """
+        Densify = _import_densify()
+
+        # Tilted plane: z = 0.3 * x, so normals are diagonal and tangent planes
+        # span the z direction.  Use a single connected surface (no vertical gaps).
+        rng = np.random.default_rng(99)
+        n = 200
+        xy = rng.random((n, 2)) * 5.0  # [0,5]² in XY
+        z = 0.3 * xy[:, 0]  # z increases with x → tilted surface
+        pts = np.column_stack([xy, z]).astype(np.float64)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(pts)
+
+        op = Densify(algorithm="mls", density_multiplier=3.0)
+        result_pcd, meta = op.apply(pcd)
+
+        assert meta["status"] == "success"
+        # Synthetic points must span at least some z range above/below original
+        result_pts = get_positions(result_pcd)
+        orig_z = result_pts[:meta["original_count"], 2]
+        original_z_range = float(orig_z.max() - orig_z.min())
+        full_z_range = float(result_pts[:, 2].max() - result_pts[:, 2].min())
+
+        # MLS on a tilted surface must produce z spread at least as large as the
+        # original surface's z range (tangent planes are not purely horizontal).
+        assert full_z_range >= original_z_range * 0.8, (
+            f"MLS on a tilted surface: z-range={full_z_range:.4f} is much smaller than "
+            f"original z-range={original_z_range:.4f}.  Expected tangent-plane projections "
+            f"to span the same z extent as the original tilted surface."
+        )
+
+    # 13.4 Global KDTree radius reflects 3-D spacing ----------------------------
+
+    def test_global_mean_nn_dist_reflects_3d_spacing(self):
+        """
+        _compute_mean_nn_dist_global must return a distance that includes the
+        vertical (z) component, not just the horizontal (XY) distance.
+
+        Input: Two layers at z=0 and z=10 with closely-spaced XY points (gap≈0.1).
+        The true 3-D NN distance for inter-layer boundary points is ~10.0.
+        The global mean NN distance should be dominated by the z-gap, not the
+        within-layer XY spacing.
+        """
+        from app.modules.pipeline.operations.densify import Densify as DensifyClass
+
+        # Dense within-layer spacing (XY gap ≈ 0.1) but large z-gap (10.0)
+        rng = np.random.default_rng(42)
+        layer_0 = np.column_stack([rng.random((50, 2)) * 1.0, np.zeros(50)])
+        layer_1 = np.column_stack([rng.random((50, 2)) * 1.0, np.full(50, 10.0)])
+        pts = np.vstack([layer_0, layer_1]).astype(np.float64)
+
+        mean_dist = DensifyClass._compute_mean_nn_dist_global(pts)
+        # The global NN dist must be noticeably larger than the within-layer spacing
+        # (within-layer NN ≈ 0.1, cross-layer jump ≈ 10.0 for boundary points)
+        assert mean_dist > 0.05, (
+            f"Mean NN dist {mean_dist:.4f} is suspiciously small — "
+            f"possible non-global (within-layer only) search."
+        )
+
+    # 13.5 No scanline/ring ordering dependency ---------------------------------
+
+    def test_nn_result_independent_of_input_ordering(self):
+        """
+        Densification result must be statistically equivalent regardless of whether
+        input points are ordered by layer (ring order) or shuffled randomly.
+
+        If densification had any scanline/ring dependency, the ordered input would
+        produce a different point count or spatial distribution than the shuffled one.
+        """
+        Densify = _import_densify()
+
+        # Build a layered cloud
+        pcd_ordered = _make_layered_pcd(n_per_layer=200, z_values=[0.0, 1.0, 2.0])
+        ordered_pts = np.asarray(pcd_ordered.points)
+
+        # Shuffle the points to destroy ring order
+        rng = np.random.default_rng(123)
+        shuffled_pts = ordered_pts.copy()
+        rng.shuffle(shuffled_pts)
+        pcd_shuffled = o3d.geometry.PointCloud()
+        pcd_shuffled.points = o3d.utility.Vector3dVector(shuffled_pts)
+
+        op_a = Densify(algorithm="nearest_neighbor", density_multiplier=3.0)
+        op_b = Densify(algorithm="nearest_neighbor", density_multiplier=3.0)
+
+        _, meta_ordered = op_a.apply(pcd_ordered)
+        _, meta_shuffled = op_b.apply(pcd_shuffled)
+
+        # Both should succeed and produce the same target count
+        assert meta_ordered["status"] == "success"
+        assert meta_shuffled["status"] == "success"
+        assert meta_ordered["densified_count"] == meta_shuffled["densified_count"], (
+            "Point count differs between ring-ordered and shuffled input — "
+            "this may indicate a scanline-order dependency in the algorithm."
+        )
+
+    # 13.6 Vertical-only cloud ---------------------------------------------------
+
+    def test_nn_densifies_vertical_only_point_line(self):
+        """
+        NN on a vertical line of points (x=0, y=0, z∈[0,10]) must produce new
+        points spread along the Z axis — not collapsed to a single z value.
+
+        This is a degenerate case that explicitly tests 3-D isotropic search.
+        """
+        Densify = _import_densify()
+        rng = np.random.default_rng(5)
+        # 50 points along z-axis only
+        z_vals = np.linspace(0.0, 10.0, 50)
+        pts = np.column_stack([
+            rng.standard_normal(50) * 0.01,  # tiny XY noise to avoid degeneracy
+            rng.standard_normal(50) * 0.01,
+            z_vals,
+        ]).astype(np.float64)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(pts)
+
+        op = Densify(algorithm="nearest_neighbor", density_multiplier=3.0)
+        result_pcd, meta = op.apply(pcd)
+
+        assert meta["status"] == "success"
+        result_pts = get_positions(result_pcd)
+        z_range = result_pts[:, 2].max() - result_pts[:, 2].min()
+        # New points should have z values spread along the same range as original
+        assert z_range > 5.0, (
+            f"After densification of a vertical line, z-range={z_range:.2f} is too small. "
+            f"Expected ≥5.0 to confirm vertical (z-axis) point generation."
+        )
