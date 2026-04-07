@@ -1,8 +1,9 @@
 # Densify Point Cloud — Technical Architecture
 
 **Feature:** `densify-point-cloud`  
-**Module File:** `app/modules/pipeline/operations/densify.py`  
-**Status:** ARCHITECTURE COMPLETE — Ready for `@be-dev`  
+**Module Package:** `app/modules/pipeline/operations/density/` (refactored from single-file `densify.py`)  
+**Backward-Compat Shim:** `app/modules/pipeline/operations/densify.py` (re-exports all symbols)  
+**Status:** ARCHITECTURE COMPLETE — Refactored to modular per-algorithm class structure  
 **References:** `requirements.md`, `api-spec.md`
 
 ---
@@ -31,59 +32,154 @@ dictionary dispatch, so adding a key is zero-risk.
 
 ## 2. Module Design
 
-### 2.1 Class Structure Decision
+### 2.1 Class Structure — Modular Package (Refactored 2026-04)
 
-**Decision: Unified `Densify` class with Strategy pattern (internal `_AlgorithmStrategy` protocol)**
+> **Refactor note:** The original v1.0 design used a single `densify.py` file (~1359 lines) with all four
+> algorithms as private methods on a monolithic `Densify` class. This was refactored in April 2026 into a
+> modular `density/` package with per-algorithm classes inheriting from a shared `DensityAlgorithmBase`.
+> The original design rationale (§2.1 v1.0) is preserved below for historical context.
+
+**Decision: Modular `density/` package with `DensityAlgorithmBase` ABC + per-algorithm classes + `Densify` dispatcher**
 
 **Rationale:**
-- A single `Densify(**config)` call matches the existing factory pattern (`OperationFactory.create(op_type, config)`).
-- All four algorithms share identical `__init__` parameters (multiplier, preset, normals toggle) — no value in separate
-  constructor signatures.
-- The Strategy pattern is implemented as **four private methods**, not separate classes. This avoids over-engineering
-  while keeping each algorithm's logic isolated and independently testable.
-- Follows the exact pattern of `StatisticalOutlierRemoval` / `OutlierRemoval` in the codebase.
+- The monolithic file grew to ~1359 lines, making it difficult to navigate, review, and test individual algorithms in isolation.
+- A shared `DensityAlgorithmBase` abstract class extracts common logic (mean NN distance computation, tangent basis, duplicate filtering) into one place — DRY.
+- Each algorithm class (`NearestNeighborDensify`, `MLSDensify`, `PoissonDensify`, `StatisticalDensify`) is a single file with a single responsibility.
+- The `Densify` dispatcher class preserves the existing public API — `OperationFactory.create("densify", config)` still returns a `Densify` instance that routes internally to the correct algorithm class.
+- A backward-compatibility shim at the old `densify.py` path re-exports all public symbols, so all existing imports work unchanged.
 
-**Rejected alternative: `DensifyNN`, `DensifyMLS`, `DensifyPoisson`, `DensifyStatistical` separate classes**
-- Would require four `_OP_MAP` entries and four `NodeDefinition` registrations.
-- The factory already has a `"densify"` key that resolves to one class; the algorithm is a config parameter.
-- Violates the "algorithm-agnostic" design principle from requirements.
+**Previous design (v1.0, historical):**
+- A single `Densify` class with four private methods (`_densify_nearest_neighbor`, etc.).
+- Strategy pattern via internal dispatch — simple but all 1359 lines in one file.
 
-### 2.2 File Structure
+### 2.2 Package Layout
 
 ```
 app/modules/pipeline/operations/
-└── densify.py          ← NEW (this feature)
+├── density/                         ← NEW package (this refactor)
+│   ├── __init__.py                  ← Public API: re-exports all classes, enums, models
+│   ├── density_base.py              ← DensityAlgorithmBase ABC, enums, param models,
+│   │                                   constants, shared utilities (mean_nn_dist,
+│   │                                   tangent_basis, filter_too_close)
+│   ├── densify.py                   ← Densify dispatcher (PipelineOperation subclass)
+│   ├── nearest_neighbor.py          ← NearestNeighborDensify algorithm
+│   ├── mls.py                       ← MLSDensify algorithm
+│   ├── poisson.py                   ← PoissonDensify algorithm
+│   └── statistical.py               ← StatisticalDensify algorithm
+│
+├── densify.py                       ← Backward-compat SHIM (re-exports from density/)
+│
+└── __init__.py                      ← Imports Densify from densify.py (unchanged)
 
 tests/pipeline/operations/
-└── test_densify.py     ← NEW (TDD — written first by @qa)
+└── test_densify.py                  ← 109 non-slow tests (unchanged, all passing)
 ```
 
-**Modified files (additive only):**
+**Files modified during refactor (non-structural, additive only):**
 ```
-app/modules/pipeline/operations/__init__.py   ← add Densify import
-app/modules/pipeline/factory.py               ← add "densify" to _OP_MAP
-app/modules/pipeline/registry.py             ← add NodeDefinition + type entry
+app/modules/pipeline/operations/__init__.py   ← No changes (imports from densify.py shim)
+app/modules/pipeline/factory.py               ← No changes (imports Densify from operations)
+app/modules/pipeline/registry.py              ← No changes (NodeDefinition unchanged)
+tests/pipeline/operations/test_densify.py     ← Logger names updated (density → parent logger)
 ```
 
-### 2.3 Class Architecture Diagram
+### 2.3 Class Hierarchy
 
 ```
-PipelineOperation (ABC)
-    └── Densify
+PipelineOperation (ABC)                        [app.modules.pipeline.base]
+    │
+    └── Densify (dispatcher)                   [density/densify.py]
             ├── __init__(algorithm, density_multiplier,
-            │           quality_preset, preserve_normals, enabled)
-            ├── apply(pcd: Any) -> Tuple[Any, Dict[str, Any]]
-            │       ├── _validate_input(pcd) -> (o3d.t.PointCloud, int)
-            │       ├── _resolve_effective_algorithm() -> str
-            │       ├── _compute_target_count(original_count) -> int
-            │       ├── _run_algorithm(pcd, target_count) -> o3d.t.PointCloud
-            │       │       ├── _densify_nearest_neighbor(pcd, n_new)
-            │       │       ├── _densify_mls(pcd, n_new)
-            │       │       ├── _densify_poisson(pcd, n_new)
-            │       │       └── _densify_statistical(pcd, n_new)
-            │       └── _estimate_normals(result_pcd, original_pcd, n_original)
-            └── _compute_mean_nn_dist_global(pts) -> float  [static, shared by all algorithms]
+            │           quality_preset, preserve_normals, enabled, ...)
+            ├── apply(pcd) -> (pcd, metadata)  ← delegates to algorithm class
+            ├── _resolve_effective_algorithm()
+            ├── _compute_target_count()
+            └── _estimate_normals()
+
+DensityAlgorithmBase (ABC)                     [density/density_base.py]
+    │   ├── mean_nn_dist(pts) -> float         [static, shared]
+    │   ├── tangent_basis(normal) -> (u, v)    [static, shared]
+    │   ├── filter_too_close(pts, tree, d)     [static, shared]
+    │   └── densify(pcd, n_new, params) -> pcd [abstract]
+    │
+    ├── NearestNeighborDensify                 [density/nearest_neighbor.py]
+    │       └── densify(pcd, n_new, params)
+    │
+    ├── MLSDensify                             [density/mls.py]
+    │       └── densify(pcd, n_new, params)
+    │
+    ├── PoissonDensify                         [density/poisson.py]
+    │       └── densify(pcd, n_new, params)
+    │
+    └── StatisticalDensify                     [density/statistical.py]
+            └── densify(pcd, n_new, params)
 ```
+
+### 2.4 Dispatcher Routing
+
+The `Densify` class (the sole `PipelineOperation` subclass) maps algorithm names to their
+corresponding class via an internal dispatch table:
+
+```python
+_ALGORITHM_CLASSES = {
+    "nearest_neighbor": NearestNeighborDensify,
+    "mls":             MLSDensify,
+    "poisson":         PoissonDensify,
+    "statistical":     StatisticalDensify,
+}
+```
+
+When `apply()` is called, it resolves the effective algorithm (explicit `algorithm` param or
+`PRESET_ALGORITHM_MAP[quality_preset]`), instantiates the corresponding algorithm class, and
+delegates the heavy computation to its `densify()` method.
+
+### 2.5 Backward-Compatibility Shim
+
+`app/modules/pipeline/operations/densify.py` is now a thin re-export module:
+
+```python
+# Backward-compatibility shim — all public symbols re-exported from density/ package
+from app.modules.pipeline.operations.density import (
+    Densify,
+    DensifyAlgorithm,
+    DensifyConfig,
+    DensifyLogLevel,
+    DensifyNNParams,
+    DensifyMLSParams,
+    DensifyPoissonParams,
+    DensifyStatisticalParams,
+    DensityAlgorithmBase,
+    NearestNeighborDensify,
+    MLSDensify,
+    PoissonDensify,
+    StatisticalDensify,
+    # ... all other public symbols
+)
+```
+
+This ensures:
+- `from app.modules.pipeline.operations.densify import Densify` — works (shim path)
+- `from app.modules.pipeline.operations.density import Densify` — works (new direct path)
+- `from app.modules.pipeline.operations import Densify` — works (via `__init__.py`)
+- `OperationFactory.create("densify", {})` — works (factory imports from operations)
+
+### 2.6 Logger Hierarchy
+
+Each module uses `get_logger(__name__)`, producing the following logger names:
+
+```
+app.modules.pipeline.operations.density                  ← package __init__
+app.modules.pipeline.operations.density.density_base     ← base class
+app.modules.pipeline.operations.density.densify          ← dispatcher
+app.modules.pipeline.operations.density.nearest_neighbor ← NN algorithm
+app.modules.pipeline.operations.density.mls              ← MLS algorithm
+app.modules.pipeline.operations.density.poisson          ← Poisson algorithm
+app.modules.pipeline.operations.density.statistical      ← Statistical algorithm
+```
+
+Tests capture the parent logger `app.modules.pipeline.operations.density` which propagates
+all child module logs. This replaced the previous `app.modules.pipeline.operations.densify`
+logger name from the monolithic file.
 
 ---
 

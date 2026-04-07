@@ -1287,7 +1287,7 @@ class TestLogLevel:
         op = Densify(algorithm="nearest_neighbor", density_multiplier=2.0, log_level="minimal")
         pcd = make_pcd(500)
 
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.densify"):
+        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
             op.apply(pcd)
 
         info_records = [r for r in caplog.records if r.levelno >= logging.INFO]
@@ -1307,7 +1307,7 @@ class TestLogLevel:
         op = Densify(algorithm="nearest_neighbor", density_multiplier=2.0, log_level="none")
         pcd = make_pcd(500)
 
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.densify"):
+        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
             op.apply(pcd)
 
         info_and_above = [r for r in caplog.records if r.levelno >= logging.INFO]
@@ -1327,7 +1327,7 @@ class TestLogLevel:
         op = Densify(log_level="none")
         pcd = make_pcd(5)  # too few points → skip
 
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.densify"):
+        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
             _, meta = op.apply(pcd)
 
         assert meta["status"] == "skipped"
@@ -1347,7 +1347,7 @@ class TestLogLevel:
         op = Densify(algorithm="nearest_neighbor", density_multiplier=2.0, log_level="full")
         pcd = make_pcd(500)
 
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.densify"):
+        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
             _, meta = op.apply(pcd)
 
         assert meta["status"] == "success"
@@ -1368,7 +1368,7 @@ class TestLogLevel:
         op = Densify(log_level="none")
         pcd = make_pcd(1000)
 
-        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.densify"):
+        with caplog.at_level(logging.DEBUG, logger="app.modules.pipeline.operations.density"):
             with patch.object(op, "_run_algorithm", side_effect=RuntimeError("fatal err")):
                 _, meta = op.apply(pcd)
 
