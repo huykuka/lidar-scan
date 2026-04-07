@@ -133,12 +133,8 @@ The `densify.py` operation integrates seamlessly into the existing pipeline arch
 
 #### F2: Density Target Specification
 
-- [x] Primary mode: **Density Multiplier** (e.g., 2x, 4x, 8x)
-- [x] Secondary mode: **Target Point Count** (absolute output point count)
-  - Example: 10,000 input points with `target_point_count=20000` → 2x densification
-  - Example: 10,000 input points with `target_point_count=80000` → 8x densification (max)
+- [x] Density control: **Density Multiplier** (e.g., 2x, 4x, 8x)
 - [x] Configuration accepts `density_multiplier` (float, default: 2.0)
-- [x] Configuration optionally accepts `target_point_count` (int, overrides multiplier if provided)
 - [x] Minimum multiplier: 1.0 (no change)
 - [x] Maximum multiplier: 8.0 (prevents excessive memory usage)
 
@@ -193,7 +189,6 @@ The `densify.py` operation integrates seamlessly into the existing pipeline arch
 - [x] `algorithm` (enum): Algorithm selection (default: `"nearest_neighbor"`)
   - Valid values: `"nearest_neighbor"`, `"mls"`, `"poisson"`, `"statistical"`
 - [x] `density_multiplier` (float): Density increase factor (default: `2.0`, range: `1.0-8.0`)
-- [x] `target_point_count` (int, optional): Override multiplier with an absolute target point count
 - [x] `quality_preset` (enum): Preset selection (default: `"fast"`)
   - Valid values: `"fast"`, `"medium"`, `"high"`
 - [x] `preserve_normals` (bool): Interpolate normals for new points (default: `true`)

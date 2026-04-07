@@ -64,8 +64,6 @@ poisson is only accessible via explicit algorithm= override.
 Density control
 ---------------
 Use ``density_multiplier`` to set the target density increase factor (e.g. 2.0 = 2×).
-Optionally use ``target_point_count`` to specify an absolute output point count directly.
-When ``target_point_count`` is set it takes precedence over ``density_multiplier``.
 
 Volumetric / vertical gap guarantee
 -------------------------------------
@@ -186,16 +184,7 @@ class DensifyConfig(BaseModel):
         le=8.0,
         description=(
             "Target density increase factor. 2.0 doubles the point count. "
-            "Range: 1.0 (no change) to 8.0 (max, memory guard). "
-            "Ignored if target_point_count is set."
-        ),
-    )
-    target_point_count: Optional[int] = Field(
-        default=None,
-        ge=1,
-        description=(
-            "Optional: absolute output point count. If provided, overrides "
-            "density_multiplier. The implied multiplier is clamped to [1.0, 8.0]."
+            "Range: 1.0 (no change) to 8.0 (max, memory guard)."
         ),
     )
     quality_preset: DensifyQualityPreset = Field(
@@ -262,8 +251,6 @@ class Densify(PipelineOperation):
         algorithm:           Algorithm key string, or None to use quality_preset.
                              Valid: 'nearest_neighbor', 'mls', 'poisson', 'statistical'.
         density_multiplier:  Target density factor (default 2.0, range [1.0, 8.0]).
-        target_point_count:  Absolute output point count; overrides density_multiplier
-                             when set. The implied multiplier is clamped to [1.0, 8.0].
         quality_preset:      'fast' | 'medium' | 'high' (default 'fast').
         preserve_normals:    Interpolate normals for synthetic points (default True).
     """
@@ -273,7 +260,6 @@ class Densify(PipelineOperation):
         enabled: bool = True,
         algorithm: Optional[str] = None,
         density_multiplier: float = 2.0,
-        target_point_count: Optional[int] = None,
         quality_preset: str = "fast",
         preserve_normals: bool = True,
     ) -> None:
@@ -298,9 +284,6 @@ class Densify(PipelineOperation):
         self.enabled: bool = bool(enabled)
         self.algorithm: Optional[str] = algorithm
         self.density_multiplier: float = float(density_multiplier)
-        self.target_point_count: Optional[int] = (
-            int(target_point_count) if target_point_count is not None else None
-        )
         self.quality_preset: str = quality_preset
         self.preserve_normals: bool = bool(preserve_normals)
 
@@ -489,21 +472,12 @@ class Densify(PipelineOperation):
 
     def _compute_target_count(self, original_count: int) -> int:
         """
-        Compute the target point count.
+        Compute the target point count using ``density_multiplier``.
 
-        If ``target_point_count`` is set, use it directly (with multiplier clamped to
-        [1.0, MAX_MULTIPLIER]).  Otherwise multiply by ``density_multiplier``.
+        Multiplier is clamped to [1.0, MAX_MULTIPLIER].
         Result is clamped to [original_count, original_count * MAX_MULTIPLIER].
         """
-        if self.target_point_count is not None:
-            if original_count > 0:
-                effective_multiplier = float(self.target_point_count) / float(original_count)
-            else:
-                effective_multiplier = 1.0
-        else:
-            effective_multiplier = self.density_multiplier
-
-        effective_multiplier = max(1.0, min(effective_multiplier, MAX_MULTIPLIER))
+        effective_multiplier = min(max(self.density_multiplier, 1.0), MAX_MULTIPLIER)
         return int(original_count * effective_multiplier)
 
     def _run_algorithm(

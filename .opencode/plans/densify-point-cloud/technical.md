@@ -70,7 +70,7 @@ app/modules/pipeline/registry.py             ← add NodeDefinition + type entry
 ```
 PipelineOperation (ABC)
     └── Densify
-            ├── __init__(algorithm, density_multiplier, target_point_count,
+            ├── __init__(algorithm, density_multiplier,
             │           quality_preset, preserve_normals, enabled)
             ├── apply(pcd: Any) -> Tuple[Any, Dict[str, Any]]
             │       ├── _validate_input(pcd) -> (o3d.t.PointCloud, int)
@@ -245,9 +245,7 @@ All intermediate arrays must be local variables inside `apply()` and its helper 
 3. **Poisson mesh intermediate:** The `TriangleMesh` object from Poisson reconstruction can be large. Delete it
    (`del mesh`) immediately after `sample_points_uniformly()`.
 4. **Tensor concatenation:** Use `o3d.core.Tensor.append()` or build a single numpy array and wrap once.
-   Avoid multiple tensor concatenations in a loop.
-5. **Guard on `target_point_count`:** If `target_point_count` implies a multiplier > 8.0, clamp to 8.0 and log a
-    warning. Example: 100 input points with `target_point_count=900` → multiplier=9.0 → clamped to 8.0 → output=800.
+    Avoid multiple tensor concatenations in a loop.
 
 **Memory footprint table:**
 
@@ -272,9 +270,8 @@ The `apply()` method implements the following precedence rules at runtime (not a
      a. If algorithm is explicitly set (not None) → use algorithm
      b. Else → use preset_algorithm_map[quality_preset]
 4. Compute target_count:
-     a. If target_point_count is set → effective_multiplier = target_point_count / original_count
-     b. Else → target_count = int(input_count * density_multiplier)
-     c. Clamp: target_count = min(target_count, input_count * 8)
+     a. target_count = int(input_count * density_multiplier)
+     b. Clamp: target_count = min(target_count, input_count * 8)
 5. If target_count <= input_count → return original, status=skipped (log INFO)
 6. Run algorithm → if exception → return original, status=error (log ERROR)
 7. If preserve_normals → estimate normals for synthetic points
@@ -389,11 +386,6 @@ node_schema_registry.register(NodeDefinition(
             help_text="Target density increase factor (e.g. 2.0 = 2× input points)"
         ),
         PropertySchema(
-            name="target_point_count", label="Target Point Count (optional)", type="number",
-            default=None, min=1, step=1,
-            help_text="Override multiplier: absolute output point count (e.g. 20000 for 2× a 10k cloud)"
-        ),
-        PropertySchema(
             name="quality_preset", label="Quality Preset", type="select",
             default="fast",
             options=[
@@ -461,7 +453,7 @@ No new third-party dependencies are introduced.
 | Req | Technical Implementation |
 |---|---|
 | F1: 4 algorithms | §3 — `_densify_nearest_neighbor`, `_densify_mls`, `_densify_poisson`, `_densify_statistical` |
-| F2: Density multiplier + target point count | §7 — `_compute_target_count()` with both modes |
+| F2: Density multiplier | §7 — `_compute_target_count()` with `density_multiplier` |
 | F3: Quality presets | §7 — `PRESET_ALGORITHM_MAP` + precedence logic |
 | F4: Normal preservation | §4 — `_estimate_normals()` private method |
 | F5: Fail-safe | §9 — all exceptions caught in `apply()` |

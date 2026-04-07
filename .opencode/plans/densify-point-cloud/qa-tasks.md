@@ -207,19 +207,19 @@ All tests use `o3d.geometry.PointCloud` (legacy) and `o3d.t.geometry.PointCloud`
 - [ ] **`test_multiplier_2x`**: 1000 pts → result ~2000 pts (±15% tolerance for stochastic algorithms)
 - [ ] **`test_multiplier_4x`**: 500 pts → result ~2000 pts (±15%)
 - [ ] **`test_multiplier_8x_max`**: 1000 pts, multiplier=8.0 → result ~8000 pts (±15%)
-- [ ] **`test_target_point_count_overrides_multiplier`**:
+- [ ] **`test_density_multiplier_is_the_only_density_control`**:
   ```python
-  op = Densify(target_point_count=32000, density_multiplier=4.0)  # multiplier should be ignored
+  op = Densify(density_multiplier=2.0)
   pcd = make_pcd(1000)
   result_pcd, meta = op.apply(pcd)
-  # target_point_count=32000 with 1000 pts → multiplier=32.0 → clamped to 8.0 → ~8000 pts
-  # This tests the code path and clamping behaviour
+  # density_multiplier=2.0 with 1000 pts → ~2000 pts
   assert meta["status"] in ("success", "skipped")
+  assert meta["densified_count"] >= 1000
   ```
-- [ ] **`test_multiplier_clamped_at_8x`**: Verify that `target_point_count` resulting in >8× is clamped
+- [ ] **`test_multiplier_clamped_at_8x`**: Verify that `density_multiplier=8.0` is enforced as maximum
   ```python
-  op = Densify(target_point_count=100_000, density_multiplier=2.0)
-  pcd = make_pcd(100)  # very sparse
+  op = Densify(density_multiplier=8.0)
+  pcd = make_pcd(100)
   result_pcd, meta = op.apply(pcd)
   assert meta["densified_count"] <= 100 * 8 + 5  # max 8x with small tolerance
   ```

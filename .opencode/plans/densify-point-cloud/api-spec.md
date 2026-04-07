@@ -83,18 +83,7 @@ class DensifyConfig(BaseModel):
         le=8.0,
         description=(
             "Target density increase factor. 2.0 doubles the point count. "
-            "Range: 1.0 (no change) to 8.0 (max, memory guard). "
-            "Ignored if target_point_count is set."
-        )
-    )
-
-    target_point_count: Optional[int] = Field(
-        default=None,
-        ge=1,
-        description=(
-            "Optional: absolute target output point count (e.g. 20000 to produce 20k points). "
-            "If provided, overrides density_multiplier. "
-            "The effective multiplier is clamped to [1.0, 8.0]."
+            "Range: 1.0 (no change) to 8.0 (max, memory guard)."
         )
     )
 
@@ -117,8 +106,7 @@ class DensifyConfig(BaseModel):
     )
 
     # ── Validators ────────────────────────────────────────────────────────────
-    @field_validator("density_multiplier")
-    @classmethod
+    @field_validator("density_multiplier")    @classmethod
     def validate_multiplier(cls, v: float) -> float:
         if not (1.0 <= v <= 8.0):
             raise ValueError(
@@ -156,13 +144,7 @@ class DensifyConfig(BaseModel):
       "minimum": 1.0,
       "maximum": 8.0,
       "default": 2.0,
-      "description": "Target density multiplier. Ignored if target_point_count is set."
-    },
-    "target_point_count": {
-      "type": ["integer", "null"],
-      "minimum": 1,
-      "default": null,
-      "description": "Absolute output point count. Overrides density_multiplier when set."
+      "description": "Target density multiplier."
     },
     "quality_preset": {
       "type": "string",
@@ -313,7 +295,6 @@ class DensifyMetadata(BaseModel):
     "enabled": true,
     "algorithm": "nearest_neighbor",
     "density_multiplier": 2.0,
-    "target_point_count": null,
     "quality_preset": "fast",
     "preserve_normals": true,
     "throttle_ms": 0
@@ -346,20 +327,6 @@ Resolves to `DensifyAlgorithm.NEAREST_NEIGHBOR`, `density_multiplier=2.0`, `qual
 }
 ```
 
-### 3.4 Target Point Count Mode Example (10k → 40k points)
-
-```json
-{
-  "type": "densify",
-  "config": {
-    "algorithm": "statistical",
-    "target_point_count": 40000,
-    "quality_preset": "medium",
-    "preserve_normals": true
-  }
-}
-```
-
 ---
 
 ## 4. `Densify.__init__` Signature (Python)
@@ -371,7 +338,6 @@ class Densify(PipelineOperation):
         enabled: bool = True,
         algorithm: str = "nearest_neighbor",       # DensifyAlgorithm value
         density_multiplier: float = 2.0,
-        target_point_count: Optional[int] = None,
         quality_preset: str = "fast",              # DensifyQualityPreset value
         preserve_normals: bool = True,
     ) -> None: ...
@@ -422,7 +388,6 @@ due to its latency profile.
 | `enabled` | `bool` | `true` | — |
 | `algorithm` | `str` (enum) | `"nearest_neighbor"` | One of: `nearest_neighbor`, `mls`, `poisson`, `statistical` |
 | `density_multiplier` | `float` | `2.0` | `[1.0, 8.0]` |
-| `target_point_count` | `int` \| `null` | `null` | `>= 1` if set; effective multiplier clamped to `[1.0, 8.0]` |
 | `quality_preset` | `str` (enum) | `"fast"` | One of: `fast`, `medium`, `high` |
 | `preserve_normals` | `bool` | `true` | — |
 
