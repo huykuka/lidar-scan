@@ -87,109 +87,6 @@ class TestLidarProfilesEndpoint:
         
         mrs6xxx = next(p for p in data["profiles"] if p["model_id"] == "mrs_6xxx")
         assert mrs6xxx["scan_layers"] == 24
-
-
-@pytest.mark.skip(reason="validate-lidar-config endpoint not yet implemented in API")
-class TestValidateLidarConfigEndpoint:
-    """Test POST /api/v1/lidar/validate-lidar-config endpoint (PENDING - endpoint not yet implemented)"""
-    
-    def test_validate_multiscan_full_valid(self, api_client):
-        """Validate multiScan with all parameters"""
-        payload = {
-            "lidar_type": "multiscan",
-            "hostname": "192.168.0.50",
-            "port": 2115,
-            "udp_receiver_ip": "192.168.0.10",
-            "imu_udp_port": 7503
-        }
-        response = api_client.post("/api/v1/nodes/validate-lidar-config", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is True
-        assert data["lidar_type"] == "multiscan"
-        assert "launch/sick_multiscan.launch" in data["resolved_launch_file"]
-    
-    def test_validate_tim_7xx_valid(self, api_client):
-        """Validate TiM7xx (port but no UDP)"""
-        payload = {
-            "lidar_type": "tim_7xx",
-            "hostname": "192.168.0.100",
-            "port": 2112
-        }
-        response = api_client.post("/api/v1/nodes/validate-lidar-config", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is True
-    
-    def test_validate_lms_1xx_no_port(self, api_client):
-        """Validate LMS1xx (TCP only)"""
-        payload = {
-            "lidar_type": "lms_1xx",
-            "hostname": "192.168.0.1"
-        }
-        response = api_client.post("/api/v1/nodes/validate-lidar-config", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is True
-    
-    def test_validate_unknown_lidar_type(self, api_client):
-        """Unknown lidar_type returns invalid"""
-        payload = {
-            "lidar_type": "velodyne_vls128",
-            "hostname": "192.168.0.1"
-        }
-        response = api_client.post("/api/v1/nodes/validate-lidar-config", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is False
-        assert len(data["errors"]) > 0
-    
-    def test_validate_multiscan_missing_udp_receiver_ip(self, api_client):
-        """multiScan without udp_receiver_ip is invalid"""
-        payload = {
-            "lidar_type": "multiscan",
-            "hostname": "192.168.0.50"
-        }
-        response = api_client.post("/api/v1/nodes/validate-lidar-config", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is False
-        assert any("udp_receiver_ip" in err for err in data["errors"])
-    
-    def test_validate_multiscan_without_imu_port_warning(self, api_client):
-        """multiScan without imu_udp_port returns warning not error"""
-        payload = {
-            "lidar_type": "multiscan",
-            "hostname": "192.168.0.50",
-            "udp_receiver_ip": "192.168.0.10",
-            "port": 2115
-        }
-        response = api_client.post("/api/v1/nodes/validate-lidar-config", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is True
-        assert any("imu_udp_port" in w.lower() for w in data["warnings"])
-    
-    def test_validate_missing_required_lidar_type(self, api_client):
-        """Missing required lidar_type returns 422"""
-        payload = {
-            "hostname": "192.168.0.1"
-        }
-        response = api_client.post("/api/v1/nodes/validate-lidar-config", json=payload)
-        assert response.status_code == 422
-    
-    def test_validate_missing_hostname_semantic_error(self, api_client):
-        """Missing hostname is semantic validation error"""
-        payload = {
-            "lidar_type": "tim_7xx"
-        }
-        response = api_client.post("/api/v1/nodes/validate-lidar-config", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is False
-        assert any("hostname" in err.lower() for err in data["errors"])
-
-
 class TestNodeDefinitionsExtended:
     """Test extended node definitions with lidar_type"""
     
@@ -255,69 +152,69 @@ class TestNodeDefinitionsExtended:
         assert "port" in prop_names
 
 
-@pytest.mark.skip(reason="config validation endpoint behavior pending implementation confirmation")
-class TestConfigValidationExtended:
-    """Test config validation with lidar_type (PENDING - behavior pending implementation)"""
+# @pytest.mark.skip(reason="config validation endpoint behavior pending implementation confirmation")
+# class TestConfigValidationExtended:
+#     """Test config validation with lidar_type (PENDING - behavior pending implementation)"""
     
-    def test_validate_config_with_known_lidar_type(self, api_client):
-        """Config with known lidar_type validates successfully"""
-        config = {
-            "nodes": [{
-                "id": "sensor-001",
-                "name": "Test Sensor",
-                "type": "sensor",
-                "config": {
-                    "lidar_type": "tim_5xx",
-                    "mode": "real",
-                    "hostname": "192.168.0.1"
-                }
-            }],
-            "edges": []
-        }
-        response = api_client.post("/api/v1/config/validate", json=config)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is True
+#     def test_validate_config_with_known_lidar_type(self, api_client):
+#         """Config with known lidar_type validates successfully"""
+#         config = {
+#             "nodes": [{
+#                 "id": "sensor-001",
+#                 "name": "Test Sensor",
+#                 "type": "sensor",
+#                 "config": {
+#                     "lidar_type": "tim_5xx",
+#                     "mode": "real",
+#                     "hostname": "192.168.0.1"
+#                 }
+#             }],
+#             "edges": []
+#         }
+#         response = api_client.post("/api/v1/config/validate", json=config)
+#         assert response.status_code == 200
+#         data = response.json()
+#         assert data["valid"] is True
     
-    def test_validate_config_missing_lidar_type_warning(self, api_client):
-        """Config without lidar_type shows backward compat warning"""
-        config = {
-            "nodes": [{
-                "id": "sensor-001",
-                "name": "Legacy Sensor",
-                "type": "sensor",
-                "config": {
-                    "mode": "real",
-                    "hostname": "192.168.0.1"
-                }
-            }],
-            "edges": []
-        }
-        response = api_client.post("/api/v1/config/validate", json=config)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is True
-        assert any("lidar_type" in w.lower() for w in data.get("warnings", []))
+#     def test_validate_config_missing_lidar_type_warning(self, api_client):
+#         """Config without lidar_type shows backward compat warning"""
+#         config = {
+#             "nodes": [{
+#                 "id": "sensor-001",
+#                 "name": "Legacy Sensor",
+#                 "type": "sensor",
+#                 "config": {
+#                     "mode": "real",
+#                     "hostname": "192.168.0.1"
+#                 }
+#             }],
+#             "edges": []
+#         }
+#         response = api_client.post("/api/v1/config/validate", json=config)
+#         assert response.status_code == 200
+#         data = response.json()
+#         assert data["valid"] is True
+#         assert any("lidar_type" in w.lower() for w in data.get("warnings", []))
     
-    def test_validate_config_unknown_lidar_type_error(self, api_client):
-        """Config with unknown lidar_type is invalid"""
-        config = {
-            "nodes": [{
-                "id": "sensor-001",
-                "name": "Invalid Sensor",
-                "type": "sensor",
-                "config": {
-                    "lidar_type": "ouster_os1",
-                    "mode": "real",
-                    "hostname": "192.168.0.1"
-                }
-            }],
-            "edges": []
-        }
-        response = api_client.post("/api/v1/config/validate", json=config)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["valid"] is False
+#     def test_validate_config_unknown_lidar_type_error(self, api_client):
+#         """Config with unknown lidar_type is invalid"""
+#         config = {
+#             "nodes": [{
+#                 "id": "sensor-001",
+#                 "name": "Invalid Sensor",
+#                 "type": "sensor",
+#                 "config": {
+#                     "lidar_type": "ouster_os1",
+#                     "mode": "real",
+#                     "hostname": "192.168.0.1"
+#                 }
+#             }],
+#             "edges": []
+#         }
+#         response = api_client.post("/api/v1/config/validate", json=config)
+#         assert response.status_code == 200
+#         data = response.json()
+#         assert data["valid"] is False
 
 
 class TestNodeOperationsWithLidarType:
