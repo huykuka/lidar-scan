@@ -38,14 +38,10 @@ from .density_base import (
     MAX_MULTIPLIER,
     _VALID_ALGORITHMS,
     DensityAlgorithmBase,
-    DensifyAlgorithm,
-    DensifyConfig,
-    DensifyMetadata,
     DensifyMLSParams,
     DensifyNNParams,
     DensifyPoissonParams,
     DensifyStatisticalParams,
-    DensifyStatus,
 )
 from .nearest_neighbor import NearestNeighborDensify
 from .mls import MLSDensify

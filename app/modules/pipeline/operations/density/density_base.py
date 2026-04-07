@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 MIN_INPUT_POINTS: int = 10
 MIN_MULTIPLIER: float = 1.0
-MAX_MULTIPLIER: float = 8.0
+MAX_MULTIPLIER: float = 15.0
 
 _VALID_ALGORITHMS = frozenset({"nearest_neighbor", "mls", "poisson", "statistical"})
 
