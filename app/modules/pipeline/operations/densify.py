@@ -21,6 +21,10 @@ nearest_neighbor (default / fast mode, <100ms for 50k–100k pts)
     equally.  Preserves sharp features; may create minor blocky artefacts.
     Use for: real-time pipelines, streaming sensor feeds.
 
+    Configurable via ``nn_params`` (DensifyNNParams):
+      - ``displacement_min`` (default 0.05): minimum displacement fraction of mean NN dist
+      - ``displacement_max`` (default 0.50): maximum displacement fraction of mean NN dist
+
     Global search guarantee: mean NN distance is computed via a full-cloud scipy KDTree
     query over all N points (no scanline sampling, no ring grouping).
 
@@ -29,6 +33,11 @@ statistical (medium mode, 100–300ms)
     every point).  Identifies sparse regions across the entire 3-D volume and
     interpolates new points along edges to existing neighbours with α ∈ [0.3, 0.7].
     Use for: interactive applications, general-purpose 3-D densification.
+
+    Configurable via ``statistical_params`` (DensifyStatisticalParams):
+      - ``k_neighbors`` (default 10): KNN count for local density estimation
+      - ``sparse_percentile`` (default 50): density percentile threshold for "sparse" label
+      - ``min_dist_factor`` (default 0.3): duplicate-filter radius as fraction of mean NN dist
 
     Global search guarantee: KDTree is built on *all* points; no axis-specific
     neighbourhood restriction.
@@ -41,8 +50,14 @@ mls (high mode, 200–500ms)
     surfaces; may slightly soften fine details.
     Use for: batch processing, surface reconstruction pipelines.
 
+    Configurable via ``mls_params`` (DensifyMLSParams):
+      - ``k_neighbors`` (default 20): KNN count for normal estimation
+      - ``projection_radius_factor`` (default 0.5): tangent-plane projection radius as
+        fraction of mean NN dist
+      - ``min_dist_factor`` (default 0.05): duplicate-filter radius fraction
+
     Global search guarantee: normals are estimated with a full-cloud KNN search
-    (knn=20); synthetic displacements are bounded by the global mean NN distance.
+    (knn=k_neighbors); synthetic displacements are bounded by the global mean NN distance.
 
 poisson (explicit override, 500ms–2s)
     Hybrid Poisson reconstruction: preserves all original points and augments with
@@ -50,6 +65,10 @@ poisson (explicit override, 500ms–2s)
     vertices.  The implicit surface is derived from the complete input geometry so
     upsampling covers all spatial directions.
     Use for: mesh-generation workflows, digital twins, high-fidelity datasets.
+
+    Configurable via ``poisson_params`` (DensifyPoissonParams):
+      - ``depth`` (default 8): Poisson octree depth
+      - ``density_threshold_quantile`` (default 0.1): low-density vertex trim threshold
 
     Global search guarantee: Poisson reconstruction operates on the complete cloud;
     no row/column sub-sampling is performed before reconstruction.
@@ -60,6 +79,23 @@ fast   → nearest_neighbor
 medium → statistical
 high   → mls
 poisson is only accessible via explicit algorithm= override.
+
+Log level configuration
+------------------------
+Control verbosity via the ``log_level`` parameter or ``DENSIFY_LOG_LEVEL`` env variable:
+  - ``minimal`` (default): one summary log line per invocation (INFO on skip/error,
+    DEBUG on success). No per-step or per-operation messages.
+  - ``full``: full DEBUG logging including per-step timing and intermediate results.
+  - ``none``: completely silent except for ERROR-level messages (algorithm failures).
+
+The env var ``DENSIFY_LOG_LEVEL`` (values: minimal / full / none) sets the default.
+An explicit constructor ``log_level=`` arg always overrides the env var.
+
+Algorithm parameter sub-dicts
+-------------------------------
+All tunable parameters are available via per-algorithm Pydantic model sub-dicts
+(``nn_params``, ``mls_params``, ``statistical_params``, ``poisson_params``).  If not
+provided, built-in production defaults apply — full backward compatibility preserved.
 
 Density control
 ---------------
@@ -81,7 +117,12 @@ Example configuration (DAG node)
         "algorithm": "nearest_neighbor",
         "density_multiplier": 2.0,
         "quality_preset": "fast",
-        "preserve_normals": true
+        "preserve_normals": true,
+        "log_level": "minimal",
+        "nn_params": {
+            "displacement_min": 0.05,
+            "displacement_max": 0.50
+        }
     }
 }
 """
@@ -89,13 +130,14 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import time
 from enum import Enum
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..base import PipelineOperation, _tensor_map_keys
 
@@ -118,6 +160,10 @@ PRESET_ALGORITHM_MAP: Dict[str, str] = {
 
 _VALID_ALGORITHMS = frozenset({"nearest_neighbor", "mls", "poisson", "statistical"})
 _VALID_PRESETS = frozenset({"fast", "medium", "high"})
+_VALID_LOG_LEVELS = frozenset({"minimal", "full", "none"})
+
+# Environment variable name for log level override
+_ENV_LOG_LEVEL = "DENSIFY_LOG_LEVEL"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -150,6 +196,169 @@ class DensifyStatus(str, Enum):
     ERROR = "error"
 
 
+class DensifyLogLevel(str, Enum):
+    """
+    Controls verbosity of Densify log output.
+
+    Attributes:
+        MINIMAL: One summary line per invocation (INFO on skip/error, DEBUG on
+                 success). No per-step or intermediate messages. Production default.
+        FULL:    Full DEBUG logging with per-step timing and intermediate results.
+        NONE:    Completely silent except for ERROR-level messages (algorithm failures).
+
+    Can also be set via the ``DENSIFY_LOG_LEVEL`` environment variable.
+    Explicit constructor ``log_level=`` arg always takes precedence over env var.
+    """
+
+    MINIMAL = "minimal"
+    FULL = "full"
+    NONE = "none"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-algorithm parameter models
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class DensifyNNParams(BaseModel):
+    """
+    Tunable parameters for the ``nearest_neighbor`` densification algorithm.
+
+    All parameters are optional; omitting them uses the production defaults.
+    Pass as ``nn_params=DensifyNNParams(...)`` in ``Densify.__init__`` or
+    as a nested dict in ``DensifyConfig.nn_params``.
+
+    Attributes:
+        displacement_min: Minimum displacement as a fraction of the global mean
+            nearest-neighbour distance.  Controls how close synthetic points can be
+            to their source. Range: [0.0, displacement_max).  Default: 0.05.
+        displacement_max: Maximum displacement fraction.  Controls spread radius.
+            Range: (displacement_min, 1.0].  Default: 0.50.
+    """
+
+    displacement_min: float = Field(
+        default=0.05,
+        ge=0.0,
+        lt=1.0,
+        description="Min displacement factor (fraction of global mean NN dist). Default 0.05.",
+    )
+    displacement_max: float = Field(
+        default=0.50,
+        gt=0.0,
+        le=1.0,
+        description="Max displacement factor (fraction of global mean NN dist). Default 0.50.",
+    )
+
+    @model_validator(mode="after")
+    def validate_range(self) -> "DensifyNNParams":
+        if self.displacement_min >= self.displacement_max:
+            raise ValueError(
+                f"displacement_min ({self.displacement_min}) must be < "
+                f"displacement_max ({self.displacement_max})"
+            )
+        return self
+
+    model_config = {"populate_by_name": True}
+
+
+class DensifyMLSParams(BaseModel):
+    """
+    Tunable parameters for the ``mls`` (Moving Least Squares) densification algorithm.
+
+    Attributes:
+        k_neighbors: KNN count for surface normal estimation.  Higher values give
+            smoother normals at the cost of speed.  Range: [3, ∞).  Default: 20.
+        projection_radius_factor: Tangent-plane projection radius as a fraction of
+            the global mean NN distance.  Controls the spatial spread of synthetic
+            points around each source.  Range: (0.0, 2.0].  Default: 0.5.
+        min_dist_factor: Duplicate-filter radius as a fraction of the global mean NN
+            distance.  Synthetic points within this radius of any existing point are
+            removed.  Range: [0.0, 1.0].  Default: 0.05.
+    """
+
+    k_neighbors: int = Field(
+        default=20,
+        ge=3,
+        description="KNN for normal estimation. Default 20.",
+    )
+    projection_radius_factor: float = Field(
+        default=0.5,
+        gt=0.0,
+        le=2.0,
+        description="Tangent-plane radius factor (× mean NN dist). Default 0.5.",
+    )
+    min_dist_factor: float = Field(
+        default=0.05,
+        ge=0.0,
+        le=1.0,
+        description="Duplicate-filter radius factor (× mean NN dist). Default 0.05.",
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class DensifyStatisticalParams(BaseModel):
+    """
+    Tunable parameters for the ``statistical`` upsampling densification algorithm.
+
+    Attributes:
+        k_neighbors: KNN count for local density estimation.  Range: [2, ∞).
+            Default: 10.
+        sparse_percentile: Points with local density below this percentile are
+            labelled "sparse" and used as interpolation sources.  Range: (0, 100].
+            Default: 50 (bottom half of density distribution).
+        min_dist_factor: Duplicate-filter radius as a fraction of mean NN distance.
+            Range: [0.0, 1.0].  Default: 0.3.
+    """
+
+    k_neighbors: int = Field(
+        default=10,
+        ge=2,
+        description="KNN for local density estimation. Default 10.",
+    )
+    sparse_percentile: float = Field(
+        default=50.0,
+        gt=0.0,
+        le=100.0,
+        description="Density percentile threshold for 'sparse' label. Default 50.",
+    )
+    min_dist_factor: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        description="Duplicate-filter radius factor (× mean NN dist). Default 0.3.",
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+class DensifyPoissonParams(BaseModel):
+    """
+    Tunable parameters for the ``poisson`` reconstruction densification algorithm.
+
+    Attributes:
+        depth: Octree depth for Poisson reconstruction.  Higher depth = more detail
+            but slower and more memory.  Range: [4, 12].  Default: 8.
+        density_threshold_quantile: Quantile below which low-density mesh vertices
+            are trimmed before sampling.  Range: [0.0, 0.5].  Default: 0.1.
+    """
+
+    depth: int = Field(
+        default=8,
+        ge=4,
+        le=12,
+        description="Poisson octree depth. Default 8.",
+    )
+    density_threshold_quantile: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=0.5,
+        description="Low-density vertex trim quantile. Default 0.1.",
+    )
+
+    model_config = {"populate_by_name": True}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Pydantic models (REST / persistence layer validation)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -162,6 +371,13 @@ class DensifyConfig(BaseModel):
     All algorithms perform global, full-cloud neighbour searches — no scanline,
     ring-based, or sequential processing modes exist.
 
+    Log verbosity is controlled by ``log_level`` (default ``'minimal'``).  Can also
+    be set via the ``DENSIFY_LOG_LEVEL`` environment variable.
+
+    Per-algorithm tunable parameters are available as optional sub-dict fields
+    (``nn_params``, ``mls_params``, ``statistical_params``, ``poisson_params``).
+    If not provided, production defaults apply — backward compatibility preserved.
+
     Persistence format (DAG node config stored in DB):
         {"type": "densify", "config": { ...DensifyConfig fields... }}
     """
@@ -170,12 +386,13 @@ class DensifyConfig(BaseModel):
         default=True,
         description="Enable/disable this operation. Disabled nodes pass through unchanged.",
     )
-    algorithm: DensifyAlgorithm = Field(
-        default=DensifyAlgorithm.NEAREST_NEIGHBOR,
+    algorithm: Optional[DensifyAlgorithm] = Field(
+        default=None,
         description=(
             "Densification algorithm. All algorithms use global KDTree searches "
-            "and produce volumetric (3-D) upsampling. If set explicitly, takes "
-            "precedence over quality_preset. Defaults to nearest_neighbor."
+            "and produce volumetric (3-D) upsampling. If set explicitly (not None), takes "
+            "precedence over quality_preset. When None (default), the algorithm is resolved "
+            "from quality_preset via PRESET_ALGORITHM_MAP."
         ),
     )
     density_multiplier: float = Field(
@@ -200,6 +417,46 @@ class DensifyConfig(BaseModel):
             "If True, estimate surface normals for synthetic points using k=10 nearest "
             "neighbours from the original cloud (global search). Silently skipped if "
             "input has no normals."
+        ),
+    )
+
+    # ── Logging control ───────────────────────────────────────────────────────
+    log_level: DensifyLogLevel = Field(
+        default=DensifyLogLevel.MINIMAL,
+        description=(
+            "Logging verbosity. 'minimal' (default) emits one summary log per "
+            "invocation. 'full' enables per-step DEBUG logging. 'none' suppresses all "
+            "logs except ERROR. Also configurable via DENSIFY_LOG_LEVEL env variable."
+        ),
+    )
+
+    # ── Per-algorithm parameter sub-dicts ─────────────────────────────────────
+    nn_params: Optional[DensifyNNParams] = Field(
+        default=None,
+        description=(
+            "Tunable parameters for the nearest_neighbor algorithm. "
+            "None = use built-in production defaults."
+        ),
+    )
+    mls_params: Optional[DensifyMLSParams] = Field(
+        default=None,
+        description=(
+            "Tunable parameters for the MLS algorithm. "
+            "None = use built-in production defaults."
+        ),
+    )
+    statistical_params: Optional[DensifyStatisticalParams] = Field(
+        default=None,
+        description=(
+            "Tunable parameters for the statistical upsampling algorithm. "
+            "None = use built-in production defaults."
+        ),
+    )
+    poisson_params: Optional[DensifyPoissonParams] = Field(
+        default=None,
+        description=(
+            "Tunable parameters for the Poisson reconstruction algorithm. "
+            "None = use built-in production defaults."
         ),
     )
 
@@ -246,13 +503,30 @@ class Densify(PipelineOperation):
     based, or sequential processing mode.  New points are generated in all three
     spatial dimensions, filling both horizontal and vertical gaps equally.
 
+    Log Verbosity
+    -------------
+    Controlled by ``log_level`` (``'minimal'`` | ``'full'`` | ``'none'``).
+    Default is ``'minimal'`` (one summary line per invocation).  Can also be set
+    via ``DENSIFY_LOG_LEVEL`` environment variable; explicit constructor arg wins.
+
+    Per-Algorithm Parameters
+    ------------------------
+    All tunable algorithm parameters are exposed via optional ``*_params`` kwargs
+    (``nn_params``, ``mls_params``, ``statistical_params``, ``poisson_params``).
+    Omitting them uses production defaults — backward compatibility is preserved.
+
     Args:
-        enabled:             Enable/disable toggle (default True).
-        algorithm:           Algorithm key string, or None to use quality_preset.
-                             Valid: 'nearest_neighbor', 'mls', 'poisson', 'statistical'.
-        density_multiplier:  Target density factor (default 2.0, range [1.0, 8.0]).
-        quality_preset:      'fast' | 'medium' | 'high' (default 'fast').
-        preserve_normals:    Interpolate normals for synthetic points (default True).
+        enabled:              Enable/disable toggle (default True).
+        algorithm:            Algorithm key string, or None to use quality_preset.
+                              Valid: 'nearest_neighbor', 'mls', 'poisson', 'statistical'.
+        density_multiplier:   Target density factor (default 2.0, range [1.0, 8.0]).
+        quality_preset:       'fast' | 'medium' | 'high' (default 'fast').
+        preserve_normals:     Interpolate normals for synthetic points (default True).
+        log_level:            'minimal' | 'full' | 'none' (default from env or 'minimal').
+        nn_params:            DensifyNNParams instance or None (use defaults).
+        mls_params:           DensifyMLSParams instance or None (use defaults).
+        statistical_params:   DensifyStatisticalParams instance or None (use defaults).
+        poisson_params:       DensifyPoissonParams instance or None (use defaults).
     """
 
     def __init__(
@@ -262,6 +536,11 @@ class Densify(PipelineOperation):
         density_multiplier: float = 2.0,
         quality_preset: str = "fast",
         preserve_normals: bool = True,
+        log_level: Optional[str] = None,
+        nn_params: Optional[Any] = None,
+        mls_params: Optional[Any] = None,
+        statistical_params: Optional[Any] = None,
+        poisson_params: Optional[Any] = None,
     ) -> None:
         # Validate algorithm
         if algorithm is not None and algorithm not in _VALID_ALGORITHMS:
@@ -281,19 +560,45 @@ class Densify(PipelineOperation):
                 f"quality_preset must be one of {sorted(_VALID_PRESETS)}, got '{quality_preset}'"
             )
 
+        # Resolve log_level: explicit arg > env var > 'minimal'
+        resolved_log_level = self._resolve_log_level(log_level)
+        if resolved_log_level not in _VALID_LOG_LEVELS:
+            raise ValueError(
+                f"log_level must be one of {sorted(_VALID_LOG_LEVELS)}, "
+                f"got '{resolved_log_level}'"
+            )
+
         self.enabled: bool = bool(enabled)
         self.algorithm: Optional[str] = algorithm
         self.density_multiplier: float = float(density_multiplier)
         self.quality_preset: str = quality_preset
         self.preserve_normals: bool = bool(preserve_normals)
+        self.log_level: str = resolved_log_level
 
-        logger.info(
-            "Densify: Initialized with algorithm=%s, multiplier=%s, preset=%s "
-            "(volumetric mode — global KDTree search, all spatial directions)",
-            algorithm if algorithm is not None else f"<preset:{quality_preset}>",
-            density_multiplier,
-            quality_preset,
+        # Per-algorithm parameter objects — coerce dicts to typed models
+        self.nn_params: Optional[DensifyNNParams] = self._coerce_params(
+            nn_params, DensifyNNParams
         )
+        self.mls_params: Optional[DensifyMLSParams] = self._coerce_params(
+            mls_params, DensifyMLSParams
+        )
+        self.statistical_params: Optional[DensifyStatisticalParams] = self._coerce_params(
+            statistical_params, DensifyStatisticalParams
+        )
+        self.poisson_params: Optional[DensifyPoissonParams] = self._coerce_params(
+            poisson_params, DensifyPoissonParams
+        )
+
+        # Emit init log only in full mode to avoid spamming at startup
+        if self.log_level == "full":
+            logger.info(
+                "Densify: Initialized — algorithm=%s, multiplier=%s, preset=%s, "
+                "log_level=%s (volumetric mode — global KDTree, all spatial directions)",
+                algorithm if algorithm is not None else f"<preset:{quality_preset}>",
+                density_multiplier,
+                quality_preset,
+                resolved_log_level,
+            )
 
     # ─── Public API ──────────────────────────────────────────────────────────
 
@@ -304,6 +609,11 @@ class Densify(PipelineOperation):
         Uses global neighbour searches (full-cloud KDTree) — no scanline or
         ring-based processing.  New points are generated in all spatial
         directions, including vertical gaps.
+
+        Log verbosity is controlled by ``self.log_level``:
+          - ``'minimal'``: one summary log per successful run (DEBUG) or skip/error (INFO/WARNING/ERROR)
+          - ``'full'``: verbose DEBUG logging per step
+          - ``'none'``: silent except ERROR on algorithm failure
 
         Args:
             pcd: o3d.geometry.PointCloud (legacy) or o3d.t.geometry.PointCloud (tensor).
@@ -337,11 +647,13 @@ class Densify(PipelineOperation):
         # ── 2. insufficient points check ─────────────────────────────────────
         if original_count < MIN_INPUT_POINTS:
             elapsed = (time.monotonic() - start_time) * 1000.0
-            logger.warning(
-                "Densify: Skipping — insufficient input points (%d < %d)",
-                original_count,
-                MIN_INPUT_POINTS,
-            )
+            # Emit warning only in non-'none' mode
+            if self.log_level != "none":
+                logger.warning(
+                    "Densify: Skipping — insufficient input points (%d < %d)",
+                    original_count,
+                    MIN_INPUT_POINTS,
+                )
             return original_pcd, self._make_skip_meta(
                 original_count=original_count,
                 reason=f"Insufficient input points ({original_count} < minimum {MIN_INPUT_POINTS})",
@@ -357,12 +669,13 @@ class Densify(PipelineOperation):
         # ── 5. already dense check ───────────────────────────────────────────
         if target_count <= original_count:
             elapsed = (time.monotonic() - start_time) * 1000.0
-            logger.info(
-                "Densify: Skipping — input already meets or exceeds target density "
-                "(current: %d, target: %d)",
-                original_count,
-                target_count,
-            )
+            if self.log_level == "full":
+                logger.info(
+                    "Densify: Skipping — input already meets or exceeds target density "
+                    "(current: %d, target: %d)",
+                    original_count,
+                    target_count,
+                )
             return original_pcd, self._make_skip_meta(
                 original_count=original_count,
                 reason=(
@@ -372,17 +685,12 @@ class Densify(PipelineOperation):
                 elapsed_ms=elapsed,
             )
 
-        logger.info(
-            "Densify: Using %s with %.2fx multiplier (global KDTree, volumetric)",
-            effective_algorithm,
-            target_count / original_count,
-        )
-
         # ── 6. run algorithm (fail-safe) ─────────────────────────────────────
         try:
             result_pcd = self._run_algorithm(tensor_pcd, target_count, effective_algorithm)
         except Exception as exc:
             elapsed = (time.monotonic() - start_time) * 1000.0
+            # ERROR is always logged regardless of log_level
             logger.error(
                 "Densify: %s algorithm failed — %s. Passing through original cloud.",
                 effective_algorithm,
@@ -408,12 +716,26 @@ class Densify(PipelineOperation):
         densified_count = self._get_count(result_pcd)
         density_ratio = densified_count / original_count if original_count > 0 else 1.0
 
-        logger.debug(
-            "Densify: Processed %d→%d points in %.1fms",
-            original_count,
-            densified_count,
-            elapsed,
-        )
+        # Emit single summary log: DEBUG in full mode, DEBUG in minimal mode
+        # (minimal = one summary line, full = includes step detail which was emitted inline)
+        if self.log_level == "full":
+            logger.debug(
+                "Densify: [%s] %d→%d pts in %.1fms (ratio=%.2f)",
+                effective_algorithm,
+                original_count,
+                densified_count,
+                elapsed,
+                density_ratio,
+            )
+        elif self.log_level == "minimal":
+            logger.debug(
+                "Densify: %s %d→%d pts in %.1fms",
+                effective_algorithm,
+                original_count,
+                densified_count,
+                elapsed,
+            )
+        # log_level == "none": no output
 
         return result_pcd, {
             "status": "success",
@@ -427,6 +749,35 @@ class Densify(PipelineOperation):
         }
 
     # ─── Private helpers ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _resolve_log_level(explicit: Optional[str]) -> str:
+        """
+        Resolve effective log level from explicit arg → env var → 'minimal'.
+
+        Priority: explicit kwarg > DENSIFY_LOG_LEVEL env var > 'minimal'.
+        """
+        if explicit is not None:
+            return explicit
+        env_val = os.environ.get(_ENV_LOG_LEVEL, "").strip().lower()
+        if env_val in _VALID_LOG_LEVELS:
+            return env_val
+        return "minimal"
+
+    @staticmethod
+    def _coerce_params(value: Optional[Any], model_cls: type) -> Optional[Any]:
+        """
+        Coerce a params value to the correct Pydantic model instance.
+
+        - None → None (use built-in defaults)
+        - dict → model_cls(**dict)
+        - model instance → passed through
+        """
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            return model_cls(**value)
+        return value  # Already a model instance
 
     def _validate_input(
         self, pcd: Any
@@ -517,16 +868,27 @@ class Densify(PipelineOperation):
 
         This ensures both horizontal and vertical gaps are filled regardless of the
         original scan pattern or sensor type.
+
+        Parameters are read from ``self.nn_params`` (DensifyNNParams) if provided,
+        otherwise production defaults are used.
         """
         from scipy.spatial import KDTree  # lazy import — already a project dep
+
+        # Resolve algorithm params (use explicit params or production defaults)
+        p = self.nn_params if self.nn_params is not None else DensifyNNParams()
 
         pts = pcd.point.positions.numpy().astype(np.float64)  # (N, 3)
         n_orig = len(pts)
 
         # Compute mean NN distance using a global scipy KDTree over ALL points.
-        # This guarantees the radius reflects the true 3-D point spacing, not just
-        # the horizontal (within-ring) spacing of structured LIDAR scans.
         mean_nn_dist = self._compute_mean_nn_dist_global(pts)
+
+        if self.log_level == "full":
+            logger.debug(
+                "Densify[nn]: n_orig=%d, n_new=%d, mean_nn_dist=%.4f, "
+                "disp=[%.3f, %.3f]×mean_nn",
+                n_orig, n_new, mean_nn_dist, p.displacement_min, p.displacement_max,
+            )
 
         rng = np.random.default_rng()
         synthetic = np.empty((n_new, 3), dtype=np.float32)
@@ -549,7 +911,7 @@ class Densify(PipelineOperation):
                 else:
                     direction /= norm
 
-                radius = rng.uniform(0.05, 0.5) * mean_nn_dist
+                radius = rng.uniform(p.displacement_min, p.displacement_max) * mean_nn_dist
                 synthetic[idx] = (src_pt + radius * direction).astype(np.float32)
                 idx += 1
 
@@ -568,13 +930,15 @@ class Densify(PipelineOperation):
 
         Projects synthetic points onto the tangent plane of nearby source points.
         All neighbour queries use a global scipy KDTree built on the complete input
-        cloud — no per-ring or per-scanline neighbourhood restriction.  Normals are
-        estimated with a full-cloud KNN search (knn=20) so vertical surfaces, ground
-        planes, and diagonal geometry are treated identically.
+        cloud — no per-ring or per-scanline neighbourhood restriction.
 
-        Requires scipy (already in project deps via generate_plane.py).
+        Parameters are read from ``self.mls_params`` (DensifyMLSParams) if provided,
+        otherwise production defaults are used.
         """
         from scipy.spatial import KDTree  # lazy import
+
+        # Resolve algorithm params
+        p = self.mls_params if self.mls_params is not None else DensifyMLSParams()
 
         pcd_legacy = pcd.to_legacy()
         try:
@@ -582,20 +946,25 @@ class Densify(PipelineOperation):
             n_orig = len(pts)
 
             # Ensure normals for tangent plane construction.
-            # estimate_normals uses a full KNN search — global neighbourhood.
+            # Uses configurable k_neighbors (default 20).
             if not pcd_legacy.has_normals():
                 pcd_legacy.estimate_normals(
-                    o3d.geometry.KDTreeSearchParamKNN(knn=20)
+                    o3d.geometry.KDTreeSearchParamKNN(knn=p.k_neighbors)
                 )
                 pcd_legacy.normalize_normals()
             norms = np.asarray(pcd_legacy.normals, dtype=np.float64)  # (N, 3)
 
             # Global mean NN distance — full-cloud scipy KDTree
             mean_nn_dist = self._compute_mean_nn_dist_global(pts)
-            projection_radius = mean_nn_dist * 0.5
-            # min_dist must be < sigma so tangent-plane synthetics aren't all filtered;
-            # use 0.05× mean_nn_dist as a loose duplicate guard.
-            min_dist = mean_nn_dist * 0.05
+            projection_radius = mean_nn_dist * p.projection_radius_factor
+            min_dist = mean_nn_dist * p.min_dist_factor
+
+            if self.log_level == "full":
+                logger.debug(
+                    "Densify[mls]: n_orig=%d, n_new=%d, k=%d, "
+                    "proj_r=%.4f, min_dist=%.4f",
+                    n_orig, n_new, p.k_neighbors, projection_radius, min_dist,
+                )
 
             # Global KDTree for duplicate filtering
             kd_tree = KDTree(pts)
@@ -605,12 +974,12 @@ class Densify(PipelineOperation):
             points_per_source = max(1, math.ceil(n_new / n_orig))
             idx = 0
             while idx < n_new:
-                # Select source point from the GLOBAL cloud (no per-ring restriction)
+                # Select source point from the GLOBAL cloud
                 src_idx = rng.integers(0, n_orig)
-                p = pts[src_idx]
+                pt = pts[src_idx]
                 n = norms[src_idx]
 
-                # Build tangent plane basis {u, v} — captures all orientations
+                # Build tangent plane basis {u, v}
                 u, v = self._tangent_basis(n)
                 sigma = projection_radius / 3.0
 
@@ -619,7 +988,7 @@ class Densify(PipelineOperation):
                         break
                     su = rng.uniform(-sigma, sigma)
                     sv = rng.uniform(-sigma, sigma)
-                    new_pt = p + su * u + sv * v
+                    new_pt = pt + su * u + sv * v
                     synthetic[idx] = new_pt.astype(np.float32)
                     idx += 1
 
@@ -642,38 +1011,45 @@ class Densify(PipelineOperation):
         Hybrid Poisson reconstruction densification — volumetric.
 
         Preserves all original points and augments with n_new uniformly-sampled
-        points from a Poisson-reconstructed mesh trimmed at low-density vertices.
+        points from a Poisson-reconstructed mesh.
 
-        The Poisson reconstruction operates on the **complete** input cloud — no
-        scanline or ring sub-sampling is performed before reconstruction.  The
-        resulting implicit surface covers all spatial directions so upsampling fills
-        horizontal, vertical, and diagonal gaps alike.
+        Parameters are read from ``self.poisson_params`` (DensifyPoissonParams)
+        if provided, otherwise production defaults are used.
         """
+        # Resolve algorithm params
+        p = self.poisson_params if self.poisson_params is not None else DensifyPoissonParams()
+
         pcd_legacy = pcd.to_legacy()
         try:
             pts_orig = np.asarray(pcd_legacy.points, dtype=np.float32)
 
-            # Ensure normals for Poisson — full-cloud KNN search (knn=30)
+            # Ensure normals for Poisson — full-cloud KNN search
             if not pcd_legacy.has_normals():
                 pcd_legacy.estimate_normals(
                     o3d.geometry.KDTreeSearchParamKNN(knn=30)
                 )
                 pcd_legacy.normalize_normals()
 
+            if self.log_level == "full":
+                logger.debug(
+                    "Densify[poisson]: n_orig=%d, n_new=%d, depth=%d, q=%.2f",
+                    len(pts_orig), n_new, p.depth, p.density_threshold_quantile,
+                )
+
             # Poisson reconstruction on the complete cloud
             mesh, densities = (
                 o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(
                     pcd_legacy,
-                    depth=8,
+                    depth=p.depth,
                     width=0,
                     scale=1.1,
                     linear_fit=False,
                 )
             )
 
-            # Trim low-density vertices (boundary artefacts, not scan-pattern removal)
+            # Trim low-density vertices using configurable quantile
             densities_arr = np.asarray(densities)
-            threshold = float(np.quantile(densities_arr, 0.1))
+            threshold = float(np.quantile(densities_arr, p.density_threshold_quantile))
             vertices_to_remove = densities_arr < threshold
             mesh.remove_vertices_by_mask(vertices_to_remove)
 
@@ -683,7 +1059,7 @@ class Densify(PipelineOperation):
             if n_sample <= 0:
                 n_sample = 1
 
-            # Sample uniformly from the mesh — fills all spatial directions
+            # Sample uniformly from the mesh
             sampled_legacy = mesh.sample_points_uniformly(number_of_points=n_sample)
             del mesh
 
@@ -703,41 +1079,52 @@ class Densify(PipelineOperation):
         Statistical upsampling densification — volumetric, sensor-agnostic.
 
         Computes per-point local density using a **global** scipy KDTree query
-        (k=10 nearest neighbours for every point in the full cloud — no axis
-        restriction, no scanline grouping).  Identifies sparse 3-D regions and
-        interpolates new points along edges to existing neighbours with
-        α ∈ [0.3, 0.7].  Because the KDTree is built on all points and queries
-        are unrestricted in direction, sparse vertical regions are identified and
-        filled the same way as sparse horizontal regions.
+        (k=k_neighbors nearest neighbours for every point — no axis restriction,
+        no scanline grouping).  Identifies sparse 3-D regions and interpolates
+        new points along edges to existing neighbours with α ∈ [0.3, 0.7].
+
+        Parameters are read from ``self.statistical_params`` (DensifyStatisticalParams)
+        if provided, otherwise production defaults are used.
         """
         from scipy.spatial import KDTree  # lazy import
+
+        # Resolve algorithm params
+        p = self.statistical_params if self.statistical_params is not None \
+            else DensifyStatisticalParams()
 
         pts = pcd.point.positions.numpy().astype(np.float64)
         n_orig = len(pts)
 
         # Global KDTree — full cloud, no per-ring or per-scanline restriction
         kd_tree = KDTree(pts)
-        k = min(11, n_orig)  # k+1 (first col is self)
-        dists, idxs = kd_tree.query(pts, k=k)
+        k_total = min(p.k_neighbors + 1, n_orig)  # +1 for self
+        dists, idxs = kd_tree.query(pts, k=k_total)
 
         # Exclude self (col 0)
-        dists = dists[:, 1:]    # (N, k-1)
-        idxs = idxs[:, 1:]      # (N, k-1)
+        dists = dists[:, 1:]    # (N, k_neighbors)
+        idxs = idxs[:, 1:]      # (N, k_neighbors)
 
         # Local density: k / volume_of_sphere(radius = max_dist)
-        # Uses 3-D spherical volume — direction-agnostic
         max_dist = dists[:, -1]
         max_dist = np.where(max_dist < 1e-8, 1e-8, max_dist)
-        local_density = (k - 1) / ((4.0 / 3.0) * math.pi * (max_dist ** 3))
+        local_density = (k_total - 1) / ((4.0 / 3.0) * math.pi * (max_dist ** 3))
 
         # Mean NN dist for min_dist filter (global, all directions)
         mean_nn_dist = float(dists[:, 0].mean()) if dists.size > 0 else 0.01
-        min_dist = mean_nn_dist * 0.3
+        min_dist = mean_nn_dist * p.min_dist_factor
 
-        # Sparse-region points: bottom 50th percentile of volumetric density
-        percentile_50 = float(np.percentile(local_density, 50))
-        sparse_mask = local_density < percentile_50
+        # Sparse-region points: bottom sparse_percentile of volumetric density
+        percentile_val = float(np.percentile(local_density, p.sparse_percentile))
+        sparse_mask = local_density < percentile_val
         sparse_indices = np.where(sparse_mask)[0]
+
+        if self.log_level == "full":
+            logger.debug(
+                "Densify[statistical]: n_orig=%d, n_new=%d, k=%d, "
+                "sparse_pct=%.0f, n_sparse=%d, min_dist=%.4f",
+                n_orig, n_new, p.k_neighbors, p.sparse_percentile,
+                len(sparse_indices), min_dist,
+            )
 
         rng = np.random.default_rng()
         synthetic_list = []
@@ -759,7 +1146,7 @@ class Densify(PipelineOperation):
                         if budget <= 0:
                             break
                         alpha = rng.uniform(0.3, 0.7)
-                        # Interpolation works in full 3-D space — no axis clamping
+                        # Interpolation in full 3-D space — no axis clamping
                         new_pt = (1.0 - alpha) * p_i + alpha * p_j
                         synthetic_list.append(new_pt)
                         budget -= 1
@@ -798,15 +1185,17 @@ class Densify(PipelineOperation):
         for each synthetic point, guaranteeing correct normal estimation regardless
         of the spatial structure of the input.
 
-        If the original cloud has no normals, logs INFO and returns unchanged.
-        Original normals are preserved; only synthetic indices get new values.
+        If the original cloud has no normals, logs INFO (only in non-'none' mode)
+        and returns unchanged.  Original normals are preserved; only synthetic indices
+        get new values.
         """
         # Check if original has normals
         orig_keys = _tensor_map_keys(original_pcd.point)
         if "normals" not in orig_keys:
-            logger.info(
-                "Densify: Input cloud has no normals — skipping normal estimation"
-            )
+            if self.log_level == "full":
+                logger.info(
+                    "Densify: Input cloud has no normals — skipping normal estimation"
+                )
             return result_pcd
 
         # Extract original normals
@@ -825,7 +1214,6 @@ class Densify(PipelineOperation):
         try:
             from scipy.spatial import KDTree
 
-            # Global KDTree — no axis restriction, no ring grouping
             kd_orig = KDTree(orig_pts.astype(np.float64))
             k = min(10, n_original)
             _, neighbor_idxs = kd_orig.query(synth_pts.astype(np.float64), k=k)
@@ -873,13 +1261,12 @@ class Densify(PipelineOperation):
         """
         Compute the mean nearest-neighbour distance over the **global** point cloud.
 
-        Uses scipy KDTree (pure-Python, no Open3D legacy API) querying the 2 nearest
-        neighbours for every point.  This gives a 3-D global estimate of point spacing
-        that is not biased toward any scan structure (rings, scanlines, rows, etc.).
+        Uses scipy KDTree querying the 2 nearest neighbours for every point.
+        This gives a 3-D global estimate of point spacing not biased toward any
+        scan structure (rings, scanlines, rows, etc.).
 
-        For very large clouds (N > 10_000) a random sample of 1000 points is used for
-        speed while still capturing the global distribution.  The sample is drawn
-        uniformly at random — no structured sub-sampling.
+        For very large clouds (N > 10_000) a random sample of 1000 points is used
+        for speed while still capturing the global distribution.
 
         Returns a fallback of 0.01 if computation fails.
         """

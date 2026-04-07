@@ -3,8 +3,8 @@
 **Feature:** `densify-point-cloud`  
 **Module:** `app/modules/pipeline/operations/densify.py`  
 **Schema Location:** `app/modules/pipeline/operations/densify.py` (inline Pydantic models)  
-**Version:** 1.0  
-**References:** `technical.md` §7, §8, §11
+**Version:** 1.1  
+**References:** `technical.md` §7, §8, §11, §16, §17
 
 ---
 
@@ -14,6 +14,13 @@
 
 ```python
 from enum import Enum
+
+class DensifyLogLevel(str, Enum):
+    """Controls per-call log verbosity from Densify.apply()."""
+    MINIMAL = "minimal"  # Single summary log per apply() call (default)
+    FULL    = "full"     # Original verbose per-step DEBUG logging
+    NONE    = "none"     # Complete silence except ERROR
+
 
 class DensifyAlgorithm(str, Enum):
     """Available densification algorithms."""
@@ -120,7 +127,128 @@ class DensifyConfig(BaseModel):
     }
 ```
 
-**JSON Schema (for DAG config persistence and REST body):**
+---
+
+### 1.3 Per-Algorithm Parameter Models
+
+Each algorithm exposes a dedicated Pydantic model for fine-tuning. All fields have production-safe defaults; omitting
+the sub-dict entirely reverts to the original hardcoded production defaults.
+
+```python
+class DensifyNNParams(BaseModel):
+    """Tunable parameters for the Nearest Neighbor algorithm."""
+    displacement_min: float = Field(
+        default=0.05, gt=0.0, lt=1.0,
+        description="Lower bound of displacement range as a fraction of mean_nn_dist. Default: 0.05."
+    )
+    displacement_max: float = Field(
+        default=0.5, gt=0.0, le=2.0,
+        description="Upper bound of displacement range as a fraction of mean_nn_dist. Default: 0.5."
+    )
+
+
+class DensifyMLSParams(BaseModel):
+    """Tunable parameters for the Moving Least Squares algorithm."""
+    k_neighbors: int = Field(
+        default=20, ge=3, le=100,
+        description="KNN count for normal estimation and tangent plane fitting. Default: 20."
+    )
+    projection_radius_factor: float = Field(
+        default=0.5, gt=0.0, le=5.0,
+        description="Tangent-plane projection radius as a factor of mean_nn_dist. Default: 0.5."
+    )
+    min_dist_factor: float = Field(
+        default=0.05, gt=0.0, lt=1.0,
+        description="Post-filter minimum distance as a factor of mean_nn_dist. Default: 0.05."
+    )
+
+
+class DensifyStatisticalParams(BaseModel):
+    """Tunable parameters for the Statistical Upsampling algorithm."""
+    k_neighbors: int = Field(
+        default=10, ge=3, le=100,
+        description="KNN count for local density estimation. Default: 10."
+    )
+    sparse_percentile: float = Field(
+        default=50.0, ge=1.0, le=99.0,
+        description="Density percentile below which a region is considered sparse. Default: 50."
+    )
+    min_dist_factor: float = Field(
+        default=0.3, gt=0.0, lt=2.0,
+        description="Post-filter minimum distance as a factor of mean_nn_dist. Default: 0.3."
+    )
+
+
+class DensifyPoissonParams(BaseModel):
+    """Tunable parameters for the Poisson Reconstruction algorithm."""
+    depth: int = Field(
+        default=8, ge=4, le=12,
+        description="Octree depth for Poisson reconstruction. Higher = finer mesh, slower. Default: 8."
+    )
+    density_threshold_quantile: float = Field(
+        default=0.1, ge=0.0, le=0.5,
+        description="Quantile below which low-density Poisson mesh vertices are trimmed. Default: 0.1."
+    )
+```
+
+---
+
+### 1.4 Updated Configuration Model (`DensifyConfig`)
+
+This model represents the `config` dict passed through `OperationFactory.create("densify", config)`.
+It is also the schema for DAG node persistence and the REST API config endpoint.
+
+```python
+class DensifyConfig(BaseModel):
+    # ── Core toggles ──────────────────────────────────────────────────────────
+    enabled: bool = Field(default=True)
+
+    # ── Algorithm selection ───────────────────────────────────────────────────
+    algorithm: Optional[DensifyAlgorithm] = Field(default=None)
+
+    # ── Density target ────────────────────────────────────────────────────────
+    density_multiplier: float = Field(default=2.0, ge=1.0, le=8.0)
+
+    # ── Quality preset ────────────────────────────────────────────────────────
+    quality_preset: DensifyQualityPreset = Field(default=DensifyQualityPreset.FAST)
+
+    # ── Normals ───────────────────────────────────────────────────────────────
+    preserve_normals: bool = Field(default=True)
+
+    # ── Log level (NEW in v1.1) ───────────────────────────────────────────────
+    log_level: DensifyLogLevel = Field(
+        default=DensifyLogLevel.MINIMAL,
+        description=(
+            "Controls per-call log verbosity. "
+            "'minimal' = single summary log per apply() (default). "
+            "'full' = verbose per-step DEBUG logs. "
+            "'none' = silence except ERROR. "
+            "Also overridable via DENSIFY_LOG_LEVEL env var (explicit kwarg wins)."
+        )
+    )
+
+    # ── Per-algorithm tunable params (NEW in v1.1) ────────────────────────────
+    nn_params: Optional[DensifyNNParams] = Field(
+        default=None,
+        description="Nearest Neighbor tunable params. None → production defaults."
+    )
+    mls_params: Optional[DensifyMLSParams] = Field(
+        default=None,
+        description="MLS tunable params. None → production defaults."
+    )
+    statistical_params: Optional[DensifyStatisticalParams] = Field(
+        default=None,
+        description="Statistical Upsampling tunable params. None → production defaults."
+    )
+    poisson_params: Optional[DensifyPoissonParams] = Field(
+        default=None,
+        description="Poisson Reconstruction tunable params. None → production defaults."
+    )
+
+    model_config = {"use_enum_values": True, "populate_by_name": True}
+```
+
+**JSON Schema (for DAG config persistence and REST body — v1.1):**
 
 ```json
 {
@@ -156,6 +284,46 @@ class DensifyConfig(BaseModel):
       "type": "boolean",
       "default": true,
       "description": "Estimate normals for synthetic points using k=10 NN from original cloud."
+    },
+    "log_level": {
+      "type": "string",
+      "enum": ["minimal", "full", "none"],
+      "default": "minimal",
+      "description": "Log verbosity per apply() call. Also settable via DENSIFY_LOG_LEVEL env var."
+    },
+    "nn_params": {
+      "type": "object",
+      "description": "Nearest Neighbor algorithm parameters (optional).",
+      "properties": {
+        "displacement_min": {"type": "number", "default": 0.05},
+        "displacement_max": {"type": "number", "default": 0.5}
+      }
+    },
+    "mls_params": {
+      "type": "object",
+      "description": "MLS algorithm parameters (optional).",
+      "properties": {
+        "k_neighbors": {"type": "integer", "default": 20},
+        "projection_radius_factor": {"type": "number", "default": 0.5},
+        "min_dist_factor": {"type": "number", "default": 0.05}
+      }
+    },
+    "statistical_params": {
+      "type": "object",
+      "description": "Statistical Upsampling parameters (optional).",
+      "properties": {
+        "k_neighbors": {"type": "integer", "default": 10},
+        "sparse_percentile": {"type": "number", "default": 50.0},
+        "min_dist_factor": {"type": "number", "default": 0.3}
+      }
+    },
+    "poisson_params": {
+      "type": "object",
+      "description": "Poisson Reconstruction parameters (optional).",
+      "properties": {
+        "depth": {"type": "integer", "default": 8},
+        "density_threshold_quantile": {"type": "number", "default": 0.1}
+      }
     }
   },
   "required": [],
@@ -297,6 +465,7 @@ class DensifyMetadata(BaseModel):
     "density_multiplier": 2.0,
     "quality_preset": "fast",
     "preserve_normals": true,
+    "log_level": "minimal",
     "throttle_ms": 0
   }
 }
@@ -327,6 +496,39 @@ Resolves to `DensifyAlgorithm.NEAREST_NEIGHBOR`, `density_multiplier=2.0`, `qual
 }
 ```
 
+### 3.4 Fine-Tuned Algorithm Params Example (NEW in v1.1)
+
+```json
+{
+  "type": "densify",
+  "config": {
+    "algorithm": "statistical",
+    "density_multiplier": 3.0,
+    "log_level": "none",
+    "statistical_params": {
+      "k_neighbors": 15,
+      "sparse_percentile": 40.0,
+      "min_dist_factor": 0.2
+    }
+  }
+}
+```
+
+```json
+{
+  "type": "densify",
+  "config": {
+    "algorithm": "poisson",
+    "density_multiplier": 2.0,
+    "log_level": "full",
+    "poisson_params": {
+      "depth": 9,
+      "density_threshold_quantile": 0.05
+    }
+  }
+}
+```
+
 ---
 
 ## 4. `Densify.__init__` Signature (Python)
@@ -336,17 +538,31 @@ class Densify(PipelineOperation):
     def __init__(
         self,
         enabled: bool = True,
-        algorithm: str = "nearest_neighbor",       # DensifyAlgorithm value
+        algorithm: str = "nearest_neighbor",           # DensifyAlgorithm value
         density_multiplier: float = 2.0,
-        quality_preset: str = "fast",              # DensifyQualityPreset value
+        quality_preset: str = "fast",                  # DensifyQualityPreset value
         preserve_normals: bool = True,
+        # NEW in v1.1 ─────────────────────────────────
+        log_level: str | None = None,                  # 'minimal'|'full'|'none'; None → env-var fallback → 'minimal'
+        nn_params: dict | DensifyNNParams | None = None,
+        mls_params: dict | DensifyMLSParams | None = None,
+        statistical_params: dict | DensifyStatisticalParams | None = None,
+        poisson_params: dict | DensifyPoissonParams | None = None,
     ) -> None: ...
 ```
 
-**Constructor receives raw Python types** (str, float, int, bool) to match the pattern used by all existing
+**Constructor receives raw Python types** (str, float, int, bool, dict) to match the pattern used by all existing
 `PipelineOperation` subclasses (e.g., `Downsample(voxel_size=0.05)`). The `OperationFactory` passes `**config`
 directly from the dict — Pydantic validation happens at the REST/persistence layer upstream, not inside the
 operation constructor.
+
+**`log_level` resolution precedence:**
+1. Explicit `log_level=` constructor argument (highest priority)
+2. `DENSIFY_LOG_LEVEL` environment variable
+3. Default: `'minimal'`
+
+**`*_params` coercion:** If a plain `dict` is passed, it is coerced to the typed Pydantic model automatically
+(e.g., `nn_params={"displacement_min": 0.1}` → `DensifyNNParams(displacement_min=0.1, displacement_max=0.5)`).
 
 The constructor MUST validate:
 - `algorithm` is one of `{"nearest_neighbor", "mls", "poisson", "statistical"}` → raise `ValueError` on invalid
@@ -390,6 +606,11 @@ due to its latency profile.
 | `density_multiplier` | `float` | `2.0` | `[1.0, 8.0]` |
 | `quality_preset` | `str` (enum) | `"fast"` | One of: `fast`, `medium`, `high` |
 | `preserve_normals` | `bool` | `true` | — |
+| `log_level` | `str` (enum) | `"minimal"` | One of: `minimal`, `full`, `none`; also settable via `DENSIFY_LOG_LEVEL` env var |
+| `nn_params` | `dict` / `DensifyNNParams` | `null` | Optional; keys: `displacement_min ∈ (0,1)`, `displacement_max ∈ (0,2]` |
+| `mls_params` | `dict` / `DensifyMLSParams` | `null` | Optional; keys: `k_neighbors ∈ [3,100]`, `projection_radius_factor ∈ (0,5]`, `min_dist_factor ∈ (0,1)` |
+| `statistical_params` | `dict` / `DensifyStatisticalParams` | `null` | Optional; keys: `k_neighbors ∈ [3,100]`, `sparse_percentile ∈ [1,99]`, `min_dist_factor ∈ (0,2)` |
+| `poisson_params` | `dict` / `DensifyPoissonParams` | `null` | Optional; keys: `depth ∈ [4,12]`, `density_threshold_quantile ∈ [0,0.5]` |
 
 ---
 

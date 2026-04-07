@@ -246,3 +246,62 @@ Phase 1 (Skeleton)
 
 **Blocked by:** Nothing. `@qa` is writing `test_densify.py` in parallel (TDD). Ensure your implementation satisfies
 all test contracts defined in `qa-tasks.md`.
+
+---
+
+## Phase 10: Log Level Configuration (v1.1)
+
+- [x] Add `DensifyLogLevel` string enum: `MINIMAL = "minimal"`, `FULL = "full"`, `NONE = "none"`
+- [x] Add `_VALID_LOG_LEVELS` constant: `{"minimal", "full", "none"}`
+- [x] Add `_resolve_log_level(explicit_arg)` helper: precedence = explicit arg → `DENSIFY_LOG_LEVEL` env var → `"minimal"`
+- [x] Add `log_level` field to `DensifyConfig` (default `DensifyLogLevel.MINIMAL`)
+- [x] Update `__init__` to accept `log_level: str | None = None` kwarg; store as `self._log_level`
+- [x] Add validation: invalid `log_level` raises `ValueError` at `__init__` time
+- [x] Update `apply()` to use `self._log_level`:
+  - `"minimal"` → 1× DEBUG summary on success, 1× INFO/WARNING on skip, always ERROR on failure
+  - `"full"` → original multi-step DEBUG per algorithm step
+  - `"none"` → silence except ERROR
+- [x] Confirm ENV var override (`DENSIFY_LOG_LEVEL`) takes effect when explicit arg is absent
+- [x] Confirm explicit kwarg overrides ENV var
+
+**TDD Test class:** `TestLogLevel` (14 tests — all passing)
+
+---
+
+## Phase 11: Per-Algorithm Parameter Exposure (v1.1)
+
+- [x] Add `DensifyNNParams` Pydantic model: `displacement_min` (default 0.05), `displacement_max` (default 0.5)
+- [x] Add `DensifyMLSParams` Pydantic model: `k_neighbors` (default 20), `projection_radius_factor` (default 0.5), `min_dist_factor` (default 0.05)
+- [x] Add `DensifyStatisticalParams` Pydantic model: `k_neighbors` (default 10), `sparse_percentile` (default 50.0), `min_dist_factor` (default 0.3)
+- [x] Add `DensifyPoissonParams` Pydantic model: `depth` (default 8), `density_threshold_quantile` (default 0.1)
+- [x] Add `_coerce_params(value, model_cls)` helper: coerces `dict` → typed model; passes through model instances; returns `None` for `None`
+- [x] Add optional param fields to `DensifyConfig`: `nn_params`, `mls_params`, `statistical_params`, `poisson_params` (all default `None`)
+- [x] Update `__init__` to accept `nn_params`, `mls_params`, `statistical_params`, `poisson_params` kwargs
+- [x] Store coerced models on instance: `self._nn_params`, `self._mls_params`, `self._statistical_params`, `self._poisson_params`
+- [x] Update `_densify_nearest_neighbor` to read from `self._nn_params` (falls back to production defaults when `None`)
+- [x] Update `_densify_mls` to read from `self._mls_params`
+- [x] Update `_densify_statistical` to read from `self._statistical_params`
+- [x] Update `_densify_poisson` to read from `self._poisson_params`
+- [x] In `full` log mode, emit `DEBUG` showing which param values were used by each algorithm
+- [x] Verify backward compatibility: all existing tests pass with `*_params=None` (production defaults)
+
+**TDD Test class:** `TestAlgorithmParams` (25 tests — all passing)
+
+---
+
+## Phase 12: Documentation Update (v1.1)
+
+- [x] Update `api-spec.md`:
+  - [x] Bump version to 1.1
+  - [x] Add `DensifyLogLevel` enum to §1.1
+  - [x] Add §1.3: Per-Algorithm Parameter Models (all 4 Pydantic models)
+  - [x] Rename §1.2 → §1.4 with updated `DensifyConfig` including `log_level` and `*_params` fields
+  - [x] Update JSON Schema in §1.4 with new fields
+  - [x] Update §3.1 full payload example to include `log_level`
+  - [x] Add §3.4 fine-tuned algorithm params example
+  - [x] Update §4 `__init__` signature with new params
+  - [x] Update §7 Validation Rules Summary table with new fields
+- [x] Update `technical.md`:
+  - [x] Add §16: Log Level Configuration (behaviour matrix, resolution precedence, env var)
+  - [x] Add §17: Per-Algorithm Parameter Exposure (motivation, models table, backward compat, dict coercion)
+  - [x] Update §15 acceptance criteria cross-reference table (NF3, NF4, NF5)

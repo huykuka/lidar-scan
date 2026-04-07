@@ -461,4 +461,123 @@ No new third-party dependencies are introduced.
 | F7: Output metadata | §8 — metadata dict contract |
 | NF1: Performance | §3 — per-algorithm latency targets |
 | NF2: DAG integration | §2, §11, §12 — `PipelineOperation`, registry, factory |
-| NF3: Logging | §10 — log levels and message templates |
+| NF3: Logging | §10, §16 — log levels, message templates, and `DensifyLogLevel` enum |
+| NF4: Log spam reduction | §16 — minimal/full/none modes with env-var override |
+| NF5: Algorithm param exposure | §17 — per-algorithm Pydantic param models |
+
+---
+
+## 16. Log Level Configuration (v1.1)
+
+### 16.1 Overview
+
+The `Densify` module historically emitted a `DEBUG` log for every `apply()` call, which in a streaming pipeline
+running at 10–30 FPS produced hundreds of log lines per second. The v1.1 update introduces a configurable
+`log_level` that reduces this to a single summary message per call (or complete silence) without losing ERROR
+visibility.
+
+### 16.2 `DensifyLogLevel` Enum
+
+```python
+class DensifyLogLevel(str, Enum):
+    MINIMAL = "minimal"   # Single summary DEBUG/INFO/WARNING per apply() — DEFAULT
+    FULL    = "full"      # Original per-step DEBUG logging (useful for debugging)
+    NONE    = "none"      # Complete silence; only ERROR messages are always emitted
+```
+
+### 16.3 Behaviour Matrix
+
+| `log_level` | On success | On skip | On error |
+|---|---|---|---|
+| `minimal` | 1× `DEBUG` summary (orig→final pts, ms) | 1× `INFO` or `WARNING` with reason | Always `ERROR` |
+| `full` | Original multi-step `DEBUG` per algorithm | `INFO`/`WARNING` with reason | Always `ERROR` |
+| `none` | Silent | Silent | Always `ERROR` |
+
+> **ERROR messages are always logged regardless of `log_level`** to guarantee operational visibility of failures.
+
+### 16.4 Resolution Precedence
+
+```
+1. Explicit log_level= constructor argument (highest priority)
+2. DENSIFY_LOG_LEVEL environment variable (str value: "minimal" | "full" | "none")
+3. Default: "minimal"
+```
+
+The `_resolve_log_level()` helper method implements this:
+
+```python
+def _resolve_log_level(self, explicit_arg: str | None) -> str:
+    if explicit_arg is not None:
+        return explicit_arg
+    return os.environ.get("DENSIFY_LOG_LEVEL", "minimal")
+```
+
+### 16.5 Invalid Values
+
+An invalid `log_level` string raises `ValueError` at `__init__` time:
+```
+ValueError: "invalid_level" is not a valid DensifyLogLevel.
+            Valid values are: minimal, full, none
+```
+
+---
+
+## 17. Per-Algorithm Parameter Exposure (v1.1)
+
+### 17.1 Motivation
+
+Previously all four algorithms had fully hardcoded tuning parameters (e.g., `displacement range [0.05, 0.5]`
+for NN, `k_neighbors=20` for MLS). Power users running batch jobs or custom pipelines had no way to adjust
+these without modifying source code. v1.1 exposes these as optional Pydantic sub-dicts on `DensifyConfig`
+and as kwargs on `Densify.__init__`.
+
+### 17.2 Parameter Models
+
+| Model | Algorithm | Key Parameters |
+|---|---|---|
+| `DensifyNNParams` | `nearest_neighbor` | `displacement_min`, `displacement_max` |
+| `DensifyMLSParams` | `mls` | `k_neighbors`, `projection_radius_factor`, `min_dist_factor` |
+| `DensifyStatisticalParams` | `statistical` | `k_neighbors`, `sparse_percentile`, `min_dist_factor` |
+| `DensifyPoissonParams` | `poisson` | `depth`, `density_threshold_quantile` |
+
+See `api-spec.md §1.3` for full field definitions and validation constraints.
+
+### 17.3 Backward Compatibility
+
+All `*_params` kwargs default to `None`. When `None`, the original hardcoded production values apply:
+
+| Algorithm | Production defaults (when params=None) |
+|---|---|
+| NN | `displacement_min=0.05`, `displacement_max=0.5` × mean_nn_dist |
+| MLS | `k_neighbors=20`, `projection_radius=0.5×`, `min_dist=0.05×` mean_nn_dist |
+| Statistical | `k_neighbors=10`, `sparse_percentile=50`, `min_dist=0.3×` mean_nn_dist |
+| Poisson | `depth=8`, `density_threshold_quantile=0.1` |
+
+This ensures **100% backward compatibility** — all existing DAG configs and factory calls work unchanged.
+
+### 17.4 Dict Coercion
+
+The `_coerce_params()` helper automatically converts a plain `dict` to the typed Pydantic model:
+
+```python
+def _coerce_params(self, value, model_cls):
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return model_cls(**value)
+    return value  # already a model instance
+```
+
+This means callers can pass either `nn_params={"displacement_min": 0.1}` or
+`nn_params=DensifyNNParams(displacement_min=0.1)` — both work identically.
+
+### 17.5 Log Output in `full` Mode
+
+When `log_level="full"` and custom params are in use, the algorithm methods emit an additional `DEBUG` line:
+
+```
+Densify: [nn] using custom params: displacement=[0.1, 0.3] × mean_nn_dist
+Densify: [mls] using custom params: k=15, radius=0.4× mean_nn_dist, min_dist=0.03×
+Densify: [statistical] using custom params: k=15, sparse_pct=40.0, min_dist=0.2×
+Densify: [poisson] using custom params: depth=9, density_q=0.05
+```

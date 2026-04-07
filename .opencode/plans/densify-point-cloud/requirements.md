@@ -266,14 +266,17 @@ Example output metadata:
 - [x] Logs warnings for skipped operations: `"Densify: Skipping - input already denser than target (ratio: 0.8)"`
 - [x] Logs errors with full context: `"Densify: MLS algorithm failed - {error_details}. Passing through original cloud."`
 - [x] All logs include node instance ID for multi-node DAG debugging
+- [x] **NEW (v1.1):** Configurable log verbosity via `log_level` enum (`minimal`/`full`/`none`) — reduces streaming log spam
+- [x] **NEW (v1.1):** `DENSIFY_LOG_LEVEL` env var override supported for per-deployment configuration
 
 ---
 
 #### NF4: API Documentation
 
-- [ ] Algorithm descriptions embedded in module docstrings
-- [ ] Configuration parameters documented with type hints and default values
-- [ ] Example configurations provided in module header comments
+- [x] Algorithm descriptions embedded in module docstrings
+- [x] Configuration parameters documented with type hints and default values
+- [x] Example configurations provided in module header comments
+- [x] **NEW (v1.1):** Per-algorithm tunable params exposed via `DensifyConfig` sub-dicts (`nn_params`, `mls_params`, `statistical_params`, `poisson_params`)
 - [ ] Integration with existing Swagger API docs (if exposed via REST endpoints)
 
 ---
