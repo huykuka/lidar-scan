@@ -3,15 +3,14 @@ Densify — Pipeline Operation
 ============================
 
 Increases point cloud density by interpolating synthetic points between existing ones.
-Primary use-case: fill vertical gaps in sparse LIDAR scans (e.g. 16-layer → 32/64-layer
-simulation) for improved object detection, surface reconstruction and sensor fusion.
+Works with any point cloud geometry — not specific to any sensor type or scan pattern.
 
 Supported algorithms
 ---------------------
 nearest_neighbor (default / fast mode, <100ms for 50k–100k pts)
     Copies attributes from the nearest original point and adds a spatially-jittered
     copy. Preserves sharp features; may create minor blocky artefacts.
-    Use for: real-time pipelines, streaming LIDAR feeds.
+    Use for: real-time pipelines, streaming sensor feeds.
 
 statistical (medium mode, 100–300ms)
     Identifies locally sparse regions via per-point density estimation and interpolates
@@ -35,6 +34,12 @@ fast   → nearest_neighbor
 medium → statistical
 high   → mls
 poisson is only accessible via explicit algorithm= override.
+
+Density control
+---------------
+Use ``density_multiplier`` to set the target density increase factor (e.g. 2.0 = 2×).
+Optionally use ``target_point_count`` to specify an absolute output point count directly.
+When ``target_point_count`` is set it takes precedence over ``density_multiplier``.
 
 Example configuration (DAG node)
 ----------------------------------
@@ -145,16 +150,15 @@ class DensifyConfig(BaseModel):
         description=(
             "Target density increase factor. 2.0 doubles the point count. "
             "Range: 1.0 (no change) to 8.0 (max, memory guard). "
-            "Ignored if target_layer_count is set."
+            "Ignored if target_point_count is set."
         ),
     )
-    target_layer_count: Optional[int] = Field(
+    target_point_count: Optional[int] = Field(
         default=None,
         ge=1,
         description=(
-            "Optional: target layer count to simulate (e.g. 32 to simulate 32-layer "
-            "from 16-layer LIDAR). If provided, overrides density_multiplier. "
-            "The effective multiplier is clamped to [1.0, 8.0]."
+            "Optional: absolute output point count. If provided, overrides "
+            "density_multiplier. The implied multiplier is clamped to [1.0, 8.0]."
         ),
     )
     quality_preset: DensifyQualityPreset = Field(
@@ -213,13 +217,14 @@ class Densify(PipelineOperation):
     points using one of four selectable algorithms.
 
     Args:
-        enabled:              Enable/disable toggle (default True).
-        algorithm:            Algorithm key string, or None to use quality_preset.
-                              Valid: 'nearest_neighbor', 'mls', 'poisson', 'statistical'.
-        density_multiplier:   Target density factor (default 2.0, range [1.0, 8.0]).
-        target_layer_count:   Simulate N-layer LIDAR; overrides density_multiplier.
-        quality_preset:       'fast' | 'medium' | 'high' (default 'fast').
-        preserve_normals:     Interpolate normals for synthetic points (default True).
+        enabled:             Enable/disable toggle (default True).
+        algorithm:           Algorithm key string, or None to use quality_preset.
+                             Valid: 'nearest_neighbor', 'mls', 'poisson', 'statistical'.
+        density_multiplier:  Target density factor (default 2.0, range [1.0, 8.0]).
+        target_point_count:  Absolute output point count; overrides density_multiplier
+                             when set. The implied multiplier is clamped to [1.0, 8.0].
+        quality_preset:      'fast' | 'medium' | 'high' (default 'fast').
+        preserve_normals:    Interpolate normals for synthetic points (default True).
     """
 
     def __init__(
@@ -227,7 +232,7 @@ class Densify(PipelineOperation):
         enabled: bool = True,
         algorithm: Optional[str] = None,
         density_multiplier: float = 2.0,
-        target_layer_count: Optional[int] = None,
+        target_point_count: Optional[int] = None,
         quality_preset: str = "fast",
         preserve_normals: bool = True,
     ) -> None:
@@ -237,10 +242,8 @@ class Densify(PipelineOperation):
                 f"algorithm must be one of {sorted(_VALID_ALGORITHMS)}, got '{algorithm}'"
             )
 
-        # Validate density_multiplier — only when target_layer_count is NOT set
-        # (target_layer_count overrides density_multiplier at runtime, so the bound
-        # check on density_multiplier is irrelevant when a layer target is provided)
-        if target_layer_count is None and not (1.0 <= float(density_multiplier) <= 8.0):
+        # Validate density_multiplier
+        if not (1.0 <= float(density_multiplier) <= 8.0):
             raise ValueError(
                 f"density_multiplier must be in [1.0, 8.0], got {density_multiplier}"
             )
@@ -254,8 +257,8 @@ class Densify(PipelineOperation):
         self.enabled: bool = bool(enabled)
         self.algorithm: Optional[str] = algorithm
         self.density_multiplier: float = float(density_multiplier)
-        self.target_layer_count: Optional[int] = (
-            int(target_layer_count) if target_layer_count is not None else None
+        self.target_point_count: Optional[int] = (
+            int(target_point_count) if target_point_count is not None else None
         )
         self.quality_preset: str = quality_preset
         self.preserve_normals: bool = bool(preserve_normals)
@@ -442,16 +445,14 @@ class Densify(PipelineOperation):
         """
         Compute the target point count.
 
-        If target_layer_count is set, use heuristic:
-            effective_multiplier = target_layer_count / sqrt(original_count)
-        Otherwise use density_multiplier directly.
+        If ``target_point_count`` is set, use it directly (with multiplier clamped to
+        [1.0, MAX_MULTIPLIER]).  Otherwise multiply by ``density_multiplier``.
         Result is clamped to [original_count, original_count * MAX_MULTIPLIER].
         """
-        if self.target_layer_count is not None:
-            # Heuristic: sqrt(count) ≈ number of LIDAR rings
-            estimated_layers = math.sqrt(float(original_count))
-            if estimated_layers > 0:
-                effective_multiplier = float(self.target_layer_count) / estimated_layers
+        if self.target_point_count is not None:
+            # target_point_count is an absolute count — derive implied multiplier and clamp
+            if original_count > 0:
+                effective_multiplier = float(self.target_point_count) / float(original_count)
             else:
                 effective_multiplier = 1.0
         else:

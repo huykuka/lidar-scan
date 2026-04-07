@@ -40,7 +40,7 @@
 ## Phase 2: `Densify` Class — `__init__` and Validation
 
 - [x] Define `class Densify(PipelineOperation)` with imports from `..base`
-- [x] Implement `__init__(self, enabled, algorithm, density_multiplier, target_layer_count, quality_preset, preserve_normals)` with all defaults per `api-spec.md` §4
+- [x] Implement `__init__(self, enabled, algorithm, density_multiplier, target_point_count, quality_preset, preserve_normals)` with all defaults per `api-spec.md` §4
 - [x] Add constructor-level validation:
   - [x] `algorithm` in `{"nearest_neighbor", "mls", "poisson", "statistical"}` → raise `ValueError`
   - [x] `density_multiplier` in `[1.0, 8.0]` → raise `ValueError`
@@ -87,7 +87,7 @@
 - [x] Update `api-spec.md` note: algorithm=None means "use preset" (but this is an implementation detail, not a user-facing null)
 
 ### `_compute_target_count()`
-- [x] If `target_layer_count` is set: `effective_multiplier = target_layer_count / sqrt(original_count)` (heuristic for ring count estimation)
+- [x] If `target_point_count` is set: `effective_multiplier = target_point_count / original_count` (direct ratio)
 - [x] Else: `effective_multiplier = self.density_multiplier`
 - [x] Clamp: `effective_multiplier = min(max(effective_multiplier, 1.0), MAX_MULTIPLIER)`
 - [x] Return `int(original_count * effective_multiplier)`
@@ -195,7 +195,7 @@
 ### `registry.py`
 - [x] Add full `NodeDefinition` for `"densify"` per `technical.md` §11
   - type, display_name, category, description, icon, websocket_enabled=True
-  - All 6 `PropertySchema` entries (throttle_ms, algorithm, density_multiplier, target_layer_count, quality_preset, preserve_normals)
+  - All 6 `PropertySchema` entries (throttle_ms, algorithm, density_multiplier, target_point_count, quality_preset, preserve_normals)
   - 1 input port, 1 output port
 - [x] Add `"densify"` to `_OPERATION_TYPES` list at the bottom of the file
 
@@ -221,7 +221,7 @@ Before handing off to `@qa`:
 - [x] Verify `OperationFactory.create("densify", {"algorithm": "poisson", "density_multiplier": 4.0})` succeeds
 - [x] Verify invalid config raises `ValueError`: `Densify(algorithm="invalid")`, `Densify(density_multiplier=20.0)`
 - [x] Verify the fail-safe: pass a cloud with 5 points → assert `status=skipped` in metadata
-- [x] Verify the fail-safe: pass an already-dense cloud (no `target_layer_count`, high existing count) → assert `status=skipped`
+- [x] Verify the fail-safe: pass an already-dense cloud (no `target_point_count`, high existing count) → assert `status=skipped`
 - [x] Check for any import of `from __future__ import annotations` if using `|` union type syntax (Python 3.10+)
 - [x] Confirm no `async def` anywhere in `densify.py` (operations are synchronous)
 - [x] Confirm `apply()` never raises an unhandled exception (fuzz test with None, empty array, 1-point cloud)

@@ -266,9 +266,9 @@ node_schema_registry.register(NodeDefinition(
             help_text="Target density increase factor (e.g. 2.0 = 2× input points)"
         ),
         PropertySchema(
-            name="target_layer_count", label="Target Layer Count (optional)", type="number",
+            name="target_point_count", label="Target Point Count (optional)", type="number",
             default=None, min=1, step=1,
-            help_text="Override multiplier: simulate N-layer LIDAR (e.g. 32 for 16→32)"
+            help_text="Override multiplier: produce exactly N output points (clamped to 8× input)"
         ),
         PropertySchema(
             name="quality_preset", label="Quality Preset", type="select",

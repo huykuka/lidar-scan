@@ -13,7 +13,7 @@ Covers:
 - Phase 5: MLS algorithm (F1)
 - Phase 6: Poisson Reconstruction algorithm (F1)
 - Phase 7: Quality preset system (F3)
-- Phase 8: Density target modes (F2)
+- Phase 8: Density target modes (F2) — density_multiplier and target_point_count
 - Phase 9: Normal estimation (F4)
 - Phase 10: Metadata schema (F7)
 - Phase 11: Integration tests (DAG pipeline)
@@ -132,14 +132,14 @@ class TestClassConstruction:
             quality_preset="high",
             preserve_normals=False,
             enabled=False,
-            target_layer_count=32,
+            target_point_count=32000,
         )
         assert op.algorithm == "mls"
         assert op.density_multiplier == 4.0
         assert op.quality_preset == "high"
         assert op.preserve_normals is False
         assert op.enabled is False
-        assert op.target_layer_count == 32
+        assert op.target_point_count == 32000
 
     # 1.2 Invalid configuration ---------------------------------------------------
 
@@ -629,7 +629,7 @@ class TestQualityPresets:
 
 
 class TestDensityTargets:
-    """Phase 8 – multiplier, target_layer_count, and clamping."""
+    """Phase 8 – density_multiplier, target_point_count, and clamping."""
 
     def test_multiplier_2x(self):
         """1000 pts × 2.0 → result ~2000 pts (±20% tolerance for stochastic algs)."""
@@ -655,20 +655,23 @@ class TestDensityTargets:
         assert meta["densified_count"] >= 6400
         assert meta["densified_count"] <= 9600
 
-    def test_target_layer_count_overrides_multiplier(self):
-        """target_layer_count takes precedence over density_multiplier."""
+    def test_target_point_count_overrides_multiplier(self):
+        """target_point_count takes precedence over density_multiplier."""
         Densify = _import_densify()
-        # target_layer_count=32 with 1024 pts → sqrt(1024)=32 layers → mult≈1.0 → skipped or minimal
-        op = Densify(target_layer_count=32, density_multiplier=10.0)
+        # target_point_count=2000 with 1000 pts → 2× regardless of density_multiplier=4.0
+        op = Densify(target_point_count=2000, density_multiplier=4.0)
         pcd = make_pcd(1000)
         result_pcd, meta = op.apply(pcd)
-        # status should be either success or skipped — key is no exception and correct code path
+        # Must not raise; either success (2× applied, not 4×) or skipped
         assert meta["status"] in ("success", "skipped")
+        if meta["status"] == "success":
+            # Should be near 2000, not 4000 — target_point_count wins
+            assert meta["densified_count"] <= 2200
 
     def test_multiplier_clamped_at_8x(self):
-        """target_layer_count that would imply >8× is clamped to 8×."""
+        """target_point_count implying >8× is clamped to 8×."""
         Densify = _import_densify()
-        op = Densify(target_layer_count=10000)
+        op = Densify(target_point_count=100_000)
         pcd = make_pcd(100)
         result_pcd, meta = op.apply(pcd)
         # At most 8x + small tolerance for post-filter
