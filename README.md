@@ -10,17 +10,28 @@ Real-time LiDAR point cloud processing and 3D visualization. Multi-sensor suppor
 
 ## Quick Start (Docker)
 
-The fastest way to run the application:
+### Linux
 
 ```bash
 docker compose up -d
 ```
 
+### Windows
+
+Open PowerShell **as Administrator** and run:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force
+.\install.ps1
+```
+
+This automatically installs WSL, Docker Engine, pulls the image, and starts the app. Supports Windows 10 & 11.
+
+---
+
 Open `http://localhost:8005` in your browser.
 
-This pulls the pre-built image and starts the server with persistent volumes for config and recordings.
-
-### Build the Docker image yourself
+### Build the image yourself (optional)
 
 ```bash
 docker build -f docker/Dockerfile -t lidar-standalone .
