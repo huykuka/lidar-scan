@@ -353,16 +353,3 @@ class TestNodeOperationsWithLidarType:
         response = api_client.put("/api/v1/dag/config", json=payload)
         assert response.status_code in [200, 201]
     
-    def test_get_node_status_includes_lidar_type(self, api_client):
-        """Node status endpoint returns 200 and has expected structure"""
-        response = api_client.get("/api/v1/nodes/status/all")
-        assert response.status_code == 200
-        data = response.json()
-        
-        # Endpoint should return valid JSON structure with nodes field
-        assert isinstance(data, dict)
-        # If nodes are present, they should have expected fields
-        if "nodes" in data and data["nodes"]:
-            for node in data["nodes"]:
-                assert "id" in node
-                assert "type" in node

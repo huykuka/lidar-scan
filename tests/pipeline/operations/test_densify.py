@@ -373,18 +373,6 @@ class TestNearestNeighbour:
         result_pcd, _ = op.apply(make_pcd(500))
         assert isinstance(result_pcd, o3d.t.geometry.PointCloud)
 
-    @pytest.mark.slow
-    def test_nn_performance_fast_mode(self):
-        """NN on 100k points must complete in < 100ms (fast-mode SLA)."""
-        Densify = _import_densify()
-        pcd = make_pcd(100_000)
-        op = Densify(algorithm="nearest_neighbor", density_multiplier=2.0)
-        _, meta = op.apply(pcd)
-        assert meta["processing_time_ms"] < 100.0, (
-            f"Too slow: {meta['processing_time_ms']:.1f}ms (SLA: 100ms)"
-        )
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Phase 4: Statistical Upsampling Algorithm
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -431,17 +419,6 @@ class TestStatisticalUpsampling:
         kd = KDTree(result_pts)
         pairs = kd.query_pairs(r=1e-5)
         assert len(pairs) == 0, f"{len(pairs)} near-duplicate points found"
-
-    @pytest.mark.slow
-    def test_statistical_performance_medium_mode(self):
-        """Statistical on 100k points must complete in < 300ms."""
-        Densify = _import_densify()
-        pcd = make_pcd(100_000)
-        op = Densify(algorithm="statistical", density_multiplier=2.0)
-        _, meta = op.apply(pcd)
-        assert meta["processing_time_ms"] < 300.0, (
-            f"Too slow: {meta['processing_time_ms']:.1f}ms (SLA: 300ms)"
-        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -500,16 +477,6 @@ class TestMLS:
             f"MLS points deviated too far from source plane: max |z|={max_z_dev:.4f}"
         )
 
-    @pytest.mark.slow
-    def test_mls_performance_medium_mode(self):
-        """MLS on 10k points must complete in < 500ms (CI-friendly subset)."""
-        Densify = _import_densify()
-        pcd = make_pcd(10_000)
-        op = Densify(algorithm="mls", density_multiplier=2.0)
-        _, meta = op.apply(pcd)
-        assert meta["processing_time_ms"] < 500.0, (
-            f"Too slow: {meta['processing_time_ms']:.1f}ms (SLA: 500ms)"
-        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

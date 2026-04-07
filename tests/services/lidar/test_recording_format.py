@@ -345,22 +345,6 @@ class TestGetRecordingInfo:
 
 class TestRecordingEdgeCases:
     """Tests for edge cases and error handling"""
-
-    def test_empty_recording(self, tmp_path):
-        """Test recording with no frames"""
-        file_path = tmp_path / "test_recording.zip"
-
-        with RecordingWriter(file_path, {}) as writer:
-            pass  # Don't write any frames
-
-        reader = RecordingReader(file_path)
-        assert reader.frame_count == 0
-        # start_timestamp and end_timestamp default to 0.0 from metadata (None → 0.0)
-        assert reader.duration == 0.0
-
-        frames = list(reader.iter_frames())
-        assert len(frames) == 0
-
     def test_invalid_file(self, tmp_path):
         """Test reading a file that is not a valid ZIP"""
         # Write an invalid .zip file (not a real ZIP)

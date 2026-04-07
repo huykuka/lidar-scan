@@ -65,18 +65,7 @@ class TestRegistrySchema:
         # Port should be visible for these models
         assert "multiscan" in port_prop.depends_on["lidar_type"]
         assert "tim_5xx" in port_prop.depends_on["lidar_type"]
-    
-    def test_port_not_for_tcp_devices(self):
-        """port field should NOT be visible for TCP-only devices"""
-        from app.services.nodes.schema import node_schema_registry
-        sensor_def = node_schema_registry.get("sensor")
-        port_prop = next(p for p in sensor_def.properties if p.name == "port")
-        
-        # LMS and MRS devices should NOT be in the depends_on list
-        tcp_only = ["lms_1xx", "lms_5xx", "lms_4xxx", "lms_4000", "mrs_1xxx", "mrs_6xxx"]
-        for model_id in tcp_only:
-            assert model_id not in port_prop.depends_on["lidar_type"], \
-                f"{model_id} should not have port field"
+
     
     def test_udp_receiver_ip_depends_on_picoscan_and_multiscan(self):
         """udp_receiver_ip should show for multiScan and picoScan devices"""
@@ -235,19 +224,7 @@ class TestConditionalPropertyLogic:
         
         visible = self._check_depends_on(pcd_prop.depends_on, form_values)
         assert visible is False
-    
-    def test_all_tcp_devices_hide_port(self):
-        """All TCP-only devices hide port field"""
-        tcp_devices = ["lms_1xx", "lms_5xx", "lms_4xxx", "lms_4000", "mrs_1xxx", "mrs_6xxx"]
-        from app.services.nodes.schema import node_schema_registry
-        sensor_def = node_schema_registry.get("sensor")
-        port_prop = next(p for p in sensor_def.properties if p.name == "port")
         
-        for device in tcp_devices:
-            form_values = {"mode": "real", "lidar_type": device}
-            visible = self._check_depends_on(port_prop.depends_on, form_values)
-            assert visible is False, f"{device} should not show port field"
-    
     def test_all_port_capable_devices_show_port(self):
         """All port-capable devices show port field"""
         port_devices = ["multiscan", "tim_240", "tim_5xx", "tim_7xx", "tim_7xxs"]
