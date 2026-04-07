@@ -51,6 +51,7 @@ from .density_base import (
 # Constants
 from .density_base import (
     MAX_MULTIPLIER,
+    MIN_MULTIPLIER,
     MIN_INPUT_POINTS,
 )
 
@@ -76,5 +77,6 @@ __all__ = [
     "DensifyStatisticalParams",
     # Constants
     "MAX_MULTIPLIER",
+    "MIN_MULTIPLIER",
     "MIN_INPUT_POINTS",
 ]

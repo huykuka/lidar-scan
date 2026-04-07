@@ -34,6 +34,7 @@ import open3d as o3d
 from ...base import PipelineOperation, _tensor_map_keys
 from .density_base import (
     MIN_INPUT_POINTS,
+    MIN_MULTIPLIER,
     MAX_MULTIPLIER,
     _VALID_ALGORITHMS,
     DensityAlgorithmBase,
@@ -99,9 +100,9 @@ class Densify(PipelineOperation):
             )
 
         # Validate density_multiplier
-        if not (1.0 <= float(density_multiplier) <= 8.0):
+        if not (MIN_MULTIPLIER <= float(density_multiplier) <= MAX_MULTIPLIER):
             raise ValueError(
-                f"density_multiplier must be in [1.0, 8.0], got {density_multiplier}"
+                f"density_multiplier must be in [{MIN_MULTIPLIER}, {MAX_MULTIPLIER}], got {density_multiplier}"
             )
 
         self.enabled: bool = bool(enabled)
@@ -296,7 +297,7 @@ class Densify(PipelineOperation):
 
     def _compute_target_count(self, original_count: int) -> int:
         """Compute the target point count using density_multiplier."""
-        effective_multiplier = min(max(self.density_multiplier, 1.0), MAX_MULTIPLIER)
+        effective_multiplier = min(max(self.density_multiplier, MIN_MULTIPLIER), MAX_MULTIPLIER)
         return int(original_count * effective_multiplier)
 
     def _run_algorithm(

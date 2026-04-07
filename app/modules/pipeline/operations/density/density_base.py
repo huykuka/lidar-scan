@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Module-level constants (shared across all algorithm modules)
 # ─────────────────────────────────────────────────────────────────────────────
 MIN_INPUT_POINTS: int = 10
+MIN_MULTIPLIER: float = 1.0
 MAX_MULTIPLIER: float = 8.0
 
 _VALID_ALGORITHMS = frozenset({"nearest_neighbor", "mls", "poisson", "statistical"})
@@ -237,8 +238,8 @@ class DensifyConfig(BaseModel):
     @field_validator("density_multiplier")
     @classmethod
     def validate_multiplier(cls, v: float) -> float:
-        if not (1.0 <= v <= 8.0):
-            raise ValueError(f"density_multiplier must be in [1.0, 8.0], got {v}")
+        if not (MIN_MULTIPLIER <= v <= MAX_MULTIPLIER):
+            raise ValueError(f"density_multiplier must be in [{MIN_MULTIPLIER}, {MAX_MULTIPLIER}], got {v}")
         return round(v, 4)
 
     model_config = {"use_enum_values": True, "populate_by_name": True}
