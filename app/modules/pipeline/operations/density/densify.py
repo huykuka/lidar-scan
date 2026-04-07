@@ -338,7 +338,7 @@ class Densify(PipelineOperation):
         """Estimate normals for synthetic points (indices n_original onward)."""
         orig_keys = _tensor_map_keys(original_pcd.point)
         if "normals" not in orig_keys:
-            logger.info(
+            logger.debug(
                 "Densify: Input cloud has no normals — skipping normal estimation"
             )
             return result_pcd
