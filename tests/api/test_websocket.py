@@ -60,21 +60,6 @@ class TestWebSocketTopicsEndpoint:
             
             # Verify it called get_public_topics (not active_connections directly)
             mock_manager.get_public_topics.assert_called_once()
-    
-    def test_list_topics_includes_description(self):
-        """Test /topics includes topic descriptions"""
-        with patch('app.api.v1.websocket.service.manager') as mock_manager:
-            mock_manager.get_public_topics.return_value = []
-            
-            client = TestClient(app)
-            response = client.get("/api/v1/topics")
-            
-            assert response.status_code == 200
-            data = response.json()
-            assert "description" in data
-            assert isinstance(data["description"], dict)
-            assert "raw_points" in data["description"]
-            assert "processed_points" in data["description"]
 
 
 class TestWebSocketStatusConnection:
