@@ -126,6 +126,9 @@ class ConfigLoader:
         
         # Check visibility preference
         visible = node.get("visible", True)
+        enabled = node.get("enabled", True)
+
+        print(f"[DEBUG] Node {node['id']} - websocket_enabled: {websocket_enabled}, visible: {visible}, enabled: {enabled}")
         
         # Generate topic name
         node_name = getattr(node_instance, "name", node["id"])
@@ -133,7 +136,7 @@ class ConfigLoader:
         topic = f"{safe_name}_{node['id'][:8]}"
         
         # Register topic only if BOTH websocket_enabled AND visible are True
-        if websocket_enabled and visible:
+        if websocket_enabled and visible and enabled:
             manager.register_topic(topic)
             node_instance._ws_topic = topic
             logger.debug(f"Registered WS topic '{topic}' for visible streaming node {node['id']}")

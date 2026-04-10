@@ -71,9 +71,12 @@ class DataRouter:
         
         topic = self._get_node_topic(source_id, source_node)
         
-        await self._broadcast_to_websocket(source_id, topic, payload)
-        await self._record_node_data(source_id, payload)
-        await self._forward_to_downstream_nodes(source_id, payload, active_port=active_port)
+        # All three actions are independent — run in parallel
+        await asyncio.gather(
+            self._broadcast_to_websocket(source_id, topic, payload),
+            self._record_node_data(source_id, payload),
+            self._forward_to_downstream_nodes(source_id, payload, active_port=active_port),
+        )
     
     def _get_node_topic(self, source_id: str, source_node: Any) -> Optional[str]:
         """
@@ -194,7 +197,7 @@ class DataRouter:
                 gate.buffer_nowait(payload)
                 continue
 
-            await self._send_to_target_node(source_id, target_id, payload)
+            asyncio.create_task(self._send_to_target_node(source_id, target_id, payload))
     
     def _should_skip_due_to_throttling(self, source_id: str, target_id: str) -> bool:
         """

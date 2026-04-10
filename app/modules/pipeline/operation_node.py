@@ -1,4 +1,5 @@
 from typing import Any, Dict, Optional
+import asyncio
 import time
 import numpy as np
 from app.core.logging import get_logger
@@ -72,8 +73,6 @@ class OperationNode(ModuleNode):
                 # 3. Convert back to numpy for downstream
                 return PointConverter.to_points(pcd_out)
                 
-            import asyncio
-            
             # Open3D OpenGL contexts MUST strictly execute on the main thread
             # Background threading causes GTK / Wayland context explosions
             if self.op_type == "visualize":
@@ -99,9 +98,10 @@ class OperationNode(ModuleNode):
             new_payload["node_id"] = self.id
             new_payload["processed_by"] = self.id
             
-            # Forward to downstream nodes via Manager
-            # NodeManager will handle WebSocket broadcasting automatically
-            await self.manager.forward_data(self.id, new_payload)
+            # Forward to downstream nodes via Manager (fire-and-forget)
+            # NodeManager will handle WebSocket broadcasting automatically.
+            # Decoupled so slow downstream nodes can't stall this producer.
+            asyncio.create_task(self.manager.forward_data(self.id, new_payload))
 
         except Exception as e:
             self.last_error = str(e)

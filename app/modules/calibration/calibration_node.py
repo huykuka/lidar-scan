@@ -10,6 +10,7 @@ Provenance Tracking:
 - processing_chain: Ordered list of DAG node IDs from leaf sensor to calibration node
 """
 from typing import Any, Dict, List, Optional, Tuple
+import asyncio
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from collections import deque
@@ -209,8 +210,8 @@ class CalibrationNode(ModuleNode):
                     logger.info(f"[{self.id}] Added source sensor: {source_sensor_id[:8]}. "
                                f"Total sources: {len(self._source_sensor_ids)}")
         
-        # Forward data through (passthrough mode)
-        await self.manager.forward_data(self.id, payload)
+        # Forward data through (passthrough mode, fire-and-forget)
+        asyncio.create_task(self.manager.forward_data(self.id, payload))
     
     def _aggregate_frames(
         self,

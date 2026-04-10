@@ -62,6 +62,7 @@ class TestDataRouterGateIntegration:
         )
         router = DataRouter(mgr)
         await router._forward_to_downstream_nodes("src", {"data": "value"})
+        await asyncio.sleep(0)  # let fire-and-forget task run
 
         target.on_input.assert_called_once()
 
@@ -101,6 +102,7 @@ class TestDataRouterGateIntegration:
         )
         router = DataRouter(mgr)
         await router._forward_to_downstream_nodes("src", {"data": "value"})
+        await asyncio.sleep(0)  # let fire-and-forget task run
 
         target.on_input.assert_called_once()
 
@@ -142,4 +144,5 @@ class TestDataRouterGateIntegration:
         router = DataRouter(mgr)
         # Should not raise even with empty gates dict
         await router._forward_to_downstream_nodes("src", {"data": "x"})
+        await asyncio.sleep(0)  # let fire-and-forget task run
         target.on_input.assert_called_once()

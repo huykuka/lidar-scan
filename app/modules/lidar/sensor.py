@@ -2,6 +2,7 @@
 LiDAR sensor model representing configuration and state.
 """
 from typing import Dict, Optional, Any
+import asyncio
 import multiprocessing as mp
 import os
 import time
@@ -204,7 +205,6 @@ class LidarSensor(ModuleNode):
             points = payload.get("points")
             if points is not None:
                 # 1. Transform points to world space off the main thread
-                import asyncio
                 transformed_points = await asyncio.to_thread(transform_points, points, self.transformation)
                 # Update payload for downstream
                 payload["points"] = transformed_points
@@ -213,9 +213,12 @@ class LidarSensor(ModuleNode):
                 if frame_count % 100 == 1:
                     logger.debug(f"[{self.id}] Frame #{frame_count}: {len(transformed_points)} points after transform")
 
-                # 2. Forward to downstream nodes via Manager
-                # NodeManager will handle WebSocket broadcasting automatically
-                await self.manager.forward_data(self.id, payload)
+                # 2. Forward to downstream nodes via Manager (fire-and-forget)
+                # NodeManager will handle WebSocket broadcasting automatically.
+                # We don't await here — decouples this sensor from downstream
+                # processing latency so slow nodes (e.g. densify) can't stall
+                # the producer or starve the event loop.
+                asyncio.create_task(self.manager.forward_data(self.id, payload))
 
         except Exception as e:
             logger.error(f"Error handling data for {self.id}: {e}", exc_info=True)

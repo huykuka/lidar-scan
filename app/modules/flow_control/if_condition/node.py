@@ -5,6 +5,7 @@ Evaluates boolean expressions against payload metadata and routes data
 to dual output ports (true/false) based on the result.
 """
 from typing import Any, Dict, Optional
+import asyncio
 
 from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
@@ -149,7 +150,7 @@ class IfConditionNode(ModuleNode):
             port_id: Output port identifier ("true" or "false")
             payload: Data payload to forward
         """
-        await self.manager.forward_data(self.id, payload, active_port=port_id)
+        asyncio.create_task(self.manager.forward_data(self.id, payload, active_port=port_id))
         logger.debug(f"Node {self.id}: routed payload via port '{port_id}'")
 
     def emit_status(self) -> NodeStatusUpdate:

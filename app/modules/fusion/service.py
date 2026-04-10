@@ -131,8 +131,9 @@ class FusionService(ModuleNode):
             
         fused = await asyncio.to_thread(_concat)
 
-        # Forward output to downstream nodes via NodeManager
-        # NodeManager will handle WebSocket broadcasting automatically
+        # Forward output to downstream nodes via NodeManager (fire-and-forget)
+        # NodeManager will handle WebSocket broadcasting automatically.
+        # Decoupled so slow downstream nodes can't stall the fusion cycle.
         fused_payload = {
             "node_id": self.id,
             "points": fused,
@@ -140,15 +141,12 @@ class FusionService(ModuleNode):
             "count": len(fused)
         }
         
-        try:
-            await self._service.forward_data(self.id, fused_payload)
-            
-            import time
-            self.last_broadcast_at = time.time()
-            self.last_broadcast_ts = timestamp
-            self.last_error = None
-        except Exception as e:
-            self.last_error = str(e)
+        asyncio.create_task(self._service.forward_data(self.id, fused_payload))
+        
+        import time
+        self.last_broadcast_at = time.time()
+        self.last_broadcast_ts = timestamp
+        self.last_error = None
 
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardised status for this fusion node.
