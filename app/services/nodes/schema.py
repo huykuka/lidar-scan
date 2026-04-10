@@ -43,11 +43,6 @@ class SchemaRegistry:
         self._definitions: Dict[str, NodeDefinition] = {}
 
     def register(self, definition: NodeDefinition):
-        try:
-            with open("/tmp/node_registry_debug.log", "a") as f:
-                f.write(f"DEBUG: Registering node type: {definition.type}\n")
-        except:
-            pass
         self._definitions[definition.type] = definition
 
     def get_all(self) -> List[NodeDefinition]:
