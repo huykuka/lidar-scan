@@ -14,15 +14,17 @@ class TestConnectionManager:
         """Test manager initializes with empty state"""
         manager = ConnectionManager()
         assert manager.active_connections == {}
+        assert manager._registered_topics == set()
         assert manager._interceptors == {}
     
     def test_register_topic(self):
-        """Test topic registration creates empty connection list"""
+        """Test topic registration creates empty connection list and adds to registered set"""
         manager = ConnectionManager()
         manager.register_topic("test_topic")
         
         assert "test_topic" in manager.active_connections
         assert manager.active_connections["test_topic"] == []
+        assert "test_topic" in manager._registered_topics
     
     def test_register_topic_idempotent(self):
         """Test registering same topic twice doesn't overwrite"""
@@ -35,14 +37,16 @@ class TestConnectionManager:
         assert manager.active_connections["test_topic"] == ["dummy"]
     
     def test_reset_active_connections(self):
-        """Test reset clears all connections and interceptors"""
+        """Test reset clears all connections, registered topics, and interceptors"""
         manager = ConnectionManager()
         manager.active_connections["topic1"] = ["conn1"]
+        manager._registered_topics.add("topic1")
         manager._interceptors["topic2"] = ["future1"]
         
         manager.reset_active_connections()
         
         assert manager.active_connections == {}
+        assert manager._registered_topics == set()
         assert manager._interceptors == {}
     
     @pytest.mark.asyncio
@@ -56,6 +60,30 @@ class TestConnectionManager:
         websocket.accept.assert_called_once()
         assert "new_topic" in manager.active_connections
         assert websocket in manager.active_connections["new_topic"]
+    
+    @pytest.mark.asyncio
+    async def test_connect_unregistered_topic_not_in_public_topics(self):
+        """Test that connecting to an unregistered topic does NOT make it appear in get_public_topics().
+        
+        This is the core fix for the stale topics bug: WebSocket connections to arbitrary
+        topic names (e.g. from stale localStorage) must not pollute the topic list.
+        """
+        manager = ConnectionManager()
+        websocket = AsyncMock()
+        
+        # Register one legitimate topic
+        manager.register_topic("registered_topic")
+        
+        # Connect to an unregistered/stale topic (simulates frontend restoring from localStorage)
+        await manager.connect(websocket, "stale_topic_from_localstorage")
+        
+        # The stale topic should exist in active_connections (WebSocket works fine)
+        assert "stale_topic_from_localstorage" in manager.active_connections
+        
+        # But it must NOT appear in the public topics list
+        public_topics = manager.get_public_topics()
+        assert "stale_topic_from_localstorage" not in public_topics
+        assert "registered_topic" in public_topics
     
     @pytest.mark.asyncio
     async def test_connect_existing_topic(self):
@@ -344,8 +372,9 @@ class TestUnregisterTopic:
         ws1.close.assert_called_once_with(code=1001)
         ws2.close.assert_called_once_with(code=1001)
         
-        # Assert topic is absent from active_connections
+        # Assert topic is absent from active_connections and registered topics
         assert "test_topic" not in manager.active_connections
+        assert "test_topic" not in manager._registered_topics
     
     @pytest.mark.asyncio
     async def test_unregister_topic_cancels_pending_futures(self):
