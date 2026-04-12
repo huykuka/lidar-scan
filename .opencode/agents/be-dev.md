@@ -36,8 +36,8 @@ high-level backend features to reflect your completion back to the PM/BA!
 1. **Branch Strictness**: The PM creates a branch (`<feature-name>`) for development. You MUST make all code
    edits on this branch.
 2. **Terminal Commands**: Run your bash commands from the repository root: e.g.,
-   `python -c "import app...; print('ok')"` or `pytest`.
-3. **TDD Workflow**: You MUST write tests (Unit/Integration) using `pytest` BEFORE starting any
+   `python -c "import app...; print('ok')"` or `uv run pytest`.
+3. **TDD Workflow**: You MUST write tests (Unit/Integration) using `uv run pytest` BEFORE starting any
    logic implementation, based on the requirements and `backend-tasks.md`.
 4. **Verification**: Always verify your backend code runs locally without errors before marking
    tasks complete.

@@ -51,12 +51,8 @@ docker run --network host lidar-standalone
 ### 1. Backend
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements-dev.txt
+# Install dependencies (automatically creates virtual environment)
+uv sync
 ```
 
 ### 2. SICK Scan Library (optional, needed for real hardware)
@@ -76,11 +72,8 @@ npm start          # Dev server at http://localhost:4200
 ### 4. Run the backend
 
 ```bash
-# Set library paths (needed for real hardware only)
-export LD_LIBRARY_PATH=.:./build:$LD_LIBRARY_PATH
-
 # Start the server
-python3 main.py
+uv run python main.py
 ```
 
 Backend runs at `http://localhost:8005`. Set `DEBUG=true` for hot-reload.
@@ -89,13 +82,11 @@ Backend runs at `http://localhost:8005`. Set `DEBUG=true` for hot-reload.
 
 ## Environment Variables
 
-| Variable         | Default     | Description                  |
-| ---------------- | ----------- | ---------------------------- |
-| `HOST`           | `0.0.0.0`  | Server bind address          |
-| `PORT`           | `8005`      | Server port                  |
-| `DEBUG`          | `false`     | Enable hot-reload            |
-| `LIDAR_MODE`     | `real`      | `real` or `sim`              |
-| `LIDAR_PCD_PATH` | `./test.pcd`| PCD file for simulation mode |
+| Variable | Default   | Description         |
+| -------- | --------- | ------------------- |
+| `HOST`   | `0.0.0.0` | Server bind address |
+| `PORT`   | `8005`    | Server port         |
+| `DEBUG`  | `false`   | Enabled             |
 
 ---
 

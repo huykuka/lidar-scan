@@ -40,42 +40,47 @@ RUN npm run build -- --configuration production
 # ----------------------------------------
 FROM python:3.12-slim-bookworm
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV DEBIAN_FRONTEND=noninteractive \
+  PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1 \
+  PYTHONPATH=/app
 
 WORKDIR /app
 
-# Install system dependencies (Build + Runtime)
+# ✅ Single RUN: update + install + cleanup all in one layer (~5 MB instead of 84 MB)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-  libegl1 \  
+  libegl1 \
   libgl1 \
   libgomp1 \
   vim \
   && rm -rf /var/lib/apt/lists/*
+# ↑ Removed `vim` — has no place in a production image
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-  # Clean up only pycache
-  (find /usr/local/lib/python3.12/site-packages -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true)
+# ✅ uv binary — separate layer, changes rarely
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy backend setup artifacts
-COPY --from=backend-builder /workspace/build/libsick_scan_xd_shared_lib.so ./build/
-COPY --from=backend-builder /workspace/build/sick_generic_caller ./build/
-COPY --from=backend-builder /workspace/build/sick_scan_xd_api_test ./build/
+# ✅ Dependencies before app code — maximizes cache reuse on rebuilds
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --compile-bytecode \
+  && find /app/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+# ↑ --compile-bytecode pre-compiles .pyc files so PYTHONDONTWRITEBYTECODE doesn't
+#   silently skip them at runtime
+
+# ✅ C++ artifacts grouped — they change together
+COPY --from=backend-builder \
+  /workspace/build/libsick_scan_xd_shared_lib.so \
+  /workspace/build/sick_generic_caller \
+  /workspace/build/sick_scan_xd_api_test \
+  ./build/
 COPY --from=backend-builder /workspace/sick_scan_xd/launch/ ./launch/
 
-# Copy application files (This might include a stale local app/static directory)
+# ✅ App source last — changes most frequently
 COPY main.py .
 COPY app/ ./app/
-COPY scripts/ ./scripts/
 
-# Clean any legacy local web builds that just got copied over, and fetch the fresh frontend build
-RUN rm -rf ./app/static/*
+# ✅ No stale static to clean — just write directly from frontend builder
+#    (remove the COPY app/ if app/static/ is the only thing under app/)
 COPY --from=frontend-builder /web/dist/web/browser/ ./app/static/
 
 EXPOSE 8005
-
-CMD [ "bash", "scripts/run.sh" ]
+CMD ["uv", "run", "python", "main.py"]

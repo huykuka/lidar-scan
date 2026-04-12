@@ -4,7 +4,7 @@
 
 The `lidar-standalone` project is a high-performance Point Cloud Processing system with integrated performance monitoring.
 
-- **Backend Stack**: Python 3.10+, FastAPI, Open3D, Asyncio.
+- **Backend Stack**: Python 3.12, uv, FastAPI, Open3D, Asyncio.
 - **Backend Architecture**: A dynamic Directed Acyclic Graph (DAG) orchestration engine mapping physical data flows entirely through decoupled, pluggable _nodes_ (Modules). Heavy Open3D operations run on threadpools to prevent blocking the async FastAPI event loop.
 - **Frontend Stack**: Angular 20 (Signals, Standalone Components exclusively), Tailwind CSS, Synergy UI, Three.js.
 - **Frontend Architecture**: Directly manipulates WebGL `BufferGeometry` arrays for 60FPS parsing of 100k+ dense point clouds.
