@@ -32,11 +32,6 @@ class ApplicationNode(ModuleNode):
         id (str):      Unique node instance identifier.
         name (str):    Display name for this node.
         manager (Any): Reference to NodeManager (avoids circular import).
-
-    Note:
-        ``start()``, ``stop()``, ``enable()``, ``disable()`` are
-        provided as no-ops by :class:`ModuleNode`.  Application nodes
-        only need to override them when they manage background resources.
     """
 
     # ── Abstract interface (inherited from ModuleNode, re-declared here for

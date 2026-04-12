@@ -101,7 +101,7 @@ node_schema_registry.register(NodeDefinition(
 # --- Factory Builder ---
 
 @NodeFactory.register("output_node")
-def build_output_node(
+def build(
     node: Dict[str, Any],
     service_context: Any,
     edges: List[Dict[str, Any]],

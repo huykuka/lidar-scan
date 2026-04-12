@@ -161,17 +161,64 @@ override these. `HelloWorldNode` does not.
 
 ---
 
-## 2. Registry Factory Function
+## 2. Registry Architecture Contract
+
+### 2.1 Self-Registering Sub-Registry (`hello_world/registry.py`)
+
+Each application node sub-package owns a `registry.py` that is the **sole** file responsible
+for:
+- Calling `node_schema_registry.register(NodeDefinition(...))` for that node type.
+- Defining and decorating the `@NodeFactory.register("<type>")` factory function for that node.
+
+**File**: `app/modules/application/hello_world/registry.py`
+**Model**: Exact pattern of `app/modules/flow_control/if_condition/registry.py`
+
+Public symbol exported by this file:
 
 ```python
 build_hello_world(
-    node:            Dict[str, Any],  # Full node record from DB (NodeModel.to_dict())
-    service_context: Any,             # NodeManager instance
-    edges:           List[Dict[str, Any]],  # All DAG edges (may be used to find upstream nodes)
+    node:            Dict[str, Any],        # Full node record from DB (NodeModel.to_dict())
+    service_context: Any,                   # NodeManager instance
+    edges:           List[Dict[str, Any]],  # All DAG edges
 ) -> HelloWorldNode
 ```
 
-### `node` Dictionary Shape
+**Import contract for tests:**
+```python
+from app.modules.application.hello_world.registry import build_hello_world
+# or to trigger side-effects only:
+from app.modules.application.hello_world import registry  # noqa: F401
+```
+
+### 2.2 Aggregator (`application/registry.py`)
+
+`app/modules/application/registry.py` is a **pure pass-through aggregator**. Its complete
+responsibility is to import each node sub-registry so their side-effects run when
+`discover_modules()` imports the application package. It contains **zero** schema or factory
+registration calls.
+
+**Invariant (enforced by structural test 6.12):**
+- The source of `application/registry.py` must NOT contain `node_schema_registry.register`
+- The source of `application/registry.py` must NOT contain `@NodeFactory.register`
+
+**Pattern (mirrors `flow_control/registry.py`):**
+```python
+from .hello_world import registry as hello_world_registry
+
+__all__ = ["hello_world_registry"]
+```
+
+**Adding a new application node** requires **only**:
+1. Creating `app/modules/application/<node_name>/registry.py` (self-contained)
+2. Adding one import line to the aggregator: `from .<node_name> import registry as <node_name>_registry`
+3. Adding the alias to `__all__`
+4. Zero changes to any other file
+
+---
+
+### 2.3 `build_hello_world` Factory — Input/Output Contract
+
+#### `node` Dictionary Shape
 
 The `node` dict is produced by `NodeModel.to_dict()` in the SQLite ORM layer. Relevant keys:
 
@@ -186,7 +233,7 @@ The `node` dict is produced by `NodeModel.to_dict()` in the SQLite ORM layer. Re
 | `"config"` | `Dict[str, Any]` | `{"message": "Hi!", "throttle_ms": 100}` |
 | `"pose"` | `Dict[str, Any]` | `{}` (application nodes typically have no pose) |
 
-### `config` Sub-Dictionary Shape
+#### `config` Sub-Dictionary Shape
 
 | Key | Type | Default | Description |
 |---|---|---|---|
@@ -251,14 +298,27 @@ Serialized form (as returned by `GET /api/v1/nodes/schemas`):
 
 ## 4. NodeFactory Registration Contract
 
-After `discover_modules()` runs, `NodeFactory._registry` must contain:
+After `discover_modules()` runs (which imports `application.registry`, which imports
+`hello_world.registry`), `NodeFactory._registry` must contain:
 
 ```python
 NodeFactory._registry["hello_world"] = build_hello_world  # callable
 ```
 
-Verification:
+The registration is triggered by `hello_world/registry.py` alone. The aggregator
+`application/registry.py` is purely structural — it does not call `NodeFactory.register`.
+
+Verification via sub-registry import (preferred — tests isolation):
 ```python
+from app.modules.application.hello_world import registry  # noqa: F401
+from app.services.nodes.node_factory import NodeFactory
+assert "hello_world" in NodeFactory._registry
+```
+
+Verification via full discovery path:
+```python
+from app.modules import discover_modules
+discover_modules()
 from app.services.nodes.node_factory import NodeFactory
 assert "hello_world" in NodeFactory._registry
 ```

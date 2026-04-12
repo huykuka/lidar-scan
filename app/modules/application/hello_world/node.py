@@ -28,22 +28,6 @@ class HelloWorldNode(ApplicationNode):
     Receives any point cloud payload from upstream DAG nodes, logs it,
     appends a custom ``app_message`` field together with the point count,
     and forwards the enriched payload to downstream nodes.
-
-    Attributes:
-        id (str): Unique node instance identifier (from ``node_id``).
-        name (str): Display name for this node.
-        manager (Any): NodeManager reference used for ``forward_data()``.
-        config (Dict[str, Any]): Full config dict from the persisted node
-            record.
-        message (str): Custom message string extracted from ``config``;
-            defaults to ``"Hello from DAG!"``.
-        input_count (int): Running count of payloads received.
-        last_input_at (Optional[float]): Unix timestamp of the most recent
-            ``on_input()`` call; ``None`` until first frame.
-        last_error (Optional[str]): String representation of the last
-            exception raised inside ``on_input()``; ``None`` when healthy.
-        processing_time_ms (float): Wall-clock duration of the most recent
-            ``on_input()`` execution in milliseconds.
     """
 
     def __init__(
@@ -54,24 +38,6 @@ class HelloWorldNode(ApplicationNode):
         config: Dict[str, Any],
         throttle_ms: float = 0,
     ) -> None:
-        """
-        Initialise the HelloWorldNode.
-
-        Args:
-            manager:     NodeManager instance injected by the registry factory.
-            node_id:     Unique identifier for this node instance (from the DB).
-            name:        Human-readable display name.
-            config:      Full configuration dictionary from the persisted node
-                         record.  Recognised keys:
-
-                         * ``"message"`` (str) — greeting appended to each
-                           forwarded payload.
-                         * ``"throttle_ms"`` (int | float) — accepted for
-                           interface compatibility; throttling is enforced
-                           centrally by ``ThrottleManager``.
-            throttle_ms: Accepted for interface compatibility; not stored or
-                         used — the central ``ThrottleManager`` enforces it.
-        """
         self.manager = manager
         self.id = node_id
         self.name = name
@@ -84,61 +50,9 @@ class HelloWorldNode(ApplicationNode):
         self.last_error: Optional[str] = None
         self.processing_time_ms: float = 0.0
 
-    # ── Lifecycle ─────────────────────────────────────────────────────────────
-
-    def start(
-        self,
-        data_queue: Any = None,
-        runtime_status: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """
-        Called by ``LifecycleManager.start_all_nodes()`` at DAG startup.
-
-        Logs a startup message.  No background process is spawned here
-        (unlike hardware sensor nodes).
-
-        Args:
-            data_queue:     Unused; accepted for interface compatibility.
-            runtime_status: Unused; accepted for interface compatibility.
-        """
-        logger.info(
-            f"[{self.id}] HelloWorldNode '{self.name}' started. "
-            f"message={self.message!r}"
-        )
-
-    def stop(self) -> None:
-        """
-        Called by ``LifecycleManager.stop_all_nodes()`` at DAG shutdown.
-
-        Logs a shutdown message.  No resources need to be released.
-        """
-        logger.info(f"[{self.id}] HelloWorldNode '{self.name}' stopped.")
-
     # ── Data flow ─────────────────────────────────────────────────────────────
 
     async def on_input(self, payload: Dict[str, Any]) -> None:
-        """
-        Receive a payload from an upstream node, annotate it, and forward it.
-
-        Processing steps (per api-spec.md § 1.2):
-          1. Record ``self.last_input_at``.
-          2. Extract ``points`` and compute ``point_count``.
-          3. Increment ``self.input_count``.
-          4. Log at INFO.
-          5. Build ``new_payload = payload.copy()`` (shallow copy).
-          6. Annotate ``new_payload`` with ``node_id``, ``processed_by``,
-             ``app_message``, ``app_point_count``.
-          7. Fire-and-forget ``manager.forward_data()`` via
-             ``asyncio.create_task()``.
-          8. On first frame: call ``notify_status_change()``.
-          9. On exception: set ``self.last_error``, call
-             ``notify_status_change()``, log ERROR.
-
-        Args:
-            payload: Standard DAG payload dictionary forwarded from an
-                upstream node.  Expected keys: ``points``, ``timestamp``,
-                ``node_id``.
-        """
         self.last_input_at = time.time()
         start_t = self.last_input_at
 
@@ -180,25 +94,6 @@ class HelloWorldNode(ApplicationNode):
     # ── Status ────────────────────────────────────────────────────────────────
 
     def emit_status(self) -> NodeStatusUpdate:
-        """
-        Return a standardised status update for StatusAggregator broadcasts.
-
-        State machine (per api-spec.md § 1.3):
-
-        +-----------------------------+---------------------+-----------+-----------+
-        | Condition                   | operational_state   | value     | color     |
-        +=============================+=====================+===========+===========+
-        | ``self.last_error`` is set  | ERROR               | False     | "gray"    |
-        +-----------------------------+---------------------+-----------+-----------+
-        | ``last_input_at`` < 5 s ago | RUNNING             | True      | "blue"    |
-        +-----------------------------+---------------------+-----------+-----------+
-        | idle / never received input | RUNNING             | False     | "gray"    |
-        +-----------------------------+---------------------+-----------+-----------+
-
-        Returns:
-            :class:`~app.schemas.status.NodeStatusUpdate` describing the
-            current node health and activity level.
-        """
         if self.last_error:
             return NodeStatusUpdate(
                 node_id=self.id,

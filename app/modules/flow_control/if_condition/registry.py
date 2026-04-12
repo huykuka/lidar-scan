@@ -51,7 +51,7 @@ node_schema_registry.register(NodeDefinition(
 # --- Factory Builder ---
 
 @NodeFactory.register("if_condition")
-def build_if_condition(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
+def build(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """
     Build an IfConditionNode instance from persisted node configuration.
     

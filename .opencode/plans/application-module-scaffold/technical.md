@@ -50,13 +50,21 @@ must therefore:
 
 ## 3. File Structure
 
+Each application node sub-package owns its own `registry.py` that registers its `NodeDefinition`
+and `NodeFactory` in isolation (self-registering pattern, identical to
+`flow_control/if_condition/registry.py` and `flow_control/output/registry.py`). The top-level
+`app/modules/application/registry.py` is a **pure aggregator** that only imports and re-exposes
+the sub-registries — it contains **no** `node_schema_registry.register(...)` or
+`@NodeFactory.register(...)` calls of its own.
+
 ```
 app/modules/application/
 ├── __init__.py                  # Package marker — may be empty
-├── registry.py                  # REQUIRED: schema + factory registrations
+├── registry.py                  # AGGREGATOR ONLY: imports sub-registries, no direct registrations
 ├── base_node.py                 # Abstract ApplicationNode(ModuleNode) base class
 └── hello_world/
     ├── __init__.py              # Package marker — may be empty
+    ├── registry.py              # SELF-REGISTERING: NodeDefinition + NodeFactory for hello_world
     └── node.py                  # HelloWorldNode implementation
 ```
 
@@ -65,8 +73,18 @@ app/modules/application/
 ```
 tests/modules/application/
 ├── __init__.py
-└── test_hello_world.py
+├── test_hello_world.py          # Node logic tests
+└── test_hello_world_registry.py # Registry isolation test (self-registering contract)
 ```
+
+### Rationale for the Self-Registering Pattern
+
+| Concern | Monolithic `registry.py` (old) | Self-registering sub-`registry.py` (new) |
+|---|---|---|
+| Adding a new application node | Requires editing top-level `registry.py` | Add `<node>/registry.py`, one line in aggregator |
+| Isolation / testability | All nodes register when any is tested | Each node can be tested without importing siblings |
+| Consistency with codebase | Diverges from `flow_control` | Exactly matches `flow_control/{if_condition,output}/registry.py` |
+| Circular-import surface | Single large file accumulates risk | Each sub-registry is minimal and self-contained |
 
 ---
 
@@ -146,21 +164,20 @@ Application nodes only override them if they manage background resources.
 
 ---
 
-### 4.3 `app/modules/application/registry.py`
+### 4.3a `app/modules/application/hello_world/registry.py` — Self-Registering Node Registry
 
-This is the **most critical file** — its module-level code runs as a side effect when
-`discover_modules()` imports it. It must not import `node_manager` (or any module that does) at
-the module top level to avoid the circular-import trap documented in
-`tests/services/test_circular_import_fix.py`.
-
-**Exact pattern to follow (confirmed from `pipeline/registry.py` and `calibration/registry.py`):**
+This is the **canonical file for each node** — it follows the exact pattern of
+`flow_control/if_condition/registry.py`. Every application node sub-package must have its own
+`registry.py` that registers its `NodeDefinition` schema **and** its `@NodeFactory` builder.
+No `node_schema_registry.register(...)` or `@NodeFactory.register(...)` calls are allowed
+outside of these per-node files.
 
 ```python
 """
-Node registry for the application module.
+Node registry for the hello_world application node.
 
-Registers all application-level node types with the DAG orchestrator.
-Loaded automatically via discover_modules() at application startup.
+Registers the hello_world node type with the DAG orchestrator.
+Follows the canonical pattern from flow_control/if_condition/registry.py.
 """
 from typing import Any, Dict, List
 
@@ -216,7 +233,7 @@ def build_hello_world(
     edges: List[Dict[str, Any]],
 ) -> Any:
     """Build a HelloWorldNode instance from persisted node configuration."""
-    from app.modules.application.hello_world.node import HelloWorldNode  # lazy import
+    from .node import HelloWorldNode  # lazy import — avoids circular dependency
 
     config = node.get("config", {})
 
@@ -235,20 +252,61 @@ def build_hello_world(
     )
 ```
 
-**Key architectural rules applied here:**
+**Key architectural rules:**
 
 | Rule | Source | Applied |
 |---|---|---|
-| Lazy import inside factory function | `lidar/registry.py` L81, `fusion/registry.py` L43, `calibration/registry.py` L184 | `from .hello_world.node import HelloWorldNode` inside body |
+| Per-node `registry.py` inside the node sub-package | `flow_control/if_condition/registry.py`, `flow_control/output/registry.py` | `hello_world/registry.py` |
+| Lazy import inside factory function | `if_condition/registry.py` L66 | `from .node import HelloWorldNode` inside body |
 | `throttle_ms` extracted and normalized before passing to node | `pipeline/registry.py` L358-363 | `float(throttle_ms)` with try/except |
 | `@NodeFactory.register("type")` decorator on a plain function | All existing registries | Applied exactly |
 | Top-level `node_schema_registry.register(NodeDefinition(...))` side-effect | All existing registries | Applied exactly |
 
 ---
 
+### 4.3b `app/modules/application/registry.py` — Aggregator Only
+
+The top-level `application/registry.py` is a **pure aggregator** that imports each node
+sub-registry to trigger their side-effects. It contains **zero** direct
+`node_schema_registry.register(...)` or `@NodeFactory.register(...)` calls. This mirrors
+`flow_control/registry.py` exactly.
+
+```python
+"""
+Application module registry — aggregator.
+
+Imports all application node sub-registries to trigger their side-effects
+(NodeDefinition and NodeFactory registrations).
+
+Loaded automatically via discover_modules() at application startup.
+
+To add a new application node:
+    1. Create app/modules/application/<node_name>/registry.py
+       (NodeDefinition + @NodeFactory.register, lazy node import inside factory)
+    2. Add one import line here:
+       from .<node_name> import registry as <node_name>_registry
+    3. Add the alias to __all__.
+"""
+
+from .hello_world import registry as hello_world_registry
+
+__all__ = ["hello_world_registry"]
+```
+
+**Structural analogy:**
+
+| `flow_control/` | `application/` |
+|---|---|
+| `flow_control/registry.py` (aggregator) | `application/registry.py` (aggregator) |
+| `flow_control/if_condition/registry.py` | `application/hello_world/registry.py` |
+| `flow_control/output/registry.py` | `application/<next_node>/registry.py` |
+
+---
+
 ### 4.4 `app/modules/application/hello_world/__init__.py`
 
-Empty.
+Empty (makes `hello_world/` a Python package, required for relative imports inside
+`hello_world/registry.py`).
 
 ---
 
@@ -518,8 +576,10 @@ canonical test patterns.
 | `ApplicationNode(ModuleNode)` intermediate base class | Enables future application nodes to share utilities without touching `ModuleNode` itself |
 | `category="application"` | Falls into `other` bucket → initializes after sensors/operations/fusions |
 | `websocket_enabled=True` on HelloWorldNode | It forwards data downstream; clients may subscribe to its output topic |
-| Lazy import inside factory | Avoids circular import chain (`instance.py → discover_modules → registry → node → status_aggregator → instance.py`) |
+| Lazy import inside factory (`from .node import HelloWorldNode`) | Avoids circular import chain (`instance.py → discover_modules → registry → node → status_aggregator → instance.py`) |
 | `asyncio.create_task(manager.forward_data(...))` | Fire-and-forget pattern; prevents slow downstream nodes from stalling `on_input` coroutine (matches `operation_node.py` L104) |
 | `notify_status_change(self.id)` on first frame and on error | Consistent with `OperationNode` and `CalibrationNode` patterns |
 | No `_ws_topic` manipulation in node code | NodeManager owns this via `ConfigLoader._register_node_websocket_topic()` |
 | `throttle_ms` constructor arg accepted but not used | Throttling is central in `ThrottleManager`; node stores it for observability only |
+| **Per-node `registry.py` inside each sub-package** | Matches `flow_control/if_condition/registry.py` exactly; each node is self-contained and self-registering; adding a new application node requires zero changes to any existing file except the one-line import in the aggregator |
+| **Top-level `application/registry.py` is a pure aggregator** | Mirrors `flow_control/registry.py`; contains only `from .<node> import registry as …` imports and `__all__`; no `node_schema_registry.register()` or `@NodeFactory.register()` calls |
