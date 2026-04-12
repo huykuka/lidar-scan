@@ -1,18 +1,6 @@
 """
 TDD test suite for HelloWorldNode — application-level DAG node.
 
-Coverage targets (per backend-tasks.md § Task 6):
-  6.2  test_hello_world_instantiation
-  6.3  test_hello_world_config_defaults
-  6.4  test_on_input_forwarded (async)
-  6.5  test_on_input_none_points (async)
-  6.6  test_emit_status_idle
-  6.7  test_emit_status_active
-  6.8  test_emit_status_error
-  6.9  test_lifecycle_start_stop
-  6.10 test_registry_node_factory_registration
-  6.11 test_registry_schema_registration
-  6.12 test_factory_creates_correct_instance
 
 References:
   - technical.md § 10 (test architecture constraints)
@@ -388,10 +376,21 @@ class TestLifecycle:
 
 
 class TestRegistryNodeFactoryRegistration:
-    """Importing registry must register 'hello_world' in NodeFactory._registry."""
+    """Importing registry must register 'hello_world' in NodeFactory._registry.
 
-    def test_hello_world_in_node_factory(self) -> None:
-        # Import triggers the side-effect registration
+    Both the submodule registry (hello_world/registry.py) and the parent
+    aggregator (application/registry.py) must trigger correct registration.
+    """
+
+    def test_hello_world_in_node_factory_via_submodule(self) -> None:
+        """Directly importing the submodule registry must register the factory."""
+        import app.modules.application.hello_world.registry  # noqa: F401
+        from app.services.nodes.node_factory import NodeFactory
+
+        assert "hello_world" in NodeFactory._registry
+
+    def test_hello_world_in_node_factory_via_aggregator(self) -> None:
+        """Importing the parent aggregator must also register the factory."""
         import app.modules.application.registry  # noqa: F401
         from app.services.nodes.node_factory import NodeFactory
 
@@ -411,10 +410,22 @@ class TestRegistryNodeFactoryRegistration:
 
 
 class TestRegistrySchemaRegistration:
-    """Importing registry must register NodeDefinition in node_schema_registry."""
+    """Importing registry must register NodeDefinition in node_schema_registry.
+
+    Verified via both the submodule path (hello_world/registry.py) and the
+    parent aggregator path (application/registry.py).
+    """
 
     def test_schema_registered(self) -> None:
         import app.modules.application.registry  # noqa: F401
+        from app.services.nodes.schema import node_schema_registry
+
+        defn = node_schema_registry.get("hello_world")
+        assert defn is not None
+
+    def test_schema_registered_via_submodule(self) -> None:
+        """Direct submodule import must also expose the schema."""
+        import app.modules.application.hello_world.registry  # noqa: F401
         from app.services.nodes.schema import node_schema_registry
 
         defn = node_schema_registry.get("hello_world")
@@ -479,10 +490,15 @@ class TestRegistrySchemaRegistration:
 
 
 class TestFactoryCreatesCorrectInstance:
-    """build_hello_world() must return a configured HelloWorldNode."""
+    """build_hello_world() must return a configured HelloWorldNode.
+
+    The factory now lives in hello_world/registry.py (submodule).
+    The parent application/registry.py is a pure aggregator and does NOT
+    re-export build_hello_world — tests import from the submodule directly.
+    """
 
     def test_returns_hello_world_node_instance(self) -> None:
-        from app.modules.application.registry import build_hello_world
+        from app.modules.application.hello_world.registry import build_hello_world
 
         node_data = {
             "id": "test-hw-001",
@@ -495,7 +511,7 @@ class TestFactoryCreatesCorrectInstance:
         assert isinstance(hw_node, HelloWorldNode)
 
     def test_node_id_assigned_correctly(self) -> None:
-        from app.modules.application.registry import build_hello_world
+        from app.modules.application.hello_world.registry import build_hello_world
 
         node_data = {
             "id": "test-hw-002",
@@ -508,7 +524,7 @@ class TestFactoryCreatesCorrectInstance:
         assert hw_node.id == "test-hw-002"
 
     def test_message_from_config(self) -> None:
-        from app.modules.application.registry import build_hello_world
+        from app.modules.application.hello_world.registry import build_hello_world
 
         node_data = {
             "id": "test-hw-003",
@@ -521,7 +537,7 @@ class TestFactoryCreatesCorrectInstance:
         assert hw_node.message == "custom message"
 
     def test_name_fallback_when_missing(self) -> None:
-        from app.modules.application.registry import build_hello_world
+        from app.modules.application.hello_world.registry import build_hello_world
 
         node_data = {
             "id": "test-hw-004",
@@ -535,7 +551,7 @@ class TestFactoryCreatesCorrectInstance:
 
     def test_throttle_ms_float_conversion(self) -> None:
         """throttle_ms must survive string/invalid input via float() conversion."""
-        from app.modules.application.registry import build_hello_world
+        from app.modules.application.hello_world.registry import build_hello_world
 
         node_data = {
             "id": "test-hw-005",
@@ -549,7 +565,7 @@ class TestFactoryCreatesCorrectInstance:
 
     def test_invalid_throttle_ms_defaults_to_zero(self) -> None:
         """Invalid throttle_ms (non-numeric) must default to 0.0 without error."""
-        from app.modules.application.registry import build_hello_world
+        from app.modules.application.hello_world.registry import build_hello_world
 
         node_data = {
             "id": "test-hw-006",
@@ -610,3 +626,70 @@ class TestApplicationNodeHierarchy:
 
     def test_has_stop(self, node: HelloWorldNode) -> None:
         assert callable(node.stop)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Integration: aggregator registry structure
+# Verifies that application/registry.py acts as a pure aggregator (like
+# flow_control/registry.py) and that all registration is owned by the
+# hello_world submodule.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestRegistryAggregatorStructure:
+    """
+    application/registry.py must be a pure aggregator — no direct registration
+    logic, only imports from submodule registries.  The submodule
+    hello_world/registry.py owns schema + factory.
+    """
+
+    def test_application_registry_exposes_hello_world_registry(self) -> None:
+        """Parent aggregator must export hello_world_registry attribute."""
+        import app.modules.application.registry as app_registry
+
+        assert hasattr(app_registry, "hello_world_registry"), (
+            "application/registry.py must expose 'hello_world_registry' "
+            "(imported from .hello_world import registry)"
+        )
+
+    def test_application_registry_all_contains_hello_world(self) -> None:
+        """__all__ in the aggregator must list hello_world_registry."""
+        import app.modules.application.registry as app_registry
+
+        assert "hello_world_registry" in app_registry.__all__
+
+    def test_hello_world_registry_is_the_submodule(self) -> None:
+        """hello_world_registry re-exported by aggregator must be the submodule."""
+        import app.modules.application.registry as app_registry
+        import app.modules.application.hello_world.registry as hw_registry
+
+        assert app_registry.hello_world_registry is hw_registry
+
+    def test_application_registry_has_no_build_hello_world(self) -> None:
+        """build_hello_world must NOT live in application/registry.py anymore."""
+        import app.modules.application.registry as app_registry
+
+        assert not hasattr(app_registry, "build_hello_world"), (
+            "build_hello_world must be defined in hello_world/registry.py, "
+            "not in the parent aggregator"
+        )
+
+    def test_hello_world_submodule_registry_defines_build_hello_world(self) -> None:
+        """The factory must live directly in hello_world/registry.py."""
+        from app.modules.application.hello_world.registry import build_hello_world
+
+        assert callable(build_hello_world)
+
+    def test_discover_modules_loads_hello_world_via_aggregator(self) -> None:
+        """discover_modules() → application/registry.py → hello_world/registry.py."""
+        # Simulates the startup path: discover_modules imports each top-level registry.
+        from app.modules import discover_modules
+        from app.services.nodes.node_factory import NodeFactory
+        from app.services.nodes.schema import node_schema_registry
+
+        discover_modules()
+
+        assert "hello_world" in NodeFactory._registry
+        defn = node_schema_registry.get("hello_world")
+        assert defn is not None
+        assert defn.category == "application"
