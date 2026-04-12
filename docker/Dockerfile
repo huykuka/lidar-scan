@@ -83,4 +83,4 @@ COPY app/ ./app/
 COPY --from=frontend-builder /web/dist/web/browser/ ./app/static/
 
 EXPOSE 8005
-CMD ["uv", "run", "python", "main.py"]
+CMD ["uv", "run", "--no-sync", "python", "main.py"]
