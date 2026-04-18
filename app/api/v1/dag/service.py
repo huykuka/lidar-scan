@@ -9,6 +9,7 @@ Design contract:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from typing import Dict, List, Tuple
@@ -114,16 +115,23 @@ def _classify_dag_changes(
 async def get_dag_config() -> DagConfigResponse:
     """Read all nodes, edges and the current config_version from the DB.
 
+    Runs synchronous SQLite queries on a background thread to avoid blocking
+    the async event loop when SQLite is write-locked by a concurrent save.
+
     Returns:
         ``DagConfigResponse`` with current snapshot.
     """
-    node_repo = NodeRepository()
-    edge_repo = EdgeRepository()
-    meta_repo = DagMetaRepository()
+    def _read_from_db():
+        node_repo = NodeRepository()
+        edge_repo = EdgeRepository()
+        meta_repo = DagMetaRepository()
 
-    raw_nodes: List[dict] = node_repo.list()
-    raw_edges: List[dict] = edge_repo.list()
-    version: int = meta_repo.get_version()
+        raw_nodes: List[dict] = node_repo.list()
+        raw_edges: List[dict] = edge_repo.list()
+        version: int = meta_repo.get_version()
+        return raw_nodes, raw_edges, version
+
+    raw_nodes, raw_edges, version = await asyncio.to_thread(_read_from_db)
 
     nodes = [NodeRecord(**n) for n in raw_nodes]
     edges = [EdgeRecord(**e) for e in raw_edges]
