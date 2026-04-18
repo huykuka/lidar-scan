@@ -42,6 +42,7 @@ class OperationNode(ModuleNode):
         self.processing_time_ms: float = 0.0
         self.input_count: int = 0
         self.output_count: int = 0
+        self.last_metadata: Dict[str, Any] = {}  # Latest operation metadata for status reporting
 
     async def on_input(self, payload: Dict[str, Any]):
         """Receives data, processes it, and forwards to downstream."""
@@ -71,14 +72,14 @@ class OperationNode(ModuleNode):
                 else:
                     pcd_out, op_result = outcome, {}
                 # 3. Convert back to numpy for downstream
-                return PointConverter.to_points(pcd_out)
+                return PointConverter.to_points(pcd_out), op_result
                 
             # Open3D OpenGL contexts MUST strictly execute on the main thread
             # Background threading causes GTK / Wayland context explosions
             if self.op_type == "visualize":
-                processed_points = _sync_compute()
+                processed_points, op_metadata = _sync_compute()
             else:
-                processed_points = await asyncio.to_thread(_sync_compute)
+                processed_points, op_metadata = await asyncio.to_thread(_sync_compute)
             
             if processed_points is None or len(processed_points) == 0:
                  return
@@ -88,8 +89,12 @@ class OperationNode(ModuleNode):
             self.last_output_at = time.time()
             self.last_error = None
 
-            # Notify on first frame processed
-            if first_frame:
+            # Store metadata for status reporting (displayed on node badge)
+            if op_metadata:
+                self.last_metadata = op_metadata
+
+            # Notify on first frame or when metadata changes
+            if first_frame or op_metadata:
                 notify_status_change(self.id)
 
             # Prepare payload for downstream
@@ -97,6 +102,15 @@ class OperationNode(ModuleNode):
             new_payload["points"] = processed_points
             new_payload["node_id"] = self.id
             new_payload["processed_by"] = self.id
+
+            # Propagate operation metadata into the payload so downstream
+            # nodes (e.g. IfConditionNode, OutputNode) can access operation
+            # results like patch_count, inlier_count, cluster_count, etc.
+            # - Top-level keys: for IfConditionNode expression evaluation
+            # - "metadata" key: for OutputNode WebSocket JSON broadcast
+            if op_metadata:
+                new_payload.update(op_metadata)
+                new_payload["metadata"] = op_metadata
             
             # Forward to downstream nodes via Manager (fire-and-forget)
             # NodeManager will handle WebSocket broadcasting automatically.
@@ -113,6 +127,7 @@ class OperationNode(ModuleNode):
 
         State mapping:
         - ``last_error`` set → ERROR, processing=False, gray, propagate error_message
+        - Has metadata → RUNNING, show first metadata key/value, blue
         - Recent input within 5 s → RUNNING, processing=True, blue
         - Otherwise → RUNNING, processing=False, gray
 
@@ -135,6 +150,21 @@ class OperationNode(ModuleNode):
             self.last_input_at is not None
             and time.time() - self.last_input_at < 5.0
         )
+
+        # Show operation metadata as badge when available (e.g. "patches: 5")
+        if self.last_metadata and recently_active:
+            # Pick the most meaningful key to display
+            label, value = next(iter(self.last_metadata.items()))
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.RUNNING,
+                application_state=ApplicationState(
+                    label=label,
+                    value=value,
+                    color="blue",
+                ),
+            )
+
         return NodeStatusUpdate(
             node_id=self.id,
             operational_state=OperationalState.RUNNING,

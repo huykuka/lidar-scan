@@ -7,5 +7,6 @@ from .filter import Filter, FilterByKey
 from .boundary import BoundaryDetection
 from .debug import DebugSave, SaveDataStructure
 from .generate_plane import GeneratePlane
+from .patch_plane_segmentation import PatchPlaneSegmentation
 from .density import Densify
 

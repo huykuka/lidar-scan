@@ -47,7 +47,7 @@
       "command": [
         "npx",
         "-y",
-        "gitnexus@latest",
+        "gitnexus",
         "mcp"
       ],
       "enabled": true

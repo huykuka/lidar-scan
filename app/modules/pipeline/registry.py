@@ -116,6 +116,40 @@ node_schema_registry.register(NodeDefinition(
     outputs=[PortSchema(id="out", label="Output")]
 ))
 
+# Patch Plane Segmentation Schema
+node_schema_registry.register(NodeDefinition(
+    type="patch_plane_segmentation",
+    display_name="Planar Patch Detection",
+    category="operation",
+    description="Detects multiple planar patches using robust statistics-based approach",
+    icon="layers",
+    websocket_enabled=True,
+    properties=[
+        PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
+                       help_text="Minimum time between processing frames (0 = no limit)"),
+        PropertySchema(name="normal_variance_threshold_deg", label="Normal Variance (deg)", type="number",
+                       default=60.0, step=1.0, min=1.0, max=90.0,
+                       help_text="Max spread of point normals vs plane normal. Smaller = fewer, higher quality planes"),
+        PropertySchema(name="coplanarity_deg", label="Coplanarity (deg)", type="number",
+                       default=75.0, step=1.0, min=1.0, max=90.0,
+                       help_text="Max spread of point-to-plane distances. Larger = tighter fit"),
+        PropertySchema(name="outlier_ratio", label="Outlier Ratio", type="number",
+                       default=0.75, step=0.05, min=0.0, max=1.0,
+                       help_text="Max fraction of outliers before rejecting a plane"),
+        PropertySchema(name="min_plane_edge_length", label="Min Edge Length (m)", type="number",
+                       default=0.0, step=0.01, min=0.0,
+                       help_text="Min largest-edge for a patch. 0 = 1% of cloud dimension"),
+        PropertySchema(name="min_num_points", label="Min Points", type="number",
+                       default=0, min=0,
+                       help_text="Min points for plane fitting. 0 = 0.1% of total points"),
+        PropertySchema(name="knn", label="KNN", type="number",
+                       default=30, min=5, max=100,
+                       help_text="Nearest neighbors for growing/merging. Larger = better quality, slower"),
+    ],
+    inputs=[PortSchema(id="in", label="Input")],
+    outputs=[PortSchema(id="out", label="Output")]
+))
+
 # Clustering Schema
 node_schema_registry.register(NodeDefinition(
     type="clustering",
@@ -383,7 +417,7 @@ def build_operation(node: Dict[str, Any], service_context: Any, edges: List[Dict
 _OPERATION_TYPES = [
     "crop", "downsample", "outlier_removal", "radius_outlier_removal", "plane_segmentation",
     "clustering", "boundary_detection", "debug_save", "filter_by_key", "generate_plane",
-    "densify"
+    "densify", "patch_plane_segmentation"
 ]
 for _op in _OPERATION_TYPES:
     NodeFactory._registry[_op] = NodeFactory._registry["operation"]

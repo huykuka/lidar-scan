@@ -1,3 +1,4 @@
+from app.modules.pipeline.operations import PatchPlaneSegmentation
 from typing import Any, Dict, Type
 from app.modules.pipeline.base import PipelineOperation
 from app.modules.pipeline.operations import (
@@ -32,6 +33,7 @@ _OP_MAP: Dict[str, Type[PipelineOperation]] = {
     "save_structure": SaveDataStructure,
     "generate_plane": GeneratePlane,
     "densify": Densify,
+    "patch_plane_segmentation": PatchPlaneSegmentation,
 }
 
 class OperationFactory:
