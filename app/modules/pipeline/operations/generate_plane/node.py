@@ -54,7 +54,7 @@ except ImportError as _scipy_err:
         "Install it with: pip install 'scipy>=1.7'"
     ) from _scipy_err
 
-from ..base import PipelineOperation
+from ...base import PipelineOperation
 
 logger = logging.getLogger(__name__)
 

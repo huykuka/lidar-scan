@@ -19,9 +19,8 @@ def mock_manager():
 @pytest.fixture
 def op_node(mock_manager):
     """Create an OperationNode with a mocked voxel-downsample operation."""
-    with patch("app.modules.pipeline.operation_node.OperationFactory.create") as mock_create:
-        mock_op = Mock()
-        mock_create.return_value = mock_op
+    mock_op_class = Mock(return_value=Mock())
+    with patch.dict("app.modules.pipeline.operation_node._OP_MAP", {"voxel_downsample": mock_op_class}):
         node = OperationNode(
             manager=mock_manager,
             node_id="op-node-1",

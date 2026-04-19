@@ -3,7 +3,33 @@ import asyncio
 import time
 import numpy as np
 from app.core.logging import get_logger
-from app.modules.pipeline.factory import OperationFactory
+from app.modules.pipeline.operations import (
+    Crop, Downsample, UniformDownsample,
+    StatisticalOutlierRemoval, RadiusOutlierRemoval,
+    PlaneSegmentation, PatchPlaneSegmentation,
+    Clustering, Filter, FilterByKey,
+    BoundaryDetection, DebugSave, SaveDataStructure,
+    GeneratePlane, Densify,
+)
+
+_OP_MAP = {
+    "crop": Crop,
+    "downsample": Downsample,
+    "uniform_downsample": UniformDownsample,
+    "statistical_outlier_removal": StatisticalOutlierRemoval,
+    "outlier_removal": StatisticalOutlierRemoval,
+    "radius_outlier_removal": RadiusOutlierRemoval,
+    "plane_segmentation": PlaneSegmentation,
+    "clustering": Clustering,
+    "filter": Filter,
+    "filter_by_key": FilterByKey,
+    "boundary_detection": BoundaryDetection,
+    "debug_save": DebugSave,
+    "save_structure": SaveDataStructure,
+    "generate_plane": GeneratePlane,
+    "densify": Densify,
+    "patch_plane_segmentation": PatchPlaneSegmentation,
+}
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
 from app.services.nodes.shape_collector import ShapeCollectorMixin
@@ -32,7 +58,10 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
         
         # Instantiate the operation (op_config should not contain throttle_ms)
         try:
-            self.op = OperationFactory.create(op_type, op_config)
+            op_class = _OP_MAP.get(op_type)
+            if op_class is None:
+                raise ValueError(f"Unknown operation type: '{op_type}'. Available: {list(_OP_MAP.keys())}")
+            self.op = op_class(**op_config)
         except Exception as e:
             logger.error(f"[{self.id}] Failed to create operation '{op_type}': {e}")
             raise

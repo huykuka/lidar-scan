@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 import numpy as np
 import open3d as o3d
 
-from ..base import PipelineOperation
+from ...base import PipelineOperation
 
 
 class Clustering(PipelineOperation):

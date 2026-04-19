@@ -1,7 +1,7 @@
 from typing import List, Any, Callable
 import open3d as o3d
 import numpy as np
-from ..base import PipelineOperation, _tensor_map_keys
+from ...base import PipelineOperation, _tensor_map_keys
 
 class StatisticalOutlierRemoval(PipelineOperation):
     """

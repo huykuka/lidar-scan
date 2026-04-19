@@ -2,7 +2,7 @@ from typing import Any
 
 import open3d as o3d
 
-from ..base import PipelineOperation
+from ...base import PipelineOperation
 
 
 class BoundaryDetection(PipelineOperation):
