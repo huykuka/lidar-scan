@@ -6,13 +6,16 @@ recording interception, and forwarding to downstream nodes with throttling.
 """
 import asyncio
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from app.core.logging import get_logger
 from app.services.websocket.manager import manager
 from app.services.shared.topics import slugify_topic_prefix
 
 logger = get_logger(__name__)
+
+# Maximum number of shapes broadcast per frame (performance constraint)
+MAX_SHAPES_PER_FRAME = 500
 
 
 class DataRouter:
@@ -234,3 +237,41 @@ class DataRouter:
             await target_node.on_input({**payload})
         except Exception as e:
             logger.error(f"Error forwarding data from {source_id} to {target_id}: {e}")
+
+    async def publish_shapes(self) -> None:
+        """
+        Collect shapes from all ShapeCollectorMixin nodes and broadcast to 'shapes' topic.
+
+        Called after all forward_data calls per frame settle. Assigns stable IDs and
+        node_name to each shape, caps at MAX_SHAPES_PER_FRAME, and broadcasts a
+        ShapeFrame JSON payload to the 'shapes' WebSocket topic.
+
+        Threading note: collect_and_clear_shapes() is called from the asyncio event
+        loop (after asyncio.to_thread returns), so no locking is needed.
+        """
+        from app.services.nodes.shape_collector import ShapeCollectorMixin
+        from app.services.nodes.shapes import ShapeFrame, compute_shape_id
+
+        all_shapes: List[dict] = []
+
+        for node in self.manager.nodes.values():
+            if not isinstance(node, ShapeCollectorMixin):
+                continue
+            for shape in node.collect_and_clear_shapes():
+                shape.id = compute_shape_id(node.id, shape)
+                shape.node_name = node.name
+                all_shapes.append(shape.model_dump())
+
+        # Cap at 500 shapes per frame (performance constraint)
+        if len(all_shapes) > MAX_SHAPES_PER_FRAME:
+            logger.warning(
+                f"Shape count {len(all_shapes)} exceeds cap of {MAX_SHAPES_PER_FRAME}; "
+                "truncating to first 500 shapes."
+            )
+            all_shapes = all_shapes[:MAX_SHAPES_PER_FRAME]
+
+        if all_shapes or manager.has_subscribers("shapes"):
+            frame = ShapeFrame(timestamp=time.time(), shapes=[])  # type: ignore[arg-type]
+            # Build frame dict directly with already-dumped shapes to avoid re-parsing
+            frame_dict = {"timestamp": frame.timestamp, "shapes": all_shapes}
+            await manager.broadcast("shapes", frame_dict)
