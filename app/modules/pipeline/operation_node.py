@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import asyncio
 import time
 import numpy as np
@@ -6,11 +6,12 @@ from app.core.logging import get_logger
 from app.modules.pipeline.factory import OperationFactory
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
+from app.services.nodes.shape_collector import ShapeCollectorMixin
 from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
 
-class OperationNode(ModuleNode):
+class OperationNode(ModuleNode, ShapeCollectorMixin):
     """
     A node that performs a single point cloud operation (e.g., Filtering, Downsampling).
     """
@@ -23,6 +24,7 @@ class OperationNode(ModuleNode):
         name: Optional[str] = None,
         throttle_ms: float = 0  # Accepted but not used, handled by NodeManager
     ):
+        ShapeCollectorMixin.__init__(self)
         self.manager = manager
         self.id = node_id
         self.name = name or node_id
@@ -88,6 +90,13 @@ class OperationNode(ModuleNode):
             self.processing_time_ms = (time.time() - start_time) * 1000
             self.last_output_at = time.time()
             self.last_error = None
+
+            # Emit any shapes produced by the operation (e.g., Clustering with emit_shapes=True)
+            # The 'shapes' key carries a list[ShapePayload]; pop it before status/payload work.
+            pending_shapes = (op_metadata or {}).pop("shapes", None)
+            if pending_shapes:
+                for shape in pending_shapes:
+                    self.emit_shape(shape)
 
             # Store metadata for status reporting (displayed on node badge)
             if op_metadata:

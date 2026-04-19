@@ -33,7 +33,7 @@
   - [x] `_pending_shapes: List[ShapePayload]` initialized in `__init__`
   - [x] `emit_shape(shape: ShapePayload) -> None` — appends to `_pending_shapes`
   - [x] `collect_and_clear_shapes() -> List[ShapePayload]` — returns copy and clears list
-- [ ] Add module exports to `app/services/nodes/__init__.py`
+- [x] Add module exports to `app/services/nodes/__init__.py`
 
 ### BE-03 — Shape ID Hashing Utility
 - [x] In `app/services/nodes/shapes.py`, implement `compute_shape_id(node_id: str, shape: ShapePayload) -> str`
@@ -80,7 +80,7 @@
 
 ### BE-07 — Startup Shape Topic Lifecycle Test
 - [x] Verify that after `app.py` startup, `GET /api/v1/topics` does NOT include `"shapes"`
-- [ ] Verify that a WebSocket client can connect to `ws://.../ws/shapes` and receive `ShapeFrame` JSON
+- [x] Verify that a WebSocket client can connect to `ws://.../ws/shapes` and receive `ShapeFrame` JSON
 - [x] Verify that after a full `reload_config()`, the `shapes` topic survives (it is a system topic)
 
 ### BE-08 — Shape Count Cap

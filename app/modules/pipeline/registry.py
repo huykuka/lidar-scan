@@ -165,6 +165,8 @@ node_schema_registry.register(NodeDefinition(
                        help_text="Neighborhood radius for clustering"),
         PropertySchema(name="min_points", label="Min Points", type="number", default=10, min=1,
                        help_text="Minimum points to form a cluster"),
+        PropertySchema(name="emit_shapes", label="Emit Bounding Boxes", type="boolean", default=False,
+                       help_text="When enabled, emits a wireframe bounding box and label for each detected cluster on the shapes topic"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
