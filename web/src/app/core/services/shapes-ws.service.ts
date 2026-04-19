@@ -1,9 +1,19 @@
 import {Injectable, inject} from '@angular/core';
 import {Observable, of, Subject} from 'rxjs';
-import {delay, repeat} from 'rxjs/operators';
+import {debounceTime, delay, repeat} from 'rxjs/operators';
 import {MultiWebsocketService} from './multi-websocket.service';
 import {ShapeFrame, ShapeDescriptor} from '@core/models/shapes.model';
 import {environment} from '@env/environment';
+
+/**
+ * Debounce window (ms) applied to the **live** WebSocket stream.
+ * Coalesces rapid bursts of shape frames so that only the latest frame
+ * within each window is forwarded to subscribers, preventing visual flicker.
+ *
+ * Mock mode is intentionally excluded — it emits a steady 100 ms tick
+ * for FE-02 local-development tests and must not be throttled.
+ */
+export const SHAPES_WS_DEBOUNCE_MS = 80;
 
 // ── Mock frame (FE-02) — covers all three shape types ─────────────────────────
 //
@@ -102,6 +112,9 @@ export class ShapesWsService {
       error: (err) => subject.error(err),
     });
 
-    this.frames$ = subject.asObservable();
+    // Debounce coalesces rapid bursts: only the latest frame within each
+    // SHAPES_WS_DEBOUNCE_MS window is emitted.  This prevents visual flicker
+    // during high-frequency sensor updates without dropping the final state.
+    this.frames$ = subject.asObservable().pipe(debounceTime(SHAPES_WS_DEBOUNCE_MS));
   }
 }
