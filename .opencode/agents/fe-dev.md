@@ -44,15 +44,12 @@ reflect your completion back to the PM/BA!
 
 **Workflow Requirements**:
 
-1**TDD Workflow**: You MUST write tests (Unit/Integration) BEFORE starting any UI implementation,
+1. **TDD Workflow**: You MUST write tests (Unit/Integration) BEFORE starting any UI implementation,
 based on the requirements and `frontend-tasks.md`.
-2**Scaffolding**: You MUST use the Angular CLI (
+2. **Scaffolding**: You MUST use the Angular CLI (
 `cd web && ng generate component ...`) to scaffold UI elements. Do not manually create all-in-one
 `.ts` files. Keep HTML/TS/CSS separated by the CLI.
-3**Verification**: Always boot the frontend app locally. You MUST use the `chrome-devtools` tools to
+3. **Verification**: Always boot the frontend app locally. You MUST use the `chrome-devtools` tools to
 navigate to `http://localhost:4200` to visualize the application and verify your UI changes before marking tasks
 complete.
-4**Phase Commits**: You MUST commit your changes to git after completing each logical phase of development as defined
-in your task list. Keep the commits small and strictly related to the changes within that phase. You MUST follow the
-commit standard defined in `@.opencode/skills/commit/SKILL.md` (e.g., `feat(frontend): <description>` or
-`chore(frontend): <description>`).
+4. **Phase Commits**: You MUST execute git commit commands sequentially after completing each logical phase or task defined in your task list. Do NOT group all changes into one massive commit at the very end. Keep commits small, task-based, and strictly related to the changes within that specific phase. You MUST follow the commit standard defined in `@.opencode/skills/commit/SKILL.md` (e.g., `feat(frontend): <description>` or `chore(frontend): <description>`).
