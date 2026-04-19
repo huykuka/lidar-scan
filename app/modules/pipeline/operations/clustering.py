@@ -131,7 +131,6 @@ class Clustering(PipelineOperation):
                 indices = np.where(labels >= 0)[0]
                 pcd_out = pcd.select_by_index(indices)
                 cluster_count = int(labels.max() + 1) if labels.size > 0 else 0
-
                 meta = {"cluster_count": cluster_count}
                 if self.emit_shapes and cluster_count > 0:
                     meta["shapes"] = self._build_cluster_shapes(

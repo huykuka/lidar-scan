@@ -32,8 +32,13 @@ class DataRouter:
     
     async def handle_incoming_data(self, payload: Dict[str, Any]):
         """
-        Route incoming data to the appropriate node handler.
-        
+        Route incoming data to the appropriate node handler, then publish shapes.
+
+        After the source node (and all downstream nodes in the DAG) have finished
+        processing the current frame, ``publish_shapes()`` is called to collect any
+        shapes emitted by ShapeCollectorMixin nodes and broadcast them on the
+        'shapes' WebSocket topic.
+
         Args:
             payload: Data payload from queue
         """
@@ -43,13 +48,18 @@ class DataRouter:
             return
 
         node_instance = self.manager.nodes[node_id]
-        
+
         if hasattr(node_instance, "handle_data"):
             # Legacy handle_data method (LidarSensor specific)
             await node_instance.handle_data(payload, self.manager.node_runtime_status)
         elif hasattr(node_instance, "on_input"):
             # Standard on_input method (ModuleNode interface)
             await node_instance.on_input(payload)
+
+        # After all forward_data calls for this frame have settled (downstream tasks
+        # are gathered inside forward_data → _forward_to_downstream_nodes), collect
+        # and broadcast any shapes emitted by ShapeCollectorMixin nodes.
+        await self.publish_shapes()
     
     async def forward_data(self, source_id: str, payload: Any, active_port: Optional[str] = None):
         """
@@ -200,7 +210,7 @@ class DataRouter:
                 gate.buffer_nowait(payload)
                 continue
 
-            asyncio.create_task(self._send_to_target_node(source_id, target_id, payload))
+            await self._send_to_target_node(source_id, target_id, payload)
     
     def _should_skip_due_to_throttling(self, source_id: str, target_id: str) -> bool:
         """
