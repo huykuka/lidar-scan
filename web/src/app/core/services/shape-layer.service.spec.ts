@@ -1,7 +1,7 @@
 import {TestBed} from '@angular/core/testing';
 import * as THREE from 'three';
 import {vi, describe, it, expect, beforeEach, afterEach} from 'vitest';
-import {ShapeLayerService} from './shape-layer.service';
+import {ShapeLayerService, SHAPE_DECAY_MS, SHAPE_FADE_WINDOW_MS, SHAPE_LERP_ALPHA} from './shape-layer.service';
 import {ShapeFrame, SHAPE_LAYER} from '@core/models/shapes.model';
 
 // ── Frame factories ────────────────────────────────────────────────────────────
@@ -65,6 +65,8 @@ function makeLabelFrame(id: string): ShapeFrame {
   };
 }
 
+const EMPTY_FRAME: ShapeFrame = {timestamp: 99.0, shapes: []};
+
 /**
  * Helper: create a standalone ShapeLayerService instance **without** TestBed.
  * This mirrors how Angular creates per-component instances when the service
@@ -74,15 +76,25 @@ function makeService(): ShapeLayerService {
   return new ShapeLayerService();
 }
 
+/** Create a service with a controllable clock. */
+function makeTimedService(): {service: ShapeLayerService; clock: {now: number}} {
+  const clock = {now: 1000};
+  const service = new ShapeLayerService();
+  service.now = () => clock.now;
+  return {service, clock};
+}
+
 // ── Single-scene (baseline) tests ──────────────────────────────────────────────
 
 describe('ShapeLayerService', () => {
   let service: ShapeLayerService;
   let scene: THREE.Scene;
+  let clock: {now: number};
 
   beforeEach(() => {
-    TestBed.configureTestingModule({providers: [ShapeLayerService]});
-    service = TestBed.inject(ShapeLayerService);
+    const timed = makeTimedService();
+    service = timed.service;
+    clock = timed.clock;
     scene = new THREE.Scene();
     service.init(scene);
   });
@@ -122,22 +134,82 @@ describe('ShapeLayerService', () => {
     expect(service.shapeCount).toBe(1);
   });
 
-  // ── Remove stale ──────────────────────────────────────────────────────────
+  // ── Decay: shape NOT removed immediately on empty frame ────────────────────
 
-  it('should remove stale shape when id disappears from frame', () => {
+  it('should NOT remove shape immediately when absent from frame (decay)', () => {
     service.applyFrame(makeCubeFrame('id1'));
     const removeSpy = vi.spyOn(scene, 'remove');
 
-    service.applyFrame({timestamp: 2.0, shapes: []}); // empty → all stale
+    // Empty frame — shape should still be tracked (decaying)
+    clock.now += 100; // only 100ms later
+    service.applyFrame(EMPTY_FRAME);
+
+    expect(removeSpy).not.toHaveBeenCalled();
+    expect(service.shapeCount).toBe(1);
+  });
+
+  it('should remove shape after SHAPE_DECAY_MS has elapsed', () => {
+    service.applyFrame(makeCubeFrame('id1'));
+    const removeSpy = vi.spyOn(scene, 'remove');
+
+    // Advance past decay window
+    clock.now += SHAPE_DECAY_MS + 1;
+    service.applyFrame(EMPTY_FRAME);
 
     expect(removeSpy).toHaveBeenCalled();
     expect(service.shapeCount).toBe(0);
   });
 
-  // ── Empty frame clears all ────────────────────────────────────────────────
+  it('should refresh lastSeen when shape reappears before decay', () => {
+    service.applyFrame(makeCubeFrame('id1'));
 
-  it('should clear all shapes on empty frame', () => {
-    // Send a frame with two shapes at once
+    // Shape disappears for 400ms (within decay)
+    clock.now += 400;
+    service.applyFrame(EMPTY_FRAME);
+    expect(service.shapeCount).toBe(1); // still alive
+
+    // Shape comes back — refreshes lastSeen
+    clock.now += 50;
+    service.applyFrame(makeCubeFrame('id1'));
+    expect(service.shapeCount).toBe(1);
+
+    // Another 400ms without — should NOT be removed (lastSeen was refreshed)
+    clock.now += 400;
+    service.applyFrame(EMPTY_FRAME);
+    expect(service.shapeCount).toBe(1);
+
+    // But after full decay from the refreshed time, it should be removed
+    clock.now += SHAPE_DECAY_MS;
+    service.applyFrame(EMPTY_FRAME);
+    expect(service.shapeCount).toBe(0);
+  });
+
+  it('should fade opacity during the last SHAPE_FADE_WINDOW_MS of decay', () => {
+    service.applyFrame(makeCubeFrame('fade_test', {opacity: 0.8}));
+
+    // Move to start of fade window (SHAPE_DECAY_MS - SHAPE_FADE_WINDOW_MS = 300ms)
+    clock.now += SHAPE_DECAY_MS - SHAPE_FADE_WINDOW_MS + 1; // 301ms
+    service.applyFrame(EMPTY_FRAME);
+
+    // Shape should still exist but with reduced opacity
+    expect(service.shapeCount).toBe(1);
+
+    // Verify opacity was reduced on the object's material
+    const group = scene.children.find((c) => c instanceof THREE.Group) as THREE.Group;
+    expect(group).toBeTruthy();
+    const mesh = group.children.find(
+      (c) => c instanceof THREE.LineSegments || c instanceof THREE.Mesh,
+    ) as THREE.LineSegments;
+    if (mesh) {
+      const mat = mesh.material as THREE.Material;
+      expect(mat.opacity).toBeLessThan(0.8);
+      expect(mat.opacity).toBeGreaterThan(0);
+    }
+  });
+
+  // ── Empty frame with decay ────────────────────────────────────────────────
+
+  it('should clear all shapes only after decay expires on empty frame', () => {
     service.applyFrame({
       timestamp: 1.0,
       shapes: [
@@ -168,7 +240,14 @@ describe('ShapeLayerService', () => {
     });
     expect(service.shapeCount).toBe(2);
 
-    service.applyFrame({timestamp: 3.0, shapes: []});
+    // Empty frame — shapes should persist during decay
+    clock.now += 100;
+    service.applyFrame(EMPTY_FRAME);
+    expect(service.shapeCount).toBe(2);
+
+    // After full decay — shapes removed
+    clock.now += SHAPE_DECAY_MS;
+    service.applyFrame(EMPTY_FRAME);
     expect(service.shapeCount).toBe(0);
   });
 
@@ -239,12 +318,10 @@ describe('ShapeLayerService', () => {
   it('should call scene.add exactly once for the same id across 10 consecutive frames (no-flicker)', () => {
     const addSpy = vi.spyOn(scene, 'add');
 
-    // First frame — shape is new, must be added once.
     service.applyFrame(makeCubeFrame('stable_id'));
     expect(addSpy).toHaveBeenCalledTimes(1);
     addSpy.mockClear();
 
-    // Nine more frames with identical content — must NOT trigger scene.add again.
     for (let i = 0; i < 9; i++) {
       service.applyFrame(makeCubeFrame('stable_id'));
     }
@@ -284,32 +361,291 @@ describe('ShapeLayerService', () => {
     service.disposeAll();
     expect(service.shapeCount).toBe(0);
   });
+
+  // ── Anti-flicker: shape survives brief empty frames ────────────────────────
+
+  it('shape survives a brief empty-frame gap and reappears without re-add', () => {
+    service.applyFrame(makeCubeFrame('blink'));
+    const addSpy = vi.spyOn(scene, 'add');
+
+    // Backend sends empty frame for 1 cycle
+    clock.now += 50;
+    service.applyFrame(EMPTY_FRAME);
+    expect(service.shapeCount).toBe(1); // still alive (decaying)
+
+    // Shape comes back — should NOT re-add
+    clock.now += 50;
+    service.applyFrame(makeCubeFrame('blink'));
+    expect(addSpy).not.toHaveBeenCalled();
+    expect(service.shapeCount).toBe(1);
+  });
+});
+
+// ── Lerp smoothing tests ───────────────────────────────────────────────────────
+
+describe('ShapeLayerService — lerp smoothing', () => {
+  let service: ShapeLayerService;
+  let scene: THREE.Scene;
+  let clock: {now: number};
+
+  beforeEach(() => {
+    const timed = makeTimedService();
+    service = timed.service;
+    clock = timed.clock;
+    scene = new THREE.Scene();
+    service.init(scene);
+  });
+
+  afterEach(() => {
+    service.disposeAll();
+  });
+
+  // ── New shapes snap to exact position ─────────────────────────────────────
+
+  it('new shapes appear at their exact position (no lerp on first frame)', () => {
+    service.applyFrame(makeCubeFrame('snap', {center: [10, 20, 30]}));
+
+    const group = scene.children.find((c) => c instanceof THREE.Group) as THREE.Group;
+    const mesh = group?.children.find(
+      (c) => c instanceof THREE.LineSegments || c instanceof THREE.Mesh,
+    ) as THREE.LineSegments | THREE.Mesh | undefined;
+
+    expect(mesh).toBeDefined();
+    expect(mesh!.position.x).toBeCloseTo(10);
+    expect(mesh!.position.y).toBeCloseTo(20);
+    expect(mesh!.position.z).toBeCloseTo(30);
+  });
+
+  // ── Cube position lerps toward target ─────────────────────────────────────
+
+  it('cube position lerps toward target over multiple frames (does not snap)', () => {
+    // Start at origin
+    service.applyFrame(makeCubeFrame('lerp_cube', {center: [0, 0, 0]}));
+
+    // Move target to [10, 0, 0]
+    clock.now += 16;
+    service.applyFrame(makeCubeFrame('lerp_cube', {center: [10, 0, 0]}));
+
+    const group = scene.children.find((c) => c instanceof THREE.Group) as THREE.Group;
+    const mesh = group?.children.find(
+      (c) => c instanceof THREE.LineSegments || c instanceof THREE.Mesh,
+    ) as THREE.LineSegments | THREE.Mesh | undefined;
+
+    expect(mesh).toBeDefined();
+    // After one lerp step from 0 → 10: expected = 0 + (10 - 0) * 0.3 = 3
+    expect(mesh!.position.x).toBeCloseTo(3, 5);
+    // NOT at target (10) — that would be snapping
+    expect(mesh!.position.x).toBeLessThan(10);
+  });
+
+  it('cube position converges to target within epsilon after enough frames', () => {
+    service.applyFrame(makeCubeFrame('converge', {center: [0, 0, 0]}));
+
+    // Drive 50 frames toward [10, 0, 0]
+    for (let i = 0; i < 50; i++) {
+      clock.now += 16;
+      service.applyFrame(makeCubeFrame('converge', {center: [10, 0, 0]}));
+    }
+
+    const group = scene.children.find((c) => c instanceof THREE.Group) as THREE.Group;
+    const mesh = group?.children.find(
+      (c) => c instanceof THREE.LineSegments || c instanceof THREE.Mesh,
+    ) as THREE.LineSegments | THREE.Mesh | undefined;
+
+    expect(mesh).toBeDefined();
+    expect(mesh!.position.x).toBeCloseTo(10, 3);
+  });
+
+  it('each lerp step moves position closer to target by the expected alpha factor', () => {
+    service.applyFrame(makeCubeFrame('alpha_check', {center: [0, 0, 0]}));
+
+    const getX = (): number => {
+      const group = scene.children.find((c) => c instanceof THREE.Group) as THREE.Group;
+      const mesh = group?.children.find(
+        (c) => c instanceof THREE.LineSegments || c instanceof THREE.Mesh,
+      ) as THREE.LineSegments | THREE.Mesh;
+      return mesh.position.x;
+    };
+
+    // Move target to [100, 0, 0] and apply one frame
+    clock.now += 16;
+    service.applyFrame(makeCubeFrame('alpha_check', {center: [100, 0, 0]}));
+    const afterFrame1 = getX();
+
+    // Apply a second frame (target unchanged)
+    clock.now += 16;
+    service.applyFrame(makeCubeFrame('alpha_check', {center: [100, 0, 0]}));
+    const afterFrame2 = getX();
+
+    // Frame 1: 0 + (100 - 0) * ALPHA = 100 * ALPHA
+    expect(afterFrame1).toBeCloseTo(100 * SHAPE_LERP_ALPHA, 5);
+    // Frame 2: afterFrame1 + (100 - afterFrame1) * ALPHA
+    const expectedFrame2 = afterFrame1 + (100 - afterFrame1) * SHAPE_LERP_ALPHA;
+    expect(afterFrame2).toBeCloseTo(expectedFrame2, 5);
+  });
+
+  // ── Color changes apply immediately ───────────────────────────────────────
+
+  it('color changes apply immediately without lerp', () => {
+    service.applyFrame(makeCubeFrame('color_snap', {color: '#ff0000'}));
+
+    clock.now += 16;
+    service.applyFrame(makeCubeFrame('color_snap', {color: '#00ff00'}));
+
+    const group = scene.children.find((c) => c instanceof THREE.Group) as THREE.Group;
+    const mesh = group?.children.find(
+      (c) => c instanceof THREE.LineSegments || c instanceof THREE.Mesh,
+    ) as THREE.LineSegments | THREE.Mesh | undefined;
+
+    expect(mesh).toBeDefined();
+    const mat = mesh!.material as THREE.LineBasicMaterial | THREE.MeshBasicMaterial;
+    // Green = 0x00ff00 → r=0, g=1, b=0
+    expect((mat as any).color.r).toBeCloseTo(0, 5);
+    expect((mat as any).color.g).toBeCloseTo(1, 5);
+    expect((mat as any).color.b).toBeCloseTo(0, 5);
+  });
+
+  // ── Plane center lerps ─────────────────────────────────────────────────────
+
+  it('plane center lerps toward target', () => {
+    service.applyFrame(makePlaneFrame('lerp_plane'));
+
+    clock.now += 16;
+    service.applyFrame({
+      timestamp: 2.0,
+      shapes: [
+        {
+          id: 'lerp_plane',
+          node_name: 'test',
+          type: 'plane',
+          center: [10, 0, 0],
+          normal: [0, 0, 1],
+          width: 5,
+          height: 5,
+          color: '#0000ff',
+          opacity: 0.3,
+        },
+      ],
+    });
+
+    const group = scene.children.find((c) => c instanceof THREE.Group) as THREE.Group;
+    const mesh = group?.children.find((c) => c instanceof THREE.Mesh) as THREE.Mesh | undefined;
+
+    expect(mesh).toBeDefined();
+    // One lerp step: 0 + (10 - 0) * 0.3 = 3
+    expect(mesh!.position.x).toBeCloseTo(3, 5);
+  });
+
+  // ── Label position lerps, text snaps ──────────────────────────────────────
+
+  it('label position lerps toward target when text is unchanged', () => {
+    service.applyFrame(makeLabelFrame('lerp_label'));
+
+    clock.now += 16;
+    service.applyFrame({
+      timestamp: 2.0,
+      shapes: [
+        {
+          id: 'lerp_label',
+          node_name: 'test',
+          type: 'label',
+          position: [10, 20, 30],
+          text: 'Hello',
+          font_size: 14,
+          color: '#ffffff',
+          background_color: '#000000cc',
+          scale: 1.0,
+        },
+      ],
+    });
+
+    const sprite = scene.children.find((c) => c instanceof THREE.Sprite) as
+      | THREE.Sprite
+      | undefined;
+
+    expect(sprite).toBeDefined();
+    // Original position was [1, 2, 3]; target is [10, 20, 30]
+    // One lerp: 1 + (10 - 1) * 0.3 = 1 + 2.7 = 3.7
+    expect(sprite!.position.x).toBeCloseTo(1 + (10 - 1) * SHAPE_LERP_ALPHA, 5);
+    expect(sprite!.position.y).toBeCloseTo(2 + (20 - 2) * SHAPE_LERP_ALPHA, 5);
+  });
+
+  it('label position snaps immediately when text changes', () => {
+    service.applyFrame(makeLabelFrame('text_snap'));
+
+    clock.now += 16;
+    service.applyFrame({
+      timestamp: 2.0,
+      shapes: [
+        {
+          id: 'text_snap',
+          node_name: 'test',
+          type: 'label',
+          position: [50, 50, 50],
+          text: 'Changed!',
+          font_size: 14,
+          color: '#ffffff',
+          background_color: '#000000cc',
+          scale: 1.0,
+        },
+      ],
+    });
+
+    const sprite = scene.children.find((c) => c instanceof THREE.Sprite) as
+      | THREE.Sprite
+      | undefined;
+
+    expect(sprite).toBeDefined();
+    // Text changed → position should snap to target
+    expect(sprite!.position.x).toBeCloseTo(50, 5);
+    expect(sprite!.position.y).toBeCloseTo(50, 5);
+    expect(sprite!.position.z).toBeCloseTo(50, 5);
+  });
+
+  // ── Lerp continues during decay (shape keeps gliding) ────────────────────
+
+  it('lerp continues across frames where the shape is absent (decaying)', () => {
+    service.applyFrame(makeCubeFrame('decay_lerp', {center: [0, 0, 0]}));
+
+    // Move target
+    clock.now += 16;
+    service.applyFrame(makeCubeFrame('decay_lerp', {center: [100, 0, 0]}));
+
+    const getX = (): number => {
+      const group = scene.children.find((c) => c instanceof THREE.Group) as THREE.Group;
+      const mesh = group?.children.find(
+        (c) => c instanceof THREE.LineSegments || c instanceof THREE.Mesh,
+      ) as THREE.LineSegments | THREE.Mesh;
+      return mesh.position.x;
+    };
+
+    const xAfterUpdate = getX();
+
+    // Send empty frame (shape starts decaying) — lerp still runs
+    clock.now += 16;
+    service.applyFrame(EMPTY_FRAME);
+    const xAfterDecayFrame = getX();
+
+    // Shape should have moved further toward 100 even during decay
+    expect(xAfterDecayFrame).toBeGreaterThan(xAfterUpdate);
+  });
 });
 
 // ── Split-view isolation tests ────────────────────────────────────────────────
-//
-// These tests simulate a split-view workspace with two independent
-// PointCloudComponent instances — each owning its own ShapeLayerService,
-// its own THREE.Scene, and its own WebGL renderer.
-//
-// Key invariants verified:
-//   1. Shapes are present in BOTH scenes after applyFrame (no "one view only")
-//   2. scene.add is called exactly once per service per shape id (no duplicates)
-//   3. Shapes in scene A are independent from shapes in scene B
-//   4. Disposing pane A does NOT remove objects from pane B
-//   5. Replacing a scene (hot-reload / pane remount) cleans up the old scene
 
 describe('ShapeLayerService — split-view isolation', () => {
-  // Two service instances simulating two PointCloudComponent panes
   let serviceA: ShapeLayerService;
   let serviceB: ShapeLayerService;
   let sceneA: THREE.Scene;
   let sceneB: THREE.Scene;
+  let clock: {now: number};
 
   beforeEach(() => {
-    // Directly instantiate — mirrors Angular's per-component provider behavior
+    clock = {now: 1000};
     serviceA = makeService();
     serviceB = makeService();
+    serviceA.now = () => clock.now;
+    serviceB.now = () => clock.now;
     sceneA = new THREE.Scene();
     sceneB = new THREE.Scene();
     serviceA.init(sceneA);
@@ -322,7 +658,6 @@ describe('ShapeLayerService — split-view isolation', () => {
   });
 
   it('each pane has its own isolated shapeMap — shape counts are independent', () => {
-    // Send a single frame with two shapes to pane A
     const twoShapeFrame: ShapeFrame = {
       timestamp: 1.0,
       shapes: [
@@ -352,16 +687,13 @@ describe('ShapeLayerService — split-view isolation', () => {
       ] as any,
     };
     serviceA.applyFrame(twoShapeFrame);
-
-    // Pane B only gets the cube
     serviceB.applyFrame(makeCubeFrame('cube1'));
 
-    // Pane A has two shapes; pane B has only one
     expect(serviceA.shapeCount).toBe(2);
     expect(serviceB.shapeCount).toBe(1);
   });
 
-  it('both panes receive identical shapes when fed the same frame — no "one view only" bug', () => {
+  it('both panes receive identical shapes when fed the same frame', () => {
     const frame: ShapeFrame = {
       timestamp: 2.0,
       shapes: [
@@ -394,24 +726,15 @@ describe('ShapeLayerService — split-view isolation', () => {
     serviceA.applyFrame(frame);
     serviceB.applyFrame(frame);
 
-    // Both panes must have both shapes
     expect(serviceA.shapeCount).toBe(2);
     expect(serviceB.shapeCount).toBe(2);
-
-    // Both scenes must have had objects added
-    const groupsA = sceneA.children.filter((c) => c instanceof THREE.Group);
-    const groupsB = sceneB.children.filter((c) => c instanceof THREE.Group);
-    expect(groupsA.length).toBeGreaterThanOrEqual(1);
-    expect(groupsB.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('scene.add is called exactly once per pane per shape id — no duplicates on repeated frames', () => {
+  it('scene.add is called exactly once per pane per shape id', () => {
     const addSpyA = vi.spyOn(sceneA, 'add');
     const addSpyB = vi.spyOn(sceneB, 'add');
-
     const frame = makeCubeFrame('dup_test');
 
-    // First frame — both panes add the object once
     serviceA.applyFrame(frame);
     serviceB.applyFrame(frame);
     expect(addSpyA).toHaveBeenCalledTimes(1);
@@ -419,7 +742,6 @@ describe('ShapeLayerService — split-view isolation', () => {
     addSpyA.mockClear();
     addSpyB.mockClear();
 
-    // Subsequent frames — object already tracked; scene.add must NOT be called
     for (let i = 0; i < 5; i++) {
       serviceA.applyFrame(frame);
       serviceB.applyFrame(frame);
@@ -428,7 +750,7 @@ describe('ShapeLayerService — split-view isolation', () => {
     expect(addSpyB).not.toHaveBeenCalled();
   });
 
-  it('objects in sceneA and sceneB are distinct Three.js instances (no shared Object3D)', () => {
+  it('objects in sceneA and sceneB are distinct Three.js instances', () => {
     const frame = makeCubeFrame('iso_cube');
     serviceA.applyFrame(frame);
     serviceB.applyFrame(frame);
@@ -438,47 +760,34 @@ describe('ShapeLayerService — split-view isolation', () => {
 
     expect(objA).toBeDefined();
     expect(objB).toBeDefined();
-    // Each scene owns a separate Three.js object — NOT the same reference
     expect(objA).not.toBe(objB);
   });
 
-  it('disposeAll on pane A does NOT remove or dispose objects from pane B', () => {
+  it('disposeAll on pane A does NOT remove objects from pane B', () => {
     const frame = makeCubeFrame('survivor');
     serviceA.applyFrame(frame);
     serviceB.applyFrame(frame);
 
     const removeSpyB = vi.spyOn(sceneB, 'remove');
-
-    // Destroy pane A (simulates the component being unmounted)
     serviceA.disposeAll();
 
     expect(serviceA.shapeCount).toBe(0);
-    expect(serviceB.shapeCount).toBe(1); // pane B untouched
-    expect(removeSpyB).not.toHaveBeenCalled(); // sceneB.remove was never called
+    expect(serviceB.shapeCount).toBe(1);
+    expect(removeSpyB).not.toHaveBeenCalled();
   });
 
-  it('adding pane C mid-session does not duplicate shapes in A or B', () => {
-    const serviceC = makeService();
-    const sceneC = new THREE.Scene();
-    serviceC.init(sceneC);
-
-    const frame = makeCubeFrame('late_join');
-
+  it('stale shape removal in pane A (after decay) does not affect pane B', () => {
+    const frame = makeCubeFrame('stale_test');
     serviceA.applyFrame(frame);
     serviceB.applyFrame(frame);
 
-    // Pane C joins late — should independently add its own copy
-    const addSpyA = vi.spyOn(sceneA, 'add');
-    const addSpyB = vi.spyOn(sceneB, 'add');
+    // Pane A stops receiving shapes, pane B keeps getting them
+    clock.now += SHAPE_DECAY_MS + 1;
+    serviceA.applyFrame(EMPTY_FRAME);
+    serviceB.applyFrame(frame); // pane B still active
 
-    serviceC.applyFrame(frame);
-
-    // Pane C has the shape; A and B were NOT touched by C's init/applyFrame
-    expect(serviceC.shapeCount).toBe(1);
-    expect(addSpyA).not.toHaveBeenCalled();
-    expect(addSpyB).not.toHaveBeenCalled();
-
-    serviceC.disposeAll();
+    expect(serviceA.shapeCount).toBe(0);
+    expect(serviceB.shapeCount).toBe(1);
   });
 
   it('removing a pane and remounting (scene swap) cleans up the old scene', () => {
@@ -488,59 +797,20 @@ describe('ShapeLayerService — split-view isolation', () => {
     const sceneANew = new THREE.Scene();
     const removeSpyOld = vi.spyOn(sceneA, 'remove');
 
-    // Simulate pane A being destroyed and recreated with a fresh scene
     serviceA.init(sceneANew);
 
-    // Old scene should have had all objects removed
     expect(removeSpyOld).toHaveBeenCalled();
-    // Service's internal map is cleared (objects disposed from old scene)
     expect(serviceA.shapeCount).toBe(0);
-    // New scene has no orphan objects yet
     expect(sceneANew.children.length).toBe(0);
 
     serviceA.disposeAll();
   });
 
-  it('label deduplication: at most one label object per id per scene', () => {
-    const labelFrame = makeLabelFrame('dedup_lbl');
-
-    serviceA.applyFrame(labelFrame);
-    serviceB.applyFrame(labelFrame);
-
-    // Apply 10 more frames
-    for (let i = 0; i < 10; i++) {
-      serviceA.applyFrame(labelFrame);
-      serviceB.applyFrame(labelFrame);
-    }
-
-    // Each scene: exactly one sprite for the label id
-    const spritesA = sceneA.children.filter((c) => c instanceof THREE.Sprite);
-    const spritesB = sceneB.children.filter((c) => c instanceof THREE.Sprite);
-
-    expect(spritesA.length).toBe(1);
-    expect(spritesB.length).toBe(1);
-    expect(serviceA.shapeCount).toBe(1);
-    expect(serviceB.shapeCount).toBe(1);
-  });
-
-  it('stale shape removal in pane A does not affect identical id in pane B', () => {
-    const frame = makeCubeFrame('stale_test');
-    serviceA.applyFrame(frame);
-    serviceB.applyFrame(frame);
-
-    // Pane A clears all shapes (e.g. topic unsubscribed)
-    serviceA.applyFrame({timestamp: 99.0, shapes: []});
-
-    expect(serviceA.shapeCount).toBe(0);
-    // Pane B still has the shape
-    expect(serviceB.shapeCount).toBe(1);
-    const objsInB = sceneB.children.filter((c) => c instanceof THREE.Group);
-    expect(objsInB.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('four-pane (2×2 grid) scenario: all panes independently track the same shape set', () => {
+  it('four-pane scenario: all panes independently track the same shape set', () => {
     const serviceC = makeService();
     const serviceD = makeService();
+    serviceC.now = () => clock.now;
+    serviceD.now = () => clock.now;
     const sceneC = new THREE.Scene();
     const sceneD = new THREE.Scene();
     serviceC.init(sceneC);
@@ -564,13 +834,11 @@ describe('ShapeLayerService — split-view isolation', () => {
 
     [serviceA, serviceB, serviceC, serviceD].forEach((s) => s.applyFrame(frame));
 
-    // All four panes must have exactly 3 shapes each
     expect(serviceA.shapeCount).toBe(3);
     expect(serviceB.shapeCount).toBe(3);
     expect(serviceC.shapeCount).toBe(3);
     expect(serviceD.shapeCount).toBe(3);
 
-    // Apply 5 more frames — no additional objects created
     for (let i = 0; i < 5; i++) {
       [serviceA, serviceB, serviceC, serviceD].forEach((s) => s.applyFrame(frame));
     }

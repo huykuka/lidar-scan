@@ -90,12 +90,6 @@ class Clustering(PipelineOperation):
                     label=f"cluster_{i}",
                 ))
 
-                # Billboard label positioned at top centre of the bbox
-                label_pos = [center[0], center[1], center[2] + size[2] / 2.0]
-                shapes.append(LabelShape(
-                    position=label_pos,
-                    text=f"cluster_{i} ({pt_count} pts)",
-                ))
             except Exception:
                 # Skip malformed individual cluster — don't abort the whole frame
                 pass

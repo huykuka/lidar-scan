@@ -11,8 +11,87 @@ import {
 import {ShapeBuilders} from '@core/utils/shape-builders';
 
 /**
+ * How long (ms) a shape stays visible after it was last reported by the backend.
+ * Prevents flicker when bounding boxes temporarily disappear for a frame or two.
+ */
+export const SHAPE_DECAY_MS = 500;
+
+/**
+ * During the last FADE_WINDOW_MS of the decay period, the shape's opacity
+ * is linearly faded toward 0, giving a visual hint that it's going stale.
+ */
+export const SHAPE_FADE_WINDOW_MS = 200;
+
+/**
+ * Exponential smoothing factor for spatial interpolation between frames.
+ * 0 = no movement (frozen), 1 = snap instantly to target.
+ * At 0.3, a shape covers ~70% of the distance to its target each frame.
+ */
+export const SHAPE_LERP_ALPHA = 0.3;
+
+/** Linear interpolation between two scalar values. */
+function lerpValue(current: number, target: number, alpha: number): number {
+  return current + (target - current) * alpha;
+}
+
+/** Deep-clone a ShapeDescriptor (plain-object, no class instances). */
+function cloneDescriptor(d: ShapeDescriptor): ShapeDescriptor {
+  if (d.type === 'cube') {
+    const c = d as CubeDescriptor;
+    return {
+      ...c,
+      center: [...c.center] as [number, number, number],
+      size: [...c.size] as [number, number, number],
+      rotation: [...c.rotation] as [number, number, number],
+    };
+  }
+  if (d.type === 'plane') {
+    const p = d as PlaneDescriptor;
+    return {
+      ...p,
+      center: [...p.center] as [number, number, number],
+      normal: [...p.normal] as [number, number, number],
+    };
+  }
+  // label
+  const l = d as LabelDescriptor;
+  return {
+    ...l,
+    position: [...l.position] as [number, number, number],
+  };
+}
+
+/** Internal tracking entry per shape. */
+interface ShapeEntry {
+  obj: THREE.Object3D;
+  lastSeen: number;               // Date.now() when last present in a frame
+  descriptor: ShapeDescriptor;    // latest descriptor from the backend
+  /** Where the shape SHOULD be (the backend's authoritative state). */
+  targetDescriptor: ShapeDescriptor;
+  /** Current interpolated state — converges toward targetDescriptor each frame. */
+  lerpedDescriptor: ShapeDescriptor;
+  baseOpacity: number;            // original opacity from the descriptor
+}
+
+/**
  * Manages the lifecycle of Three.js shape objects on Layer 2 (SHAPE_LAYER)
  * **for a single scene/canvas instance**.
+ *
+ * # Decay-based anti-flicker
+ *
+ * Instead of immediately removing shapes that are absent from the latest frame,
+ * this service keeps them visible for up to `SHAPE_DECAY_MS` milliseconds.
+ * During the last `SHAPE_FADE_WINDOW_MS` of that window, the shape's opacity
+ * fades linearly to 0, then it is disposed.  This prevents flicker when the
+ * backend temporarily emits empty or partial frames.
+ *
+ * # Exponential smoothing (lerp)
+ *
+ * When a shape's position/size changes between frames, the service interpolates
+ * the current rendered state toward the target using `SHAPE_LERP_ALPHA` each
+ * frame. Non-spatial properties (color, opacity, text) update immediately.
+ * Labels whose text changes also snap their position immediately to avoid
+ * briefly showing new text at the old position.
  *
  * # Split-view safety — one instance per PointCloudComponent
  *
@@ -37,11 +116,14 @@ export class ShapeLayerService {
   private scene: THREE.Scene | null = null;
 
   /**
-   * Per-scene id → Object3D map.
+   * Per-scene id → ShapeEntry map.
    * Keyed by the backend-assigned stable shape id (16-char hex).
    * Guaranteed unique within this service instance (= within one canvas).
    */
-  private readonly shapeMap = new Map<string, THREE.Object3D>();
+  private readonly shapeMap = new Map<string, ShapeEntry>();
+
+  /** Overridable clock for testing. */
+  now: () => number = () => Date.now();
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -54,9 +136,6 @@ export class ShapeLayerService {
    */
   init(scene: THREE.Scene): void {
     if (this.scene && this.scene !== scene) {
-      // Hot-reload / scene-swap: clean up previous scene to prevent orphans.
-      // The shapeMap is also cleared because those Object3Ds belong to the
-      // old scene and must not be re-added to the new scene as stale entries.
       this._removeAllFromScene(this.scene);
       this.shapeMap.clear();
     }
@@ -64,31 +143,25 @@ export class ShapeLayerService {
   }
 
   /**
-   * Process one ShapeFrame: add new shapes, mutate existing ones in-place,
-   * dispose stale ones — all scoped to *this* scene instance.
+   * Process one ShapeFrame: add new shapes, update targets for existing ones,
+   * lerp ALL tracked shapes toward their targets, and mark missing shapes for
+   * decay rather than immediate removal.
    *
-   * Diff algorithm:
-   *   1. Build a Set of incoming ids for O(1) lookup.
-   *   2. Remove any tracked shape whose id is absent from the incoming set.
-   *   3. For each incoming shape:
-   *        • If not yet tracked → build + add to scene (scene.add called once).
-   *        • If already tracked → mutate in-place (scene.add never called again).
+   * Decay algorithm:
+   *   1. For each incoming shape: update lastSeen + targetDescriptor.
+   *      New shapes snap immediately (no lerp on first frame).
+   *   2. Lerp ALL tracked entries toward their target this frame.
+   *   3. For shapes NOT in the incoming set: do NOT remove yet — let them
+   *      decay. Their lastSeen stays unchanged; lerping continues.
+   *   4. Call `reapDecayed()` to remove shapes that have exceeded SHAPE_DECAY_MS
+   *      and fade shapes that are within the SHAPE_FADE_WINDOW_MS.
    */
   applyFrame(frame: ShapeFrame): void {
     if (!this.scene) return;
 
-    const incomingIds = new Set(frame.shapes.map((s) => s.id));
+    const now = this.now();
 
-    // ── 1. Remove stale shapes ───────────────────────────────────────────────
-    for (const [id, obj] of this.shapeMap) {
-      if (!incomingIds.has(id)) {
-        this.scene.remove(obj);
-        this.disposeObject(obj);
-        this.shapeMap.delete(id);
-      }
-    }
-
-    // ── 2. Add or update shapes ──────────────────────────────────────────────
+    // ── 1. Add or update targets for shapes present in this frame ────────────
     for (const shape of frame.shapes) {
       if (shape.id === '') {
         console.warn(
@@ -98,20 +171,43 @@ export class ShapeLayerService {
         continue;
       }
 
-      if (!this.shapeMap.has(shape.id)) {
+      const entry = this.shapeMap.get(shape.id);
+      if (!entry) {
         // New shape — build, register on SHAPE_LAYER, add to scene exactly once.
+        // Snap immediately to the initial position (no lerp on first frame).
         const obj = this.buildShape(shape);
         if (!obj) continue; // unknown type — already logged
 
         obj.layers.set(SHAPE_LAYER);
         this.scene.add(obj);
-        this.shapeMap.set(shape.id, obj);
+        this.shapeMap.set(shape.id, {
+          obj,
+          lastSeen: now,
+          descriptor: shape,
+          targetDescriptor: shape,
+          lerpedDescriptor: cloneDescriptor(shape),
+          baseOpacity: this.extractOpacity(shape),
+        });
       } else {
-        // Existing shape — mutate in-place; scene.add is NEVER called here.
-        const existing = this.shapeMap.get(shape.id)!;
-        this.updateShape(existing, shape);
+        // Existing shape — update the target; lerp step happens below for all entries.
+        entry.lastSeen = now;
+        entry.descriptor = shape;
+        entry.targetDescriptor = shape;
+        entry.baseOpacity = this.extractOpacity(shape);
+        // Restore full opacity in case it was being faded.
+        this.setObjectOpacity(entry.obj, entry.baseOpacity);
       }
     }
+
+    // ── 2. Lerp ALL tracked shapes toward their targets ──────────────────────
+    // Runs every frame so shapes keep gliding even across frames where their
+    // id is absent (decay window).
+    for (const entry of this.shapeMap.values()) {
+      this.lerpShape(entry);
+    }
+
+    // ── 3. Reap decayed shapes and fade expiring ones ────────────────────────
+    this.reapDecayed(now);
   }
 
   /**
@@ -133,12 +229,148 @@ export class ShapeLayerService {
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
+  /**
+   * Advance `entry.lerpedDescriptor` one step toward `entry.targetDescriptor`
+   * using `SHAPE_LERP_ALPHA`, then call the appropriate ShapeBuilders update
+   * method with the interpolated descriptor.
+   *
+   * Rules:
+   *  • Spatial properties (position/center/size/rotation) are lerped.
+   *  • Non-spatial properties (color, opacity, text, wireframe, etc.) snap immediately.
+   *  • Labels whose text has changed also snap their position to avoid showing
+   *    new text at the stale position.
+   */
+  private lerpShape(entry: ShapeEntry): void {
+    const target = entry.targetDescriptor;
+    const lerped = entry.lerpedDescriptor;
+    const α = SHAPE_LERP_ALPHA;
+
+    if (target.type === 'cube') {
+      const t = target as CubeDescriptor;
+      const l = lerped as CubeDescriptor;
+
+      // Lerp spatial fields
+      l.center = [
+        lerpValue(l.center[0], t.center[0], α),
+        lerpValue(l.center[1], t.center[1], α),
+        lerpValue(l.center[2], t.center[2], α),
+      ];
+      l.size = [
+        lerpValue(l.size[0], t.size[0], α),
+        lerpValue(l.size[1], t.size[1], α),
+        lerpValue(l.size[2], t.size[2], α),
+      ];
+      l.rotation = [
+        lerpValue(l.rotation[0], t.rotation[0], α),
+        lerpValue(l.rotation[1], t.rotation[1], α),
+        lerpValue(l.rotation[2], t.rotation[2], α),
+      ];
+
+      // Non-spatial: snap immediately
+      l.color = t.color;
+      l.opacity = t.opacity;
+      l.wireframe = t.wireframe;
+      l.label = t.label;
+    } else if (target.type === 'plane') {
+      const t = target as PlaneDescriptor;
+      const l = lerped as PlaneDescriptor;
+
+      // Lerp center
+      l.center = [
+        lerpValue(l.center[0], t.center[0], α),
+        lerpValue(l.center[1], t.center[1], α),
+        lerpValue(l.center[2], t.center[2], α),
+      ];
+
+      // Non-spatial: snap immediately
+      l.normal = [...t.normal] as [number, number, number];
+      l.width = t.width;
+      l.height = t.height;
+      l.color = t.color;
+      l.opacity = t.opacity;
+    } else if (target.type === 'label') {
+      const t = target as LabelDescriptor;
+      const l = lerped as LabelDescriptor;
+
+      // If text changed, snap position immediately so new text renders at target
+      if (l.text !== t.text) {
+        l.position = [...t.position] as [number, number, number];
+      } else {
+        l.position = [
+          lerpValue(l.position[0], t.position[0], α),
+          lerpValue(l.position[1], t.position[1], α),
+          lerpValue(l.position[2], t.position[2], α),
+        ];
+      }
+
+      // Non-spatial: snap immediately
+      l.text = t.text;
+      l.font_size = t.font_size;
+      l.color = t.color;
+      l.background_color = t.background_color;
+      l.scale = t.scale;
+      l.opacity = t.opacity;
+    }
+
+    this.updateShape(entry.obj, entry.lerpedDescriptor);
+  }
+
+  /**
+   * Remove shapes whose decay window has fully expired, and fade shapes
+   * that are within the fade window.
+   */
+  private reapDecayed(now: number): void {
+    if (!this.scene) return;
+
+    for (const [id, entry] of this.shapeMap) {
+      const age = now - entry.lastSeen;
+
+      if (age > SHAPE_DECAY_MS) {
+        // Fully expired — remove and dispose.
+        this.scene.remove(entry.obj);
+        this.disposeObject(entry.obj);
+        this.shapeMap.delete(id);
+      } else if (age > SHAPE_DECAY_MS - SHAPE_FADE_WINDOW_MS) {
+        // Within fade window — linearly reduce opacity toward 0.
+        const fadeRemaining = SHAPE_DECAY_MS - age; // ms left before removal
+        const fadeFactor = fadeRemaining / SHAPE_FADE_WINDOW_MS; // 1.0 → 0.0
+        this.setObjectOpacity(entry.obj, entry.baseOpacity * fadeFactor);
+      }
+    }
+  }
+
   /** Remove every tracked object from `targetScene` and dispose GPU resources. */
   private _removeAllFromScene(targetScene: THREE.Scene): void {
-    for (const obj of this.shapeMap.values()) {
-      targetScene.remove(obj);
-      this.disposeObject(obj);
+    for (const entry of this.shapeMap.values()) {
+      targetScene.remove(entry.obj);
+      this.disposeObject(entry.obj);
     }
+  }
+
+  /** Extract the opacity value from a shape descriptor. */
+  private extractOpacity(d: ShapeDescriptor): number {
+    if (d.type === 'label') return (d as LabelDescriptor).opacity ?? 0.85;
+    return (d as any).opacity ?? 1.0;
+  }
+
+  /** Set opacity on a shape's material(s), traversing children. */
+  private setObjectOpacity(obj: THREE.Object3D, opacity: number): void {
+    obj.traverse((child) => {
+      if ((child as any).material) {
+        const mat = (child as THREE.Mesh).material;
+        if (Array.isArray(mat)) {
+          mat.forEach((m) => {
+            m.opacity = opacity;
+            m.transparent = true;
+            m.needsUpdate = true;
+          });
+        } else {
+          (mat as THREE.Material).opacity = opacity;
+          (mat as THREE.Material).transparent = true;
+          (mat as THREE.Material).needsUpdate = true;
+        }
+      }
+    });
   }
 
   private buildShape(d: ShapeDescriptor): THREE.Object3D | null {

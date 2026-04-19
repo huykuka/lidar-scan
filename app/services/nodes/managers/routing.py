@@ -4,6 +4,7 @@ Data routing and forwarding logic.
 This module handles routing data through the DAG, including WebSocket broadcasting,
 recording interception, and forwarding to downstream nodes with throttling.
 """
+
 import asyncio
 import time
 from typing import Any, Dict, List, Optional
@@ -20,16 +21,19 @@ MAX_SHAPES_PER_FRAME = 500
 
 class DataRouter:
     """Handles data routing through the DAG."""
-    
+
     def __init__(self, manager_ref):
         """
         Initialize the data router.
-        
+
         Args:
             manager_ref: Reference to the NodeManager instance
         """
+        from app.services.nodes.shape_tracker import ShapeTracker
+
         self.manager = manager_ref
-    
+        self._shape_tracker = ShapeTracker()
+
     async def handle_incoming_data(self, payload: Dict[str, Any]):
         """
         Route incoming data to the appropriate node handler, then publish shapes.
@@ -60,16 +64,18 @@ class DataRouter:
         # are gathered inside forward_data → _forward_to_downstream_nodes), collect
         # and broadcast any shapes emitted by ShapeCollectorMixin nodes.
         await self.publish_shapes()
-    
-    async def forward_data(self, source_id: str, payload: Any, active_port: Optional[str] = None):
+
+    async def forward_data(
+        self, source_id: str, payload: Any, active_port: Optional[str] = None
+    ):
         """
         Forward data to all connected downstream nodes and handle broadcasting.
-        
+
         This is the central routing method that:
         1. Broadcasts to WebSocket clients if subscribed
         2. Records data if recording is active
         3. Forwards to downstream nodes in the DAG (with throttling)
-        
+
         Args:
             source_id: Source node ID
             payload: Data payload to forward
@@ -81,42 +87,46 @@ class DataRouter:
         if not source_node:
             logger.warning(f"forward_data called for unknown node: {source_id}")
             return
-        
+
         topic = self._get_node_topic(source_id, source_node)
-        
+
         # All three actions are independent — run in parallel
         await asyncio.gather(
             self._broadcast_to_websocket(source_id, topic, payload),
             self._record_node_data(source_id, payload),
-            self._forward_to_downstream_nodes(source_id, payload, active_port=active_port),
+            self._forward_to_downstream_nodes(
+                source_id, payload, active_port=active_port
+            ),
         )
-    
+
     def _get_node_topic(self, source_id: str, source_node: Any) -> Optional[str]:
         """
         Generate topic name for a node: {slugified_node_name}_{node_id[:8]}
-        
+
         Returns None if the node is invisible (has _ws_topic = None).
-        
+
         Args:
             source_id: Node ID
             source_node: Node instance
-            
+
         Returns:
             Topic name string or None if node is invisible
         """
         # Prefer node_instance._ws_topic if the attribute exists (may be None)
-        if hasattr(source_node, '_ws_topic'):
+        if hasattr(source_node, "_ws_topic"):
             return source_node._ws_topic
-        
+
         # Keep legacy fallback (re-derive from name) only for nodes without _ws_topic attribute at all
         node_name = getattr(source_node, "name", source_id)
         safe_name = slugify_topic_prefix(node_name)
         return f"{safe_name}_{source_id[:8]}"
-    
-    async def _broadcast_to_websocket(self, source_id: str, topic: Optional[str], payload: Dict[str, Any]):
+
+    async def _broadcast_to_websocket(
+        self, source_id: str, topic: Optional[str], payload: Dict[str, Any]
+    ):
         """
         Broadcast point cloud data to WebSocket subscribers.
-        
+
         Args:
             source_id: Source node ID
             topic: WebSocket topic name (None for invisible nodes)
@@ -125,26 +135,32 @@ class DataRouter:
         # Early return guard: if topic is None, return
         if topic is None:
             return
-            
+
         if "points" not in payload or not manager.has_subscribers(topic):
             return
 
         try:
             from app.services.shared.binary import pack_points_binary
-            
+
             timestamp = payload.get("timestamp") or time.time()
-            binary = await asyncio.to_thread(pack_points_binary, payload["points"], timestamp)
+            binary = await asyncio.to_thread(
+                pack_points_binary, payload["points"], timestamp
+            )
             await manager.broadcast(topic, binary)
-            logger.debug(f"Broadcasted {len(payload['points'])} points from {source_id} on topic '{topic}'")
+            logger.debug(
+                f"Broadcasted {len(payload['points'])} points from {source_id} on topic '{topic}'"
+            )
         except Exception as e:
-            logger.error(f"Error broadcasting from node '{source_id}': {e}", exc_info=True)
-    
+            logger.error(
+                f"Error broadcasting from node '{source_id}': {e}", exc_info=True
+            )
+
     async def _record_node_data(self, source_id: str, payload: Dict[str, Any]):
         """
         Record node output data if recording is active.
-        
+
         Bypasses WebSocket's XYZ-only format to capture complete N-dimensional arrays.
-        
+
         Args:
             source_id: Source node ID
             payload: Data payload
@@ -153,8 +169,9 @@ class DataRouter:
             return
 
         from app.services.shared.recorder import get_recorder
+
         recorder = get_recorder()
-        
+
         if not recorder.is_recording(source_id):
             return
 
@@ -162,15 +179,20 @@ class DataRouter:
             timestamp = payload.get("timestamp") or time.time()
             await recorder.record_node_payload(source_id, payload["points"], timestamp)
         except Exception as e:
-            logger.error(f"Error intercepting recording payload for node '{source_id}': {e}", exc_info=True)
-    
-    async def _forward_to_downstream_nodes(self, source_id: str, payload: Dict[str, Any], active_port: Optional[str] = None):
+            logger.error(
+                f"Error intercepting recording payload for node '{source_id}': {e}",
+                exc_info=True,
+            )
+
+    async def _forward_to_downstream_nodes(
+        self, source_id: str, payload: Dict[str, Any], active_port: Optional[str] = None
+    ):
         """
         Forward data to all downstream nodes in the DAG, applying throttling.
-        
-        Supports both legacy format (list of target_id strings) and 
+
+        Supports both legacy format (list of target_id strings) and
         port-aware format (list of edge dictionaries with target_id and port info).
-        
+
         When active_port is set, only edges whose source_port matches active_port
         are forwarded.  String-format (legacy, portless) edges are always forwarded
         when active_port is None, and skipped when active_port is set (they carry no
@@ -180,24 +202,24 @@ class DataRouter:
         ``manager._input_gates`` and that gate is paused (closed), the payload is
         buffered via ``gate.buffer_nowait()`` instead of calling ``on_input``.
         This is an O(1) dict lookup — no overhead when no gates are active.
-        
+
         Args:
             source_id: Source node ID
             payload: Data payload
             active_port: If set, restrict forwarding to edges with matching source_port.
         """
         targets = self.manager.downstream_map.get(source_id, [])
-        
+
         for target in targets:
             # All edges are port-aware dicts: {"target_id": ..., "source_port": ..., "target_port": ...}
             target_id = target.get("target_id")
             # Port filtering: skip if active_port is set and edge port doesn't match
             if active_port is not None and target.get("source_port") != active_port:
                 continue
-            
+
             if not target_id:
                 continue
-            
+
             if self._should_skip_due_to_throttling(source_id, target_id):
                 continue
 
@@ -211,15 +233,15 @@ class DataRouter:
                 continue
 
             await self._send_to_target_node(source_id, target_id, payload)
-    
+
     def _should_skip_due_to_throttling(self, source_id: str, target_id: str) -> bool:
         """
         Check if data should be throttled for the target node.
-        
+
         Args:
             source_id: Source node ID
             target_id: Target node ID
-            
+
         Returns:
             True if should skip, False otherwise
         """
@@ -228,18 +250,20 @@ class DataRouter:
             logger.debug(f"Throttled forwarding from {source_id} to {target_id}")
             return True
         return False
-    
-    async def _send_to_target_node(self, source_id: str, target_id: str, payload: Dict[str, Any]):
+
+    async def _send_to_target_node(
+        self, source_id: str, target_id: str, payload: Dict[str, Any]
+    ):
         """
         Send data to a specific target node.
-        
+
         Args:
             source_id: Source node ID (for error logging)
             target_id: Target node ID
             payload: Data payload
         """
         target_node = self.manager.nodes.get(target_id)
-        
+
         if not target_node or not hasattr(target_node, "on_input"):
             return
 
@@ -260,17 +284,24 @@ class DataRouter:
         loop (after asyncio.to_thread returns), so no locking is needed.
         """
         from app.services.nodes.shape_collector import ShapeCollectorMixin
-        from app.services.nodes.shapes import ShapeFrame, compute_shape_id
+        from app.services.nodes.shapes import ShapeFrame
 
         all_shapes: List[dict] = []
 
         for node in self.manager.nodes.values():
             if not isinstance(node, ShapeCollectorMixin):
                 continue
+            node_id: str = getattr(node, "id", "")
+            node_name: str = getattr(node, "name", node_id)
             for shape in node.collect_and_clear_shapes():
-                shape.id = compute_shape_id(node.id, shape)
-                shape.node_name = node.name
-                all_shapes.append(shape.model_dump())
+                shape.node_name = node_name
+                raw = shape.model_dump()
+                # id will be assigned by the shape tracker below
+                raw["id"] = ""
+                all_shapes.append(raw)
+
+        # Assign stable IDs via spatial IoU matching
+        all_shapes = self._shape_tracker.stabilize(all_shapes)
 
         # Cap at 500 shapes per frame (performance constraint)
         if len(all_shapes) > MAX_SHAPES_PER_FRAME:

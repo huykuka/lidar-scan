@@ -89,8 +89,8 @@ export class ShapeBuilders {
         text: d.label,
         font_size: 16,
         color: '#ffffff',
-        background_color: '#000000cc',
-        scale: 1.2,
+        background_color: '#00000088',
+        scale: 1.0,
       });
       outerGroup.add(labelSprite);
     }
@@ -136,8 +136,8 @@ export class ShapeBuilders {
         text: d.label,
         font_size: 16,
         color: '#ffffff',
-        background_color: '#000000cc',
-        scale: 1.2,
+        background_color: '#00000088',
+        scale: 1.0,
       } as LabelDescriptor);
     } else if (sprite && !d.label) {
       // Label was removed from descriptor — hide the sprite rather than
@@ -157,8 +157,8 @@ export class ShapeBuilders {
         text: d.label,
         font_size: 16,
         color: '#ffffff',
-        background_color: '#000000cc',
-        scale: 1.2,
+        background_color: '#00000088',
+        scale: 1.0,
       });
       obj.add(newSprite);
     }
@@ -230,12 +230,19 @@ export class ShapeBuilders {
 
   static buildLabel(d: LabelDescriptor): THREE.Sprite {
     const texture = ShapeBuilders.createLabelTexture(d);
-    const material = new THREE.SpriteMaterial({map: texture, transparent: true, depthWrite: false});
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,       // always visible on top — never occluded
+      opacity: d.opacity ?? 0.85,
+    });
     const sprite = new THREE.Sprite(material);
+    sprite.renderOrder = 999; // draw after all opaque/transparent geometry
     sprite.position.set(d.position[0], d.position[1], d.position[2]);
     const s = d.scale ?? 1.0;
-    // Use a wider aspect ratio (3:1) so text fits without crowding.
-    sprite.scale.set(3.0 * s, 0.9 * s, 1.0);
+    // Compact aspect ratio (2.5 : 0.6) — readable but less intrusive.
+    sprite.scale.set(2.0 * s, 0.5 * s, 1.0);
     sprite.layers.set(SHAPE_LAYER);
     // Store fingerprint so updateLabel can skip unnecessary texture recreation.
     sprite.userData['labelKey'] = labelFingerprint(d);
@@ -250,7 +257,14 @@ export class ShapeBuilders {
   static updateLabel(obj: THREE.Sprite, d: LabelDescriptor): void {
     obj.position.set(d.position[0], d.position[1], d.position[2]);
     const s = d.scale ?? 1.0;
-    obj.scale.set(3.0 * s, 0.9 * s, 1.0);
+    obj.scale.set(2.0 * s, 0.5 * s, 1.0);
+
+    // Update opacity if provided
+    const mat = obj.material as THREE.SpriteMaterial;
+    if (d.opacity !== undefined) {
+      mat.opacity = d.opacity;
+      mat.needsUpdate = true;
+    }
 
     // ── Dirty-check: only rebuild the canvas texture when the visible
     //    content (text, size, colours) has actually changed. ─────────────────
