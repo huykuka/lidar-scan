@@ -5,10 +5,27 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {PointCloudDataService} from '@core/services/point-cloud-data.service';
 import {ViewOrientation} from '@core/services/split-layout-store.service';
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
+import {ShapeLayerService} from '@core/services/shape-layer.service';
+import {ShapesWsService} from '@core/services/shapes-ws.service';
+import {Subscription} from 'rxjs';
 
 @Component({
   selector: 'app-point-cloud',
   imports: [SynergyComponentsModule],
+  /**
+   * ShapeLayerService is provided HERE — at the component level — so that
+   * Angular creates a **fresh, isolated instance** for every PointCloudComponent
+   * in the DOM tree (i.e. every split-view pane).
+   *
+   * This is the architectural guarantee that prevents:
+   *   • Scene cross-contamination (shapes from pane A appearing in pane B)
+   *   • The "last init wins" race where the global singleton's `scene` ref
+   *     is overwritten by the most-recently-mounted pane
+   *   • disposeAll() in one pane nuking shape objects owned by another pane
+   *
+   * DO NOT move this back to providedIn: 'root'.
+   */
+  providers: [ShapeLayerService],
   template: `
     <div
       #container
@@ -72,6 +89,15 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Injected workspace store — provides selected topics with colors */
   private readonly workspaceStore = inject(WorkspaceStoreService);
+
+  /** Injected shape layer service — owns Three.js shape objects on Layer 2 */
+  private readonly shapeLayerService = inject(ShapeLayerService);
+
+  /** Injected shapes WebSocket service — streams ShapeFrame events */
+  private readonly shapesWsService = inject(ShapesWsService);
+
+  /** RxJS subscription for the shapes stream — cleaned up in ngOnDestroy */
+  private shapesSubscription?: Subscription;
 
   // Multiple point clouds support
   readonly pointClouds: Map<
@@ -200,6 +226,15 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     // the Three.js scene is ready. Subsequent changes are handled by effect().
     this.syncTopicClouds();
     this.animate();
+
+    // ── FE-06: Initialize shape layer and subscribe to shapes stream ──────────
+    this.shapeLayerService.init(this.scene);
+    // Enable all camera layers so shape objects on Layer 2 are rendered
+    this.perspCamera.layers.enableAll();
+    this.orthoCamera.layers.enableAll();
+    this.shapesSubscription = this.shapesWsService.frames$.subscribe((frame) => {
+      this.shapeLayerService.applyFrame(frame);
+    });
     // ResizeObserver keeps canvas in sync whenever the pane is resized
     // (including the initial paint, layout-switch re-paints, and divider drags).
     this.resizeObserver = new ResizeObserver(() => this.syncSize());
@@ -207,6 +242,10 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    // ── FE-06: Clean up shapes subscription and dispose shape objects ─────────
+    this.shapesSubscription?.unsubscribe();
+    this.shapeLayerService.disposeAll();
+
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
     }

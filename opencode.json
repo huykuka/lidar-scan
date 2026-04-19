@@ -45,8 +45,6 @@
     "gitnexus": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
         "gitnexus",
         "mcp"
       ],

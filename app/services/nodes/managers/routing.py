@@ -6,13 +6,16 @@ recording interception, and forwarding to downstream nodes with throttling.
 """
 import asyncio
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from app.core.logging import get_logger
 from app.services.websocket.manager import manager
 from app.services.shared.topics import slugify_topic_prefix
 
 logger = get_logger(__name__)
+
+# Maximum number of shapes broadcast per frame (performance constraint)
+MAX_SHAPES_PER_FRAME = 500
 
 
 class DataRouter:
@@ -29,8 +32,13 @@ class DataRouter:
     
     async def handle_incoming_data(self, payload: Dict[str, Any]):
         """
-        Route incoming data to the appropriate node handler.
-        
+        Route incoming data to the appropriate node handler, then publish shapes.
+
+        After the source node (and all downstream nodes in the DAG) have finished
+        processing the current frame, ``publish_shapes()`` is called to collect any
+        shapes emitted by ShapeCollectorMixin nodes and broadcast them on the
+        'shapes' WebSocket topic.
+
         Args:
             payload: Data payload from queue
         """
@@ -40,13 +48,18 @@ class DataRouter:
             return
 
         node_instance = self.manager.nodes[node_id]
-        
+
         if hasattr(node_instance, "handle_data"):
             # Legacy handle_data method (LidarSensor specific)
             await node_instance.handle_data(payload, self.manager.node_runtime_status)
         elif hasattr(node_instance, "on_input"):
             # Standard on_input method (ModuleNode interface)
             await node_instance.on_input(payload)
+
+        # After all forward_data calls for this frame have settled (downstream tasks
+        # are gathered inside forward_data → _forward_to_downstream_nodes), collect
+        # and broadcast any shapes emitted by ShapeCollectorMixin nodes.
+        await self.publish_shapes()
     
     async def forward_data(self, source_id: str, payload: Any, active_port: Optional[str] = None):
         """
@@ -197,7 +210,7 @@ class DataRouter:
                 gate.buffer_nowait(payload)
                 continue
 
-            asyncio.create_task(self._send_to_target_node(source_id, target_id, payload))
+            await self._send_to_target_node(source_id, target_id, payload)
     
     def _should_skip_due_to_throttling(self, source_id: str, target_id: str) -> bool:
         """
@@ -234,3 +247,41 @@ class DataRouter:
             await target_node.on_input({**payload})
         except Exception as e:
             logger.error(f"Error forwarding data from {source_id} to {target_id}: {e}")
+
+    async def publish_shapes(self) -> None:
+        """
+        Collect shapes from all ShapeCollectorMixin nodes and broadcast to 'shapes' topic.
+
+        Called after all forward_data calls per frame settle. Assigns stable IDs and
+        node_name to each shape, caps at MAX_SHAPES_PER_FRAME, and broadcasts a
+        ShapeFrame JSON payload to the 'shapes' WebSocket topic.
+
+        Threading note: collect_and_clear_shapes() is called from the asyncio event
+        loop (after asyncio.to_thread returns), so no locking is needed.
+        """
+        from app.services.nodes.shape_collector import ShapeCollectorMixin
+        from app.services.nodes.shapes import ShapeFrame, compute_shape_id
+
+        all_shapes: List[dict] = []
+
+        for node in self.manager.nodes.values():
+            if not isinstance(node, ShapeCollectorMixin):
+                continue
+            for shape in node.collect_and_clear_shapes():
+                shape.id = compute_shape_id(node.id, shape)
+                shape.node_name = node.name
+                all_shapes.append(shape.model_dump())
+
+        # Cap at 500 shapes per frame (performance constraint)
+        if len(all_shapes) > MAX_SHAPES_PER_FRAME:
+            logger.warning(
+                f"Shape count {len(all_shapes)} exceeds cap of {MAX_SHAPES_PER_FRAME}; "
+                "truncating to first 500 shapes."
+            )
+            all_shapes = all_shapes[:MAX_SHAPES_PER_FRAME]
+
+        if all_shapes or manager.has_subscribers("shapes"):
+            frame = ShapeFrame(timestamp=time.time(), shapes=[])  # type: ignore[arg-type]
+            # Build frame dict directly with already-dumped shapes to avoid re-parsing
+            frame_dict = {"timestamp": frame.timestamp, "shapes": all_shapes}
+            await manager.broadcast("shapes", frame_dict)

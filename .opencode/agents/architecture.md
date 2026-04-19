@@ -31,6 +31,8 @@ development team.
 
 ### Artifact Definition
 
+**IMPORTANT: Keep all generated artifacts short, brief, and concise.** Avoid unnecessary verbosity so the user can review them quickly.
+
 You must output standardized artifacts inside the at `../<feature-name>/.opencode/plans/<feature-name>/`.
 
 #### 1. `qa-tasks.md` (Execution Tracking)

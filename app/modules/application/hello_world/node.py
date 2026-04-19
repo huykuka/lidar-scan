@@ -9,19 +9,19 @@ Demonstrates the canonical application node pattern:
      ``manager.forward_data()``.
   4. Report node health via ``emit_status()``.
 """
+from app.services.nodes.base_module import ModuleNode
 import asyncio
 import time
 from typing import Any, Dict, Optional
 
 from app.core.logging import get_logger
-from app.modules.application.base_node import ApplicationNode
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
 
 
-class HelloWorldNode(ApplicationNode):
+class HelloWorldNode(ModuleNode):
     """
     Example application node that annotates and forwards point cloud payloads.
 

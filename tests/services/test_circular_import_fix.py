@@ -28,7 +28,7 @@ def test_all_module_registries_loaded():
     registered_types = list(NodeFactory._registry.keys())
     
     # Core node types that must be present
-    required_types = ['sensor', 'calibration', 'fusion', 'operation', 'if_condition']
+    required_types = ['sensor', 'calibration', 'fusion', 'crop', 'downsample', 'if_condition']
     
     for node_type in required_types:
         assert node_type in registered_types, \

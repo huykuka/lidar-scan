@@ -238,12 +238,36 @@ class TestRealNodeDefinitions:
         import app.modules.pipeline.registry
         import app.modules.flow_control.if_condition.registry
 
+        # Import pipeline sub-registries directly (reload only re-runs
+        # the top-level file, not already-cached sub-modules)
+        import app.modules.pipeline.operations.crop.registry
+        import app.modules.pipeline.operations.downsample.registry
+        import app.modules.pipeline.operations.outliers.registry
+        import app.modules.pipeline.operations.segmentation.registry
+        import app.modules.pipeline.operations.clustering.registry
+        import app.modules.pipeline.operations.filter.registry
+        import app.modules.pipeline.operations.boundary.registry
+        import app.modules.pipeline.operations.debug.registry
+        import app.modules.pipeline.operations.generate_plane.registry
+        import app.modules.pipeline.operations.density.registry
+        import app.modules.pipeline.operations.patch_plane_segmentation.registry
+
         # Reload each module to re-run module-level register() calls,
         # since a preceding test class may have cleared the registry.
         importlib.reload(app.modules.lidar.registry)
         importlib.reload(app.modules.fusion.registry)
         importlib.reload(app.modules.calibration.registry)
-        importlib.reload(app.modules.pipeline.registry)
+        importlib.reload(app.modules.pipeline.operations.crop.registry)
+        importlib.reload(app.modules.pipeline.operations.downsample.registry)
+        importlib.reload(app.modules.pipeline.operations.outliers.registry)
+        importlib.reload(app.modules.pipeline.operations.segmentation.registry)
+        importlib.reload(app.modules.pipeline.operations.clustering.registry)
+        importlib.reload(app.modules.pipeline.operations.filter.registry)
+        importlib.reload(app.modules.pipeline.operations.boundary.registry)
+        importlib.reload(app.modules.pipeline.operations.debug.registry)
+        importlib.reload(app.modules.pipeline.operations.generate_plane.registry)
+        importlib.reload(app.modules.pipeline.operations.density.registry)
+        importlib.reload(app.modules.pipeline.operations.patch_plane_segmentation.registry)
         importlib.reload(app.modules.flow_control.if_condition.registry)
         yield
     
@@ -316,10 +340,34 @@ class TestOutputNodeWebSocketRegistration:
         import app.modules.flow_control.if_condition.registry
         import app.modules.flow_control.output.registry
 
+        # Pipeline sub-registries (reload only re-runs the top-level
+        # file, not already-cached sub-modules)
+        import app.modules.pipeline.operations.crop.registry
+        import app.modules.pipeline.operations.downsample.registry
+        import app.modules.pipeline.operations.outliers.registry
+        import app.modules.pipeline.operations.segmentation.registry
+        import app.modules.pipeline.operations.clustering.registry
+        import app.modules.pipeline.operations.filter.registry
+        import app.modules.pipeline.operations.boundary.registry
+        import app.modules.pipeline.operations.debug.registry
+        import app.modules.pipeline.operations.generate_plane.registry
+        import app.modules.pipeline.operations.density.registry
+        import app.modules.pipeline.operations.patch_plane_segmentation.registry
+
         importlib.reload(app.modules.lidar.registry)
         importlib.reload(app.modules.fusion.registry)
         importlib.reload(app.modules.calibration.registry)
-        importlib.reload(app.modules.pipeline.registry)
+        importlib.reload(app.modules.pipeline.operations.crop.registry)
+        importlib.reload(app.modules.pipeline.operations.downsample.registry)
+        importlib.reload(app.modules.pipeline.operations.outliers.registry)
+        importlib.reload(app.modules.pipeline.operations.segmentation.registry)
+        importlib.reload(app.modules.pipeline.operations.clustering.registry)
+        importlib.reload(app.modules.pipeline.operations.filter.registry)
+        importlib.reload(app.modules.pipeline.operations.boundary.registry)
+        importlib.reload(app.modules.pipeline.operations.debug.registry)
+        importlib.reload(app.modules.pipeline.operations.generate_plane.registry)
+        importlib.reload(app.modules.pipeline.operations.density.registry)
+        importlib.reload(app.modules.pipeline.operations.patch_plane_segmentation.registry)
         importlib.reload(app.modules.flow_control.if_condition.registry)
         importlib.reload(app.modules.flow_control.output.registry)
         yield

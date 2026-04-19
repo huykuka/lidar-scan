@@ -130,6 +130,9 @@ async def lifespan(_: FastAPI):
     node_manager.load_config()
     node_manager.start(asyncio.get_running_loop())
     
+    # Register system topics at startup
+    manager.register_topic("shapes")
+    
     # Start status aggregator (replaces legacy status_broadcaster)
     start_status_aggregator()
     # Emit initial status for all nodes

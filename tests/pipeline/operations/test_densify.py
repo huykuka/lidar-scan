@@ -166,31 +166,28 @@ class TestClassConstruction:
     # 1.3 Factory registration ----------------------------------------------------
 
     def test_densify_factory_default(self):
-        """OperationFactory.create('densify', {}) returns a Densify instance."""
-        from app.modules.pipeline.factory import OperationFactory
+        """Operation map resolves 'densify' to a Densify instance."""
+        from app.modules.pipeline.operation_node import _OP_MAP
 
         Densify = _import_densify()
-        op = OperationFactory.create("densify", {})
+        op = _OP_MAP["densify"]()
         assert isinstance(op, Densify)
 
     def test_densify_factory_with_config(self):
-        """Factory correctly passes config kwargs to Densify.__init__."""
-        from app.modules.pipeline.factory import OperationFactory
+        """Operation map correctly passes config kwargs to Densify.__init__."""
+        from app.modules.pipeline.operation_node import _OP_MAP
 
         Densify = _import_densify()
-        op = OperationFactory.create(
-            "densify", {"algorithm": "poisson", "density_multiplier": 4.0}
-        )
+        op = _OP_MAP["densify"](algorithm="poisson", density_multiplier=4.0)
         assert isinstance(op, Densify)
         assert op.algorithm == "poisson"
         assert op.density_multiplier == 4.0
 
     def test_densify_factory_unknown_type(self):
-        """Creating an unknown operation type raises ValueError."""
-        from app.modules.pipeline.factory import OperationFactory
+        """Accessing an unknown operation type raises KeyError."""
+        from app.modules.pipeline.operation_node import _OP_MAP
 
-        with pytest.raises(ValueError, match="densify_v2"):
-            OperationFactory.create("densify_v2", {})
+        assert "densify_v2" not in _OP_MAP
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1365,19 +1362,16 @@ class TestAlgorithmParams:
 
     def test_params_passed_via_factory_dict(self):
         """
-        OperationFactory.create passes *_params dict (not object) correctly.
-        The factory should accept nested dicts and convert them to param objects.
+        Operation map passes *_params dict (not object) correctly.
+        The operation should accept nested dicts and convert them to param objects.
         """
-        from app.modules.pipeline.factory import OperationFactory
+        from app.modules.pipeline.operation_node import _OP_MAP
         from app.modules.pipeline.operations.density import DensifyNNParams
 
-        # Factory receives raw dict config — nested dict for nn_params
-        op = OperationFactory.create(
-            "densify",
-            {
-                "algorithm": "nearest_neighbor",
-                "nn_params": {"displacement_min": 0.05, "displacement_max": 0.45},
-            },
+        # Raw dict config — nested dict for nn_params
+        op = _OP_MAP["densify"](
+            algorithm="nearest_neighbor",
+            nn_params={"displacement_min": 0.05, "displacement_max": 0.45},
         )
         assert op.nn_params is not None
         assert isinstance(op.nn_params, DensifyNNParams)
