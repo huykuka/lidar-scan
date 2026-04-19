@@ -5,5 +5,4 @@ export const environment = {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${protocol}//${window.location.host}/api/v1/ws/${topic}`;
   },
-  mockShapes: false,
 };

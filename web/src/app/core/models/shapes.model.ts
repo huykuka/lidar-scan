@@ -72,6 +72,8 @@ export interface LabelDescriptor extends BaseShape {
   background_color: string;
   /** World-space scale multiplier. */
   scale: number;
+  /** Optional overall sprite opacity (0.0–1.0). Defaults to 0.85. */
+  opacity?: number;
 }
 
 // ── Union ─────────────────────────────────────────────────────────────────────
