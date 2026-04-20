@@ -88,7 +88,7 @@ class PlaybackNode(ModuleNode):
     # Lifecycle
     # ------------------------------------------------------------------
 
-    async def start(self, **_kwargs: Any) -> None:  # type: ignore[override]
+    async def start(self, data_queue: Any = None, runtime_status: Optional[Dict[str, Any]] = None) -> None:
         """Resolve the recording from DB, validate, and launch the playback loop."""
         from app.services.shared.recording import RecordingReader
 
