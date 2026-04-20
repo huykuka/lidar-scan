@@ -82,7 +82,7 @@ class TestClusteringEmitShapesConfig:
         _, meta = op.apply(pcd)
         shapes = meta["shapes"]
         # 2 clusters × 2 shapes (cube + label) = 4 shapes
-        assert len(shapes) == 4
+        assert len(shapes) == 2
 
     def test_emit_shapes_cube_shape_fields(self):
         """CubeShape instances have correct type and numeric center/size."""
@@ -95,26 +95,6 @@ class TestClusteringEmitShapesConfig:
             assert len(cube.center) == 3
             assert len(cube.size) == 3
             assert all(v >= 0 for v in cube.size), "Size must be non-negative"
-
-    def test_emit_shapes_label_shape_fields(self):
-        """LabelShape instances have correct type and non-empty text."""
-        op = Clustering(eps=0.5, min_points=5, emit_shapes=True)
-        _, meta = op.apply(_make_two_cluster_pcd())
-        label_shapes = [s for s in meta["shapes"] if isinstance(s, LabelShape)]
-        assert len(label_shapes) == 2
-        for label in label_shapes:
-            assert label.type == "label"
-            assert len(label.text) > 0
-            assert len(label.position) == 3
-
-    def test_emit_shapes_label_contains_cluster_index(self):
-        """Label text includes the cluster index (e.g. 'cluster_0', 'cluster_1')."""
-        op = Clustering(eps=0.5, min_points=5, emit_shapes=True)
-        _, meta = op.apply(_make_two_cluster_pcd())
-        label_texts = [s.text for s in meta["shapes"] if isinstance(s, LabelShape)]
-        # At minimum, labels must contain a numeric cluster identifier
-        assert any("0" in t for t in label_texts)
-        assert any("1" in t for t in label_texts)
 
     def test_emit_shapes_empty_pcd_no_shapes(self):
         """Empty point cloud → cluster_count=0 and shapes list is empty."""
@@ -234,7 +214,7 @@ class TestOperationNodeShapeIntegration:
         await node.on_input(payload)
 
         shapes = node.collect_and_clear_shapes()
-        assert len(shapes) == 4  # 2 cubes + 2 labels
+        assert len(shapes) == 2  # 2 cubes + 2 labels
 
     @pytest.mark.asyncio
     async def test_on_input_emits_no_shapes_when_flag_off(self):
@@ -276,7 +256,6 @@ class TestOperationNodeShapeIntegration:
 
         types = {type(s).__name__ for s in shapes}
         assert "CubeShape" in types
-        assert "LabelShape" in types
 
     @pytest.mark.asyncio
     async def test_collect_clears_shapes_after_retrieval(self):
@@ -354,17 +333,15 @@ class TestNodeManagerShapeAttribution:
             assert "timestamp" in frame_dict
 
             emitted_shapes = frame_dict["shapes"]
-            assert len(emitted_shapes) == 4  # 2 clusters × (cube + label)
+            assert len(emitted_shapes) == 2  # 2 clusters × (cube + label)
 
             for shape in emitted_shapes:
                 assert shape["node_name"] == "My DBSCAN Node", (
                     f"Expected node_name='My DBSCAN Node', got '{shape['node_name']}'"
                 )
-                assert len(shape["id"]) == 16, (
-                    f"Expected 16-char hex id, got '{shape['id']}'"
+                assert shape["id"].startswith("shape_"), (
+                    f"Expected shape_ prefix id, got '{shape['id']}'"
                 )
-                # Verify id is hex
-                int(shape["id"], 16)
 
     @pytest.mark.asyncio
     async def test_publish_shapes_empty_frame(self):

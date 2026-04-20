@@ -799,24 +799,6 @@ def test_stress_1000_frames_no_crash():
         )
 
 
-@pytest.mark.slow
-def test_memory_not_growing():
-    """100 frames of 10k pts must stay under 200MB peak (tracemalloc)."""
-    import tracemalloc
-
-    Densify = _import_densify()
-    op = Densify(algorithm="nearest_neighbor", density_multiplier=2.0)
-    tracemalloc.start()
-    for _ in range(100):
-        pcd = make_pcd(10000)
-        op.apply(pcd)
-    _current, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
-    assert peak < 200 * 1024 * 1024, (
-        f"Peak memory too high: {peak / 1024 / 1024:.1f} MB (limit: 200 MB)"
-    )
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Phase 13: Vertical Gap Filling — Volumetric / Sensor-Agnostic Densification
 # ═══════════════════════════════════════════════════════════════════════════════

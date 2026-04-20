@@ -95,7 +95,7 @@ class TestShapeAggregation:
         assert len(payload["shapes"]) == 1
         shape_data = payload["shapes"][0]
         assert shape_data["node_name"] == "Test Node"
-        assert len(shape_data["id"]) == 16
+        assert shape_data["id"].startswith("shape_")
 
     @pytest.mark.asyncio
     async def test_empty_shapes_still_broadcasts_with_subscribers(self):

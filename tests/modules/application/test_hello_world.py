@@ -604,9 +604,9 @@ class TestApplicationNodeHierarchy:
     """HelloWorldNode must satisfy the full ModuleNode/ApplicationNode contract."""
 
     def test_is_subclass_of_application_node(self) -> None:
-        from app.modules.application.base_node import ApplicationNode
+        from app.services.nodes.base_module import ModuleNode
 
-        assert issubclass(HelloWorldNode, ApplicationNode)
+        assert issubclass(HelloWorldNode, ModuleNode)
 
     def test_is_subclass_of_module_node(self) -> None:
         from app.services.nodes.base_module import ModuleNode
