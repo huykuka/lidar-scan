@@ -173,7 +173,7 @@ class NodeManager:
             
             if was_running:
                 logger.info("Restarting system...")
-                self.start(loop or self._loop)
+                await self.start(loop or self._loop)
             
             logger.info("Config reload complete.")
 
@@ -258,7 +258,7 @@ class NodeManager:
     # Lifecycle Management
     # ========================================
 
-    def start(self, loop=None):
+    async def start(self, loop=None):
         """
         Start the orchestrator and all registered nodes.
         
@@ -275,7 +275,7 @@ class NodeManager:
         self.is_running = True
         self.data_queue = mp.Queue(maxsize=500)
 
-        self._lifecycle_manager.start_all_nodes()
+        await self._lifecycle_manager.start_all_nodes()
         self._listener_task = asyncio.create_task(self._queue_listener())
 
     def stop(self):

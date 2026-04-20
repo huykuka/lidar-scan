@@ -18,7 +18,7 @@ async def start_system():
     """Start the pipeline engine."""
     if not node_manager.is_running:
         node_manager.load_config()
-        node_manager.start(asyncio.get_running_loop())
+        await node_manager.start(asyncio.get_running_loop())
     return {"status": "success", "is_running": node_manager.is_running}
 
 

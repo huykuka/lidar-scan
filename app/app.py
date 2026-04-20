@@ -128,7 +128,7 @@ async def lifespan(_: FastAPI):
     manager.recorder = recorder
 
     node_manager.load_config()
-    node_manager.start(asyncio.get_running_loop())
+    await node_manager.start(asyncio.get_running_loop())
     
     # Register system topics at startup
     manager.register_topic("shapes")

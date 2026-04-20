@@ -90,6 +90,7 @@ class PlaybackNode(ModuleNode):
 
     async def start(self, data_queue: Any = None, runtime_status: Optional[Dict[str, Any]] = None) -> None:
         """Resolve the recording from DB, validate, and launch the playback loop."""
+        logger.info("[%s] PlaybackNode.start() entered (recording_id=%s)", self.id, self._recording_id)
         from app.services.shared.recording import RecordingReader
 
         # Resolve recording record from DB

@@ -25,11 +25,14 @@ class LifecycleManager:
         """
         self.manager = manager_ref
     
-    def start_all_nodes(self):
+    async def start_all_nodes(self):
         """Start or enable all node instances."""
+        import inspect
         for node_id, node_instance in self.manager.nodes.items():
             if hasattr(node_instance, "start"):
-                node_instance.start(self.manager.data_queue, self.manager.node_runtime_status)
+                result = node_instance.start(self.manager.data_queue, self.manager.node_runtime_status)
+                if inspect.isawaitable(result):
+                    await result
             elif hasattr(node_instance, "enable"):
                 node_instance.enable()
     
