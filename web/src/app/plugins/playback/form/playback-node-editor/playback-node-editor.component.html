@@ -1,0 +1,85 @@
+<app-node-editor-header
+  icon="play_circle"
+  iconColor="text-syn-color-success-600"
+  title="Playback Node"
+  description="Replay a completed recording as synthetic sensor data"
+  [saveDisabled]="isSaveDisabled()"
+  (save)="onSave()"
+  (cancel)="onCancel()"
+/>
+
+<div class="flex flex-col gap-4 p-4">
+
+  <!-- Recording Selector -->
+  <div>
+    <syn-select
+      label="Recording"
+      placeholder="Select a recording…"
+      size="small"
+      [value]="recordingId()"
+      (synChangeEvent)="onRecordingSelect($any($event.target).value)"
+      data-testid="recording-select"
+    >
+      @if (recordings().length === 0 && !isLoadingRecordings()) {
+        <syn-option value="" disabled>No recordings available</syn-option>
+      }
+      @for (rec of recordings(); track rec.id) {
+        <syn-option [value]="rec.id">{{ rec.name }}</syn-option>
+      }
+    </syn-select>
+
+    <!-- Loading indicator -->
+    @if (isLoadingRecordings()) {
+      <p class="text-xs text-syn-color-neutral-500 mt-1 flex items-center gap-1">
+        <syn-icon name="sync" class="animate-spin text-xs" />
+        Loading recordings…
+      </p>
+    }
+  </div>
+
+  <!-- Selected Recording Metadata -->
+  @if (selectedRecording(); as rec) {
+    <div
+      class="rounded bg-syn-color-neutral-50 border border-syn-color-neutral-200 p-3 flex flex-col gap-1 text-xs text-syn-color-neutral-700"
+      data-testid="recording-metadata"
+    >
+      <div class="flex items-center justify-between">
+        <span class="font-semibold">{{ rec.name }}</span>
+        <span class="text-syn-color-neutral-500 text-[10px]">{{ rec.node_id }}</span>
+      </div>
+      <div class="flex gap-4 mt-1">
+        <span><span class="text-syn-color-neutral-500">Frames:</span> {{ rec.frame_count }}</span>
+        <span><span class="text-syn-color-neutral-500">Duration:</span> {{ rec.duration_seconds | number:'1.1-1' }}s</span>
+      </div>
+      <div class="text-syn-color-neutral-500 text-[10px]">
+        Recorded: {{ rec.recording_timestamp | date:'medium' }}
+      </div>
+    </div>
+  }
+
+  <!-- Playback Speed Selector -->
+  <syn-select
+    label="Playback Speed"
+    size="small"
+    [value]="playbackSpeed().toString()"
+    (synChangeEvent)="onSpeedChange($event)"
+    data-testid="speed-select"
+  >
+    @for (opt of speedOptions; track opt.value) {
+      <syn-option [value]="opt.value.toString()">{{ opt.label }}</syn-option>
+    }
+  </syn-select>
+
+  <!-- Loop Playback Toggle -->
+  <div class="flex items-center">
+    <syn-switch
+      size="small"
+      [checked]="loopable()"
+      (synChangeEvent)="onLoopableChange($event)"
+      data-testid="loopable-switch"
+    >
+      Loop playback
+    </syn-switch>
+  </div>
+
+</div>
