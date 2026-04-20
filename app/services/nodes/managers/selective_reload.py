@@ -10,6 +10,7 @@ Spec: .opencode/plans/node-reload-improvement/backend-tasks.md § 2
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any, TYPE_CHECKING
 
@@ -123,13 +124,13 @@ class SelectiveReloadManager:
             await gate.pause()
 
         # ------------------------------------------------------------------
-        # Step 7: Stop old instance
+        # Step 7: Stop old instance — MUST await to prevent zombie tasks
         # ------------------------------------------------------------------
         try:
-            self.manager._lifecycle_manager._stop_node(old_instance)
+            await self.manager._lifecycle_manager._stop_node_async(old_instance)
         except Exception as stop_exc:
             logger.warning(
-                f"[SelectiveReloadManager] stop_node for '{node_id}' raised "
+                f"[SelectiveReloadManager] stop_node_async for '{node_id}' raised "
                 f"{stop_exc!r} — proceeding with reload (old process may be zombie)."
             )
 
@@ -175,10 +176,13 @@ class SelectiveReloadManager:
             # ------------------------------------------------------------------
             if self.manager.is_running:
                 if hasattr(new_instance, "start"):
-                    new_instance.start(
+                    import inspect
+                    result = new_instance.start(
                         self.manager.data_queue,
                         self.manager.node_runtime_status,
                     )
+                    if inspect.isawaitable(result):
+                        await result
                 elif hasattr(new_instance, "enable"):
                     await new_instance.enable()
 
@@ -252,13 +256,17 @@ class SelectiveReloadManager:
             self.manager.nodes[node_id] = old_instance
             if self.manager.is_running:
                 if hasattr(old_instance, "start"):
-                    old_instance.start(
+                    import inspect
+                    result = old_instance.start(
                         self.manager.data_queue,
                         self.manager.node_runtime_status,
                     )
+                    if inspect.isawaitable(result):
+                        asyncio.create_task(result)
                 elif hasattr(old_instance, "enable"):
                     # Sync call — enable may be async on some nodes but rollback
                     # path keeps it sync to avoid extra complexity.
+                    pass
                     pass
             logger.info(
                 f"[SelectiveReloadManager] Rollback for '{node_id}' succeeded."

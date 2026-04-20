@@ -182,12 +182,10 @@ class TestSelectiveReloadManager:
 
         pause_order = []
 
-        original_stop = manager_ref._lifecycle_manager._stop_node
-
-        def track_stop(inst):
+        async def track_stop_async(inst):
             pause_order.append("stop")
 
-        manager_ref._lifecycle_manager._stop_node = track_stop
+        manager_ref._lifecycle_manager._stop_node_async = track_stop_async
 
         created_gates = []
 

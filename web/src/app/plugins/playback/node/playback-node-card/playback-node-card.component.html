@@ -1,0 +1,25 @@
+<!-- Playback Node Card — compact status display for the flow canvas -->
+<div class="flex flex-col gap-1 px-2 py-1 text-xs" data-testid="playback-node-card">
+
+  <!-- Playback status badge -->
+  @if (playbackBadge(); as badge) {
+    <div
+      [class]="'flex items-center gap-1 font-medium ' + badge.cssClass"
+      data-testid="playback-badge"
+    >
+      <span>{{ badge.text }}</span>
+    </div>
+  }
+
+  <!-- Config summary -->
+  <div class="flex flex-col gap-0.5 text-syn-color-neutral-500 text-[10px]">
+    <div class="flex items-center gap-1">
+      <syn-icon name="speed" class="text-xs" />
+      <span>{{ playbackSpeed() }}×</span>
+      @if (loopable()) {
+        <span class="ml-1 text-syn-color-primary-600">↺ loop</span>
+      }
+    </div>
+  </div>
+
+</div>
