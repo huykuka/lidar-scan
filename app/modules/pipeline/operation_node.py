@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 import asyncio
+import concurrent.futures
 import time
 import numpy as np
 from app.core.logging import get_logger
@@ -30,6 +31,12 @@ _OP_MAP = {
     "densify": Densify,
     "patch_plane_segmentation": PatchPlaneSegmentation,
 }
+
+# Op types that are CPU-heavy and benefit from an isolated single-thread executor.
+# A dedicated max_workers=1 executor:
+#   (a) prevents these ops from starving the shared default ThreadPoolExecutor, and
+#   (b) makes the skip-if-busy logic below equivalent to a natural single-slot queue.
+_HEAVY_OP_TYPES = frozenset({"clustering", "patch_plane_segmentation", "plane_segmentation"})
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
 from app.services.nodes.shape_collector import ShapeCollectorMixin
@@ -75,20 +82,40 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
         self.output_count: int = 0
         self.last_metadata: Dict[str, Any] = {}  # Latest operation metadata for status reporting
 
+        # Skip-if-busy guard: prevents frame backlog on slow nodes.
+        # When True the node is running _sync_compute; any new frame is dropped.
+        self._processing: bool = False
+
+        # Heavy ops get an isolated single-thread executor so they can never
+        # starve the shared default ThreadPoolExecutor used by lighter nodes.
+        self._executor: Optional[concurrent.futures.ThreadPoolExecutor] = (
+            concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"op_{op_type}")
+            if op_type in _HEAVY_OP_TYPES
+            else None
+        )
+
     async def on_input(self, payload: Dict[str, Any]):
         """Receives data, processes it, and forwards to downstream."""
         from app.modules.pipeline.base import PointConverter
-        
+
         self.last_input_at = time.time()
-        start_time = time.time()
-        
+
         points = payload.get("points")
         if points is None or len(points) == 0:
             return
 
+        # Skip-if-busy: drop this frame if a previous one is still running.
+        # This prevents unbounded task accumulation when heavy nodes (e.g.
+        # DBSCAN) are slower than the upstream sensor rate.
+        if self._processing:
+            logger.debug(f"[{self.id}] Dropping frame — node is still processing previous frame")
+            return
+
+        self._processing = True
+        start_time = time.time()
         first_frame = self.input_count == 0
         self.input_count = len(points)
-        
+
         try:
             # Move heavy CPU-bound Point Cloud operations to a background thread
             # so they don't block the main FastAPI/Websocket async event loop.
@@ -104,11 +131,18 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
                     pcd_out, op_result = outcome, {}
                 # 3. Convert back to numpy for downstream
                 return PointConverter.to_points(pcd_out), op_result
-                
+
             # Open3D OpenGL contexts MUST strictly execute on the main thread
             # Background threading causes GTK / Wayland context explosions
             if self.op_type == "visualize":
                 processed_points, op_metadata = _sync_compute()
+            elif self._executor is not None:
+                # Heavy op: use the dedicated single-thread executor so it
+                # cannot starve the shared default executor.
+                loop = asyncio.get_running_loop()
+                processed_points, op_metadata = await loop.run_in_executor(
+                    self._executor, _sync_compute
+                )
             else:
                 processed_points, op_metadata = await asyncio.to_thread(_sync_compute)
             
@@ -159,6 +193,8 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
             self.last_error = str(e)
             notify_status_change(self.id)
             logger.error(f"[{self.id}] Error processing data: {e}", exc_info=True)
+        finally:
+            self._processing = False
 
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardised status for this operation node.

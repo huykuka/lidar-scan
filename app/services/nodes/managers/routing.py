@@ -203,6 +203,9 @@ class DataRouter:
         buffered via ``gate.buffer_nowait()`` instead of calling ``on_input``.
         This is an O(1) dict lookup — no overhead when no gates are active.
 
+        All eligible downstream targets are dispatched concurrently via
+        ``asyncio.gather`` so branches of the DAG do not block each other.
+
         Args:
             source_id: Source node ID
             payload: Data payload
@@ -210,6 +213,7 @@ class DataRouter:
         """
         targets = self.manager.downstream_map.get(source_id, [])
 
+        send_tasks = []
         for target in targets:
             # All edges are port-aware dicts: {"target_id": ..., "source_port": ..., "target_port": ...}
             target_id = target.get("target_id")
@@ -232,7 +236,10 @@ class DataRouter:
                 gate.buffer_nowait(payload)
                 continue
 
-            await self._send_to_target_node(source_id, target_id, payload)
+            send_tasks.append(self._send_to_target_node(source_id, target_id, payload))
+
+        if send_tasks:
+            await asyncio.gather(*send_tasks)
 
     def _should_skip_due_to_throttling(self, source_id: str, target_id: str) -> bool:
         """
