@@ -89,7 +89,19 @@ class PlaybackNode(ModuleNode):
     # ------------------------------------------------------------------
 
     async def start(self, data_queue: Any = None, runtime_status: Optional[Dict[str, Any]] = None) -> None:
-        """Resolve the recording from DB, validate, and launch the playback loop."""
+        """Resolve the recording from DB, validate, and launch the playback loop.
+
+        If a playback loop is already running (e.g. config update changed recording_id),
+        it is stopped first so only one loop is ever active per node instance.
+        """
+        # Guard: stop any existing loop before starting a new one to prevent duplicate emission.
+        if self._task is not None and not self._task.done():
+            logger.info(
+                "[%s] Stopping existing playback loop before starting new one (recording_id=%s → %s).",
+                self.id, self._recording_id, self._recording_id,
+            )
+            await self.stop()
+
         logger.info("[%s] PlaybackNode.start() entered (recording_id=%s)", self.id, self._recording_id)
         from app.services.shared.recording import RecordingReader
 
@@ -178,15 +190,15 @@ class PlaybackNode(ModuleNode):
         if self._status == "playing":
             operational_state = OperationalState.RUNNING
             app_state = ApplicationState(
-                label="playback_status",
-                value=f"playing (frame {self._current_frame}/{self._total_frames})",
+                label="status",
+                value=f"playing ({self._current_frame}/{self._total_frames})",
                 color="green",
             )
             error_msg = None
         elif self._status == "error":
             operational_state = OperationalState.ERROR
             app_state = ApplicationState(
-                label="playback_status",
+                label="status",
                 value=self._error_message or "error",
                 color="red",
             )
@@ -194,7 +206,7 @@ class PlaybackNode(ModuleNode):
         else:  # "idle"
             operational_state = OperationalState.STOPPED
             app_state = ApplicationState(
-                label="playback_status",
+                label="status",
                 value="idle",
                 color="gray",
             )

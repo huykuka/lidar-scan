@@ -550,3 +550,152 @@ class TestValidSpeeds:
                 recording_id="rec", playback_speed=speed,
             )
             assert node._playback_speed == speed
+
+
+# ---------------------------------------------------------------------------
+# Integration: config update / recording_id change — no duplicate loops
+# ---------------------------------------------------------------------------
+
+class TestPlaybackNodeConfigUpdate:
+    """Changing recording_id via start() must stop the old loop before spawning a new one."""
+
+    @pytest.mark.asyncio
+    async def test_start_while_running_cancels_old_task(self, tmp_path: Path):
+        """Calling start() while a loop is running must cancel it first (only 1 task live)."""
+        from app.modules.playback.node import PlaybackNode
+
+        dir_a = tmp_path / "recA"
+        dir_a.mkdir()
+        dir_b = tmp_path / "recB"
+        dir_b.mkdir()
+
+        zip_a = _make_zip_recording(dir_a, frame_count=10)
+        file_a = str(zip_a.with_suffix(""))
+
+        zip_b = _make_zip_recording(dir_b, frame_count=10)
+        file_b = str(zip_b.with_suffix(""))
+
+        manager = _make_mock_manager()
+        node = PlaybackNode(
+            manager=manager, node_id="n1", name="T",
+            recording_id="rec-a", playback_speed=1.0, loopable=True,
+        )
+
+        record_a = {"id": "rec-a", "file_path": file_a, "frame_count": 10, "duration_seconds": 10.0}
+        record_b = {"id": "rec-b", "file_path": file_b, "frame_count": 10, "duration_seconds": 10.0}
+
+        # Start with recording A
+        p_sl, p_repo = _patch_db(record_a)
+        with p_sl, p_repo, patch("app.modules.playback.node.asyncio_sleep", new_callable=AsyncMock):
+            await node.start()
+
+        first_task = node._task
+        assert first_task is not None
+        assert not first_task.done()
+
+        # Simulate config update: change recording_id and call start() again
+        node._recording_id = "rec-b"
+        p_sl2, p_repo2 = _patch_db(record_b)
+        with p_sl2, p_repo2, patch("app.modules.playback.node.asyncio_sleep", new_callable=AsyncMock):
+            await node.start()
+
+        # The old task MUST be cancelled/done
+        assert first_task.done(), "Old playback task must be cancelled before new one starts"
+        # Only one task is live
+        assert node._task is not None
+        assert node._task is not first_task, "A new task must replace the old one"
+
+        # Cleanup
+        await node.stop()
+
+    @pytest.mark.asyncio
+    async def test_only_new_recording_emits_after_config_change(self, tmp_path: Path):
+        """After changing recording_id, only frames from the new recording are forwarded."""
+        from app.modules.playback.node import PlaybackNode
+
+        frame_count = 2
+        zip_a = _make_zip_recording(tmp_path, frame_count=frame_count)
+        file_a = str(zip_a.with_suffix(""))
+
+        # Build a second recording in a subdirectory
+        sub = tmp_path / "sub"
+        sub.mkdir()
+        zip_b = _make_zip_recording(sub, frame_count=frame_count)
+        file_b = str(zip_b.with_suffix(""))
+
+        manager = _make_mock_manager()
+        node = PlaybackNode(
+            manager=manager, node_id="n1", name="T",
+            recording_id="rec-a", playback_speed=1.0, loopable=False,
+        )
+
+        record_a = {"id": "rec-a", "file_path": file_a, "frame_count": frame_count, "duration_seconds": 2.0}
+        record_b = {"id": "rec-b", "file_path": file_b, "frame_count": frame_count, "duration_seconds": 2.0}
+
+        sleep_mock = AsyncMock()
+
+        # Start first recording and let it finish
+        p_sl, p_repo = _patch_db(record_a)
+        with p_sl, p_repo, patch("app.modules.playback.node.asyncio_sleep", sleep_mock):
+            await node.start()
+            try:
+                await asyncio.wait_for(node._task, timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+
+        calls_after_a = manager.forward_data.call_count
+        assert calls_after_a == frame_count
+
+        # Change recording and start again — must NOT double-emit from rec-a
+        manager.forward_data.reset_mock()
+        node._recording_id = "rec-b"
+
+        p_sl2, p_repo2 = _patch_db(record_b)
+        with p_sl2, p_repo2, patch("app.modules.playback.node.asyncio_sleep", sleep_mock):
+            await node.start()
+            try:
+                await asyncio.wait_for(node._task, timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+
+        # Exactly frame_count calls from rec-b only
+        assert manager.forward_data.call_count == frame_count
+        # All payloads reference rec-b
+        for call in manager.forward_data.call_args_list:
+            _, payload = call[0]
+            assert payload["metadata"]["recording_id"] == "rec-b", (
+                f"Expected rec-b but got {payload['metadata']['recording_id']}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_start_logs_only_one_loop_active(self, tmp_path: Path, caplog):
+        """start() must log that it stops the old loop before starting a new one."""
+        import logging
+        from app.modules.playback.node import PlaybackNode
+
+        zip_path = _make_zip_recording(tmp_path, frame_count=3)
+        file_path = str(zip_path.with_suffix(""))
+        manager = _make_mock_manager()
+        node = PlaybackNode(
+            manager=manager, node_id="n1", name="T",
+            recording_id="rec", playback_speed=1.0, loopable=True,
+        )
+        record = {"id": "rec", "file_path": file_path, "frame_count": 3, "duration_seconds": 3.0}
+
+        p_sl, p_repo = _patch_db(record)
+        with p_sl, p_repo, patch("app.modules.playback.node.asyncio_sleep", new_callable=AsyncMock):
+            await node.start()
+
+        first_task = node._task
+
+        with caplog.at_level(logging.INFO, logger="app.modules.playback.node"):
+            p_sl2, p_repo2 = _patch_db(record)
+            with p_sl2, p_repo2, patch("app.modules.playback.node.asyncio_sleep", new_callable=AsyncMock):
+                await node.start()
+
+        assert any("stopping" in r.message.lower() or "cancel" in r.message.lower()
+                   for r in caplog.records), (
+            "Expected a log message about stopping/cancelling old loop"
+        )
+        assert first_task.done()
+        await node.stop()
