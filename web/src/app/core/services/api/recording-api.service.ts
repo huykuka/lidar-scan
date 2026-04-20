@@ -40,6 +40,15 @@ export class RecordingApiService {
   }
 
   /**
+   * List all completed recordings for the playback config panel.
+   * Alias for listRecordings() with no filter — consumers should use
+   * the `recordings[]` array only (exclude `active_recordings`).
+   */
+  getRecordings(): Observable<ListRecordingsResponse> {
+    return this.http.get<ListRecordingsResponse>(this.baseUrl);
+  }
+
+  /**
    * Get a specific recording by ID
    */
   getRecording(recordingId: string): Observable<Recording> {
