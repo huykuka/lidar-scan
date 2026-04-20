@@ -124,13 +124,13 @@ class SelectiveReloadManager:
             await gate.pause()
 
         # ------------------------------------------------------------------
-        # Step 7: Stop old instance
+        # Step 7: Stop old instance — MUST await to prevent zombie tasks
         # ------------------------------------------------------------------
         try:
-            self.manager._lifecycle_manager._stop_node(old_instance)
+            await self.manager._lifecycle_manager._stop_node_async(old_instance)
         except Exception as stop_exc:
             logger.warning(
-                f"[SelectiveReloadManager] stop_node for '{node_id}' raised "
+                f"[SelectiveReloadManager] stop_node_async for '{node_id}' raised "
                 f"{stop_exc!r} — proceeding with reload (old process may be zombie)."
             )
 

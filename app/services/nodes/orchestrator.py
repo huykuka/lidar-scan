@@ -140,6 +140,9 @@ class NodeManager:
             
             logger.info("Starting config reload...")
             self.stop()
+
+            # Stop all PlaybackNode tasks properly (async, to prevent zombie tasks)
+            await self._lifecycle_manager.stop_all_nodes_async()
             
             # Snapshot all topics registered BEFORE cleanup
             topics_before: set[str] = set(websocket_manager.active_connections.keys())

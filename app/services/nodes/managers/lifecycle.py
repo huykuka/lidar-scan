@@ -29,6 +29,7 @@ class LifecycleManager:
         """Start or enable all node instances."""
         import inspect
         for node_id, node_instance in self.manager.nodes.items():
+            logger.info(f"[LifecycleManager] Registering/starting node {node_id}")
             if hasattr(node_instance, "start"):
                 result = node_instance.start(self.manager.data_queue, self.manager.node_runtime_status)
                 if inspect.isawaitable(result):
@@ -37,12 +38,33 @@ class LifecycleManager:
                 node_instance.enable()
     
     def stop_all_nodes(self):
-        """Stop or disable all node instances."""
-        for node_instance in self.manager.nodes.values():
+        """Stop or disable all node instances (sync — does NOT await async stop()).
+
+        .. deprecated::
+            Prefer ``stop_all_nodes_async()`` which properly awaits PlaybackNode.stop()
+            and prevents zombie task leaks during DAG reload.
+        """
+        for node_id, node_instance in self.manager.nodes.items():
+            logger.warning(
+                f"[LifecycleManager] stop_all_nodes (sync) called for node {node_id} — "
+                "use stop_all_nodes_async() to avoid zombie tasks on PlaybackNode"
+            )
             if hasattr(node_instance, "stop"):
                 node_instance.stop()
             elif hasattr(node_instance, "disable"):
                 node_instance.disable()
+
+    async def stop_all_nodes_async(self) -> None:
+        """Async stop all node instances, properly awaiting async stop() coroutines.
+
+        This prevents zombie playback tasks: PlaybackNode.stop() is a coroutine that
+        cancels the asyncio.Task and awaits its completion.  Calling it without
+        ``await`` (as the sync version does) schedules a coroutine that is never
+        collected, leaving the task running until the GC eventually cleans it up.
+        """
+        for node_id, node_instance in list(self.manager.nodes.items()):
+            logger.info(f"[LifecycleManager] Stopping node {node_id} (async)")
+            await self._stop_node_async(node_instance)
     
     def remove_node(self, node_id: str):
         """
@@ -60,7 +82,7 @@ class LifecycleManager:
         if not node_instance:
             return
 
-        logger.info(f"Removing node {node_id} dynamically from running orchestrator")
+        logger.info(f"[LifecycleManager] Unregistering node {node_id} (sync remove — prefer remove_node_async)")
 
         self._stop_node(node_instance)
         self._unregister_node_websocket_topic(node_id, node_instance)
@@ -72,7 +94,7 @@ class LifecycleManager:
         Async counterpart of remove_node with proper WebSocket teardown.
         
         This stops the node and cleans up all associated resources including
-        WebSocket topics (with proper connection closing), routing maps, and runtime state.
+        WebSocket connections, topics, routing maps, and runtime state.
         
         Args:
             node_id: The ID of the node to remove
@@ -81,22 +103,58 @@ class LifecycleManager:
         if not node_instance:
             return
 
-        logger.info(f"Removing node {node_id} dynamically from running orchestrator (async)")
+        logger.info(f"[LifecycleManager] Unregistering node {node_id} (async remove)")
 
-        self._stop_node(node_instance)
+        await self._stop_node_async(node_instance)
         await self._unregister_node_websocket_topic_async(node_id, node_instance)
         self._cleanup_node_routing(node_id)
         self._cleanup_node_state(node_id)
     
     def _stop_node(self, node_instance: Any):
-        """
-        Stop a single node instance.
-        
-        Args:
-            node_instance: The node to stop
+        """Stop a single node instance (sync fallback).
+
+        .. warning::
+            For PlaybackNode (which has an async stop()), this calls stop() without
+            awaiting it, leaving the asyncio.Task running until GC.
+            Use ``_stop_node_async()`` in async contexts to avoid zombie tasks.
         """
         if hasattr(node_instance, "stop"):
-            node_instance.stop()
+            result = node_instance.stop()
+            if result is not None:
+                import asyncio
+                import inspect
+                if inspect.isawaitable(result):
+                    node_id = getattr(node_instance, "id", "?")
+                    logger.warning(
+                        f"[LifecycleManager] _stop_node (sync) called for async-stop node {node_id!r} — "
+                        "scheduling stop() as task; zombie risk if event loop is shutting down. "
+                        "Use _stop_node_async() instead."
+                    )
+                    try:
+                        asyncio.get_running_loop().create_task(result)
+                    except RuntimeError:
+                        pass  # No running loop — coroutine is lost
+
+    async def _stop_node_async(self, node_instance: Any) -> None:
+        """Async stop a single node instance, awaiting coroutine stop() if present.
+
+        This is the safe way to stop a PlaybackNode (or any node with async stop())
+        to guarantee its asyncio.Task is cancelled and joined before the caller continues.
+        """
+        if hasattr(node_instance, "stop"):
+            import inspect
+            node_id = getattr(node_instance, "id", "?")
+            result = node_instance.stop()
+            if inspect.isawaitable(result):
+                logger.info(f"[LifecycleManager] Awaiting async stop() for node {node_id!r}")
+                try:
+                    await result
+                except Exception as exc:
+                    logger.warning(
+                        f"[LifecycleManager] node {node_id!r} stop() raised {exc!r} — ignoring"
+                    )
+            else:
+                logger.debug(f"[LifecycleManager] sync stop() completed for node {node_id!r}")
     
     def _unregister_node_websocket_topic(self, node_id: str, node_instance: Any):
         """

@@ -102,7 +102,10 @@ class PlaybackNode(ModuleNode):
             )
             await self.stop()
 
-        logger.info("[%s] PlaybackNode.start() entered (recording_id=%s)", self.id, self._recording_id)
+        logger.info(
+            "[%s] PlaybackNode.start() entered (node_id=%s, recording_id=%s)",
+            self.id, self.id, self._recording_id,
+        )
         from app.services.shared.recording import RecordingReader
 
         # Resolve recording record from DB
@@ -152,11 +155,19 @@ class PlaybackNode(ModuleNode):
             self._run_loop(file_path=file_path, duration_seconds=duration_seconds),
             name=f"playback-{self.id}",
         )
-        logger.info("[%s] Playback started: %d frames, speed=%.2f×, loopable=%s",
-                    self.id, frame_count, self._playback_speed, self._loopable)
+        logger.info(
+            "[%s] Playback task created (task_name=playback-%s): %d frames, speed=%.2f×, loopable=%s",
+            self.id, self.id, frame_count, self._playback_speed, self._loopable,
+        )
 
     async def stop(self) -> None:
         """Cancel the playback task and reset state."""
+        task_name = self._task.get_name() if self._task is not None else "none"
+        logger.info(
+            "[%s] PlaybackNode.stop() called (node_id=%s, task=%s, done=%s)",
+            self.id, self.id, task_name,
+            self._task.done() if self._task is not None else True,
+        )
         if self._task is not None and not self._task.done():
             self._task.cancel()
             try:
@@ -175,7 +186,7 @@ class PlaybackNode(ModuleNode):
 
         self._status = "idle"
         self._current_frame = 0
-        logger.info("[%s] Playback stopped.", self.id)
+        logger.info("[%s] Playback stopped (node_id=%s).", self.id, self.id)
 
     # ------------------------------------------------------------------
     # ModuleNode interface
@@ -263,6 +274,23 @@ class PlaybackNode(ModuleNode):
                     continue
 
                 self._current_frame = frame_idx + 1  # 1-based for display
+
+                # ── Zombie-task guard ─────────────────────────────────────
+                # Check that this node_id is still registered in the orchestrator
+                # before emitting. If the node was removed (DAG reload or config
+                # update replaced it), we must stop immediately to prevent stale
+                # frames from leaking into downstream nodes or WebSocket topics.
+                manager_nodes: Optional[Dict[str, Any]] = getattr(
+                    self.manager, "nodes", None
+                )
+                if isinstance(manager_nodes, dict) and self.id not in manager_nodes:
+                    logger.warning(
+                        "[%s] forward_data guard: node_id '%s' no longer registered in "
+                        "manager.nodes — stopping zombie playback loop at frame %d.",
+                        self.id, self.id, frame_idx,
+                    )
+                    break
+                # ─────────────────────────────────────────────────────────
 
                 payload: Dict[str, Any] = {
                     "points": points,

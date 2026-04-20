@@ -80,7 +80,7 @@ class ConfigLoader:
             self._initialize_node_throttling(node)
             self._register_node_websocket_topic(node, node_instance)
             
-            logger.debug(f"Created {group_name} node: {node['id']}")
+            logger.info(f"[ConfigLoader] Registered node {node['id']!r} (type={node.get('type')!r}, group={group_name})")
         except Exception as e:
             logger.error(f"Failed to create {group_name} node {node['id']}: {e}", exc_info=True)
     

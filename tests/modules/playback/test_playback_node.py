@@ -699,3 +699,225 @@ class TestPlaybackNodeConfigUpdate:
         )
         assert first_task.done()
         await node.stop()
+
+
+# ---------------------------------------------------------------------------
+# TDD: Zombie task prevention — DAG reload / selective reload lifecycle
+# ---------------------------------------------------------------------------
+
+class TestZombieTaskPrevention:
+    """
+    After a DAG reload or selective reload:
+      - No zombie playback tasks remain for the prior node_id.
+      - forward_data must NOT be called when the node_id is no longer registered.
+      - Only 1 active task ever emits per node.
+    """
+
+    @pytest.mark.asyncio
+    async def test_no_zombie_emit_after_node_removed_from_manager(self, tmp_path: Path):
+        """
+        Simulate what happens when a node is removed from manager.nodes while its
+        _run_loop is still executing: it must detect the deregistration and stop emitting.
+
+        Before fix: _run_loop calls manager.forward_data unconditionally, even after
+        the node_id has been removed from manager.nodes (zombie emit).
+        After fix: each loop iteration checks if self.id is in manager.nodes first;
+        if not, it logs a warning and exits cleanly without calling forward_data.
+        """
+        from app.modules.playback.node import PlaybackNode
+
+        frame_count = 5
+        zip_path = _make_zip_recording(tmp_path, frame_count=frame_count)
+        file_path_no_ext = str(zip_path.with_suffix(""))
+
+        # Manager with a real nodes dict so the guard check works
+        mock_manager = _make_mock_manager()
+        mock_manager.nodes = {}
+
+        node = PlaybackNode(
+            manager=mock_manager, node_id="zombie-node", name="T",
+            recording_id="rec", playback_speed=1.0, loopable=True,
+        )
+        # Register the node in the manager dict (simulating orchestrator registration)
+        mock_manager.nodes["zombie-node"] = node
+
+        fake_record = {
+            "id": "rec",
+            "file_path": file_path_no_ext,
+            "frame_count": frame_count,
+            "duration_seconds": 5.0,
+        }
+
+        sleep_call_count = 0
+        original_node_ref = node
+
+        async def tracking_sleep(s):
+            nonlocal sleep_call_count
+            sleep_call_count += 1
+            # After 2 frames, simulate DAG reload by removing node from manager
+            if sleep_call_count == 2:
+                mock_manager.nodes.pop("zombie-node", None)
+            await asyncio.sleep(0)
+
+        p_sl, p_repo = _patch_db(fake_record)
+        with p_sl, p_repo, patch("app.modules.playback.node.asyncio_sleep", tracking_sleep):
+            await node.start()
+            try:
+                await asyncio.wait_for(node._task, timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+
+        # Must have stopped emitting after deregistration — at most 3 calls (2 before removal + maybe 1 more before guard fires)
+        assert mock_manager.forward_data.call_count <= 3, (
+            f"Zombie task emitted {mock_manager.forward_data.call_count} frames — expected ≤3 after deregistration"
+        )
+
+    @pytest.mark.asyncio
+    async def test_forward_data_not_called_when_unregistered(self, tmp_path: Path):
+        """
+        When node_id is removed from manager.nodes BEFORE the loop starts emitting,
+        forward_data must NEVER be called.
+        """
+        from app.modules.playback.node import PlaybackNode
+
+        frame_count = 3
+        zip_path = _make_zip_recording(tmp_path, frame_count=frame_count)
+        file_path_no_ext = str(zip_path.with_suffix(""))
+
+        mock_manager = _make_mock_manager()
+        mock_manager.nodes = {}  # node NOT registered → guard should prevent all emits
+
+        node = PlaybackNode(
+            manager=mock_manager, node_id="unregistered-node", name="T",
+            recording_id="rec", playback_speed=1.0, loopable=False,
+        )
+        # Deliberately DO NOT register node in mock_manager.nodes
+
+        fake_record = {
+            "id": "rec",
+            "file_path": file_path_no_ext,
+            "frame_count": frame_count,
+            "duration_seconds": 3.0,
+        }
+
+        p_sl, p_repo = _patch_db(fake_record)
+        with p_sl, p_repo, patch("app.modules.playback.node.asyncio_sleep", new_callable=AsyncMock):
+            await node.start()
+            try:
+                await asyncio.wait_for(node._task, timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+
+        assert mock_manager.forward_data.call_count == 0, (
+            f"forward_data called {mock_manager.forward_data.call_count} times for unregistered node"
+        )
+
+    @pytest.mark.asyncio
+    async def test_stop_all_nodes_awaits_async_stop(self, tmp_path: Path):
+        """
+        LifecycleManager.stop_all_nodes (used during reload) must properly await
+        PlaybackNode.stop() — otherwise the task is cancelled asynchronously and
+        may still emit frames during the reload window (zombie).
+
+        This test verifies that after stop_all_nodes, no playback task is running.
+        """
+        from app.modules.playback.node import PlaybackNode
+        from app.services.nodes.managers.lifecycle import LifecycleManager
+
+        frame_count = 10
+        zip_path = _make_zip_recording(tmp_path, frame_count=frame_count)
+        file_path_no_ext = str(zip_path.with_suffix(""))
+
+        mock_manager = _make_mock_manager()
+        mock_manager.nodes = {}
+        mock_manager.data_queue = MagicMock()
+        mock_manager.node_runtime_status = {}
+
+        node = PlaybackNode(
+            manager=mock_manager, node_id="n-lifecycle", name="T",
+            recording_id="rec", playback_speed=1.0, loopable=True,
+        )
+        mock_manager.nodes["n-lifecycle"] = node
+
+        fake_record = {
+            "id": "rec",
+            "file_path": file_path_no_ext,
+            "frame_count": frame_count,
+            "duration_seconds": 10.0,
+        }
+
+        p_sl, p_repo = _patch_db(fake_record)
+        with p_sl, p_repo, patch("app.modules.playback.node.asyncio_sleep", new_callable=AsyncMock):
+            await node.start()
+
+        assert node._task is not None and not node._task.done(), "Task must be running"
+
+        # Simulate what reload_config does: stop_all_nodes → must await stop()
+        lifecycle = LifecycleManager(mock_manager)
+        await lifecycle.stop_all_nodes_async()
+
+        # After proper async stop, task must be cancelled/done
+        assert node._task is None or node._task.done(), (
+            "PlaybackNode._task must be done after stop_all_nodes_async()"
+        )
+        assert node._status == "idle", "Node status must be 'idle' after stop"
+
+    @pytest.mark.asyncio
+    async def test_selective_reload_stops_old_task_before_new_starts(self, tmp_path: Path):
+        """
+        During selective reload (step 7: stop old instance), the old PlaybackNode's
+        async stop() must be fully awaited before the new node is inserted into nodes dict.
+
+        Verifies: after reload_single_node(), old_task.done() is True.
+        """
+        from app.modules.playback.node import PlaybackNode
+        from app.services.nodes.managers.selective_reload import SelectiveReloadManager
+
+        frame_count = 10
+        zip_path = _make_zip_recording(tmp_path, frame_count=frame_count)
+        file_path_no_ext = str(zip_path.with_suffix(""))
+
+        mock_manager = MagicMock()
+        mock_manager.nodes = {}
+        mock_manager.downstream_map = {}
+        mock_manager._input_gates = {}
+        mock_manager._rollback_slot = {}
+        mock_manager.edges_data = []
+        mock_manager.data_queue = MagicMock()
+        mock_manager.node_runtime_status = {}
+        mock_manager.is_running = True
+
+        node = PlaybackNode(
+            manager=mock_manager, node_id="sel-node", name="T",
+            recording_id="rec", playback_speed=1.0, loopable=True,
+        )
+        # Wire forward_data to be async
+        async def fake_forward(node_id, payload, **kw):
+            pass
+        mock_manager.forward_data = AsyncMock(side_effect=fake_forward)
+        mock_manager.nodes["sel-node"] = node
+
+        fake_record = {
+            "id": "rec",
+            "file_path": file_path_no_ext,
+            "frame_count": frame_count,
+            "duration_seconds": 10.0,
+        }
+
+        p_sl, p_repo = _patch_db(fake_record)
+        with p_sl, p_repo, patch("app.modules.playback.node.asyncio_sleep", new_callable=AsyncMock):
+            await node.start()
+
+        old_task = node._task
+        assert old_task is not None and not old_task.done()
+
+        # Now simulate what SelectiveReloadManager.reload_single_node does at step 7
+        # We call _stop_node_async directly (which should await stop())
+        from app.services.nodes.managers.lifecycle import LifecycleManager
+        lifecycle = LifecycleManager(mock_manager)
+        await lifecycle._stop_node_async(node)
+
+        assert old_task.done(), (
+            "Old PlaybackNode task must be cancelled/done after _stop_node_async()"
+        )
+        assert node._status == "idle"
