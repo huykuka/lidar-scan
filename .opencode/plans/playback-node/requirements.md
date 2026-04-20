@@ -47,10 +47,10 @@ The node integrates with the existing recording system that stores point cloud s
 - [x] Default behavior is **loop disabled** (play once)
 
 ### Recording Selection
-- [ ] Node configuration UI displays a dropdown list of available recordings
-- [ ] Dropdown shows recording file names from the `recordings/` directory
-- [ ] Recordings are discovered from the server's local filesystem at `recordings/`
-- [ ] If no recordings exist, the dropdown shows "No recordings available"
+- [x] Node configuration UI displays a dropdown list of available recordings
+- [x] Dropdown shows recording file names from the `recordings/` directory
+- [x] Recordings are discovered from the server's local filesystem at `recordings/`
+- [x] If no recordings exist, the dropdown shows "No recordings available"
 - [ ] Changing the selected recording requires stopping the node first (no hot-swap during playback)
 
 ### Data Format & Compatibility
@@ -68,8 +68,8 @@ The node integrates with the existing recording system that stores point cloud s
 - [x] Node can be stopped/removed like any other node
 
 ### User Access
-- [ ] Playback Node is available to **all users** (no admin-only restriction)
-- [ ] No additional authentication required beyond existing system access
+- [x] Playback Node is available to **all users** (no admin-only restriction)
+- [x] No additional authentication required beyond existing system access
 
 ### Error Handling
 - [x] If selected recording file is missing or corrupted, show clear error in node status
@@ -78,12 +78,12 @@ The node integrates with the existing recording system that stores point cloud s
 - [x] If playback encounters file I/O errors, transition node to error state
 
 ### UI/UX Requirements
-- [ ] Node configuration panel includes:
+- [x] Node configuration panel includes:
   - Recording selector (dropdown)
   - Playback speed selector (dropdown: 1.0x, 0.5x, 0.25x, 0.1x)
   - Loop toggle (checkbox)
 - [ ] Node displays current playback status: frame number, total frames, elapsed time
-- [ ] Node icon/badge indicates it is a playback source (distinct from live sensors)
+- [x] Node icon/badge indicates it is a playback source (distinct from live sensors)
 
 ## Out of Scope
 
