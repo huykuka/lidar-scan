@@ -15,6 +15,8 @@ import {IfConditionCardComponent} from '@plugins/flow-control/if-block/node/if-c
 import {IfConditionEditorComponent} from '@plugins/flow-control/if-block/form/if-condition-editor.component';
 import {OutputNodeCardComponent} from '@plugins/flow-control/output/node/output-node-card/output-node-card.component';
 import {OutputNodeEditorComponent} from '@plugins/flow-control/output/form/output-node-editor/output-node-editor.component';
+import {PlaybackNodeCardComponent} from '@plugins/playback/node/playback-node-card/playback-node-card.component';
+import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-editor/playback-node-editor.component';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
 const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
@@ -108,8 +110,8 @@ export class NodePluginRegistry {
       if (plugin.category === 'sensor') {
         this.plugins.set(type, {
           ...plugin,
-          cardComponent: SensorNodeCardComponent,
-          editorComponent: SensorNodeEditorComponent,
+          cardComponent: type === 'playback' ? PlaybackNodeCardComponent : SensorNodeCardComponent,
+          editorComponent: type === 'playback' ? PlaybackNodeEditorComponent : SensorNodeEditorComponent,
         });
       }
       if (plugin.category === 'fusion') {
