@@ -84,13 +84,13 @@ export class ShapeBuilders {
         position: [
           d.center[0],
           d.center[1],
-          d.center[2] + d.size[2] / 2 + 0.5, // 0.5 m clearance above box top
+          d.center[2] + d.size[2] / 2 + 0.2, // 0.2 m clearance above box top
         ],
         text: d.label,
-        font_size: 16,
-        color: '#ffffff',
-        background_color: '#00000088',
-        scale: 1.0,
+        font_size: 11,
+        color: '#cccccc',
+        background_color: '#00000055',
+        scale: 0.7,
       });
       outerGroup.add(labelSprite);
     }
@@ -131,13 +131,13 @@ export class ShapeBuilders {
         position: [
           d.center[0],
           d.center[1],
-          d.center[2] + d.size[2] / 2 + 0.5,
+          d.center[2] + d.size[2] / 2 + 0.2,
         ],
         text: d.label,
-        font_size: 16,
-        color: '#ffffff',
-        background_color: '#00000088',
-        scale: 1.0,
+        font_size: 11,
+        color: '#cccccc',
+        background_color: '#00000055',
+        scale: 0.7,
       } as LabelDescriptor);
     } else if (sprite && !d.label) {
       // Label was removed from descriptor — hide the sprite rather than
@@ -152,13 +152,13 @@ export class ShapeBuilders {
         position: [
           d.center[0],
           d.center[1],
-          d.center[2] + d.size[2] / 2 + 0.5,
+          d.center[2] + d.size[2] / 2 + 0.2,
         ],
         text: d.label,
-        font_size: 16,
-        color: '#ffffff',
-        background_color: '#00000088',
-        scale: 1.0,
+        font_size: 11,
+        color: '#cccccc',
+        background_color: '#00000055',
+        scale: 0.7,
       });
       obj.add(newSprite);
     }
@@ -234,15 +234,14 @@ export class ShapeBuilders {
       map: texture,
       transparent: true,
       depthWrite: false,
-      depthTest: false,       // always visible on top — never occluded
-      opacity: d.opacity ?? 0.85,
+      depthTest: true,        // occluded by geometry — does not overlay point cloud
+      opacity: d.opacity ?? 0.65,
     });
     const sprite = new THREE.Sprite(material);
-    sprite.renderOrder = 999; // draw after all opaque/transparent geometry
+    sprite.renderOrder = 1;   // no longer forcibly drawn on top
     sprite.position.set(d.position[0], d.position[1], d.position[2]);
     const s = d.scale ?? 1.0;
-    // Compact aspect ratio (2.5 : 0.6) — readable but less intrusive.
-    sprite.scale.set(2.0 * s, 0.5 * s, 1.0);
+    sprite.scale.set(1.0 * s, 0.25 * s, 1.0);
     sprite.layers.set(SHAPE_LAYER);
     // Store fingerprint so updateLabel can skip unnecessary texture recreation.
     sprite.userData['labelKey'] = labelFingerprint(d);
@@ -257,7 +256,7 @@ export class ShapeBuilders {
   static updateLabel(obj: THREE.Sprite, d: LabelDescriptor): void {
     obj.position.set(d.position[0], d.position[1], d.position[2]);
     const s = d.scale ?? 1.0;
-    obj.scale.set(2.0 * s, 0.5 * s, 1.0);
+    obj.scale.set(1.0 * s, 0.25 * s, 1.0);
 
     // Update opacity if provided
     const mat = obj.material as THREE.SpriteMaterial;
