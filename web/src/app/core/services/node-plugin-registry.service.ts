@@ -26,6 +26,8 @@ const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
   operation: {color: '#64748b', icon: 'settings_input_component'},
   flow_control: {color: '#9c27b0', icon: 'call_split'},
   output: {color: '#0ea5e9', icon: 'dashboard'},
+  /** Application-layer processing nodes (e.g. environment_filtering) */
+  application: {color: '#0891b2', icon: 'layers_clear'},
 };
 
 function definitionToPlugin(def: NodeDefinition): NodePlugin {

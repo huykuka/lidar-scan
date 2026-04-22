@@ -43,6 +43,26 @@ export const MOCK_SYSTEM_STATUS: NodesStatusResponse = {
       application_state: { label: 'fusing', value: 2, color: 'blue' },
       timestamp: Date.now() / 1000,
     },
+    // environment_filtering mock statuses — api-spec.md § 6
+    {
+      node_id: 'env_filter_pqr44444',
+      operational_state: 'RUNNING',
+      application_state: { label: 'planes_filtered', value: 2, color: 'blue' },
+      timestamp: Date.now() / 1000,
+    },
+    {
+      node_id: 'env_filter_warn55555',
+      operational_state: 'RUNNING',
+      application_state: { label: 'planes_filtered', value: 0, color: 'orange' },
+      timestamp: Date.now() / 1000,
+    },
+    {
+      node_id: 'env_filter_err66666',
+      operational_state: 'ERROR',
+      application_state: { label: 'error', value: 'invalid params', color: 'red' },
+      error_message: 'invalid params: knn must be >= 5',
+      timestamp: Date.now() / 1000,
+    },
   ],
 };
 
