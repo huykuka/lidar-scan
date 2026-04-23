@@ -7,7 +7,7 @@ Loaded automatically when :mod:`app.modules.application.registry` is imported.
 Side-effects executed at import time:
 
 * :data:`~app.services.nodes.schema.node_schema_registry` receives the
-  ``NodeDefinition`` for the ``environment_filtering`` type (14 properties).
+  ``NodeDefinition`` for the ``environment_filtering`` type.
 * :class:`~app.services.nodes.node_factory.NodeFactory` receives the
   builder function via the
   :meth:`~app.services.nodes.node_factory.NodeFactory.register` decorator.
@@ -29,7 +29,7 @@ from app.services.nodes.schema import (
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Schema Definition — 14 properties across 3 groups
+# Schema Definition — 20 properties across 5 groups
 # ─────────────────────────────────────────────────────────────────────────────
 
 node_schema_registry.register(
@@ -38,16 +38,27 @@ node_schema_registry.register(
         display_name="Environment Filtering",
         category="application",
         description=(
-            "Removes floor and ceiling planes from real-time indoor LiDAR scans "
-            "using patch-based plane segmentation. Produces a filtered point cloud "
-            "containing only objects of interest (walls, furniture, obstacles). "
-            "For dense point clouds (>50k points), automatic voxel downsampling "
-            "improves performance while maintaining filtering accuracy. "
-            "Output is always at original resolution."
+            "Removes floor and ceiling planes from real-time indoor LiDAR scans. "
+            "Detects all horizontal planes, picks the lowest as floor and the highest "
+            "as ceiling, and removes them. Output is always at original resolution."
         ),
         icon="layers_clear",
         websocket_enabled=True,
         properties=[
+            PropertySchema(
+                name="remove_floor",
+                label="Remove Floor",
+                type="boolean",
+                default=True,
+                help_text="Remove the lowest detected horizontal plane (floor).",
+            ),
+            PropertySchema(
+                name="remove_ceiling",
+                label="Remove Ceiling",
+                type="boolean",
+                default=True,
+                help_text="Remove the highest detected horizontal plane (ceiling).",
+            ),
             # ── Group A: Performance ──────────────────────────────────────
             PropertySchema(
                 name="throttle_ms",
@@ -74,10 +85,10 @@ node_schema_registry.register(
                     "performance on dense scans (100k+ points). "
                     "Smaller = higher precision but slower. "
                     "Recommended: 0.01m (1cm) for indoor scans. "
-                    "Set to 0 to disable downsampling (advanced users only)."
+                    "Set to 0 to disable downsampling."
                 ),
             ),
-            # ── Group B: Plane Detection (patch_plane_segmentation params) ─
+            # ── Group B: Plane Detection ───────────────────────────────────
             PropertySchema(
                 name="normal_variance_threshold_deg",
                 label="Normal Variance (deg)",
@@ -158,7 +169,34 @@ node_schema_registry.register(
                     "Reduce (15-20) for real-time streaming."
                 ),
             ),
-            # ── Group C: Validation ────────────────────────────────────────
+            PropertySchema(
+                name="cache_refresh_frames",
+                label="Cache Refresh (frames)",
+                type="number",
+                default=30,
+                min=1,
+                step=1,
+                help_text=(
+                    "Number of frames to reuse cached floor/ceiling Z values before "
+                    "re-running plane detection. Higher = less CPU. "
+                    "30 frames at 10Hz = refresh every 3 seconds."
+                ),
+            ),
+            PropertySchema(
+                name="miss_confirm_frames",
+                label="Miss Confirm (frames)",
+                type="number",
+                default=3,
+                min=1,
+                max=10,
+                step=1,
+                help_text=(
+                    "Consecutive detection failures required before the cache is "
+                    "invalidated. Prevents a single noisy frame from wiping a good "
+                    "cache. 3 frames = must miss 3 in a row to reset."
+                ),
+            ),            
+            # ── Group D: Validation ────────────────────────────────────────
             PropertySchema(
                 name="vertical_tolerance_deg",
                 label="Vertical Tolerance (deg)",
@@ -175,50 +213,6 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="floor_height_min",
-                label="Floor Height Min (m)",
-                type="number",
-                default=-0.5,
-                step=0.1,
-                help_text=(
-                    "Minimum Z-coordinate for the floor centroid (world frame, Z-up). "
-                    "Adjust for multi-level environments or raised platforms."
-                ),
-            ),
-            PropertySchema(
-                name="floor_height_max",
-                label="Floor Height Max (m)",
-                type="number",
-                default=0.5,
-                step=0.1,
-                help_text=(
-                    "Maximum Z-coordinate for the floor centroid. "
-                    "Expand for scanner mounted above floor level."
-                ),
-            ),
-            PropertySchema(
-                name="ceiling_height_min",
-                label="Ceiling Height Min (m)",
-                type="number",
-                default=2.0,
-                step=0.1,
-                help_text=(
-                    "Minimum Z-coordinate for the ceiling centroid. "
-                    "Adjust min if drop ceilings exist."
-                ),
-            ),
-            PropertySchema(
-                name="ceiling_height_max",
-                label="Ceiling Height Max (m)",
-                type="number",
-                default=4.0,
-                step=0.1,
-                help_text=(
-                    "Maximum Z-coordinate for the ceiling centroid. "
-                    "Increase max for warehouses (8-12m)."
-                ),
-            ),
-            PropertySchema(
                 name="min_plane_area",
                 label="Min Plane Area (m²)",
                 type="number",
@@ -226,7 +220,7 @@ node_schema_registry.register(
                 min=0.1,
                 step=0.1,
                 help_text=(
-                    "Minimum plane area in m² to classify as floor/ceiling. "
+                    "Minimum plane area in m² to qualify as floor/ceiling. "
                     "Prevents shelves or table tops from being removed. "
                     "Increase (3-10m²) for open warehouse scans."
                 ),

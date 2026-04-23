@@ -17,6 +17,7 @@ import {OutputNodeCardComponent} from '@plugins/flow-control/output/node/output-
 import {OutputNodeEditorComponent} from '@plugins/flow-control/output/form/output-node-editor/output-node-editor.component';
 import {PlaybackNodeCardComponent} from '@plugins/playback/node/playback-node-card/playback-node-card.component';
 import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-editor/playback-node-editor.component';
+import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
 const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
@@ -135,6 +136,12 @@ export class NodePluginRegistry {
           ...plugin,
           cardComponent: CalibrationNodeCardComponent,
           editorComponent: CalibrationNodeEditorComponent,
+        });
+      }
+      if (plugin.category === 'application') {
+        this.plugins.set(type, {
+          ...plugin,
+          editorComponent: ApplicationNodeEditorComponent,
         });
       }
       if (plugin.category === 'flow_control') {
