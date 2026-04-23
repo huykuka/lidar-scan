@@ -101,7 +101,8 @@ class EnvironmentFilteringNode(ModuleNode):
         self.outlier_ratio: float = float(config.get("outlier_ratio", 0.75))
         self.min_plane_edge_length: float = float(config.get("min_plane_edge_length", 0.0))
         self.min_num_points: int = int(config.get("min_num_points", 0))
-        self.knn: int = int(config.get("knn", 30))
+        self.max_nn: int = int(config.get("max_nn", 30))
+        self.search_radius: float = float(config.get("search_radius", 0.1))
 
         # ── Validation parameters ──────────────────────────────────────────
         self.vertical_tolerance_deg: float = float(config.get("vertical_tolerance_deg", 15.0))
@@ -194,7 +195,9 @@ class EnvironmentFilteringNode(ModuleNode):
 
         if not pcd_legacy.has_normals():
             pcd_legacy.estimate_normals(
-                search_param=o3d.geometry.KDTreeSearchParamKNN(knn=self.knn)
+                search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                    radius=self.search_radius, max_nn=self.max_nn
+                )
             )
 
         oboxes = pcd_legacy.detect_planar_patches(
@@ -203,7 +206,9 @@ class EnvironmentFilteringNode(ModuleNode):
             outlier_ratio=self.outlier_ratio,
             min_plane_edge_length=self.min_plane_edge_length,
             min_num_points=self.min_num_points,
-            search_param=o3d.geometry.KDTreeSearchParamKNN(knn=self.knn),
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                radius=self.search_radius, max_nn=self.max_nn
+            ),
         )
 
         if not oboxes:

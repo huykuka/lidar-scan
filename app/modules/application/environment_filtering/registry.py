@@ -171,17 +171,32 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="knn",
-                label="KNN",
+                name="max_nn",
+                label="Max Neighbors",
                 type="number",
                 default=30,
                 min=5,
                 max=100,
                 step=1,
                 help_text=(
-                    "Nearest neighbors for plane growing. "
-                    "Higher = better quality but slower. "
+                    "Maximum nearest neighbors within the search radius for normal "
+                    "estimation and plane growing. Higher = better quality but slower. "
                     "Reduce (15-20) for real-time streaming."
+                ),
+            ),
+            PropertySchema(
+                name="search_radius",
+                label="Search Radius (m)",
+                type="number",
+                default=0.1,
+                min=0.01,
+                max=1.0,
+                step=0.01,
+                help_text=(
+                    "Radius (in metres) of the KDTree hybrid search used for normal "
+                    "estimation and plane growing. Only neighbours within this distance "
+                    "AND up to max_nn count are used. Increase for sparse/noisy scans; "
+                    "decrease for dense high-resolution sensors."
                 ),
             ),
             PropertySchema(

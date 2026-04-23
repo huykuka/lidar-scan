@@ -66,7 +66,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "outlier_ratio": 0.75,
     "min_plane_edge_length": 0.0,
     "min_num_points": 0,
-    "knn": 30,
+    "max_nn": 30,
+    "search_radius": 0.1,
     "vertical_tolerance_deg": 15.0,
     "min_plane_area": 1.0,
     "remove_floor": True,
@@ -137,8 +138,11 @@ class TestInstantiation:
     def test_voxel_downsample_size_stored(self, default_node):
         assert default_node.voxel_downsample_size == 0.01
 
-    def test_knn_stored(self, default_node):
-        assert default_node.knn == 30
+    def test_max_nn_stored(self, default_node):
+        assert default_node.max_nn == 30
+
+    def test_search_radius_stored(self, default_node):
+        assert default_node.search_radius == pytest.approx(0.1)
 
     def test_remove_floor_default_true(self, default_node):
         assert default_node.remove_floor is True
