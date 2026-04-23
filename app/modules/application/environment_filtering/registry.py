@@ -59,6 +59,21 @@ node_schema_registry.register(
                 default=True,
                 help_text="Remove the highest detected horizontal plane (ceiling).",
             ),
+            PropertySchema(
+                name="plane_thickness",
+                label="Plane Thickness (m)",
+                type="number",
+                default=0.05,
+                min=0.01,
+                max=0.5,
+                step=0.01,
+                help_text=(
+                    "Half-thickness of the perpendicular slab swept around each plane. "
+                    "A point is removed when its perpendicular distance to the plane is "
+                    "<= this value. 0.05m covers most floor/ceiling scan noise. "
+                    "Increase for thick carpets or uneven surfaces."
+                ),
+            ),
             # ── Group A: Performance ──────────────────────────────────────
             PropertySchema(
                 name="throttle_ms",

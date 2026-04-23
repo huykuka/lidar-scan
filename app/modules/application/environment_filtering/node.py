@@ -5,6 +5,13 @@ Simplified strategy: detect all horizontal planar patches, then pick the plane
 with the lowest centroid Z as the floor and the plane with the highest centroid Z
 as the ceiling. Removes those two planes from the original full-resolution cloud.
 
+Removal strategy — perpendicular plane sweep:
+  For each selected plane (normal n, centroid c), every original-cloud point p
+  is removed when  |dot(p - c, n)| <= plane_thickness.
+  This sweeps the full infinite plane along its normal — it is NOT a Z-slab, so
+  it handles tilted floors/ramps correctly and does not touch points that happen
+  to share the same Z height but lie off the plane.
+
 Architecture:
   - Heavy CPU-bound logic (_sync_filter) runs in asyncio.to_thread() (threadpool)
   - Downsampled cloud is temporary; released after segmentation
@@ -32,17 +39,22 @@ class PlaneInfo:
     """Metadata for a detected floor/ceiling plane."""
 
     plane_id: int
-    plane_type: str  # "floor" | "ceiling"
-    normal: List[float]
-    centroid_z: float
+    plane_type: str        # "floor" | "ceiling"
+    normal: List[float]    # unit normal (3,)
+    centroid: List[float]  # 3D centroid (x, y, z)
     area: float
     point_count: int
+
+    @property
+    def centroid_z(self) -> float:
+        return self.centroid[2]
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "plane_id": self.plane_id,
             "plane_type": self.plane_type,
             "normal": self.normal,
+            "centroid": self.centroid,
             "centroid_z": self.centroid_z,
             "area": self.area,
             "point_count": self.point_count,
@@ -102,19 +114,22 @@ class EnvironmentFilteringNode(ModuleNode):
         # ── Filtering targets ──────────────────────────────────────────────
         self.remove_floor: bool = bool(config.get("remove_floor", True))
         self.remove_ceiling: bool = bool(config.get("remove_ceiling", True))
+        # Half-thickness of the perpendicular slab swept around each plane.
+        # Points with |dot(p - centroid, normal)| <= plane_thickness are removed.
+        self.plane_thickness: float = float(config.get("plane_thickness", 0.1))
 
         self._validate_params()
 
         # ── Plane cache ────────────────────────────────────────────────────
-        # After first successful detection, store floor/ceiling Z values and
-        # skip detect_planar_patches for the next `cache_refresh_frames` frames.
-        # If detection fails, require `miss_confirm_frames` consecutive misses
-        # before the cache is invalidated — prevents a single bad frame from
-        # wiping a good cache.
+        # After first successful detection, cache each plane's normal + centroid
+        # so subsequent frames can skip detect_planar_patches entirely and apply
+        # the perpendicular-distance sweep directly.
+        # miss_confirm_frames consecutive detection failures are required before
+        # the cache is invalidated.
         self.cache_refresh_frames: int = int(config.get("cache_refresh_frames", 30))
         self.miss_confirm_frames: int = int(config.get("miss_confirm_frames", 3))
-        self._cached_floor_z: Optional[float] = None
-        self._cached_ceiling_z: Optional[float] = None
+        self._cached_floor: Optional[PlaneInfo] = None
+        self._cached_ceiling: Optional[PlaneInfo] = None
         self._frames_since_detection: int = 0
         self._consecutive_misses: int = 0
 
@@ -220,12 +235,43 @@ class EnvironmentFilteringNode(ModuleNode):
                 plane_id=i,
                 plane_type="",  # assigned below
                 normal=normal.tolist(),
-                centroid_z=float(obox.center[2]),
+                centroid=obox.center.tolist(),
                 area=area,
                 point_count=int(np.sum(labels == i)),
             ))
 
         return planes
+
+    # ── Perpendicular plane sweep ─────────────────────────────────────────────
+
+    @staticmethod
+    def _plane_removal_mask(
+        pts: np.ndarray,
+        plane: PlaneInfo,
+        thickness: float,
+    ) -> np.ndarray:
+        """
+        Return a boolean mask of points within `thickness` of the infinite plane.
+
+        Uses the signed perpendicular distance formula:
+            distance = |dot(p - centroid, normal)|
+
+        This sweeps the full plane along its normal regardless of orientation —
+        a tilted floor or ramp is handled correctly, unlike a Z-slab.
+
+        Args:
+            pts:       (N, 3) float32 point positions
+            plane:     PlaneInfo with unit normal and 3D centroid
+            thickness: half-thickness of the slab in metres
+
+        Returns:
+            Boolean mask (N,), True = point is on the plane and should be removed
+        """
+        n = np.array(plane.normal, dtype=np.float32)
+        c = np.array(plane.centroid, dtype=np.float32)
+        # dot product broadcasted over all points: (N,)
+        dist = np.abs((pts - c) @ n)
+        return dist <= thickness
 
     # ── Core filtering (CPU-bound, runs in threadpool) ────────────────────────
 
@@ -233,14 +279,12 @@ class EnvironmentFilteringNode(ModuleNode):
         self, pcd_in: o3d.t.geometry.PointCloud
     ) -> Tuple[o3d.t.geometry.PointCloud, Dict[str, Any]]:
         """
-        Remove floor and ceiling points from the cloud.
+        Remove floor and ceiling points using a perpendicular plane sweep.
 
-        On frames where the cache is warm (within cache_refresh_frames since
-        last detection), skip detect_planar_patches entirely and apply the
-        cached Z values directly — a pure numpy operation with no Open3D cost.
-
-        Detection runs only on the first frame and every cache_refresh_frames
-        frames thereafter, or immediately after the cache is invalidated.
+        Fast path (cache hit): apply cached plane normal + centroid directly —
+        pure numpy, no Open3D cost.
+        Slow path (cache miss / refresh): run detect_planar_patches, pick
+        extremes, update cache.
         """
         n_orig = len(pcd_in.point["positions"])
 
@@ -264,41 +308,43 @@ class EnvironmentFilteringNode(ModuleNode):
                 "status": "warning_pass_through",
             }
 
-        # Single to_legacy() — needed for both detection and Z lookup
         pcd_legacy = pcd_in.to_legacy()
         pts_orig_np = np.asarray(pcd_legacy.points, dtype=np.float32)
-        thickness = max(self.voxel_downsample_size, 0.05)
 
         cache_hit = (
-            self._cached_floor_z is not None
+            self._cached_floor is not None
             and self._frames_since_detection < self.cache_refresh_frames
         )
 
         if cache_hit:
-            # ── Fast path: apply cached Z slabs directly ──────────────────
+            # ── Fast path: perpendicular sweep from cached planes ─────────
             self._frames_since_detection += 1
             removal_mask = np.zeros(n_orig, dtype=bool)
             if self.remove_floor:
-                removal_mask |= np.abs(pts_orig_np[:, 2] - self._cached_floor_z) <= thickness
-            if self.remove_ceiling and self._cached_ceiling_z is not None:
-                removal_mask |= np.abs(pts_orig_np[:, 2] - self._cached_ceiling_z) <= thickness
+                removal_mask |= self._plane_removal_mask(
+                    pts_orig_np, self._cached_floor, self.plane_thickness
+                )
+            if self.remove_ceiling and self._cached_ceiling is not None:
+                removal_mask |= self._plane_removal_mask(
+                    pts_orig_np, self._cached_ceiling, self.plane_thickness
+                )
 
             keep_indices = np.where(~removal_mask)[0]
             pcd_out = pcd_in.select_by_index(keep_indices)
             n_removed = int(np.sum(removal_mask))
 
-            plane_details = [{"plane_type": "floor", "centroid_z": self._cached_floor_z}]
-            if self._cached_ceiling_z is not None:
-                plane_details.append({"plane_type": "ceiling", "centroid_z": self._cached_ceiling_z})
+            cached_planes = [self._cached_floor]
+            if self._cached_ceiling is not None:
+                cached_planes.append(self._cached_ceiling)
 
             return pcd_out, {
                 **_empty_meta,
                 "input_point_count": n_orig,
                 "output_point_count": n_orig - n_removed,
                 "removed_point_count": n_removed,
-                "planes_detected": len(plane_details),
-                "planes_filtered": len(plane_details),
-                "plane_details": plane_details,
+                "planes_detected": len(cached_planes),
+                "planes_filtered": len(cached_planes),
+                "plane_details": [p.to_dict() for p in cached_planes],
                 "cache_hit": True,
                 "status": "success",
             }
@@ -325,43 +371,45 @@ class EnvironmentFilteringNode(ModuleNode):
         if not planes:
             self._consecutive_misses += 1
             if self._consecutive_misses < self.miss_confirm_frames:
-                # Not confirmed yet — keep using the current cache if available
                 logger.debug(
                     f"[{self.id}] No planes detected "
                     f"({self._consecutive_misses}/{self.miss_confirm_frames} consecutive misses)"
                 )
-                if self._cached_floor_z is not None:
-                    # Serve cached removal using existing Z values
+                if self._cached_floor is not None:
+                    # Still within confirmation window — apply cached planes
                     removal_mask = np.zeros(n_orig, dtype=bool)
                     if self.remove_floor:
-                        removal_mask |= np.abs(pts_orig_np[:, 2] - self._cached_floor_z) <= thickness
-                    if self.remove_ceiling and self._cached_ceiling_z is not None:
-                        removal_mask |= np.abs(pts_orig_np[:, 2] - self._cached_ceiling_z) <= thickness
+                        removal_mask |= self._plane_removal_mask(
+                            pts_orig_np, self._cached_floor, self.plane_thickness
+                        )
+                    if self.remove_ceiling and self._cached_ceiling is not None:
+                        removal_mask |= self._plane_removal_mask(
+                            pts_orig_np, self._cached_ceiling, self.plane_thickness
+                        )
                     keep_indices = np.where(~removal_mask)[0]
                     pcd_out = pcd_in.select_by_index(keep_indices)
                     n_removed = int(np.sum(removal_mask))
-                    plane_details = [{"plane_type": "floor", "centroid_z": self._cached_floor_z}]
-                    if self._cached_ceiling_z is not None:
-                        plane_details.append({"plane_type": "ceiling", "centroid_z": self._cached_ceiling_z})
+                    cached_planes = [self._cached_floor]
+                    if self._cached_ceiling is not None:
+                        cached_planes.append(self._cached_ceiling)
                     return pcd_out, {
                         **ds_meta,
                         "input_point_count": n_orig,
                         "output_point_count": n_orig - n_removed,
                         "removed_point_count": n_removed,
                         "planes_detected": 0,
-                        "planes_filtered": len(plane_details),
-                        "plane_details": plane_details,
+                        "planes_filtered": len(cached_planes),
+                        "plane_details": [p.to_dict() for p in cached_planes],
                         "cache_hit": True,
                         "status": "success",
                     }
             else:
-                # Confirmed miss — invalidate cache
                 logger.info(
-                    f"[{self.id}] No planes detected for {self._consecutive_misses} consecutive frames "
-                    "— invalidating cache."
+                    f"[{self.id}] No planes detected for {self._consecutive_misses} "
+                    "consecutive frames — invalidating cache."
                 )
-                self._cached_floor_z = None
-                self._cached_ceiling_z = None
+                self._cached_floor = None
+                self._cached_ceiling = None
                 self._frames_since_detection = 0
                 self._consecutive_misses = 0
 
@@ -385,25 +433,34 @@ class EnvironmentFilteringNode(ModuleNode):
         selected: List[PlaneInfo]
         if len(planes_sorted) == 1:
             selected = [floor_plane]
-            ceiling_z = None
+            ceiling_plane = None
         else:
             ceiling_plane = planes_sorted[-1]
             ceiling_plane.plane_type = "ceiling"
             selected = [floor_plane, ceiling_plane]
-            ceiling_z = ceiling_plane.centroid_z
 
-        # Update cache
-        self._cached_floor_z = floor_plane.centroid_z
-        self._cached_ceiling_z = ceiling_z
+        # Update cache with full PlaneInfo (normal + centroid)
+        self._cached_floor = floor_plane
+        self._cached_ceiling = ceiling_plane
         self._frames_since_detection = 1
         self._consecutive_misses = 0
 
-        # Build removal mask
+        logger.info(
+            f"[{self.id}] Cache refreshed — "
+            f"floor z={floor_plane.centroid_z:.2f}  normal={[round(x,2) for x in floor_plane.normal]}"
+            + (f"  ceiling z={ceiling_plane.centroid_z:.2f}" if ceiling_plane else "")
+        )
+
+        # Build removal mask using perpendicular sweep
         removal_mask = np.zeros(n_orig, dtype=bool)
         if self.remove_floor:
-            removal_mask |= np.abs(pts_orig_np[:, 2] - floor_plane.centroid_z) <= thickness
-        if self.remove_ceiling and ceiling_z is not None:
-            removal_mask |= np.abs(pts_orig_np[:, 2] - ceiling_z) <= thickness
+            removal_mask |= self._plane_removal_mask(
+                pts_orig_np, floor_plane, self.plane_thickness
+            )
+        if self.remove_ceiling and ceiling_plane is not None:
+            removal_mask |= self._plane_removal_mask(
+                pts_orig_np, ceiling_plane, self.plane_thickness
+            )
 
         keep_indices = np.where(~removal_mask)[0]
         pcd_out = pcd_in.select_by_index(keep_indices)

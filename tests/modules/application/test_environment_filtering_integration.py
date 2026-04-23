@@ -29,7 +29,7 @@ EXPECTED_PROPERTIES = {
     "normal_variance_threshold_deg", "coplanarity_deg",
     "outlier_ratio", "min_plane_edge_length", "min_num_points", "knn",
     "vertical_tolerance_deg", "min_plane_area",
-    "remove_floor", "remove_ceiling",
+    "remove_floor", "remove_ceiling", "plane_thickness",
     "cache_refresh_frames", "miss_confirm_frames",
 }
 

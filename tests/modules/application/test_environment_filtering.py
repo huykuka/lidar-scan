@@ -71,6 +71,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "min_plane_area": 1.0,
     "remove_floor": True,
     "remove_ceiling": True,
+    "plane_thickness": 0.1,
     "cache_refresh_frames": 30,
     "miss_confirm_frames": 3,
 }
@@ -113,12 +114,12 @@ def node_factory(mock_manager: MagicMock):
 
 # Convenience: two PlaneInfo stubs at different heights
 def _floor_plane(z: float = 0.0) -> PlaneInfo:
-    return PlaneInfo(plane_id=0, plane_type="floor", normal=[0, 0, 1],
-                     centroid_z=z, area=25.0, point_count=500)
+    return PlaneInfo(plane_id=0, plane_type="floor", normal=[0.0, 0.0, 1.0],
+                     centroid=[0.0, 0.0, z], area=25.0, point_count=500)
 
 def _ceiling_plane(z: float = 3.0) -> PlaneInfo:
-    return PlaneInfo(plane_id=1, plane_type="ceiling", normal=[0, 0, 1],
-                     centroid_z=z, area=25.0, point_count=500)
+    return PlaneInfo(plane_id=1, plane_type="ceiling", normal=[0.0, 0.0, 1.0],
+                     centroid=[0.0, 0.0, z], area=25.0, point_count=500)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -152,8 +153,8 @@ class TestInstantiation:
         assert default_node.miss_confirm_frames == 3
 
     def test_cache_starts_empty(self, default_node):
-        assert default_node._cached_floor_z is None
-        assert default_node._cached_ceiling_z is None
+        assert default_node._cached_floor is None
+        assert default_node._cached_ceiling is None
 
     def test_consecutive_misses_starts_zero(self, default_node):
         assert default_node._consecutive_misses == 0
@@ -314,9 +315,9 @@ class TestFloorCeilingSelection:
     def test_three_planes_picks_extremes(self, default_node):
         """With 3 planes, only the extreme-Z ones become floor/ceiling."""
         planes = [
-            PlaneInfo(0, "", [0,0,1], 0.0,  25.0, 100),   # lowest → floor
-            PlaneInfo(1, "", [0,0,1], 1.5,  25.0, 100),   # middle → ignored
-            PlaneInfo(2, "", [0,0,1], 3.0,  25.0, 100),   # highest → ceiling
+            PlaneInfo(0, "", [0.0,0.0,1.0], [0.0,0.0,0.0],  25.0, 100),
+            PlaneInfo(1, "", [0.0,0.0,1.0], [0.0,0.0,1.5],  25.0, 100),
+            PlaneInfo(2, "", [0.0,0.0,1.0], [0.0,0.0,3.0],  25.0, 100),
         ]
         meta = self._run_with_planes(default_node, planes)
         details = {d["plane_type"]: d["centroid_z"] for d in meta["plane_details"]}
@@ -399,8 +400,10 @@ class TestCacheFastPath:
         planes = [_floor_plane(0.0), _ceiling_plane(3.0)]
         with patch.object(node, "_detect_horizontal_planes", return_value=planes):
             node._sync_filter(pcd_in)
-        assert node._cached_floor_z == pytest.approx(0.0)
-        assert node._cached_ceiling_z == pytest.approx(3.0)
+        assert node._cached_floor is not None
+        assert node._cached_floor.centroid_z == pytest.approx(0.0)
+        assert node._cached_ceiling is not None
+        assert node._cached_ceiling.centroid_z == pytest.approx(3.0)
 
     def test_subsequent_frames_use_cache(self, node_factory):
         node = self._make_node(node_factory, refresh=10)
@@ -444,12 +447,11 @@ class TestCacheFastPath:
         pts = np.random.default_rng(0).standard_normal((300, 3)).astype(np.float32)
         pcd_in = _make_pcd(pts)
 
-        # Prime with a detection, then run a slow path again
         with patch.object(node, "_detect_horizontal_planes",
                           return_value=[_floor_plane(0.0), _ceiling_plane(3.0)]):
             node._sync_filter(pcd_in)
-            node._consecutive_misses = 2  # simulate partial miss streak
-            node._sync_filter(pcd_in)  # succeeds again
+            node._consecutive_misses = 2
+            node._sync_filter(pcd_in)
 
         assert node._consecutive_misses == 0
 
@@ -463,8 +465,8 @@ class TestCacheMissConfirmation:
             "cache_refresh_frames": refresh,
             "miss_confirm_frames": miss_confirm,
         })
-        node._cached_floor_z = 0.0
-        node._cached_ceiling_z = 3.0
+        node._cached_floor = _floor_plane(0.0)
+        node._cached_ceiling = _ceiling_plane(3.0)
         node._frames_since_detection = refresh  # force slow path on next call
         return node
 
@@ -474,7 +476,8 @@ class TestCacheMissConfirmation:
         pcd_in = _make_pcd(pts)
         with patch.object(node, "_detect_horizontal_planes", return_value=[]):
             node._sync_filter(pcd_in)
-        assert node._cached_floor_z == pytest.approx(0.0), "Cache must survive 1 miss"
+        assert node._cached_floor is not None, "Cache must survive 1 miss"
+        assert node._cached_floor.centroid_z == pytest.approx(0.0)
         assert node._consecutive_misses == 1
 
     def test_below_confirm_threshold_keeps_cache(self, node_factory):
@@ -486,7 +489,7 @@ class TestCacheMissConfirmation:
             node._frames_since_detection = 1  # force slow path
             node._sync_filter(pcd_in)  # miss 2
         # 2 < 3 — cache must still be valid
-        assert node._cached_floor_z is not None
+        assert node._cached_floor is not None
 
     def test_confirmed_miss_invalidates_cache(self, node_factory):
         node = self._setup(node_factory, miss_confirm=3)
@@ -496,8 +499,8 @@ class TestCacheMissConfirmation:
             for _ in range(3):
                 node._frames_since_detection = 1  # keep forcing slow path
                 node._sync_filter(pcd_in)
-        assert node._cached_floor_z is None
-        assert node._cached_ceiling_z is None
+        assert node._cached_floor is None
+        assert node._cached_ceiling is None
         assert node._consecutive_misses == 0
 
     def test_confirmed_miss_status_no_planes(self, node_factory):
@@ -578,8 +581,8 @@ class TestMetadataShape:
 
     def test_cache_hit_field_true_on_fast_path(self, node_factory):
         node = node_factory({"cache_refresh_frames": 5})
-        node._cached_floor_z = 0.0
-        node._cached_ceiling_z = 3.0
+        node._cached_floor = _floor_plane(0.0)
+        node._cached_ceiling = _ceiling_plane(3.0)
         node._frames_since_detection = 1  # within cache window
         pts = np.random.default_rng(0).standard_normal((300, 3)).astype(np.float32)
         _, meta = node._sync_filter(_make_pcd(pts))
