@@ -62,7 +62,7 @@ def make_pcd_with_normals(n: int, seed: int = 99) -> o3d.geometry.PointCloud:
     pts /= np.linalg.norm(pts, axis=1, keepdims=True)
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pts)
-    pcd.estimate_normals(o3d.geometry.KDTreeSearchParamKNN(knn=10))
+    pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=10))
     return pcd
 
 
@@ -1140,13 +1140,15 @@ class TestAlgorithmParams:
         assert 0.0 < p.displacement_min < p.displacement_max <= 1.0
 
     def test_mls_params_model_exists_with_defaults(self):
-        """DensifyMLSParams must have k_neighbors and projection_radius_factor."""
+        """DensifyMLSParams must have k_neighbors, search_radius and projection_radius_factor."""
         from app.modules.pipeline.operations.density import DensifyMLSParams
 
         p = DensifyMLSParams()
         assert hasattr(p, "k_neighbors")
+        assert hasattr(p, "search_radius")
         assert hasattr(p, "projection_radius_factor")
         assert p.k_neighbors >= 5
+        assert p.search_radius > 0.0
         assert p.projection_radius_factor > 0.0
 
     def test_statistical_params_model_exists_with_defaults(self):
@@ -1162,14 +1164,18 @@ class TestAlgorithmParams:
         assert p.min_dist_factor > 0.0
 
     def test_poisson_params_model_exists_with_defaults(self):
-        """DensifyPoissonParams must have depth, density_threshold_quantile."""
+        """DensifyPoissonParams must have depth, density_threshold_quantile, max_nn, search_radius."""
         from app.modules.pipeline.operations.density import DensifyPoissonParams
 
         p = DensifyPoissonParams()
         assert hasattr(p, "depth")
         assert hasattr(p, "density_threshold_quantile")
+        assert hasattr(p, "max_nn")
+        assert hasattr(p, "search_radius")
         assert p.depth >= 6
         assert 0.0 <= p.density_threshold_quantile <= 1.0
+        assert p.max_nn >= 3
+        assert p.search_radius > 0.0
 
     # ── DensifyConfig has optional sub-dict fields ────────────────────────────
 

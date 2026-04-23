@@ -25,8 +25,10 @@ class PatchPlaneSegmentation(PipelineOperation):
             0 defaults to 1% of the point cloud's largest dimension.
         min_num_points (int): Minimum points when fitting a plane / octree depth control.
             0 defaults to 0.1% of the total point count.
-        knn (int): Number of nearest neighbors used when growing/merging planes.
-            Larger = higher quality patches but slower.
+        max_nn (int): Maximum nearest neighbours within search_radius used when
+            growing/merging planes. Larger = higher quality patches but slower.
+        search_radius (float): KDTree hybrid search radius in metres. Only neighbours
+            within this distance AND up to max_nn count are used.
     """
 
     def __init__(
@@ -36,14 +38,16 @@ class PatchPlaneSegmentation(PipelineOperation):
         outlier_ratio: float = 0.75,
         min_plane_edge_length: float = 0.0,
         min_num_points: int = 0,
-        knn: int = 30,
+        max_nn: int = 30,
+        search_radius: float = 0.1,
     ):
         self.normal_variance_threshold_deg = float(normal_variance_threshold_deg)
         self.coplanarity_deg = float(coplanarity_deg)
         self.outlier_ratio = float(outlier_ratio)
         self.min_plane_edge_length = float(min_plane_edge_length)
         self.min_num_points = int(min_num_points)
-        self.knn = int(knn)
+        self.max_nn = int(max_nn)
+        self.search_radius = float(search_radius)
 
     def apply(self, pcd: Any):
         is_tensor = isinstance(pcd, o3d.t.geometry.PointCloud)
@@ -60,7 +64,9 @@ class PatchPlaneSegmentation(PipelineOperation):
 
         if not legacy_pcd.has_normals():
             legacy_pcd.estimate_normals(
-                search_param=o3d.geometry.KDTreeSearchParamKNN(knn=self.knn)
+                search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                    radius=self.search_radius, max_nn=self.max_nn
+                )
             )
 
         oboxes = legacy_pcd.detect_planar_patches(
@@ -69,7 +75,9 @@ class PatchPlaneSegmentation(PipelineOperation):
             outlier_ratio=self.outlier_ratio,
             min_plane_edge_length=self.min_plane_edge_length,
             min_num_points=self.min_num_points,
-            search_param=o3d.geometry.KDTreeSearchParamKNN(knn=self.knn),
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                radius=self.search_radius, max_nn=self.max_nn
+            ),
         )
 
         if not oboxes:

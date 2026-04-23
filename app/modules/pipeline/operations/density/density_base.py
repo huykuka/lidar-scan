@@ -99,7 +99,11 @@ class DensifyMLSParams(BaseModel):
     Tunable parameters for the ``mls`` (Moving Least Squares) densification algorithm.
 
     Attributes:
-        k_neighbors: KNN count for surface normal estimation.  Range: [3, ∞).  Default: 20.
+        k_neighbors: Max nearest neighbours within search_radius for normal estimation.
+            Range: [3, ∞).  Default: 20.
+        search_radius: KDTree hybrid search radius in metres for normal estimation.
+            Only neighbours within this distance AND up to k_neighbors count are used.
+            Range: (0.0, ∞).  Default: 0.1.
         projection_radius_factor: Tangent-plane projection radius as a fraction of
             the global mean NN distance.  Range: (0.0, 2.0].  Default: 0.5.
         min_dist_factor: Duplicate-filter radius as a fraction of the global mean NN
@@ -109,7 +113,12 @@ class DensifyMLSParams(BaseModel):
     k_neighbors: int = Field(
         default=20,
         ge=3,
-        description="KNN for normal estimation. Default 20.",
+        description="Max nearest neighbours within search_radius for normal estimation. Default 20.",
+    )
+    search_radius: float = Field(
+        default=0.1,
+        gt=0.0,
+        description="KDTree hybrid search radius in metres for normal estimation. Default 0.1.",
     )
     projection_radius_factor: float = Field(
         default=0.5,
@@ -168,6 +177,11 @@ class DensifyPoissonParams(BaseModel):
         depth: Octree depth for Poisson reconstruction.  Range: [4, 12].  Default: 8.
         density_threshold_quantile: Quantile below which low-density mesh vertices
             are trimmed.  Range: [0.0, 0.5].  Default: 0.1.
+        max_nn: Max nearest neighbours within search_radius for normal estimation.
+            Range: [3, ∞).  Default: 30.
+        search_radius: KDTree hybrid search radius in metres for normal estimation.
+            Only neighbours within this distance AND up to max_nn count are used.
+            Range: (0.0, ∞).  Default: 0.1.
     """
 
     depth: int = Field(
@@ -181,6 +195,16 @@ class DensifyPoissonParams(BaseModel):
         ge=0.0,
         le=0.5,
         description="Low-density vertex trim quantile. Default 0.1.",
+    )
+    max_nn: int = Field(
+        default=30,
+        ge=3,
+        description="Max nearest neighbours within search_radius for normal estimation. Default 30.",
+    )
+    search_radius: float = Field(
+        default=0.1,
+        gt=0.0,
+        description="KDTree hybrid search radius in metres for normal estimation. Default 0.1.",
     )
 
     model_config = {"populate_by_name": True}

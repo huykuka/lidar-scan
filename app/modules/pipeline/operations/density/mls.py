@@ -67,7 +67,9 @@ class MLSDensify(DensityAlgorithmBase):
             # Ensure normals for tangent plane construction.
             if not pcd_legacy.has_normals():
                 pcd_legacy.estimate_normals(
-                    o3d.geometry.KDTreeSearchParamKNN(knn=p.k_neighbors)
+                    o3d.geometry.KDTreeSearchParamHybrid(
+                        radius=p.search_radius, max_nn=p.k_neighbors
+                    )
                 )
                 pcd_legacy.normalize_normals()
             norms = np.asarray(pcd_legacy.normals, dtype=np.float64)  # (N, 3)

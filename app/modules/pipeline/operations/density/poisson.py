@@ -59,10 +59,12 @@ class PoissonDensify(DensityAlgorithmBase):
         try:
             pts_orig = np.asarray(pcd_legacy.points, dtype=np.float32)
 
-            # Ensure normals for Poisson — full-cloud KNN search
+            # Ensure normals for Poisson — hybrid search within radius
             if not pcd_legacy.has_normals():
                 pcd_legacy.estimate_normals(
-                    o3d.geometry.KDTreeSearchParamKNN(knn=30)
+                    o3d.geometry.KDTreeSearchParamHybrid(
+                        radius=p.search_radius, max_nn=p.max_nn
+                    )
                 )
                 pcd_legacy.normalize_normals()
 
