@@ -67,7 +67,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "min_plane_edge_length": 0.0,
     "min_num_points": 0,
     "max_nn": 30,
-    "search_radius": 0.1,
+    "search_radius": 0.2,
     "vertical_tolerance_deg": 15.0,
     "min_plane_area": 1.0,
     "remove_floor": True,
@@ -114,13 +114,15 @@ def node_factory(mock_manager: MagicMock):
 
 
 # Convenience: two PlaneInfo stubs at different heights
-def _floor_plane(z: float = 0.0) -> PlaneInfo:
+def _floor_plane(z: float = 0.0, inlier_thickness: float = 0.0) -> PlaneInfo:
     return PlaneInfo(plane_id=0, plane_type="floor", normal=[0.0, 0.0, 1.0],
-                     centroid=[0.0, 0.0, z], area=25.0, point_count=500)
+                     centroid=[0.0, 0.0, z], area=25.0, point_count=500,
+                     inlier_thickness=inlier_thickness)
 
-def _ceiling_plane(z: float = 3.0) -> PlaneInfo:
+def _ceiling_plane(z: float = 3.0, inlier_thickness: float = 0.0) -> PlaneInfo:
     return PlaneInfo(plane_id=1, plane_type="ceiling", normal=[0.0, 0.0, 1.0],
-                     centroid=[0.0, 0.0, z], area=25.0, point_count=500)
+                     centroid=[0.0, 0.0, z], area=25.0, point_count=500,
+                     inlier_thickness=inlier_thickness)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -142,7 +144,7 @@ class TestInstantiation:
         assert default_node.max_nn == 30
 
     def test_search_radius_stored(self, default_node):
-        assert default_node.search_radius == pytest.approx(0.1)
+        assert default_node.search_radius == pytest.approx(0.2)
 
     def test_remove_floor_default_true(self, default_node):
         assert default_node.remove_floor is True
@@ -632,3 +634,109 @@ class TestEmitStatus:
         default_node.last_metadata = {"status": "no_planes_detected", "planes_filtered": 0}
         status = default_node.emit_status()
         assert status.application_state.color == "orange"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TestPlaneInfoInlierThickness
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestPlaneInfoInlierThickness:
+    """PlaneInfo.inlier_thickness field and to_dict() exposure."""
+
+    def test_default_inlier_thickness_is_zero(self):
+        p = _floor_plane()
+        assert p.inlier_thickness == pytest.approx(0.0)
+
+    def test_custom_inlier_thickness_stored(self):
+        p = _floor_plane(inlier_thickness=0.25)
+        assert p.inlier_thickness == pytest.approx(0.25)
+
+    def test_to_dict_contains_inlier_thickness(self):
+        p = _floor_plane(inlier_thickness=0.15)
+        d = p.to_dict()
+        assert "inlier_thickness" in d
+        assert d["inlier_thickness"] == pytest.approx(0.15)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TestEffectiveThickness
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestEffectiveThickness:
+    """_effective_thickness returns max(plane_thickness, inlier_thickness)."""
+
+    def test_uses_config_when_larger(self, node_factory):
+        node = node_factory({"plane_thickness": 0.2})
+        plane = _floor_plane(inlier_thickness=0.05)
+        assert node._effective_thickness(plane) == pytest.approx(0.2)
+
+    def test_uses_inlier_when_larger(self, node_factory):
+        node = node_factory({"plane_thickness": 0.1})
+        plane = _floor_plane(inlier_thickness=0.35)
+        assert node._effective_thickness(plane) == pytest.approx(0.35)
+
+    def test_equal_values_returns_either(self, node_factory):
+        node = node_factory({"plane_thickness": 0.1})
+        plane = _floor_plane(inlier_thickness=0.1)
+        assert node._effective_thickness(plane) == pytest.approx(0.1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TestAdaptiveRemoval
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestAdaptiveRemoval:
+    """
+    When inlier_thickness > plane_thickness, the removal slab expands so that
+    far floor/ceiling points (e.g. from a tilted sensor) are still removed.
+    """
+
+    def _tilted_floor_pts(self) -> np.ndarray:
+        """
+        Simulate a tilted LiDAR scan: near pts within 0.05m of z=0, far pts
+        scattered 0.15-0.30m away (perpendicular), and mid pts at z=1.5.
+        """
+        rng = np.random.default_rng(99)
+        near = np.column_stack([rng.uniform(-1, 1, (100, 2)), rng.uniform(-0.05, 0.05, 100)])
+        far  = np.column_stack([rng.uniform(-5, 5, (100, 2)), rng.uniform(0.15, 0.30, 100)])
+        mid  = np.column_stack([rng.uniform(-5, 5, (100, 2)), np.full(100, 1.5)])
+        return np.vstack([near, far, mid]).astype(np.float32)
+
+    def test_fixed_thickness_misses_far_pts(self, node_factory):
+        """A plane_thickness of 0.1 must fail to remove far floor pts (sanity check)."""
+        node = node_factory({"plane_thickness": 0.1, "cache_refresh_frames": 1})
+        floor = _floor_plane(z=0.0, inlier_thickness=0.0)
+        pts = self._tilted_floor_pts()
+        pcd_in = _make_pcd(pts)
+        with patch.object(node, "_detect_horizontal_planes", return_value=[floor]):
+            out, _ = node._sync_filter(pcd_in)
+        out_z = out.point["positions"].numpy()[:, 2]
+        far_survivors = np.sum((out_z >= 0.14) & (out_z <= 0.31))
+        assert far_survivors > 0, "Sanity: fixed slab must NOT remove far pts"
+
+    def test_adaptive_thickness_captures_far_pts(self, node_factory):
+        """When inlier_thickness=0.30, the expanded slab must remove all floor pts."""
+        node = node_factory({"plane_thickness": 0.1, "cache_refresh_frames": 1})
+        floor = _floor_plane(z=0.0, inlier_thickness=0.30)
+        pts = self._tilted_floor_pts()
+        pcd_in = _make_pcd(pts)
+        with patch.object(node, "_detect_horizontal_planes", return_value=[floor]):
+            out, _ = node._sync_filter(pcd_in)
+        out_z = out.point["positions"].numpy()[:, 2]
+        far_survivors = np.sum((out_z >= 0.14) & (out_z <= 0.31))
+        assert far_survivors == 0, "Adaptive slab must remove all far floor pts"
+
+    def test_metadata_inlier_thickness_present(self, node_factory):
+        """plane_details in metadata must include inlier_thickness."""
+        node = node_factory({"cache_refresh_frames": 1})
+        floor = _floor_plane(z=0.0, inlier_thickness=0.18)
+        pts = np.random.default_rng(0).standard_normal((300, 3)).astype(np.float32)
+        pcd_in = _make_pcd(pts)
+        with patch.object(node, "_detect_horizontal_planes", return_value=[floor]):
+            _, meta = node._sync_filter(pcd_in)
+        detail = meta["plane_details"][0]
+        assert "inlier_thickness" in detail
+        assert detail["inlier_thickness"] == pytest.approx(0.18)

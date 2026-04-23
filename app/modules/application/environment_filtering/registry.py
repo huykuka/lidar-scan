@@ -188,7 +188,7 @@ node_schema_registry.register(
                 name="search_radius",
                 label="Search Radius (m)",
                 type="number",
-                default=0.1,
+                default=0.2,
                 min=0.01,
                 max=1.0,
                 step=0.01,

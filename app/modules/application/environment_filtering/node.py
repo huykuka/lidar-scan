@@ -44,6 +44,10 @@ class PlaneInfo:
     centroid: List[float]  # 3D centroid (x, y, z)
     area: float
     point_count: int
+    # 99th-percentile perpendicular distance of inlier points from the fitted plane.
+    # Used as the adaptive thickness floor so tilted or uneven surfaces are fully removed
+    # even when the configured plane_thickness would be too tight.
+    inlier_thickness: float = 0.0
 
     @property
     def centroid_z(self) -> float:
@@ -58,6 +62,7 @@ class PlaneInfo:
             "centroid_z": self.centroid_z,
             "area": self.area,
             "point_count": self.point_count,
+            "inlier_thickness": self.inlier_thickness,
         }
 
 
@@ -102,7 +107,7 @@ class EnvironmentFilteringNode(ModuleNode):
         self.min_plane_edge_length: float = float(config.get("min_plane_edge_length", 0.0))
         self.min_num_points: int = int(config.get("min_num_points", 0))
         self.max_nn: int = int(config.get("max_nn", 30))
-        self.search_radius: float = float(config.get("search_radius", 0.1))
+        self.search_radius: float = float(config.get("search_radius", 0.2))
 
         # ── Validation parameters ──────────────────────────────────────────
         self.vertical_tolerance_deg: float = float(config.get("vertical_tolerance_deg", 15.0))
@@ -236,13 +241,28 @@ class EnvironmentFilteringNode(ModuleNode):
             if area < self.min_plane_area:
                 continue
 
+            # Compute p99 perpendicular spread of inlier points from the fitted plane.
+            # This becomes the adaptive thickness: a tilted or uneven surface will have
+            # a naturally larger spread, ensuring all inliers are captured even when
+            # the configured plane_thickness would be too tight.
+            centroid = obox.center
+            inlier_mask = labels == i
+            inlier_count = int(np.sum(inlier_mask))
+            if inlier_count > 0:
+                inlier_pts = points_np[inlier_mask]
+                perp_dists = np.abs((inlier_pts - centroid.astype(np.float32)) @ normal.astype(np.float32))
+                inlier_thickness = float(np.percentile(perp_dists, 99))
+            else:
+                inlier_thickness = 0.0
+
             planes.append(PlaneInfo(
                 plane_id=i,
                 plane_type="",  # assigned below
                 normal=normal.tolist(),
-                centroid=obox.center.tolist(),
+                centroid=centroid.tolist(),
                 area=area,
-                point_count=int(np.sum(labels == i)),
+                point_count=inlier_count,
+                inlier_thickness=inlier_thickness,
             ))
 
         return planes
@@ -277,6 +297,18 @@ class EnvironmentFilteringNode(ModuleNode):
         # dot product broadcasted over all points: (N,)
         dist = np.abs((pts - c) @ n)
         return dist <= thickness
+
+    def _effective_thickness(self, plane: PlaneInfo) -> float:
+        """
+        Return the removal half-thickness for a plane.
+
+        Uses the larger of the configured plane_thickness and the plane's measured
+        inlier_thickness (p99 perpendicular spread of its detection-phase inliers).
+        This keeps the slab tight on flat scans and automatically expands it for
+        tilted sensors or uneven surfaces where the fitted plane centroid sits further
+        from some real floor/ceiling points than the fixed threshold would allow.
+        """
+        return max(self.plane_thickness, plane.inlier_thickness)
 
     # ── Core filtering (CPU-bound, runs in threadpool) ────────────────────────
 
@@ -327,11 +359,11 @@ class EnvironmentFilteringNode(ModuleNode):
             removal_mask = np.zeros(n_orig, dtype=bool)
             if self.remove_floor:
                 removal_mask |= self._plane_removal_mask(
-                    pts_orig_np, self._cached_floor, self.plane_thickness
+                    pts_orig_np, self._cached_floor, self._effective_thickness(self._cached_floor)
                 )
             if self.remove_ceiling and self._cached_ceiling is not None:
                 removal_mask |= self._plane_removal_mask(
-                    pts_orig_np, self._cached_ceiling, self.plane_thickness
+                    pts_orig_np, self._cached_ceiling, self._effective_thickness(self._cached_ceiling)
                 )
 
             keep_indices = np.where(~removal_mask)[0]
@@ -385,11 +417,11 @@ class EnvironmentFilteringNode(ModuleNode):
                     removal_mask = np.zeros(n_orig, dtype=bool)
                     if self.remove_floor:
                         removal_mask |= self._plane_removal_mask(
-                            pts_orig_np, self._cached_floor, self.plane_thickness
+                            pts_orig_np, self._cached_floor, self._effective_thickness(self._cached_floor)
                         )
                     if self.remove_ceiling and self._cached_ceiling is not None:
                         removal_mask |= self._plane_removal_mask(
-                            pts_orig_np, self._cached_ceiling, self.plane_thickness
+                            pts_orig_np, self._cached_ceiling, self._effective_thickness(self._cached_ceiling)
                         )
                     keep_indices = np.where(~removal_mask)[0]
                     pcd_out = pcd_in.select_by_index(keep_indices)
@@ -460,11 +492,11 @@ class EnvironmentFilteringNode(ModuleNode):
         removal_mask = np.zeros(n_orig, dtype=bool)
         if self.remove_floor:
             removal_mask |= self._plane_removal_mask(
-                pts_orig_np, floor_plane, self.plane_thickness
+                pts_orig_np, floor_plane, self._effective_thickness(floor_plane)
             )
         if self.remove_ceiling and ceiling_plane is not None:
             removal_mask |= self._plane_removal_mask(
-                pts_orig_np, ceiling_plane, self.plane_thickness
+                pts_orig_np, ceiling_plane, self._effective_thickness(ceiling_plane)
             )
 
         keep_indices = np.where(~removal_mask)[0]
