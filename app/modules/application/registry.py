@@ -17,6 +17,6 @@ The :func:`~app.modules.discover_modules` auto-discovery mechanism imports
 """
 
 # Import sub-module registries to trigger node registration side-effects
-from .hello_world import registry as hello_world_registry
+from .environment_filtering import registry as environment_filtering_registry
 
-__all__ = ["hello_world_registry"]
+__all__ = ["environment_filtering_registry"]
