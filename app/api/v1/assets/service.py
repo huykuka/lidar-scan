@@ -40,7 +40,7 @@ def _resolve_module_assets_dir(module: str) -> str:
     ))
 
 
-async def _get_thumbnail(module: str, filename: str):
+async def _get_thumbnail(module: str, filename: str) -> FileResponse:
     """Serve a device thumbnail image from *module*/assets/."""
     file_ext = os.path.splitext(filename)[1].lower()
 
@@ -72,7 +72,7 @@ async def _get_thumbnail(module: str, filename: str):
     )
 
 
-async def _list_thumbnails(module: str, url_prefix: str):
+async def _list_thumbnails(module: str, url_prefix: str) -> ThumbnailListResponse:
     """List available thumbnail files for a module."""
     assets_dir = _resolve_module_assets_dir(module)
 
@@ -102,17 +102,17 @@ async def _list_thumbnails(module: str, url_prefix: str):
 
 # --- Public wrappers (kept for backward-compatible imports) ---
 
-async def get_lidar_thumbnail(filename: str):
+async def get_lidar_thumbnail(filename: str) -> FileResponse:
     return await _get_thumbnail("lidar", filename)
 
 
-async def list_lidar_thumbnails():
+async def list_lidar_thumbnails() -> ThumbnailListResponse:
     return await _list_thumbnails("lidar", "/api/v1/assets/lidar/")
 
 
-async def get_visionary_thumbnail(filename: str):
+async def get_visionary_thumbnail(filename: str) -> FileResponse:
     return await _get_thumbnail("visionary", filename)
 
 
-async def list_visionary_thumbnails():
+async def list_visionary_thumbnails() -> ThumbnailListResponse:
     return await _list_thumbnails("visionary", "/api/v1/assets/visionary/")
