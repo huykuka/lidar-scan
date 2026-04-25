@@ -1,0 +1,81 @@
+<app-node-editor-header
+  [title]="form.get('name')?.value || 'Snapshot Node'"
+  [icon]="'photo_camera'"
+  [saveDisabled]="!form.valid || isSaving()"
+  (save)="onSave()"
+  (cancel)="onCancel()"
+/>
+
+<form [formGroup]="form" class="flex flex-col gap-4">
+  <!-- Node Name -->
+  <syn-input
+    label="Node Name"
+    formControlName="name"
+    size="small"
+    placeholder="Snapshot Node"
+    required
+  />
+
+  <!-- Throttle Interval (editable) -->
+  <syn-input
+    label="Throttle Interval (ms)"
+    formControlName="throttle_ms"
+    type="number"
+    size="small"
+    placeholder="0"
+    [attr.min]="0"
+    [attr.step]="50"
+  >
+    <div slot="help-text">
+      @if (form.get('throttle_ms')?.invalid && form.get('throttle_ms')?.touched) {
+        <span class="text-syn-color-danger-600 text-xs">
+          Must be a non-negative number (≥ 0).
+        </span>
+      } @else {
+        <span class="text-xs text-syn-color-neutral-500">
+          Minimum interval between snapshot triggers in milliseconds.
+          Use <code class="bg-syn-color-neutral-100 px-1 rounded">0</code> to disable throttling.
+        </span>
+      }
+    </div>
+  </syn-input>
+
+  <!-- Trigger API Endpoint -->
+  <div class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
+    <span class="text-xs font-semibold text-syn-color-neutral-700">Trigger API Endpoint</span>
+
+    @if (!isEditMode()) {
+      <!-- Pre-save placeholder -->
+      <p class="text-xs text-syn-color-neutral-400 italic">
+        Available after saving the node.
+      </p>
+    } @else {
+      <!-- Trigger URL -->
+      <div class="flex items-center gap-2">
+        <div class="flex-1">
+          <syn-input
+            label="POST Endpoint"
+            [value]="triggerUrl() || ''"
+            readonly
+            size="small"
+            class="font-mono text-xs url-input"
+          />
+        </div>
+        <syn-button
+          variant="text"
+          size="small"
+          (click)="copyToClipboard(triggerUrl()!)"
+          type="button"
+        >
+          <syn-icon name="content_copy"></syn-icon>
+          Copy
+        </syn-button>
+      </div>
+
+      <p class="text-xs text-syn-color-neutral-400">
+        Send an HTTP <strong>POST</strong> to this endpoint to trigger snapshot capture and forwarding.
+        No request body required.
+      </p>
+    }
+  </div>
+</form>
