@@ -316,9 +316,12 @@ class TestSelectiveReloadManager:
         manager_ref = _make_manager_ref(node_id, old_instance)
         node_data = _make_node_data(node_id)
 
+        no_pose_hash = "noposehash" + "0" * 54  # 64 chars
+
         with patch("app.services.nodes.managers.selective_reload.NodeRepository") as MockRepo, \
              patch("app.services.nodes.managers.selective_reload.NodeFactory") as MockFactory, \
-             patch("app.services.nodes.managers.selective_reload.compute_node_config_hash", return_value=new_hash):
+             patch("app.services.nodes.managers.selective_reload.compute_node_config_hash", return_value=new_hash), \
+             patch("app.services.nodes.managers.selective_reload.compute_node_config_hash_no_pose", return_value=no_pose_hash):
 
             MockRepo.return_value.get_by_id.return_value = node_data
             MockFactory.create.return_value = new_instance
@@ -326,7 +329,11 @@ class TestSelectiveReloadManager:
             srm = SelectiveReloadManager(manager_ref)
             await srm.reload_single_node(node_id)
 
-        manager_ref._config_hash_store.update.assert_called_once_with(node_id, new_hash)
+        calls = manager_ref._config_hash_store.update.call_args_list
+        assert any(c == call(node_id, new_hash) for c in calls), \
+            f"Expected update({node_id!r}, {new_hash!r}) in {calls}"
+        assert any(c == call(f"{node_id}:no_pose", no_pose_hash) for c in calls), \
+            f"Expected update('{node_id}:no_pose', ...) in {calls}"
 
     @pytest.mark.asyncio
     async def test_selective_reload_returns_duration_ms(self):

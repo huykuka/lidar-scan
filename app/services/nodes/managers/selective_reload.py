@@ -18,7 +18,7 @@ from app.core.logging import get_logger
 from app.repositories import NodeRepository
 
 from ..node_factory import NodeFactory
-from ..config_hasher import compute_node_config_hash
+from ..config_hasher import compute_node_config_hash, compute_node_config_hash_no_pose
 from ..input_gate import NodeInputGate
 
 if TYPE_CHECKING:
@@ -191,6 +191,10 @@ class SelectiveReloadManager:
             # ------------------------------------------------------------------
             new_hash = compute_node_config_hash(node_data)
             self.manager._config_hash_store.update(node_id, new_hash)
+            self.manager._config_hash_store.update(
+                f"{node_id}:no_pose",
+                compute_node_config_hash_no_pose(node_data),
+            )
 
         except Exception as exc:
             logger.error(
@@ -238,6 +242,75 @@ class SelectiveReloadManager:
             status="reloaded",
             duration_ms=duration_ms,
             ws_topic=preserved_topic,
+            error_message=None,
+            rolled_back=False,
+        )
+
+    async def hot_update_pose(self, node_id: str):
+        """Hot-update only the pose on a live node without stopping/restarting it.
+
+        This avoids the full selective reload cycle (stop worker → recreate →
+        restart) when only the sensor pose has changed. The transformation
+        matrix is updated in-place on the running node instance.
+
+        Args:
+            node_id: ID of the node whose pose changed.
+
+        Returns:
+            SelectiveReloadResult describing the outcome.
+        """
+        from app.api.v1.schemas.nodes import SelectiveReloadResult
+
+        start_ts = time.perf_counter()
+
+        if node_id not in self.manager.nodes:
+            raise ValueError(f"Node '{node_id}' not found in running pipeline.")
+
+        node_instance = self.manager.nodes[node_id]
+
+        try:
+            node_data = NodeRepository().get_by_id(node_id)
+            if node_data is None:
+                raise ValueError(f"Node '{node_id}' not found in database.")
+
+            pose_raw = node_data.get("pose")
+            if pose_raw is not None and hasattr(node_instance, "set_pose"):
+                from app.schemas.pose import Pose
+                pose = Pose(**pose_raw) if isinstance(pose_raw, dict) else pose_raw
+                node_instance.set_pose(pose)
+
+            new_hash = compute_node_config_hash(node_data)
+            self.manager._config_hash_store.update(node_id, new_hash)
+            self.manager._config_hash_store.update(
+                f"{node_id}:no_pose",
+                compute_node_config_hash_no_pose(node_data),
+            )
+        except Exception as exc:
+            duration_ms = (time.perf_counter() - start_ts) * 1000.0
+            logger.error(
+                f"[SelectiveReloadManager] Pose hot-update for '{node_id}' "
+                f"failed: {exc!r}",
+                exc_info=True,
+            )
+            return SelectiveReloadResult(
+                node_id=node_id,
+                status="error",
+                duration_ms=duration_ms,
+                ws_topic=getattr(node_instance, "_ws_topic", None),
+                error_message=str(exc),
+                rolled_back=False,
+            )
+
+        duration_ms = (time.perf_counter() - start_ts) * 1000.0
+        logger.info(
+            f"[SelectiveReloadManager] Pose hot-updated for '{node_id}' in "
+            f"{duration_ms:.1f}ms (no process restart)."
+        )
+        return SelectiveReloadResult(
+            node_id=node_id,
+            status="reloaded",
+            duration_ms=duration_ms,
+            ws_topic=getattr(node_instance, "_ws_topic", None),
             error_message=None,
             rolled_back=False,
         )

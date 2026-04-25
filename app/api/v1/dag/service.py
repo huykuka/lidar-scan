@@ -27,7 +27,7 @@ from app.core.logging import get_logger
 from app.db.session import SessionLocal
 from app.repositories import EdgeRepository, NodeRepository
 from app.repositories.dag_meta_orm import DagMetaRepository
-from app.services.nodes.config_hasher import compute_node_config_hash
+from app.services.nodes.config_hasher import compute_node_config_hash, compute_node_config_hash_no_pose
 from app.services.nodes.instance import node_manager
 
 logger = get_logger(__name__)
@@ -52,7 +52,8 @@ def _classify_dag_changes(
     Returns a tuple of ``(change_type, changed_node_ids)`` where *change_type* is one of:
 
     - ``"topology"``     — node set or edge set changed (full reload required)
-    - ``"param_change"`` — only node parameter hashes changed (selective reload per node)
+    - ``"param_change"`` — node config/enabled/visible changed (selective reload per node)
+    - ``"pose_only"``    — only pose changed (hot-update without process restart)
     - ``"no_change"``    — only cosmetic fields changed (x, y, name); no reload needed
 
     Args:
@@ -96,18 +97,29 @@ def _classify_dag_changes(
 
     # ── Param change check: compare config hashes ─────────────────────
     changed_ids: List[str] = []
+    pose_only_ids: List[str] = []
     for node in new_nodes:
         stored_hash = node_manager._config_hash_store.get(node.id)
         if stored_hash is None:
-            # Hash not known (e.g. node was disabled) — treat as changed to be safe
             changed_ids.append(node.id)
             continue
         new_hash = compute_node_config_hash(node.model_dump())
         if new_hash != stored_hash:
-            changed_ids.append(node.id)
+            # Full hash differs — check if only pose changed
+            new_hash_no_pose = compute_node_config_hash_no_pose(node.model_dump())
+            stored_hash_no_pose = node_manager._config_hash_store.get(f"{node.id}:no_pose")
+            if stored_hash_no_pose and new_hash_no_pose == stored_hash_no_pose:
+                pose_only_ids.append(node.id)
+            else:
+                changed_ids.append(node.id)
 
+    # If any node has a real config change, do selective reload for all changed
     if changed_ids:
-        return "param_change", changed_ids
+        return "param_change", changed_ids + pose_only_ids
+
+    # If only pose changed, hot-update without process restart
+    if pose_only_ids:
+        return "pose_only", pose_only_ids
 
     return "no_change", []
 
@@ -284,6 +296,11 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
         elif change_type == "param_change":
             for node_id in changed_ids:
                 await node_manager.selective_reload_node(node_id)
+            reload_mode = "selective"
+            reloaded_ids = changed_ids
+        elif change_type == "pose_only":
+            for node_id in changed_ids:
+                await node_manager.hot_update_node_pose(node_id)
             reload_mode = "selective"
             reloaded_ids = changed_ids
         else:  # no_change

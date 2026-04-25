@@ -138,12 +138,36 @@ class LifecycleManager:
     async def _stop_node_async(self, node_instance: Any) -> None:
         """Async stop a single node instance, awaiting coroutine stop() if present.
 
-        This is the safe way to stop a PlaybackNode (or any node with async stop())
-        to guarantee its asyncio.Task is cancelled and joined before the caller continues.
+        For sensor nodes with sync stop() (which calls process.join() and can
+        block for up to 3.5s), runs stop() in a thread to avoid blocking the
+        asyncio event loop. For async-stop nodes (PlaybackNode), awaits normally.
         """
         if hasattr(node_instance, "stop"):
+            import asyncio
             import inspect
             node_id = getattr(node_instance, "id", "?")
+
+            # Sensor nodes have a _process attribute and their stop() is sync
+            # but blocks on process.join(). Run in a thread to avoid blocking
+            # the event loop.
+            if hasattr(node_instance, "_process") and node_instance._process is not None:
+                logger.info(f"[LifecycleManager] Running sync stop() in thread for sensor node {node_id!r}")
+                loop = asyncio.get_running_loop()
+                try:
+                    await asyncio.wait_for(
+                        loop.run_in_executor(None, node_instance.stop),
+                        timeout=10.0,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        f"[LifecycleManager] stop() for sensor node {node_id!r} timed out after 10s"
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        f"[LifecycleManager] node {node_id!r} stop() raised {exc!r} — ignoring"
+                    )
+                return
+
             result = node_instance.stop()
             if inspect.isawaitable(result):
                 logger.info(f"[LifecycleManager] Awaiting async stop() for node {node_id!r}")

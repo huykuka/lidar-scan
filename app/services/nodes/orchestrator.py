@@ -29,7 +29,7 @@ from app.services.shared.topics import TopicRegistry
 from app.services.websocket.manager import manager as websocket_manager, SYSTEM_TOPICS
 
 from .managers import ConfigLoader, LifecycleManager, DataRouter, ThrottleManager, SelectiveReloadManager
-from .config_hasher import ConfigHashStore, compute_node_config_hash
+from .config_hasher import ConfigHashStore, compute_node_config_hash, compute_node_config_hash_no_pose
 from .input_gate import NodeInputGate
 
 logger = get_logger(__name__)
@@ -109,9 +109,14 @@ class NodeManager:
             self._config_hash_store.clear()
             for node_data in self.nodes_data:
                 if node_data.get("enabled", True):
+                    nid = node_data["id"]
                     self._config_hash_store.update(
-                        node_data["id"],
+                        nid,
                         compute_node_config_hash(node_data),
+                    )
+                    self._config_hash_store.update(
+                        f"{nid}:no_pose",
+                        compute_node_config_hash_no_pose(node_data),
                     )
             
             logger.info(f"Initialized {len(self.nodes)} nodes. Downstream map: {dict(self.downstream_map)}")
@@ -211,6 +216,27 @@ class NodeManager:
                 return result
             finally:
                 self._active_reload_node_id = None
+
+    async def hot_update_node_pose(self, node_id: str):
+        """Hot-update a node's pose without stopping/restarting its worker.
+
+        Unlike ``selective_reload_node``, this does NOT acquire the reload lock
+        (pose updates are instantaneous in-memory matrix swaps) and does NOT
+        stop/restart the worker process. This prevents the hang that occurs
+        when the full reload cycle waits for a sensor process to join.
+
+        Args:
+            node_id: ID of the node whose pose changed.
+
+        Returns:
+            SelectiveReloadResult describing the outcome.
+        """
+        result = await self._selective_reload_manager.hot_update_pose(node_id)
+        status = "ready" if result.status == "reloaded" else "error"
+        await self._broadcast_reload_event(
+            node_id, status, "selective", result.error_message
+        )
+        return result
 
     async def _broadcast_reload_event(
         self,
