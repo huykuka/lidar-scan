@@ -113,11 +113,11 @@ node_schema_registry.register(
                 help_text="Minimum time between processing frames (0 = no limit)",
             ),
             PropertySchema(
-                name="hostname",
-                label="Hostname",
+                name="camera_ip",
+                label="Camera IP",
                 type="string",
                 default="192.168.1.10",
-                help_text="Camera IP address",
+                help_text="IP address of the SICK Visionary camera",
             ),
             PropertySchema(
                 name="streaming_port",
@@ -193,7 +193,7 @@ def build_visionary_sensor(
     if model_info is None:
         raise ValueError(f"Unknown camera_model: '{camera_model_id}'")
 
-    hostname = config.get("hostname", model_info["default_hostname"])
+    camera_ip = config.get("camera_ip", model_info["default_hostname"])
     streaming_port = int(config.get("streaming_port", model_info["default_streaming_port"]))
     control_port = int(config.get("control_port", model_info["default_control_port"]))
     protocol = config.get("streaming_protocol", "UDP")
@@ -226,7 +226,7 @@ def build_visionary_sensor(
     sensor = VisionarySensor(
         manager=service_context,
         sensor_id=sensor_id,
-        hostname=hostname,
+        camera_ip=camera_ip,
         streaming_port=streaming_port,
         protocol=protocol,
         cola_protocol=cola_protocol,

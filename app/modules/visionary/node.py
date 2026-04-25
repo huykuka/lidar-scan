@@ -34,7 +34,7 @@ class VisionarySensor(ModuleNode):
         self,
         manager: Any,
         sensor_id: str,
-        hostname: str = "192.168.1.10",
+        camera_ip: str = "192.168.1.10",
         streaming_port: int = 2114,
         protocol: str = "UDP",
         cola_protocol: str = "Cola2",
@@ -51,7 +51,7 @@ class VisionarySensor(ModuleNode):
         self.name = name or sensor_id
         self.topic_prefix = topic_prefix or self.name
 
-        self.hostname = hostname
+        self.camera_ip = camera_ip
         self.streaming_port = streaming_port
         self.protocol = protocol
         self.cola_protocol = cola_protocol
@@ -122,7 +122,7 @@ class VisionarySensor(ModuleNode):
                     args=(
                         self.id,
                         self.cti_path,
-                        self.hostname,
+                        self.camera_ip,
                         self.is_stereo,
                         data_queue,
                         self._stop_event,
@@ -137,7 +137,7 @@ class VisionarySensor(ModuleNode):
                     target=visionary_worker_process,
                     args=(
                         self.id,
-                        self.hostname,
+                        self.camera_ip,
                         self.streaming_port,
                         self.protocol,
                         self.cola_protocol,

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def harvester_worker_process(
     sensor_id: str,
     cti_path: str,
-    hostname: str,
+    camera_ip: str,
     is_stereo: bool,
     data_queue: "Queue[Any]",
     stop_event: "Event",
@@ -33,7 +33,7 @@ def harvester_worker_process(
     Args:
         sensor_id:  Unique node identifier.
         cti_path:   Absolute path to the GenIStreamC ``.cti`` producer file.
-        hostname:   Camera IP address (used to select the correct device).
+        camera_ip:  IP address of the SICK Visionary camera (used to select the correct device).
         is_stereo:  True for stereo cameras (Visionary-S AP, Visionary-B Two).
         data_queue: Shared queue for pushing payloads to the main process.
         stop_event: Multiprocessing event signalling graceful shutdown.
@@ -64,11 +64,11 @@ def harvester_worker_process(
             _push_event(data_queue, sensor_id, "error", msg)
             return
 
-        # Try to find the device matching the configured hostname/IP
+        # Try to find the device matching the configured camera IP
         target_idx = 0
         for idx, info in enumerate(h.device_info_list):
             dev_id = getattr(info, "id_", "") or ""
-            if hostname in dev_id:
+            if camera_ip in dev_id:
                 target_idx = idx
                 break
 

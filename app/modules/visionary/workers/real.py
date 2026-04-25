@@ -47,7 +47,7 @@ def _add_sdk_to_path() -> None:
 
 def visionary_worker_process(
     sensor_id: str,
-    hostname: str,
+    camera_ip: str,
     streaming_port: int,
     protocol: str,
     cola_protocol: str,
@@ -60,7 +60,7 @@ def visionary_worker_process(
 
     Args:
         sensor_id:      Unique node identifier.
-        hostname:       Camera IP address.
+        camera_ip:      IP address of the SICK Visionary camera.
         streaming_port: TCP/UDP streaming port (default 2114).
         protocol:       ``"TCP"`` or ``"UDP"``.
         cola_protocol:  ``"ColaB"`` or ``"Cola2"``.
@@ -93,15 +93,15 @@ def visionary_worker_process(
 
     try:
         # --- Control channel ---------------------------------------------------
-        logger.info(f"[{sensor_id}] Connecting control channel to {hostname}:{control_port} ({cola_protocol})")
-        control = Control(hostname, cola_protocol, control_port=control_port, timeout=5)
+        logger.info(f"[{sensor_id}] Connecting control channel to {camera_ip}:{control_port} ({cola_protocol})")
+        control = Control(camera_ip, cola_protocol, control_port=control_port, timeout=5)
         control.open()
         control.login(Control.USERLEVEL_SERVICE, "CUST_SERV")
         logger.info(f"[{sensor_id}] Control channel connected")
 
         # --- Streaming channel -------------------------------------------------
-        logger.info(f"[{sensor_id}] Opening streaming channel to {hostname}:{streaming_port} ({protocol})")
-        streaming = Streaming(hostname, streaming_port, protocol=protocol)
+        logger.info(f"[{sensor_id}] Opening streaming channel to {camera_ip}:{streaming_port} ({protocol})")
+        streaming = Streaming(camera_ip, streaming_port, protocol=protocol)
         if protocol == "UDP":
             streaming.openStream(server_address=("", streaming_port))
         else:
@@ -118,7 +118,7 @@ def visionary_worker_process(
         # connected socket.  The SDK binds the UDP socket locally but never
         # connects it to the camera, so we connect it here once.
         if protocol == "UDP":
-            streaming.sock_stream.connect((hostname, streaming_port))
+            streaming.sock_stream.connect((camera_ip, streaming_port))
 
         # --- Acquisition loop --------------------------------------------------
         while not stop_event.is_set():
