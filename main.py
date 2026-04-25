@@ -28,4 +28,5 @@ if __name__ == "__main__":
         port=port,
         reload=reload_enabled,
         reload_dirs=reload_dirs,
+        ws="wsproto",
     )
