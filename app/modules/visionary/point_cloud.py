@@ -4,6 +4,8 @@ Vectorized depth-to-point-cloud conversion for SICK Visionary 3D cameras.
 Converts depth map, intensity, and confidence data from SICK Visionary cameras
 into (N, 14) numpy arrays compatible with the pipeline's standard format.
 
+All coordinates are converted from millimetres (camera native) to metres.
+
 Supports both ToF (Visionary-T Mini) and stereo (Visionary-S, Visionary-B Two)
 camera models using the intrinsic camera parameters provided by the device.
 
@@ -45,7 +47,10 @@ def depth_to_point_cloud_tof(
 
     Returns:
         (N, 14) float64 array with columns [x, y, z, 0..9, intensity, ...].
+        Coordinates are in metres.
     """
+    MM_TO_M = 0.001
+
     dist = np.asarray(dist_data, dtype=np.float64).reshape(height, width)
     conf = np.asarray(confidence_data, dtype=np.uint16).reshape(height, width)
     ints = np.asarray(intensity_data, dtype=np.float64).reshape(height, width)
@@ -75,9 +80,9 @@ def depth_to_point_cloud_tof(
     zw = m[2, 0] * xc + m[2, 1] * yc + m[2, 2] * zc + m[2, 3]
 
     valid = conf == 0
-    xw_valid = xw[valid]
-    yw_valid = yw[valid]
-    zw_valid = zw[valid]
+    xw_valid = xw[valid] * MM_TO_M
+    yw_valid = yw[valid] * MM_TO_M
+    zw_valid = zw[valid] * MM_TO_M
     ints_valid = ints[valid]
 
     n = int(xw_valid.shape[0])
@@ -118,8 +123,10 @@ def depth_to_point_cloud_stereo(
         cam2world:       4x4 camera-to-world transformation matrix.
 
     Returns:
-        (N, 14) float64 array.
+        (N, 14) float64 array. Coordinates are in metres.
     """
+    MM_TO_M = 0.001
+
     dist = np.asarray(dist_data, dtype=np.float64).reshape(height, width)
     conf = np.asarray(confidence_data, dtype=np.uint16).reshape(height, width)
     ints = np.asarray(intensity_data, dtype=np.float64).reshape(height, width)
@@ -141,9 +148,9 @@ def depth_to_point_cloud_stereo(
     zw = m[2, 0] * xc + m[2, 1] * yc + m[2, 2] * zc + m[2, 3]
 
     valid = conf == 0
-    xw_valid = xw[valid]
-    yw_valid = yw[valid]
-    zw_valid = zw[valid]
+    xw_valid = xw[valid] * MM_TO_M
+    yw_valid = yw[valid] * MM_TO_M
+    zw_valid = zw[valid] * MM_TO_M
     ints_valid = ints[valid]
 
     n = int(xw_valid.shape[0])
