@@ -235,7 +235,6 @@ class TestNodeOperationsWithLidarType:
                     "enabled": True,
                     "config": {
                         "lidar_type": "tim_7xx",
-                        "mode": "real",
                         "hostname": "192.168.0.100",
                         "port": 2112,
                         "throttle_ms": 0,

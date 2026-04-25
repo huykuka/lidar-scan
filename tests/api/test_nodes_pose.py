@@ -42,7 +42,7 @@ SENSOR_NODE = {
     "config": {
         "lidar_type": "multiscan",
         "hostname": "192.168.1.10",
-        "mode": "sim",
+
     },
     "pose": {
         "x": 100.0,
@@ -185,7 +185,7 @@ class TestNodesListPoseField:
             "category": "sensor",
             "enabled": True,
             "visible": True,
-            "config": {"lidar_type": "multiscan", "hostname": "192.168.1.10", "mode": "sim"},
+            "config": {"lidar_type": "multiscan", "hostname": "192.168.1.10"},
             "pose": None,
             "x": 0.0,
             "y": 0.0,

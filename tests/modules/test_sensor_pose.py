@@ -23,7 +23,6 @@ class TestLidarSensorSetPose:
             manager=manager,
             sensor_id="test-sensor",
             launch_args="",
-            mode="sim",
         )
         return sensor
 
@@ -78,7 +77,7 @@ class TestLidarSensorGetPoseParams:
         from unittest.mock import MagicMock
         from app.modules.lidar.sensor import LidarSensor
         manager = MagicMock()
-        return LidarSensor(manager=manager, sensor_id="test-sensor", launch_args="", mode="sim")
+        return LidarSensor(manager=manager, sensor_id="test-sensor", launch_args="")
 
     def test_get_pose_params_returns_pose_instance(self):
         from app.schemas.pose import Pose

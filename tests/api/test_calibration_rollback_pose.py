@@ -31,7 +31,7 @@ class TestCalibrationRollbackPose:
                     "config": {
                         "lidar_type": "multiscan",
                         "hostname": "192.168.1.10",
-                        "mode": "sim",
+
                     },
                     "pose": {
                         "x": 0.0, "y": 0.0, "z": 0.0,

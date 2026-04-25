@@ -54,7 +54,7 @@ def test_sensor_node_can_be_instantiated():
         'name': 'Test Sensor',
         'config': {
             'lidar_type': 'multiscan',
-            'mode': 'sim',
+            'hostname': '192.168.1.10',
             'throttle_ms': 0
         }
     }

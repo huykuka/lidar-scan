@@ -27,8 +27,7 @@ class TestLidarSensorInitialization:
         assert sensor.launch_args == "--arg1 --arg2"
         assert sensor.name == "lidar1"  # Defaults to sensor_id
         assert sensor.topic_prefix == "lidar1"  # Defaults to name
-        assert sensor.mode == "real"
-        assert sensor.pcd_path is None
+        assert sensor.launch_args == "--arg1 --arg2"
 
     def test_initialization_with_name(self):
         """Test initialization with custom name"""
@@ -43,13 +42,6 @@ class TestLidarSensorInitialization:
         sensor = make_sensor(sensor_id="lidar1", name="Front Sensor", topic_prefix="front_lidar")
 
         assert sensor.topic_prefix == "front_lidar"
-
-    def test_initialization_sim_mode(self):
-        """Test initialization in simulation mode"""
-        sensor = make_sensor(sensor_id="sim1", launch_args="", mode="sim", pcd_path="/path/to/file.pcd")
-
-        assert sensor.mode == "sim"
-        assert sensor.pcd_path == "/path/to/file.pcd"
 
     def test_transformation_defaults_to_identity(self):
         """Test that transformation defaults to identity matrix"""
@@ -267,32 +259,14 @@ class TestLidarSensorIntegration:
             sensor_id="front_lidar",
             name="Front Lidar",
             topic_prefix="front",
-            launch_args="--ip 192.168.1.100",
-            mode="real"
+            launch_args="--ip 192.168.1.100"
         )
         sensor.set_pose(Pose(x=1.5, y=0.0, z=0.5))
 
         assert sensor.id == "front_lidar"
         assert sensor.name == "Front Lidar"
         assert sensor.topic_prefix == "front"
-        assert sensor.mode == "real"
         assert sensor.pose_params.x == 1.5
-
-    def test_typical_usage_sim_mode(self):
-        """Test typical usage pattern for simulation mode"""
-        sensor = make_sensor(
-            sensor_id="sim_lidar",
-            name="Simulated Lidar",
-            launch_args="",
-            mode="sim",
-            pcd_path="/data/sample.pcd"
-        )
-        sensor.set_pose(Pose(x=0, y=0, z=2.0, yaw=90))
-
-        assert sensor.mode == "sim"
-        assert sensor.pcd_path == "/data/sample.pcd"
-        assert sensor.pose_params.z == 2.0
-        assert sensor.pose_params.yaw == 90.0
 
     def test_sensor_with_pose(self):
         """Test sensor with pose configuration"""
