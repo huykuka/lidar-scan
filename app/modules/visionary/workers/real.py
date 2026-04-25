@@ -25,10 +25,19 @@ logger = logging.getLogger(__name__)
 def _add_sdk_to_path() -> None:
     """Ensure the sick_visionary_python_base package is importable.
 
-    The SDK is expected to live at ``<repo_root>/sick_visionary_python_base/``
-    or be installed as a regular package.
+    Resolution order:
+    1. ``VISIONARY_SDK_PATH`` environment variable (absolute path to the cloned repo)
+    2. ``<repo_root>/sick_visionary_python_base/`` (auto-discovered)
+    3. Already installed as a Python package (no action needed)
     """
     from pathlib import Path
+
+    env_path = os.environ.get("VISIONARY_SDK_PATH")
+    if env_path:
+        p = Path(env_path).resolve()
+        if p.is_dir() and str(p.parent) not in sys.path:
+            sys.path.insert(0, str(p.parent))
+        return
 
     repo_root = Path(__file__).resolve().parents[4]
     sdk_path = repo_root / "sick_visionary_python_base"
