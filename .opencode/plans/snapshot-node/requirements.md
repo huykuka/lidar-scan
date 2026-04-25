@@ -1,0 +1,163 @@
+# Snapshot Node - Requirements Specification
+
+## Feature Overview
+
+The **Snapshot Node** is a new flow control module that enables external HTTP-triggered capture and forwarding of point cloud data within the DAG pipeline. Located in `app/modules/flow_control/snapshot/`, this node allows users to programmatically capture the latest upstream point cloud via a POST API endpoint and immediately forward it downstream to connected nodes.
+
+**Key Characteristics:**
+- **Trigger-Based**: Only forwards point clouds when triggered via HTTP POST (rising edge behavior)
+- **Stateless**: Captures and forwards immediately without persistence
+- **Invisible**: No WebSocket streaming topic (flow control role)
+- **Standard Output**: Single output port for downstream connections
+- **Node-Level Throttling**: Configurable rate limiting per instance
+
+## Business Context
+
+This node addresses the need for external systems (automation scripts, test harnesses, third-party integrations) to programmatically control when specific point cloud snapshots are captured and processed through the DAG pipeline. Unlike continuous streaming nodes, the Snapshot Node gives precise, event-driven control over data flow.
+
+**Use Cases:**
+- Manual snapshot capture during system calibration
+- Test automation triggering specific capture sequences
+- External event-driven data collection (e.g., trigger on sensor alarm)
+- Debugging specific pipeline states by capturing known data points
+
+## User Stories
+
+**As a** system integrator,  
+**I want** to trigger point cloud snapshots via HTTP API,  
+**So that** I can synchronize LiDAR data capture with external events in my automation workflow.
+
+**As a** QA engineer,  
+**I want** to programmatically trigger snapshots during automated tests,  
+**So that** I can verify pipeline behavior under controlled conditions.
+
+**As a** developer,  
+**I want** the snapshot node to respect throttle limits,  
+**So that** I can prevent resource exhaustion from rapid trigger requests.
+
+**As an** operator,  
+**I want** clear error responses when no data is available,  
+**So that** I can detect and handle timing issues in my integration.
+
+## Acceptance Criteria
+
+### Core Functionality
+- [ ] Node is implemented in `app/modules/flow_control/snapshot/` module
+- [ ] Node extends `ModuleNode` base class following DAG integration patterns
+- [ ] Node accepts standard upstream DAG connections
+- [ ] Node provides single output port for downstream connections
+- [ ] Node is invisible (no WebSocket streaming topic, `_ws_topic = None`)
+
+### HTTP Trigger API
+- [ ] Endpoint: `POST /api/v1/nodes/{node_id}/trigger`
+- [ ] No authentication required (open endpoint)
+- [ ] Returns HTTP 200 OK on successful trigger
+- [ ] Response body is simple success confirmation (JSON: `{"status": "ok"}`)
+- [ ] Returns HTTP 404 Not Found when no upstream data is available yet
+- [ ] Returns HTTP 400 Bad Request for invalid node_id
+- [ ] Returns HTTP 409 Conflict if trigger arrives while prior snapshot is processing (drop new trigger)
+
+### Snapshot Behavior
+- [ ] Captures the **most recent** upstream point cloud at the moment of POST trigger
+- [ ] Immediately forwards captured snapshot to all connected downstream nodes
+- [ ] Does **NOT** forward upstream data continuously (only on trigger)
+- [ ] Does **NOT** persist snapshot to disk or database (pass-through only)
+- [ ] Snapshot forwarding follows standard DAG pipeline (via `manager.forward_data()`)
+
+### Rate Limiting & Throttling
+- [ ] Node accepts `throttle_ms` configuration parameter (default: 0 = no limit)
+- [ ] When `throttle_ms > 0`, enforces minimum interval between successful triggers
+- [ ] Triggers within throttle window are **dropped** (return HTTP 429 Too Many Requests)
+- [ ] Throttle state is per-node instance (not global)
+
+### Concurrency Handling
+- [ ] Maintains processing flag to detect concurrent trigger attempts
+- [ ] If trigger arrives while previous snapshot is processing, **drop** new trigger (HTTP 409)
+- [ ] Processing flag is cleared after successful forward or error
+
+### Status & Notifications
+- [ ] Calls `notify_status_change(self.id)` after each successful snapshot
+- [ ] Implements `emit_status()` returning `NodeStatusUpdate`
+- [ ] Operational state mapping:
+  - `RUNNING`: Normal operation (whether triggered or idle)
+  - `ERROR`: If last trigger resulted in error
+- [ ] Optional application state showing:
+  - Last trigger timestamp
+  - Snapshot count
+  - Color indicator (blue = recent trigger <5s, gray = idle)
+
+### Error Handling
+- [ ] Logs all errors with context (node_id, error type, timestamp)
+- [ ] Returns appropriate HTTP status codes:
+  - 404: No upstream data available
+  - 400: Invalid node_id or malformed request
+  - 409: Trigger dropped due to concurrent processing
+  - 429: Trigger dropped due to throttle limit
+  - 500: Internal processing error
+- [ ] Error responses include JSON body with error details
+- [ ] Errors increment internal error counter
+- [ ] Node remains operational after errors (no crash)
+
+### Integration & Standards
+- [ ] Follows existing flow_control module patterns (IfConditionNode, OutputNode)
+- [ ] Registered in `app/modules/flow_control/registry.py`
+- [ ] Compatible with DAG serialization/deserialization
+- [ ] Works with NodeManager orchestration (routing, forwarding, status)
+- [ ] Async/await patterns for non-blocking operation
+- [ ] Uses `app.core.logging.get_logger()` for consistent logging
+
+## Out of Scope
+
+The following are **explicitly excluded** from this feature:
+
+- ❌ **Authentication/Authorization**: No API key, JWT, or access control (open endpoint for internal use)
+- ❌ **Snapshot Persistence**: No saving to disk, database, or cloud storage
+- ❌ **WebSocket Streaming**: No real-time point cloud broadcasting on WebSocket topics
+- ❌ **Queue Management**: No retry logic, queuing, or background processing of failed snapshots
+- ❌ **Response Metadata**: API returns simple 200 OK, not detailed snapshot metadata (point count, timestamp, etc.)
+- ❌ **Dual Output Ports**: Single output only (no conditional routing like IfConditionNode)
+- ❌ **Global Rate Limiting**: Throttle is per-node instance only, not system-wide
+- ❌ **Async Processing**: Snapshot capture and forward is synchronous (blocking endpoint until complete)
+- ❌ **Snapshot History**: No tracking or retrieval of previous snapshots
+- ❌ **WebSocket Trigger**: HTTP POST only; no WebSocket command support
+- ❌ **Frontend UI**: No dedicated Angular component or settings panel (future work)
+
+## Dependencies & Constraints
+
+**Backend Dependencies:**
+- FastAPI for HTTP endpoint
+- NodeManager for DAG integration
+- ModuleNode base class
+- Status aggregator service
+- Open3D point cloud types (via upstream nodes)
+
+**Performance Constraints:**
+- Snapshot operation must not block other DAG nodes (use asyncio properly)
+- Heavy point cloud operations should use threadpools if needed
+- Target <100ms trigger response time for typical point clouds (<100k points)
+
+**Compatibility:**
+- Must work with existing DAG serialization format
+- Must integrate with existing node status monitoring
+- Must follow LIDR protocol standards for point cloud data format
+
+## Success Metrics
+
+- HTTP trigger endpoint responds successfully within 100ms (95th percentile)
+- Zero crashes or deadlocks under concurrent trigger attempts
+- Throttle limits prevent >X triggers/second as configured
+- Error rate <1% under normal operating conditions
+- Node integrates seamlessly with existing DAG pipeline without breaking changes
+
+## Future Considerations
+
+While out of scope for this initial implementation, the following may be considered for future iterations:
+
+- Authentication layer for production deployments
+- Snapshot metadata in API response (timestamp, point count, processing time)
+- Persistent snapshot storage with retrieval API
+- Frontend Angular component for manual triggering and configuration
+- WebSocket-based trigger commands
+- Snapshot history and replay functionality
+- Advanced queuing and retry mechanisms
+- Integration with external event systems (webhooks, pub/sub)
