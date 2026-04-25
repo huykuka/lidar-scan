@@ -35,7 +35,7 @@ describe('SensorNodeCardComponent', () => {
 
   beforeEach(async () => {
     const lidarProfilesSpy = {
-      loadProfiles: vi.fn(),
+      profiles: vi.fn().mockReturnValue([]),
       getProfileByModelId: vi.fn().mockReturnValue(null),
     };
 

@@ -3,7 +3,7 @@ import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
+
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
 import {LidarTypeSelectComponent} from '@plugins/sensor/lidar-type-select/lidar-type-select.component';
 import {NodeEditorComponent} from '@core/models/node-plugin.model';
@@ -36,7 +36,6 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
     const data = this.nodeStore.selectedNode();
     return this.nodeStore.nodeDefinitions().find((d) => d.type === data.type);
   });
-  private lidarProfilesApi = inject(LidarProfilesApiService);
   private facade = inject(NodeEditorFacadeService);
   private formValues = signal<Record<string, any>>({});
   protected visibleProperties = computed(() => {
@@ -57,8 +56,6 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
   private formValuesSub?: Subscription;
 
   constructor() {
-    this.lidarProfilesApi.loadProfiles();
-
     effect(() => {
       const def = this.definition();
       if (def) {

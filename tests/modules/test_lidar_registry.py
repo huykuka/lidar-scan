@@ -36,7 +36,42 @@ class TestRegistrySchema:
         option_values = {opt["value"] for opt in lidar_type_prop.options}
         
         assert option_values == profile_ids
-    
+
+    def test_lidar_type_options_contain_full_profile_metadata(self):
+        """Each option carries full profile metadata (thumbnail, icon, defaults, etc.)"""
+        from app.services.nodes.schema import node_schema_registry
+        sensor_def = node_schema_registry.get("sensor")
+        lidar_type_prop = next(p for p in sensor_def.properties if p.name == "lidar_type")
+
+        required_keys = {
+            "label", "value", "launch_file", "default_hostname",
+            "port_arg", "default_port", "has_udp_receiver", "has_imu_udp_port",
+            "scan_layers", "thumbnail_url", "icon_name", "icon_color", "disabled",
+        }
+
+        for opt in lidar_type_prop.options:
+            for key in required_keys:
+                assert key in opt, f"Option {opt['value']} missing key '{key}'"
+
+    def test_lidar_type_options_metadata_matches_profiles(self):
+        """Option metadata matches the corresponding profile data"""
+        from app.services.nodes.schema import node_schema_registry
+        sensor_def = node_schema_registry.get("sensor")
+        lidar_type_prop = next(p for p in sensor_def.properties if p.name == "lidar_type")
+
+        profiles_by_id = {p.model_id: p for p in get_all_profiles()}
+        for opt in lidar_type_prop.options:
+            profile = profiles_by_id[opt["value"]]
+            assert opt["label"] == profile.display_name
+            assert opt["launch_file"] == profile.launch_file
+            assert opt["default_hostname"] == profile.default_hostname
+            assert opt["port_arg"] == profile.port_arg
+            assert opt["default_port"] == profile.default_port
+            assert opt["has_udp_receiver"] == profile.has_udp_receiver
+            assert opt["has_imu_udp_port"] == profile.has_imu_udp_port
+            assert opt["scan_layers"] == profile.scan_layers
+            assert opt["disabled"] == profile.disabled
+
     def test_lidar_type_default_is_multiscan(self):
         """Default should be multiscan for backward compatibility"""
         from app.services.nodes.schema import node_schema_registry

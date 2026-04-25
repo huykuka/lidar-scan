@@ -14,10 +14,6 @@ export interface LidarProfile {
   icon_color?: string;      // Hex color for icon (e.g., "#0066CC", "#FF6B35")
 }
 
-export interface LidarProfilesResponse {
-  profiles: LidarProfile[];
-}
-
 export interface LidarConfigValidationRequest {
   lidar_type: string;
   hostname: string;
