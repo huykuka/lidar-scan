@@ -19,20 +19,46 @@ from app.services.nodes.schema import (
 # Camera model definitions
 # ---------------------------------------------------------------------------
 
+# acquisition_method: "sdk" uses sick_visionary_python_base (CX models),
+#                     "harvester" uses GigE Vision via harvesters + GenTL (AP models).
 VISIONARY_MODELS = [
+    # --- CX models (SDK streaming) ---
     {
-        "model_id": "visionary_t_mini",
-        "display_name": "SICK Visionary-T Mini",
+        "model_id": "visionary_t_mini_cx",
+        "display_name": "Visionary-T Mini CX (V3S105)",
         "is_stereo": False,
+        "acquisition_method": "sdk",
         "default_hostname": "192.168.1.10",
         "cola_protocol": "Cola2",
         "default_control_port": 2122,
         "default_streaming_port": 2114,
     },
     {
-        "model_id": "visionary_s",
-        "display_name": "SICK Visionary-S",
+        "model_id": "visionary_s_cx",
+        "display_name": "Visionary-S CX (V3S102)",
         "is_stereo": True,
+        "acquisition_method": "sdk",
+        "default_hostname": "192.168.1.10",
+        "cola_protocol": "Cola2",
+        "default_control_port": 2122,
+        "default_streaming_port": 2114,
+    },
+    # --- AP models (GigE Vision / Harvester) ---
+    {
+        "model_id": "visionary_t_mini_ap",
+        "display_name": "Visionary-T Mini AP (V3S145)",
+        "is_stereo": False,
+        "acquisition_method": "harvester",
+        "default_hostname": "192.168.1.10",
+        "cola_protocol": "Cola2",
+        "default_control_port": 2122,
+        "default_streaming_port": 2114,
+    },
+    {
+        "model_id": "visionary_s_ap",
+        "display_name": "Visionary-S AP (V3S142)",
+        "is_stereo": True,
+        "acquisition_method": "harvester",
         "default_hostname": "192.168.1.10",
         "cola_protocol": "Cola2",
         "default_control_port": 2122,
@@ -40,8 +66,9 @@ VISIONARY_MODELS = [
     },
     {
         "model_id": "visionary_b_two",
-        "display_name": "SICK Visionary-B Two",
+        "display_name": "Visionary-B Two (V3S146)",
         "is_stereo": True,
+        "acquisition_method": "harvester",
         "default_hostname": "192.168.1.10",
         "cola_protocol": "Cola2",
         "default_control_port": 2122,
@@ -68,7 +95,7 @@ node_schema_registry.register(
                 name="camera_model",
                 label="Camera Model",
                 type="select",
-                default="visionary_t_mini",
+                default="visionary_t_mini_cx",
                 required=True,
                 help_text="Select the SICK Visionary camera model",
                 options=[
@@ -97,14 +124,16 @@ node_schema_registry.register(
                 label="Streaming Port",
                 type="number",
                 default=2114,
-                help_text="TCP/UDP port for BLOB data streaming",
+                help_text="TCP/UDP port for BLOB data streaming (SDK mode)",
+                depends_on={"camera_model": [m["model_id"] for m in VISIONARY_MODELS if m["acquisition_method"] == "sdk"]},
             ),
             PropertySchema(
                 name="control_port",
                 label="Control Port",
                 type="number",
                 default=2122,
-                help_text="CoLa control channel port",
+                help_text="CoLa control channel port (SDK mode)",
+                depends_on={"camera_model": [m["model_id"] for m in VISIONARY_MODELS if m["acquisition_method"] == "sdk"]},
             ),
             PropertySchema(
                 name="streaming_protocol",
@@ -115,7 +144,16 @@ node_schema_registry.register(
                     {"label": "TCP", "value": "TCP"},
                     {"label": "UDP", "value": "UDP"},
                 ],
-                help_text="Transport protocol for the streaming channel",
+                help_text="Transport protocol for the streaming channel (SDK mode)",
+                depends_on={"camera_model": [m["model_id"] for m in VISIONARY_MODELS if m["acquisition_method"] == "sdk"]},
+            ),
+            PropertySchema(
+                name="cti_path",
+                label="GenTL Producer (.cti)",
+                type="string",
+                default="",
+                help_text="Path to the GenIStreamC .cti file from sick_visionary_gev_base (Harvester mode)",
+                depends_on={"camera_model": [m["model_id"] for m in VISIONARY_MODELS if m["acquisition_method"] == "harvester"]},
             ),
             PropertySchema(
                 name="pose",
@@ -150,7 +188,7 @@ def build_visionary_sensor(
     except (ValueError, TypeError):
         throttle_ms = 0.0
 
-    camera_model_id = config.get("camera_model", "visionary_t_mini")
+    camera_model_id = config.get("camera_model", "visionary_t_mini_cx")
     model_info = _MODEL_LOOKUP.get(camera_model_id)
     if model_info is None:
         raise ValueError(f"Unknown camera_model: '{camera_model_id}'")
@@ -182,6 +220,9 @@ def build_visionary_sensor(
         desired_prefix, sensor_id[:8]
     )
 
+    acquisition_method = model_info["acquisition_method"]
+    cti_path = config.get("cti_path", "") or ""
+
     sensor = VisionarySensor(
         manager=service_context,
         sensor_id=sensor_id,
@@ -191,6 +232,8 @@ def build_visionary_sensor(
         cola_protocol=cola_protocol,
         control_port=control_port,
         is_stereo=is_stereo,
+        acquisition_method=acquisition_method,
+        cti_path=cti_path or None,
         name=sensor_name,
         topic_prefix=final_topic_prefix,
         throttle_ms=throttle_ms,

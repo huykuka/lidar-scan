@@ -40,6 +40,8 @@ class VisionarySensor(ModuleNode):
         cola_protocol: str = "Cola2",
         control_port: int = 2122,
         is_stereo: bool = False,
+        acquisition_method: str = "sdk",
+        cti_path: Optional[str] = None,
         name: Optional[str] = None,
         topic_prefix: Optional[str] = None,
         throttle_ms: float = 0,
@@ -55,9 +57,11 @@ class VisionarySensor(ModuleNode):
         self.cola_protocol = cola_protocol
         self.control_port = control_port
         self.is_stereo = is_stereo
+        self.acquisition_method = acquisition_method
+        self.cti_path = cti_path
 
-        self.camera_model: str = "visionary_t_mini"
-        self.camera_display_name: str = "SICK Visionary-T Mini"
+        self.camera_model: str = "visionary_t_mini_cx"
+        self.camera_display_name: str = "Visionary-T Mini CX (V3S105)"
 
         self.transformation = np.eye(4)
         self.pose_params: Pose = Pose.zero()
@@ -105,24 +109,46 @@ class VisionarySensor(ModuleNode):
         }
 
         try:
-            from app.modules.visionary.workers.real import visionary_worker_process
+            if self.acquisition_method == "harvester":
+                from app.modules.visionary.workers.harvester import harvester_worker_process
 
-            self._process = mp.Process(
-                target=visionary_worker_process,
-                args=(
-                    self.id,
-                    self.hostname,
-                    self.streaming_port,
-                    self.protocol,
-                    self.cola_protocol,
-                    self.control_port,
-                    self.is_stereo,
-                    data_queue,
-                    self._stop_event,
-                ),
-                name=f"VisionaryWorker-{self.id}",
-                daemon=True,
-            )
+                if not self.cti_path:
+                    raise ValueError(
+                        "cti_path is required for Harvester/GigE Vision cameras (AP models)"
+                    )
+
+                self._process = mp.Process(
+                    target=harvester_worker_process,
+                    args=(
+                        self.id,
+                        self.cti_path,
+                        self.hostname,
+                        self.is_stereo,
+                        data_queue,
+                        self._stop_event,
+                    ),
+                    name=f"VisionaryHarvester-{self.id}",
+                    daemon=True,
+                )
+            else:
+                from app.modules.visionary.workers.real import visionary_worker_process
+
+                self._process = mp.Process(
+                    target=visionary_worker_process,
+                    args=(
+                        self.id,
+                        self.hostname,
+                        self.streaming_port,
+                        self.protocol,
+                        self.cola_protocol,
+                        self.control_port,
+                        self.is_stereo,
+                        data_queue,
+                        self._stop_event,
+                    ),
+                    name=f"VisionaryWorker-{self.id}",
+                    daemon=True,
+                )
             self._process.start()
             runtime_status[self.id]["process_alive"] = True
             logger.info(f"Spawned visionary worker for {self.id} (PID: {self._process.pid})")
