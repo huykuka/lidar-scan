@@ -129,8 +129,8 @@ class StereoProjector:
         rows = np.arange(height, dtype=np.float32)
         col_grid, row_grid = np.meshgrid(cols, rows)
 
-        self._xp = ((col_grid - cx) / fx).ravel()
-        self._yp = ((row_grid - cy) / fy).ravel()
+        self._xp = ((cx - col_grid) / fx).ravel()
+        self._yp = ((cy - row_grid) / fy).ravel()
 
         m = cam2world.astype(np.float32)
         self._m00, self._m01, self._m02, self._m03 = m[0, 0], m[0, 1], m[0, 2], m[0, 3]
