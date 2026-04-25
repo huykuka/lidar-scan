@@ -3,8 +3,8 @@ Flow control API router configuration and endpoint definitions.
 """
 from fastapi import APIRouter
 
-from .dto import ExternalStateResponse
-from .service import set_external_state, reset_external_state
+from .dto import ExternalStateResponse, SnapshotTriggerResponse
+from .service import set_external_state, reset_external_state, trigger_snapshot
 
 
 # Router configuration
@@ -49,3 +49,27 @@ async def reset_external_state_endpoint(node_id: str):
     No request body is needed — calling this endpoint always sets the state to False.
     """
     return await reset_external_state(node_id)
+
+
+@router.post(
+    "/nodes/{node_id}/trigger",
+    response_model=SnapshotTriggerResponse,
+    responses={
+        400: {"description": "Node exists but is not a snapshot node"},
+        404: {"description": "Node not found or no upstream data available yet"},
+        409: {"description": "Trigger dropped: prior snapshot still processing"},
+        429: {"description": "Trigger dropped: throttle window active"},
+        500: {"description": "Internal processing error during forwarding"},
+    },
+    summary="Trigger Snapshot",
+    description="Capture the latest upstream point cloud held by a Snapshot Node and forward it downstream.",
+)
+async def trigger_snapshot_endpoint(node_id: str):
+    """
+    Trigger the named SnapshotNode to capture and forward its cached payload.
+
+    Returns ``{"status": "ok"}`` on success.  Error responses follow the
+    FastAPI default ``{"detail": "…"}`` shape.
+    """
+    return await trigger_snapshot(node_id)
+
