@@ -39,6 +39,10 @@ This node addresses the need for external systems (automation scripts, test harn
 **I want** clear error responses when no data is available,  
 **So that** I can detect and handle timing issues in my integration.
 
+**As a** frontend user,  
+**I want** to see the Snapshot Node's throttle value and API trigger endpoint in the detail card,  
+**So that** I can easily copy the endpoint URL for external system integration without searching through documentation.
+
 ## Acceptance Criteria
 
 ### Core Functionality
@@ -106,6 +110,21 @@ This node addresses the need for external systems (automation scripts, test harn
 - [x] Async/await patterns for non-blocking operation
 - [x] Uses `app.core.logging.get_logger()` for consistent logging
 
+### Frontend UI (Node Detail Card)
+- [ ] Snapshot Node has a dedicated detail card component when selected/clicked
+- [ ] Detail card displays throttle value (`throttle_ms`) as an **editable** numeric input field (FormControl)
+- [ ] Throttle input accepts numeric values with validation (min: 0, step: 10)
+- [ ] Detail card shows the HTTP POST trigger endpoint constructed using `environment.apiUrl` and `nodeId`
+- [ ] API endpoint format: `${environment.apiUrl}/nodes/${nodeId}/trigger` (same pattern as IfCondition node)
+- [ ] API endpoint is displayed in a readonly input field (consistent with If node UX)
+- [ ] Copy button next to the API endpoint for easy clipboard copy
+- [ ] Copy action shows success toast notification: "URL copied to clipboard"
+- [ ] Detail card is only visible **after** node is saved (has a valid node_id)
+- [ ] Before saving, placeholder text shows: "Available after saving the node."
+- [ ] Node visibility in pipeline is **always visible** regardless of attachment state
+- [ ] No manual trigger button (copy-only functionality)
+- [ ] Help text explains throttle: "Minimum interval between snapshot triggers (milliseconds)"
+
 ## Out of Scope
 
 The following are **explicitly excluded** from this feature:
@@ -120,7 +139,9 @@ The following are **explicitly excluded** from this feature:
 - ❌ **Async Processing**: Snapshot capture and forward is synchronous (blocking endpoint until complete)
 - ❌ **Snapshot History**: No tracking or retrieval of previous snapshots
 - ❌ **WebSocket Trigger**: HTTP POST only; no WebSocket command support
-- ❌ **Frontend UI**: No dedicated Angular component or settings panel (future work)
+- ❌ **Pipeline/Graph Inline Display**: Throttle and API endpoint NOT shown inline in the pipeline graph (detail card only)
+- ❌ **Manual Trigger Button**: No "Trigger Now" button in UI (API-only triggering)
+- ❌ **Advanced Status Display**: No real-time trigger counts, processing times, or visual indicators (future work)
 
 ## Dependencies & Constraints
 

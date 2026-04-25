@@ -15,6 +15,8 @@ import {IfConditionCardComponent} from '@plugins/flow-control/if-block/node/if-c
 import {IfConditionEditorComponent} from '@plugins/flow-control/if-block/form/if-condition-editor.component';
 import {OutputNodeCardComponent} from '@plugins/flow-control/output/node/output-node-card/output-node-card.component';
 import {OutputNodeEditorComponent} from '@plugins/flow-control/output/form/output-node-editor/output-node-editor.component';
+import {SnapshotNodeCardComponent} from '@plugins/flow-control/snapshot/node/snapshot-node-card.component';
+import {SnapshotNodeEditorComponent} from '@plugins/flow-control/snapshot/form/snapshot-node-editor.component';
 import {PlaybackNodeCardComponent} from '@plugins/playback/node/playback-node-card/playback-node-card.component';
 import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-editor/playback-node-editor.component';
 import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
@@ -145,11 +147,19 @@ export class NodePluginRegistry {
         });
       }
       if (plugin.category === 'flow_control') {
-        this.plugins.set(type, {
-          ...plugin,
-          cardComponent: IfConditionCardComponent,
-          editorComponent: IfConditionEditorComponent,
-        });
+        if (type === 'snapshot') {
+          this.plugins.set(type, {
+            ...plugin,
+            cardComponent: SnapshotNodeCardComponent,
+            editorComponent: SnapshotNodeEditorComponent,
+          });
+        } else {
+          this.plugins.set(type, {
+            ...plugin,
+            cardComponent: IfConditionCardComponent,
+            editorComponent: IfConditionEditorComponent,
+          });
+        }
       }
     });
   }
