@@ -71,7 +71,6 @@ def visionary_worker_process(
         stop_event:     Multiprocessing event signalling graceful shutdown.
     """
     _add_sdk_to_path()
-    print(host_ip,camera_ip)
 
     try:
         from sick_visionary_python_base.Stream import Streaming
@@ -116,16 +115,18 @@ def visionary_worker_process(
         frame_count = 0
         projector = None  # built lazily from first frame's camera params
 
-        # For UDP, sendBlobRequest() uses socket.send() which requires a
-        # connected socket.  The SDK binds the UDP socket locally but never
-        # connects it to the camera, so we connect it here once.
-        if protocol == "UDP":
-            streaming.sock_stream.connect((camera_ip, streaming_port))
+        # For UDP the socket is bound locally (not connected), so the SDK's
+        # sendBlobRequest() — which uses socket.send() — would fail.  We
+        # use sendto() with the camera address instead.
+        _camera_addr = (camera_ip, streaming_port)
 
         # --- Acquisition loop --------------------------------------------------
         while not stop_event.is_set():
             try:
-                streaming.sendBlobRequest()
+                if protocol == "UDP":
+                    streaming.sock_stream.sendto(b"BlbReq", _camera_addr)
+                else:
+                    streaming.sendBlobRequest()
                 streaming.getFrame()
                 raw_frame = streaming.frame
 
