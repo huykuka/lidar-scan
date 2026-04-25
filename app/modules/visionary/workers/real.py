@@ -12,6 +12,7 @@ main FastAPI event loop.
 """
 import logging
 import os
+import socket
 import sys
 import time
 from multiprocessing import Event, Queue
@@ -125,6 +126,9 @@ def visionary_worker_process(
         streaming = Streaming(camera_ip, streaming_port, protocol=protocol)
         if protocol == "UDP":
             streaming.openStream(server_address=(host_ip, streaming_port))
+            # Increase socket receive buffer for reliable fragment reassembly
+            streaming.sock_stream.setsockopt(
+                socket.SOL_SOCKET, socket.SO_RCVBUF, 8 * 1024 * 1024)
         else:
             streaming.openStream()
         logger.info(f"[{sensor_id}] Streaming channel open")
@@ -144,7 +148,13 @@ def visionary_worker_process(
             try:
                 if protocol != "UDP":
                     streaming.sendBlobRequest()
-                streaming.getFrame()
+                try:
+                    streaming.getFrame()
+                except (IndexError, ValueError) as parse_err:
+                    if frame_count == 0:
+                        logger.warning(
+                            f"[{sensor_id}] UDP frame parse error: {parse_err}")
+                    continue
                 raw_frame = streaming.frame
 
                 if raw_frame is None:
