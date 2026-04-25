@@ -76,6 +76,8 @@ def visionary_worker_process(
         from sick_visionary_python_base.Stream import Streaming
         from sick_visionary_python_base.Streaming.Data import Data
         from sick_visionary_python_base.Control import Control
+        from sick_visionary_python_base.Streaming.BlobServerConfiguration import BlobClientConfig
+        from sick_visionary_python_base.Usertypes import FrontendMode
     except ImportError as exc:
         logger.error(
             f"[{sensor_id}] sick_visionary_python_base is not available: {exc}"
@@ -100,7 +102,25 @@ def visionary_worker_process(
         control.login(Control.USERLEVEL_SERVICE, "CUST_SERV")
         logger.info(f"[{sensor_id}] Control channel connected")
 
-        # --- Streaming channel -------------------------------------------------
+        # --- Configure streaming via control channel -----------------------------
+        streaming_settings = BlobClientConfig(control)
+
+        if protocol == "UDP":
+            streaming_settings.setTransportProtocol(streaming_settings.PROTOCOL_UDP)
+            streaming_settings.setBlobUdpReceiverPort(streaming_port)
+            streaming_settings.setBlobUdpReceiverIP(host_ip)
+            streaming_settings.setBlobUdpControlPort(streaming_port)
+            streaming_settings.setBlobUdpMaxPacketSize(1024)
+            streaming_settings.setBlobUdpIdleTimeBetweenPackets(10)
+            streaming_settings.setBlobUdpHeartbeatInterval(0)
+            streaming_settings.setBlobUdpHeaderEnabled(True)
+            streaming_settings.setBlobUdpFecEnabled(False)
+            streaming_settings.setBlobUdpAutoTransmit(True)
+        else:
+            streaming_settings.setTransportProtocol(streaming_settings.PROTOCOL_TCP)
+            streaming_settings.setBlobTcpPort(streaming_port)
+
+        # --- Open streaming channel --------------------------------------------
         logger.info(f"[{sensor_id}] Opening streaming channel to {camera_ip}:{streaming_port} ({protocol})")
         streaming = Streaming(camera_ip, streaming_port, protocol=protocol)
         if protocol == "UDP":
@@ -109,23 +129,20 @@ def visionary_worker_process(
             streaming.openStream()
         logger.info(f"[{sensor_id}] Streaming channel open")
 
+        # Set continuous acquisition mode
+        control.setFrontendMode(FrontendMode.Continuous)
+        control.logout()
+
         _push_event(data_queue, sensor_id, "connected", "Camera streaming started")
 
         my_data = Data()
         frame_count = 0
         projector = None  # built lazily from first frame's camera params
 
-        # For UDP the socket is bound locally (not connected), so the SDK's
-        # sendBlobRequest() — which uses socket.send() — would fail.  We
-        # use sendto() with the camera address instead.
-        _camera_addr = (camera_ip, streaming_port)
-
         # --- Acquisition loop --------------------------------------------------
         while not stop_event.is_set():
             try:
-                if protocol == "UDP":
-                    streaming.sock_stream.sendto(b"BlbReq", _camera_addr)
-                else:
+                if protocol != "UDP":
                     streaming.sendBlobRequest()
                 streaming.getFrame()
                 raw_frame = streaming.frame
@@ -209,6 +226,14 @@ def visionary_worker_process(
                 pass
         if control is not None:
             try:
+                # Restore TCP mode when shutting down UDP to leave camera
+                # in a clean state for the next connection.
+                if protocol == "UDP":
+                    control.login(Control.USERLEVEL_AUTH_CLIENT, "CLIENT")
+                    restore = BlobClientConfig(control)
+                    restore.setTransportProtocol(restore.PROTOCOL_TCP)
+                    restore.setBlobTcpPort(streaming_port)
+                    control.logout()
                 control.close()
             except Exception:
                 pass
