@@ -4,28 +4,6 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class SickLidarProfileResponse(BaseModel):
-    """Response model for a single SICK LiDAR device profile"""
-    model_id: str
-    display_name: str
-    launch_file: str
-    default_hostname: str
-    port_arg: str           # "port" | "udp_port" | ""
-    default_port: int
-    has_udp_receiver: bool
-    has_imu_udp_port: bool
-    scan_layers: int
-    # Backend-controlled UI elements
-    thumbnail_url: Optional[str] = None     # URL to device thumbnail image
-    icon_name: Optional[str] = None         # Synergy UI icon name
-    icon_color: Optional[str] = None        # Hex color for icon (e.g., "#FF6B35")
-
-
-class ProfilesListResponse(BaseModel):
-    """Response model for the list of all supported LiDAR profiles"""
-    profiles: List[SickLidarProfileResponse]
-
-
 class LidarConfigValidationRequest(BaseModel):
     """Request model for LiDAR configuration validation"""
     model_config = ConfigDict(

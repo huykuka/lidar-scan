@@ -26,7 +26,7 @@ export interface PropertySchema {
   label: string;
   type: 'string' | 'number' | 'boolean' | 'select' | 'vec3' | 'list' | 'pose';
   default?: any;
-  options?: { label: string; value: any }[];
+  options?: { label: string; value: any; [key: string]: any }[];
   required?: boolean;
   help_text?: string;
   min?: number;
