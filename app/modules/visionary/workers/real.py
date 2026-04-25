@@ -71,147 +71,196 @@ def visionary_worker_process(
     streaming: Any = None
     control: Any = None
 
-    try:
-        # --- Control channel ---------------------------------------------------
-        logger.info(f"[{sensor_id}] Connecting control channel to {camera_ip}:{control_port} ({cola_protocol})")
-        control = Control(camera_ip, cola_protocol, control_port=control_port, timeout=5)
-        control.open()
-        control.login(Control.USERLEVEL_SERVICE, "CUST_SERV")
-        logger.info(f"[{sensor_id}] Control channel connected")
+    MAX_RETRIES = 5
+    INITIAL_BACKOFF_S = 1.0
+    MAX_BACKOFF_S = 30.0
 
-        # --- Configure streaming via control channel -----------------------------
-        streaming_settings = BlobClientConfig(control)
+    retry = 0
+    backoff = INITIAL_BACKOFF_S
 
-        if protocol == "UDP":
-            streaming_settings.setTransportProtocol(streaming_settings.PROTOCOL_UDP)
-            streaming_settings.setBlobUdpReceiverPort(streaming_port)
-            streaming_settings.setBlobUdpReceiverIP(host_ip)
-            streaming_settings.setBlobUdpControlPort(streaming_port)
-            streaming_settings.setBlobUdpMaxPacketSize(1024)
-            streaming_settings.setBlobUdpIdleTimeBetweenPackets(10)
-            streaming_settings.setBlobUdpHeartbeatInterval(0)
-            streaming_settings.setBlobUdpHeaderEnabled(True)
-            streaming_settings.setBlobUdpFecEnabled(False)
-            streaming_settings.setBlobUdpAutoTransmit(True)
-            streaming = Streaming(camera_ip, streaming_port, protocol="UDP")
-            streaming.openStream((host_ip, streaming_port))
-        else:
-            streaming_settings.setTransportProtocol(streaming_settings.PROTOCOL_TCP)
-            streaming_settings.setBlobTcpPort(streaming_port)
-            streaming = Streaming(camera_ip, streaming_port)
-            streaming.openStream()
+    while not stop_event.is_set():
+        streaming = None
+        control = None
+        try:
+            # --- Control channel -----------------------------------------------
+            logger.info(
+                f"[{sensor_id}] Connecting control channel to "
+                f"{camera_ip}:{control_port} ({cola_protocol})"
+                + (f" (retry {retry})" if retry else "")
+            )
+            control = Control(camera_ip, cola_protocol, control_port=control_port, timeout=5)
+            control.open()
+            control.login(Control.USERLEVEL_SERVICE, "CUST_SERV")
+            logger.info(f"[{sensor_id}] Control channel connected")
 
-        # Set continuous acquisition mode
-        control.setFrontendMode(FrontendMode.Continuous)
-        control.logout()
+            # --- Configure streaming via control channel -----------------------
+            streaming_settings = BlobClientConfig(control)
 
-        _push_event(data_queue, sensor_id, "connected", "Camera streaming started")
+            if protocol == "UDP":
+                streaming_settings.setTransportProtocol(streaming_settings.PROTOCOL_UDP)
+                streaming_settings.setBlobUdpReceiverPort(streaming_port)
+                streaming_settings.setBlobUdpReceiverIP(host_ip)
+                streaming_settings.setBlobUdpControlPort(streaming_port)
+                streaming_settings.setBlobUdpMaxPacketSize(1024)
+                streaming_settings.setBlobUdpIdleTimeBetweenPackets(10)
+                streaming_settings.setBlobUdpHeartbeatInterval(0)
+                streaming_settings.setBlobUdpHeaderEnabled(True)
+                streaming_settings.setBlobUdpFecEnabled(False)
+                streaming_settings.setBlobUdpAutoTransmit(True)
+                streaming = Streaming(camera_ip, streaming_port, protocol="UDP")
+                streaming.openStream((host_ip, streaming_port))
+            else:
+                streaming_settings.setTransportProtocol(streaming_settings.PROTOCOL_TCP)
+                streaming_settings.setBlobTcpPort(streaming_port)
+                streaming = Streaming(camera_ip, streaming_port)
+                streaming.openStream()
 
-        my_data = Data()
-        frame_count = 0
-        projector = None  # built lazily from first frame's camera params
+            # Set continuous acquisition mode
+            control.setFrontendMode(FrontendMode.Continuous)
+            control.logout()
 
-        # --- Acquisition loop --------------------------------------------------
-        while not stop_event.is_set():
-            try:
+            # Connection succeeded — reset retry state
+            retry = 0
+            backoff = INITIAL_BACKOFF_S
+            _push_event(data_queue, sensor_id, "connected", "Camera streaming started")
+
+            my_data = Data()
+            frame_count = 0
+            consecutive_errors = 0
+            projector = None  # built lazily from first frame's camera params
+
+            # --- Acquisition loop ----------------------------------------------
+            while not stop_event.is_set():
                 try:
-                    streaming.getFrame()
-                except (IndexError, ValueError) as parse_err:
-                    if frame_count == 0:
-                        logger.warning(
-                            f"[{sensor_id}] UDP frame parse error: {parse_err}")
-                    continue
+                    try:
+                        streaming.getFrame()
+                    except (IndexError, ValueError) as parse_err:
+                        if frame_count == 0:
+                            logger.warning(
+                                f"[{sensor_id}] UDP frame parse error: {parse_err}")
+                        continue
 
-                raw_frame = streaming.frame
+                    raw_frame = streaming.frame
 
-                if raw_frame is None:
-                    continue
+                    if raw_frame is None:
+                        continue
 
-                # Skip expensive parsing + projection when queue is backed up
-                if data_queue.full():
-                    continue
+                    # Skip expensive parsing + projection when queue is backed up
+                    if data_queue.full():
+                        continue
 
-                my_data.read(raw_frame, convertToMM=False)
+                    my_data.read(raw_frame, convertToMM=False)
 
-                if not my_data.hasDepthMap:
-                    continue
-                if projector is None:
-                    cam = my_data.cameraParams
-                    cam2world = np.array(
-                        cam.cam2worldMatrix, dtype=np.float64
-                    ).reshape(4, 4)
-                    logger.info(
-                        f"[{sensor_id}] Camera: {cam.width}x{cam.height}, "
-                        f"fx={cam.fx:.2f} fy={cam.fy:.2f}"
+                    if not my_data.hasDepthMap:
+                        continue
+                    if projector is None:
+                        cam = my_data.cameraParams
+                        cam2world = np.array(
+                            cam.cam2worldMatrix, dtype=np.float64
+                        ).reshape(4, 4)
+                        logger.info(
+                            f"[{sensor_id}] Camera: {cam.width}x{cam.height}, "
+                            f"fx={cam.fx:.2f} fy={cam.fy:.2f}"
+                        )
+
+                        if is_stereo:
+                            projector = StereoProjector(
+                                cam.width, cam.height,
+                                cam.fx, cam.fy, cam.cx, cam.cy,
+                                cam2world,
+                            )
+                        else:
+                            projector = ToFProjector(
+                                cam.width, cam.height,
+                                cam.fx, cam.fy, cam.cx, cam.cy,
+                                cam.k1, cam.k2, cam.f2rc,
+                                cam2world,
+                            )
+
+                    depth = my_data.depthmap.distance
+                    intensity = my_data.depthmap.intensity
+                    confidence = my_data.depthmap.confidence
+
+                    points = projector.project(depth, intensity, confidence)
+
+                    if points is None or len(points) == 0:
+                        continue
+
+                    frame_count += 1
+                    consecutive_errors = 0
+                    payload = {
+                        "lidar_id": sensor_id,
+                        "processed": False,
+                        "points": points,
+                        "count": len(points),
+                        "timestamp": time.time(),
+                    }
+
+                    try:
+                        data_queue.put(payload, block=False)
+                    except Exception:
+                        pass  # queue full — drop frame
+
+                except (socket.timeout, socket.error, ConnectionError, OSError) as net_err:
+                    consecutive_errors += 1
+                    logger.warning(
+                        f"[{sensor_id}] Stream error ({consecutive_errors}): {net_err}"
                     )
+                    if consecutive_errors >= 3:
+                        logger.warning(f"[{sensor_id}] Too many stream errors, reconnecting...")
+                        _push_event(data_queue, sensor_id, "error", f"Stream lost: {net_err}")
+                        break  # break inner loop to trigger reconnect
 
-                    if is_stereo:
-                        projector = StereoProjector(
-                            cam.width, cam.height,
-                            cam.fx, cam.fy, cam.cx, cam.cy,
-                            cam2world,
-                        )
-                    else:
-                        projector = ToFProjector(
-                            cam.width, cam.height,
-                            cam.fx, cam.fy, cam.cx, cam.cy,
-                            cam.k1, cam.k2, cam.f2rc,
-                            cam2world,
-                        )
+                except Exception as frame_exc:
+                    logger.warning(f"[{sensor_id}] Frame error: {frame_exc}")
+                    _push_event(data_queue, sensor_id, "error", str(frame_exc))
+                    if stop_event.is_set():
+                        break
 
-                depth = my_data.depthmap.distance
-                intensity = my_data.depthmap.intensity
-                confidence = my_data.depthmap.confidence
+        except (socket.timeout, socket.error, ConnectionError, OSError) as conn_err:
+            retry += 1
+            if retry > MAX_RETRIES:
+                logger.error(
+                    f"[{sensor_id}] Max retries ({MAX_RETRIES}) exceeded, giving up: {conn_err}"
+                )
+                _push_event(data_queue, sensor_id, "error",
+                            f"Connection failed after {MAX_RETRIES} retries: {conn_err}")
+                break
+            logger.warning(
+                f"[{sensor_id}] Connection failed (attempt {retry}/{MAX_RETRIES}): "
+                f"{conn_err}. Retrying in {backoff:.1f}s..."
+            )
+            _push_event(data_queue, sensor_id, "error",
+                        f"Connection failed (retry {retry}/{MAX_RETRIES}): {conn_err}")
+            # Wait with interruptible sleep
+            stop_event.wait(backoff)
+            backoff = min(backoff * 2, MAX_BACKOFF_S)
 
-                points = projector.project(depth, intensity, confidence)
+        except Exception as exc:
+            logger.error(f"[{sensor_id}] Worker fatal error: {exc}", exc_info=True)
+            _push_event(data_queue, sensor_id, "error", str(exc))
+            break
 
-                if points is None or len(points) == 0:
-                    continue
-
-                frame_count += 1
-                payload = {
-                    "lidar_id": sensor_id,
-                    "processed": False,
-                    "points": points,
-                    "count": len(points),
-                    "timestamp": time.time(),
-                }
-
+        finally:
+            if streaming is not None:
                 try:
-                    data_queue.put(payload, block=False)
+                    streaming.closeStream()
                 except Exception:
-                    pass  # queue full — drop frame
+                    pass
+            if control is not None:
+                try:
+                    if protocol == "UDP":
+                        control.login(Control.USERLEVEL_AUTH_CLIENT, "CLIENT")
+                        restore = BlobClientConfig(control)
+                        restore.setTransportProtocol(restore.PROTOCOL_TCP)
+                        restore.setBlobTcpPort(streaming_port)
+                        control.logout()
+                    control.close()
+                except Exception:
+                    pass
 
-            except Exception as frame_exc:
-                logger.warning(f"[{sensor_id}] Frame error: {frame_exc}")
-                _push_event(data_queue, sensor_id, "error", str(frame_exc))
-                if stop_event.is_set():
-                    break
-
-    except Exception as exc:
-        logger.error(f"[{sensor_id}] Worker fatal error: {exc}", exc_info=True)
-        _push_event(data_queue, sensor_id, "error", str(exc))
-    finally:
-        if streaming is not None:
-            try:
-                streaming.closeStream()
-            except Exception:
-                pass
-        if control is not None:
-            try:
-                # Restore TCP mode when shutting down UDP to leave camera
-                # in a clean state for the next connection.
-                if protocol == "UDP":
-                    control.login(Control.USERLEVEL_AUTH_CLIENT, "CLIENT")
-                    restore = BlobClientConfig(control)
-                    restore.setTransportProtocol(restore.PROTOCOL_TCP)
-                    restore.setBlobTcpPort(streaming_port)
-                    control.logout()
-                control.close()
-            except Exception:
-                pass
-        _push_event(data_queue, sensor_id, "disconnected", "Worker stopped")
-        logger.info(f"[{sensor_id}] Visionary worker stopped.")
+    _push_event(data_queue, sensor_id, "disconnected", "Worker stopped")
+    logger.info(f"[{sensor_id}] Visionary worker stopped.")
 
 
 def _push_event(

@@ -15,7 +15,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "outlier_ratio": 0.75,
     "min_plane_edge_length": 0.0,
     "min_num_points": 0,
-    "knn": 30,
+    "max_nn": 30,
+    "search_radius": 0.2,
     "vertical_tolerance_deg": 15.0,
     "min_plane_area": 1.0,
     "remove_floor": True,
@@ -27,7 +28,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 EXPECTED_PROPERTIES = {
     "throttle_ms", "voxel_downsample_size",
     "normal_variance_threshold_deg", "coplanarity_deg",
-    "outlier_ratio", "min_plane_edge_length", "min_num_points", "knn",
+    "outlier_ratio", "min_plane_edge_length", "min_num_points",
+    "max_nn", "search_radius",
     "vertical_tolerance_deg", "min_plane_area",
     "remove_floor", "remove_ceiling", "plane_thickness",
     "cache_refresh_frames", "miss_confirm_frames",
@@ -81,6 +83,7 @@ class TestRegistryIntegration:
             "ceiling_height_min", "ceiling_height_max",
             "tracker_window_size", "tracker_activation_threshold", "tracker_grace_frames",
             "ransac_fallback_enabled", "ransac_distance_threshold", "ransac_iterations",
+            "knn",
         }
         assert not (removed & prop_names), f"Removed props still in schema: {removed & prop_names}"
 
@@ -145,9 +148,13 @@ class TestFactoryBuilder:
         assert node.cache_refresh_frames == 30
         assert node.miss_confirm_frames == 3
 
-    def test_stores_knn(self):
+    def test_stores_max_nn(self):
         node = self._build()
-        assert node.knn == 30
+        assert node.max_nn == 30
+
+    def test_stores_search_radius(self):
+        node = self._build()
+        assert node.search_radius == 0.2
 
     def test_fallback_name(self):
         node = self._build(config={}, name=None)
@@ -252,7 +259,8 @@ class TestConfigRoundTrip:
             "outlier_ratio": 0.85,
             "min_plane_edge_length": 0.1,
             "min_num_points": 10,
-            "knn": 20,
+            "max_nn": 20,
+            "search_radius": 0.3,
             "vertical_tolerance_deg": 20.0,
             "min_plane_area": 5.0,
             "remove_floor": False,
@@ -264,7 +272,7 @@ class TestConfigRoundTrip:
             manager=mock_manager, node_id="rt", name="RT", config=cfg
         )
         assert node.voxel_downsample_size == 0.02
-        assert node.knn == 20
+        assert node.max_nn == 20
         assert node.outlier_ratio == pytest.approx(0.85)
         assert node.vertical_tolerance_deg == pytest.approx(20.0)
         assert node.min_plane_area == pytest.approx(5.0)
