@@ -40,6 +40,7 @@ node_schema_registry.register(NodeDefinition(
 def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """Build a FusionService instance from persisted node configuration."""
     from app.modules.lidar.sensor import LidarSensor  # lazy import
+    from app.modules.visionary.sensor import VisionarySensor  # lazy import
     from .service import FusionService  # lazy import
     
     config = node.get("config", {})
@@ -56,7 +57,7 @@ def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     for e in incoming_edges:
         source_id = e["source_node"]
         source_node = service_context.nodes.get(source_id)
-        if isinstance(source_node, LidarSensor):
+        if isinstance(source_node, (LidarSensor, VisionarySensor)):
             sensor_ids.append(source_id)
 
     return FusionService(
