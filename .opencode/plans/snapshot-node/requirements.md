@@ -42,69 +42,69 @@ This node addresses the need for external systems (automation scripts, test harn
 ## Acceptance Criteria
 
 ### Core Functionality
-- [ ] Node is implemented in `app/modules/flow_control/snapshot/` module
-- [ ] Node extends `ModuleNode` base class following DAG integration patterns
-- [ ] Node accepts standard upstream DAG connections
-- [ ] Node provides single output port for downstream connections
-- [ ] Node is invisible (no WebSocket streaming topic, `_ws_topic = None`)
+- [x] Node is implemented in `app/modules/flow_control/snapshot/` module
+- [x] Node extends `ModuleNode` base class following DAG integration patterns
+- [x] Node accepts standard upstream DAG connections
+- [x] Node provides single output port for downstream connections
+- [x] Node is invisible (no WebSocket streaming topic, `_ws_topic = None`)
 
 ### HTTP Trigger API
-- [ ] Endpoint: `POST /api/v1/nodes/{node_id}/trigger`
-- [ ] No authentication required (open endpoint)
-- [ ] Returns HTTP 200 OK on successful trigger
-- [ ] Response body is simple success confirmation (JSON: `{"status": "ok"}`)
-- [ ] Returns HTTP 404 Not Found when no upstream data is available yet
-- [ ] Returns HTTP 400 Bad Request for invalid node_id
-- [ ] Returns HTTP 409 Conflict if trigger arrives while prior snapshot is processing (drop new trigger)
+- [x] Endpoint: `POST /api/v1/nodes/{node_id}/trigger`
+- [x] No authentication required (open endpoint)
+- [x] Returns HTTP 200 OK on successful trigger
+- [x] Response body is simple success confirmation (JSON: `{"status": "ok"}`)
+- [x] Returns HTTP 404 Not Found when no upstream data is available yet
+- [x] Returns HTTP 400 Bad Request for invalid node_id
+- [x] Returns HTTP 409 Conflict if trigger arrives while prior snapshot is processing (drop new trigger)
 
 ### Snapshot Behavior
-- [ ] Captures the **most recent** upstream point cloud at the moment of POST trigger
-- [ ] Immediately forwards captured snapshot to all connected downstream nodes
-- [ ] Does **NOT** forward upstream data continuously (only on trigger)
-- [ ] Does **NOT** persist snapshot to disk or database (pass-through only)
-- [ ] Snapshot forwarding follows standard DAG pipeline (via `manager.forward_data()`)
+- [x] Captures the **most recent** upstream point cloud at the moment of POST trigger
+- [x] Immediately forwards captured snapshot to all connected downstream nodes
+- [x] Does **NOT** forward upstream data continuously (only on trigger)
+- [x] Does **NOT** persist snapshot to disk or database (pass-through only)
+- [x] Snapshot forwarding follows standard DAG pipeline (via `manager.forward_data()`)
 
 ### Rate Limiting & Throttling
-- [ ] Node accepts `throttle_ms` configuration parameter (default: 0 = no limit)
-- [ ] When `throttle_ms > 0`, enforces minimum interval between successful triggers
-- [ ] Triggers within throttle window are **dropped** (return HTTP 429 Too Many Requests)
-- [ ] Throttle state is per-node instance (not global)
+- [x] Node accepts `throttle_ms` configuration parameter (default: 0 = no limit)
+- [x] When `throttle_ms > 0`, enforces minimum interval between successful triggers
+- [x] Triggers within throttle window are **dropped** (return HTTP 429 Too Many Requests)
+- [x] Throttle state is per-node instance (not global)
 
 ### Concurrency Handling
-- [ ] Maintains processing flag to detect concurrent trigger attempts
-- [ ] If trigger arrives while previous snapshot is processing, **drop** new trigger (HTTP 409)
-- [ ] Processing flag is cleared after successful forward or error
+- [x] Maintains processing flag to detect concurrent trigger attempts
+- [x] If trigger arrives while previous snapshot is processing, **drop** new trigger (HTTP 409)
+- [x] Processing flag is cleared after successful forward or error
 
 ### Status & Notifications
-- [ ] Calls `notify_status_change(self.id)` after each successful snapshot
-- [ ] Implements `emit_status()` returning `NodeStatusUpdate`
-- [ ] Operational state mapping:
+- [x] Calls `notify_status_change(self.id)` after each successful snapshot
+- [x] Implements `emit_status()` returning `NodeStatusUpdate`
+- [x] Operational state mapping:
   - `RUNNING`: Normal operation (whether triggered or idle)
   - `ERROR`: If last trigger resulted in error
-- [ ] Optional application state showing:
+- [x] Optional application state showing:
   - Last trigger timestamp
   - Snapshot count
   - Color indicator (blue = recent trigger <5s, gray = idle)
 
 ### Error Handling
-- [ ] Logs all errors with context (node_id, error type, timestamp)
-- [ ] Returns appropriate HTTP status codes:
+- [x] Logs all errors with context (node_id, error type, timestamp)
+- [x] Returns appropriate HTTP status codes:
   - 404: No upstream data available
   - 400: Invalid node_id or malformed request
   - 409: Trigger dropped due to concurrent processing
   - 429: Trigger dropped due to throttle limit
   - 500: Internal processing error
-- [ ] Error responses include JSON body with error details
-- [ ] Errors increment internal error counter
-- [ ] Node remains operational after errors (no crash)
+- [x] Error responses include JSON body with error details
+- [x] Errors increment internal error counter
+- [x] Node remains operational after errors (no crash)
 
 ### Integration & Standards
-- [ ] Follows existing flow_control module patterns (IfConditionNode, OutputNode)
-- [ ] Registered in `app/modules/flow_control/registry.py`
-- [ ] Compatible with DAG serialization/deserialization
-- [ ] Works with NodeManager orchestration (routing, forwarding, status)
-- [ ] Async/await patterns for non-blocking operation
-- [ ] Uses `app.core.logging.get_logger()` for consistent logging
+- [x] Follows existing flow_control module patterns (IfConditionNode, OutputNode)
+- [x] Registered in `app/modules/flow_control/registry.py`
+- [x] Compatible with DAG serialization/deserialization
+- [x] Works with NodeManager orchestration (routing, forwarding, status)
+- [x] Async/await patterns for non-blocking operation
+- [x] Uses `app.core.logging.get_logger()` for consistent logging
 
 ## Out of Scope
 
