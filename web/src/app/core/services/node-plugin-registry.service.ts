@@ -21,28 +21,16 @@ import {PlaybackNodeCardComponent} from '@plugins/playback/node/playback-node-ca
 import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-editor/playback-node-editor.component';
 import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
 
-/** Visual metadata per category — used to style the palette and canvas nodes. */
-const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
-  sensor: {color: '#10b981', icon: 'sensors'},
-  fusion: {color: '#6366f1', icon: 'hub'},
-  calibration: {color: '#f59e0b', icon: 'tune'},
-  operation: {color: '#64748b', icon: 'settings_input_component'},
-  flow_control: {color: '#9c27b0', icon: 'call_split'},
-  output: {color: '#0ea5e9', icon: 'dashboard'},
-  /** Application-layer processing nodes (e.g. environment_filtering) */
-  application: {color: '#0891b2', icon: 'layers_clear'},
-};
+const NODE_COLOR = 'var(--syn-color-primary-600)';
 
 function definitionToPlugin(def: NodeDefinition): NodePlugin {
-  const style = CATEGORY_STYLE[def.category] ?? {color: '#64748b', icon: 'extension'};
-
   return {
     type: def.type,
     category: def.category,
     displayName: def.display_name,
     description: def.description ?? '',
-    icon: def.icon ?? style.icon,
-    style: {color: style.color},
+    icon: def.icon ?? 'extension',
+    style: {color: NODE_COLOR},
     ports: {
       inputs:
         def.inputs?.map((p: any) => ({
