@@ -147,36 +147,36 @@ describe('PointCloudComponent — FE-04 Extensions', () => {
   // ── Adaptive LOD constants ─────────────────────────────────────────────────
 
   describe('Adaptive LOD', () => {
-    it('should expose MAX_POINTS_LOD constant of 25 000', () => {
+    it('should expose MAX_POINTS_LOD constant of 125 000', () => {
       const cmp = createSut().componentInstance as any;
-      expect(cmp.MAX_POINTS_LOD).toBe(25_000);
+      expect(cmp.MAX_POINTS_LOD).toBe(125_000);
     });
 
-    it('should expose MAX_POINTS constant of 50 000', () => {
+    it('should expose MAX_POINTS constant of 250 000', () => {
       const cmp = createSut().componentInstance as any;
-      expect(cmp.MAX_POINTS).toBe(50_000);
+      expect(cmp.MAX_POINTS).toBe(250_000);
     });
 
     it('getEffectiveMaxPoints() returns LOD limit when passed true', () => {
       const cmp = createSut().componentInstance as any;
-      expect(cmp.getEffectiveMaxPoints(true)).toBe(25_000);
+      expect(cmp.getEffectiveMaxPoints(true)).toBe(125_000);
     });
 
     it('getEffectiveMaxPoints() returns full limit when passed false', () => {
       const cmp = createSut().componentInstance as any;
-      expect(cmp.getEffectiveMaxPoints(false)).toBe(50_000);
+      expect(cmp.getEffectiveMaxPoints(false)).toBe(250_000);
     });
   });
 
   // ── updatePointsForTopic with LOD ──────────────────────────────────────────
 
   describe('updatePointsForTopic with adaptive LOD', () => {
-    it('should clamp draw range to MAX_POINTS_LOD when getEffectiveMaxPoints returns 25 000', () => {
+    it('should clamp draw range to MAX_POINTS_LOD when getEffectiveMaxPoints returns 125 000', () => {
       const cmp = createSut().componentInstance as any;
 
       const fakeGeometry = {
         attributes: {
-          position: { array: new Float32Array(50_000 * 3), needsUpdate: false },
+          position: { array: new Float32Array(250_000 * 3), needsUpdate: false },
         },
         setDrawRange: vi.fn(),
         // ngOnDestroy calls geometry.dispose() — must exist on stub
@@ -185,19 +185,19 @@ describe('PointCloudComponent — FE-04 Extensions', () => {
       const fakeMaterial = { color: { set: vi.fn() }, dispose: vi.fn(), size: 0.1 };
       cmp.pointClouds.set('topic1', { pointsObj: {}, geometry: fakeGeometry, material: fakeMaterial, lastCount: 0 });
 
-      vi.spyOn(cmp, 'getEffectiveMaxPoints').mockReturnValue(25_000);
+      vi.spyOn(cmp, 'getEffectiveMaxPoints').mockReturnValue(125_000);
 
-      cmp.updatePointsForTopic('topic1', new Float32Array(30_000 * 3), 30_000);
+      cmp.updatePointsForTopic('topic1', new Float32Array(150_000 * 3), 150_000);
 
-      expect(fakeGeometry.setDrawRange).toHaveBeenCalledWith(0, 25_000);
+      expect(fakeGeometry.setDrawRange).toHaveBeenCalledWith(0, 125_000);
     });
 
-    it('should use full point count when getEffectiveMaxPoints returns 50 000', () => {
+    it('should use full point count when getEffectiveMaxPoints returns 250 000', () => {
       const cmp = createSut().componentInstance as any;
 
       const fakeGeometry = {
         attributes: {
-          position: { array: new Float32Array(50_000 * 3), needsUpdate: false },
+          position: { array: new Float32Array(250_000 * 3), needsUpdate: false },
         },
         setDrawRange: vi.fn(),
         // ngOnDestroy calls geometry.dispose() — must exist on stub
@@ -206,11 +206,11 @@ describe('PointCloudComponent — FE-04 Extensions', () => {
       const fakeMaterial = { color: { set: vi.fn() }, dispose: vi.fn(), size: 0.1 };
       cmp.pointClouds.set('topic2', { pointsObj: {}, geometry: fakeGeometry, material: fakeMaterial, lastCount: 0 });
 
-      vi.spyOn(cmp, 'getEffectiveMaxPoints').mockReturnValue(50_000);
+      vi.spyOn(cmp, 'getEffectiveMaxPoints').mockReturnValue(250_000);
 
-      cmp.updatePointsForTopic('topic2', new Float32Array(40_000 * 3), 40_000);
+      cmp.updatePointsForTopic('topic2', new Float32Array(200_000 * 3), 200_000);
 
-      expect(fakeGeometry.setDrawRange).toHaveBeenCalledWith(0, 40_000);
+      expect(fakeGeometry.setDrawRange).toHaveBeenCalledWith(0, 200_000);
     });
   });
 

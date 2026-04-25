@@ -1,1 +1,1 @@
-from app.modules.lidar.sensor import LidarSensor
+from app.modules.lidar.node import LidarSensor

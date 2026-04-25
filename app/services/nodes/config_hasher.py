@@ -16,6 +16,9 @@ from typing import Any, Dict, Optional
 # Keys included in the hash (affect runtime behavior)
 _HASH_KEYS = ("id", "type", "category", "enabled", "visible", "config", "pose")
 
+# Keys included in the config-only hash (excludes pose for hot-update detection)
+_HASH_KEYS_NO_POSE = ("id", "type", "category", "enabled", "visible", "config")
+
 # Keys explicitly excluded from the hash (canvas-only or display-only)
 _EXCLUDED_KEYS = frozenset({"x", "y", "name"})
 
@@ -42,6 +45,26 @@ def compute_node_config_hash(node_data: Dict[str, Any]) -> str:
     }
 
     # Serialize deterministically: sort_keys=True, default=str handles non-serializable values
+    serialized = json.dumps(canonical, sort_keys=True, default=str)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def compute_node_config_hash_no_pose(node_data: Dict[str, Any]) -> str:
+    """Compute a config hash excluding pose — used to detect pose-only changes.
+
+    When `compute_node_config_hash` differs but this hash matches, only the
+    pose changed and a hot-update (no process restart) is sufficient.
+
+    Args:
+        node_data: Full node configuration dictionary.
+
+    Returns:
+        64-character lowercase hex SHA-256 digest.
+    """
+    canonical: Dict[str, Any] = {
+        key: node_data.get(key)
+        for key in _HASH_KEYS_NO_POSE
+    }
     serialized = json.dumps(canonical, sort_keys=True, default=str)
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 

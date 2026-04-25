@@ -2,7 +2,7 @@
 import pytest
 import time
 from unittest.mock import Mock, MagicMock
-from app.modules.lidar.sensor import LidarSensor
+from app.modules.lidar.node import LidarSensor
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 
 
@@ -15,8 +15,7 @@ class TestLidarSensorAttributes:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-001",
-            launch_args="test",
-            mode="real"
+            launch_args="test"
         )
         sensor.lidar_type = "tim_7xx"
         assert sensor.lidar_type == "tim_7xx"
@@ -26,30 +25,19 @@ class TestLidarSensorAttributes:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-002",
-            launch_args="test",
-            mode="real"
+            launch_args="test"
         )
         sensor.lidar_display_name = "SICK TiM7xx Family (Non-Safety)"
         assert sensor.lidar_display_name == "SICK TiM7xx Family (Non-Safety)"
     
-    def test_sensor_mode_persists(self):
-        """LidarSensor preserves mode through initialization"""
-        sensor_real = LidarSensor(
+    def test_sensor_launch_args_persists(self):
+        """LidarSensor preserves launch_args through initialization"""
+        sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-real",
-            launch_args="test",
-            mode="real"
+            launch_args="test-args"
         )
-        assert sensor_real.mode == "real"
-        
-        sensor_sim = LidarSensor(
-            manager=Mock(),
-            sensor_id="sensor-sim",
-            launch_args="test",
-            mode="sim",
-            pcd_path="/path/to/test.pcd"
-        )
-        assert sensor_sim.mode == "sim"
+        assert sensor.launch_args == "test-args"
 
 
 class TestLidarSensorIntegration:
@@ -61,8 +49,7 @@ class TestLidarSensorIntegration:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-001",
-            launch_args=launch_args,
-            mode="real"
+            launch_args=launch_args
         )
         assert sensor.launch_args == launch_args
     
@@ -72,8 +59,7 @@ class TestLidarSensorIntegration:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-002",
-            launch_args=launch_args,
-            mode="real"
+            launch_args=launch_args
         )
         sensor.lidar_type = "multiscan"
         assert sensor.lidar_type == "multiscan"
@@ -85,8 +71,7 @@ class TestLidarSensorIntegration:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-003",
-            launch_args=launch_args,
-            mode="real"
+            launch_args=launch_args
         )
         sensor.lidar_type = "lms_1xx"
         assert "hostname:=" in sensor.launch_args
@@ -100,8 +85,7 @@ class TestLidarSensorEdgeCases:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="test-id",
-            launch_args="test-args",
-            mode="real"
+            launch_args="test-args"
         )
         assert sensor.id == "test-id"
     
@@ -110,8 +94,7 @@ class TestLidarSensorEdgeCases:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-abc-123",
-            launch_args="test",
-            mode="real"
+            launch_args="test"
         )
         assert sensor.name == "sensor-abc-123"
     
@@ -121,7 +104,6 @@ class TestLidarSensorEdgeCases:
             manager=Mock(),
             sensor_id="sensor-001",
             launch_args="test",
-            mode="real",
             name="Front Scanner"
         )
         assert sensor.name == "Front Scanner"
@@ -132,8 +114,7 @@ class TestLidarSensorEdgeCases:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-001",
-            launch_args="test",
-            mode="real"
+            launch_args="test"
         )
         sensor.set_pose(Pose.zero())
         pose = sensor.get_pose_params()
@@ -152,7 +133,6 @@ class TestLidarSensorEdgeCases:
             manager=Mock(),
             sensor_id="sensor-002",
             launch_args="test",
-            mode="real"
         )
         sensor.set_pose(Pose(x=1.5, y=2.5, z=0.3, roll=0.1, pitch=0.2, yaw=1.57))
         pose = sensor.get_pose_params()
@@ -177,7 +157,6 @@ class TestLidarSensorEmitStatus:
             manager=mock_manager,
             sensor_id="sensor-001",
             launch_args="test",
-            mode="real",
             name="Test Sensor"
         )
         
@@ -197,8 +176,7 @@ class TestLidarSensorEmitStatus:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-002",
-            launch_args="test",
-            mode="real"
+            launch_args="test"
         )
         
         # Simulate runtime status showing process starting
@@ -228,8 +206,7 @@ class TestLidarSensorEmitStatus:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-003",
-            launch_args="test",
-            mode="real"
+            launch_args="test"
         )
         
         # Simulate runtime status showing active connection
@@ -260,8 +237,7 @@ class TestLidarSensorEmitStatus:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-004",
-            launch_args="test",
-            mode="real"
+            launch_args="test"
         )
         
         # Simulate runtime status showing error
@@ -292,8 +268,7 @@ class TestLidarSensorEmitStatus:
         sensor = LidarSensor(
             manager=Mock(),
             sensor_id="sensor-005",
-            launch_args="test",
-            mode="real"
+            launch_args="test"
         )
         
         # Simulate runtime status after stop

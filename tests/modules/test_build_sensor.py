@@ -28,8 +28,6 @@ def _base_node(pose_override=None, config_override=None):
         "config": {
             "lidar_type": "multiscan",
             "hostname": "192.168.1.10",
-            "mode": "sim",
-            "pcd_path": "/tmp/test.pcd",
             "throttle_ms": 0,
         },
         "pose": pose_override if pose_override is not None else {},

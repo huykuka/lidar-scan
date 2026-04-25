@@ -4,7 +4,6 @@ LiDAR sensor model representing configuration and state.
 from typing import Dict, Optional, Any
 import asyncio
 import multiprocessing as mp
-import os
 import time
 
 import numpy as np
@@ -29,8 +28,6 @@ class LidarSensor(ModuleNode):
         manager: Any,
         sensor_id: str,
         launch_args: str,
-        mode: str = "real",
-        pcd_path: Optional[str] = None,
         transformation: Optional[np.ndarray] = None,
         name: Optional[str] = None,
         topic_prefix: Optional[str] = None,
@@ -41,8 +38,6 @@ class LidarSensor(ModuleNode):
         self.name = name or sensor_id
         self.topic_prefix = topic_prefix or self.name
         self.launch_args = launch_args
-        self.mode = mode
-        self.pcd_path = pcd_path
         
         # LiDAR model information (set externally by build_sensor after instantiation)
         self.lidar_type: str = "multiscan"
@@ -93,39 +88,17 @@ class LidarSensor(ModuleNode):
             "last_frame_at": None,
             "last_error": None,
             "process_alive": False,
-            "mode": self.mode,
             "connection_status": "starting",
         }
         
         try:
-            if self.mode == "sim":
-                if not self.pcd_path or not os.path.exists(self.pcd_path):
-                    error_msg = f"PCD file not found: {self.pcd_path or '(not specified)'}"
-                    logger.error(f"[{self.id}] {error_msg}")
-                    runtime_status[self.id]["last_error"] = error_msg
-                    return
-                try:
-                    from app.modules.lidar.workers.pcd import pcd_worker_process
-                except ImportError as e:
-                    error_msg = f"open3d not available: {e}"
-                    logger.error(f"[{self.id}] {error_msg}", exc_info=True)
-                    runtime_status[self.id]["last_error"] = error_msg
-                    return
-                
-                self._process = mp.Process(
-                    target=pcd_worker_process,
-                    args=(self.id, self.pcd_path, data_queue, self._stop_event),
-                    name=f"PcdWorker-{self.id}",
-                    daemon=True
-                )
-            else:
-                from app.modules.lidar.workers.real import lidar_worker_process
-                self._process = mp.Process(
-                    target=lidar_worker_process,
-                    args=(self.id, self.launch_args, data_queue, self._stop_event),
-                    name=f"LidarWorker-{self.id}",
-                    daemon=True
-                )
+            from app.modules.lidar.workers.real import lidar_worker_process
+            self._process = mp.Process(
+                target=lidar_worker_process,
+                args=(self.id, self.launch_args, data_queue, self._stop_event),
+                name=f"LidarWorker-{self.id}",
+                daemon=True
+            )
             
             self._process.start()
             runtime_status[self.id]["process_alive"] = True

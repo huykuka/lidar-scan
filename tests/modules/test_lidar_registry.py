@@ -44,24 +44,20 @@ class TestRegistrySchema:
         lidar_type_prop = next(p for p in sensor_def.properties if p.name == "lidar_type")
         assert lidar_type_prop.default == "multiscan"
     
-    def test_hostname_has_mode_depends_on(self):
-        """hostname should only show when mode == 'real'"""
+    def test_hostname_has_no_depends_on(self):
+        """hostname should always be visible"""
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
         hostname_prop = next(p for p in sensor_def.properties if p.name == "hostname")
-        assert hostname_prop.depends_on is not None
-        assert "mode" in hostname_prop.depends_on
-        assert "real" in hostname_prop.depends_on["mode"]
+        assert hostname_prop.depends_on is None
     
-    def test_port_has_lidar_type_and_mode_depends_on(self):
-        """port should depend on both mode and lidar_type"""
+    def test_port_has_lidar_type_depends_on(self):
+        """port should depend on lidar_type"""
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
         port_prop = next(p for p in sensor_def.properties if p.name == "port")
         assert port_prop.depends_on is not None
-        assert "mode" in port_prop.depends_on
         assert "lidar_type" in port_prop.depends_on
-        assert "real" in port_prop.depends_on["mode"]
         # Port should be visible for these models
         assert "multiscan" in port_prop.depends_on["lidar_type"]
         assert "tim_5xx" in port_prop.depends_on["lidar_type"]
@@ -91,14 +87,19 @@ class TestRegistrySchema:
         expected = [p.model_id for p in get_all_profiles() if p.has_imu_udp_port]
         assert imu_prop.depends_on["lidar_type"] == expected
     
-    def test_pcd_path_depends_on_sim_mode(self):
-        """pcd_path should only show when mode == 'sim'"""
+    def test_no_mode_property_exists(self):
+        """mode property should not exist (simulation removed)"""
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
-        pcd_prop = next(p for p in sensor_def.properties if p.name == "pcd_path")
-        assert pcd_prop.depends_on is not None
-        assert "mode" in pcd_prop.depends_on
-        assert pcd_prop.depends_on["mode"] == ["sim"]
+        prop_names = {p.name for p in sensor_def.properties}
+        assert "mode" not in prop_names
+    
+    def test_no_pcd_path_property_exists(self):
+        """pcd_path property should not exist (simulation removed)"""
+        from app.services.nodes.schema import node_schema_registry
+        sensor_def = node_schema_registry.get("sensor")
+        prop_names = {p.name for p in sensor_def.properties}
+        assert "pcd_path" not in prop_names
     
     def test_no_udp_port_property_exists(self):
         """Old udp_port property should be renamed to 'port'"""
@@ -134,30 +135,19 @@ class TestRegistrySchema:
 class TestConditionalPropertyLogic:
     """Test the logic of conditional field visibility"""
     
-    def test_mode_real_shows_hostname(self):
-        """Mode=real reveals hostname"""
-        form_values = {"mode": "real"}
+    def test_hostname_always_visible(self):
+        """hostname is always visible (no depends_on)"""
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
         hostname_prop = next(p for p in sensor_def.properties if p.name == "hostname")
         
-        # Simulate depends_on check
-        visible = self._check_depends_on(hostname_prop.depends_on, form_values)
+        # No depends_on means always visible
+        visible = self._check_depends_on(hostname_prop.depends_on, {})
         assert visible is True
-    
-    def test_mode_sim_hides_hostname(self):
-        """Mode=sim hides hostname"""
-        form_values = {"mode": "sim"}
-        from app.services.nodes.schema import node_schema_registry
-        sensor_def = node_schema_registry.get("sensor")
-        hostname_prop = next(p for p in sensor_def.properties if p.name == "hostname")
-        
-        visible = self._check_depends_on(hostname_prop.depends_on, form_values)
-        assert visible is False
     
     def test_multiscan_shows_udp_receiver_ip(self):
         """lidar_type=multiscan reveals udp_receiver_ip"""
-        form_values = {"mode": "real", "lidar_type": "multiscan"}
+        form_values = {"lidar_type": "multiscan"}
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
         udp_ip_prop = next(p for p in sensor_def.properties if p.name == "udp_receiver_ip")
@@ -167,7 +157,7 @@ class TestConditionalPropertyLogic:
     
     def test_tim_5xx_hides_udp_receiver_ip(self):
         """lidar_type=tim_5xx hides udp_receiver_ip"""
-        form_values = {"mode": "real", "lidar_type": "tim_5xx"}
+        form_values = {"lidar_type": "tim_5xx"}
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
         udp_ip_prop = next(p for p in sensor_def.properties if p.name == "udp_receiver_ip")
@@ -177,7 +167,7 @@ class TestConditionalPropertyLogic:
     
     def test_multiscan_shows_imu_port(self):
         """lidar_type=multiscan reveals imu_udp_port"""
-        form_values = {"mode": "real", "lidar_type": "multiscan"}
+        form_values = {"lidar_type": "multiscan"}
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
         imu_prop = next(p for p in sensor_def.properties if p.name == "imu_udp_port")
@@ -187,7 +177,7 @@ class TestConditionalPropertyLogic:
     
     def test_lms_1xx_hides_port(self):
         """lidar_type=lms_1xx hides port (TCP only)"""
-        form_values = {"mode": "real", "lidar_type": "lms_1xx"}
+        form_values = {"lidar_type": "lms_1xx"}
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
         port_prop = next(p for p in sensor_def.properties if p.name == "port")
@@ -197,7 +187,7 @@ class TestConditionalPropertyLogic:
     
     def test_tim_7xx_shows_port(self):
         """lidar_type=tim_7xx shows port"""
-        form_values = {"mode": "real", "lidar_type": "tim_7xx"}
+        form_values = {"lidar_type": "tim_7xx"}
         from app.services.nodes.schema import node_schema_registry
         sensor_def = node_schema_registry.get("sensor")
         port_prop = next(p for p in sensor_def.properties if p.name == "port")
@@ -205,26 +195,6 @@ class TestConditionalPropertyLogic:
         visible = self._check_depends_on(port_prop.depends_on, form_values)
         assert visible is True
     
-    def test_sim_mode_shows_pcd_path(self):
-        """Mode=sim reveals pcd_path"""
-        form_values = {"mode": "sim"}
-        from app.services.nodes.schema import node_schema_registry
-        sensor_def = node_schema_registry.get("sensor")
-        pcd_prop = next(p for p in sensor_def.properties if p.name == "pcd_path")
-        
-        visible = self._check_depends_on(pcd_prop.depends_on, form_values)
-        assert visible is True
-    
-    def test_real_mode_hides_pcd_path(self):
-        """Mode=real hides pcd_path"""
-        form_values = {"mode": "real"}
-        from app.services.nodes.schema import node_schema_registry
-        sensor_def = node_schema_registry.get("sensor")
-        pcd_prop = next(p for p in sensor_def.properties if p.name == "pcd_path")
-        
-        visible = self._check_depends_on(pcd_prop.depends_on, form_values)
-        assert visible is False
-        
     def test_all_port_capable_devices_show_port(self):
         """All port-capable devices show port field"""
         port_devices = ["multiscan", "tim_240", "tim_5xx", "tim_7xx", "tim_7xxs"]
@@ -233,7 +203,7 @@ class TestConditionalPropertyLogic:
         port_prop = next(p for p in sensor_def.properties if p.name == "port")
         
         for device in port_devices:
-            form_values = {"mode": "real", "lidar_type": device}
+            form_values = {"lidar_type": device}
             visible = self._check_depends_on(port_prop.depends_on, form_values)
             assert visible is True, f"{device} should show port field"
     
@@ -258,7 +228,6 @@ class TestBuildSensorIntegration:
             "name": "Front LiDAR",
             "config": {
                 "lidar_type": "multiscan",
-                "mode": "real",
                 "hostname": "192.168.0.50",
                 "port": 2115,
                 "udp_receiver_ip": "192.168.0.10",
@@ -273,7 +242,6 @@ class TestBuildSensorIntegration:
         
         assert sensor.id == "sensor-001"
         assert sensor.name == "Front LiDAR"
-        assert sensor.mode == "real"
         assert "sick_multiscan.launch" in sensor.launch_args
         assert "udp_port:=2115" in sensor.launch_args
         assert "udp_receiver_ip:=192.168.0.10" in sensor.launch_args
@@ -285,7 +253,6 @@ class TestBuildSensorIntegration:
             "name": "Side LiDAR",
             "config": {
                 "lidar_type": "tim_7xx",
-                "mode": "real",
                 "hostname": "192.168.0.100",
                 "port": 2112,
                 "throttle_ms": 50,
@@ -297,7 +264,6 @@ class TestBuildSensorIntegration:
         sensor = build_sensor(node, mock_service_context, [])
         
         assert sensor.id == "sensor-002"
-        assert sensor.mode == "real"
         assert "sick_tim_7xx.launch" in sensor.launch_args
         assert "port:=2112" in sensor.launch_args
         assert "udp_port" not in sensor.launch_args
@@ -309,7 +275,6 @@ class TestBuildSensorIntegration:
             "name": "Back LiDAR",
             "config": {
                 "lidar_type": "lms_1xx",
-                "mode": "real",
                 "hostname": "192.168.0.200",
                 "throttle_ms": 0,
                 "x": -1.0, "y": 0.0, "z": 0.2,
@@ -330,7 +295,6 @@ class TestBuildSensorIntegration:
             "id": "sensor-004",
             "name": "Legacy Sensor",
             "config": {
-                "mode": "real",
                 "hostname": "192.168.0.50",
                 # No lidar_type specified
                 "x": 0, "y": 0, "z": 0,
@@ -350,7 +314,6 @@ class TestBuildSensorIntegration:
             "name": "Positioned LiDAR",
             "config": {
                 "lidar_type": "tim_5xx",
-                "mode": "real",
                 "hostname": "192.168.0.1",
                 "port": 2112,
                 "throttle_ms": 0,

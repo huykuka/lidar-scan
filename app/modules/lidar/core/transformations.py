@@ -67,10 +67,9 @@ def transform_points(points: np.ndarray, T: np.ndarray) -> np.ndarray:
     t = T[:3, 3]
 
     # Apply transformation only to the first 3 columns (x, y, z)
-    # points_transformed = points * R^T + t
-    transformed = points.copy()
-    transformed[:, :3] = points[:, :3] @ R.T + t
-    return transformed
+    result = points.copy()
+    result[:, :3] = points[:, :3] @ R.T + t
+    return result
 
 
 def pose_to_dict(

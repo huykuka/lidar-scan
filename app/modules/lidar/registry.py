@@ -4,7 +4,6 @@ Node registry for the LiDAR sensor module.
 This module registers the sensor node type with the DAG orchestrator.
 Loaded automatically via discover_modules() at application startup.
 """
-import os
 from typing import Any, Dict, List
 
 from app.modules.lidar.profiles import get_all_profiles, get_profile, build_launch_args
@@ -32,7 +31,7 @@ node_schema_registry.register(NodeDefinition(
     type="sensor",
     display_name="LiDAR Sensor",
     category="sensor",
-    description="Interface for physical SICK sensors or PCD file simulations",
+    description="Interface for physical SICK LiDAR sensors",
     icon="sensors",
     websocket_enabled=True,  # Streams raw point cloud data via LIDR protocol
     properties=[
@@ -47,22 +46,16 @@ node_schema_registry.register(NodeDefinition(
         ),
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="mode", label="Mode", type="select", default="real", options=[
-            {"label": "Hardware", "value": "real"},
-            {"label": "Simulation by PCD", "value": "sim"}
-        ]),
         PropertySchema(name="hostname", label="Hostname", type="string", default="192.168.100.124",
-                       help_text="Lidar IP address", depends_on={"mode": ["real"]}),
+                       help_text="Lidar IP address"),
         PropertySchema(name="port", label="Port", type="number", default=2112, help_text="Device communication port",
-                       depends_on={"mode": ["real"], "lidar_type": _port_capable_models}),
+                       depends_on={"lidar_type": _port_capable_models}),
         PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10",
                        help_text="Host IP address receiving data",
-                       depends_on={"mode": ["real"], "lidar_type": _udp_receiver_models}),
+                       depends_on={"lidar_type": _udp_receiver_models}),
         PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7503,
                        help_text="UDP port for IMU data",
-                       depends_on={"mode": ["real"], "lidar_type": _imu_capable_models}),
-        PropertySchema(name="pcd_path", label="PCD Path", type="string", default="",
-                       help_text="Path to .pcd file (simulation only)", depends_on={"mode": ["sim"]}),
+                       depends_on={"lidar_type": _imu_capable_models}),
         PropertySchema(name="pose", label="Sensor Pose", type="pose",
                        help_text="6-DOF sensor pose: position (mm) and orientation (degrees)"),
     ],
@@ -77,10 +70,9 @@ node_schema_registry.register(NodeDefinition(
 @NodeFactory.register("sensor")
 def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """Build a LidarSensor instance from persisted node configuration."""
-    from .sensor import LidarSensor  # lazy import avoids circular dep
+    from .node import LidarSensor  # lazy import avoids circular dep
 
     config = node.get("config", {})
-    mode = config.get("mode", "real")
 
     # Ensure throttle_ms is numeric
     throttle_ms = config.get("throttle_ms", 0)
@@ -88,15 +80,6 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         throttle_ms = float(throttle_ms)
     except (ValueError, TypeError):
         throttle_ms = 0.0
-
-    # Resolve pcd_path for sim mode: fall back to env var, then make absolute
-    pcd_path = config.get("pcd_path") or ""
-    if mode == "sim" and not pcd_path:
-        pcd_path = os.environ.get("LIDAR_PCD_PATH", "")
-    if pcd_path and not os.path.isabs(pcd_path):
-        # Resolve relative to the project root (two levels above this package)
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-        pcd_path = os.path.join(project_root, pcd_path.lstrip("./"))
 
     # Read multi-model configuration
     lidar_type = config.get("lidar_type", "multiscan")
@@ -147,8 +130,6 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         name=sensor_name,
         topic_prefix=final_topic_prefix,
         launch_args=launch_args,
-        mode=mode,
-        pcd_path=pcd_path or None,
         throttle_ms=throttle_ms
     )
 
