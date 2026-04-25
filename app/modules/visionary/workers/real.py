@@ -114,6 +114,12 @@ def visionary_worker_process(
         frame_count = 0
         projector = None  # built lazily from first frame's camera params
 
+        # For UDP, sendBlobRequest() uses socket.send() which requires a
+        # connected socket.  The SDK binds the UDP socket locally but never
+        # connects it to the camera, so we connect it here once.
+        if protocol == "UDP":
+            streaming.sock_stream.connect((hostname, streaming_port))
+
         # --- Acquisition loop --------------------------------------------------
         while not stop_event.is_set():
             try:
