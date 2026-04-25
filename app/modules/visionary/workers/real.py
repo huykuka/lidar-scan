@@ -96,7 +96,7 @@ def visionary_worker_process(
         logger.info(f"[{sensor_id}] Connecting control channel to {hostname}:{control_port} ({cola_protocol})")
         control = Control(hostname, cola_protocol, control_port=control_port, timeout=5)
         control.open()
-        control.login(Control.USERLEVEL_SERVICE, "CUST_STD")
+        control.login(Control.USERLEVEL_SERVICE, "CUST_SERV")
         logger.info(f"[{sensor_id}] Control channel connected")
 
         # --- Streaming channel -------------------------------------------------
