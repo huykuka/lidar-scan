@@ -61,9 +61,12 @@ class ToFProjector:
         intensity_data: np.ndarray,
         confidence_data: np.ndarray,
     ) -> np.ndarray:
-        """Convert a single ToF frame to (N, 14) point cloud (metres)."""
+        """Convert a single ToF frame to (N, 14) point cloud (metres).
+
+        ToF cameras include all pixels (no confidence filter).
+        Only zero-distance pixels (no measurement) are excluded.
+        """
         dist = np.asarray(dist_data, dtype=np.float64).reshape(self._height, self._width)
-        conf = np.asarray(confidence_data, dtype=np.uint16).reshape(self._height, self._width)
         ints = np.asarray(intensity_data, dtype=np.float64).reshape(self._height, self._width)
 
         xc = self._xd * dist / self._s0
@@ -75,7 +78,7 @@ class ToFProjector:
         yw = m[1, 0] * xc + m[1, 1] * yc + m[1, 2] * zc + m[1, 3]
         zw = m[2, 0] * xc + m[2, 1] * yc + m[2, 2] * zc + m[2, 3]
 
-        valid = conf == 0
+        valid = dist > 0
         xw_valid = xw[valid] * MM_TO_M
         yw_valid = yw[valid] * MM_TO_M
         zw_valid = zw[valid] * MM_TO_M
@@ -125,7 +128,11 @@ class StereoProjector:
         intensity_data: np.ndarray,
         confidence_data: np.ndarray,
     ) -> np.ndarray:
-        """Convert a single stereo frame to (N, 14) point cloud (metres)."""
+        """Convert a single stereo frame to (N, 14) point cloud (metres).
+
+        Stereo cameras use confidence to flag invalid pixels (confidence != 0 = invalid).
+        Zero-distance pixels are also excluded.
+        """
         dist = np.asarray(dist_data, dtype=np.float64).reshape(self._height, self._width)
         conf = np.asarray(confidence_data, dtype=np.uint16).reshape(self._height, self._width)
         ints = np.asarray(intensity_data, dtype=np.float64).reshape(self._height, self._width)
@@ -139,7 +146,7 @@ class StereoProjector:
         yw = m[1, 0] * xc + m[1, 1] * yc + m[1, 2] * zc + m[1, 3]
         zw = m[2, 0] * xc + m[2, 1] * yc + m[2, 2] * zc + m[2, 3]
 
-        valid = conf == 0
+        valid = (conf == 0) & (dist > 0)
         xw_valid = xw[valid] * MM_TO_M
         yw_valid = yw[valid] * MM_TO_M
         zw_valid = zw[valid] * MM_TO_M
@@ -180,7 +187,7 @@ def depth_to_point_cloud_tof(
     """Convert ToF depth map to (N, 14) point cloud array.
 
     Uses radial distortion correction and cam2world transformation.
-    Invalid pixels (confidence != 0) are excluded.
+    Only zero-distance pixels are excluded (ToF does not use confidence filtering).
 
     Args:
         dist_data:       Flat distance values (H*W,) in millimetres.
@@ -215,7 +222,7 @@ def depth_to_point_cloud_stereo(
     """Convert stereo depth map to (N, 14) point cloud array.
 
     Stereo cameras provide Z-map data directly; no radial distortion model.
-    Invalid pixels (confidence != 0) are excluded.
+    Invalid pixels (confidence != 0 or distance == 0) are excluded.
 
     Args:
         dist_data:       Flat Z-map values (H*W,) in millimetres.
