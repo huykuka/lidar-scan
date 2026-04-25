@@ -366,25 +366,62 @@ class NodeManager:
     async def _queue_listener(self):
         """
         Listen to the multiprocessing queue and dispatch incoming data.
-        
-        This task runs continuously while the system is running, pulling
-        data from sensor worker processes and routing it to the appropriate
-        node handlers.
+
+        Drains up to ``_BATCH_SIZE`` items per iteration to keep up with
+        high-throughput sensors.  When multiple frames from the **same**
+        sensor arrive in a single batch, only the most recent one is
+        dispatched — older frames are dropped because the consumer (WebSocket
+        broadcast + downstream DAG) cannot keep up anyway and stale data
+        adds latency without value.
         """
+        _BATCH_SIZE = 32
         loop = asyncio.get_event_loop()
         while self.is_running:
             try:
-                if not self.data_queue.empty():
-                    payload = await loop.run_in_executor(None, self.data_queue.get)
-                    # Process frame concurrently without waiting (fire-and-forget)
-                    asyncio.create_task(self._data_router.handle_incoming_data(payload))
-                else:
-                    await asyncio.sleep(0.005)  # 5ms sleep to prevent busy-waiting
+                payload = await loop.run_in_executor(
+                    None, self._blocking_queue_get
+                )
+                if payload is None:
+                    continue
+
+                # Drain any additional queued items without blocking
+                latest: dict[str, Any] = {}
+                node_id = payload.get("lidar_id") or payload.get("node_id")
+                if node_id:
+                    latest[node_id] = payload
+
+                for _ in range(_BATCH_SIZE - 1):
+                    try:
+                        extra = self.data_queue.get_nowait()
+                    except Exception:
+                        break
+                    nid = extra.get("lidar_id") or extra.get("node_id")
+                    if not nid:
+                        continue
+                    # Events (connect/disconnect/error) are always dispatched
+                    if extra.get("event_type"):
+                        asyncio.create_task(
+                            self._data_router.handle_incoming_data(extra)
+                        )
+                    else:
+                        latest[nid] = extra  # keep only the newest frame
+
+                for p in latest.values():
+                    asyncio.create_task(
+                        self._data_router.handle_incoming_data(p)
+                    )
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Listener error: {e}", exc_info=True)
                 await asyncio.sleep(0.1)
+
+    def _blocking_queue_get(self) -> Any:
+        """Block on the mp.Queue with a short timeout so cancellation is responsive."""
+        try:
+            return self.data_queue.get(timeout=0.05)
+        except Exception:
+            return None
 
     async def forward_data(self, source_id: str, payload: Any, active_port: Optional[str] = None):
         """
