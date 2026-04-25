@@ -18,6 +18,8 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN 
 import logging
 import struct
 
+import numpy as np
+
 from .ParserHelper import DepthMap, Polar2DData, CartesianData, MAX_CONFIDENCE
 
 
@@ -71,35 +73,30 @@ class BinaryParser:
         # whole data block
         dataBinary = binarySegment[position:position + dataBlockSize]
         position += dataBlockSize
-        # only the distance data (as string)
-        distance = dataBinary[0:numBytesDistance]
 
-        logging.debug("Reading distance...")
-        distanceData = struct.unpack('<%uH' % (len(distance) / 2), distance)
-        logging.debug("...done.")
+        # Use np.frombuffer for zero-copy binary → numpy conversion
+        # (avoids struct.unpack which creates Python tuples of 200k+ ints)
+        distanceData = np.frombuffer(
+            dataBinary, dtype='<u2', count=numBytesDistance // 2, offset=0)
 
-        # extract the intensity data (same procedure as distance)
-        logging.debug("Reading intensity...")
         off = numBytesDistance
-        intensity = dataBinary[off:numBytesIntensity + off]
         if numBytesPerIntensityValue == 2:
-            intensityData = struct.unpack(
-                '<%uH' % (len(intensity) / 2), intensity)
+            intensityData = np.frombuffer(
+                dataBinary, dtype='<u2',
+                count=numBytesIntensity // 2, offset=off)
         elif numBytesPerIntensityValue == 4:
-            intensityData = struct.unpack(
-                '<%uL' % (len(intensity) / 4), intensity)
+            intensityData = np.frombuffer(
+                dataBinary, dtype='<u4',
+                count=numBytesIntensity // 4, offset=off)
         else:
-            # legacy mode, also used for RGBA -> byte-wise
-            intensityData = struct.unpack('<%uB' % len(intensity), intensity)
-        logging.debug("...done.")
+            intensityData = np.frombuffer(
+                dataBinary, dtype='<u1',
+                count=numBytesIntensity, offset=off)
 
-        # extract the confidence data (same procedure as distance)
-        logging.debug("Reading confidence...")
         off += numBytesIntensity
-        confidence = dataBinary[off:numBytesConfidence + off]
-        confidenceData = struct.unpack(
-            '<%uH' % (len(confidence) / 2), confidence)
-        logging.debug("...done.")
+        confidenceData = np.frombuffer(
+            dataBinary, dtype='<u2',
+            count=numBytesConfidence // 2, offset=off)
 
         # checking if all data is read
         if (position + 4 == lengthAtStart):

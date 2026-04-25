@@ -36,8 +36,12 @@ class ToFProjector:
         f2rc: float,
         cam2world: np.ndarray,
     ) -> None:
-        cols = np.arange(width, dtype=np.float64)
-        rows = np.arange(height, dtype=np.float64)
+        self._height = height
+        self._width = width
+        self._n_pixels = height * width
+
+        cols = np.arange(width, dtype=np.float32)
+        rows = np.arange(height, dtype=np.float32)
         col_grid, row_grid = np.meshgrid(cols, rows)
 
         xp = (cx - col_grid) / fx
@@ -45,15 +49,23 @@ class ToFProjector:
 
         r2 = xp * xp + yp * yp
         r4 = r2 * r2
-        k = 1.0 + k1 * r2 + k2 * r4
+        k = np.float32(1.0) + np.float32(k1) * r2 + np.float32(k2) * r4
 
-        self._xd = xp * k
-        self._yd = yp * k
-        self._s0 = np.sqrt(self._xd * self._xd + self._yd * self._yd + 1.0)
-        self._f2rc = f2rc
-        self._cam2world = cam2world
-        self._height = height
-        self._width = width
+        xd = xp * k
+        yd = yp * k
+        s0 = np.sqrt(xd * xd + yd * yd + np.float32(1.0))
+
+        # Pre-compute per-pixel direction vectors (flat arrays)
+        self._xd_over_s0 = (xd / s0).ravel()
+        self._yd_over_s0 = (yd / s0).ravel()
+        self._inv_s0 = (np.float32(1.0) / s0).ravel()
+        self._f2rc = np.float32(f2rc)
+
+        # Pre-extract cam2world rotation + translation as float32 scalars
+        m = cam2world.astype(np.float32)
+        self._m00, self._m01, self._m02, self._m03 = m[0, 0], m[0, 1], m[0, 2], m[0, 3]
+        self._m10, self._m11, self._m12, self._m13 = m[1, 0], m[1, 1], m[1, 2], m[1, 3]
+        self._m20, self._m21, self._m22, self._m23 = m[2, 0], m[2, 1], m[2, 2], m[2, 3]
 
     def project(
         self,
@@ -66,33 +78,31 @@ class ToFProjector:
         ToF cameras include all pixels (no confidence filter).
         Only zero-distance pixels (no measurement) are excluded.
         """
-        dist = np.asarray(dist_data, dtype=np.float64).reshape(self._height, self._width)
-        ints = np.asarray(intensity_data, dtype=np.float64).reshape(self._height, self._width)
-
-        xc = self._xd * dist / self._s0
-        yc = self._yd * dist / self._s0
-        zc = dist / self._s0 - self._f2rc
-
-        m = self._cam2world
-        xw = m[0, 0] * xc + m[0, 1] * yc + m[0, 2] * zc + m[0, 3]
-        yw = m[1, 0] * xc + m[1, 1] * yc + m[1, 2] * zc + m[1, 3]
-        zw = m[2, 0] * xc + m[2, 1] * yc + m[2, 2] * zc + m[2, 3]
+        dist = dist_data.astype(np.float32).ravel()
 
         valid = dist > 0
-        xw_valid = xw[valid] * MM_TO_M
-        yw_valid = yw[valid] * MM_TO_M
-        zw_valid = zw[valid] * MM_TO_M
-        ints_valid = ints[valid]
-
-        n = int(xw_valid.shape[0])
-        if n == 0:
+        if not np.any(valid):
             return np.zeros((0, 14), dtype=np.float64)
 
+        dv = dist[valid]
+        xd_s0_v = self._xd_over_s0[valid]
+        yd_s0_v = self._yd_over_s0[valid]
+        inv_s0_v = self._inv_s0[valid]
+
+        xc = xd_s0_v * dv
+        yc = yd_s0_v * dv
+        zc = inv_s0_v * dv - self._f2rc
+
+        xw = (self._m00 * xc + self._m01 * yc + self._m02 * zc + self._m03) * MM_TO_M
+        yw = (self._m10 * xc + self._m11 * yc + self._m12 * zc + self._m13) * MM_TO_M
+        zw = (self._m20 * xc + self._m21 * yc + self._m22 * zc + self._m23) * MM_TO_M
+
+        n = int(dv.shape[0])
         out = np.zeros((n, 14), dtype=np.float64)
-        out[:, 0] = xw_valid
-        out[:, 1] = yw_valid
-        out[:, 2] = zw_valid
-        out[:, 13] = ints_valid
+        out[:, 0] = xw
+        out[:, 1] = yw
+        out[:, 2] = zw
+        out[:, 13] = intensity_data.ravel()[valid]
         return out
 
 
@@ -112,15 +122,20 @@ class StereoProjector:
         cy: float,
         cam2world: np.ndarray,
     ) -> None:
-        cols = np.arange(width, dtype=np.float64)
-        rows = np.arange(height, dtype=np.float64)
-        col_grid, row_grid = np.meshgrid(cols, rows)
-
-        self._xp = (col_grid - cx) / fx
-        self._yp = (row_grid - cy) / fy
-        self._cam2world = cam2world
         self._height = height
         self._width = width
+
+        cols = np.arange(width, dtype=np.float32)
+        rows = np.arange(height, dtype=np.float32)
+        col_grid, row_grid = np.meshgrid(cols, rows)
+
+        self._xp = ((col_grid - cx) / fx).ravel()
+        self._yp = ((row_grid - cy) / fy).ravel()
+
+        m = cam2world.astype(np.float32)
+        self._m00, self._m01, self._m02, self._m03 = m[0, 0], m[0, 1], m[0, 2], m[0, 3]
+        self._m10, self._m11, self._m12, self._m13 = m[1, 0], m[1, 1], m[1, 2], m[1, 3]
+        self._m20, self._m21, self._m22, self._m23 = m[2, 0], m[2, 1], m[2, 2], m[2, 3]
 
     def project(
         self,
@@ -133,34 +148,27 @@ class StereoProjector:
         Stereo cameras use confidence to flag invalid pixels (confidence != 0 = invalid).
         Zero-distance pixels are also excluded.
         """
-        dist = np.asarray(dist_data, dtype=np.float64).reshape(self._height, self._width)
-        conf = np.asarray(confidence_data, dtype=np.uint16).reshape(self._height, self._width)
-        ints = np.asarray(intensity_data, dtype=np.float64).reshape(self._height, self._width)
-
-        zc = dist
-        xc = self._xp * zc
-        yc = self._yp * zc
-
-        m = self._cam2world
-        xw = m[0, 0] * xc + m[0, 1] * yc + m[0, 2] * zc + m[0, 3]
-        yw = m[1, 0] * xc + m[1, 1] * yc + m[1, 2] * zc + m[1, 3]
-        zw = m[2, 0] * xc + m[2, 1] * yc + m[2, 2] * zc + m[2, 3]
+        dist = dist_data.astype(np.float32).ravel()
+        conf = np.asarray(confidence_data, dtype=np.uint16).ravel()
 
         valid = (conf == 0) & (dist > 0)
-        xw_valid = xw[valid] * MM_TO_M
-        yw_valid = yw[valid] * MM_TO_M
-        zw_valid = zw[valid] * MM_TO_M
-        ints_valid = ints[valid]
-
-        n = int(xw_valid.shape[0])
-        if n == 0:
+        if not np.any(valid):
             return np.zeros((0, 14), dtype=np.float64)
 
+        dv = dist[valid]
+        xc = self._xp[valid] * dv
+        yc = self._yp[valid] * dv
+
+        xw = (self._m00 * xc + self._m01 * yc + self._m02 * dv + self._m03) * MM_TO_M
+        yw = (self._m10 * xc + self._m11 * yc + self._m12 * dv + self._m13) * MM_TO_M
+        zw = (self._m20 * xc + self._m21 * yc + self._m22 * dv + self._m23) * MM_TO_M
+
+        n = int(dv.shape[0])
         out = np.zeros((n, 14), dtype=np.float64)
-        out[:, 0] = xw_valid
-        out[:, 1] = yw_valid
-        out[:, 2] = zw_valid
-        out[:, 13] = ints_valid
+        out[:, 0] = xw
+        out[:, 1] = yw
+        out[:, 2] = zw
+        out[:, 13] = intensity_data.ravel()[valid]
         return out
 
 

@@ -177,7 +177,6 @@ def visionary_worker_process(
                 try:
                     data_queue.put(payload, block=False)
                 except Exception:
-                    print("Queue full - dropping frame")
                     pass  # queue full — drop frame
 
             except Exception as frame_exc:

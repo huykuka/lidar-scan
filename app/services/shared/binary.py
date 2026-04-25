@@ -36,7 +36,10 @@ def pack_points_binary(points: np.ndarray, timestamp: float) -> bytes:
     header = struct.pack('<4sIdI', MAGIC_BYTES, VERSION, timestamp, count)
     
     # Ensure we only send X, Y, Z (first 3 columns) to match the (N * 12 bytes) format
-    points_xyz = points[:, :3].astype(np.float32)
+    xyz = points[:, :3]
+    points_xyz = xyz if xyz.dtype == np.float32 else xyz.astype(np.float32)
+    if not points_xyz.flags['C_CONTIGUOUS']:
+        points_xyz = np.ascontiguousarray(points_xyz)
     
     return header + points_xyz.tobytes()
 

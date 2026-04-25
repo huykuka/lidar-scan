@@ -55,7 +55,7 @@ class NodeManager:
         self.edges_data: List[Dict[str, Any]] = []
         
         # Runtime state
-        self.data_queue: Any = mp.Queue(maxsize=500)  # Multiprocessing queue for sensor data
+        self.data_queue: Any = mp.Queue(maxsize=4)  # Small buffer — batch-drain listener keeps it near-empty
         self.is_running = False
         self._loop: Any = None
         self._listener_task: Any = None
@@ -276,7 +276,7 @@ class NodeManager:
         """
         self._loop = loop or asyncio.get_event_loop()
         self.is_running = True
-        self.data_queue = mp.Queue(maxsize=500)
+        self.data_queue = mp.Queue(maxsize=4)
 
         await self._lifecycle_manager.start_all_nodes()
         self._listener_task = asyncio.create_task(self._queue_listener())
