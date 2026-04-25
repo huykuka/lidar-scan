@@ -23,28 +23,6 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def _add_sdk_to_path() -> None:
-    """Ensure the sick_visionary_python_base package is importable.
-
-    Resolution order:
-    1. ``VISIONARY_SDK_PATH`` environment variable (absolute path to the cloned repo)
-    2. ``<repo_root>/sick_visionary_python_base/`` (auto-discovered)
-    3. Already installed as a Python package (no action needed)
-    """
-    from pathlib import Path
-
-    env_path = os.environ.get("VISIONARY_SDK_PATH")
-    if env_path:
-        p = Path(env_path).resolve()
-        if p.is_dir() and str(p.parent) not in sys.path:
-            sys.path.insert(0, str(p.parent))
-        return
-
-    repo_root = Path(__file__).resolve().parents[4]
-    sdk_path = repo_root / "sick_visionary_python_base"
-    if sdk_path.is_dir() and str(sdk_path.parent) not in sys.path:
-        sys.path.insert(0, str(sdk_path.parent))
-
 
 def visionary_worker_process(
     sensor_id: str,
@@ -71,24 +49,22 @@ def visionary_worker_process(
         data_queue:     Shared queue for pushing payloads to the main process.
         stop_event:     Multiprocessing event signalling graceful shutdown.
     """
-    _add_sdk_to_path()
-
     try:
-        from sick_visionary_python_base.Stream import Streaming
-        from sick_visionary_python_base.Streaming.Data import Data
-        from sick_visionary_python_base.Control import Control
-        from sick_visionary_python_base.Streaming.BlobServerConfiguration import BlobClientConfig
-        from sick_visionary_python_base.Usertypes import FrontendMode
+        from app.modules.visionary.workers.api.Stream import Streaming
+        from app.modules.visionary.workers.api.Streaming.Data import Data
+        from app.modules.visionary.workers.api.Control import Control
+        from app.modules.visionary.workers.api.Streaming.BlobServerConfiguration import BlobClientConfig
+        from app.modules.visionary.workers.api.Usertypes import FrontendMode
     except ImportError as exc:
         logger.error(
-            f"[{sensor_id}] sick_visionary_python_base is not available: {exc}"
+            f"[{sensor_id}] API module is not available: {exc}"
         )
         _push_event(data_queue, sensor_id, "error", f"SDK not installed: {exc}")
         return
 
     # Suppress verbose per-frame SDK logging ("Reading binary segment", etc.)
     logging.getLogger("root").setLevel(logging.WARNING)
-    logging.getLogger("sick_visionary_python_base").setLevel(logging.WARNING)
+    logging.getLogger("app.modules.visionary.workers.api").setLevel(logging.WARNING)
 
     from app.modules.visionary.point_cloud import StereoProjector, ToFProjector
 
