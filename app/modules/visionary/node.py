@@ -1,7 +1,7 @@
 """
 Visionary 3D camera sensor node.
 
-Follows the same pattern as ``app.modules.lidar.sensor.LidarSensor``:
+Follows the same pattern as ``app.modules.lidar.node.LidarSensor``:
 - Extends ``ModuleNode`` for DAG integration
 - Spawns a multiprocessing worker to acquire frames from SICK Visionary cameras
 - Applies 6-DOF pose transformation and forwards to downstream nodes

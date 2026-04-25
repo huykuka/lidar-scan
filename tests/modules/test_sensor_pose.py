@@ -16,7 +16,7 @@ class TestLidarSensorSetPose:
     def _make_sensor(self):
         """Create a minimal LidarSensor for testing without hardware deps."""
         from unittest.mock import MagicMock
-        from app.modules.lidar.sensor import LidarSensor
+        from app.modules.lidar.node import LidarSensor
 
         manager = MagicMock()
         sensor = LidarSensor(
@@ -75,7 +75,7 @@ class TestLidarSensorGetPoseParams:
 
     def _make_sensor(self):
         from unittest.mock import MagicMock
-        from app.modules.lidar.sensor import LidarSensor
+        from app.modules.lidar.node import LidarSensor
         manager = MagicMock()
         return LidarSensor(manager=manager, sensor_id="test-sensor", launch_args="")
 

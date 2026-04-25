@@ -1,1 +1,1 @@
-from app.modules.visionary.sensor import VisionarySensor
+from app.modules.visionary.node import VisionarySensor

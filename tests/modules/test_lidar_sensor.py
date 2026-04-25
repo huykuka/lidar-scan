@@ -2,7 +2,7 @@
 import pytest
 import time
 from unittest.mock import Mock, MagicMock
-from app.modules.lidar.sensor import LidarSensor
+from app.modules.lidar.node import LidarSensor
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 
 

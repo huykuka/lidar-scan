@@ -177,7 +177,7 @@ def build_visionary_sensor(
     node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]
 ) -> Any:
     """Build a ``VisionarySensor`` instance from persisted node configuration."""
-    from .sensor import VisionarySensor
+    from .node import VisionarySensor
 
     config = node.get("config", {})
 

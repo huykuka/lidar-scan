@@ -70,7 +70,7 @@ node_schema_registry.register(NodeDefinition(
 @NodeFactory.register("sensor")
 def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     """Build a LidarSensor instance from persisted node configuration."""
-    from .sensor import LidarSensor  # lazy import avoids circular dep
+    from .node import LidarSensor  # lazy import avoids circular dep
 
     config = node.get("config", {})
 
