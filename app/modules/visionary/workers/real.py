@@ -82,10 +82,11 @@ def visionary_worker_process(
         _push_event(data_queue, sensor_id, "error", f"SDK not installed: {exc}")
         return
 
-    from app.modules.visionary.point_cloud import (
-        depth_to_point_cloud_stereo,
-        depth_to_point_cloud_tof,
-    )
+    # Suppress verbose per-frame SDK logging ("Reading binary segment", etc.)
+    logging.getLogger("root").setLevel(logging.WARNING)
+    logging.getLogger("sick_visionary_python_base").setLevel(logging.WARNING)
+
+    from app.modules.visionary.point_cloud import StereoProjector, ToFProjector
 
     streaming: Any = None
     control: Any = None
@@ -111,6 +112,7 @@ def visionary_worker_process(
 
         my_data = Data()
         frame_count = 0
+        projector = None  # built lazily from first frame's camera params
 
         # --- Acquisition loop --------------------------------------------------
         while not stop_event.is_set():
@@ -127,42 +129,31 @@ def visionary_worker_process(
                 if not my_data.hasDepthMap:
                     continue
 
-                cam = my_data.cameraParams
-                cam2world = np.array(cam.cam2worldMatrix, dtype=np.float64).reshape(4, 4)
+                # Build projector once (pixel grids + distortion LUTs are constant)
+                if projector is None:
+                    cam = my_data.cameraParams
+                    cam2world = np.array(
+                        cam.cam2worldMatrix, dtype=np.float64
+                    ).reshape(4, 4)
+                    if is_stereo:
+                        projector = StereoProjector(
+                            cam.width, cam.height,
+                            cam.fx, cam.fy, cam.cx, cam.cy,
+                            cam2world,
+                        )
+                    else:
+                        projector = ToFProjector(
+                            cam.width, cam.height,
+                            cam.fx, cam.fy, cam.cx, cam.cy,
+                            cam.k1, cam.k2, cam.f2rc,
+                            cam2world,
+                        )
 
                 depth = my_data.depthmap.distance
                 intensity = my_data.depthmap.intensity
                 confidence = my_data.depthmap.confidence
 
-                if is_stereo:
-                    points = depth_to_point_cloud_stereo(
-                        dist_data=depth,
-                        intensity_data=intensity,
-                        confidence_data=confidence,
-                        width=cam.width,
-                        height=cam.height,
-                        fx=cam.fx,
-                        fy=cam.fy,
-                        cx=cam.cx,
-                        cy=cam.cy,
-                        cam2world=cam2world,
-                    )
-                else:
-                    points = depth_to_point_cloud_tof(
-                        dist_data=depth,
-                        intensity_data=intensity,
-                        confidence_data=confidence,
-                        width=cam.width,
-                        height=cam.height,
-                        fx=cam.fx,
-                        fy=cam.fy,
-                        cx=cam.cx,
-                        cy=cam.cy,
-                        k1=cam.k1,
-                        k2=cam.k2,
-                        f2rc=cam.f2rc,
-                        cam2world=cam2world,
-                    )
+                points = projector.project(depth, intensity, confidence)
 
                 if points is None or len(points) == 0:
                     continue
