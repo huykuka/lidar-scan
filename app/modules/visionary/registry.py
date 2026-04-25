@@ -120,6 +120,13 @@ node_schema_registry.register(
                 help_text="IP address of the SICK Visionary camera",
             ),
             PropertySchema(
+                name="host_ip",
+                label="Host IP",
+                type="string",
+                default="192.168.1.89",
+                help_text="IP address of the host PC",
+            ),
+            PropertySchema(
                 name="streaming_port",
                 label="Streaming Port",
                 type="number",
@@ -199,6 +206,7 @@ def build_visionary_sensor(
     protocol = config.get("streaming_protocol", "UDP")
     cola_protocol = model_info["cola_protocol"]
     is_stereo = model_info["is_stereo"]
+    host_ip = config.get("host_ip")
 
     # Pose
     raw_pose = node.get("pose") or {}
@@ -227,6 +235,7 @@ def build_visionary_sensor(
         manager=service_context,
         sensor_id=sensor_id,
         camera_ip=camera_ip,
+        host_ip=host_ip,
         streaming_port=streaming_port,
         protocol=protocol,
         cola_protocol=cola_protocol,

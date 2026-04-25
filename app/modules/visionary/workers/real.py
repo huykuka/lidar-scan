@@ -48,6 +48,7 @@ def _add_sdk_to_path() -> None:
 def visionary_worker_process(
     sensor_id: str,
     camera_ip: str,
+    host_ip: str,
     streaming_port: int,
     protocol: str,
     cola_protocol: str,
@@ -70,6 +71,7 @@ def visionary_worker_process(
         stop_event:     Multiprocessing event signalling graceful shutdown.
     """
     _add_sdk_to_path()
+    print(host_ip,camera_ip)
 
     try:
         from sick_visionary_python_base.Stream import Streaming
@@ -103,7 +105,7 @@ def visionary_worker_process(
         logger.info(f"[{sensor_id}] Opening streaming channel to {camera_ip}:{streaming_port} ({protocol})")
         streaming = Streaming(camera_ip, streaming_port, protocol=protocol)
         if protocol == "UDP":
-            streaming.openStream(server_address=("", streaming_port))
+            streaming.openStream(server_address=(host_ip, streaming_port))
         else:
             streaming.openStream()
         logger.info(f"[{sensor_id}] Streaming channel open")

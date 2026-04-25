@@ -35,6 +35,7 @@ class VisionarySensor(ModuleNode):
         manager: Any,
         sensor_id: str,
         camera_ip: str = "192.168.1.10",
+        host_ip: str = "192.168.1.111",
         streaming_port: int = 2114,
         protocol: str = "UDP",
         cola_protocol: str = "Cola2",
@@ -59,6 +60,8 @@ class VisionarySensor(ModuleNode):
         self.is_stereo = is_stereo
         self.acquisition_method = acquisition_method
         self.cti_path = cti_path
+        self.host_ip = host_ip
+        self.throttle_ms = throttle_ms
 
         self.camera_model: str = "visionary_t_mini_cx"
         self.camera_display_name: str = "Visionary-T Mini CX (V3S105)"
@@ -138,6 +141,7 @@ class VisionarySensor(ModuleNode):
                     args=(
                         self.id,
                         self.camera_ip,
+                        self.host_ip,
                         self.streaming_port,
                         self.protocol,
                         self.cola_protocol,
