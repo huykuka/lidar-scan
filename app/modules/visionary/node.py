@@ -227,8 +227,18 @@ class VisionarySensor(ModuleNode):
                 frame_count = runtime_status[self.id].get("frame_count", 0) + 1
                 runtime_status[self.id]["frame_count"] = frame_count
 
-            points = payload.get("points")
-            if points is not None:
+            compact = payload.get("points")
+            if compact is not None:
+                # Worker sends compact (N, 4) float32 [x,y,z,intensity].
+                # Expand to pipeline-standard (N, 14) before transform.
+                n = compact.shape[0]
+                if compact.shape[1] == 4:
+                    points = np.zeros((n, 14), dtype=np.float64)
+                    points[:, :3] = compact[:, :3]
+                    points[:, 13] = compact[:, 3]
+                else:
+                    points = compact
+
                 transformed_points = await asyncio.to_thread(
                     transform_points, points, self.transformation
                 )

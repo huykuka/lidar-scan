@@ -121,10 +121,14 @@ def visionary_worker_process(
                         logger.warning(
                             f"[{sensor_id}] UDP frame parse error: {parse_err}")
                     continue
-                
+
                 raw_frame = streaming.frame
 
                 if raw_frame is None:
+                    continue
+
+                # Skip expensive parsing + projection when queue is backed up
+                if data_queue.full():
                     continue
 
                 my_data.read(raw_frame, convertToMM=False)
@@ -142,7 +146,6 @@ def visionary_worker_process(
                     )
 
                     if is_stereo:
-                        
                         projector = StereoProjector(
                             cam.width, cam.height,
                             cam.fx, cam.fy, cam.cx, cam.cy,

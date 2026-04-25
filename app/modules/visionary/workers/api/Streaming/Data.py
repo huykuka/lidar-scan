@@ -39,6 +39,16 @@ class Data:
 
         self.parsing_time_s = 0
 
+        # Cached objects reused across frames when XML config is unchanged
+        self._binaryParser = BinaryParser()
+        self._cachedCameraParams = None
+        self._cachedByteLayout = None
+
+    # Pre-computed struct sizes for header parsing
+    _HDR_FMT = struct.Struct('>IIHB')
+    _SEG_FMT = struct.Struct('>HH')
+    _OFF_FMT = struct.Struct('>II')
+
     def read(self, dataBuffer, convertToMM=True):
         """
         Extracts necessary data segments and triggers parsing of segments. 
@@ -53,43 +63,21 @@ class Data:
 
         parsing_start_time_s = time.time()
 
-        # first 11 bytes contain some internal definitions
-        # code threw following error:
-        #   File "..\common\Data.py", line 50, in read
-        #     unpack('>IIHB', tempBuffer)
-        # TypeError: a bytes-like object is required, not 'str'
-
-        # tempBuffer = dataBuffer[0:11]
-        tempBuffer = dataBuffer[0:11]
+        # first 11 bytes: magic, length, version, type
         (magicword, pkglength, protocolVersion, packetType) = \
-            struct.unpack('>IIHB', tempBuffer)
+            self._HDR_FMT.unpack_from(dataBuffer, 0)
         assert (magicword == 0x02020202)
-        logging.debug("Package length: %s", pkglength)
-        # expected to be == 1
-        logging.debug("Protocol version: %s", protocolVersion)
-        logging.debug("Packet type: %s", packetType)  # expected to be  == 98
 
-        # next four bytes an id (should equal 1) and
-        # the number of segments (should be 3)
-        tempBuffer = dataBuffer[11:15]
-        (segid, numSegments) = struct.unpack('>HH', tempBuffer)
-        logging.debug("Blob ID: %s", segid)  # expected to be == 1
-        # expected to be  == 3
-        logging.debug("Number of segments: %s", numSegments)
+        # next four bytes: blob id + segment count
+        (segid, numSegments) = self._SEG_FMT.unpack_from(dataBuffer, 11)
 
         # offset and changedCounter, 4 bytes each per segment
         offset = [None] * numSegments
         changedCounter = [None] * numSegments
-        tempBuffer = dataBuffer[15:15 + numSegments * 2 * 4]
         for i in range(numSegments):
-            index = i * 8
             (offset[i], changedCounter[i]) = \
-                struct.unpack('>II', tempBuffer[index:index + 8])
+                self._OFF_FMT.unpack_from(dataBuffer, 15 + i * 8)
             offset[i] += 11
-        # offset in bytes for each segment
-        logging.debug("Offsets: %s", offset)
-        # counter for changes in the data
-        logging.debug("Changed counter: %s", changedCounter)
 
         # first segment describes the data format in XML
         xmlSegment = dataBuffer[offset[0]:offset[1]]
@@ -115,7 +103,8 @@ class Data:
 
         # parsing the XML in order to extract necessary image information
         # only parse if something has changed
-        if (self.changedCounter < changedCounter[0]):
+        xmlChanged = self.changedCounter < changedCounter[0]
+        if xmlChanged:
             logging.debug("XML did change, parsing started.")
             myXMLParser = XMLParser()
             myXMLParser.parse(xmlSegment)
@@ -125,7 +114,7 @@ class Data:
             logging.debug("XML did not change, not parsing again.")
             myXMLParser = self.xmlParser
 
-        myBinaryParser = BinaryParser()
+        myBinaryParser = self._binaryParser
 
         self.hasDepthMap = False
         self.hasPolar2D = False
@@ -134,41 +123,52 @@ class Data:
         if myXMLParser.hasDepthMap:
             logging.debug("Data contains depth map, reading camera params")
             self.hasDepthMap = True
-            self.cameraParams = \
-                CameraParameters(width=myXMLParser.imageWidth,
-                                 height=myXMLParser.imageHeight,
-                                 cam2worldMatrix=myXMLParser.cam2worldMatrix,
-                                 fx=myXMLParser.fx, fy=myXMLParser.fy,
-                                 cx=myXMLParser.cx, cy=myXMLParser.cy,
-                                 k1=myXMLParser.k1, k2=myXMLParser.k2, k3=myXMLParser.k3,
-                                 p1=myXMLParser.p1, p2=myXMLParser.p2,
-                                 f2rc=myXMLParser.f2rc)
 
-            # extracting data from the binary segment (distance, intensity
-            # and confidence).
-            if myXMLParser.stereo:
-                numBytesDistance = myXMLParser.imageHeight * \
+            # Reuse cached CameraParameters and byte layout when XML is stable
+            if self._cachedCameraParams is None or xmlChanged:
+                self.cameraParams = \
+                    CameraParameters(width=myXMLParser.imageWidth,
+                                     height=myXMLParser.imageHeight,
+                                     cam2worldMatrix=myXMLParser.cam2worldMatrix,
+                                     fx=myXMLParser.fx, fy=myXMLParser.fy,
+                                     cx=myXMLParser.cx, cy=myXMLParser.cy,
+                                     k1=myXMLParser.k1, k2=myXMLParser.k2, k3=myXMLParser.k3,
+                                     p1=myXMLParser.p1, p2=myXMLParser.p2,
+                                     f2rc=myXMLParser.f2rc)
+                self._cachedCameraParams = self.cameraParams
+
+                if myXMLParser.stereo:
+                    numBytesDistance = myXMLParser.imageHeight * \
+                        myXMLParser.imageWidth * \
+                        myXMLParser.numBytesPerZValue
+                else:
+                    numBytesDistance = myXMLParser.imageHeight * \
+                        myXMLParser.imageWidth * \
+                        myXMLParser.numBytesPerDistanceValue
+                numBytesIntensity = myXMLParser.imageHeight * \
                     myXMLParser.imageWidth * \
-                    myXMLParser.numBytesPerZValue
+                    myXMLParser.numBytesPerIntensityValue
+                numBytesConfidence = myXMLParser.imageHeight * \
+                    myXMLParser.imageWidth * \
+                    myXMLParser.numBytesPerConfidenceValue
+
+                try:
+                    numBytesFrameNumber = myXMLParser.numBytesFrameNumber
+                    numBytesQuality = myXMLParser.numBytesQuality
+                    numBytesStatus = myXMLParser.numBytesStatus
+                except AttributeError:
+                    numBytesFrameNumber = 0
+                    numBytesQuality = 0
+                    numBytesStatus = 0
+
+                self._cachedByteLayout = (
+                    numBytesFrameNumber, numBytesQuality, numBytesStatus,
+                    numBytesDistance, numBytesIntensity, numBytesConfidence,
+                )
             else:
-                numBytesDistance = myXMLParser.imageHeight * \
-                    myXMLParser.imageWidth * \
-                    myXMLParser.numBytesPerDistanceValue
-            numBytesIntensity = myXMLParser.imageHeight * \
-                myXMLParser.imageWidth * \
-                myXMLParser.numBytesPerIntensityValue
-            numBytesConfidence = myXMLParser.imageHeight * \
-                myXMLParser.imageWidth * \
-                myXMLParser.numBytesPerConfidenceValue
-
-            try:
-                numBytesFrameNumber = myXMLParser.numBytesFrameNumber
-                numBytesQuality = myXMLParser.numBytesQuality
-                numBytesStatus = myXMLParser.numBytesStatus
-            except AttributeError:
-                numBytesFrameNumber = 0
-                numBytesQuality = 0
-                numBytesStatus = 0
+                self.cameraParams = self._cachedCameraParams
+                (numBytesFrameNumber, numBytesQuality, numBytesStatus,
+                 numBytesDistance, numBytesIntensity, numBytesConfidence) = self._cachedByteLayout
 
             logging.info("Reading binary segment...")
             myBinaryParser.getDepthMap(binarySegment,

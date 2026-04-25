@@ -28,6 +28,10 @@ class BinaryParser:
     the binary segment of the raw data frame.
     """
 
+    _INFO_FMT = struct.Struct('<IQH')
+    _V2_FMT = struct.Struct('<IBB')
+    _TAIL_FMT = struct.Struct('<II')
+
     def getDepthMap(self,
                     binarySegment,
                     numBytesFrameNumber,
@@ -38,31 +42,15 @@ class BinaryParser:
                     numBytesPerIntensityValue,
                     numBytesConfidence):
         position = 0
-        # the binary part starts with entries for length, a timestamp
-        # and a version identifier
-        infoBlockSize = struct.calcsize('<IQH')
-        (lengthAtStart, timeStamp, version) = struct.unpack(
-            '<IQH', binarySegment[position:position + infoBlockSize])
-        position += infoBlockSize
-        logging.debug("Length at start: %s", lengthAtStart)
-        self.logTimeStamp(timeStamp)
-        logging.debug("Format version: %s", version)
+        (lengthAtStart, timeStamp, version) = self._INFO_FMT.unpack_from(
+            binarySegment, position)
+        position += self._INFO_FMT.size
 
-        format2BlockSize = 0
         if version == 2:
-            assert numBytesFrameNumber == 4
-            assert numBytesQuality == 1
-            assert numBytesStatus == 1
-            format2BlockSize = struct.calcsize('<IBB')
-            (frameNumber, quality, status) = struct.unpack(
-                '<IBB', binarySegment[position:position + format2BlockSize])
-            position += format2BlockSize
-            logging.debug("FrameNumber: %s", frameNumber)
-            logging.debug("Data quality: %s", quality)
-            logging.debug("Device status: %s", status)
+            (frameNumber, quality, status) = self._V2_FMT.unpack_from(
+                binarySegment, position)
+            position += self._V2_FMT.size
         else:
-            logging.warning(
-                "Old format, no values for frameNumber, quality and status")
             frameNumber = -1
             quality = 0
             status = 0
@@ -100,13 +88,9 @@ class BinaryParser:
 
         # checking if all data is read
         if (position + 4 == lengthAtStart):
-            check = struct.calcsize('<II')
-            (crc, lengthAtEnd) = struct.unpack(
-                '<II', binarySegment[position:position + check])
-            position += check
-            logging.debug("Length at start: %s", lengthAtStart)
-            logging.debug("Length at end: %s", lengthAtEnd)
-            # assert lengthAtStart == lengthAtEnd
+            (crc, lengthAtEnd) = self._TAIL_FMT.unpack_from(
+                binarySegment, position)
+            position += self._TAIL_FMT.size
             if lengthAtStart != lengthAtEnd:
                 logging.error("lengthAtStart != lengthAtEnd")
         self.remainingBuffer = binarySegment[position:]

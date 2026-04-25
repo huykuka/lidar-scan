@@ -12,7 +12,6 @@ camera models using the intrinsic camera parameters provided by the device.
 Reference: SICK sick_visionary_python_base PointCloud/PointCloud.py
 """
 import numpy as np
-from typing import Optional
 
 MM_TO_M = 0.001
 
@@ -73,7 +72,10 @@ class ToFProjector:
         intensity_data: np.ndarray,
         confidence_data: np.ndarray,
     ) -> np.ndarray:
-        """Convert a single ToF frame to (N, 14) point cloud (metres).
+        """Convert a single ToF frame to (N, 4) float32 point cloud (metres).
+
+        Returns compact [x, y, z, intensity] to minimise queue serialisation.
+        The node expands to (N, 14) after receiving from the queue.
 
         ToF cameras include all pixels (no confidence filter).
         Only zero-distance pixels (no measurement) are excluded.
@@ -82,7 +84,7 @@ class ToFProjector:
 
         valid = dist > 0
         if not np.any(valid):
-            return np.zeros((0, 14), dtype=np.float64)
+            return np.zeros((0, 4), dtype=np.float32)
 
         dv = dist[valid]
         xd_s0_v = self._xd_over_s0[valid]
@@ -93,16 +95,12 @@ class ToFProjector:
         yc = yd_s0_v * dv
         zc = inv_s0_v * dv - self._f2rc
 
-        xw = (self._m00 * xc + self._m01 * yc + self._m02 * zc + self._m03) * MM_TO_M
-        yw = (self._m10 * xc + self._m11 * yc + self._m12 * zc + self._m13) * MM_TO_M
-        zw = (self._m20 * xc + self._m21 * yc + self._m22 * zc + self._m23) * MM_TO_M
-
         n = int(dv.shape[0])
-        out = np.zeros((n, 14), dtype=np.float64)
-        out[:, 0] = xw
-        out[:, 1] = yw
-        out[:, 2] = zw
-        out[:, 13] = intensity_data.ravel()[valid]
+        out = np.empty((n, 4), dtype=np.float32)
+        out[:, 0] = (self._m00 * xc + self._m01 * yc + self._m02 * zc + self._m03) * MM_TO_M
+        out[:, 1] = (self._m10 * xc + self._m11 * yc + self._m12 * zc + self._m13) * MM_TO_M
+        out[:, 2] = (self._m20 * xc + self._m21 * yc + self._m22 * zc + self._m23) * MM_TO_M
+        out[:, 3] = intensity_data.ravel()[valid]
         return out
 
 
@@ -143,7 +141,9 @@ class StereoProjector:
         intensity_data: np.ndarray,
         confidence_data: np.ndarray,
     ) -> np.ndarray:
-        """Convert a single stereo frame to (N, 14) point cloud (metres).
+        """Convert a single stereo frame to (N, 4) float32 point cloud (metres).
+
+        Returns compact [x, y, z, intensity] to minimise queue serialisation.
 
         Stereo cameras use confidence to flag invalid pixels (confidence != 0 = invalid).
         Zero-distance pixels are also excluded.
@@ -153,22 +153,18 @@ class StereoProjector:
 
         valid = (conf == 0) & (dist > 0)
         if not np.any(valid):
-            return np.zeros((0, 14), dtype=np.float64)
+            return np.zeros((0, 4), dtype=np.float32)
 
         dv = dist[valid]
         xc = self._xp[valid] * dv
         yc = self._yp[valid] * dv
 
-        xw = (self._m00 * xc + self._m01 * yc + self._m02 * dv + self._m03) * MM_TO_M
-        yw = (self._m10 * xc + self._m11 * yc + self._m12 * dv + self._m13) * MM_TO_M
-        zw = (self._m20 * xc + self._m21 * yc + self._m22 * dv + self._m23) * MM_TO_M
-
         n = int(dv.shape[0])
-        out = np.zeros((n, 14), dtype=np.float64)
-        out[:, 0] = xw
-        out[:, 1] = yw
-        out[:, 2] = zw
-        out[:, 13] = intensity_data.ravel()[valid]
+        out = np.empty((n, 4), dtype=np.float32)
+        out[:, 0] = (self._m00 * xc + self._m01 * yc + self._m02 * dv + self._m03) * MM_TO_M
+        out[:, 1] = (self._m10 * xc + self._m11 * yc + self._m12 * dv + self._m13) * MM_TO_M
+        out[:, 2] = (self._m20 * xc + self._m21 * yc + self._m22 * dv + self._m23) * MM_TO_M
+        out[:, 3] = intensity_data.ravel()[valid]
         return out
 
 
@@ -192,24 +188,10 @@ def depth_to_point_cloud_tof(
     f2rc: float,
     cam2world: np.ndarray,
 ) -> np.ndarray:
-    """Convert ToF depth map to (N, 14) point cloud array.
+    """Convert ToF depth map to (N, 4) float32 point cloud [x, y, z, intensity].
 
-    Uses radial distortion correction and cam2world transformation.
-    Only zero-distance pixels are excluded (ToF does not use confidence filtering).
-
-    Args:
-        dist_data:       Flat distance values (H*W,) in millimetres.
-        intensity_data:  Flat intensity values (H*W,).
-        confidence_data: Flat confidence values (H*W,); 0 = valid.
-        width, height:   Image resolution.
-        fx, fy, cx, cy:  Intrinsic camera parameters.
-        k1, k2:          Radial distortion coefficients.
-        f2rc:            FocalToRayCross offset.
-        cam2world:       4x4 camera-to-world transformation matrix.
-
-    Returns:
-        (N, 14) float64 array with columns [x, y, z, 0..9, intensity, ...].
-        Coordinates are in metres.
+    Convenience wrapper — creates a :class:`ToFProjector` and projects once.
+    For repeated calls prefer instantiating the projector directly.
     """
     proj = ToFProjector(width, height, fx, fy, cx, cy, k1, k2, f2rc, cam2world)
     return proj.project(dist_data, intensity_data, confidence_data)
@@ -227,21 +209,10 @@ def depth_to_point_cloud_stereo(
     cy: float,
     cam2world: np.ndarray,
 ) -> np.ndarray:
-    """Convert stereo depth map to (N, 14) point cloud array.
+    """Convert stereo depth map to (N, 4) float32 point cloud [x, y, z, intensity].
 
-    Stereo cameras provide Z-map data directly; no radial distortion model.
-    Invalid pixels (confidence != 0 or distance == 0) are excluded.
-
-    Args:
-        dist_data:       Flat Z-map values (H*W,) in millimetres.
-        intensity_data:  Flat RGBA intensity values (H*W,) packed as uint32.
-        confidence_data: Flat confidence values (H*W,); 0 = valid.
-        width, height:   Image resolution.
-        fx, fy, cx, cy:  Intrinsic camera parameters.
-        cam2world:       4x4 camera-to-world transformation matrix.
-
-    Returns:
-        (N, 14) float64 array. Coordinates are in metres.
+    Convenience wrapper — creates a :class:`StereoProjector` and projects once.
+    For repeated calls prefer instantiating the projector directly.
     """
     proj = StereoProjector(width, height, fx, fy, cx, cy, cam2world)
     return proj.project(dist_data, intensity_data, confidence_data)
