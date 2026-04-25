@@ -11,8 +11,8 @@
         (error)="handleImageError($event)"
         [alt]="opt.label + ' LiDAR device'"
         [src]="opt.imageSrc"
-        class="w-8 h-8 rounded-md border bg-white shrink-0"
-        style="object-fit: contain; padding: 2px; margin-right: 8px"
+        class="w-6 h-6 rounded border bg-white shrink-0"
+        style="object-fit: cover; margin-right: 6px"
       />
     </div>
   }
@@ -23,9 +23,9 @@
         (error)="handleImageError($event)"
         [alt]="opt.label + ' LiDAR device'"
         [src]="opt.imageSrc"
-        class="w-10 h-10 rounded-md border bg-white shrink-0"
+        class="w-7 h-7 rounded-md border bg-white shrink-0"
         slot="prefix"
-        style="object-fit: contain; padding: 2px; margin-right: 10px"
+        style="object-fit: contain; padding: 1px; margin-right: 8px"
       />
       {{ opt.label }}
     </syn-option>
