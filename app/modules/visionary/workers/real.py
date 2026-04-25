@@ -117,21 +117,13 @@ def visionary_worker_process(
             streaming_settings.setBlobUdpHeaderEnabled(True)
             streaming_settings.setBlobUdpFecEnabled(False)
             streaming_settings.setBlobUdpAutoTransmit(True)
+            streaming = Streaming(camera_ip, streaming_port, protocol="UDP")
+            streaming.openStream((host_ip, streaming_port))
         else:
             streaming_settings.setTransportProtocol(streaming_settings.PROTOCOL_TCP)
             streaming_settings.setBlobTcpPort(streaming_port)
-
-        # --- Open streaming channel --------------------------------------------
-        logger.info(f"[{sensor_id}] Opening streaming channel to {camera_ip}:{streaming_port} ({protocol})")
-        streaming = Streaming(camera_ip, streaming_port, protocol=protocol)
-        if protocol == "UDP":
-            streaming.openStream(server_address=(host_ip, streaming_port))
-            # Increase socket receive buffer for reliable fragment reassembly
-            streaming.sock_stream.setsockopt(
-                socket.SOL_SOCKET, socket.SO_RCVBUF, 8 * 1024 * 1024)
-        else:
+            streaming = Streaming(camera_ip, streaming_port)
             streaming.openStream()
-        logger.info(f"[{sensor_id}] Streaming channel open")
 
         # Set continuous acquisition mode
         control.setFrontendMode(FrontendMode.Continuous)
@@ -146,8 +138,6 @@ def visionary_worker_process(
         # --- Acquisition loop --------------------------------------------------
         while not stop_event.is_set():
             try:
-                if protocol != "UDP":
-                    streaming.sendBlobRequest()
                 try:
                     streaming.getFrame()
                 except (IndexError, ValueError) as parse_err:
@@ -155,17 +145,16 @@ def visionary_worker_process(
                         logger.warning(
                             f"[{sensor_id}] UDP frame parse error: {parse_err}")
                     continue
+                
                 raw_frame = streaming.frame
 
                 if raw_frame is None:
                     continue
 
-                my_data.read(raw_frame, convertToMM=True)
+                my_data.read(raw_frame, convertToMM=False)
 
                 if not my_data.hasDepthMap:
                     continue
-
-                # Build projector once (pixel grids + distortion LUTs are constant)
                 if projector is None:
                     cam = my_data.cameraParams
                     cam2world = np.array(
@@ -177,6 +166,7 @@ def visionary_worker_process(
                     )
 
                     if is_stereo:
+                        
                         projector = StereoProjector(
                             cam.width, cam.height,
                             cam.fx, cam.fy, cam.cx, cam.cy,
@@ -211,19 +201,14 @@ def visionary_worker_process(
                 try:
                     data_queue.put(payload, block=False)
                 except Exception:
+                    print("Queue full - dropping frame")
                     pass  # queue full — drop frame
-
-                if frame_count % 100 == 1:
-                    logger.debug(
-                        f"[{sensor_id}] Frame #{frame_count}: {len(points)} points"
-                    )
 
             except Exception as frame_exc:
                 logger.warning(f"[{sensor_id}] Frame error: {frame_exc}")
                 _push_event(data_queue, sensor_id, "error", str(frame_exc))
                 if stop_event.is_set():
                     break
-                time.sleep(0.5)
 
     except Exception as exc:
         logger.error(f"[{sensor_id}] Worker fatal error: {exc}", exc_info=True)
