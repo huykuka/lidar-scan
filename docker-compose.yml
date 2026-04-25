@@ -4,6 +4,22 @@ services:
     container_name: lidar-standalone
     restart: unless-stopped
     network_mode: "host"
+    # Larger /dev/shm so multiprocessing.Queue semaphores and any shared
+    # numpy buffers used by sensor worker processes don't contend on the
+    # 64 MB container default.
+    shm_size: "2gb"
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    # Rotate container logs so a chatty app can't back-pressure stdout
+    # writes on the asyncio event loop via the default unbounded json-file
+    # driver.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - config:/app/config
       - recordings:/app/recordings
