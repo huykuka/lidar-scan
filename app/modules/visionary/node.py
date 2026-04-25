@@ -233,7 +233,7 @@ class VisionarySensor(ModuleNode):
                 # Expand to pipeline-standard (N, 14) before transform.
                 n = compact.shape[0]
                 if compact.shape[1] == 4:
-                    points = np.zeros((n, 14), dtype=np.float64)
+                    points = np.zeros((n, 14), dtype=np.float32)
                     points[:, :3] = compact[:, :3]
                     points[:, 13] = compact[:, 3]
                 else:
