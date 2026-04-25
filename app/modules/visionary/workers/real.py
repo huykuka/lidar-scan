@@ -66,7 +66,7 @@ def visionary_worker_process(
     logging.getLogger("root").setLevel(logging.WARNING)
     logging.getLogger("app.modules.visionary.workers.api").setLevel(logging.WARNING)
 
-    from app.modules.visionary.point_cloud import StereoProjector, ToFProjector
+    from app.modules.visionary.utils.point_cloud import StereoProjector, ToFProjector
 
     streaming: Any = None
     control: Any = None
