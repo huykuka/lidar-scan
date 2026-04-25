@@ -5,7 +5,7 @@ import {vi} from 'vitest';
 import {SensorNodeEditorComponent} from './sensor-node-editor.component';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
-import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
+
 import {NodeConfig, NodeDefinition} from '@core/models/node.model';
 import {NodeStatusService} from '@core/services/node-status.service';
 import {Pose, ZERO_POSE} from '@core/models';
@@ -53,10 +53,7 @@ describe('SensorNodeEditorComponent', () => {
       setState: vi.fn(),
     };
 
-    const mockLidarProfilesApi = {
-      loadProfiles: vi.fn(),
-      getProfileByModelId: vi.fn().mockReturnValue(null),
-    };
+
 
     const mockStatusWs = {
       status: signal(null),
@@ -67,7 +64,7 @@ describe('SensorNodeEditorComponent', () => {
 
       providers: [
         { provide: NodeStoreService, useValue: mockNodeStore },
-        { provide: LidarProfilesApiService, useValue: mockLidarProfilesApi },
+
         { provide: NodeStatusService, useValue: mockStatusWs },
       ],
     })

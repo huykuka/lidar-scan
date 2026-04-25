@@ -42,7 +42,24 @@ node_schema_registry.register(NodeDefinition(
             default="multiscan",
             required=True,
             help_text="Select the SICK LiDAR hardware model for this node",
-            options=[{"label": p.display_name, "value": p.model_id} for p in get_all_profiles()]
+            options=[
+                {
+                    "label": p.display_name,
+                    "value": p.model_id,
+                    "launch_file": p.launch_file,
+                    "default_hostname": p.default_hostname,
+                    "port_arg": p.port_arg,
+                    "default_port": p.default_port,
+                    "has_udp_receiver": p.has_udp_receiver,
+                    "has_imu_udp_port": p.has_imu_udp_port,
+                    "scan_layers": p.scan_layers,
+                    "thumbnail_url": p.thumbnail_url,
+                    "icon_name": p.icon_name,
+                    "icon_color": p.icon_color,
+                    "disabled": p.disabled,
+                }
+                for p in get_all_profiles()
+            ],
         ),
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
