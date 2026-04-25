@@ -45,7 +45,7 @@ def harvester_worker_process(
         _push_event(data_queue, sensor_id, "error", f"harvesters not installed: {exc}")
         return
 
-    from app.modules.visionary.point_cloud import (
+    from app.modules.visionary.utils.point_cloud import (
         depth_to_point_cloud_stereo,
         depth_to_point_cloud_tof,
     )
