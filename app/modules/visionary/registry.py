@@ -139,12 +139,12 @@ node_schema_registry.register(
                 name="streaming_protocol",
                 label="Streaming Protocol",
                 type="select",
-                default="TCP",
+                default="UDP",
                 options=[
-                    {"label": "TCP", "value": "TCP"},
                     {"label": "UDP", "value": "UDP"},
+                    {"label": "TCP", "value": "TCP"},
                 ],
-                help_text="Transport protocol for the streaming channel (SDK mode)",
+                help_text="UDP is faster (lower latency); TCP is more reliable on lossy networks",
                 depends_on={"camera_model": [m["model_id"] for m in VISIONARY_MODELS if m["acquisition_method"] == "sdk"]},
             ),
             PropertySchema(
@@ -196,7 +196,7 @@ def build_visionary_sensor(
     hostname = config.get("hostname", model_info["default_hostname"])
     streaming_port = int(config.get("streaming_port", model_info["default_streaming_port"]))
     control_port = int(config.get("control_port", model_info["default_control_port"]))
-    protocol = config.get("streaming_protocol", "TCP")
+    protocol = config.get("streaming_protocol", "UDP")
     cola_protocol = model_info["cola_protocol"]
     is_stereo = model_info["is_stereo"]
 

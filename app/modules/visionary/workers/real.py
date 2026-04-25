@@ -135,20 +135,9 @@ def visionary_worker_process(
                     cam2world = np.array(
                         cam.cam2worldMatrix, dtype=np.float64
                     ).reshape(4, 4)
-
-                    logger.warning(
-                        f"[{sensor_id}] Camera params: "
-                        f"width={cam.width} height={cam.height} "
-                        f"fx={cam.fx:.2f} fy={cam.fy:.2f} "
-                        f"cx={cam.cx:.2f} cy={cam.cy:.2f}"
-                    )
-                    if not is_stereo:
-                        logger.warning(
-                            f"[{sensor_id}] ToF params: "
-                            f"k1={cam.k1} k2={cam.k2} f2rc={cam.f2rc}"
-                        )
-                    logger.warning(
-                        f"[{sensor_id}] cam2world:\n{cam2world}"
+                    logger.info(
+                        f"[{sensor_id}] Camera: {cam.width}x{cam.height}, "
+                        f"fx={cam.fx:.2f} fy={cam.fy:.2f}"
                     )
 
                     if is_stereo:
@@ -169,20 +158,7 @@ def visionary_worker_process(
                 intensity = my_data.depthmap.intensity
                 confidence = my_data.depthmap.confidence
 
-                dist_arr = np.asarray(depth)
-                total_pixels = len(dist_arr)
-                nonzero_pixels = int(np.count_nonzero(dist_arr))
-
                 points = projector.project(depth, intensity, confidence)
-
-                if frame_count == 0:
-                    logger.warning(
-                        f"[{sensor_id}] Frame #0 diagnostics: "
-                        f"total_pixels={total_pixels} "
-                        f"nonzero_dist={nonzero_pixels} "
-                        f"output_points={len(points) if points is not None else 0} "
-                        f"expected_pixels={cam.width * cam.height}"
-                    )
 
                 if points is None or len(points) == 0:
                     continue

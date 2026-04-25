@@ -36,7 +36,7 @@ class VisionarySensor(ModuleNode):
         sensor_id: str,
         hostname: str = "192.168.1.10",
         streaming_port: int = 2114,
-        protocol: str = "TCP",
+        protocol: str = "UDP",
         cola_protocol: str = "Cola2",
         control_port: int = 2122,
         is_stereo: bool = False,

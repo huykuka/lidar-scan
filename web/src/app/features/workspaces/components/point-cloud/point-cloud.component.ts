@@ -118,9 +118,9 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private animationId?: number;
   /** Full-quality cap (default: no adaptive LOD) */
-  readonly MAX_POINTS = 50_000;
+  readonly MAX_POINTS = 250_000;
   /** Reduced cap used when adaptiveLod input is true */
-  readonly MAX_POINTS_LOD = 25_000;
+  readonly MAX_POINTS_LOD = 125_000;
 
   /**
    * Returns the active Three.js camera based on the current viewType input.
