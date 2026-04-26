@@ -1,8 +1,8 @@
 """
-Unit tests for VelocityEstimator and KalmanFilter1D.
+Unit tests for VelocityEstimator and PositionTracker (pykalman-backed).
 
 Covers:
-  - KalmanFilter1D: initialization, predict, update, reset, property access
+  - PositionTracker: initialization, predict_and_update, reset, property access
   - VelocityEstimator: background learning, vehicle detection,
     Kalman-filtered velocity, vehicle departure, reset
 """
@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from app.modules.application.vehicle_profiler.velocity import (
-    KalmanFilter1D,
+    PositionTracker,
     VelocityEstimator,
     VelocityResult,
 )
@@ -46,59 +46,44 @@ def _vehicle_scan(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TestKalmanFilter1D
+# TestPositionTracker
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestKalmanFilter1D:
+class TestPositionTracker:
     def test_initial_state(self):
-        kf = KalmanFilter1D()
-        assert kf.position == 0.0
-        assert kf.velocity == 0.0
-        assert kf.initialized is False
+        pt = PositionTracker()
+        assert pt.position == 0.0
+        assert pt.velocity == 0.0
+        assert pt.initialized is False
 
     def test_initialize_sets_position(self):
-        kf = KalmanFilter1D()
-        kf.initialize(3.5)
-        assert kf.position == pytest.approx(3.5)
-        assert kf.velocity == pytest.approx(0.0)
-        assert kf.initialized is True
+        pt = PositionTracker()
+        pt.initialize(3.5)
+        assert pt.position == pytest.approx(3.5)
+        assert pt.velocity == pytest.approx(0.0)
+        assert pt.initialized is True
 
-    def test_predict_advances_position(self):
-        kf = KalmanFilter1D()
-        kf.initialize(0.0)
-        kf.x[1] = 2.0  # set velocity = 2 m/s
-        kf.predict(1.0)
-        assert kf.position == pytest.approx(2.0)
-        assert kf.velocity == pytest.approx(2.0)
-
-    def test_predict_zero_dt_no_change(self):
-        kf = KalmanFilter1D()
-        kf.initialize(5.0)
-        kf.predict(0.0)
-        assert kf.position == pytest.approx(5.0)
-
-    def test_update_moves_toward_measurement(self):
-        kf = KalmanFilter1D()
-        kf.initialize(0.0)
-        kf.update(10.0)
-        assert kf.position > 0.0
+    def test_predict_and_update_moves_toward_measurement(self):
+        pt = PositionTracker()
+        pt.initialize(0.0)
+        pt.predict_and_update(10.0, dt=0.1)
+        assert pt.position > 0.0
 
     def test_reset(self):
-        kf = KalmanFilter1D()
-        kf.initialize(5.0)
-        kf.reset()
-        assert kf.position == 0.0
-        assert kf.velocity == 0.0
-        assert kf.initialized is False
+        pt = PositionTracker()
+        pt.initialize(5.0)
+        pt.reset()
+        assert pt.position == 0.0
+        assert pt.velocity == 0.0
+        assert pt.initialized is False
 
     def test_convergence_with_repeated_updates(self):
-        kf = KalmanFilter1D(process_noise=0.1, measurement_noise=0.1)
-        kf.initialize(0.0)
+        pt = PositionTracker(process_noise=0.1, measurement_noise=0.1)
+        pt.initialize(0.0)
         for _ in range(50):
-            kf.predict(0.1)
-            kf.update(5.0)
-        assert kf.position == pytest.approx(5.0, abs=0.5)
+            pt.predict_and_update(5.0, dt=0.1)
+        assert pt.position == pytest.approx(5.0, abs=0.5)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

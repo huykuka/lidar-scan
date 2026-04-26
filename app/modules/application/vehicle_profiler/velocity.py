@@ -6,6 +6,8 @@ When a vehicle enters the scan plane, points suddenly become much closer than th
 background.  The leading edge position is tracked frame-to-frame and a 1D Kalman
 filter smooths the raw velocity estimate.
 
+Uses ``pykalman.KalmanFilter`` for the underlying Kalman filter implementation.
+
 State vector:  [position, velocity]  (along the travel axis)
 Measurement:   leading-edge position extracted from each scan line
 
@@ -21,6 +23,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import numpy as np
+from pykalman import KalmanFilter
 
 
 @dataclass
@@ -33,60 +36,66 @@ class VelocityResult:
     vehicle_present: bool
 
 
-class KalmanFilter1D:
-    """Minimal constant-velocity 1D Kalman filter.
+class PositionTracker:
+    """Kalman-filtered 1D position/velocity tracker using pykalman.
 
     State: [position, velocity]
-    Model: position_{k+1} = position_k + velocity_k * dt
-           velocity_{k+1} = velocity_k
+    Model: constant-velocity with variable dt.
+    Observation: position only.
     """
 
     def __init__(self, process_noise: float = 0.1, measurement_noise: float = 0.5):
-        self.x = np.zeros(2)          # [position, velocity]
-        self.P = np.eye(2) * 1000.0   # large initial uncertainty
-        self.q = process_noise
-        self.r = measurement_noise
+        self._q = process_noise
+        self._r = measurement_noise
+        self._obs_mat = np.array([[1.0, 0.0]])
+        self._obs_cov = np.array([[self._r]])
+        self._state_mean = np.zeros(2)
+        self._state_cov = np.eye(2) * 1000.0
         self._initialized = False
 
-    def predict(self, dt: float) -> None:
-        if dt <= 0:
-            return
-        F = np.array([[1.0, dt],
-                      [0.0, 1.0]])
-        Q = np.array([[self.q * dt**3 / 3.0, self.q * dt**2 / 2.0],
-                      [self.q * dt**2 / 2.0, self.q * dt]])
-        self.x = F @ self.x
-        self.P = F @ self.P @ F.T + Q
+    def _make_kf(self, dt: float) -> KalmanFilter:
+        """Build a KalmanFilter configured for the given time step."""
+        F = np.array([[1.0, dt], [0.0, 1.0]])
+        Q = np.array([
+            [self._q * dt**3 / 3.0, self._q * dt**2 / 2.0],
+            [self._q * dt**2 / 2.0, self._q * dt],
+        ])
+        return KalmanFilter(
+            transition_matrices=F,
+            observation_matrices=self._obs_mat,
+            transition_covariance=Q,
+            observation_covariance=self._obs_cov,
+        )
 
-    def update(self, measurement: float) -> None:
-        H = np.array([[1.0, 0.0]])
-        y = measurement - H @ self.x
-        S = H @ self.P @ H.T + self.r
-        K = (self.P @ H.T) / S[0, 0]
-        self.x = self.x + K.flatten() * y
-        I_KH = np.eye(2) - K @ H
-        self.P = I_KH @ self.P
+    def predict_and_update(self, measurement: float, dt: float) -> None:
+        """Run one predict-then-update cycle with the given dt."""
+        if dt <= 0:
+            dt = 1e-6
+        kf = self._make_kf(dt)
+        self._state_mean, self._state_cov = kf.filter_update(
+            self._state_mean, self._state_cov, observation=measurement,
+        )
 
     def initialize(self, position: float) -> None:
-        self.x = np.array([position, 0.0])
-        self.P = np.eye(2) * 1000.0
+        self._state_mean = np.array([position, 0.0])
+        self._state_cov = np.eye(2) * 1000.0
         self._initialized = True
 
     @property
     def position(self) -> float:
-        return float(self.x[0])
+        return float(self._state_mean[0])
 
     @property
     def velocity(self) -> float:
-        return float(self.x[1])
+        return float(self._state_mean[1])
 
     @property
     def initialized(self) -> bool:
         return self._initialized
 
     def reset(self) -> None:
-        self.x = np.zeros(2)
-        self.P = np.eye(2) * 1000.0
+        self._state_mean = np.zeros(2)
+        self._state_cov = np.eye(2) * 1000.0
         self._initialized = False
 
 
@@ -117,7 +126,7 @@ class VelocityEstimator:
         bg_learning_frames: int = 20,
         travel_axis: int = 0,
     ):
-        self._kf = KalmanFilter1D(process_noise, measurement_noise)
+        self._kf = PositionTracker(process_noise, measurement_noise)
         self._bg_threshold = bg_threshold
         self._bg_learning_frames = bg_learning_frames
         self._travel_axis = travel_axis
@@ -196,9 +205,7 @@ class VelocityEstimator:
         dt = timestamp - self._last_t if self._last_t is not None else 0.0
         self._last_t = timestamp
 
-        if dt > 0:
-            self._kf.predict(dt)
-        self._kf.update(edge_position)
+        self._kf.predict_and_update(edge_position, dt)
         self._vehicle_present = True
 
         return VelocityResult(
