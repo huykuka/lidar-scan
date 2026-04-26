@@ -126,10 +126,11 @@ class TestDetectionNodeInference:
         assert node.processing_time_ms > 0
         assert node.last_error is None
 
-        # Verify shapes were emitted
+        # Verify shapes were emitted (CubeShape + LabelShape per detection)
         shapes = node.collect_and_clear_shapes()
-        assert len(shapes) == 2
-        assert shapes[0].label == "Car 95%"
+        assert len(shapes) == 4  # 2 detections × (CubeShape + LabelShape)
+        assert shapes[0].label == "Car 95%"  # CubeShape
+        assert shapes[1].text == "Car 95%"   # LabelShape
 
     @pytest.mark.asyncio
     async def test_on_input_forwards_downstream(self):
@@ -179,6 +180,19 @@ class TestDetectionNodeInference:
 
         assert node.detection_count == 0
         node.manager.forward_data.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_emit_shapes_disabled(self):
+        node = _make_node({"emit_shapes": False})
+        node.start()
+
+        points = np.random.rand(100, 14).astype(np.float32)
+        await node.on_input({"points": points})
+
+        # Detections still happen, but no shapes emitted
+        assert node.detection_count == 2
+        shapes = node.collect_and_clear_shapes()
+        assert len(shapes) == 0
 
     @pytest.mark.asyncio
     async def test_max_detections_cap(self):

@@ -82,6 +82,7 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
             config.get("point_cloud_range", [0, -39.68, -3, 69.12, 39.68, 1])
         )
         self._max_detections: int = int(config.get("max_detections", 50))
+        self._emit_shapes: bool = bool(config.get("emit_shapes", True))
 
         # ── Runtime state ──────────────────────────────────────────────────
         self._model: Any = None  # DetectionModel instance
@@ -194,20 +195,35 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
             self.last_output_at = time.time()
             self.last_error = None
 
-            # Emit 3D bounding box shapes for the viewer
-            for det in detections:
-                color = _CLASS_COLORS.get(det.label, _CLASS_COLORS["unknown"])
-                self.emit_shape(
-                    CubeShape(
-                        center=det.center,
-                        size=det.size,
-                        rotation=det.rotation,
-                        color=color,
-                        opacity=0.35,
-                        wireframe=True,
-                        label=f"{det.label} {det.score:.0%}",
+            # Emit 3D bounding box shapes to the 'shapes' WebSocket topic
+            if self._emit_shapes:
+                for det in detections:
+                    color = _CLASS_COLORS.get(det.label, _CLASS_COLORS["unknown"])
+                    self.emit_shape(
+                        CubeShape(
+                            center=det.center,
+                            size=det.size,
+                            rotation=det.rotation,
+                            color=color,
+                            opacity=0.35,
+                            wireframe=True,
+                            label=f"{det.label} {det.score:.0%}",
+                        )
                     )
-                )
+                    # Floating label above the bounding box
+                    label_pos = [
+                        det.center[0],
+                        det.center[1],
+                        det.center[2] + det.size[2] / 2 + 0.15,
+                    ]
+                    self.emit_shape(
+                        LabelShape(
+                            position=label_pos,
+                            text=f"{det.label} {det.score:.0%}",
+                            color=color,
+                            font_size=12,
+                        )
+                    )
 
             # Notify status change
             if first_frame or detections:

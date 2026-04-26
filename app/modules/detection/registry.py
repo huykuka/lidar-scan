@@ -109,6 +109,16 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
+                name="emit_shapes",
+                label="Emit Bounding Boxes",
+                type="boolean",
+                default=True,
+                help_text=(
+                    "When enabled, emits wireframe bounding boxes and labels "
+                    "for each detected object on the shapes WebSocket topic."
+                ),
+            ),
+            PropertySchema(
                 name="max_detections",
                 label="Max Detections",
                 type="number",

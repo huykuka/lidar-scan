@@ -113,8 +113,8 @@ class PointPillarsModel(DetectionModel):
             points: ``(N, C)`` array — columns 0-2 are ``x, y, z``;
                     column 3 (intensity) is used when present.
             confidence_threshold: Discard detections below this score.
-            nms_iou_threshold: BEV IoU threshold for NMS (applied internally
-                               by the model).
+            nms_iou_threshold: BEV IoU threshold for post-hoc NMS.
+                               Lower = more aggressive duplicate suppression.
             point_range: ``[x_min, y_min, z_min, x_max, y_max, z_max]``
                          detection volume.  Defaults to KITTI range.
 
@@ -168,6 +168,17 @@ class PointPillarsModel(DetectionModel):
         lidar_bboxes = lidar_bboxes[mask]
         labels = labels[mask]
         scores = scores[mask]
+
+        if len(lidar_bboxes) == 0:
+            return []
+
+        # Apply post-hoc BEV NMS with user-configurable IoU threshold
+        from app.modules.detection.utils.nms import nms_3d
+
+        keep = nms_3d(lidar_bboxes, scores, iou_threshold=nms_iou_threshold)
+        lidar_bboxes = lidar_bboxes[keep]
+        labels = labels[keep]
+        scores = scores[keep]
 
         # Build Detection3D list
         # lidar_bboxes format: (N, 7) → [x, y, z, l, w, h, heading]

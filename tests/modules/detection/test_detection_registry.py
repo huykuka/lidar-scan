@@ -41,6 +41,16 @@ class TestDetectionRegistry:
 
         assert "object_detection_3d" in NodeFactory._registry
 
+    def test_schema_has_emit_shapes_property(self):
+        from app.modules.detection import registry  # noqa: F401
+        from app.services.nodes.schema import node_schema_registry
+
+        defn = node_schema_registry.get("object_detection_3d")
+        prop = next((p for p in defn.properties if p.name == "emit_shapes"), None)
+        assert prop is not None
+        assert prop.type == "boolean"
+        assert prop.default is True
+
     def test_schema_ports(self):
         from app.modules.detection import registry  # noqa: F401
         from app.services.nodes.schema import node_schema_registry
