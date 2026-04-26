@@ -130,6 +130,7 @@ class VehicleProfilerNode(ModuleNode):
                 await self._handle_velocity_frame(points, timestamp)
             else:
                 await self._handle_profile_frame(source_id, points, timestamp)
+            self.last_error = None
         except Exception as e:
             self.last_error = str(e)
             logger.error(f"[{self.id}] Error processing frame from {source_id}: {e}", exc_info=True)
@@ -169,7 +170,6 @@ class VehicleProfilerNode(ModuleNode):
 
     def disable(self) -> None:
         self._transition_to_idle()
-        notify_status_change(self.id)
 
     # ── Internal handlers ─────────────────────────────────────────────────
 
