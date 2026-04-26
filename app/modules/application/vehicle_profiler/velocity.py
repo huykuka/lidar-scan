@@ -209,13 +209,21 @@ class VelocityEstimator:
             vehicle_present=True,
         )
 
-    def reset(self) -> None:
-        """Reset the estimator for a new measurement session."""
+    def reset_tracking(self) -> None:
+        """Reset only the Kalman filter and vehicle state, preserving the background model.
+
+        Use this between vehicles so the next vehicle can be detected immediately
+        without re-learning the background.
+        """
         self._kf.reset()
-        self._bg_accumulator.clear()
-        self._bg_distances = None
         self._last_t = None
         self._vehicle_present = False
+
+    def reset(self) -> None:
+        """Full reset including the background model.  Use for session/config changes."""
+        self.reset_tracking()
+        self._bg_accumulator.clear()
+        self._bg_distances = None
 
     @property
     def vehicle_present(self) -> bool:

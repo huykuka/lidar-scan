@@ -95,6 +95,10 @@ class VehicleProfilerNode(ModuleNode):
         self._state = _State.IDLE
         self._vehicles_counted: int = 0
 
+        # Concurrency guard — prevents re-entrant frame processing when
+        # asyncio.to_thread yields control back to the event loop.
+        self._processing: bool = False
+
         # Runtime stats
         self.last_input_at: Optional[float] = None
         self.last_output_at: Optional[float] = None
@@ -113,8 +117,13 @@ class VehicleProfilerNode(ModuleNode):
         if points is None or len(points) == 0:
             return
 
+        if self._processing:
+            logger.debug(f"[{self.id}] Dropping frame — node is still processing previous frame")
+            return
+
         timestamp = payload.get("timestamp", time.time())
         self.last_input_at = time.time()
+        self._processing = True
 
         try:
             if source_id == self._velocity_sensor_id:
@@ -125,6 +134,8 @@ class VehicleProfilerNode(ModuleNode):
             self.last_error = str(e)
             logger.error(f"[{self.id}] Error processing frame from {source_id}: {e}", exc_info=True)
             notify_status_change(self.id)
+        finally:
+            self._processing = False
 
     def emit_status(self) -> NodeStatusUpdate:
         if self.last_error:
@@ -226,6 +237,6 @@ class VehicleProfilerNode(ModuleNode):
     def _transition_to_idle(self) -> None:
         self._state = _State.IDLE
         self._profiler.abort()
-        self._velocity.reset()
+        self._velocity.reset_tracking()
         self.last_error = None
         notify_status_change(self.id)
