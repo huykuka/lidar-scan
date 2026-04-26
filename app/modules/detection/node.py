@@ -142,6 +142,7 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
             if self._checkpoint:
                 self._model.load(self._checkpoint, device=self._device)
                 self._model_loaded = True
+                self.last_error = None
                 logger.info(
                     "[%s] Model '%s' loaded (%s)",
                     self.id, self._model_name, self._device,
