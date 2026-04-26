@@ -1,0 +1,165 @@
+<div class="flex flex-col min-h-0 flex-1">
+  <!-- Hidden file input for model upload -->
+  <input
+    #fileInput
+    (change)="onFileSelected($event)"
+    accept=".pth,.pt,.onnx,.bin"
+    class="hidden"
+    type="file"
+  />
+
+  <!-- Toolbar -->
+  <div class="rounded-lg border mb-6 shadow-sm">
+    <div class="p-4">
+      <div class="flex items-center justify-between gap-6">
+        <!-- Search Bar -->
+        <syn-input
+          (input)="searchQuery.set($any($event.target).value)"
+          [value]="searchQuery()"
+          class="flex-1 max-w-lg"
+          placeholder="Search models by name or type..."
+          size="medium"
+          type="search"
+        >
+          <syn-icon name="search" slot="prefix" class="pl-3"/>
+        </syn-input>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-3">
+          <syn-button
+            (click)="triggerUpload()"
+            [disabled]="isUploading()"
+            size="medium"
+            variant="filled"
+          >
+            @if (isUploading()) {
+              <syn-spinner slot="prefix" size="small"/>
+              Uploading...
+            } @else {
+              <syn-icon name="upload_file" slot="prefix"/>
+              Upload Model
+            }
+          </syn-button>
+          <syn-button
+            (click)="loadModels()"
+            [disabled]="isLoading()"
+            size="medium"
+            variant="outline"
+          >
+            <syn-icon name="refresh" slot="prefix"/>
+            Refresh
+          </syn-button>
+        </div>
+      </div>
+
+      <!-- Upload config row -->
+      <div class="mt-3 flex items-end gap-4">
+        <syn-input
+          (input)="uploadDisplayName.set($any($event.target).value)"
+          [value]="uploadDisplayName()"
+          class="flex-1 max-w-xs"
+          label="Display Name"
+          placeholder="e.g. KITTI PointPillars v2"
+          size="small"
+        />
+        <syn-select
+          (syn-change)="uploadModelType.set($any($event.target).value)"
+          [value]="uploadModelType()"
+          class="max-w-xs"
+          label="Model Type"
+          size="small"
+        >
+          <syn-option value="pointpillars">PointPillars</syn-option>
+        </syn-select>
+        <syn-input
+          (input)="uploadDescription.set($any($event.target).value)"
+          [value]="uploadDescription()"
+          class="flex-1"
+          label="Description"
+          placeholder="Optional description..."
+          size="small"
+        />
+      </div>
+
+      <!-- Upload error banner -->
+      @if (uploadError()) {
+        <div class="mt-3 flex items-center gap-2 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+          <syn-icon name="error" class="shrink-0 text-red-500"/>
+          <span>{{ uploadError() }}</span>
+          <button (click)="uploadError.set(null)" class="ml-auto text-red-400 hover:text-red-600" aria-label="Dismiss">
+            <syn-icon name="close"/>
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Content Area -->
+  <div class="flex-1 min-h-0 bg-white rounded-lg overflow-auto border p-6">
+    @if (isLoading()) {
+      <div class="flex items-center justify-center h-64">
+        <syn-spinner/>
+      </div>
+    } @else if (filteredModels().length === 0) {
+      <div class="flex flex-col items-center justify-center h-64 text-center">
+        <syn-icon class="text-6xl text-syn-color-neutral-400 mb-4" name="model_training"/>
+        <h3 class="text-lg font-semibold mb-2">No Models Found</h3>
+        <p class="text-sm">
+          @if (searchQuery()) {
+            Try adjusting your search query
+          } @else {
+            Upload a model checkpoint (.pth, .pt, .onnx) to get started
+          }
+        </p>
+      </div>
+    } @else {
+      <!-- Models Table -->
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b text-left text-syn-color-neutral-600">
+            <th class="py-3 px-4 font-medium">Name</th>
+            <th class="py-3 px-4 font-medium">Type</th>
+            <th class="py-3 px-4 font-medium">Size</th>
+            <th class="py-3 px-4 font-medium">Uploaded</th>
+            <th class="py-3 px-4 font-medium">Description</th>
+            <th class="py-3 px-4 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (model of filteredModels(); track model.id) {
+            <tr class="border-b hover:bg-syn-color-neutral-50 transition-colors">
+              <td class="py-3 px-4">
+                <div class="flex items-center gap-2">
+                  <syn-icon name="view_in_ar" class="text-syn-color-primary-600"/>
+                  <span class="font-medium">{{ model.display_name }}</span>
+                </div>
+              </td>
+              <td class="py-3 px-4">
+                <syn-badge variant="primary" class="text-xs">{{ model.model_type }}</syn-badge>
+              </td>
+              <td class="py-3 px-4 text-syn-color-neutral-600">{{ formatFileSize(model.file_size) }}</td>
+              <td class="py-3 px-4 text-syn-color-neutral-600">{{ formatDate(model.uploaded_at) | date: 'medium' }}</td>
+              <td class="py-3 px-4 text-syn-color-neutral-600 max-w-xs truncate">{{ model.description || '—' }}</td>
+              <td class="py-3 px-4 text-right">
+                <syn-button
+                  (click)="confirmDelete(model)"
+                  size="small"
+                  variant="text"
+                  class="text-red-600"
+                >
+                  <syn-icon name="delete" slot="prefix"/>
+                  Delete
+                </syn-button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <!-- Summary -->
+      <div class="mt-4 text-sm text-syn-color-neutral-500">
+        {{ filteredModels().length }} model(s)
+      </div>
+    }
+  </div>
+</div>
