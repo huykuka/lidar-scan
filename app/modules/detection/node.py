@@ -115,9 +115,9 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
 
     def stop(self) -> None:
         """Release the model and shut down the executor."""
-        self._model = None
         self._model_loaded = False
-        self._executor.shutdown(wait=False)
+        self._executor.shutdown(wait=True)
+        self._model = None
 
     # ------------------------------------------------------------------
     # Model management

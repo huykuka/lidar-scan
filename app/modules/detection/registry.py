@@ -40,7 +40,7 @@ if not _model_options:
     # Fallback so the schema is always valid even without torch
     _model_options = [{"label": "PointPillars (KITTI)", "value": "pointpillars"}]
 
-# ── Build dynamic checkpoint options from uploaded models ───────────────
+# ── Build initial checkpoint options from uploaded models ───────────────
 _checkpoint_options = get_model_store().get_checkpoint_options()
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -150,6 +150,26 @@ node_schema_registry.register(
         outputs=[PortSchema(id="out", label="Detections Output")],
     )
 )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Dynamic checkpoint refresh
+# ─────────────────────────────────────────────────────────────────────────
+
+def refresh_checkpoint_options() -> None:
+    """Re-read uploaded models and update the schema's checkpoint dropdown.
+
+    Called by :class:`ModelStore` after add/delete so the frontend always
+    sees up-to-date options without a server restart.
+    """
+    defn = node_schema_registry.get("object_detection_3d")
+    if defn is None:
+        return
+    fresh = get_model_store().get_checkpoint_options()
+    for prop in defn.properties:
+        if prop.name == "checkpoint":
+            prop.options = fresh
+            break
 
 
 # ─────────────────────────────────────────────────────────────────────────

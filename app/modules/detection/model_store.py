@@ -143,6 +143,7 @@ class ModelStore:
         )
         self._entries[model_id] = entry
         self._save_manifest()
+        self._notify_schema_update()
         return entry
 
     def delete_model(self, model_id: str) -> bool:
@@ -160,6 +161,7 @@ class ModelStore:
         except OSError as exc:
             logger.warning("Failed to delete checkpoint file: %s", exc)
         self._save_manifest()
+        self._notify_schema_update()
         return True
 
     def get_checkpoint_options(self) -> List[Dict[str, str]]:
@@ -175,6 +177,15 @@ class ModelStore:
     def _entry_path(self, entry: ModelEntry) -> Path:
         """Return the absolute path for an entry's checkpoint file."""
         return (self._dir / entry.filename).resolve()
+
+    @staticmethod
+    def _notify_schema_update() -> None:
+        """Refresh the node-definition checkpoint dropdown after store changes."""
+        try:
+            from app.modules.detection.registry import refresh_checkpoint_options
+            refresh_checkpoint_options()
+        except ImportError:
+            pass
 
 
 # ── Module-level singleton ──────────────────────────────────────────────

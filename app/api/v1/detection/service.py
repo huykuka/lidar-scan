@@ -41,12 +41,21 @@ async def upload_model(
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided")
 
-    data = await file.read()
-    if len(data) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large. Maximum: {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB",
-        )
+    # Read in chunks to enforce size limit without loading entire file into memory
+    chunks: list[bytes] = []
+    total_size = 0
+    while True:
+        chunk = await file.read(8 * 1024 * 1024)  # 8 MB chunks
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > _MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum: {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB",
+            )
+        chunks.append(chunk)
+    data = b"".join(chunks)
     if len(data) == 0:
         raise HTTPException(status_code=400, detail="Empty file")
 
