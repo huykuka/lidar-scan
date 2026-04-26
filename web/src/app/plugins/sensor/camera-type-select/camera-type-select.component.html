@@ -1,0 +1,31 @@
+<syn-select
+  (synChangeEvent)="onSelectChange($event)"
+  [helpText]="helpText()"
+  [label]="label()"
+  [value]="value()"
+  size="small"
+>
+  @if (selectedOption(); as opt) {
+    <div class="flex items-center" slot="prefix">
+      <img
+        (error)="handleImageError($event)"
+        [alt]="opt.label + ' Visionary camera'"
+        [src]="opt.imageSrc"
+        class="w-5 h-5 rounded border bg-white shrink-0 object-contain p-px mr-1.5"
+      />
+    </div>
+  }
+
+  @for (opt of options(); track opt.value) {
+    <syn-option [value]="opt.value">
+      <img
+        (error)="handleImageError($event)"
+        [alt]="opt.label + ' Visionary camera'"
+        [src]="opt.imageSrc"
+        class="w-7 h-7 rounded-md border bg-white shrink-0 object-contain p-px mr-2"
+        slot="prefix"
+      />
+      {{ opt.label }}
+    </syn-option>
+  }
+</syn-select>
