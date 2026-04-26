@@ -22,3 +22,8 @@ dev = [
     "pytest",
     "pytest-asyncio>=0.23.0",
 ]
+ml = [
+    "torch>=2.0",
+    # PointPillars model backend requires manual install:
+    #   pip install git+https://github.com/zhulf0804/PointPillars.git
+]
