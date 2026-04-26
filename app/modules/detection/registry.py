@@ -32,12 +32,16 @@ except ImportError:
     pass
 
 from app.modules.detection.models.base import get_available_models
+from app.modules.detection.model_store import get_model_store
 
 # ── Build dynamic model options list ────────────────────────────────────
 _model_options = get_available_models()
 if not _model_options:
     # Fallback so the schema is always valid even without torch
     _model_options = [{"label": "PointPillars (KITTI)", "value": "pointpillars"}]
+
+# ── Build dynamic checkpoint options from uploaded models ───────────────
+_checkpoint_options = get_model_store().get_checkpoint_options()
 
 # ─────────────────────────────────────────────────────────────────────────
 # Schema Definition
@@ -66,12 +70,13 @@ node_schema_registry.register(
             ),
             PropertySchema(
                 name="checkpoint",
-                label="Checkpoint Path",
-                type="string",
+                label="Model Checkpoint",
+                type="select",
+                options=_checkpoint_options,
                 default="",
                 help_text=(
-                    "Absolute path to the .pth model weights file. "
-                    "For PointPillars, use KITTI-pretrained weights."
+                    "Select an uploaded model checkpoint. "
+                    "Upload new models via the Detection Models API."
                 ),
             ),
             PropertySchema(

@@ -123,6 +123,26 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
     # Model management
     # ------------------------------------------------------------------
 
+    def _resolve_checkpoint(self) -> Optional[str]:
+        """Resolve checkpoint config to an absolute path.
+
+        The config value may be a model-store ID (short hex string) or an
+        absolute filesystem path.  Model-store IDs are resolved first; if
+        no match is found the raw value is returned as-is so legacy
+        absolute-path configs keep working.
+        """
+        if not self._checkpoint:
+            return None
+
+        from app.modules.detection.model_store import get_model_store
+
+        store = get_model_store()
+        resolved = store.get_checkpoint_path(self._checkpoint)
+        if resolved:
+            return resolved
+        # Fallback: treat as raw absolute path
+        return self._checkpoint
+
     def _load_model(self) -> None:
         """Instantiate and load the configured detection model."""
         from app.modules.detection.models.base import MODEL_REGISTRY
@@ -137,10 +157,12 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
             notify_status_change(self.id)
             return
 
+        checkpoint_path = self._resolve_checkpoint()
+
         try:
             self._model = entry.builder()
-            if self._checkpoint:
-                self._model.load(self._checkpoint, device=self._device)
+            if checkpoint_path:
+                self._model.load(checkpoint_path, device=self._device)
                 self._model_loaded = True
                 self.last_error = None
                 logger.info(
@@ -148,7 +170,7 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
                     self.id, self._model_name, self._device,
                 )
             else:
-                self.last_error = "No checkpoint path configured"
+                self.last_error = "No checkpoint configured"
                 logger.warning("[%s] %s", self.id, self.last_error)
             notify_status_change(self.id)
         except ImportError as exc:
