@@ -44,14 +44,15 @@ node_schema_registry.register(
             PropertySchema(
                 name="velocity_sensor_id",
                 label="Velocity Sensor",
-                type="string",
+                type="select",
                 default="",
                 required=False,
+                options_source="sensor_nodes",
                 help_text=(
-                    "Node ID of the vertically-mounted LiDAR used for velocity "
-                    "measurement. All other connected inputs are treated as "
-                    "profile (side) sensors. Leave empty to auto-select the "
-                    "first connected sensor."
+                    "Which connected sensor is the vertically-mounted LiDAR "
+                    "used for velocity measurement. All other connected inputs "
+                    "are treated as profile (side) sensors. Leave empty to "
+                    "auto-select the first connected sensor."
                 ),
             ),
             # ── Kalman Filter ─────────────────────────────────────────────
