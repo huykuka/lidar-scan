@@ -174,10 +174,10 @@ class VehicleProfilerNode(ModuleNode):
             ),
         )
 
-    def enable(self) -> None:
+    def start(self, data_queue: Any = None, runtime_status: Any = None) -> None:
         notify_status_change(self.id)
 
-    def disable(self) -> None:
+    def stop(self) -> None:
         self._transition_to_idle()
 
     # ── Internal handlers ─────────────────────────────────────────────────

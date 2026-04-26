@@ -7,7 +7,7 @@ Covers:
   - State machine transitions (IDLE -> MEASURING -> IDLE)
   - _processing concurrency guard
   - emit_status in various states
-  - enable / disable lifecycle
+  - start / stop lifecycle
   - Profile output forwarded via manager.forward_data
 """
 import asyncio
@@ -208,12 +208,12 @@ class TestEmitStatus:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TestDisable
+# TestStop
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestDisable:
-    def test_disable_transitions_to_idle(self, node):
+class TestStop:
+    def test_stop_transitions_to_idle(self, node):
         node._state = _State.MEASURING
-        node.disable()
+        node.stop()
         assert node._state == _State.IDLE
