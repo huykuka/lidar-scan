@@ -32,6 +32,10 @@ VISIONARY_MODELS = [
         "cola_protocol": "Cola2",
         "default_control_port": 2122,
         "default_streaming_port": 2114,
+        "thumbnail_url": "/api/v1/assets/visionary/visionary_t_mini_cx.png",
+        "icon_name": "videocam",
+        "icon_color": "#0066CC",
+        "disabled": False,
     },
     {
         "model_id": "visionary_s_cx",
@@ -42,6 +46,10 @@ VISIONARY_MODELS = [
         "cola_protocol": "Cola2",
         "default_control_port": 2122,
         "default_streaming_port": 2114,
+        "thumbnail_url": "/api/v1/assets/visionary/visionary_s_cx.png",
+        "icon_name": "videocam",
+        "icon_color": "#00994D",
+        "disabled": False,
     },
     # --- AP models (GigE Vision / Harvester) ---
     {
@@ -53,6 +61,10 @@ VISIONARY_MODELS = [
         "cola_protocol": "Cola2",
         "default_control_port": 2122,
         "default_streaming_port": 2114,
+        "thumbnail_url": "/api/v1/assets/visionary/visionary_t_mini_ap.png",
+        "icon_name": "videocam",
+        "icon_color": "#0066CC",
+        "disabled": False,
     },
     {
         "model_id": "visionary_s_ap",
@@ -63,6 +75,10 @@ VISIONARY_MODELS = [
         "cola_protocol": "Cola2",
         "default_control_port": 2122,
         "default_streaming_port": 2114,
+        "thumbnail_url": "/api/v1/assets/visionary/visionary_s_ap.png",
+        "icon_name": "videocam",
+        "icon_color": "#00994D",
+        "disabled": False,
     },
     {
         "model_id": "visionary_b_two",
@@ -73,6 +89,10 @@ VISIONARY_MODELS = [
         "cola_protocol": "Cola2",
         "default_control_port": 2122,
         "default_streaming_port": 2114,
+        "thumbnail_url": "/api/v1/assets/visionary/visionary_b_two.png",
+        "icon_name": "videocam",
+        "icon_color": "#CC6600",
+        "disabled": False,
     },
 ]
 
@@ -99,7 +119,20 @@ node_schema_registry.register(
                 required=True,
                 help_text="Select the SICK Visionary camera model",
                 options=[
-                    {"label": m["display_name"], "value": m["model_id"]}
+                    {
+                        "label": m["display_name"],
+                        "value": m["model_id"],
+                        "is_stereo": m["is_stereo"],
+                        "acquisition_method": m["acquisition_method"],
+                        "default_hostname": m["default_hostname"],
+                        "cola_protocol": m["cola_protocol"],
+                        "default_control_port": m["default_control_port"],
+                        "default_streaming_port": m["default_streaming_port"],
+                        "thumbnail_url": m.get("thumbnail_url"),
+                        "icon_name": m.get("icon_name"),
+                        "icon_color": m.get("icon_color"),
+                        "disabled": m.get("disabled", False),
+                    }
                     for m in VISIONARY_MODELS
                 ],
             ),

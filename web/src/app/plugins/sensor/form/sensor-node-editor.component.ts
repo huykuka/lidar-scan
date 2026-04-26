@@ -6,6 +6,7 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
 
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
 import {LidarTypeSelectComponent} from '@plugins/sensor/lidar-type-select/lidar-type-select.component';
+import {CameraTypeSelectComponent} from '@plugins/sensor/camera-type-select/camera-type-select.component';
 import {NodeEditorComponent} from '@core/models/node-plugin.model';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
 import {PoseFormComponent} from './pose-form/pose-form.component';
@@ -14,7 +15,7 @@ import {Pose, ZERO_POSE} from '@core/models/pose.model';
 @Component({
   selector: 'app-sensor-node-editor',
   standalone: true,
-  imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent, NodeEditorHeaderComponent, PoseFormComponent,SynergyFormsModule],
+  imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent, CameraTypeSelectComponent, NodeEditorHeaderComponent, PoseFormComponent, SynergyFormsModule],
   providers: [NodeEditorFacadeService],
   templateUrl: './sensor-node-editor.component.html',
   styleUrl: './sensor-node-editor.component.css',

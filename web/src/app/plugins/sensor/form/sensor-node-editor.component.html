@@ -68,6 +68,13 @@
                 [label]="prop.label"
                 [value]="configForm.get(prop.name)?.value"
               />
+            } @else if (prop.name === 'camera_model') {
+              <app-camera-type-select
+                (valueChange)="onLidarTypeChange(prop.name, $event)"
+                [helpText]="prop.help_text || ''"
+                [label]="prop.label"
+                [value]="configForm.get(prop.name)?.value"
+              />
             } @else {
               <syn-select
                 (synChangeEvent)="onSelectChange(prop.name, $event)"
