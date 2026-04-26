@@ -1,12 +1,12 @@
 """
 Profile accumulator — converts time-domain side-LiDAR scans into a spatial
-vehicle profile using Kalman-filtered velocity.
+vehicle profile using Kalman-filtered position.
 
 Each side-mounted 2D LiDAR produces a scan line at each timestamp.  If the
 sensor nodes have their pose configured, the incoming points are already
 transformed to world space (rotation + translation applied by LidarSensor).
-The accumulator adds velocity-based along-track offsets to stitch consecutive
-scans into a coherent 3D vehicle shape.
+The accumulator uses the Kalman-filtered position directly as the along-track
+coordinate, avoiding velocity-integration drift.
 
 This means multiple side LiDARs at different mounting positions automatically
 merge into a unified profile — their points are already aligned by their
@@ -16,7 +16,7 @@ Usage:
     acc = ProfileAccumulator(travel_axis=0)
     acc.start_vehicle()
     for frame in side_frames:
-        acc.add_scan_line(sensor_id, points, velocity, timestamp)
+        acc.add_scan_line(sensor_id, points, position, timestamp)
     profile = acc.finish_vehicle()
 """
 from dataclasses import dataclass, field
@@ -52,9 +52,9 @@ class ProfileAccumulator:
 
     Points arriving from each side LiDAR may already be in world space
     (transformed by LidarSensor using the sensor's pose).  The accumulator
-    preserves all 3 spatial dimensions and adds a velocity-integrated
-    along-track offset to the Z column, stitching scan lines into a
-    contiguous 3D shape.
+    preserves all 3 spatial dimensions and uses the Kalman-filtered position
+    directly as the along-track Z coordinate, avoiding velocity-integration
+    drift.
 
     When multiple side sensors are mounted at different positions, their
     pose transforms place their points into the same coordinate frame,
@@ -81,9 +81,8 @@ class ProfileAccumulator:
         self._sensor_ids: set[str] = set()
         self._start_time: Optional[float] = None
         self._last_time: Optional[float] = None
-        self._along_track: float = 0.0
-        self._velocity_sum: float = 0.0
-        self._velocity_count: int = 0
+        self._first_position: Optional[float] = None
+        self._last_position: float = 0.0
 
     def _reset(self) -> None:
         self._clear_accumulation()
@@ -106,20 +105,23 @@ class ProfileAccumulator:
         self,
         sensor_id: str,
         points: np.ndarray,
-        velocity: float,
+        position: float,
         timestamp: float,
     ) -> None:
-        """Append a scan line with velocity-based along-track offset.
+        """Append a scan line using Kalman-filtered position directly.
 
         Accepts both 2D ``(N, 2)`` and 3D ``(N, 3+)`` point arrays.
         3D points (already pose-transformed by LidarSensor) keep their
-        X/Y coordinates and get the along-track offset added to Z.
-        2D points get a Z column synthesised from the along-track position.
+        X/Y coordinates and get the position added to Z.
+        2D points get a Z column synthesised from the position.
+
+        Using position directly (instead of integrating velocity) avoids
+        drift and gives more accurate spatial alignment.
 
         Args:
             sensor_id:  ID of the side-LiDAR that produced this scan.
             points:     (N, 2+) or (N, 3+) array of scan points.
-            velocity:   Current vehicle velocity (m/s) from the velocity estimator.
+            position:   Current Kalman-filtered along-track position (m).
             timestamp:  Unix timestamp of this scan.
         """
         if not self._active:
@@ -136,33 +138,29 @@ class ProfileAccumulator:
                 self._clear_accumulation()
                 return
 
-        # Integrate along-track position
-        if self._last_time is not None:
-            dt = timestamp - self._last_time
-            self._along_track += abs(velocity) * dt
-
         if self._start_time is None:
             self._start_time = timestamp
+        if self._first_position is None:
+            self._first_position = position
 
         self._last_time = timestamp
+        self._last_position = position
         self._sensor_ids.add(sensor_id)
-        self._velocity_sum += abs(velocity)
-        self._velocity_count += 1
 
         n = len(points)
         if points.shape[1] >= 3:
             # 3D points already in world space (pose-transformed by LidarSensor).
-            # Keep X/Y from the pose transform, add along-track offset to Z.
+            # Keep X/Y from the pose transform, add position to Z.
             points_3d = np.empty((n, 3), dtype=np.float64)
             points_3d[:, 0] = points[:, 0]
             points_3d[:, 1] = points[:, 1]
-            points_3d[:, 2] = points[:, 2] + self._along_track
+            points_3d[:, 2] = points[:, 2] + position
         else:
-            # Raw 2D scan — synthesise Z from along-track position
+            # Raw 2D scan — synthesise Z from position
             points_3d = np.empty((n, 3), dtype=np.float64)
             points_3d[:, 0] = points[:, 0]
             points_3d[:, 1] = points[:, 1]
-            points_3d[:, 2] = self._along_track
+            points_3d[:, 2] = position
         self._scan_lines.append(points_3d)
 
     def finish_vehicle(self) -> Optional[VehicleProfile]:
@@ -181,7 +179,9 @@ class ProfileAccumulator:
             return None
 
         all_points = np.concatenate(self._scan_lines, axis=0)
-        mean_vel = self._velocity_sum / self._velocity_count if self._velocity_count > 0 else 0.0
+        duration = (self._last_time or 0.0) - (self._start_time or 0.0)
+        displacement = abs(self._last_position - (self._first_position or 0.0))
+        mean_vel = displacement / duration if duration > 0 else 0.0
 
         profile = VehicleProfile(
             points=all_points,

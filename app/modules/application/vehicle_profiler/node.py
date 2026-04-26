@@ -205,8 +205,8 @@ class VehicleProfilerNode(ModuleNode):
         if self._state != _State.MEASURING:
             return
 
-        velocity = self._velocity.current_velocity
-        self._profiler.add_scan_line(sensor_id, points, velocity, timestamp)
+        position = self._velocity.current_position
+        self._profiler.add_scan_line(sensor_id, points, position, timestamp)
 
     async def _finalize_profile(self) -> None:
         profile = await asyncio.to_thread(self._profiler.finish_vehicle)

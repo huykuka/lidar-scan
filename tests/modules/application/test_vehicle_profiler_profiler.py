@@ -54,14 +54,14 @@ class TestProfileAccumulator:
 
     def test_add_scan_line_ignored_when_inactive(self):
         acc = ProfileAccumulator()
-        acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(), position=1.0, timestamp=0.0)
         assert acc.scan_count == 0
 
     def test_single_sensor_accumulation(self):
         acc = ProfileAccumulator(min_scan_lines=3)
         acc.start_vehicle()
         for i in range(5):
-            acc.add_scan_line("s1", _scan_line(), velocity=2.0, timestamp=float(i) * 0.1)
+            acc.add_scan_line("s1", _scan_line(), position=float(i) * 0.2, timestamp=float(i) * 0.1)
         assert acc.scan_count == 5
         profile = acc.finish_vehicle()
         assert profile is not None
@@ -72,10 +72,10 @@ class TestProfileAccumulator:
     def test_multi_sensor_accumulation(self):
         acc = ProfileAccumulator(min_scan_lines=4)
         acc.start_vehicle()
-        acc.add_scan_line("left", _scan_line(10), velocity=1.5, timestamp=0.0)
-        acc.add_scan_line("right", _scan_line(15), velocity=1.5, timestamp=0.0)
-        acc.add_scan_line("left", _scan_line(10), velocity=1.5, timestamp=0.1)
-        acc.add_scan_line("right", _scan_line(15), velocity=1.5, timestamp=0.1)
+        acc.add_scan_line("left", _scan_line(10), position=0.0, timestamp=0.0)
+        acc.add_scan_line("right", _scan_line(15), position=0.0, timestamp=0.0)
+        acc.add_scan_line("left", _scan_line(10), position=0.15, timestamp=0.1)
+        acc.add_scan_line("right", _scan_line(15), position=0.15, timestamp=0.1)
         profile = acc.finish_vehicle()
         assert profile is not None
         assert set(profile.sensor_ids) == {"left", "right"}
@@ -85,22 +85,22 @@ class TestProfileAccumulator:
         acc = ProfileAccumulator(min_scan_lines=10)
         acc.start_vehicle()
         for i in range(5):
-            acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=float(i))
+            acc.add_scan_line("s1", _scan_line(), position=float(i), timestamp=float(i))
         profile = acc.finish_vehicle()
         assert profile is None
 
     def test_max_gap_clears_data_but_stays_active(self):
         acc = ProfileAccumulator(min_scan_lines=2, max_gap_s=1.0)
         acc.start_vehicle()
-        acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(), position=0.0, timestamp=0.0)
         assert acc.scan_count == 1
         # Gap too large — clears accumulated data but stays active
-        acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=5.0)
+        acc.add_scan_line("s1", _scan_line(), position=5.0, timestamp=5.0)
         assert acc.active is True
         assert acc.scan_count == 0
         # Can resume accumulating after the gap
-        acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=5.1)
-        acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=5.2)
+        acc.add_scan_line("s1", _scan_line(), position=5.1, timestamp=5.1)
+        acc.add_scan_line("s1", _scan_line(), position=5.2, timestamp=5.2)
         profile = acc.finish_vehicle()
         assert profile is not None
         assert profile.scan_count == 2
@@ -108,7 +108,7 @@ class TestProfileAccumulator:
     def test_abort_clears_state(self):
         acc = ProfileAccumulator()
         acc.start_vehicle()
-        acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(), position=1.0, timestamp=0.0)
         acc.abort()
         assert acc.active is False
         assert acc.scan_count == 0
@@ -120,11 +120,11 @@ class TestProfileAccumulator:
     def test_along_track_position_increases(self):
         acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()
-        acc.add_scan_line("s1", _scan_line(5), velocity=2.0, timestamp=0.0)
-        acc.add_scan_line("s1", _scan_line(5), velocity=2.0, timestamp=1.0)
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(5), position=2.0, timestamp=1.0)
         profile = acc.finish_vehicle()
         assert profile is not None
-        # First scan line at along_track=0, second at along_track=2.0 (2 m/s * 1 s)
+        # First scan at position=0.0, second at position=2.0
         z_values = profile.points[:, 2]
         assert np.min(z_values) == pytest.approx(0.0)
         assert np.max(z_values) == pytest.approx(2.0)
@@ -132,13 +132,13 @@ class TestProfileAccumulator:
     def test_empty_points_ignored(self):
         acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()
-        acc.add_scan_line("s1", np.empty((0, 2)), velocity=1.0, timestamp=0.0)
+        acc.add_scan_line("s1", np.empty((0, 2)), position=1.0, timestamp=0.0)
         assert acc.scan_count == 0
 
     def test_none_points_ignored(self):
         acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()
-        acc.add_scan_line("s1", None, velocity=1.0, timestamp=0.0)
+        acc.add_scan_line("s1", None, position=1.0, timestamp=0.0)
         assert acc.scan_count == 0
 
     def test_3d_points_preserve_xy(self):
@@ -146,25 +146,25 @@ class TestProfileAccumulator:
         acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()
         pts = _scan_line_3d(10, z_offset=5.0)
-        acc.add_scan_line("s1", pts, velocity=1.0, timestamp=0.0)
-        acc.add_scan_line("s1", pts, velocity=1.0, timestamp=1.0)
+        acc.add_scan_line("s1", pts, position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", pts, position=1.0, timestamp=1.0)
         profile = acc.finish_vehicle()
         assert profile is not None
         # X/Y should match the input
         np.testing.assert_array_almost_equal(profile.points[:10, 0], pts[:, 0])
         np.testing.assert_array_almost_equal(profile.points[:10, 1], pts[:, 1])
 
-    def test_3d_points_along_track_offset_added_to_z(self):
-        """3D points get along-track offset added to their existing Z coordinate."""
+    def test_3d_points_position_added_to_z(self):
+        """3D points get the Kalman-filtered position added to their Z coordinate."""
         acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()
-        acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), velocity=2.0, timestamp=0.0)
-        acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), velocity=2.0, timestamp=1.0)
+        acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), position=2.0, timestamp=1.0)
         profile = acc.finish_vehicle()
         assert profile is not None
-        # First scan: z = 1.0 + 0.0 (no along-track yet)
+        # First scan: z = 1.0 + 0.0 (position=0)
         assert profile.points[0, 2] == pytest.approx(1.0)
-        # Second scan: z = 1.0 + 2.0 (2 m/s * 1 s)
+        # Second scan: z = 1.0 + 2.0 (position=2)
         assert profile.points[5, 2] == pytest.approx(3.0)
 
     def test_multi_sensor_3d_merge(self):
@@ -173,10 +173,10 @@ class TestProfileAccumulator:
         acc = ProfileAccumulator(min_scan_lines=4)
         acc.start_vehicle()
         # Left sensor mounted at z=0, right at z=2
-        acc.add_scan_line("left", _scan_line_3d(10, z_offset=0.0), velocity=1.0, timestamp=0.0)
-        acc.add_scan_line("right", _scan_line_3d(10, z_offset=2.0), velocity=1.0, timestamp=0.0)
-        acc.add_scan_line("left", _scan_line_3d(10, z_offset=0.0), velocity=1.0, timestamp=0.5)
-        acc.add_scan_line("right", _scan_line_3d(10, z_offset=2.0), velocity=1.0, timestamp=0.5)
+        acc.add_scan_line("left", _scan_line_3d(10, z_offset=0.0), position=0.0, timestamp=0.0)
+        acc.add_scan_line("right", _scan_line_3d(10, z_offset=2.0), position=0.0, timestamp=0.0)
+        acc.add_scan_line("left", _scan_line_3d(10, z_offset=0.0), position=0.5, timestamp=0.5)
+        acc.add_scan_line("right", _scan_line_3d(10, z_offset=2.0), position=0.5, timestamp=0.5)
         profile = acc.finish_vehicle()
         assert profile is not None
         assert set(profile.sensor_ids) == {"left", "right"}

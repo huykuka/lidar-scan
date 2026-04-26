@@ -3,10 +3,10 @@ Vehicle Profiler — Multi-2D-LiDAR vehicle velocity + side-profile reconstructi
 
 Overview
 --------
-One vertically-mounted LiDAR measures vehicle velocity (Kalman-filtered),
-while one or more side-mounted LiDARs capture cross-section scan lines.
-The velocity is used to convert time-domain scans into a spatially-calibrated
-3D point cloud of the vehicle shape.
+One vertically-mounted LiDAR tracks the vehicle's leading-edge position
+(Kalman-filtered), while one or more side-mounted LiDARs capture cross-section
+scan lines.  The Kalman-filtered position is used directly as the along-track
+coordinate for each scan line, avoiding velocity-integration drift.
 
 DAG Wiring
 ----------
@@ -35,12 +35,12 @@ Internal Pipeline
         │           ├── Background model (median per beam)
         │           ├── Edge detection (threshold)
         │           └── Kalman filter (1D, constant-velocity)
-        │                 → smoothed velocity
+        │                 → smoothed position & velocity
         │
         └── source == any other sensor?
               └── ProfileAccumulator (profiler.py)
                     ├── Accepts 2D & 3D (pose-transformed) points
-                    ├── Adds velocity-integrated along-track offset to Z
+                    ├── Uses Kalman position directly as along-track Z
                     └── Multi-sensor merge automatic via pose transforms
 
 Multi-Sensor Merge
@@ -48,8 +48,8 @@ Multi-Sensor Merge
 Side LiDARs at different mounting positions are aligned automatically:
 each ``LidarSensor`` node transforms its points to world space using its
 configured pose (XYZ + RPY) before forwarding.  The profiler preserves
-those world-space coordinates and adds the along-track offset, producing
-a spatially consistent merged profile.
+those world-space coordinates and uses the Kalman-filtered position as the
+along-track Z coordinate, producing a spatially consistent merged profile.
 
 File Structure
 --------------
