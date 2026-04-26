@@ -48,7 +48,7 @@ class ModelEntry:
 
 
 class ModelStore:
-    """Thread-safe file-based model checkpoint store."""
+    """File-based model checkpoint store (not thread-safe; all access must be from the asyncio event loop)."""
 
     def __init__(self, models_dir: Optional[Path] = None) -> None:
         self._dir = models_dir or _MODELS_DIR

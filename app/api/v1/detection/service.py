@@ -56,6 +56,7 @@ async def upload_model(
             )
         chunks.append(chunk)
     data = b"".join(chunks)
+    del chunks  # free chunk list to reduce peak memory
     if len(data) == 0:
         raise HTTPException(status_code=400, detail="Empty file")
 
