@@ -2,16 +2,21 @@
 Profile accumulator — converts time-domain side-LiDAR scans into a spatial
 vehicle profile using Kalman-filtered velocity.
 
-Each side-mounted 2D LiDAR produces a scan line (a 2D cross-section) at each
-timestamp.  Combined with the velocity from the vertical LiDAR, consecutive
-scan lines are stacked along the travel axis to reconstruct a 3D profile of
-the passing vehicle.
+Each side-mounted 2D LiDAR produces a scan line at each timestamp.  If the
+sensor nodes have their pose configured, the incoming points are already
+transformed to world space (rotation + translation applied by LidarSensor).
+The accumulator adds velocity-based along-track offsets to stitch consecutive
+scans into a coherent 3D vehicle shape.
+
+This means multiple side LiDARs at different mounting positions automatically
+merge into a unified profile — their points are already aligned by their
+respective pose transforms before reaching this accumulator.
 
 Usage:
     acc = ProfileAccumulator(travel_axis=0)
     acc.start_vehicle()
     for frame in side_frames:
-        acc.add_scan_line(sensor_id, points_2d, velocity, timestamp)
+        acc.add_scan_line(sensor_id, points, velocity, timestamp)
     profile = acc.finish_vehicle()
 """
 from dataclasses import dataclass, field
@@ -43,12 +48,17 @@ class VehicleProfile:
 
 
 class ProfileAccumulator:
-    """Accumulates 2D scan lines into a 3D vehicle profile.
+    """Accumulates scan lines into a 3D vehicle profile.
 
-    Coordinate convention for the output cloud:
-      - Column 0 (X): scan-plane horizontal axis
-      - Column 1 (Y): scan-plane vertical axis (height)
-      - Column 2 (Z): along-track position computed from velocity integration
+    Points arriving from each side LiDAR may already be in world space
+    (transformed by LidarSensor using the sensor's pose).  The accumulator
+    preserves all 3 spatial dimensions and adds a velocity-integrated
+    along-track offset to the Z column, stitching scan lines into a
+    contiguous 3D shape.
+
+    When multiple side sensors are mounted at different positions, their
+    pose transforms place their points into the same coordinate frame,
+    so the merged profile is spatially consistent.
 
     Args:
         min_scan_lines: Minimum scan lines required to emit a valid profile.
@@ -95,11 +105,16 @@ class ProfileAccumulator:
         velocity: float,
         timestamp: float,
     ) -> None:
-        """Append a single 2D scan line with velocity-based along-track offset.
+        """Append a scan line with velocity-based along-track offset.
+
+        Accepts both 2D ``(N, 2)`` and 3D ``(N, 3+)`` point arrays.
+        3D points (already pose-transformed by LidarSensor) keep their
+        X/Y coordinates and get the along-track offset added to Z.
+        2D points get a Z column synthesised from the along-track position.
 
         Args:
             sensor_id:  ID of the side-LiDAR that produced this scan.
-            points:     (N, 2+) array — scan-plane X and Y coordinates.
+            points:     (N, 2+) or (N, 3+) array of scan points.
             velocity:   Current vehicle velocity (m/s) from the velocity estimator.
             timestamp:  Unix timestamp of this scan.
         """
@@ -129,11 +144,20 @@ class ProfileAccumulator:
         self._velocity_sum += abs(velocity)
         self._velocity_count += 1
 
-        # Build 3D points: (scan_x, scan_y, along_track)
         n = len(points)
-        along_track_col = np.full((n, 1), self._along_track)
-        scan_xy = points[:, :2]
-        points_3d = np.hstack([scan_xy, along_track_col])
+        if points.shape[1] >= 3:
+            # 3D points already in world space (pose-transformed by LidarSensor).
+            # Keep X/Y from the pose transform, add along-track offset to Z.
+            points_3d = np.empty((n, 3), dtype=np.float64)
+            points_3d[:, 0] = points[:, 0]
+            points_3d[:, 1] = points[:, 1]
+            points_3d[:, 2] = points[:, 2] + self._along_track
+        else:
+            # Raw 2D scan — synthesise Z from along-track position
+            points_3d = np.empty((n, 3), dtype=np.float64)
+            points_3d[:, 0] = points[:, 0]
+            points_3d[:, 1] = points[:, 1]
+            points_3d[:, 2] = self._along_track
         self._scan_lines.append(points_3d)
 
     def finish_vehicle(self) -> Optional[VehicleProfile]:

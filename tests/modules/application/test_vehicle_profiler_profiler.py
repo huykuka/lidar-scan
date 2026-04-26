@@ -29,6 +29,14 @@ def _scan_line(n: int = 20) -> np.ndarray:
     return rng.uniform(-1, 1, (n, 2)).astype(np.float32)
 
 
+def _scan_line_3d(n: int = 20, z_offset: float = 0.0) -> np.ndarray:
+    """3D scan line simulating pose-transformed world-space points."""
+    rng = np.random.default_rng(42)
+    pts = rng.uniform(-1, 1, (n, 3)).astype(np.float64)
+    pts[:, 2] = z_offset
+    return pts
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # TestProfileAccumulator
 # ─────────────────────────────────────────────────────────────────────────────
@@ -124,6 +132,47 @@ class TestProfileAccumulator:
         acc.start_vehicle()
         acc.add_scan_line("s1", None, velocity=1.0, timestamp=0.0)
         assert acc.scan_count == 0
+
+    def test_3d_points_preserve_xy(self):
+        """3D (pose-transformed) points should keep X/Y from the sensor pose."""
+        acc = ProfileAccumulator(min_scan_lines=2)
+        acc.start_vehicle()
+        pts = _scan_line_3d(10, z_offset=5.0)
+        acc.add_scan_line("s1", pts, velocity=1.0, timestamp=0.0)
+        acc.add_scan_line("s1", pts, velocity=1.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        # X/Y should match the input
+        np.testing.assert_array_almost_equal(profile.points[:10, 0], pts[:, 0])
+        np.testing.assert_array_almost_equal(profile.points[:10, 1], pts[:, 1])
+
+    def test_3d_points_along_track_offset_added_to_z(self):
+        """3D points get along-track offset added to their existing Z coordinate."""
+        acc = ProfileAccumulator(min_scan_lines=2)
+        acc.start_vehicle()
+        acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), velocity=2.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), velocity=2.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        # First scan: z = 1.0 + 0.0 (no along-track yet)
+        assert profile.points[0, 2] == pytest.approx(1.0)
+        # Second scan: z = 1.0 + 2.0 (2 m/s * 1 s)
+        assert profile.points[5, 2] == pytest.approx(3.0)
+
+    def test_multi_sensor_3d_merge(self):
+        """Two side sensors at different Z offsets (simulating different mount positions)
+        should produce a merged cloud with distinct Z ranges."""
+        acc = ProfileAccumulator(min_scan_lines=4)
+        acc.start_vehicle()
+        # Left sensor mounted at z=0, right at z=2
+        acc.add_scan_line("left", _scan_line_3d(10, z_offset=0.0), velocity=1.0, timestamp=0.0)
+        acc.add_scan_line("right", _scan_line_3d(10, z_offset=2.0), velocity=1.0, timestamp=0.0)
+        acc.add_scan_line("left", _scan_line_3d(10, z_offset=0.0), velocity=1.0, timestamp=0.5)
+        acc.add_scan_line("right", _scan_line_3d(10, z_offset=2.0), velocity=1.0, timestamp=0.5)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        assert set(profile.sensor_ids) == {"left", "right"}
+        assert len(profile.points) == 40
 
 
 # ─────────────────────────────────────────────────────────────────────────────
