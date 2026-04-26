@@ -232,7 +232,7 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
         finally:
             self._processing = False
 
-    def _run_inference(self, points: np.ndarray) -> list:
+    def _run_inference(self, points: np.ndarray) -> List["Detection3D"]:
         """Synchronous inference — called inside the executor thread."""
         return self._model.detect(
             points,
