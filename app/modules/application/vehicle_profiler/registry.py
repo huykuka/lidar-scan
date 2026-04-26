@@ -46,11 +46,12 @@ node_schema_registry.register(
                 label="Velocity Sensor",
                 type="string",
                 default="",
-                required=True,
+                required=False,
                 help_text=(
                     "Node ID of the vertically-mounted LiDAR used for velocity "
                     "measurement. All other connected inputs are treated as "
-                    "profile (side) sensors."
+                    "profile (side) sensors. Leave empty to auto-select the "
+                    "first connected sensor."
                 ),
             ),
             # ── Kalman Filter ─────────────────────────────────────────────
@@ -201,7 +202,14 @@ def build_vehicle_profiler(
 
     config: Dict[str, Any] = node.get("config") or {}
 
-    velocity_sensor_id = config.get("velocity_sensor_id", "")
+    velocity_sensor_id = config.get("velocity_sensor_id", "") or ""
+
+    # Auto-detect: if the user left the field empty, pick the first connected
+    # upstream sensor as the velocity sensor.
+    if not velocity_sensor_id:
+        incoming_edges = [e for e in edges if e["target_node"] == node["id"]]
+        if incoming_edges:
+            velocity_sensor_id = incoming_edges[0]["source_node"]
 
     return VehicleProfilerNode(
         manager=service_context,
