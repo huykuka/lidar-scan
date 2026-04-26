@@ -33,7 +33,6 @@ class VehicleProfile:
     end_time: float
     scan_count: int
     sensor_ids: List[str]
-    mean_velocity: float         # m/s averaged over the capture window
 
     @property
     def duration(self) -> float:
@@ -81,7 +80,6 @@ class ProfileAccumulator:
         self._sensor_ids: set[str] = set()
         self._start_time: Optional[float] = None
         self._last_time: Optional[float] = None
-        self._first_position: Optional[float] = None
         self._last_position: float = 0.0
 
     def _reset(self) -> None:
@@ -140,9 +138,6 @@ class ProfileAccumulator:
 
         if self._start_time is None:
             self._start_time = timestamp
-        if self._first_position is None:
-            self._first_position = position
-
         self._last_time = timestamp
         self._last_position = position
         self._sensor_ids.add(sensor_id)
@@ -179,9 +174,6 @@ class ProfileAccumulator:
             return None
 
         all_points = np.concatenate(self._scan_lines, axis=0)
-        duration = (self._last_time or 0.0) - (self._start_time or 0.0)
-        displacement = abs(self._last_position - (self._first_position or 0.0))
-        mean_vel = displacement / duration if duration > 0 else 0.0
 
         profile = VehicleProfile(
             points=all_points,
@@ -189,7 +181,6 @@ class ProfileAccumulator:
             end_time=self._last_time or 0.0,
             scan_count=len(self._scan_lines),
             sensor_ids=sorted(self._sensor_ids),
-            mean_velocity=mean_vel,
         )
         self._reset()
         return profile

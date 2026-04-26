@@ -194,7 +194,6 @@ class TestVehicleProfile:
             points=np.zeros((10, 3)),
             start_time=100.0, end_time=105.0,
             scan_count=10, sensor_ids=["s1"],
-            mean_velocity=2.0,
         )
         assert p.duration == pytest.approx(5.0)
 
@@ -205,7 +204,6 @@ class TestVehicleProfile:
             points=pts,
             start_time=0.0, end_time=1.0,
             scan_count=10, sensor_ids=["s1"],
-            mean_velocity=4.5,
         )
         assert p.estimated_length == pytest.approx(4.5)
 
@@ -214,6 +212,5 @@ class TestVehicleProfile:
             points=np.empty((0, 3)),
             start_time=0.0, end_time=0.0,
             scan_count=0, sensor_ids=[],
-            mean_velocity=0.0,
         )
         assert p.estimated_length == 0.0

@@ -31,7 +31,7 @@ Internal Pipeline
     on_input(payload)
         │
         ├── source == velocity_sensor_id?
-        │     └── VelocityEstimator (velocity.py)
+        │     └── VehicleDetector (detector.py)
         │           ├── Background model (median per beam)
         │           ├── Edge detection (threshold)
         │           └── Kalman filter (1D, constant-velocity)
@@ -54,7 +54,7 @@ along-track Z coordinate, producing a spatially consistent merged profile.
 File Structure
 --------------
 - ``node.py``      — VehicleProfilerNode: state machine, frame dispatch
-- ``velocity.py``  — KalmanFilter1D + VelocityEstimator (bg model + edge detect)
+- ``detector.py``  — PositionTracker (pykalman) + VehicleDetector (bg model + edge detect)
 - ``profiler.py``  — ProfileAccumulator (2D/3D merge, along-track stacking)
 - ``registry.py``  — Schema (dynamic sensor dropdown, Kalman params) + factory
 

@@ -1,23 +1,21 @@
 """
-Kalman-filtered velocity estimation from a vertically-mounted 2D LiDAR.
+Vehicle detection and Kalman-filtered position tracking from a vertical 2D LiDAR.
 
 The vertical LiDAR scans a plane perpendicular to the vehicle's travel direction.
 When a vehicle enters the scan plane, points suddenly become much closer than the
-background.  The leading edge position is tracked frame-to-frame and a 1D Kalman
-filter smooths the raw velocity estimate.
-
-Uses ``pykalman.KalmanFilter`` for the underlying Kalman filter implementation.
+background.  The leading edge position is tracked frame-to-frame and a Kalman
+filter (via ``pykalman``) smooths the position estimate.
 
 State vector:  [position, velocity]  (along the travel axis)
 Measurement:   leading-edge position extracted from each scan line
 
 Usage:
-    estimator = VelocityEstimator(process_noise=0.1, measurement_noise=0.5)
+    detector = VehicleDetector(process_noise=0.1, measurement_noise=0.5)
 
     for frame in frames:
-        result = estimator.update(scan_points, timestamp)
+        result = detector.update(scan_points, timestamp)
         if result is not None:
-            print(result.velocity, result.position)
+            print(result.position, result.vehicle_present)
 """
 from dataclasses import dataclass, field
 from typing import Optional
@@ -27,10 +25,9 @@ from pykalman import KalmanFilter
 
 
 @dataclass
-class VelocityResult:
-    """Output of a single velocity estimator update."""
+class DetectionResult:
+    """Output of a single vehicle detector update."""
     position: float
-    velocity: float
     raw_edge_position: float
     timestamp: float
     vehicle_present: bool
@@ -99,8 +96,8 @@ class PositionTracker:
         self._initialized = False
 
 
-class VelocityEstimator:
-    """Estimates vehicle velocity from a vertical 2D LiDAR scan plane.
+class VehicleDetector:
+    """Detects vehicles and tracks their position from a vertical 2D LiDAR.
 
     Detection strategy:
       1. Convert polar (angle, distance) scan to Cartesian.
@@ -136,8 +133,8 @@ class VelocityEstimator:
         self._last_t: Optional[float] = None
         self._vehicle_present = False
 
-    def update(self, points: np.ndarray, timestamp: float) -> Optional[VelocityResult]:
-        """Process one scan frame and return the smoothed velocity estimate.
+    def update(self, points: np.ndarray, timestamp: float) -> Optional[DetectionResult]:
+        """Process one scan frame and return the detection/position result.
 
         Args:
             points: (N, 2+) array — at minimum columns for scan-plane X and Y.
@@ -145,7 +142,7 @@ class VelocityEstimator:
             timestamp: Unix timestamp of the scan.
 
         Returns:
-            VelocityResult if a vehicle is detected (or was recently detected),
+            DetectionResult if a vehicle is detected (or was recently detected),
             None during background learning or when no vehicle is present.
         """
         if points is None or len(points) < 2:
@@ -177,9 +174,8 @@ class VelocityEstimator:
                 self._vehicle_present = False
                 self._kf.reset()
             self._last_t = timestamp
-            return VelocityResult(
+            return DetectionResult(
                 position=self._kf.position,
-                velocity=0.0,
                 raw_edge_position=0.0,
                 timestamp=timestamp,
                 vehicle_present=False,
@@ -194,9 +190,8 @@ class VelocityEstimator:
             self._kf.initialize(edge_position)
             self._vehicle_present = True
             self._last_t = timestamp
-            return VelocityResult(
+            return DetectionResult(
                 position=edge_position,
-                velocity=0.0,
                 raw_edge_position=edge_position,
                 timestamp=timestamp,
                 vehicle_present=True,
@@ -208,9 +203,8 @@ class VelocityEstimator:
         self._kf.predict_and_update(edge_position, dt)
         self._vehicle_present = True
 
-        return VelocityResult(
+        return DetectionResult(
             position=self._kf.position,
-            velocity=self._kf.velocity,
             raw_edge_position=edge_position,
             timestamp=timestamp,
             vehicle_present=True,
@@ -235,10 +229,6 @@ class VelocityEstimator:
     @property
     def vehicle_present(self) -> bool:
         return self._vehicle_present
-
-    @property
-    def current_velocity(self) -> float:
-        return self._kf.velocity if self._kf.initialized else 0.0
 
     @property
     def current_position(self) -> float:

@@ -1,18 +1,18 @@
 """
-Unit tests for VelocityEstimator and PositionTracker (pykalman-backed).
+Unit tests for VehicleDetector and PositionTracker (pykalman-backed).
 
 Covers:
   - PositionTracker: initialization, predict_and_update, reset, property access
-  - VelocityEstimator: background learning, vehicle detection,
-    Kalman-filtered velocity, vehicle departure, reset
+  - VehicleDetector: background learning, vehicle detection,
+    Kalman-filtered position, vehicle departure, reset
 """
 import numpy as np
 import pytest
 
-from app.modules.application.vehicle_profiler.velocity import (
+from app.modules.application.vehicle_profiler.detector import (
     PositionTracker,
-    VelocityEstimator,
-    VelocityResult,
+    VehicleDetector,
+    DetectionResult,
 )
 
 
@@ -87,19 +87,19 @@ class TestPositionTracker:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TestVelocityEstimator
+# TestVehicleDetector
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-class TestVelocityEstimator:
+class TestVehicleDetector:
     def test_returns_none_during_background_learning(self):
-        est = VelocityEstimator(bg_learning_frames=5)
+        est = VehicleDetector(bg_learning_frames=5)
         for i in range(4):
             result = est.update(_background_scan(), timestamp=float(i))
             assert result is None
 
     def test_background_learned_after_n_frames(self):
-        est = VelocityEstimator(bg_learning_frames=5)
+        est = VehicleDetector(bg_learning_frames=5)
         for i in range(5):
             est.update(_background_scan(), timestamp=float(i))
         # After learning, a background scan should return no vehicle
@@ -108,22 +108,22 @@ class TestVelocityEstimator:
         assert result.vehicle_present is False
 
     def test_vehicle_detected_when_closer_than_background(self):
-        est = VelocityEstimator(bg_learning_frames=5, bg_threshold=0.3)
+        est = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3)
         for i in range(5):
             est.update(_background_scan(), timestamp=float(i))
         result = est.update(_vehicle_scan(), timestamp=5.0)
         assert result is not None
         assert result.vehicle_present is True
 
-    def test_velocity_zero_on_first_detection(self):
-        est = VelocityEstimator(bg_learning_frames=5, bg_threshold=0.3)
+    def test_position_set_on_first_detection(self):
+        est = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3)
         for i in range(5):
             est.update(_background_scan(), timestamp=float(i))
         result = est.update(_vehicle_scan(), timestamp=5.0)
-        assert result.velocity == pytest.approx(0.0)
+        assert result.position != 0.0
 
     def test_vehicle_departure_resets_state(self):
-        est = VelocityEstimator(bg_learning_frames=5, bg_threshold=0.3)
+        est = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3)
         for i in range(5):
             est.update(_background_scan(), timestamp=float(i))
         # Vehicle enters
@@ -135,7 +135,7 @@ class TestVelocityEstimator:
         assert est.vehicle_present is False
 
     def test_reset_clears_everything(self):
-        est = VelocityEstimator(bg_learning_frames=5)
+        est = VehicleDetector(bg_learning_frames=5)
         for i in range(5):
             est.update(_background_scan(), timestamp=float(i))
         est.reset()
@@ -144,26 +144,25 @@ class TestVelocityEstimator:
         assert result is None
 
     def test_returns_none_for_empty_points(self):
-        est = VelocityEstimator(bg_learning_frames=2)
+        est = VehicleDetector(bg_learning_frames=2)
         result = est.update(np.empty((0, 2)), timestamp=0.0)
         assert result is None
 
     def test_returns_none_for_none_points(self):
-        est = VelocityEstimator(bg_learning_frames=2)
+        est = VehicleDetector(bg_learning_frames=2)
         result = est.update(None, timestamp=0.0)
         assert result is None
 
-    def test_current_velocity_property(self):
-        est = VelocityEstimator(bg_learning_frames=3, bg_threshold=0.3)
-        assert est.current_velocity == 0.0
+    def test_current_position_property(self):
+        est = VehicleDetector(bg_learning_frames=3, bg_threshold=0.3)
+        assert est.current_position == 0.0
         for i in range(3):
             est.update(_background_scan(), timestamp=float(i))
         est.update(_vehicle_scan(), timestamp=3.0)
-        # After first detection, velocity should still be 0
-        assert est.current_velocity == pytest.approx(0.0)
+        assert est.current_position != 0.0
 
-    def test_velocity_nonzero_after_moving_edge(self):
-        est = VelocityEstimator(
+    def test_position_tracks_moving_edge(self):
+        est = VehicleDetector(
             bg_learning_frames=5, bg_threshold=0.3,
             process_noise=1.0, measurement_noise=0.1,
             travel_axis=0,
@@ -171,7 +170,6 @@ class TestVelocityEstimator:
         for i in range(5):
             est.update(_background_scan(), timestamp=float(i))
 
-        # Create two scans where the vehicle edge clearly moves along X axis
         n = 50
         angles = np.linspace(-np.pi / 4, np.pi / 4, n)
         bg = 5.0
@@ -181,17 +179,19 @@ class TestVelocityEstimator:
         d1[20:35] = 1.0
         scan1 = np.column_stack([d1 * np.cos(angles), d1 * np.sin(angles)])
         est.update(scan1, timestamp=5.0)
+        pos1 = est.current_position
 
         # Frame 2: vehicle at x ~ 0.5 (moved closer along travel axis)
         d2 = np.full(n, bg)
         d2[20:35] = 0.5
         scan2 = np.column_stack([d2 * np.cos(angles), d2 * np.sin(angles)])
         est.update(scan2, timestamp=5.5)
+        pos2 = est.current_position
 
-        assert est.current_velocity != 0.0
+        assert pos2 != pos1
 
     def test_reset_tracking_preserves_background(self):
-        est = VelocityEstimator(bg_learning_frames=5, bg_threshold=0.3)
+        est = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3)
         for i in range(5):
             est.update(_background_scan(), timestamp=float(i))
         est.update(_vehicle_scan(), timestamp=5.0)
@@ -205,7 +205,7 @@ class TestVelocityEstimator:
         assert result.vehicle_present is False
 
     def test_reset_tracking_allows_immediate_next_vehicle(self):
-        est = VelocityEstimator(bg_learning_frames=5, bg_threshold=0.3)
+        est = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3)
         for i in range(5):
             est.update(_background_scan(), timestamp=float(i))
         # First vehicle

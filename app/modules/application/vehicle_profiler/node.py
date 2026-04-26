@@ -31,7 +31,7 @@ from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 
 from .profiler import ProfileAccumulator
-from .velocity import VelocityEstimator
+from .detector import VehicleDetector
 
 logger = get_logger(__name__)
 
@@ -67,14 +67,14 @@ class VehicleProfilerNode(ModuleNode):
 
         self._velocity_sensor_id = velocity_sensor_id
 
-        # Velocity estimator params
+        # Vehicle detector params
         process_noise = float(config.get("process_noise", 0.1))
         measurement_noise = float(config.get("measurement_noise", 0.5))
         bg_threshold = float(config.get("bg_threshold", 0.3))
         bg_learning_frames = int(config.get("bg_learning_frames", 20))
         travel_axis = int(config.get("travel_axis", 0))
 
-        self._velocity = VelocityEstimator(
+        self._detector = VehicleDetector(
             process_noise=process_noise,
             measurement_noise=measurement_noise,
             bg_threshold=bg_threshold,
@@ -103,7 +103,7 @@ class VehicleProfilerNode(ModuleNode):
         self.last_input_at: Optional[float] = None
         self.last_output_at: Optional[float] = None
         self.last_error: Optional[str] = None
-        self.last_velocity: float = 0.0
+
         self.last_profile_points: int = 0
 
     # ── ModuleNode interface ──────────────────────────────────────────────
@@ -183,12 +183,10 @@ class VehicleProfilerNode(ModuleNode):
     # ── Internal handlers ─────────────────────────────────────────────────
 
     async def _handle_velocity_frame(self, points: np.ndarray, timestamp: float) -> None:
-        result = await asyncio.to_thread(self._velocity.update, points, timestamp)
+        result = await asyncio.to_thread(self._detector.update, points, timestamp)
 
         if result is None:
             return
-
-        self.last_velocity = result.velocity
 
         if result.vehicle_present and self._state == _State.IDLE:
             self._state = _State.MEASURING
@@ -205,7 +203,7 @@ class VehicleProfilerNode(ModuleNode):
         if self._state != _State.MEASURING:
             return
 
-        position = self._velocity.current_position
+        position = self._detector.current_position
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
 
     async def _finalize_profile(self) -> None:
@@ -219,7 +217,6 @@ class VehicleProfilerNode(ModuleNode):
             logger.info(
                 f"[{self.id}] Vehicle #{self._vehicles_counted} profile complete: "
                 f"{len(profile.points)} pts, {profile.scan_count} scans, "
-                f"v_avg={profile.mean_velocity:.2f} m/s, "
                 f"est_length={profile.estimated_length:.2f} m"
             )
 
@@ -231,7 +228,6 @@ class VehicleProfilerNode(ModuleNode):
                 "metadata": {
                     "vehicle_number": self._vehicles_counted,
                     "scan_count": profile.scan_count,
-                    "mean_velocity": profile.mean_velocity,
                     "estimated_length": profile.estimated_length,
                     "duration": profile.duration,
                     "sensor_ids": profile.sensor_ids,
@@ -246,6 +242,6 @@ class VehicleProfilerNode(ModuleNode):
     def _transition_to_idle(self) -> None:
         self._state = _State.IDLE
         self._profiler.abort()
-        self._velocity.reset_tracking()
+        self._detector.reset_tracking()
         self.last_error = None
         notify_status_change(self.id)
