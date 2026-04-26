@@ -106,6 +106,11 @@ class DetectionNode(ModuleNode, ShapeCollectorMixin):
 
     def start(self, data_queue: Any = None, runtime_status: Optional[Dict[str, Any]] = None) -> None:
         """Load the selected model when the orchestrator starts."""
+        # Recreate executor if it was shut down (e.g. selective-reload rollback)
+        if self._executor._shutdown:
+            self._executor = concurrent.futures.ThreadPoolExecutor(
+                max_workers=1, thread_name_prefix="detection",
+            )
         self._load_model()
 
     def stop(self) -> None:

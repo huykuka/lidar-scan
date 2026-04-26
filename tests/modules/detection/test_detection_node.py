@@ -110,6 +110,24 @@ class TestDetectionNodeInit:
         assert node._model is None
         assert node._model_loaded is False
 
+    @pytest.mark.asyncio
+    async def test_start_after_stop_recreates_executor(self):
+        """Ensure stop→start cycle works (selective-reload rollback scenario)."""
+        node = _make_node()
+        node.start()
+        node.stop()
+        assert node._executor._shutdown is True
+
+        # Restart should recreate executor and reload model
+        node.start()
+        assert node._executor._shutdown is False
+        assert node._model_loaded is True
+
+        # Inference should still work
+        points = np.random.rand(100, 14).astype(np.float32)
+        await node.on_input({"points": points})
+        assert node.detection_count == 2
+
 
 class TestDetectionNodeInference:
     @pytest.mark.asyncio
