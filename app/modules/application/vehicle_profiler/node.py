@@ -126,7 +126,16 @@ class VehicleProfilerNode(ModuleNode):
         self._processing = True
 
         try:
-            if source_id == self._velocity_sensor_id:
+            # Match velocity sensor by either lidar_id or node_id so that
+            # auto-detect (which picks from edge source_node) works even
+            # when the payload carries a different lidar_id through
+            # intermediate DAG nodes (e.g. Sensor → Crop → Profiler).
+            is_velocity = (
+                source_id == self._velocity_sensor_id
+                or payload.get("node_id") == self._velocity_sensor_id
+                or payload.get("lidar_id") == self._velocity_sensor_id
+            )
+            if is_velocity:
                 await self._handle_velocity_frame(points, timestamp)
             else:
                 await self._handle_profile_frame(source_id, points, timestamp)

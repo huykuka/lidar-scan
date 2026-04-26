@@ -75,7 +75,8 @@ class ProfileAccumulator:
         self._max_gap_s = max_gap_s
         self._reset()
 
-    def _reset(self) -> None:
+    def _clear_accumulation(self) -> None:
+        """Clear accumulated scan data without changing activation state."""
         self._scan_lines: List[np.ndarray] = []
         self._sensor_ids: set[str] = set()
         self._start_time: Optional[float] = None
@@ -83,6 +84,9 @@ class ProfileAccumulator:
         self._along_track: float = 0.0
         self._velocity_sum: float = 0.0
         self._velocity_count: int = 0
+
+    def _reset(self) -> None:
+        self._clear_accumulation()
         self._active = False
 
     def start_vehicle(self) -> None:
@@ -124,11 +128,12 @@ class ProfileAccumulator:
         if points is None or len(points) < 2:
             return
 
-        # Check for stale gap
+        # Check for stale gap — clear data but stay active so new
+        # scan lines can still be accumulated for this vehicle pass.
         if self._last_time is not None:
             gap = timestamp - self._last_time
             if gap > self._max_gap_s:
-                self._reset()
+                self._clear_accumulation()
                 return
 
         # Integrate along-track position

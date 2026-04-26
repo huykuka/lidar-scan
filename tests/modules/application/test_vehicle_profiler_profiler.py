@@ -89,13 +89,21 @@ class TestProfileAccumulator:
         profile = acc.finish_vehicle()
         assert profile is None
 
-    def test_max_gap_aborts_accumulation(self):
+    def test_max_gap_clears_data_but_stays_active(self):
         acc = ProfileAccumulator(min_scan_lines=2, max_gap_s=1.0)
         acc.start_vehicle()
         acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=0.0)
-        # Gap too large
+        assert acc.scan_count == 1
+        # Gap too large — clears accumulated data but stays active
         acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=5.0)
-        assert acc.active is False
+        assert acc.active is True
+        assert acc.scan_count == 0
+        # Can resume accumulating after the gap
+        acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=5.1)
+        acc.add_scan_line("s1", _scan_line(), velocity=1.0, timestamp=5.2)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        assert profile.scan_count == 2
 
     def test_abort_clears_state(self):
         acc = ProfileAccumulator()
