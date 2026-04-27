@@ -124,10 +124,36 @@ class TestProfileAccumulator:
         acc.add_scan_line("s1", _scan_line(5), position=2.0, timestamp=1.0)
         profile = acc.finish_vehicle()
         assert profile is not None
-        # First scan at position=0.0, second at position=2.0
+        # Default travel_axis=2 (Z): first scan at position=0.0, second at 2.0
         z_values = profile.points[:, 2]
         assert np.min(z_values) == pytest.approx(0.0)
         assert np.max(z_values) == pytest.approx(2.0)
+
+    def test_travel_axis_x(self):
+        """When travel_axis=0 (X), position goes to X column."""
+        acc = ProfileAccumulator(min_scan_lines=2, travel_axis=0)
+        acc.start_vehicle()
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(5), position=3.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        x_values = profile.points[:, 0]
+        assert np.min(x_values) == pytest.approx(0.0)
+        assert np.max(x_values) == pytest.approx(3.0)
+        assert profile.estimated_length == pytest.approx(3.0)
+
+    def test_travel_axis_y(self):
+        """When travel_axis=1 (Y), position goes to Y column."""
+        acc = ProfileAccumulator(min_scan_lines=2, travel_axis=1)
+        acc.start_vehicle()
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(5), position=4.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        y_values = profile.points[:, 1]
+        assert np.min(y_values) == pytest.approx(0.0)
+        assert np.max(y_values) == pytest.approx(4.0)
+        assert profile.estimated_length == pytest.approx(4.0)
 
     def test_empty_points_ignored(self):
         acc = ProfileAccumulator(min_scan_lines=2)
@@ -155,7 +181,7 @@ class TestProfileAccumulator:
         np.testing.assert_array_almost_equal(profile.points[:10, 1], pts[:, 1])
 
     def test_3d_points_position_added_to_z(self):
-        """3D points get the Kalman-filtered position added to their Z coordinate."""
+        """3D points get the Kalman-filtered position added to their Z coordinate (default)."""
         acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()
         acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), position=0.0, timestamp=0.0)
@@ -166,6 +192,24 @@ class TestProfileAccumulator:
         assert profile.points[0, 2] == pytest.approx(1.0)
         # Second scan: z = 1.0 + 2.0 (position=2)
         assert profile.points[5, 2] == pytest.approx(3.0)
+
+    def test_3d_points_position_added_to_travel_axis_x(self):
+        """3D points get position added to X when travel_axis=0."""
+        acc = ProfileAccumulator(min_scan_lines=2, travel_axis=0)
+        acc.start_vehicle()
+        pts = _scan_line_3d(5, z_offset=1.0)
+        original_x = pts[:, 0].copy()
+        acc.add_scan_line("s1", pts.copy(), position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", pts.copy(), position=3.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        # First scan: x = original_x + 0.0
+        np.testing.assert_array_almost_equal(profile.points[:5, 0], original_x)
+        # Second scan: x = original_x + 3.0
+        np.testing.assert_array_almost_equal(profile.points[5:10, 0], original_x + 3.0)
+        # Y and Z should be untouched
+        np.testing.assert_array_almost_equal(profile.points[:5, 1], pts[:, 1])
+        np.testing.assert_array_almost_equal(profile.points[:5, 2], pts[:, 2])
 
     def test_multi_sensor_3d_merge(self):
         """Two side sensors at different Z offsets (simulating different mount positions)
@@ -206,6 +250,17 @@ class TestVehicleProfile:
             scan_count=10, sensor_ids=["s1"],
         )
         assert p.estimated_length == pytest.approx(4.5)
+
+    def test_estimated_length_travel_axis_x(self):
+        pts = np.zeros((10, 3))
+        pts[:, 0] = np.linspace(0, 3.0, 10)  # along-track on X
+        p = VehicleProfile(
+            points=pts,
+            start_time=0.0, end_time=1.0,
+            scan_count=10, sensor_ids=["s1"],
+            travel_axis=0,
+        )
+        assert p.estimated_length == pytest.approx(3.0)
 
     def test_estimated_length_empty(self):
         p = VehicleProfile(

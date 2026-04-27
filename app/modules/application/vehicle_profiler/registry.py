@@ -122,11 +122,14 @@ node_schema_registry.register(
                 options=[
                     {"label": "X", "value": 0},
                     {"label": "Y", "value": 1},
+                    {"label": "Z", "value": 2},
                 ],
                 help_text=(
-                    "Which axis of the vertical LiDAR's scan plane corresponds "
-                    "to the vehicle travel direction. Typically X for sensors "
-                    "scanning horizontally, Y for sensors scanning vertically."
+                    "Which axis corresponds to the vehicle travel direction. "
+                    "This is used both by the detector (to find the leading "
+                    "edge) and by the profile accumulator (to place scan lines "
+                    "along the correct axis). Typically X or Y depending on "
+                    "your sensor mounting orientation."
                 ),
             ),
             # ── Profile Accumulation ──────────────────────────────────────

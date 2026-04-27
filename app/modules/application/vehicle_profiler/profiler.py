@@ -13,7 +13,7 @@ merge into a unified profile — their points are already aligned by their
 respective pose transforms before reaching this accumulator.
 
 Usage:
-    acc = ProfileAccumulator(travel_axis=0)
+    acc = ProfileAccumulator(travel_axis=0)  # 0=X, 1=Y, 2=Z
     acc.start_vehicle()
     for frame in side_frames:
         acc.add_scan_line(sensor_id, points, position, timestamp)
@@ -33,6 +33,7 @@ class VehicleProfile:
     end_time: float
     scan_count: int
     sensor_ids: List[str]
+    travel_axis: int = 2          # which column holds the along-track position
 
     @property
     def duration(self) -> float:
@@ -42,7 +43,7 @@ class VehicleProfile:
     def estimated_length(self) -> float:
         if len(self.points) == 0:
             return 0.0
-        travel = self.points[:, 2]  # along-track axis stored in Z column
+        travel = self.points[:, self.travel_axis]
         return float(np.ptp(travel))
 
 
@@ -52,8 +53,8 @@ class ProfileAccumulator:
     Points arriving from each side LiDAR may already be in world space
     (transformed by LidarSensor using the sensor's pose).  The accumulator
     preserves all 3 spatial dimensions and uses the Kalman-filtered position
-    directly as the along-track Z coordinate, avoiding velocity-integration
-    drift.
+    directly as the along-track coordinate on the configured ``travel_axis``,
+    avoiding velocity-integration drift.
 
     When multiple side sensors are mounted at different positions, their
     pose transforms place their points into the same coordinate frame,
@@ -63,15 +64,20 @@ class ProfileAccumulator:
         min_scan_lines: Minimum scan lines required to emit a valid profile.
         max_gap_s:      Maximum time gap between consecutive scans before
                         the accumulation is considered broken (vehicle left).
+        travel_axis:    Which 3D axis corresponds to the vehicle travel
+                        direction (0=X, 1=Y, 2=Z).  The Kalman-filtered
+                        position is placed on this axis.
     """
 
     def __init__(
         self,
         min_scan_lines: int = 10,
         max_gap_s: float = 2.0,
+        travel_axis: int = 2,
     ):
         self._min_scan_lines = min_scan_lines
         self._max_gap_s = max_gap_s
+        self._travel_axis = travel_axis
         self._reset()
 
     def _clear_accumulation(self) -> None:
@@ -110,8 +116,10 @@ class ProfileAccumulator:
 
         Accepts both 2D ``(N, 2)`` and 3D ``(N, 3+)`` point arrays.
         3D points (already pose-transformed by LidarSensor) keep their
-        X/Y coordinates and get the position added to Z.
-        2D points get a Z column synthesised from the position.
+        existing coordinates and get the position added to the configured
+        ``travel_axis``.
+        2D points are promoted to 3D with the position placed on the
+        ``travel_axis`` and the 2D coordinates filling the other two axes.
 
         Using position directly (instead of integrating velocity) avoids
         drift and gives more accurate spatial alignment.
@@ -142,20 +150,21 @@ class ProfileAccumulator:
         self._last_position = position
         self._sensor_ids.add(sensor_id)
 
+        ta = self._travel_axis
         n = len(points)
         if points.shape[1] >= 3:
             # 3D points already in world space (pose-transformed by LidarSensor).
-            # Keep X/Y from the pose transform, add position to Z.
-            points_3d = np.empty((n, 3), dtype=np.float64)
-            points_3d[:, 0] = points[:, 0]
-            points_3d[:, 1] = points[:, 1]
-            points_3d[:, 2] = points[:, 2] + position
+            # Add position offset to the travel axis.
+            points_3d = np.array(points[:, :3], dtype=np.float64)
+            points_3d[:, ta] += position
         else:
-            # Raw 2D scan — synthesise Z from position
+            # Raw 2D scan — promote to 3D, placing position on travel axis.
+            # The two non-travel axes get the 2D scan coordinates.
             points_3d = np.empty((n, 3), dtype=np.float64)
-            points_3d[:, 0] = points[:, 0]
-            points_3d[:, 1] = points[:, 1]
-            points_3d[:, 2] = position
+            non_travel = [i for i in range(3) if i != ta]
+            points_3d[:, non_travel[0]] = points[:, 0]
+            points_3d[:, non_travel[1]] = points[:, 1]
+            points_3d[:, ta] = position
         self._scan_lines.append(points_3d)
 
     def finish_vehicle(self) -> Optional[VehicleProfile]:
@@ -181,6 +190,7 @@ class ProfileAccumulator:
             end_time=self._last_time or 0.0,
             scan_count=len(self._scan_lines),
             sensor_ids=sorted(self._sensor_ids),
+            travel_axis=self._travel_axis,
         )
         self._reset()
         return profile

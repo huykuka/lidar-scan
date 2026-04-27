@@ -89,6 +89,7 @@ class VehicleProfilerNode(ModuleNode):
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
             max_gap_s=max_gap_s,
+            travel_axis=travel_axis,
         )
 
         # State machine
