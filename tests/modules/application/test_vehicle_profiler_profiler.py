@@ -206,33 +206,32 @@ class TestProfileAccumulator:
         np.testing.assert_array_almost_equal(profile.points[:10, 0], pts[:, 0])
         np.testing.assert_array_almost_equal(profile.points[:10, 1], pts[:, 1])
 
-    def test_3d_points_position_added_to_z(self):
-        """3D points get the Kalman-filtered position added to their Z coordinate (default)."""
+    def test_3d_points_position_replaces_z(self):
+        """3D points get their Z coordinate replaced with the detector position (default)."""
         acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()
         acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), position=0.0, timestamp=0.0)
         acc.add_scan_line("s1", _scan_line_3d(5, z_offset=1.0), position=2.0, timestamp=1.0)
         profile = acc.finish_vehicle()
         assert profile is not None
-        # First scan: z = 1.0 + 0.0 (position=0)
-        assert profile.points[0, 2] == pytest.approx(1.0)
-        # Second scan: z = 1.0 + 2.0 (position=2)
-        assert profile.points[5, 2] == pytest.approx(3.0)
+        # First scan: z = 0.0 (position replaces original z_offset)
+        assert profile.points[0, 2] == pytest.approx(0.0)
+        # Second scan: z = 2.0
+        assert profile.points[5, 2] == pytest.approx(2.0)
 
-    def test_3d_points_position_added_to_travel_axis_x(self):
-        """3D points get position added to X when travel_axis=0."""
+    def test_3d_points_position_replaces_travel_axis_x(self):
+        """3D points get X replaced with position when travel_axis=0."""
         acc = ProfileAccumulator(min_scan_lines=2, travel_axis=0)
         acc.start_vehicle()
         pts = _scan_line_3d(5, z_offset=1.0)
-        original_x = pts[:, 0].copy()
         acc.add_scan_line("s1", pts.copy(), position=0.0, timestamp=0.0)
         acc.add_scan_line("s1", pts.copy(), position=3.0, timestamp=1.0)
         profile = acc.finish_vehicle()
         assert profile is not None
-        # First scan: x = original_x + 0.0
-        np.testing.assert_array_almost_equal(profile.points[:5, 0], original_x)
-        # Second scan: x = original_x + 3.0
-        np.testing.assert_array_almost_equal(profile.points[5:10, 0], original_x + 3.0)
+        # First scan: all X = 0.0 (position replaces original X)
+        np.testing.assert_array_almost_equal(profile.points[:5, 0], np.full(5, 0.0))
+        # Second scan: all X = 3.0
+        np.testing.assert_array_almost_equal(profile.points[5:10, 0], np.full(5, 3.0))
         # Y and Z should be untouched
         np.testing.assert_array_almost_equal(profile.points[:5, 1], pts[:, 1])
         np.testing.assert_array_almost_equal(profile.points[:5, 2], pts[:, 2])

@@ -173,9 +173,12 @@ class ProfileAccumulator:
         n = len(points)
         if points.shape[1] >= 3:
             # 3D points already in world space (pose-transformed by LidarSensor).
-            # Add position offset to the travel axis.
+            # Replace the travel-axis value with the detector's position so
+            # that each scan slice is placed at the correct along-track
+            # coordinate.  The other two axes keep their pose-transformed
+            # values (the actual cross-section shape).
             points_3d = np.array(points[:, :3], dtype=np.float64)
-            points_3d[:, ta] += position
+            points_3d[:, ta] = position
         else:
             # Raw 2D scan — promote to 3D, placing position on travel axis.
             # The two non-travel axes get the 2D scan coordinates.
