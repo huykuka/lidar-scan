@@ -12,7 +12,7 @@ Covers:
 import numpy as np
 import pytest
 
-from app.modules.application.vehicle_profiler.profiler import (
+from app.modules.application.vehicle_profiler.utils.profiler import (
     ProfileAccumulator,
     VehicleProfile,
 )

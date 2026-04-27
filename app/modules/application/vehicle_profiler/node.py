@@ -213,14 +213,15 @@ class VehicleProfilerNode(ModuleNode):
             return
 
         velocity = self._detector.current_velocity
-        print(f"velocity: {velocity}, min_velocity: {self._min_velocity}")
-        # if velocity < self._min_velocity and self._min_velocity != 0:
-        #     print(f"too slow {velocity} < {self._min_velocity}")
-        #     logger.debug(
-        #         f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
-        #         f"< min_velocity {self._min_velocity:.3f}"
-        #     )
-        #     return
+        if velocity < self._min_velocity:
+            logger.debug(
+                f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
+                f"< min_velocity {self._min_velocity:.3f}"
+            )
+            # Keep the gap timer alive so that intentionally skipped frames
+            # do not cause a false gap-timeout that clears accumulated data.
+            self._profiler.touch_timestamp(timestamp)
+            return
 
         position = self._detector.current_position
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
