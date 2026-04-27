@@ -114,6 +114,16 @@ class ProfileAccumulator:
     def scan_count(self) -> int:
         return len(self._scan_lines)
 
+    def touch_timestamp(self, timestamp: float) -> None:
+        """Update the gap timer without adding a scan line.
+
+        Call this when a frame is intentionally skipped (e.g. due to the
+        velocity filter) so that the gap timeout does not falsely expire
+        and clear accumulated data.
+        """
+        if self._active and self._last_time is not None:
+            self._last_time = timestamp
+
     def add_scan_line(
         self,
         sensor_id: str,

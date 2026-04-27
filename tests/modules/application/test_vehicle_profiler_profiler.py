@@ -173,6 +173,33 @@ class TestProfileAccumulator:
         assert profile is not None
         assert profile.scan_count == 2
 
+    def test_touch_timestamp_prevents_gap_timeout(self):
+        """touch_timestamp keeps the gap timer alive without adding data."""
+        acc = ProfileAccumulator(min_scan_lines=2, max_gap_s=1.0)
+        acc.start_vehicle()
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        assert acc.scan_count == 1
+        # Simulate velocity-filtered frames keeping timer alive
+        acc.touch_timestamp(0.5)
+        acc.touch_timestamp(1.0)
+        acc.touch_timestamp(1.5)
+        # Next real scan at t=2.0 — gap from last touch is only 0.5s, not 2.0s
+        acc.add_scan_line("s1", _scan_line(5), position=1.0, timestamp=2.0)
+        assert acc.scan_count == 2  # data preserved, not cleared by gap timeout
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        assert profile.scan_count == 2
+
+    def test_gap_timeout_still_works_without_touch(self):
+        """Without touch_timestamp, gap timeout still clears data."""
+        acc = ProfileAccumulator(min_scan_lines=2, max_gap_s=1.0)
+        acc.start_vehicle()
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        assert acc.scan_count == 1
+        # No touch — gap of 2.0s exceeds max_gap_s
+        acc.add_scan_line("s1", _scan_line(5), position=1.0, timestamp=2.0)
+        assert acc.scan_count == 0  # cleared by gap timeout
+
     def test_min_position_delta_deduplicates(self):
         """Scan lines closer than min_position_delta are skipped."""
         acc = ProfileAccumulator(min_scan_lines=2, min_position_delta=0.05)

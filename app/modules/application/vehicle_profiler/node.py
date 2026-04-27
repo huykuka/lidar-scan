@@ -218,6 +218,9 @@ class VehicleProfilerNode(ModuleNode):
                 f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
                 f"< min_velocity {self._min_velocity:.3f}"
             )
+            # Keep the gap timer alive so that intentionally skipped frames
+            # do not cause a false gap-timeout that clears accumulated data.
+            self._profiler.touch_timestamp(timestamp)
             return
 
         position = self._detector.current_position
