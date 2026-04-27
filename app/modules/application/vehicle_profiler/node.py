@@ -148,7 +148,9 @@ class VehicleProfilerNode(ModuleNode):
                 await self._handle_velocity_frame(points, timestamp)
             else:
                 await self._handle_profile_frame(source_id, points, timestamp)
-            self.last_error = None
+            if self.last_error is not None:
+                self.last_error = None
+                notify_status_change(self.id)
         except Exception as e:
             self.last_error = str(e)
             logger.error(f"[{self.id}] Error processing frame from {source_id}: {e}", exc_info=True)
