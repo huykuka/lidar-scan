@@ -30,8 +30,8 @@ from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalSt
 from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 
-from .profiler import ProfileAccumulator
-from .detector import VehicleDetector
+from .utils.detector import VehicleDetector
+from .utils.profiler import ProfileAccumulator
 
 logger = get_logger(__name__)
 
@@ -213,12 +213,14 @@ class VehicleProfilerNode(ModuleNode):
             return
 
         velocity = self._detector.current_velocity
-        if velocity < self._min_velocity:
-            logger.debug(
-                f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
-                f"< min_velocity {self._min_velocity:.3f}"
-            )
-            return
+        print(f"velocity: {velocity}, min_velocity: {self._min_velocity}")
+        # if velocity < self._min_velocity and self._min_velocity != 0:
+        #     print(f"too slow {velocity} < {self._min_velocity}")
+        #     logger.debug(
+        #         f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
+        #         f"< min_velocity {self._min_velocity:.3f}"
+        #     )
+        #     return
 
         position = self._detector.current_position
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
