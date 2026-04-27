@@ -116,7 +116,7 @@ node_schema_registry.register(
             ),
             PropertySchema(
                 name="travel_axis",
-                label="Detector Travel Axis",
+                label="Travel Axis",
                 type="select",
                 default=0,
                 options=[
@@ -124,26 +124,11 @@ node_schema_registry.register(
                     {"label": "Y", "value": 1},
                 ],
                 help_text=(
-                    "Which axis of the vertical LiDAR's 2D scan plane "
-                    "corresponds to the vehicle travel direction. Used by "
-                    "the detector to find the leading edge. X or Y only "
-                    "(2D scan data)."
-                ),
-            ),
-            PropertySchema(
-                name="profile_travel_axis",
-                label="Profile Travel Axis",
-                type="select",
-                default=2,
-                options=[
-                    {"label": "X", "value": 0},
-                    {"label": "Y", "value": 1},
-                    {"label": "Z", "value": 2},
-                ],
-                help_text=(
-                    "Which 3D axis the profile scan lines are stacked along "
-                    "(the vehicle's movement direction in world space). The "
-                    "Kalman-filtered position is placed on this axis."
+                    "Which axis corresponds to the vehicle travel direction. "
+                    "Used by both the detector (leading-edge tracking in the "
+                    "2D scan plane) and the profile accumulator (stacking "
+                    "scan lines along this axis in 3D). Typically X or Y "
+                    "depending on your sensor mounting orientation."
                 ),
             ),
             PropertySchema(
