@@ -155,6 +155,32 @@ class TestProfileAccumulator:
         assert np.max(y_values) == pytest.approx(4.0)
         assert profile.estimated_length == pytest.approx(4.0)
 
+    def test_min_position_delta_deduplicates(self):
+        """Scan lines closer than min_position_delta are skipped."""
+        acc = ProfileAccumulator(min_scan_lines=2, min_position_delta=0.05)
+        acc.start_vehicle()
+        # First scan always accepted
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        assert acc.scan_count == 1
+        # Second scan at barely moved position — skipped
+        acc.add_scan_line("s1", _scan_line(5), position=0.01, timestamp=0.1)
+        assert acc.scan_count == 1
+        # Third scan has moved enough — accepted
+        acc.add_scan_line("s1", _scan_line(5), position=0.06, timestamp=0.2)
+        assert acc.scan_count == 2
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        assert profile.scan_count == 2
+
+    def test_min_position_delta_zero_accepts_all(self):
+        """min_position_delta=0 (default) accepts every scan."""
+        acc = ProfileAccumulator(min_scan_lines=2, min_position_delta=0.0)
+        acc.start_vehicle()
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(5), position=0.001, timestamp=0.1)
+        acc.add_scan_line("s1", _scan_line(5), position=0.002, timestamp=0.2)
+        assert acc.scan_count == 3
+
     def test_empty_points_ignored(self):
         acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()

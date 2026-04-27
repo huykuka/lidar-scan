@@ -61,12 +61,18 @@ class ProfileAccumulator:
     so the merged profile is spatially consistent.
 
     Args:
-        min_scan_lines: Minimum scan lines required to emit a valid profile.
-        max_gap_s:      Maximum time gap between consecutive scans before
-                        the accumulation is considered broken (vehicle left).
-        travel_axis:    Which 3D axis corresponds to the vehicle travel
-                        direction (0=X, 1=Y, 2=Z).  The Kalman-filtered
-                        position is placed on this axis.
+        min_scan_lines:     Minimum scan lines required to emit a valid profile.
+        max_gap_s:          Maximum time gap between consecutive scans before
+                            the accumulation is considered broken (vehicle left).
+        travel_axis:        Which 3D axis corresponds to the vehicle travel
+                            direction (0=X, 1=Y, 2=Z).  The Kalman-filtered
+                            position is placed on this axis.
+        min_position_delta: Minimum position change (m) required between
+                            consecutive scan lines.  Scans where the vehicle
+                            has moved less than this since the last accepted
+                            scan are skipped.  Prevents redundant overlapping
+                            lines at low speeds.  Set to 0 to accept every
+                            scan regardless of position change.
     """
 
     def __init__(
@@ -74,10 +80,12 @@ class ProfileAccumulator:
         min_scan_lines: int = 10,
         max_gap_s: float = 2.0,
         travel_axis: int = 2,
+        min_position_delta: float = 0.0,
     ):
         self._min_scan_lines = min_scan_lines
         self._max_gap_s = max_gap_s
         self._travel_axis = travel_axis
+        self._min_position_delta = min_position_delta
         self._reset()
 
     def _clear_accumulation(self) -> None:
@@ -87,6 +95,7 @@ class ProfileAccumulator:
         self._start_time: Optional[float] = None
         self._last_time: Optional[float] = None
         self._last_position: float = 0.0
+        self._last_accepted_position: Optional[float] = None
 
     def _reset(self) -> None:
         self._clear_accumulation()
@@ -144,10 +153,20 @@ class ProfileAccumulator:
                 self._clear_accumulation()
                 return
 
+        # Skip if position hasn't changed enough since last accepted scan.
+        # This prevents redundant overlapping lines at low vehicle speeds.
+        if (
+            self._min_position_delta > 0
+            and self._last_accepted_position is not None
+            and abs(position - self._last_accepted_position) < self._min_position_delta
+        ):
+            return
+
         if self._start_time is None:
             self._start_time = timestamp
         self._last_time = timestamp
         self._last_position = position
+        self._last_accepted_position = position
         self._sensor_ids.add(sensor_id)
 
         ta = self._travel_axis

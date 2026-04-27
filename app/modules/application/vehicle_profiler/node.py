@@ -86,11 +86,13 @@ class VehicleProfilerNode(ModuleNode):
         min_scan_lines = int(config.get("min_scan_lines", 10))
         max_gap_s = float(config.get("max_gap_s", 2.0))
         profile_travel_axis = int(config.get("profile_travel_axis", 2))
+        min_position_delta = float(config.get("min_position_delta", 0.0))
 
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
             max_gap_s=max_gap_s,
             travel_axis=profile_travel_axis,
+            min_position_delta=min_position_delta,
         )
 
         # Minimum forward velocity to accept profile scan lines.
@@ -231,7 +233,8 @@ class VehicleProfilerNode(ModuleNode):
             logger.info(
                 f"[{self.id}] Vehicle #{self._vehicles_counted} profile complete: "
                 f"{len(profile.points)} pts, {profile.scan_count} scans, "
-                f"est_length={profile.estimated_length:.2f} m"
+                f"est_length={profile.estimated_length:.3f} m, "
+                f"duration={profile.duration:.2f} s"
             )
 
             out_payload = {

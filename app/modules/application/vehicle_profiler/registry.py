@@ -190,6 +190,22 @@ node_schema_registry.register(
                     "is discarded (assumes the vehicle left or sensor stalled)."
                 ),
             ),
+            PropertySchema(
+                name="min_position_delta",
+                label="Min Position Delta (m)",
+                type="number",
+                default=0.0,
+                min=0.0,
+                max=1.0,
+                step=0.001,
+                help_text=(
+                    "Minimum position change (metres) required between "
+                    "consecutive scan lines. At low vehicle speeds, many "
+                    "scans may land at nearly the same position — this "
+                    "deduplicates them for a cleaner profile. Set to 0 to "
+                    "keep every scan. Try 0.005–0.02 for slow miniature setups."
+                ),
+            ),
             # ── Performance ───────────────────────────────────────────────
             PropertySchema(
                 name="throttle_ms",
