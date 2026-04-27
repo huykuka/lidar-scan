@@ -85,11 +85,12 @@ class VehicleProfilerNode(ModuleNode):
         # Profile accumulator params
         min_scan_lines = int(config.get("min_scan_lines", 10))
         max_gap_s = float(config.get("max_gap_s", 2.0))
+        profile_travel_axis = int(config.get("profile_travel_axis", 2))
 
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
             max_gap_s=max_gap_s,
-            travel_axis=travel_axis,
+            travel_axis=profile_travel_axis,
         )
 
         # Minimum forward velocity to accept profile scan lines.
@@ -209,10 +210,10 @@ class VehicleProfilerNode(ModuleNode):
             return
 
         velocity = self._detector.current_velocity
-        if velocity <= self._min_velocity:
+        if velocity < self._min_velocity:
             logger.debug(
                 f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
-                f"<= min_velocity {self._min_velocity:.3f}"
+                f"< min_velocity {self._min_velocity:.3f}"
             )
             return
 

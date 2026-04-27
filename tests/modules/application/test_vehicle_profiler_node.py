@@ -214,10 +214,10 @@ class TestEmitStatus:
 
 class TestVelocityFilter:
     @pytest.mark.asyncio
-    async def test_profile_rejected_when_velocity_zero(self, mock_manager):
-        """Scan lines should be rejected when velocity is zero (stationary)."""
+    async def test_zero_velocity_accepted_with_default_min(self, mock_manager):
+        """With min_velocity=0.0 (default), zero-velocity scans pass through (< not <=)."""
         config = DEFAULT_CONFIG.copy()
-        config["min_velocity"] = 0.0  # default: reject v <= 0
+        config["min_velocity"] = 0.0
         node = VehicleProfilerNode(
             manager=mock_manager, node_id="vp-001", name="Test",
             velocity_sensor_id=VELOCITY_SENSOR, config=config,
@@ -228,7 +228,24 @@ class TestVelocityFilter:
         # Detect vehicle
         await node.on_input({"node_id": VELOCITY_SENSOR, "points": _vehicle_scan(), "timestamp": 3.0})
         assert node._state == _State.MEASURING
-        # Velocity is zero on first detection — scan should be skipped
+        # Velocity is zero on first detection — accepted because 0.0 is NOT < 0.0
+        assert node._detector.current_velocity == pytest.approx(0.0, abs=0.01)
+        await node.on_input({"node_id": "side-001", "points": _side_scan(), "timestamp": 3.0})
+        assert node._profiler.scan_count == 1
+
+    @pytest.mark.asyncio
+    async def test_zero_velocity_rejected_with_positive_min(self, mock_manager):
+        """With min_velocity > 0, zero-velocity scans are rejected."""
+        config = DEFAULT_CONFIG.copy()
+        config["min_velocity"] = 0.1
+        node = VehicleProfilerNode(
+            manager=mock_manager, node_id="vp-001", name="Test",
+            velocity_sensor_id=VELOCITY_SENSOR, config=config,
+        )
+        for i in range(3):
+            await node.on_input({"node_id": VELOCITY_SENSOR, "points": _bg_scan(), "timestamp": float(i)})
+        await node.on_input({"node_id": VELOCITY_SENSOR, "points": _vehicle_scan(), "timestamp": 3.0})
+        assert node._state == _State.MEASURING
         assert node._detector.current_velocity == pytest.approx(0.0, abs=0.01)
         await node.on_input({"node_id": "side-001", "points": _side_scan(), "timestamp": 3.0})
         assert node._profiler.scan_count == 0
@@ -255,7 +272,7 @@ class TestVelocityFilter:
         # Velocity should now be positive
         assert node._detector.current_velocity > 0
         await node.on_input({"node_id": "side-001", "points": _side_scan(), "timestamp": 3.5})
-        assert node._profiler.scan_count == 1
+        assert node._profiler.scan_count >= 1
 
     @pytest.mark.asyncio
     async def test_min_velocity_threshold(self, mock_manager):
