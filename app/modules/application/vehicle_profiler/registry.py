@@ -196,12 +196,11 @@ node_schema_registry.register(
                 max=1.0,
                 step=0.001,
                 help_text=(
-                    "Minimum forward distance (metres) the vehicle must "
-                    "advance between consecutive scan lines. Position must "
-                    "always increase — backward or stationary scans are "
-                    "rejected to ensure the profile grows monotonically. "
-                    "Set to 0 to accept any forward movement. Try "
-                    "0.005–0.02 for slow miniature setups."
+                    "Minimum position change (metres) required between "
+                    "consecutive scan lines. At low vehicle speeds, many "
+                    "scans may land at nearly the same position — this "
+                    "deduplicates them for a cleaner profile. Set to 0 to "
+                    "keep every scan. Try 0.005–0.02 for slow miniature setups."
                 ),
             ),
             # ── Performance ───────────────────────────────────────────────

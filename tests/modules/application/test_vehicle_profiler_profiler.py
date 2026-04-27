@@ -172,29 +172,13 @@ class TestProfileAccumulator:
         assert profile is not None
         assert profile.scan_count == 2
 
-    def test_min_position_delta_zero_accepts_forward(self):
-        """min_position_delta=0 (default) accepts any forward movement."""
+    def test_min_position_delta_zero_accepts_all(self):
+        """min_position_delta=0 (default) accepts every scan."""
         acc = ProfileAccumulator(min_scan_lines=2, min_position_delta=0.0)
         acc.start_vehicle()
         acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
         acc.add_scan_line("s1", _scan_line(5), position=0.001, timestamp=0.1)
         acc.add_scan_line("s1", _scan_line(5), position=0.002, timestamp=0.2)
-        assert acc.scan_count == 3
-
-    def test_backward_position_rejected(self):
-        """Scan lines with decreasing position are always rejected."""
-        acc = ProfileAccumulator(min_scan_lines=2, min_position_delta=0.0)
-        acc.start_vehicle()
-        acc.add_scan_line("s1", _scan_line(5), position=1.0, timestamp=0.0)
-        assert acc.scan_count == 1
-        # Backward — rejected
-        acc.add_scan_line("s1", _scan_line(5), position=0.5, timestamp=0.1)
-        assert acc.scan_count == 1
-        # Same position — allowed (multi-sensor at same timestamp)
-        acc.add_scan_line("s1", _scan_line(5), position=1.0, timestamp=0.2)
-        assert acc.scan_count == 2
-        # Forward — accepted
-        acc.add_scan_line("s1", _scan_line(5), position=1.001, timestamp=0.3)
         assert acc.scan_count == 3
 
     def test_empty_points_ignored(self):

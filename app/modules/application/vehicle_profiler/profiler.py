@@ -153,15 +153,14 @@ class ProfileAccumulator:
                 self._clear_accumulation()
                 return
 
-        # Enforce non-decreasing position — reject scan lines where the
-        # vehicle has moved backward.  When min_position_delta > 0 the
-        # vehicle must also advance by at least that amount between
-        # accepted scans (same position from a different sensor at the
-        # same timestamp is still allowed).
-        if self._last_accepted_position is not None:
-            delta = position - self._last_accepted_position
-            if delta < 0 or (self._min_position_delta > 0 and delta < self._min_position_delta):
-                return
+        # Skip if position hasn't changed enough since last accepted scan.
+        # This prevents redundant overlapping lines at low vehicle speeds.
+        if (
+            self._min_position_delta > 0
+            and self._last_accepted_position is not None
+            and abs(position - self._last_accepted_position) < self._min_position_delta
+        ):
+            return
 
         if self._start_time is None:
             self._start_time = timestamp
