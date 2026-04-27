@@ -92,6 +92,10 @@ class VehicleProfilerNode(ModuleNode):
             travel_axis=travel_axis,
         )
 
+        # Minimum forward velocity to accept profile scan lines.
+        # Rejects scans when the vehicle is stationary or reversing.
+        self._min_velocity = float(config.get("min_velocity", 0.0))
+
         # State machine
         self._state = _State.IDLE
         self._vehicles_counted: int = 0
@@ -202,6 +206,14 @@ class VehicleProfilerNode(ModuleNode):
         self, sensor_id: str, points: np.ndarray, timestamp: float
     ) -> None:
         if self._state != _State.MEASURING:
+            return
+
+        velocity = self._detector.current_velocity
+        if velocity <= self._min_velocity:
+            logger.debug(
+                f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
+                f"<= min_velocity {self._min_velocity:.3f}"
+            )
             return
 
         position = self._detector.current_position

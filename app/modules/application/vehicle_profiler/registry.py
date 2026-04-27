@@ -132,6 +132,21 @@ node_schema_registry.register(
                     "your sensor mounting orientation."
                 ),
             ),
+            PropertySchema(
+                name="min_velocity",
+                label="Min Velocity (m/s)",
+                type="number",
+                default=0.0,
+                min=0.0,
+                max=10.0,
+                step=0.01,
+                help_text=(
+                    "Minimum forward velocity (m/s) required to accept profile "
+                    "scan lines. Scans captured while the vehicle is stationary "
+                    "or moving backwards are discarded to prevent duplicate or "
+                    "reversed profile data. Set to 0 to accept all scans."
+                ),
+            ),
             # ── Profile Accumulation ──────────────────────────────────────
             PropertySchema(
                 name="min_scan_lines",

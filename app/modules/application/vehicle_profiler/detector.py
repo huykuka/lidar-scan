@@ -233,3 +233,7 @@ class VehicleDetector:
     @property
     def current_position(self) -> float:
         return self._kf.position if self._kf.initialized else 0.0
+
+    @property
+    def current_velocity(self) -> float:
+        return self._kf.velocity if self._kf.initialized else 0.0
