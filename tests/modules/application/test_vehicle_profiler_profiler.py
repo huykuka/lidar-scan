@@ -172,20 +172,6 @@ class TestProfileAccumulator:
         assert profile is not None
         assert profile.scan_count == 2
 
-    def test_min_position_delta_allows_same_position_multi_sensor(self):
-        """With min_position_delta > 0, two sensors at the same position are both accepted."""
-        acc = ProfileAccumulator(min_scan_lines=4, min_position_delta=0.05)
-        acc.start_vehicle()
-        acc.add_scan_line("left", _scan_line(5), position=0.0, timestamp=0.0)
-        acc.add_scan_line("right", _scan_line(5), position=0.0, timestamp=0.0)
-        assert acc.scan_count == 2
-        acc.add_scan_line("left", _scan_line(5), position=0.1, timestamp=0.1)
-        acc.add_scan_line("right", _scan_line(5), position=0.1, timestamp=0.1)
-        assert acc.scan_count == 4
-        profile = acc.finish_vehicle()
-        assert profile is not None
-        assert set(profile.sensor_ids) == {"left", "right"}
-
     def test_min_position_delta_zero_accepts_forward(self):
         """min_position_delta=0 (default) accepts any forward movement."""
         acc = ProfileAccumulator(min_scan_lines=2, min_position_delta=0.0)

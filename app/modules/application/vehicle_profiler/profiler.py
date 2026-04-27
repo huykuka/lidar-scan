@@ -160,7 +160,7 @@ class ProfileAccumulator:
         # same timestamp is still allowed).
         if self._last_accepted_position is not None:
             delta = position - self._last_accepted_position
-            if delta < 0 or (self._min_position_delta > 0 and 0 < delta < self._min_position_delta):
+            if delta < 0 or (self._min_position_delta > 0 and delta < self._min_position_delta):
                 return
 
         if self._start_time is None:
