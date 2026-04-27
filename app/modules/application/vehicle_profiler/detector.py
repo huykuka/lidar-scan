@@ -113,6 +113,8 @@ class VehicleDetector:
         bg_learning_frames:  Number of initial frames used to learn the background.
         travel_axis:         Index into Cartesian scan coords for the travel direction.
                              0 = X (default), 1 = Y.
+        use_kalman:          If True (default), smooth position with a Kalman filter.
+                             If False, use raw leading-edge position directly.
     """
 
     def __init__(
@@ -122,7 +124,9 @@ class VehicleDetector:
         bg_threshold: float = 0.3,
         bg_learning_frames: int = 20,
         travel_axis: int = 0,
+        use_kalman: bool = True,
     ):
+        self._use_kalman = use_kalman
         self._kf = PositionTracker(process_noise, measurement_noise)
         self._bg_threshold = bg_threshold
         self._bg_learning_frames = bg_learning_frames
@@ -132,6 +136,9 @@ class VehicleDetector:
         self._bg_distances: Optional[np.ndarray] = None  # median background per beam
         self._last_t: Optional[float] = None
         self._vehicle_present = False
+        # Raw tracking (used when Kalman is disabled)
+        self._raw_position: float = 0.0
+        self._raw_velocity: float = 0.0
 
     def update(self, points: np.ndarray, timestamp: float) -> Optional[DetectionResult]:
         """Process one scan frame and return the detection/position result.
@@ -173,9 +180,10 @@ class VehicleDetector:
             if self._vehicle_present:
                 self._vehicle_present = False
                 self._kf.reset()
+                self._raw_velocity = 0.0
             self._last_t = timestamp
             return DetectionResult(
-                position=self._kf.position,
+                position=self._raw_position if not self._use_kalman else self._kf.position,
                 raw_edge_position=0.0,
                 timestamp=timestamp,
                 vehicle_present=False,
@@ -185,26 +193,32 @@ class VehicleDetector:
         vehicle_points = points[:n][vehicle_mask]
         edge_position = float(np.min(vehicle_points[:, self._travel_axis]))
 
-        # --- Kalman filter ---
-        if not self._kf.initialized:
-            self._kf.initialize(edge_position)
-            self._vehicle_present = True
-            self._last_t = timestamp
-            return DetectionResult(
-                position=edge_position,
-                raw_edge_position=edge_position,
-                timestamp=timestamp,
-                vehicle_present=True,
-            )
-
         dt = timestamp - self._last_t if self._last_t is not None else 0.0
         self._last_t = timestamp
 
-        self._kf.predict_and_update(edge_position, dt)
+        if self._use_kalman:
+            if not self._kf.initialized:
+                self._kf.initialize(edge_position)
+                self._vehicle_present = True
+                return DetectionResult(
+                    position=edge_position,
+                    raw_edge_position=edge_position,
+                    timestamp=timestamp,
+                    vehicle_present=True,
+                )
+            self._kf.predict_and_update(edge_position, dt)
+            position = self._kf.position
+        else:
+            # Raw mode — use edge position directly
+            if dt > 0 and self._vehicle_present:
+                self._raw_velocity = (edge_position - self._raw_position) / dt
+            self._raw_position = edge_position
+            position = edge_position
+
         self._vehicle_present = True
 
         return DetectionResult(
-            position=self._kf.position,
+            position=position,
             raw_edge_position=edge_position,
             timestamp=timestamp,
             vehicle_present=True,
@@ -219,6 +233,8 @@ class VehicleDetector:
         self._kf.reset()
         self._last_t = None
         self._vehicle_present = False
+        self._raw_position = 0.0
+        self._raw_velocity = 0.0
 
     def reset(self) -> None:
         """Full reset including the background model.  Use for session/config changes."""
@@ -232,8 +248,12 @@ class VehicleDetector:
 
     @property
     def current_position(self) -> float:
-        return self._kf.position if self._kf.initialized else 0.0
+        if self._use_kalman:
+            return self._kf.position if self._kf.initialized else 0.0
+        return self._raw_position
 
     @property
     def current_velocity(self) -> float:
-        return self._kf.velocity if self._kf.initialized else 0.0
+        if self._use_kalman:
+            return self._kf.velocity if self._kf.initialized else 0.0
+        return self._raw_velocity

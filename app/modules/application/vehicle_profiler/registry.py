@@ -57,6 +57,18 @@ node_schema_registry.register(
             ),
             # ── Kalman Filter ─────────────────────────────────────────────
             PropertySchema(
+                name="use_kalman",
+                label="Enable Kalman Filter",
+                type="boolean",
+                default=True,
+                help_text=(
+                    "When enabled, the leading-edge position is smoothed by "
+                    "a Kalman filter. Disable to use the raw measured edge "
+                    "position directly — useful for debugging or when the "
+                    "filter over-smooths at very low speeds."
+                ),
+            ),
+            PropertySchema(
                 name="process_noise",
                 label="Process Noise (Q)",
                 type="number",

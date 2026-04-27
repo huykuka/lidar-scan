@@ -73,6 +73,7 @@ class VehicleProfilerNode(ModuleNode):
         bg_threshold = float(config.get("bg_threshold", 0.3))
         bg_learning_frames = int(config.get("bg_learning_frames", 20))
         travel_axis = int(config.get("travel_axis", 0))
+        use_kalman = bool(config.get("use_kalman", True))
 
         self._detector = VehicleDetector(
             process_noise=process_noise,
@@ -80,6 +81,7 @@ class VehicleProfilerNode(ModuleNode):
             bg_threshold=bg_threshold,
             bg_learning_frames=bg_learning_frames,
             travel_axis=travel_axis,
+            use_kalman=use_kalman,
         )
 
         # Profile accumulator params
