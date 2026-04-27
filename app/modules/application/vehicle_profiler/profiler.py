@@ -189,6 +189,17 @@ class ProfileAccumulator:
             points_3d[:, ta] = position
         self._scan_lines.append(points_3d)
 
+    def get_accumulated_cloud(self) -> Optional[np.ndarray]:
+        """Return the current accumulated point cloud without finalizing.
+
+        Returns the concatenated points accumulated so far, or None if
+        there are no scan lines yet.  Used for streaming partial profiles
+        to the UI while the vehicle is still being measured.
+        """
+        if not self._scan_lines:
+            return None
+        return np.concatenate(self._scan_lines, axis=0)
+
     def finish_vehicle(self) -> Optional[VehicleProfile]:
         """Finalize the current vehicle profile and return the assembled cloud.
 

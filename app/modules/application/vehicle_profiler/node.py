@@ -223,6 +223,24 @@ class VehicleProfilerNode(ModuleNode):
         position = self._detector.current_position
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
 
+        # Stream the accumulated partial profile so the UI can show
+        # the point cloud building up in real-time.
+        accumulated = self._profiler.get_accumulated_cloud()
+        if accumulated is not None:
+            self.last_output_at = time.time()
+            self.last_profile_points = len(accumulated)
+            partial_payload = {
+                "node_id": self.id,
+                "points": accumulated,
+                "timestamp": timestamp,
+                "count": len(accumulated),
+                "metadata": {
+                    "partial": True,
+                    "scan_count": self._profiler.scan_count,
+                },
+            }
+            asyncio.create_task(self.manager.forward_data(self.id, partial_payload))
+
     async def _finalize_profile(self) -> None:
         profile = await asyncio.to_thread(self._profiler.finish_vehicle)
 
@@ -244,6 +262,7 @@ class VehicleProfilerNode(ModuleNode):
                 "timestamp": profile.end_time,
                 "count": len(profile.points),
                 "metadata": {
+                    "partial": False,
                     "vehicle_number": self._vehicles_counted,
                     "scan_count": profile.scan_count,
                     "estimated_length": profile.estimated_length,

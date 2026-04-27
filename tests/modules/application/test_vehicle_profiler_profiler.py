@@ -155,6 +155,24 @@ class TestProfileAccumulator:
         assert np.max(y_values) == pytest.approx(4.0)
         assert profile.estimated_length == pytest.approx(4.0)
 
+    def test_get_accumulated_cloud(self):
+        """get_accumulated_cloud returns the partial cloud without finalizing."""
+        acc = ProfileAccumulator(min_scan_lines=2)
+        acc.start_vehicle()
+        assert acc.get_accumulated_cloud() is None
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        cloud = acc.get_accumulated_cloud()
+        assert cloud is not None
+        assert cloud.shape == (5, 3)
+        assert acc.active is True  # still active
+        acc.add_scan_line("s1", _scan_line(5), position=1.0, timestamp=1.0)
+        cloud2 = acc.get_accumulated_cloud()
+        assert cloud2.shape == (10, 3)
+        # finish still works normally after get_accumulated_cloud
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        assert profile.scan_count == 2
+
     def test_min_position_delta_deduplicates(self):
         """Scan lines closer than min_position_delta are skipped."""
         acc = ProfileAccumulator(min_scan_lines=2, min_position_delta=0.05)
