@@ -57,18 +57,6 @@ node_schema_registry.register(
             ),
             # ── Kalman Filter ─────────────────────────────────────────────
             PropertySchema(
-                name="use_kalman",
-                label="Enable Kalman Filter",
-                type="boolean",
-                default=True,
-                help_text=(
-                    "When enabled, the leading-edge position is smoothed by "
-                    "a Kalman filter. Disable to use the raw measured edge "
-                    "position directly — useful for debugging or when the "
-                    "filter over-smooths at very low speeds."
-                ),
-            ),
-            PropertySchema(
                 name="process_noise",
                 label="Process Noise (Q)",
                 type="number",
@@ -127,6 +115,54 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
+                name="absence_hold_frames",
+                label="Absence Hold Frames",
+                type="number",
+                default=10,
+                min=1,
+                max=100,
+                step=1,
+                help_text=(
+                    "Number of consecutive frames with no vehicle points to "
+                    "tolerate before declaring the vehicle gone. During this "
+                    "hold period the position is predicted forward using the "
+                    "last known velocity. Increase to bridge longer gaps such "
+                    "as open bins or trailer gaps."
+                ),
+            ),
+            PropertySchema(
+                name="min_vehicle_points",
+                label="Min Vehicle Points",
+                type="number",
+                default=5,
+                min=1,
+                max=100,
+                step=1,
+                help_text=(
+                    "Minimum number of vehicle points required in a frame to "
+                    "accept it as a valid position measurement. Frames with "
+                    "fewer points (e.g. bin walls, trailer gaps) are treated "
+                    "as absence and the position is predicted forward instead. "
+                    "Increase if bin interiors are pulling the position back to zero."
+                ),
+            ),
+            PropertySchema(
+                name="innovation_gate",
+                label="Innovation Gate (m)",
+                type="number",
+                default=0.5,
+                min=0.05,
+                max=5.0,
+                step=0.05,
+                help_text=(
+                    "Maximum allowed deviation (metres) between a new edge "
+                    "measurement and the predicted position. Measurements "
+                    "outside this gate are rejected and the filter predicts "
+                    "forward instead. Prevents bin walls or floor reflections "
+                    "from pulling the position back to zero."
+                ),
+            ),
+            PropertySchema(
                 name="travel_axis",
                 label="Travel Axis",
                 type="select",
@@ -147,18 +183,34 @@ node_schema_registry.register(
                 name="min_velocity",
                 label="Min Velocity (m/s)",
                 type="number",
-                default=0.0,
+                default=0.05,
                 min=0.0,
                 max=10.0,
                 step=0.01,
                 help_text=(
                     "Minimum forward velocity (m/s) required to accept profile "
                     "scan lines. Scans captured while the vehicle is stationary "
-                    "or moving backwards are discarded to prevent duplicate or "
-                    "reversed profile data. Set to 0 to accept all scans."
+                    "or moving backwards are discarded to prevent the profile "
+                    "from accumulating indefinitely. At 20 Hz scan rate, 0.05 m/s "
+                    "corresponds to ~2.5 mm of movement per frame. Set to 0 to "
+                    "accept all scans regardless of speed."
                 ),
             ),
+           
             # ── Profile Accumulation ──────────────────────────────────────
+            PropertySchema(
+                name="stream_partial",
+                label="Stream Partial Profile",
+                type="boolean",
+                default=False,
+                help_text=(
+                    "When enabled, the accumulated point cloud is streamed to "
+                    "connected outputs after every side-sensor scan line. This "
+                    "lets the UI show the profile building up in real-time. "
+                    "Disable to only emit the final complete profile when the "
+                    "vehicle leaves — reduces WebSocket traffic on slow connections."
+                ),
+            ),
             PropertySchema(
                 name="min_scan_lines",
                 label="Min Scan Lines",

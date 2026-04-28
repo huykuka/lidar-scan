@@ -73,7 +73,9 @@ class VehicleProfilerNode(ModuleNode):
         bg_threshold = float(config.get("bg_threshold", 0.3))
         bg_learning_frames = int(config.get("bg_learning_frames", 20))
         travel_axis = int(config.get("travel_axis", 0))
-        use_kalman = bool(config.get("use_kalman", True))
+        absence_hold_frames = int(config.get("absence_hold_frames", 10))
+        min_vehicle_points = int(config.get("min_vehicle_points", 5))
+        innovation_gate = float(config.get("innovation_gate", 0.5))
 
         self._detector = VehicleDetector(
             process_noise=process_noise,
@@ -81,7 +83,9 @@ class VehicleProfilerNode(ModuleNode):
             bg_threshold=bg_threshold,
             bg_learning_frames=bg_learning_frames,
             travel_axis=travel_axis,
-            use_kalman=use_kalman,
+            absence_hold_frames=absence_hold_frames,
+            min_vehicle_points=min_vehicle_points,
+            innovation_gate=innovation_gate,
         )
 
         # Profile accumulator params
@@ -97,8 +101,10 @@ class VehicleProfilerNode(ModuleNode):
         )
 
         # Minimum forward velocity to accept profile scan lines.
-        # Rejects scans when the vehicle is stationary or reversing.
         self._min_velocity = float(config.get("min_velocity", 0.0))
+
+        # Stream partial (accumulated) profile in real-time while measuring.
+        self._stream_partial = bool(config.get("stream_partial", False))
 
         # State machine
         self._state = _State.IDLE
@@ -212,8 +218,9 @@ class VehicleProfilerNode(ModuleNode):
         if self._state != _State.MEASURING:
             return
 
-        velocity = self._detector.current_velocity
+        velocity = abs(self._detector.current_velocity)
         if velocity < self._min_velocity:
+            print("[", self.id, "] Skipping profile scan — velocity ", velocity, " m/s < min_velocity ", self._min_velocity)
             logger.debug(
                 f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
                 f"< min_velocity {self._min_velocity:.3f}"
@@ -225,6 +232,9 @@ class VehicleProfilerNode(ModuleNode):
 
         position = self._detector.current_position
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
+
+        if not self._stream_partial:
+            return
 
         # Stream the accumulated partial profile so the UI can show
         # the point cloud building up in real-time.

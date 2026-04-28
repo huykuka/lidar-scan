@@ -155,8 +155,8 @@ class ProfileAccumulator:
         if points is None or len(points) < 2:
             return
 
-        # Check for stale gap — clear data but stay active so new
-        # scan lines can still be accumulated for this vehicle pass.
+        # # Check for stale gap — clear data but stay active so new
+        # # scan lines can still be accumulated for this vehicle pass.
         if self._last_time is not None:
             gap = timestamp - self._last_time
             if gap > self._max_gap_s:
