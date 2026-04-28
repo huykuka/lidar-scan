@@ -51,10 +51,14 @@ WORKDIR /src
 COPY app/ ./app/
 COPY main.py build_cython.py ./
 
-# Compile all .py → .so, then strip source artefacts.
-# __init__.py files are kept so package discovery still works.
+# Compile .py → .so, then strip source for compiled modules only.
+# __init__.py files are always kept so package discovery still works.
+# Files with Pydantic/ORM models are auto-skipped by the build script
+# and remain as .py (their metaclass magic is incompatible with Cython).
 RUN python build_cython.py build_ext --inplace \
-  && find app/ -name '*.py' ! -name '__init__.py' -delete \
+  && find app/ -name '*.so' -print \
+     | sed 's/\.cpython-[^.]*\.so$/.py/' \
+     | xargs rm -f \
   && find app/ -name '*.c' -delete \
   && rm -f build_cython.py \
   && rm -rf build/
