@@ -13,8 +13,7 @@ Physical setup:
     the resulting rigid-body translation is the per-frame displacement.
 
     Position is accumulated directly from ICP displacements — no velocity
-    computation or temporal integration needed.  This avoids noise
-    amplification from dividing by dt and subsequent re-integration.
+    computation or temporal integration needed.
 
 Algorithm:
     1. Background learning  — per-beam median from empty scene.
@@ -29,7 +28,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
-from scipy.signal import correlate
+import open3d as o3d
 
 logger = logging.getLogger(__name__)
 
@@ -46,129 +45,93 @@ class DetectionResult:
 
 
 class ClusterTracker:
-    """Estimate per-frame displacement via 1-D cross-correlation of height profile.
+    """Estimate per-frame displacement via Open3D Point-to-Point ICP.
 
-    The vertical LiDAR produces a 2-D scan in the XZ plane (X = travel, Z = height).
-    Between consecutive frames the entire profile shifts by δx along the travel axis.
-
-    Cross-correlation directly finds the lag δx that best aligns the two 1-D
-    height signals.  It is immune to the rotation-translation degeneracy that
-    breaks ICP on small per-frame displacements (δx ≈ mm at 50 Hz), regardless
-    of whether the surface is flat (bin) or curved (cabin).
-
-    Algorithm per frame:
-        1. Bin cluster points onto a regular X grid (bin_size).
-        2. For each bin take the maximum height (robust to outliers, captures top surface).
-        3. Cross-correlate the current and previous height arrays.
-        4. argmax of cross-correlation in [-max_lag_bins, +max_lag_bins] → shift.
-        5. displacement = shift × bin_size.
+    Aligns the previous cluster point cloud to the current one.  The
+    travel-axis component of the resulting translation vector is the
+    per-frame displacement.
 
     Args:
-        travel_axis:     Axis index for travel direction (0 = X).
-        height_axis:     Axis index for height / range (1 = Y for a XY 2-D scan).
-        bin_size:        Grid resolution in metres (default 5 mm).
-        max_displacement: Outlier gate — reject if shift exceeds this (m).
-        min_displacement: Dead-zone — return 0 if below this (m).
-        grid_min / grid_max: Fixed scan extent in metres along travel axis.
-                             If None, inferred from first frame.
+        travel_axis:                   Axis index for travel direction (0=X).
+        max_correspondence_distance:   ICP max correspondence distance (m).
+        min_icp_fitness:               Minimum fitness to accept ICP result.
+        max_displacement:              Outlier gate — reject if displacement exceeds this (m).
+        min_displacement:              Dead-zone — return 0 if below this (m).
+        voxel_size:                    Downsample voxel size (0 = no downsampling).
     """
 
     def __init__(
         self,
         travel_axis: int = 0,
-        height_axis: int = 1,
-        bin_size: float = 0.005,
-        max_displacement: float = 0.5,
-        min_displacement: float = 0.001,
-        grid_min: Optional[float] = None,
-        grid_max: Optional[float] = None,
-        # kept for API compatibility
         max_correspondence_distance: float = 0.5,
         min_icp_fitness: float = 0.3,
+        max_displacement: float = 0.5,
+        min_displacement: float = 0.001,
         voxel_size: float = 0.0,
-        dead_reckon_frames: int = 0,
     ) -> None:
         self._travel_axis = travel_axis
-        self._height_axis = height_axis
-        self._bin_size = bin_size
+        self._max_corr_dist = max_correspondence_distance
+        self._min_fitness = min_icp_fitness
         self._max_displacement = max_displacement
         self._min_displacement = min_displacement
-        self._grid_min = grid_min
-        self._grid_max = grid_max
+        self._voxel_size = voxel_size
 
-        self._prev_profile: Optional[np.ndarray] = None
+        self._prev_cloud: Optional[o3d.geometry.PointCloud] = None
         self._last_displacement: float = 0.0
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _to_profile(self, points: np.ndarray) -> np.ndarray:
-        """Project cluster points onto a 1-D height array indexed by travel position."""
-        x = points[:, self._travel_axis]
-        z = points[:, self._height_axis]
-
-        g_min = self._grid_min if self._grid_min is not None else float(x.min())
-        g_max = self._grid_max if self._grid_max is not None else float(x.max())
-
-        n_bins = max(int(np.ceil((g_max - g_min) / self._bin_size)), 1)
-        profile = np.full(n_bins, np.nan)
-
-        indices = np.clip(
-            ((x - g_min) / self._bin_size).astype(int), 0, n_bins - 1
-        )
-        for i, h in zip(indices, z):
-            # Minimum range per bin = closest point = highest truck surface.
-            # For a top-down sensor, smaller range means taller feature.
-            if np.isnan(profile[i]) or h < profile[i]:
-                profile[i] = h
-
-        # Fill NaN bins with linear interpolation so correlation is well-defined
-        nans = np.isnan(profile)
-        if nans.all():
-            return profile
-        xs = np.arange(n_bins)
-        profile[nans] = np.interp(xs[nans], xs[~nans], profile[~nans])
-        return profile
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+    def _to_cloud(self, points: np.ndarray) -> o3d.geometry.PointCloud:
+        """Convert Nx2 or Nx3 array to Open3D PointCloud (pad to 3D if needed)."""
+        if points.shape[1] == 2:
+            pts3d = np.zeros((len(points), 3), dtype=np.float64)
+            pts3d[:, :2] = points
+        else:
+            pts3d = np.asarray(points[:, :3], dtype=np.float64)
+        cloud = o3d.geometry.PointCloud()
+        cloud.points = o3d.utility.Vector3dVector(pts3d)
+        if self._voxel_size > 0:
+            cloud = cloud.voxel_down_sample(self._voxel_size)
+        return cloud
 
     def update(self, points: np.ndarray, timestamp: float) -> Optional[float]:
-        """Cross-correlate current height profile with previous; return displacement.
+        """Run ICP between previous and current cluster; return displacement.
 
         Returns:
-            Displacement in metres (forward positive), or None if rejected.
+            Displacement in metres (forward positive), or None if ICP failed/rejected.
         """
-        profile = self._to_profile(points)
+        cloud = self._to_cloud(points)
 
-        if self._prev_profile is None or len(profile) != len(self._prev_profile):
-            self._prev_profile = profile
+        if self._prev_cloud is None or len(self._prev_cloud.points) < 3:
+            self._prev_cloud = cloud
             return 0.0
 
-        # correlate(current, prev) peaks at +lag when current is shifted
-        # forward by lag bins relative to prev (forward truck motion).
-        # Mean-subtract each profile so the flat background (DC component)
-        # does not dominate the correlation and wash out the truck-feature peak.
-        p_curr = profile - profile.mean()
-        p_prev = self._prev_profile - self._prev_profile.mean()
-        max_lag_bins = max(1, int(self._max_displacement / self._bin_size))
-        corr = correlate(p_curr, p_prev, mode="full")
-        center = len(corr) // 2
-        lo = max(0, center - max_lag_bins)
-        hi = min(len(corr), center + max_lag_bins + 1)
-        shift_bins = int(np.argmax(corr[lo:hi])) - (center - lo)
-        displacement = float(shift_bins * self._bin_size)
+        # Point-to-point ICP: align prev → current
+        reg = o3d.pipelines.registration.registration_icp(
+            self._prev_cloud,
+            cloud,
+            self._max_corr_dist,
+            np.eye(4),
+            o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+        )
 
-        self._prev_profile = profile
+        self._prev_cloud = cloud
+
+        if reg.fitness < self._min_fitness:
+            logger.info(f"ICP fitness {reg.fitness:.3f} < min — rejected")
+            return None
+
+        # Extract travel-axis translation
+        displacement = float(reg.transformation[self._travel_axis, 3])
 
         # Forward-only
         displacement = max(0.0, displacement)
 
         # Outlier gate
         if displacement > self._max_displacement:
-            logger.info(f"xcorr displacement {displacement:.4f}m > max — rejected")
+            logger.info(f"ICP displacement {displacement:.4f}m > max — rejected")
             return None
 
         # Dead-zone
@@ -176,13 +139,11 @@ class ClusterTracker:
             displacement = 0.0
 
         self._last_displacement = displacement
-        logger.info(
-            f"xcorr shift={shift_bins} bins  displacement={displacement:.4f}m"
-        )
+        logger.debug(f"ICP displacement={displacement:.4f}m  fitness={reg.fitness:.3f}")
         return displacement
 
     def reset(self) -> None:
-        self._prev_profile = None
+        self._prev_cloud = None
         self._last_displacement = 0.0
 
     @property
@@ -191,7 +152,7 @@ class ClusterTracker:
 
     @property
     def initialized(self) -> bool:
-        return self._prev_profile is not None
+        return self._prev_cloud is not None
 
 
 class VehicleDetector:
@@ -362,10 +323,6 @@ class VehicleDetector:
         self.reset_tracking()
         self._bg_accumulator.clear()
         self._bg_distances = None
-
-    # ------------------------------------------------------------------
-    # Debug
-    # ------------------------------------------------------------------
 
     # ------------------------------------------------------------------
     # Accessors

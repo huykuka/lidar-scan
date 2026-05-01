@@ -153,21 +153,19 @@ class TestClusterTracker:
         assert d == pytest.approx(0.0)
 
     def test_outlier_clamped_to_max_displacement(self):
-        """A shift larger than max_displacement is clamped to max_displacement.
+        """A shift larger than max_displacement is rejected (returns None).
 
-        Cross-correlation search window is bounded by max_lag_bins, so very
-        large shifts saturate at max_displacement rather than returning None.
+        ICP may report a large translation when clouds are too far apart;
+        the outlier gate rejects this as unreliable.
         """
         max_d = 0.03
         ct = ClusterTracker(
-            travel_axis=0, bin_size=0.005, max_displacement=max_d,
-            grid_min=0.0, grid_max=2.5,
+            travel_axis=0, max_displacement=max_d,
         )
         ct.update(_profile_cluster(0.0), timestamp=0.0)
         d = ct.update(_profile_cluster(0.5), timestamp=1.0)  # 0.5m >> max_d
-        # Result must be within [0, max_d]
-        assert d is not None
-        assert 0.0 <= d <= max_d
+        # ICP rejects outlier — returns None
+        assert d is None
 
     def test_reset_clears_state(self):
         ct = ClusterTracker(travel_axis=0)
