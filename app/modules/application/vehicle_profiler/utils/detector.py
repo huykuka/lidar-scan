@@ -68,6 +68,12 @@ class ClusterTracker:
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
         voxel_size: float = 0.0,
+        # kept for API compat — unused
+        height_axis: int = 1,
+        bin_size: float = 0.005,
+        grid_min: Optional[float] = None,
+        grid_max: Optional[float] = None,
+        dead_reckon_frames: int = 0,
     ) -> None:
         self._travel_axis = travel_axis
         self._max_corr_dist = max_correspondence_distance
@@ -179,11 +185,8 @@ class VehicleDetector:
         travel_axis: int = 0,
         gap_debounce_s: float = 3.0,
         min_vehicle_points: int = 5,
-        bin_size: float = 0.005,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
-        grid_min: Optional[float] = None,
-        grid_max: Optional[float] = None,
         # kept for API compatibility
         max_correspondence_distance: float = 0.5,
         min_icp_fitness: float = 0.3,
@@ -197,11 +200,11 @@ class VehicleDetector:
 
         self._tracker = ClusterTracker(
             travel_axis=travel_axis,
-            bin_size=bin_size,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
-            grid_min=grid_min,
-            grid_max=grid_max,
+            max_correspondence_distance=max_correspondence_distance,
+            min_icp_fitness=min_icp_fitness,
+            voxel_size=voxel_size,
         )
 
         # Background model

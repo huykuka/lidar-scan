@@ -229,10 +229,6 @@ class VehicleProfilerNode(ModuleNode):
         position = self._detector.current_position
 
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
-        # logger.info(
-        #     f"[{self.id}] scan line added | scan_count={self._profiler.scan_count} "
-        #     f"position={position:.4f} m"
-        # )
 
         if not self._stream_partial:
             return

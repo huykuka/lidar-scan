@@ -13,16 +13,103 @@ merge into a unified profile — their points are already aligned by their
 respective pose transforms before reaching this accumulator.
 
 Usage:
-    acc = ProfileAccumulator(travel_axis=0)  # 0=X, 1=Y, 2=Z
+    gate = SideLidarGate(bg_threshold=0.3, bg_learning_frames=20)
+    acc = ProfileAccumulator(travel_axis=0)
     acc.start_vehicle()
     for frame in side_frames:
-        acc.add_scan_line(sensor_id, points, position, timestamp)
+        vehicle_pts = gate.filter(frame.points)
+        if vehicle_pts is not None:
+            acc.add_scan_line(sensor_id, vehicle_pts, position, timestamp)
     profile = acc.finish_vehicle()
 """
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
+
+
+class SideLidarGate:
+    """Self-gating filter for side LiDARs — learns background, passes only vehicle points.
+
+    Each side LiDAR independently learns a per-beam background distance model
+    during the first N frames (empty scene).  After learning, each incoming
+    frame is checked: beams significantly closer than background are vehicle
+    points.  If enough vehicle points are present, the filtered (vehicle-only)
+    points are returned; otherwise None (skip this frame).
+
+    This prevents accumulating empty/background slices into the profile when
+    the truck hasn't reached (or has already passed) this sensor's FOV.
+
+    Args:
+        bg_threshold:        Distance delta (m) above background to be considered vehicle.
+        bg_learning_frames:  Number of initial frames for background model.
+        min_vehicle_points:  Minimum foreground points to accept a frame as "vehicle present".
+    """
+
+    def __init__(
+        self,
+        bg_threshold: float = 0.3,
+        bg_learning_frames: int = 20,
+        min_vehicle_points: int = 5,
+    ) -> None:
+        self._bg_threshold = bg_threshold
+        self._bg_learning_frames = bg_learning_frames
+        self._min_vehicle_points = min_vehicle_points
+
+        self._bg_accumulator: List[np.ndarray] = []
+        self._bg_distances: Optional[np.ndarray] = None
+
+    @property
+    def background_ready(self) -> bool:
+        """True once background model has been learned."""
+        return self._bg_distances is not None
+
+    def filter(self, points: np.ndarray) -> Optional[np.ndarray]:
+        """Process one scan frame from a side LiDAR.
+
+        Args:
+            points: (N, 2+) array of scan points (spatial coordinates).
+
+        Returns:
+            Filtered vehicle-only points if vehicle is present, None otherwise.
+            During background learning, returns None (frame is consumed for learning).
+        """
+        if points is None or len(points) < 2:
+            return None
+
+        distances = np.linalg.norm(points[:, :2], axis=1)
+
+        # --- Background learning phase ---
+        if self._bg_distances is None:
+            self._bg_accumulator.append(distances)
+            if len(self._bg_accumulator) >= self._bg_learning_frames:
+                max_len = max(len(d) for d in self._bg_accumulator)
+                padded = np.full((len(self._bg_accumulator), max_len), np.nan)
+                for i, d in enumerate(self._bg_accumulator):
+                    padded[i, : len(d)] = d
+                self._bg_distances = np.nanmedian(padded, axis=0)
+                self._bg_accumulator.clear()
+                logger.debug("SideLidarGate: background learned")
+            return None
+
+        # --- Gating: background subtraction ---
+        n = min(len(distances), len(self._bg_distances))
+        delta = self._bg_distances[:n] - distances[:n]
+        vehicle_mask = delta > self._bg_threshold
+        n_vehicle = int(vehicle_mask.sum())
+
+        if n_vehicle < self._min_vehicle_points:
+            return None
+
+        return points[:n][vehicle_mask]
+
+    def reset(self) -> None:
+        """Full reset — re-learn background."""
+        self._bg_accumulator.clear()
+        self._bg_distances = None
 
 
 @dataclass
