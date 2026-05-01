@@ -33,9 +33,9 @@ node_schema_registry.register(
         category="application",
         description=(
             "Multi-2D-LiDAR vehicle profiling node. Uses one vertically-mounted "
-            "LiDAR to measure vehicle velocity (Kalman-filtered) and one or more "
-            "side-mounted LiDARs to reconstruct the vehicle's cross-section profile. "
-            "Outputs a 3D point cloud of the vehicle shape."
+            "LiDAR (full gantry FOV) to measure vehicle velocity via cluster centroid "
+            "NN tracking, and one or more side-mounted LiDARs to reconstruct the "
+            "vehicle's cross-section profile. Outputs a 3D point cloud of the vehicle shape."
         ),
         icon="directions_car",
         websocket_enabled=True,
@@ -55,34 +55,77 @@ node_schema_registry.register(
                     "auto-select the first connected sensor."
                 ),
             ),
-            # ── Kalman Filter ─────────────────────────────────────────────
+            # ── Cluster Tracker (ICP) ─────────────────────────────────────
             PropertySchema(
-                name="process_noise",
-                label="Process Noise (Q)",
+                name="max_correspondence_distance",
+                label="ICP Max Correspondence Distance (m)",
                 type="number",
-                default=0.1,
-                min=0.001,
-                max=10.0,
-                step=0.01,
+                default=0.5,
+                min=0.05,
+                max=5.0,
+                step=0.05,
                 help_text=(
-                    "Kalman filter process noise. Higher values make the filter "
-                    "trust measurements more (faster response, more jitter). "
-                    "Lower values trust the constant-velocity model more "
-                    "(smoother but slower to react)."
+                    "Maximum point-to-point distance (metres) for ICP "
+                    "correspondences. Set to roughly 2× the expected distance "
+                    "the vehicle travels per scan frame — e.g. 0.5 m for a "
+                    "vehicle moving at 5 m/s scanned at 20 Hz."
                 ),
             ),
             PropertySchema(
-                name="measurement_noise",
-                label="Measurement Noise (R)",
+                name="min_icp_fitness",
+                label="Min ICP Fitness",
+                type="number",
+                default=0.3,
+                min=0.05,
+                max=1.0,
+                step=0.0001,
+                help_text=(
+                    "Minimum ICP fitness score [0–1] to accept a registration "
+                    "result as a valid velocity measurement. Below this threshold "
+                    "the Kalman filter runs a predict-only step (dead-reckoning "
+                    "at last velocity)."
+                ),
+            ),
+            PropertySchema(
+                name="voxel_size",
+                label="Voxel Down-sample Size (m)",
+                type="number",
+                default=0.0,
+                min=0.0,
+                max=0.5,
+                step=0.01,
+                help_text=(
+                    "Voxel size (metres) for down-sampling cluster clouds before "
+                    "ICP. Reduces computation on dense point clouds. 0 = disabled."
+                ),
+            ),
+            PropertySchema(
+                name="max_displacement",
+                label="Max Displacement per Frame (m)",
                 type="number",
                 default=0.5,
                 min=0.01,
-                max=50.0,
-                step=0.1,
+                max=5.0,
+                step=0.01,
                 help_text=(
-                    "Kalman filter measurement noise. Higher values mean noisier "
-                    "edge-position measurements — the filter will smooth more "
-                    "aggressively. Increase for noisy or reflective environments."
+                    "Maximum ICP displacement per frame (metres). Any result "
+                    "exceeding this is rejected as noise. Set to roughly the "
+                    "maximum expected travel per scan frame (max_speed / scan_rate)."
+                ),
+            ),
+            PropertySchema(
+                name="min_displacement",
+                label="Min Displacement (Dead-zone) (m)",
+                type="number",
+                default=0.005,
+                min=0.0,
+                max=0.1,
+                step=0.001,
+                help_text=(
+                    "Dead-zone threshold (metres). ICP displacements below this "
+                    "are treated as zero (truck static). Prevents noise accumulation "
+                    "from ICP jitter on stationary vehicles. Set above ICP noise "
+                    "floor (~0.003–0.005 m for typical 2D LiDAR)."
                 ),
             ),
             # ── Vehicle Detection ─────────────────────────────────────────
@@ -93,7 +136,7 @@ node_schema_registry.register(
                 default=0.3,
                 min=0.05,
                 max=5.0,
-                step=0.05,
+                step=0.001,
                 help_text=(
                     "Distance (metres) closer than the learned background to "
                     "classify a point as belonging to a vehicle. Increase for "
@@ -115,22 +158,6 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="absence_hold_frames",
-                label="Absence Hold Frames",
-                type="number",
-                default=10,
-                min=1,
-                max=100,
-                step=1,
-                help_text=(
-                    "Number of consecutive frames with no vehicle points to "
-                    "tolerate before declaring the vehicle gone. During this "
-                    "hold period the position is predicted forward using the "
-                    "last known velocity. Increase to bridge longer gaps such "
-                    "as open bins or trailer gaps."
-                ),
-            ),
-            PropertySchema(
                 name="min_vehicle_points",
                 label="Min Vehicle Points",
                 type="number",
@@ -144,22 +171,6 @@ node_schema_registry.register(
                     "fewer points (e.g. bin walls, trailer gaps) are treated "
                     "as absence and the position is predicted forward instead. "
                     "Increase if bin interiors are pulling the position back to zero."
-                ),
-            ),
-            PropertySchema(
-                name="innovation_gate",
-                label="Innovation Gate (m)",
-                type="number",
-                default=0.5,
-                min=0.05,
-                max=5.0,
-                step=0.05,
-                help_text=(
-                    "Maximum allowed deviation (metres) between a new edge "
-                    "measurement and the predicted position. Measurements "
-                    "outside this gate are rejected and the filter predicts "
-                    "forward instead. Prevents bin walls or floor reflections "
-                    "from pulling the position back to zero."
                 ),
             ),
             PropertySchema(
@@ -177,23 +188,6 @@ node_schema_registry.register(
                     "2D scan plane) and the profile accumulator (stacking "
                     "scan lines along this axis in 3D). Typically X or Y "
                     "depending on your sensor mounting orientation."
-                ),
-            ),
-            PropertySchema(
-                name="min_velocity",
-                label="Min Velocity (m/s)",
-                type="number",
-                default=0.05,
-                min=0.0,
-                max=10.0,
-                step=0.01,
-                help_text=(
-                    "Minimum forward velocity (m/s) required to accept profile "
-                    "scan lines. Scans captured while the vehicle is stationary "
-                    "or moving backwards are discarded to prevent the profile "
-                    "from accumulating indefinitely. At 20 Hz scan rate, 0.05 m/s "
-                    "corresponds to ~2.5 mm of movement per frame. Set to 0 to "
-                    "accept all scans regardless of speed."
                 ),
             ),
            

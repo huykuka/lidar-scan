@@ -1,197 +1,303 @@
 """
-Vehicle detection and Kalman-filtered position tracking from a vertical 2D LiDAR.
+Vehicle detection and displacement-based profiling from a vertical 2D LiDAR.
 
-The vertical LiDAR scans a plane perpendicular to the vehicle's travel direction.
-When a vehicle enters the scan plane, points suddenly become much closer than the
-background.  The leading edge position is tracked frame-to-frame and a Kalman
-filter smooths the position estimate.
+Physical setup:
+    The vertical LiDAR scans a plane along the travel direction, covering the
+    full gantry width so both the leading and trailing edges of the truck are
+    visible throughout the entire pass.
 
-State vector:  [position, velocity]  (along the travel axis, metres / m/s)
-Measurement:   leading-edge position extracted from each scan line
+    A single cluster (the truck cross-section) is extracted each frame by
+    background subtraction.  To measure how far the cluster moved between
+    frames, the two consecutive cluster point clouds are aligned with an
+    Open3D Point-to-Point ICP registration.  The travel-axis component of
+    the resulting rigid-body translation is the per-frame displacement.
 
-Usage:
-    detector = VehicleDetector(process_noise=0.1, measurement_noise=0.5)
+    Position is accumulated directly from ICP displacements — no velocity
+    computation or temporal integration needed.  This avoids noise
+    amplification from dividing by dt and subsequent re-integration.
 
-    for frame in frames:
-        result = detector.update(scan_points, timestamp)
-        if result is not None:
-            print(result.position, result.vehicle_present)
+Algorithm:
+    1. Background learning  — per-beam median from empty scene.
+    2. Vehicle detection    — background subtraction; cluster = foreground points.
+    3. ICP registration     — align previous cluster to current cluster cloud.
+    4. Displacement extract — travel-axis translation from ICP transform.
+    5. Position accumulate  — position += displacement (no velocity/dt).
+    6. Stop                 — cluster absent for > gap_debounce_s → finalize.
 """
-import csv
+import logging
 from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
+from scipy.signal import correlate
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class DetectionResult:
-    """Output of a single vehicle detector update."""
-    position: float
-    raw_edge_position: float
+    """Output of a single detector update."""
+    position: float           # integrated travel distance (metres)
+    centroid_position: float  # cluster centroid on travel axis (metres), 0 if unavailable
+    velocity: float           # current velocity estimate (m/s)
     timestamp: float
     vehicle_present: bool
+    icp_valid: bool = True    # False when ICP failed — caller should skip this frame
 
 
-class PositionTracker:
-    """Kalman filter for 1D position/velocity tracking.
+class ClusterTracker:
+    """Estimate per-frame displacement via 1-D cross-correlation of height profile.
 
-    State:       [position, velocity]  — metres / m/s
-    Model:       constant-velocity  x(t+1) = F·x(t)
-    Observation: position only       z = H·x
+    The vertical LiDAR produces a 2-D scan in the XZ plane (X = travel, Z = height).
+    Between consecutive frames the entire profile shifts by δx along the travel axis.
 
-    Separate predict / update steps give full control:
-      - predict()        → advance state by dt with no sensor input
-      - update(z)        → correct state with a new measurement
-      - predict_update() → both in one call (normal frame)
-    """
+    Cross-correlation directly finds the lag δx that best aligns the two 1-D
+    height signals.  It is immune to the rotation-translation degeneracy that
+    breaks ICP on small per-frame displacements (δx ≈ mm at 50 Hz), regardless
+    of whether the surface is flat (bin) or curved (cabin).
 
-    def __init__(self, process_noise: float = 0.1, measurement_noise: float = 0.5):
-        self._q = process_noise      # process noise scaling
-        self._r = measurement_noise  # measurement noise (m²)
-
-        # State and covariance
-        self._x = np.zeros(2)            # [position, velocity]
-        self._P = np.eye(2) * 1000.0    # large initial uncertainty
-        self._H = np.array([[1.0, 0.0]])  # observe position only
-        self._R = np.array([[measurement_noise]])
-        self._initialized = False
-        self._update_count: int = 0     # number of accepted updates so far
-        self._rejected_count: int = 0   # consecutive gate rejections
-
-    def _F_Q(self, dt: float):
-        """Transition matrix and process noise for time step dt."""
-        F = np.array([[1.0, dt],
-                      [0.0, 1.0]])
-        Q = np.array([
-            [self._q * dt ** 3 / 3.0, self._q * dt ** 2 / 2.0],
-            [self._q * dt ** 2 / 2.0, self._q * dt],
-        ])
-        return F, Q
-
-    def predict(self, dt: float) -> None:
-        """Advance state forward by dt with no measurement."""
-        if dt <= 0:
-            dt = 1e-6
-        F, Q = self._F_Q(dt)
-        self._x = F @ self._x
-        self._P = F @ self._P @ F.T + Q
-
-    def update(self, z: float) -> None:
-        """Correct state with measurement z (position in metres)."""
-        H, R = self._H, self._R
-        S = H @ self._P @ H.T + R
-        K = self._P @ H.T @ np.linalg.inv(S)
-        self._x = self._x + K @ (np.array([z]) - H @ self._x)
-        self._P = (np.eye(2) - K @ H) @ self._P
-        self._update_count += 1
-
-    @property
-    def is_confident(self) -> bool:
-        """True once the filter has processed enough updates to trust its velocity."""
-        return self._update_count >= 5
-
-    def predict_update(self, z: float, dt: float) -> None:
-        """Predict then update — normal per-frame call."""
-        self.predict(dt)
-        self.update(z)
-
-    def initialize(self, position: float) -> None:
-        self._x = np.array([position, 0.0])
-        self._P = np.eye(2) * 1000.0
-        self._initialized = True
-
-    @property
-    def position(self) -> float:
-        return float(self._x[0])
-
-    @property
-    def velocity(self) -> float:
-        return float(self._x[1])
-
-    @property
-    def initialized(self) -> bool:
-        return self._initialized
-
-    def reset(self) -> None:
-        self._x = np.zeros(2)
-        self._P = np.eye(2) * 1000.0
-        self._initialized = False
-        self._update_count = 0
-        self._rejected_count = 0
-
-
-class VehicleDetector:
-    """Detects vehicles and tracks their Kalman-filtered position from a vertical 2D LiDAR.
-
-    Detection strategy:
-      1. Compute a background distance model from initial frames (median).
-      2. Points significantly closer than background indicate the vehicle.
-      3. The leading edge position is fed into a Kalman filter for smooth tracking.
-      4. Short gaps (bin, trailer) are bridged by dead-reckoning using the
-         estimated velocity.
+    Algorithm per frame:
+        1. Bin cluster points onto a regular X grid (bin_size).
+        2. For each bin take the maximum height (robust to outliers, captures top surface).
+        3. Cross-correlate the current and previous height arrays.
+        4. argmax of cross-correlation in [-max_lag_bins, +max_lag_bins] → shift.
+        5. displacement = shift × bin_size.
 
     Args:
-        process_noise:        Kalman Q — trust in constant-velocity model.
-        measurement_noise:    Kalman R — trust in the raw edge measurement.
-        bg_threshold:         Distance (m) closer than background to classify as vehicle.
-        bg_learning_frames:   Initial frames used to learn the background.
-        travel_axis:          Axis index for vehicle travel direction (0=X, 1=Y).
-        absence_hold_frames:  Consecutive empty frames to tolerate before declaring
-                              vehicle gone. Bridges bin/trailer gaps.
+        travel_axis:     Axis index for travel direction (0 = X).
+        height_axis:     Axis index for height / range (1 = Y for a XY 2-D scan).
+        bin_size:        Grid resolution in metres (default 5 mm).
+        max_displacement: Outlier gate — reject if shift exceeds this (m).
+        min_displacement: Dead-zone — return 0 if below this (m).
+        grid_min / grid_max: Fixed scan extent in metres along travel axis.
+                             If None, inferred from first frame.
     """
 
     def __init__(
         self,
-        process_noise: float = 0.1,
-        measurement_noise: float = 0.5,
+        travel_axis: int = 0,
+        height_axis: int = 1,
+        bin_size: float = 0.005,
+        max_displacement: float = 0.5,
+        min_displacement: float = 0.001,
+        grid_min: Optional[float] = None,
+        grid_max: Optional[float] = None,
+        # kept for API compatibility
+        max_correspondence_distance: float = 0.5,
+        min_icp_fitness: float = 0.3,
+        voxel_size: float = 0.0,
+        dead_reckon_frames: int = 0,
+    ) -> None:
+        self._travel_axis = travel_axis
+        self._height_axis = height_axis
+        self._bin_size = bin_size
+        self._max_displacement = max_displacement
+        self._min_displacement = min_displacement
+        self._grid_min = grid_min
+        self._grid_max = grid_max
+
+        self._prev_profile: Optional[np.ndarray] = None
+        self._last_displacement: float = 0.0
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _to_profile(self, points: np.ndarray) -> np.ndarray:
+        """Project cluster points onto a 1-D height array indexed by travel position."""
+        x = points[:, self._travel_axis]
+        z = points[:, self._height_axis]
+
+        g_min = self._grid_min if self._grid_min is not None else float(x.min())
+        g_max = self._grid_max if self._grid_max is not None else float(x.max())
+
+        n_bins = max(int(np.ceil((g_max - g_min) / self._bin_size)), 1)
+        profile = np.full(n_bins, np.nan)
+
+        indices = np.clip(
+            ((x - g_min) / self._bin_size).astype(int), 0, n_bins - 1
+        )
+        for i, h in zip(indices, z):
+            # Minimum range per bin = closest point = highest truck surface.
+            # For a top-down sensor, smaller range means taller feature.
+            if np.isnan(profile[i]) or h < profile[i]:
+                profile[i] = h
+
+        # Fill NaN bins with linear interpolation so correlation is well-defined
+        nans = np.isnan(profile)
+        if nans.all():
+            return profile
+        xs = np.arange(n_bins)
+        profile[nans] = np.interp(xs[nans], xs[~nans], profile[~nans])
+        return profile
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def update(self, points: np.ndarray, timestamp: float) -> Optional[float]:
+        """Cross-correlate current height profile with previous; return displacement.
+
+        Returns:
+            Displacement in metres (forward positive), or None if rejected.
+        """
+        profile = self._to_profile(points)
+
+        if self._prev_profile is None or len(profile) != len(self._prev_profile):
+            self._prev_profile = profile
+            return 0.0
+
+        # correlate(current, prev) peaks at +lag when current is shifted
+        # forward by lag bins relative to prev (forward truck motion).
+        # Mean-subtract each profile so the flat background (DC component)
+        # does not dominate the correlation and wash out the truck-feature peak.
+        p_curr = profile - profile.mean()
+        p_prev = self._prev_profile - self._prev_profile.mean()
+        max_lag_bins = max(1, int(self._max_displacement / self._bin_size))
+        corr = correlate(p_curr, p_prev, mode="full")
+        center = len(corr) // 2
+        lo = max(0, center - max_lag_bins)
+        hi = min(len(corr), center + max_lag_bins + 1)
+        shift_bins = int(np.argmax(corr[lo:hi])) - (center - lo)
+        displacement = float(shift_bins * self._bin_size)
+
+        self._prev_profile = profile
+
+        # Forward-only
+        displacement = max(0.0, displacement)
+
+        # Outlier gate
+        if displacement > self._max_displacement:
+            logger.info(f"xcorr displacement {displacement:.4f}m > max — rejected")
+            return None
+
+        # Dead-zone
+        if displacement < self._min_displacement:
+            displacement = 0.0
+
+        self._last_displacement = displacement
+        logger.info(
+            f"xcorr shift={shift_bins} bins  displacement={displacement:.4f}m"
+        )
+        return displacement
+
+    def reset(self) -> None:
+        self._prev_profile = None
+        self._last_displacement = 0.0
+
+    @property
+    def last_displacement(self) -> float:
+        return self._last_displacement
+
+    @property
+    def initialized(self) -> bool:
+        return self._prev_profile is not None
+
+
+class VehicleDetector:
+    """Detects vehicles and tracks travel distance from a vertical 2D LiDAR.
+
+    Position is accumulated directly from ICP displacements — no velocity needed.
+
+    Args:
+        bg_threshold:                Delta (m) above background → vehicle point.
+        bg_learning_frames:          Frames for background learning.
+        travel_axis:                 Axis for vehicle travel (0=X, 1=Y, 2=Z).
+        gap_debounce_s:              Seconds of absent cluster before departure.
+        min_vehicle_points:          Min foreground points to accept a frame.
+        bin_size:                    Cross-correlation grid resolution (m).
+        max_displacement:            Max per-frame displacement (m). Rejects outliers.
+        min_displacement:            Dead-zone (m). Below this → static.
+        grid_min / grid_max:         Fixed scan extent along travel axis (m). None = infer.
+    """
+
+    def __init__(
+        self,
         bg_threshold: float = 0.3,
         bg_learning_frames: int = 20,
         travel_axis: int = 0,
-        absence_hold_frames: int = 10,
+        gap_debounce_s: float = 3.0,
         min_vehicle_points: int = 5,
-        innovation_gate: float = 0.5,
-    ):
-        self._kf = PositionTracker(process_noise, measurement_noise)
+        bin_size: float = 0.005,
+        max_displacement: float = 0.5,
+        min_displacement: float = 0.001,
+        grid_min: Optional[float] = None,
+        grid_max: Optional[float] = None,
+        # kept for API compatibility
+        max_correspondence_distance: float = 0.5,
+        min_icp_fitness: float = 0.3,
+        voxel_size: float = 0.0,
+    ) -> None:
         self._bg_threshold = bg_threshold
         self._bg_learning_frames = bg_learning_frames
         self._travel_axis = travel_axis
-        self._absence_hold_frames = absence_hold_frames
+        self._gap_debounce_s = gap_debounce_s
         self._min_vehicle_points = min_vehicle_points
-        self._innovation_gate = innovation_gate
 
+        self._tracker = ClusterTracker(
+            travel_axis=travel_axis,
+            bin_size=bin_size,
+            max_displacement=max_displacement,
+            min_displacement=min_displacement,
+            grid_min=grid_min,
+            grid_max=grid_max,
+        )
+
+        # Background model
         self._bg_accumulator: list[np.ndarray] = []
         self._bg_distances: Optional[np.ndarray] = None
-        self._last_t: Optional[float] = None
-        self._vehicle_present = False
-        self._absence_count: int = 0
 
-        # Travel distance: integrated from velocity×dt, never reset on filter
-        # reinitialisation so the profile coordinate never jumps backwards.
+        # Tracking state
+        self._last_t: Optional[float] = None
+        self._vehicle_present: bool = False
+        self._absence_since: Optional[float] = None
         self._travel_distance: float = 0.0
 
-        # Debug recording
-        self._debug_records: list[dict] = []
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _result(
+        self,
+        timestamp: float,
+        centroid_pos: float = 0.0,
+        present: bool = True,
+        icp_valid: bool = True,
+    ) -> DetectionResult:
+        return DetectionResult(
+            position=self._travel_distance,
+            centroid_position=centroid_pos,
+            velocity=0.0,  # no longer computed
+            timestamp=timestamp,
+            vehicle_present=present,
+            icp_valid=icp_valid,
+        )
+
+    def _stop(self, timestamp: float) -> DetectionResult:
+        self._vehicle_present = False
+        self._absence_since = None
+        self._last_t = timestamp
+        return self._result(timestamp, present=False)
+
+    # ------------------------------------------------------------------
+    # Main update
+    # ------------------------------------------------------------------
 
     def update(self, points: np.ndarray, timestamp: float) -> Optional[DetectionResult]:
-        """Process one scan frame and return the detection/position result.
-
-        Returns None during background learning. After that always returns a
-        DetectionResult with vehicle_present True/False.
-        """
+        """Process one scan frame.  Returns None during background learning."""
         if points is None or len(points) < 2:
             return None
 
         distances = np.linalg.norm(points[:, :2], axis=1)
 
-        # --- Background learning phase ---
+        # --- Background learning ---
         if self._bg_distances is None:
             self._bg_accumulator.append(distances)
             if len(self._bg_accumulator) >= self._bg_learning_frames:
                 max_len = max(len(d) for d in self._bg_accumulator)
                 padded = np.full((len(self._bg_accumulator), max_len), np.nan)
                 for i, d in enumerate(self._bg_accumulator):
-                    padded[i, :len(d)] = d
+                    padded[i, : len(d)] = d
                 self._bg_distances = np.nanmedian(padded, axis=0)
                 self._bg_accumulator.clear()
             return None
@@ -200,129 +306,70 @@ class VehicleDetector:
         n = min(len(distances), len(self._bg_distances))
         delta = self._bg_distances[:n] - distances[:n]
         vehicle_mask = delta > self._bg_threshold
-        vehicle_indices = np.nonzero(vehicle_mask)[0]
+        n_vehicle = int(vehicle_mask.sum())
 
-        if len(vehicle_indices) == 0:
+        # --- No cluster (or below min points threshold) ---
+        if n_vehicle < self._min_vehicle_points:
             if self._vehicle_present:
-                self._absence_count += 1
-
-                if self._absence_count <= self._absence_hold_frames:
-                    # Bridge the gap — predict only, no measurement.
-                    dt = timestamp - self._last_t if self._last_t is not None else 0.0
-                    self._last_t = timestamp
-                    self._kf.predict(dt)
-                    self._travel_distance += self._kf.velocity * dt
-                    return DetectionResult(
-                        position=self._travel_distance,
-                        raw_edge_position=0.0,
-                        timestamp=timestamp,
-                        vehicle_present=True,
-                    )
-
-                # Hold exhausted — vehicle truly left
-                self._vehicle_present = False
-                self._absence_count = 0
-                self._kf.reset()
-
+                if self._absence_since is None:
+                    self._absence_since = timestamp
+                if (timestamp - self._absence_since) < self._gap_debounce_s:
+                    # During gap debounce, position stays frozen (no displacement)
+                    return self._result(timestamp, present=True)
+                return self._stop(timestamp)
             self._last_t = timestamp
-            return DetectionResult(
-                position=self._kf.position,
-                raw_edge_position=0.0,
-                timestamp=timestamp,
-                vehicle_present=False,
-            )
+            return self._result(timestamp, present=False)
 
-        # --- Vehicle points found ---
-        # Require a minimum number of points to accept the measurement.
-        # Bin walls / floor give only a few stray points at the wrong position —
-        # treat those frames the same as absence (predict only).
-        if len(vehicle_indices) < self._min_vehicle_points:
-            if self._vehicle_present and self._kf.initialized:
-                dt = timestamp - self._last_t if self._last_t is not None else 0.0
-                self._last_t = timestamp
-                self._kf.predict(dt)
-                self._travel_distance += self._kf.velocity * dt
-                return DetectionResult(
-                    position=self._travel_distance,
-                    raw_edge_position=0.0,
-                    timestamp=timestamp,
-                    vehicle_present=True,
-                )
+        # --- Cluster present — clear gap debounce ---
+        self._absence_since = None
+        vehicle_pts = points[:n][vehicle_mask]
+        spatial_pts = vehicle_pts[:, :3] if vehicle_pts.shape[1] >= 3 else vehicle_pts[:, :2]
 
-        self._absence_count = 0
+        centroid_pos = float(spatial_pts[:, self._travel_axis].mean())
 
-        vehicle_points = points[:n][vehicle_mask]
-        edge_position = float(np.min(vehicle_points[:, self._travel_axis]))
-
-        dt = timestamp - self._last_t if self._last_t is not None else 0.0
         self._last_t = timestamp
 
-        if not self._kf.initialized:
-            self._kf.initialize(edge_position)
+        # --- First detection: seed tracker ---
+        if not self._vehicle_present:
+            self._tracker.update(spatial_pts, timestamp)
             self._vehicle_present = True
-            return DetectionResult(
-                position=self._travel_distance,
-                raw_edge_position=edge_position,
-                timestamp=timestamp,
-                vehicle_present=True,
-            )
+            return self._result(timestamp, centroid_pos=centroid_pos, present=True)
 
-        # Innovation gate — only apply once the filter is confident about velocity.
-        # In the first few frames velocity=0 so the gate would reject everything
-        # and keep position stuck. Always accept measurements until we're confident.
-        predicted = self._kf.position + self._kf.velocity * dt
-        innovation = abs(edge_position - predicted)
-        self._kf.predict(dt)
+        # --- Normal tracking: ICP → displacement → accumulate position ---
+        displacement = self._tracker.update(spatial_pts, timestamp)
 
-        if not self._kf.is_confident or innovation <= self._innovation_gate:
-            self._kf.update(edge_position)
-            self._kf._rejected_count = 0
+        if displacement is not None:
+            self._travel_distance += displacement
+            return self._result(timestamp, centroid_pos=centroid_pos, present=True)
         else:
-            self._kf._rejected_count += 1
-            # Divergence guard: if the filter has been consistently wrong for
-            # too many consecutive frames, it has diverged (e.g. truck stopped
-            # while velocity estimate is still large). Reinitialize to the
-            # current measurement so tracking can recover.
-            if self._kf._rejected_count >= 10:
-                self._kf.reset()
-                self._kf.update(edge_position)
+            # ICP failed — position frozen this frame
+            return self._result(timestamp, centroid_pos=centroid_pos, present=True, icp_valid=False)
 
-        # Accumulate travel distance from the filtered velocity — this never
-        # jumps on filter reinitialisation because it is purely integrative.
-        self._travel_distance += self._kf.velocity * dt
-        self._vehicle_present = True
-
-        return DetectionResult(
-            position=self._travel_distance,
-            raw_edge_position=edge_position,
-            timestamp=timestamp,
-            vehicle_present=True,
-        )
+    # ------------------------------------------------------------------
+    # Reset
+    # ------------------------------------------------------------------
 
     def reset_tracking(self) -> None:
-        """Reset Kalman state and vehicle presence, preserving the background model."""
-        self._kf.reset()
+        """Reset tracking state, preserve background model."""
+        self._tracker.reset()
         self._last_t = None
         self._vehicle_present = False
-        self._absence_count = 0
+        self._absence_since = None
         self._travel_distance = 0.0
 
     def reset(self) -> None:
-        """Full reset including the background model."""
+        """Full reset including background model."""
         self.reset_tracking()
         self._bg_accumulator.clear()
         self._bg_distances = None
 
-    def dump_csv(self, path: str = "/tmp/vehicle_detector_debug.csv") -> str:
-        """Write recorded position/velocity samples to CSV and return the path."""
-        if not self._debug_records:
-            return path
-        with open(path, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=self._debug_records[0].keys())
-            writer.writeheader()
-            writer.writerows(self._debug_records)
-        self._debug_records.clear()
-        return path
+    # ------------------------------------------------------------------
+    # Debug
+    # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # Accessors
+    # ------------------------------------------------------------------
 
     @property
     def vehicle_present(self) -> bool:
@@ -330,8 +377,10 @@ class VehicleDetector:
 
     @property
     def current_position(self) -> float:
+        """Integrated travel distance (metres) — profile coordinate."""
         return self._travel_distance
 
     @property
     def current_velocity(self) -> float:
-        return self._kf.velocity if self._kf.initialized else 0.0
+        """Deprecated — returns 0. Use position directly."""
+        return 0.0

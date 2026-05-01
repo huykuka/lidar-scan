@@ -68,24 +68,28 @@ class VehicleProfilerNode(ModuleNode):
         self._velocity_sensor_id = velocity_sensor_id
 
         # Vehicle detector params
-        process_noise = float(config.get("process_noise", 0.1))
-        measurement_noise = float(config.get("measurement_noise", 0.5))
         bg_threshold = float(config.get("bg_threshold", 0.3))
         bg_learning_frames = int(config.get("bg_learning_frames", 20))
         travel_axis = int(config.get("travel_axis", 0))
-        absence_hold_frames = int(config.get("absence_hold_frames", 10))
         min_vehicle_points = int(config.get("min_vehicle_points", 5))
-        innovation_gate = float(config.get("innovation_gate", 0.5))
+        max_correspondence_distance = float(config.get("max_correspondence_distance", 0.5))
+        min_icp_fitness = float(config.get("min_icp_fitness", 0.3))
+        voxel_size = float(config.get("voxel_size", 0.0))
+        max_displacement = float(config.get("max_displacement", 0.5))
+        min_displacement = float(config.get("min_displacement", 0.005))
+        gap_debounce_s = float(config.get("gap_debounce_s", 3.0))
 
         self._detector = VehicleDetector(
-            process_noise=process_noise,
-            measurement_noise=measurement_noise,
             bg_threshold=bg_threshold,
             bg_learning_frames=bg_learning_frames,
             travel_axis=travel_axis,
-            absence_hold_frames=absence_hold_frames,
+            gap_debounce_s=gap_debounce_s,
             min_vehicle_points=min_vehicle_points,
-            innovation_gate=innovation_gate,
+            max_correspondence_distance=max_correspondence_distance,
+            min_icp_fitness=min_icp_fitness,
+            voxel_size=voxel_size,
+            max_displacement=max_displacement,
+            min_displacement=min_displacement,
         )
 
         # Profile accumulator params
@@ -100,9 +104,6 @@ class VehicleProfilerNode(ModuleNode):
             min_position_delta=min_position_delta,
         )
 
-        # Minimum forward velocity to accept profile scan lines.
-        self._min_velocity = float(config.get("min_velocity", 0.0))
-
         # Stream partial (accumulated) profile in real-time while measuring.
         self._stream_partial = bool(config.get("stream_partial", False))
 
@@ -110,9 +111,10 @@ class VehicleProfilerNode(ModuleNode):
         self._state = _State.IDLE
         self._vehicles_counted: int = 0
 
-        # Concurrency guard — prevents re-entrant frame processing when
-        # asyncio.to_thread yields control back to the event loop.
-        self._processing: bool = False
+        # Independent processing guards — velocity (ICP) and profile frames
+        # run concurrently so a slow ICP call never drops a profile frame.
+        self._velocity_processing: bool = False
+        self._profile_processing: bool = False
 
         # Runtime stats
         self.last_input_at: Optional[float] = None
@@ -132,13 +134,8 @@ class VehicleProfilerNode(ModuleNode):
         if points is None or len(points) == 0:
             return
 
-        if self._processing:
-            logger.debug(f"[{self.id}] Dropping frame — node is still processing previous frame")
-            return
-
         timestamp = payload.get("timestamp", time.time())
         self.last_input_at = time.time()
-        self._processing = True
 
         try:
             # Match velocity sensor by either lidar_id or node_id so that
@@ -151,16 +148,28 @@ class VehicleProfilerNode(ModuleNode):
                 or payload.get("lidar_id") == self._velocity_sensor_id
             )
             if is_velocity:
-                await self._handle_velocity_frame(points, timestamp)
+                if self._velocity_processing:
+                    logger.debug(f"[{self.id}] Dropping velocity frame — ICP still running")
+                    return
+                self._velocity_processing = True
+                try:
+                    await self._handle_velocity_frame(points, timestamp)
+                finally:
+                    self._velocity_processing = False
             else:
-                await self._handle_profile_frame(source_id, points, timestamp)
+                if self._profile_processing:
+                    logger.debug(f"[{self.id}] Dropping profile frame — previous profile frame still processing")
+                    return
+                self._profile_processing = True
+                try:
+                    await self._handle_profile_frame(source_id, points, timestamp)
+                finally:
+                    self._profile_processing = False
             self.last_error = None
         except Exception as e:
             self.last_error = str(e)
             logger.error(f"[{self.id}] Error processing frame from {source_id}: {e}", exc_info=True)
             notify_status_change(self.id)
-        finally:
-            self._processing = False
 
     def emit_status(self) -> NodeStatusUpdate:
         if self.last_error:
@@ -202,7 +211,6 @@ class VehicleProfilerNode(ModuleNode):
 
         if result is None:
             return
-
         if result.vehicle_present and self._state == _State.IDLE:
             self._state = _State.MEASURING
             self._profiler.start_vehicle()
@@ -218,20 +226,13 @@ class VehicleProfilerNode(ModuleNode):
         if self._state != _State.MEASURING:
             return
 
-        velocity = abs(self._detector.current_velocity)
-        if velocity < self._min_velocity:
-            print("[", self.id, "] Skipping profile scan — velocity ", velocity, " m/s < min_velocity ", self._min_velocity)
-            logger.debug(
-                f"[{self.id}] Skipping profile scan — velocity {velocity:.3f} m/s "
-                f"< min_velocity {self._min_velocity:.3f}"
-            )
-            # Keep the gap timer alive so that intentionally skipped frames
-            # do not cause a false gap-timeout that clears accumulated data.
-            self._profiler.touch_timestamp(timestamp)
-            return
-
         position = self._detector.current_position
+
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
+        # logger.info(
+        #     f"[{self.id}] scan line added | scan_count={self._profiler.scan_count} "
+        #     f"position={position:.4f} m"
+        # )
 
         if not self._stream_partial:
             return

@@ -11,7 +11,7 @@ from app.services.nodes.schema import (
 # --- Schema Definition ---
 node_schema_registry.register(NodeDefinition(
     type="debug_save",
-    display_name="Debug Save PCD",
+    display_name="Save PCD",
     category="operation",
     description="Saves point cloud to PCD files",
     icon="save",

@@ -3,10 +3,10 @@ Vehicle Profiler — Multi-2D-LiDAR vehicle velocity + side-profile reconstructi
 
 Overview
 --------
-One vertically-mounted LiDAR tracks the vehicle's leading-edge position
-(Kalman-filtered), while one or more side-mounted LiDARs capture cross-section
-scan lines.  The Kalman-filtered position is used directly as the along-track
-coordinate for each scan line, avoiding velocity-integration drift.
+One vertically-mounted LiDAR (full gantry FOV) tracks the vehicle cluster via
+Nearest-Neighbour centroid association, estimating velocity continuously from
+centroid displacement between frames.  One or more side-mounted LiDARs capture
+cross-section scan lines indexed by integrated travel distance.
 
 DAG Wiring
 ----------
@@ -31,45 +31,37 @@ Internal Pipeline
     on_input(payload)
         │
         ├── source == velocity_sensor_id?
-        │     └── VehicleDetector (detector.py)
+        │     └── VehicleDetector (utils/detector.py)
         │           ├── Background model (median per beam)
-        │           ├── Edge detection (threshold)
-        │           └── Kalman filter (1D, constant-velocity)
-        │                 → smoothed position & velocity
+        │           ├── Cluster extraction (background subtraction)
+        │           └── ClusterTracker (NN centroid association)
+        │                 → smoothed velocity & integrated position
         │
         └── source == any other sensor?
-              └── ProfileAccumulator (profiler.py)
+              └── ProfileAccumulator (utils/profiler.py)
                     ├── Accepts 2D & 3D (pose-transformed) points
-                    ├── Uses Kalman position directly as along-track Z
+                    ├── Uses integrated position as along-track coordinate
                     └── Multi-sensor merge automatic via pose transforms
-
-Multi-Sensor Merge
-------------------
-Side LiDARs at different mounting positions are aligned automatically:
-each ``LidarSensor`` node transforms its points to world space using its
-configured pose (XYZ + RPY) before forwarding.  The profiler preserves
-those world-space coordinates and uses the Kalman-filtered position as the
-along-track Z coordinate, producing a spatially consistent merged profile.
 
 File Structure
 --------------
-- ``node.py``      — VehicleProfilerNode: state machine, frame dispatch
-- ``detector.py``  — PositionTracker (pykalman) + VehicleDetector (bg model + edge detect)
-- ``profiler.py``  — ProfileAccumulator (2D/3D merge, along-track stacking)
-- ``registry.py``  — Schema (dynamic sensor dropdown, Kalman params) + factory
+- ``node.py``         — VehicleProfilerNode: state machine, frame dispatch
+- ``utils/detector.py`` — ClusterTracker (NN) + VehicleDetector (bg model + cluster track)
+- ``utils/profiler.py`` — ProfileAccumulator (2D/3D merge, along-track stacking)
+- ``registry.py``     — Schema + factory
 
 Configurable Parameters (UI)
 -----------------------------
-====================  ========  ==============================================
-Parameter             Default   Description
-====================  ========  ==============================================
-Velocity Sensor       Auto      Dropdown of all sensor nodes in DAG
-Process Noise (Q)     0.1       Kalman trust in measurements vs motion model
-Measurement Noise (R) 0.5       How noisy edge-position readings are
-Background Threshold  0.3 m     Distance closer than bg = vehicle
-BG Learning Frames    20        Initial frames to learn background
-Travel Axis           X         Which scan axis = vehicle travel direction
-Min Scan Lines        10        Minimum scans to emit a valid profile
-Max Gap               2.0 s     Max time between scans before abort
-====================  ========  ==============================================
+==========================  ========  ==============================================
+Parameter                   Default   Description
+==========================  ========  ==============================================
+Velocity Sensor             Auto      Dropdown of all sensor nodes in DAG
+Max Association Distance    2.0 m     NN gate — max centroid jump between frames
+Velocity Smoothing (EMA α)  0.4       Smoothing factor for velocity (0=frozen, 1=raw)
+Background Threshold        0.3 m     Distance closer than bg = vehicle
+BG Learning Frames          20        Initial frames to learn background
+Gap Debounce (s)            3.0       Falling-edge hold before declaring vehicle gone
+Travel Axis                 X         Which axis = vehicle travel direction
+Min Scan Lines              10        Minimum scans to emit a valid profile
+==========================  ========  ==============================================
 """
