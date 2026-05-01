@@ -238,6 +238,56 @@ class NodeManager:
         )
         return result
 
+    async def bootstrap_node(self, node_id: str) -> None:
+        """Bootstrap a single node into the running pipeline.
+
+        Called when a previously-disabled node is re-enabled.  The DB record
+        already exists; this method creates the runtime instance, registers its
+        WebSocket topic, wires it into the downstream map, and starts it.
+
+        Args:
+            node_id: ID of the node to bootstrap.
+
+        Raises:
+            ValueError: If the node is not found in the database.
+        """
+        from app.repositories import NodeRepository
+
+        node_data = NodeRepository().get_by_id(node_id)
+        if node_data is None:
+            raise ValueError(f"Node '{node_id}' not found in database.")
+
+        # Create the instance and register it (throttle + WS topic)
+        self._config_loader._create_node(node_data, node_data.get("category", "other"), self.edges_data)
+
+        # Refresh edges from DB and rebuild downstream map so any new connections
+        # involving this node are included.
+        from app.repositories import EdgeRepository
+        self.edges_data = EdgeRepository().list()
+        self.downstream_map = self._config_loader.build_downstream_map(self.edges_data)
+
+        # Update config hash store
+        from app.services.nodes.config_hasher import compute_node_config_hash, compute_node_config_hash_no_pose
+        self._config_hash_store.update(node_id, compute_node_config_hash(node_data))
+        self._config_hash_store.update(f"{node_id}:no_pose", compute_node_config_hash_no_pose(node_data))
+
+        # Start the node if the orchestrator is running
+        if self.is_running:
+            node_instance = self.nodes.get(node_id)
+            if node_instance is not None:
+                import inspect
+                if hasattr(node_instance, "start"):
+                    result = node_instance.start(self.data_queue, self.node_runtime_status)
+                    if inspect.isawaitable(result):
+                        await result
+                elif hasattr(node_instance, "enable"):
+                    result = node_instance.enable()
+                    if inspect.isawaitable(result):
+                        await result
+
+        await self._broadcast_reload_event(node_id, "ready", "selective")
+        logger.info(f"[NodeManager] Node '{node_id}' bootstrapped into running pipeline.")
+
     async def _broadcast_reload_event(
         self,
         node_id: Optional[str],
