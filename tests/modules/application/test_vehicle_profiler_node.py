@@ -93,7 +93,8 @@ class TestInstantiation:
         assert node._state == _State.IDLE
 
     def test_processing_guard_initially_false(self, node):
-        assert node._processing is False
+        assert node._velocity_processing is False
+        assert node._profile_processing is False
 
     def test_velocity_sensor_id_stored(self, node):
         assert node._velocity_sensor_id == VELOCITY_SENSOR
@@ -133,10 +134,17 @@ class TestOnInput:
             mock.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_processing_guard_drops_concurrent_frame(self, node):
-        node._processing = True
+    async def test_processing_guard_drops_concurrent_velocity_frame(self, node):
+        node._velocity_processing = True
         await node.on_input({"node_id": VELOCITY_SENSOR, "points": _bg_scan(), "timestamp": 0.0})
-        assert node.last_input_at is None  # frame was dropped
+        # Frame was received (last_input_at set) but handler was skipped
+        assert node._state == _State.IDLE
+
+    @pytest.mark.asyncio
+    async def test_processing_guard_drops_concurrent_profile_frame(self, node):
+        node._profile_processing = True
+        await node.on_input({"node_id": "side-001", "points": _side_scan(), "timestamp": 0.0})
+        assert node._state == _State.IDLE
 
 
 # ─────────────────────────────────────────────────────────────────────────────

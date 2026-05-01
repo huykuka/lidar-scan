@@ -118,22 +118,20 @@ class TestClusterTracker:
         assert ct.initialized is True
 
     def test_displacement_from_known_shift(self):
-        """Cross-correlation recovers a 0.05 m shift along X (±2 bins tolerance)."""
+        """ICP recovers a 0.05 m shift along X."""
         shift = 0.05
         ct = ClusterTracker(
-            travel_axis=0, bin_size=0.005, max_displacement=0.2,
-            grid_min=0.0, grid_max=2.5,
+            travel_axis=0, max_displacement=0.2,
         )
         ct.update(_profile_cluster(0.0), timestamp=0.0)
         d = ct.update(_profile_cluster(shift), timestamp=1.0)
-        assert d == pytest.approx(shift, abs=0.015)  # ±3 bins boundary tolerance
+        assert d == pytest.approx(shift, abs=0.015)
 
     def test_displacement_travel_axis_y(self):
-        """Cross-correlation along Y axis recovers a 0.05 m shift."""
+        """ICP along Y axis recovers a 0.05 m shift."""
         shift = 0.05
         ct = ClusterTracker(
-            travel_axis=1, height_axis=0, bin_size=0.005, max_displacement=0.2,
-            grid_min=0.0, grid_max=2.5,
+            travel_axis=1, max_displacement=0.2,
         )
         # Swap x/y columns so travel is in column 1
         c0 = _profile_cluster(0.0)[:, ::-1]
@@ -145,8 +143,7 @@ class TestClusterTracker:
     def test_displacement_negative_clamped_to_zero(self):
         """Backward displacement is clamped to 0 — forward-only motion."""
         ct = ClusterTracker(
-            travel_axis=0, bin_size=0.005, max_displacement=0.2,
-            grid_min=0.0, grid_max=2.5,
+            travel_axis=0, max_displacement=0.2,
         )
         ct.update(_profile_cluster(0.1), timestamp=0.0)
         d = ct.update(_profile_cluster(0.0), timestamp=1.0)  # shifted backward
@@ -243,7 +240,6 @@ class TestVehicleDetector:
         det = VehicleDetector(
             bg_learning_frames=5, bg_threshold=0.3,
             travel_axis=0,
-            bin_size=0.005, grid_min=-2.5, grid_max=2.5,
         )
         for i in range(5):
             det.update(_parallel_bg_scan(), timestamp=float(i))

@@ -190,6 +190,63 @@ node_schema_registry.register(
                     "depending on your sensor mounting orientation."
                 ),
             ),
+            PropertySchema(
+                name="gap_debounce_s",
+                label="Gap Debounce (s)",
+                type="number",
+                default=3.0,
+                min=0.1,
+                max=30.0,
+                step=0.1,
+                help_text=(
+                    "Seconds the vehicle cluster may be absent before the "
+                    "detector declares departure. Bridges structural gaps "
+                    "(bin-to-trailer) without resetting position."
+                ),
+            ),
+            # ── Kalman Filter ─────────────────────────────────────────────
+            PropertySchema(
+                name="process_noise_pos",
+                label="KF Position Process Noise",
+                type="number",
+                default=0.0001,
+                min=0.0,
+                max=1.0,
+                step=0.0001,
+                help_text=(
+                    "Kalman filter position process noise (m²/s). Higher values "
+                    "make the filter trust ICP measurements more; lower values "
+                    "produce a smoother position trace. Typical range: 1e-5 to 1e-3."
+                ),
+            ),
+            PropertySchema(
+                name="process_noise_vel",
+                label="KF Velocity Process Noise",
+                type="number",
+                default=0.01,
+                min=0.0,
+                max=1.0,
+                step=0.001,
+                help_text=(
+                    "Kalman filter velocity process noise (m²/s³). Controls how "
+                    "quickly the filter adapts to speed changes. Higher = faster "
+                    "response to acceleration/deceleration. Typical range: 1e-3 to 0.1."
+                ),
+            ),
+            PropertySchema(
+                name="measurement_noise",
+                label="KF Measurement Noise",
+                type="number",
+                default=0.0001,
+                min=0.0,
+                max=1.0,
+                step=0.0001,
+                help_text=(
+                    "Kalman filter velocity measurement noise (m²/s²). Represents "
+                    "ICP displacement noise. Higher = smoother velocity but slower "
+                    "to react. Lower = follows ICP closely. Typical range: 1e-5 to 1e-2."
+                ),
+            ),
            
             # ── Profile Accumulation ──────────────────────────────────────
             PropertySchema(

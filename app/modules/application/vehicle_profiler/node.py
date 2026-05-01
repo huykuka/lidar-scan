@@ -32,6 +32,7 @@ from app.services.status_aggregator import notify_status_change
 
 from .utils.detector import VehicleDetector
 from .utils.profiler import ProfileAccumulator
+from .utils.streaming import ProfileStreamer
 
 logger = get_logger(__name__)
 
@@ -79,6 +80,11 @@ class VehicleProfilerNode(ModuleNode):
         min_displacement = float(config.get("min_displacement", 0.005))
         gap_debounce_s = float(config.get("gap_debounce_s", 3.0))
 
+        # Kalman filter params
+        process_noise_pos = float(config.get("process_noise_pos", 1e-4))
+        process_noise_vel = float(config.get("process_noise_vel", 1e-2))
+        measurement_noise = float(config.get("measurement_noise", 1e-4))
+
         self._detector = VehicleDetector(
             bg_threshold=bg_threshold,
             bg_learning_frames=bg_learning_frames,
@@ -90,6 +96,9 @@ class VehicleProfilerNode(ModuleNode):
             voxel_size=voxel_size,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
+            process_noise_pos=process_noise_pos,
+            process_noise_vel=process_noise_vel,
+            measurement_noise=measurement_noise,
         )
 
         # Profile accumulator params
@@ -105,7 +114,13 @@ class VehicleProfilerNode(ModuleNode):
         )
 
         # Stream partial (accumulated) profile in real-time while measuring.
-        self._stream_partial = bool(config.get("stream_partial", False))
+        self._streamer = ProfileStreamer(
+            node_id, enabled=bool(config.get("stream_partial", False))
+        )
+
+        # Minimum velocity gate — profile frames are discarded when the
+        # detector's estimated velocity is below this threshold (m/s).
+        self._min_velocity: float = float(config.get("min_velocity", 0.0))
 
         # State machine
         self._state = _State.IDLE
@@ -226,30 +241,24 @@ class VehicleProfilerNode(ModuleNode):
         if self._state != _State.MEASURING:
             return
 
+        # Gate on minimum velocity — skip scan lines when vehicle is too slow
+        # (e.g. stationary or reversing).  Strict inequality so that
+        # min_velocity=0.0 (default) accepts zero-velocity frames.
+        if self._detector.current_velocity < self._min_velocity:
+            return
+
         position = self._detector.current_position
 
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
 
-        if not self._stream_partial:
-            return
-
-        # Stream the accumulated partial profile so the UI can show
-        # the point cloud building up in real-time.
+        # Stream partial profile to WebSocket only (real-time visualization).
+        # Does NOT forward to downstream DAG nodes — only the final complete
+        # profile is forwarded on vehicle departure.
         accumulated = self._profiler.get_accumulated_cloud()
         if accumulated is not None:
             self.last_output_at = time.time()
             self.last_profile_points = len(accumulated)
-            partial_payload = {
-                "node_id": self.id,
-                "points": accumulated,
-                "timestamp": timestamp,
-                "count": len(accumulated),
-                "metadata": {
-                    "partial": True,
-                    "scan_count": self._profiler.scan_count,
-                },
-            }
-            asyncio.create_task(self.manager.forward_data(self.id, partial_payload))
+            await self._streamer.broadcast(accumulated, timestamp)
 
     async def _finalize_profile(self) -> None:
         profile = await asyncio.to_thread(self._profiler.finish_vehicle)
@@ -266,6 +275,7 @@ class VehicleProfilerNode(ModuleNode):
                 f"duration={profile.duration:.2f} s"
             )
 
+            # Forward complete profile to downstream DAG nodes (+ WS broadcast)
             out_payload = {
                 "node_id": self.id,
                 "points": profile.points,
