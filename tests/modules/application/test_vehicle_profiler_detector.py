@@ -309,7 +309,7 @@ class TestVehicleDetector:
         result = det.update(_vehicle_scan(), timestamp=5.0)
         assert isinstance(result, DetectionResult)
         assert hasattr(result, "position")
-        assert hasattr(result, "centroid_position")
+        assert hasattr(result, "position")
         assert hasattr(result, "velocity")
         assert hasattr(result, "timestamp")
         assert hasattr(result, "vehicle_present")

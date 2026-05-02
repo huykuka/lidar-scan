@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 class DetectionResult:
     """Output of a single detector update."""
 
-    position: float           # Cumulative travel distance (m)
-    centroid_position: float  # cluster centroid on travel axis (m)
+    position: float               # Cumulative travel distance (m)
+    velocity: float
     velocity: float           # Estimated velocity (m/s)
     timestamp: float
     vehicle_present: bool
@@ -95,8 +95,6 @@ class ClusterTracker:
             pts3d = np.asarray(points[:, :3], dtype=np.float64)
         cloud = o3d.geometry.PointCloud()
         cloud.points = o3d.utility.Vector3dVector(pts3d)
-        if self._voxel_size > 0:
-            cloud = cloud.voxel_down_sample(self._voxel_size)
         return cloud
 
     # ── Public API ────────────────────────────────────────────────────────
@@ -124,7 +122,6 @@ class ClusterTracker:
             return None
 
         displacement = max(0.0, float(reg.transformation[self._travel_axis, 3]))
-        print("displacement: ", displacement)
 
         if displacement > self._max_displacement:
             logger.debug("ICP displacement %.4fm > max (%.4fm) — rejected", displacement, self._max_displacement)
@@ -163,6 +160,10 @@ class VehicleDetector:
     Velocity is displacement / dt for the current frame.  When ICP fails the
     last valid velocity is used to dead-reckon position until ICP recovers.
 
+    Vehicle travel direction is assumed to be positive-X.  Frames where ICP
+    reports negative displacement (truck reversing) are suppressed — the
+    detector returns vehicle_present=False until forward motion resumes.
+
     Args:
         bg_threshold:                Delta (m) above background → vehicle.
         bg_learning_frames:          Frames for background model.
@@ -174,6 +175,11 @@ class VehicleDetector:
         voxel_size:                  ICP voxel down-sample (0 = disabled).
         max_displacement:            Max per-frame displacement (m).
         min_displacement:            Dead-zone (m).
+        trigger_distance:            How far before the gantry (m, positive
+                                     value) the leading edge must be to trigger
+                                     detection.  E.g. 0.1 fires when the truck
+                                     front is within 10 cm of X=0.
+                                     None = trigger anywhere.
     """
 
     def __init__(
@@ -188,10 +194,15 @@ class VehicleDetector:
         voxel_size: float = 0.0,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
+        trigger_distance: Optional[float] = None,
     ) -> None:
         self._bg_threshold = bg_threshold
         self._bg_learning_frames = bg_learning_frames
         self._travel_axis = travel_axis
+        # trigger_distance crops the scan to X >= -trigger_distance before any
+        # background subtraction — points outside that window are invisible to
+        # the detector.  None = no crop (full scan used).
+        self._trigger_distance = trigger_distance
         self._gap_debounce_s = gap_debounce_s
         self._min_vehicle_points = min_vehicle_points
 
@@ -222,13 +233,11 @@ class VehicleDetector:
     def _result(
         self,
         timestamp: float,
-        centroid_pos: float = 0.0,
         present: bool = True,
         icp_valid: bool = True,
     ) -> DetectionResult:
         return DetectionResult(
             position=self._position,
-            centroid_position=centroid_pos,
             velocity=self._velocity,
             timestamp=timestamp,
             vehicle_present=present,
@@ -248,9 +257,11 @@ class VehicleDetector:
         if points is None or len(points) < 2:
             return None
 
+        # Always compute distances from the full scan so the background model
+        # and ICP stay aligned on the same beam indices.
         distances = np.linalg.norm(points[:, :2], axis=1)
 
-        # Background learning
+        # Background learning — full scan
         if self._bg_distances is None:
             self._bg_accumulator.append(distances)
             if len(self._bg_accumulator) >= self._bg_learning_frames:
@@ -262,11 +273,20 @@ class VehicleDetector:
                 self._bg_accumulator.clear()
             return None
 
-        # Vehicle detection
+        # Vehicle detection — full-scan mask
         n = min(len(distances), len(self._bg_distances))
         delta = self._bg_distances[:n] - distances[:n]
         vehicle_mask = delta > self._bg_threshold
-        n_vehicle = int(vehicle_mask.sum())
+
+        # Trigger gate: for the initial trigger only, count vehicle points
+        # inside the crop window so the truck must be near the gantry before
+        # detection starts.  Once tracking is active use the full count so
+        # structural gaps in the far zone don't cause a false departure.
+        if self._trigger_distance is not None and not self._vehicle_present:
+            crop_mask = points[:n, self._travel_axis] >= -self._trigger_distance
+            n_vehicle = int((vehicle_mask & crop_mask).sum())
+        else:
+            n_vehicle = int(vehicle_mask.sum())
 
         # No cluster
         if n_vehicle < self._min_vehicle_points:
@@ -279,18 +299,16 @@ class VehicleDetector:
             self._last_t = timestamp
             return self._result(timestamp, present=False)
 
-        # Cluster present
+        # Cluster present — ICP uses full scan
         self._absence_since = None
-        vehicle_pts = points[:n][vehicle_mask]
-        spatial_pts = vehicle_pts[:, :3] if vehicle_pts.shape[1] >= 3 else vehicle_pts[:, :2]
-        centroid_pos = float(spatial_pts[:, self._travel_axis].mean())
+        spatial_pts = points[:, :3] if points.shape[1] >= 3 else points[:, :2]
 
         # First detection — seed tracker, no displacement yet
         if not self._vehicle_present:
             self._tracker.update(spatial_pts, timestamp)
             self._last_t = timestamp
             self._vehicle_present = True
-            return self._result(timestamp, centroid_pos=centroid_pos, present=True)
+            return self._result(timestamp, present=True)
 
         # Normal tracking — ICP displacement → position / velocity
         dt = (timestamp - self._last_t) if self._last_t is not None else 0.0
@@ -299,16 +317,17 @@ class VehicleDetector:
         displacement = self._tracker.update(spatial_pts, timestamp)
 
         if displacement is not None:
+            # Reverse motion — truck is backing up, suppress detection
+            if displacement < 0:
+                return self._result(timestamp, present=False)
             self._position += displacement
             self._velocity = (displacement / dt) if dt > 0 else 0.0
-            return self._result(timestamp, centroid_pos=centroid_pos, present=True)
+            return self._result(timestamp, present=True)
 
         # ICP failed — dead-reckon position using last velocity
         if dt > 0:
             self._position += self._velocity * dt
-        return self._result(
-            timestamp, centroid_pos=centroid_pos, present=True, icp_valid=False,
-        )
+        return self._result(timestamp, present=True, icp_valid=False)
 
     # ── Reset ─────────────────────────────────────────────────────────────
 

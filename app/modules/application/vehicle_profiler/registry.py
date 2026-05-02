@@ -87,19 +87,6 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="voxel_size",
-                label="Voxel Down-sample Size (m)",
-                type="number",
-                default=0.0,
-                min=0.0,
-                max=0.5,
-                step=0.01,
-                help_text=(
-                    "Voxel size (metres) for down-sampling cluster clouds before "
-                    "ICP. Reduces computation on dense point clouds. 0 = disabled."
-                ),
-            ),
-            PropertySchema(
                 name="max_displacement",
                 label="Max Displacement per Frame (m)",
                 type="number",
@@ -144,43 +131,13 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="bg_learning_frames",
-                label="Background Learning Frames",
-                type="number",
-                default=20,
-                min=5,
-                max=200,
-                step=1,
-                help_text=(
-                    "Number of initial frames used to learn the background "
-                    "distance model (median). No vehicles should be present "
-                    "during this phase."
-                ),
-            ),
-            PropertySchema(
-                name="min_vehicle_points",
-                label="Min Vehicle Points",
-                type="number",
-                default=5,
-                min=1,
-                max=100,
-                step=1,
-                help_text=(
-                    "Minimum number of vehicle points required in a frame to "
-                    "accept it as a valid position measurement. Frames with "
-                    "fewer points (e.g. bin walls, trailer gaps) are treated "
-                    "as absence and the position is predicted forward instead. "
-                    "Increase if bin interiors are pulling the position back to zero."
-                ),
-            ),
-            PropertySchema(
                 name="travel_axis",
                 label="Travel Axis",
                 type="select",
                 default=0,
                 options=[
-                    {"label": "X", "value": 0},
-                    {"label": "Y", "value": 1},
+                    {"label": "+X", "value": 0},
+                    {"label": "+Y", "value": 1},
                 ],
                 help_text=(
                     "Which axis corresponds to the vehicle travel direction. "
@@ -191,31 +148,18 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="gap_debounce_s",
-                label="Gap Debounce (s)",
+                name="trigger_distance",
+                label="Trigger Distance (m)",
                 type="number",
-                default=3.0,
-                min=0.1,
-                max=30.0,
+                default=None,
+                min=0.0,
+                max=20.0,
                 step=0.1,
                 help_text=(
-                    "Seconds the vehicle cluster may be absent before the "
-                    "detector declares departure. Bridges structural gaps "
-                    "(bin-to-trailer) without resetting position."
-                ),
-            ),
-            # ── Profile Accumulation ──────────────────────────────────────
-            PropertySchema(
-                name="stream_partial",
-                label="Stream Partial Profile",
-                type="boolean",
-                default=False,
-                help_text=(
-                    "When enabled, the accumulated point cloud is streamed to "
-                    "connected outputs after every side-sensor scan line. This "
-                    "lets the UI show the profile building up in real-time. "
-                    "Disable to only emit the final complete profile when the "
-                    "vehicle leaves — reduces WebSocket traffic on slow connections."
+                    "How far before the gantry (X=0) the truck's leading edge "
+                    "must be to start detection. E.g. 0.1 fires only when the "
+                    "truck front is within 10 cm of the gantry. "
+                    "Leave empty to trigger anywhere in the scan zone."
                 ),
             ),
             PropertySchema(
@@ -260,6 +204,22 @@ node_schema_registry.register(
                     "scans may land at nearly the same position — this "
                     "deduplicates them for a cleaner profile. Set to 0 to "
                     "keep every scan. Try 0.005–0.02 for slow miniature setups."
+                ),
+            ),
+            PropertySchema(
+                name="min_height",
+                label="Min Point Height (m)",
+                type="number",
+                default=0.0,
+                min=0.0,
+                max=5.0,
+                step=0.05,
+                help_text=(
+                    "Minimum height (metres) a point must be above the ground "
+                    "to be included in the profile. Use this to remove ground "
+                    "noise when the LiDAR FOV is extended and beams reach the "
+                    "road surface ahead of or behind the truck. Set to 0 to "
+                    "keep all points. Typical value: 0.1–0.3 m."
                 ),
             ),
             # ── Performance ───────────────────────────────────────────────

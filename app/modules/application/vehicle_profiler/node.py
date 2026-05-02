@@ -75,44 +75,49 @@ class VehicleProfilerNode(ModuleNode):
 
         # Vehicle detector params
         bg_threshold = float(config.get("bg_threshold", 0.3))
-        bg_learning_frames = int(config.get("bg_learning_frames", 20))
         travel_axis = int(config.get("travel_axis", 0))
-        min_vehicle_points = int(config.get("min_vehicle_points", 5))
         max_correspondence_distance = float(config.get("max_correspondence_distance", 0.5))
         min_icp_fitness = float(config.get("min_icp_fitness", 0.3))
-        voxel_size = float(config.get("voxel_size", 0.0))
         max_displacement = float(config.get("max_displacement", 0.5))
-        min_displacement = float(config.get("min_displacement", 0.005))
-        gap_debounce_s = float(config.get("gap_debounce_s", 3.0))
+        min_displacement = float(config.get("min_displacement", 0.001))
+
+        # Hardcoded defaults — not exposed in UI but can be overridden via config
+        # dict for testing purposes
+        _bg_learning_frames = int(config.get("bg_learning_frames", 20))
+        _min_vehicle_points = int(config.get("min_vehicle_points", 5))
+        _gap_debounce_s = float(config.get("gap_debounce_s", 3.0))
+        _voxel_size = float(config.get("voxel_size", 0.0))
+
+        trigger_distance_raw = config.get("trigger_distance")
+        trigger_distance = float(trigger_distance_raw) if trigger_distance_raw not in (None, "") else None
 
         self._detector = VehicleDetector(
             bg_threshold=bg_threshold,
-            bg_learning_frames=bg_learning_frames,
+            bg_learning_frames=_bg_learning_frames,
             travel_axis=travel_axis,
-            gap_debounce_s=gap_debounce_s,
-            min_vehicle_points=min_vehicle_points,
+            gap_debounce_s=_gap_debounce_s,
+            min_vehicle_points=_min_vehicle_points,
             max_correspondence_distance=max_correspondence_distance,
             min_icp_fitness=min_icp_fitness,
-            voxel_size=voxel_size,
+            voxel_size=_voxel_size,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
+            trigger_distance=trigger_distance,
         )
 
         # Profile accumulator params
         min_scan_lines = int(config.get("min_scan_lines", 10))
         max_gap_s = float(config.get("max_gap_s", 2.0))
         min_position_delta = float(config.get("min_position_delta", 0.0))
+        min_height = float(config.get("min_height", 0.0))
 
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
             max_gap_s=max_gap_s,
             travel_axis=travel_axis,
             min_position_delta=min_position_delta,
+            min_height=min_height,
         )
-
-        # When True, partial (accumulated) profiles are forwarded through
-        # manager.forward_data while measuring (real-time visualization).
-        self._stream_partial: bool = bool(config.get("stream_partial", False))
 
         # Minimum velocity gate — profile frames are discarded when the
         # detector's estimated velocity is below this threshold (m/s).
@@ -122,7 +127,6 @@ class VehicleProfilerNode(ModuleNode):
         self._state = _State.IDLE
         self._vehicles_counted: int = 0
 
-        # Independent processing guards — velocity (ICP) and profile frames
         # run concurrently so a slow ICP call never drops a profile frame.
         self._velocity_processing: bool = False
         self._profile_processing: bool = False
@@ -246,12 +250,8 @@ class VehicleProfilerNode(ModuleNode):
         position = self._detector.current_position
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
 
-        if not self._stream_partial:
-            return
-
-        # Stream partial profile directly to WebSocket for real-time
-        # visualization only.  NOT forwarded to downstream DAG nodes —
-        # only the final complete profile is forwarded on vehicle departure.
+        # Stream partial profile directly to WebSocket for real-time visualization only
+        # NOT forwarded to downstream DAG nodes — only the final complete profile is forwarded on vehicle departure
         accumulated = self._profiler.get_accumulated_cloud()
         if accumulated is not None:
             self.last_output_at = time.time()
@@ -294,7 +294,6 @@ class VehicleProfilerNode(ModuleNode):
                 "timestamp": profile.end_time,
                 "count": len(profile.points),
                 "metadata": {
-                    "partial": False,
                     "vehicle_number": self._vehicles_counted,
                     "scan_count": profile.scan_count,
                     "estimated_length": profile.estimated_length,

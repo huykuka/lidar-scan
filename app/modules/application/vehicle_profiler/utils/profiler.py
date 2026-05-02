@@ -152,14 +152,18 @@ class ProfileAccumulator:
         max_gap_s:          Maximum time gap between consecutive scans before
                             the accumulation is considered broken (vehicle left).
         travel_axis:        Which 3D axis corresponds to the vehicle travel
-                            direction (0=X, 1=Y, 2=Z).  The Kalman-filtered
-                            position is placed on this axis.
+                            direction (0=X, 1=Y, 2=Z).  The position is placed
+                            on this axis.
         min_position_delta: Minimum position change (m) required between
                             consecutive scan lines.  Scans where the vehicle
                             has moved less than this since the last accepted
                             scan are skipped.  Prevents redundant overlapping
                             lines at low speeds.  Set to 0 to accept every
                             scan regardless of position change.
+        min_height:         Minimum Z height (m) for a point to be kept.
+                            Points at or below this threshold are ground noise
+                            and are dropped before accumulation.  Set to 0.0
+                            (default) to keep all points.
     """
 
     def __init__(
@@ -168,11 +172,13 @@ class ProfileAccumulator:
         max_gap_s: float = 2.0,
         travel_axis: int = 2,
         min_position_delta: float = 0.0,
+        min_height: float = 0.0,
     ):
         self._min_scan_lines = min_scan_lines
         self._max_gap_s = max_gap_s
         self._travel_axis = travel_axis
         self._min_position_delta = min_position_delta
+        self._min_height = min_height
         self._reset()
 
     def _clear_accumulation(self) -> None:
@@ -284,6 +290,16 @@ class ProfileAccumulator:
             points_3d[:, non_travel[0]] = points[:, 0]
             points_3d[:, non_travel[1]] = points[:, 1]
             points_3d[:, ta] = position
+
+        # Drop ground-level points — the height axis is whichever axis is
+        # not the travel axis (typically Z=2).  Points at or below min_height
+        # are road surface noise from the extended LiDAR FOV.
+        if self._min_height > 0.0:
+            height_axis = next(i for i in range(3) if i != ta)
+            points_3d = points_3d[points_3d[:, height_axis] > self._min_height]
+            if len(points_3d) < 2:
+                return
+
         self._scan_lines.append(points_3d)
 
     def get_accumulated_cloud(self) -> Optional[np.ndarray]:
