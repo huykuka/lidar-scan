@@ -106,16 +106,15 @@ class VehicleProfilerNode(ModuleNode):
         )
 
         # Profile accumulator params
-        min_scan_lines = int(config.get("min_scan_lines", 10))
+        min_scan_lines = 100
         max_gap_s = float(config.get("max_gap_s", 2.0))
-        min_position_delta = float(config.get("min_position_delta", 0.0))
         min_height = float(config.get("min_height", 0.0))
 
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
             max_gap_s=max_gap_s,
             travel_axis=travel_axis,
-            min_position_delta=min_position_delta,
+            min_position_delta=min_displacement,
             min_height=min_height,
         )
 

@@ -163,20 +163,6 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="min_scan_lines",
-                label="Min Scan Lines",
-                type="number",
-                default=10,
-                min=2,
-                max=1000,
-                step=1,
-                help_text=(
-                    "Minimum number of scan lines required from side sensors "
-                    "to emit a valid vehicle profile. Profiles with fewer "
-                    "scan lines are discarded."
-                ),
-            ),
-            PropertySchema(
                 name="max_gap_s",
                 label="Max Scan Gap (s)",
                 type="number",
@@ -188,22 +174,6 @@ node_schema_registry.register(
                     "Maximum allowed time gap (seconds) between consecutive "
                     "side-sensor scans. If exceeded, the current accumulation "
                     "is discarded (assumes the vehicle left or sensor stalled)."
-                ),
-            ),
-            PropertySchema(
-                name="min_position_delta",
-                label="Min Position Delta (m)",
-                type="number",
-                default=0.0,
-                min=0.0,
-                max=1.0,
-                step=0.001,
-                help_text=(
-                    "Minimum position change (metres) required between "
-                    "consecutive scan lines. At low vehicle speeds, many "
-                    "scans may land at nearly the same position — this "
-                    "deduplicates them for a cleaner profile. Set to 0 to "
-                    "keep every scan. Try 0.005–0.02 for slow miniature setups."
                 ),
             ),
             PropertySchema(
@@ -222,16 +192,7 @@ node_schema_registry.register(
                     "keep all points. Typical value: 0.1–0.3 m."
                 ),
             ),
-            # ── Performance ───────────────────────────────────────────────
-            PropertySchema(
-                name="throttle_ms",
-                label="Throttle (ms)",
-                type="number",
-                default=0,
-                min=0,
-                step=10,
-                help_text="Minimum time between processing frames (0 = no limit).",
-            ),
+           
         ],
         inputs=[
             PortSchema(
