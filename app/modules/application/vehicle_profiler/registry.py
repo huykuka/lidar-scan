@@ -104,28 +104,28 @@ node_schema_registry.register(
                 label="Max Displacement per Frame (m)",
                 type="number",
                 default=0.5,
-                min=0.01,
+                min=0.001,
                 max=5.0,
-                step=0.01,
+                step=0.001,
                 help_text=(
-                    "Maximum ICP displacement per frame (metres). Any result "
-                    "exceeding this is rejected as noise. Set to roughly the "
-                    "maximum expected travel per scan frame (max_speed / scan_rate)."
+                    "Maximum ICP displacement accepted per frame (metres). Results "
+                    "above this are rejected as outliers. Rule of thumb: "
+                    "max_speed (m/s) / scan_rate (Hz). E.g. 3 m/s at 10 Hz → 0.3 m."
                 ),
             ),
             PropertySchema(
                 name="min_displacement",
                 label="Min Displacement (Dead-zone) (m)",
                 type="number",
-                default=0.005,
+                default=0.001,
                 min=0.0,
-                max=0.1,
+                max=0.05,
                 step=0.001,
                 help_text=(
                     "Dead-zone threshold (metres). ICP displacements below this "
                     "are treated as zero (truck static). Prevents noise accumulation "
-                    "from ICP jitter on stationary vehicles. Set above ICP noise "
-                    "floor (~0.003–0.005 m for typical 2D LiDAR)."
+                    "from ICP jitter on a stationary vehicle. Typical ICP noise "
+                    "floor is 0.001–0.003 m for a 2D LiDAR."
                 ),
             ),
             # ── Vehicle Detection ─────────────────────────────────────────
@@ -204,50 +204,6 @@ node_schema_registry.register(
                     "(bin-to-trailer) without resetting position."
                 ),
             ),
-            # ── Kalman Filter ─────────────────────────────────────────────
-            PropertySchema(
-                name="process_noise_pos",
-                label="KF Position Process Noise",
-                type="number",
-                default=0.0001,
-                min=0.0,
-                max=1.0,
-                step=0.0001,
-                help_text=(
-                    "Kalman filter position process noise (m²/s). Higher values "
-                    "make the filter trust ICP measurements more; lower values "
-                    "produce a smoother position trace. Typical range: 1e-5 to 1e-3."
-                ),
-            ),
-            PropertySchema(
-                name="process_noise_vel",
-                label="KF Velocity Process Noise",
-                type="number",
-                default=0.01,
-                min=0.0,
-                max=1.0,
-                step=0.001,
-                help_text=(
-                    "Kalman filter velocity process noise (m²/s³). Controls how "
-                    "quickly the filter adapts to speed changes. Higher = faster "
-                    "response to acceleration/deceleration. Typical range: 1e-3 to 0.1."
-                ),
-            ),
-            PropertySchema(
-                name="measurement_noise",
-                label="KF Measurement Noise",
-                type="number",
-                default=0.0001,
-                min=0.0,
-                max=1.0,
-                step=0.0001,
-                help_text=(
-                    "Kalman filter velocity measurement noise (m²/s²). Represents "
-                    "ICP displacement noise. Higher = smoother velocity but slower "
-                    "to react. Lower = follows ICP closely. Typical range: 1e-5 to 1e-2."
-                ),
-            ),
-           
             # ── Profile Accumulation ──────────────────────────────────────
             PropertySchema(
                 name="stream_partial",

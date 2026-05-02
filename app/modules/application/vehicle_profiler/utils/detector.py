@@ -1,5 +1,5 @@
 """
-Vehicle detection and Kalman-filtered position tracking from a vertical 2D LiDAR.
+Vehicle detection and position tracking from a vertical 2D LiDAR.
 
 Physical setup
 --------------
@@ -12,9 +12,10 @@ Pipeline (per frame)
 1. **Background learning** — per-beam median from the first N empty-scene frames.
 2. **Vehicle detection** — background subtraction; foreground = vehicle cluster.
 3. **ICP registration** — Open3D Point-to-Point ICP aligns previous cluster to
-   current cluster.  Travel-axis translation = raw displacement.
-4. **Kalman filter** — pykalman constant-velocity filter smooths position and
-   estimates velocity.  On ICP failure it dead-reckons using last velocity.
+   current cluster.  Travel-axis translation = displacement for this frame.
+4. **Position / velocity** — position is the cumulative ICP displacement;
+   velocity is displacement / dt.  On ICP failure the last valid velocity is
+   used to dead-reckon position until ICP recovers.
 5. **Stop** — cluster absent for > ``gap_debounce_s`` → vehicle departed.
 """
 import logging
@@ -22,9 +23,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
-import numpy.ma as ma
 import open3d as o3d
-from pykalman import KalmanFilter
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +37,9 @@ logger = logging.getLogger(__name__)
 class DetectionResult:
     """Output of a single detector update."""
 
-    position: float           # Kalman-filtered travel distance (m)
+    position: float           # Cumulative travel distance (m)
     centroid_position: float  # cluster centroid on travel axis (m)
-    velocity: float           # Kalman-filtered velocity (m/s)
+    velocity: float           # Estimated velocity (m/s)
     timestamp: float
     vehicle_present: bool
     icp_valid: bool = True    # False when ICP failed (dead-reckoned)
@@ -118,15 +117,17 @@ class ClusterTracker:
             o3d.pipelines.registration.TransformationEstimationPointToPoint(),
         )
         self._prev_cloud = cloud
+   
 
         if reg.fitness < self._min_fitness:
             logger.info("ICP fitness %.3f < min — rejected", reg.fitness)
             return None
 
         displacement = max(0.0, float(reg.transformation[self._travel_axis, 3]))
+        print("displacement: ", displacement)
 
         if displacement > self._max_displacement:
-            logger.info("ICP displacement %.4fm > max — rejected", displacement)
+            logger.debug("ICP displacement %.4fm > max (%.4fm) — rejected", displacement, self._max_displacement)
             return None
 
         if displacement < self._min_displacement:
@@ -150,116 +151,17 @@ class ClusterTracker:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Kalman filter (pykalman)
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class PositionKalmanFilter:
-    """1-D constant-velocity Kalman filter backed by pykalman.
-
-    State: ``[position, velocity]``
-    Observation: velocity implied by ICP displacement (``displacement / dt``).
-
-    On ICP failure a masked observation triggers predict-only (dead-reckoning).
-    The transition matrix is rebuilt each step with the actual ``dt`` so the
-    filter handles variable frame rates correctly.
-
-    Args:
-        process_noise_pos:  Position process noise (m²/s).
-        process_noise_vel:  Velocity process noise (m²/s³).
-        measurement_noise:  Velocity measurement noise (m²/s²).
-        initial_covariance: Diagonal of the initial covariance matrix.
-    """
-
-    def __init__(
-        self,
-        process_noise_pos: float = 1e-4,
-        process_noise_vel: float = 1e-2,
-        measurement_noise: float = 1e-4,
-        initial_covariance: float = 1.0,
-    ) -> None:
-        self._q_pos = process_noise_pos
-        self._q_vel = process_noise_vel
-        self._R = measurement_noise
-        self._init_cov = initial_covariance
-
-        self._x: np.ndarray = np.array([0.0, 0.0])
-        self._P: np.ndarray = np.eye(2) * initial_covariance
-        self._last_t: Optional[float] = None
-        self._initialized = False
-
-    def _make_kf(self, dt: float) -> KalmanFilter:
-        """Build a pykalman KalmanFilter for the given dt."""
-        return KalmanFilter(
-            transition_matrices=np.array([[1.0, dt], [0.0, 1.0]]),
-            observation_matrices=np.array([[0.0, 1.0]]),
-            transition_covariance=np.array([
-                [self._q_pos * dt, 0.0],
-                [0.0, self._q_vel * dt],
-            ]),
-            observation_covariance=np.array([[self._R]]),
-        )
-
-    @property
-    def position(self) -> float:
-        return float(self._x[0])
-
-    @property
-    def velocity(self) -> float:
-        return float(self._x[1])
-
-    @property
-    def initialized(self) -> bool:
-        return self._initialized
-
-    def step(self, timestamp: float, displacement: Optional[float] = None) -> None:
-        """Predict, then update (or dead-reckon if *displacement* is None)."""
-        if not self._initialized:
-            self._last_t = timestamp
-            self._initialized = True
-            if displacement is not None:
-                self._x[0] += displacement
-            return
-
-        dt = timestamp - self._last_t if self._last_t is not None else 0.0
-        self._last_t = timestamp
-
-        if dt <= 0:
-            if displacement is not None:
-                self._x[0] += displacement
-            return
-
-        kf = self._make_kf(dt)
-
-        if displacement is not None:
-            obs = np.array([displacement / dt])
-            self._x, self._P = kf.filter_update(self._x, self._P, observation=obs)
-            # Trust ICP for position; let the KF smooth velocity only.
-            self._x[0] = self._x[0] - self._x[1] * dt + displacement
-        else:
-            self._x, self._P = kf.filter_update(
-                self._x, self._P, observation=ma.masked,
-            )
-
-        # Forward-only velocity
-        if self._x[1] < 0:
-            self._x[1] = 0.0
-
-    def reset(self) -> None:
-        self._x = np.array([0.0, 0.0])
-        self._P = np.eye(2) * self._init_cov
-        self._last_t = None
-        self._initialized = False
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Vehicle detector (orchestrates tracker + Kalman)
+# Vehicle detector (orchestrates tracker + direct position/velocity)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 class VehicleDetector:
-    """Detect vehicles via background subtraction and track position with
-    ICP + Kalman filtering.
+    """Detect vehicles via background subtraction and track position directly
+    from ICP displacement.
+
+    Position is the cumulative sum of accepted ICP displacements.
+    Velocity is displacement / dt for the current frame.  When ICP fails the
+    last valid velocity is used to dead-reckon position until ICP recovers.
 
     Args:
         bg_threshold:                Delta (m) above background → vehicle.
@@ -272,9 +174,6 @@ class VehicleDetector:
         voxel_size:                  ICP voxel down-sample (0 = disabled).
         max_displacement:            Max per-frame displacement (m).
         min_displacement:            Dead-zone (m).
-        process_noise_pos:           Kalman position process noise (m²/s).
-        process_noise_vel:           Kalman velocity process noise (m²/s³).
-        measurement_noise:           Kalman velocity measurement noise (m²/s²).
     """
 
     def __init__(
@@ -289,9 +188,6 @@ class VehicleDetector:
         voxel_size: float = 0.0,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
-        process_noise_pos: float = 1e-4,
-        process_noise_vel: float = 1e-2,
-        measurement_noise: float = 1e-4,
     ) -> None:
         self._bg_threshold = bg_threshold
         self._bg_learning_frames = bg_learning_frames
@@ -308,18 +204,16 @@ class VehicleDetector:
             min_displacement=min_displacement,
         )
 
-        self._kf = PositionKalmanFilter(
-            process_noise_pos=process_noise_pos,
-            process_noise_vel=process_noise_vel,
-            measurement_noise=measurement_noise,
-        )
-
         # Background model
         self._bg_accumulator: list[np.ndarray] = []
         self._bg_distances: Optional[np.ndarray] = None
 
-        # Tracking state
+        # Position / velocity (direct from ICP, no filter)
+        self._position: float = 0.0
+        self._velocity: float = 0.0
         self._last_t: Optional[float] = None
+
+        # Tracking state
         self._vehicle_present: bool = False
         self._absence_since: Optional[float] = None
 
@@ -333,9 +227,9 @@ class VehicleDetector:
         icp_valid: bool = True,
     ) -> DetectionResult:
         return DetectionResult(
-            position=self._kf.position,
+            position=self._position,
             centroid_position=centroid_pos,
-            velocity=self._kf.velocity,
+            velocity=self._velocity,
             timestamp=timestamp,
             vehicle_present=present,
             icp_valid=icp_valid,
@@ -390,24 +284,28 @@ class VehicleDetector:
         vehicle_pts = points[:n][vehicle_mask]
         spatial_pts = vehicle_pts[:, :3] if vehicle_pts.shape[1] >= 3 else vehicle_pts[:, :2]
         centroid_pos = float(spatial_pts[:, self._travel_axis].mean())
-        self._last_t = timestamp
 
-        # First detection — seed tracker
+        # First detection — seed tracker, no displacement yet
         if not self._vehicle_present:
             self._tracker.update(spatial_pts, timestamp)
-            self._kf.step(timestamp, displacement=0.0)
+            self._last_t = timestamp
             self._vehicle_present = True
             return self._result(timestamp, centroid_pos=centroid_pos, present=True)
 
-        # Normal tracking — ICP → Kalman
+        # Normal tracking — ICP displacement → position / velocity
+        dt = (timestamp - self._last_t) if self._last_t is not None else 0.0
+        self._last_t = timestamp
+
         displacement = self._tracker.update(spatial_pts, timestamp)
 
         if displacement is not None:
-            self._kf.step(timestamp, displacement=displacement)
+            self._position += displacement
+            self._velocity = (displacement / dt) if dt > 0 else 0.0
             return self._result(timestamp, centroid_pos=centroid_pos, present=True)
 
-        # ICP failed — Kalman dead-reckons
-        self._kf.step(timestamp, displacement=None)
+        # ICP failed — dead-reckon position using last velocity
+        if dt > 0:
+            self._position += self._velocity * dt
         return self._result(
             timestamp, centroid_pos=centroid_pos, present=True, icp_valid=False,
         )
@@ -417,7 +315,8 @@ class VehicleDetector:
     def reset_tracking(self) -> None:
         """Reset tracking state, preserve background model."""
         self._tracker.reset()
-        self._kf.reset()
+        self._position = 0.0
+        self._velocity = 0.0
         self._last_t = None
         self._vehicle_present = False
         self._absence_since = None
@@ -436,10 +335,10 @@ class VehicleDetector:
 
     @property
     def current_position(self) -> float:
-        """Kalman-filtered travel distance (m)."""
-        return self._kf.position
+        """Cumulative ICP travel distance (m)."""
+        return self._position
 
     @property
     def current_velocity(self) -> float:
-        """Kalman-filtered velocity (m/s)."""
-        return self._kf.velocity
+        """Last valid ICP velocity (m/s)."""
+        return self._velocity

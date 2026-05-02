@@ -17,6 +17,9 @@ Architecture:
       the profile accumulator based on the source sensor ID.
     - Heavy processing runs in ``asyncio.to_thread()`` to avoid blocking
       the FastAPI event loop.
+    - Partial profiles (``stream_partial=True``) are forwarded through
+      ``manager.forward_data`` with ``metadata.partial=True`` so the node
+      manager handles all WS broadcasting — no direct ws_manager calls here.
 """
 import asyncio
 import enum
@@ -28,11 +31,12 @@ import numpy as np
 from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
+from app.services.shared.binary import pack_points_binary
 from app.services.status_aggregator import notify_status_change
+from app.services.websocket.manager import manager as ws_manager
 
 from .utils.detector import VehicleDetector
 from .utils.profiler import ProfileAccumulator
-from .utils.streaming import ProfileStreamer
 
 logger = get_logger(__name__)
 
@@ -65,6 +69,7 @@ class VehicleProfilerNode(ModuleNode):
         self.manager = manager
         self.id = node_id
         self.name = name
+        self._ws_topic: Optional[str] = None  # set by orchestrator on registration
 
         self._velocity_sensor_id = velocity_sensor_id
 
@@ -80,11 +85,6 @@ class VehicleProfilerNode(ModuleNode):
         min_displacement = float(config.get("min_displacement", 0.005))
         gap_debounce_s = float(config.get("gap_debounce_s", 3.0))
 
-        # Kalman filter params
-        process_noise_pos = float(config.get("process_noise_pos", 1e-4))
-        process_noise_vel = float(config.get("process_noise_vel", 1e-2))
-        measurement_noise = float(config.get("measurement_noise", 1e-4))
-
         self._detector = VehicleDetector(
             bg_threshold=bg_threshold,
             bg_learning_frames=bg_learning_frames,
@@ -96,9 +96,6 @@ class VehicleProfilerNode(ModuleNode):
             voxel_size=voxel_size,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
-            process_noise_pos=process_noise_pos,
-            process_noise_vel=process_noise_vel,
-            measurement_noise=measurement_noise,
         )
 
         # Profile accumulator params
@@ -113,10 +110,9 @@ class VehicleProfilerNode(ModuleNode):
             min_position_delta=min_position_delta,
         )
 
-        # Stream partial (accumulated) profile in real-time while measuring.
-        self._streamer = ProfileStreamer(
-            node_id, enabled=bool(config.get("stream_partial", False))
-        )
+        # When True, partial (accumulated) profiles are forwarded through
+        # manager.forward_data while measuring (real-time visualization).
+        self._stream_partial: bool = bool(config.get("stream_partial", False))
 
         # Minimum velocity gate — profile frames are discarded when the
         # detector's estimated velocity is below this threshold (m/s).
@@ -248,17 +244,34 @@ class VehicleProfilerNode(ModuleNode):
             return
 
         position = self._detector.current_position
-
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
 
-        # Stream partial profile to WebSocket only (real-time visualization).
-        # Does NOT forward to downstream DAG nodes — only the final complete
-        # profile is forwarded on vehicle departure.
+        if not self._stream_partial:
+            return
+
+        # Stream partial profile directly to WebSocket for real-time
+        # visualization only.  NOT forwarded to downstream DAG nodes —
+        # only the final complete profile is forwarded on vehicle departure.
         accumulated = self._profiler.get_accumulated_cloud()
         if accumulated is not None:
             self.last_output_at = time.time()
             self.last_profile_points = len(accumulated)
-            await self._streamer.broadcast(accumulated, timestamp)
+            asyncio.create_task(self._broadcast_ws(accumulated, timestamp))
+
+    async def _broadcast_ws(self, points: np.ndarray, timestamp: float) -> None:
+        """Broadcast point cloud to WebSocket subscribers (LIDR binary).
+
+        Only streams XYZ for visualization.  Does NOT forward to downstream
+        DAG nodes — that is exclusively done by ``_finalize_profile``.
+        """
+        topic = self._ws_topic
+        if not topic or not ws_manager.has_subscribers(topic):
+            return
+        try:
+            binary = await asyncio.to_thread(pack_points_binary, points, timestamp)
+            await ws_manager.broadcast(topic, binary)
+        except Exception as e:
+            logger.warning(f"[{self.id}] WS broadcast failed: {e}")
 
     async def _finalize_profile(self) -> None:
         profile = await asyncio.to_thread(self._profiler.finish_vehicle)
@@ -275,7 +288,6 @@ class VehicleProfilerNode(ModuleNode):
                 f"duration={profile.duration:.2f} s"
             )
 
-            # Forward complete profile to downstream DAG nodes (+ WS broadcast)
             out_payload = {
                 "node_id": self.id,
                 "points": profile.points,
