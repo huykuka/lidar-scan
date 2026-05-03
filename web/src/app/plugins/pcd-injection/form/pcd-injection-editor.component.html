@@ -1,0 +1,82 @@
+<app-node-editor-header
+  [title]="form.get('name')?.value || 'PCD Injection'"
+  [icon]="'cloud_upload'"
+  [saveDisabled]="!form.valid || isSaving()"
+  (save)="onSave()"
+  (cancel)="onCancel()"
+/>
+
+<form [formGroup]="form" class="flex flex-col gap-4">
+  <!-- Node Name -->
+  <syn-input
+    label="Node Name"
+    formControlName="name"
+    size="small"
+    placeholder="PCD Injection"
+    required
+  />
+
+  <!-- Upload API Endpoint -->
+  <div class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
+    <span class="text-xs font-semibold text-syn-color-neutral-700">Upload API Endpoint</span>
+
+    @if (!isEditMode()) {
+      <!-- Pre-save placeholder -->
+      <p class="text-xs text-syn-color-neutral-400 italic">
+        Available after saving the node.
+      </p>
+    } @else {
+      <!-- Upload URL -->
+      <div class="flex items-center gap-2">
+        <div class="flex-1">
+          <syn-input
+            label="POST Endpoint"
+            [value]="uploadUrl() || ''"
+            readonly
+            size="small"
+            class="font-mono text-xs url-input"
+          />
+        </div>
+        <syn-button
+          variant="text"
+          size="small"
+          (click)="copyToClipboard(uploadUrl()!)"
+          type="button"
+        >
+          <syn-icon name="content_copy"></syn-icon>
+          Copy
+        </syn-button>
+      </div>
+
+      <p class="text-xs text-syn-color-neutral-400">
+        Send an HTTP <strong>POST</strong> with a <code class="bg-syn-color-neutral-100 px-1 rounded">multipart/form-data</code>
+        body containing a <code class="bg-syn-color-neutral-100 px-1 rounded">.pcd</code> file to inject point cloud data into the DAG.
+      </p>
+
+      <!-- Payload Example -->
+      <div class="flex flex-col gap-1 mt-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-semibold text-syn-color-neutral-700">Example (curl)</span>
+          <syn-button
+            variant="text"
+            size="small"
+            (click)="copyToClipboard(curlExample()!)"
+            type="button"
+          >
+            <syn-icon name="content_copy"></syn-icon>
+            Copy
+          </syn-button>
+        </div>
+        <pre class="text-[11px] font-mono bg-syn-color-neutral-100 p-2 rounded overflow-x-auto whitespace-pre-wrap">{{ curlExample() }}</pre>
+      </div>
+
+      <!-- Response Example -->
+      <div class="flex flex-col gap-1 mt-2">
+        <span class="text-xs font-semibold text-syn-color-neutral-700">Response</span>
+        <pre class="text-[11px] font-mono bg-syn-color-neutral-100 p-2 rounded overflow-x-auto whitespace-pre-wrap">{{
+'{\n  "node_id": "' + nodeId() + '",\n  "points_injected": 12345,\n  "message": "ok"\n}'
+        }}</pre>
+      </div>
+    }
+  </div>
+</form>

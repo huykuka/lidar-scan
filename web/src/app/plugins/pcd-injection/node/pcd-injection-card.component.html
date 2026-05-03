@@ -1,0 +1,7 @@
+<div class="snapshot-card p-2 flex flex-col gap-1">
+  <div class="flex items-center gap-1 text-xs text-syn-color-neutral-600">
+    <syn-icon name="cloud_upload" style="font-size: 0.9rem;"></syn-icon>
+    <span>PCD Injection</span>
+  </div>
+  <syn-badge [variant]="statusVariant()" size="small">{{ statusLabel() }}</syn-badge>
+</div>
