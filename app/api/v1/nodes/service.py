@@ -116,8 +116,16 @@ async def reload_single_node(node_id: str):
             detail="A configuration reload is already in progress. Please wait and retry.",
         )
 
-    # ── 404: Node existence check ──────────────────────────────────────────
+    # ── 404 / disabled-node short-circuit ─────────────────────────────────
+    # Disabled nodes are never added to node_manager.nodes, so attempting a
+    # selective reload on them would always raise 404.  The DB was already
+    # updated by the save step, so there is nothing more to do at runtime —
+    # the new config will be picked up the next time the node is enabled.
     if node_id not in node_manager.nodes:
+        node_record = NodeRepository().get_by_id(node_id)
+        if node_record is not None and not node_record.get("enabled", True):
+            # Node exists but is disabled — DB already saved, reload is a no-op.
+            return {"status": "success", "note": "Node is disabled; config saved, no runtime reload needed."}
         raise HTTPException(
             status_code=404,
             detail=f"Node '{node_id}' not found in running DAG. Ensure the node is enabled.",

@@ -72,7 +72,10 @@
               [value]="configForm.get(prop.name)?.value"
               size="small"
             >
-              @for (opt of prop.options; track opt.value) {
+              @if (prop.options_source && !prop.required) {
+                <syn-option value="">Auto-detect</syn-option>
+              }
+              @for (opt of getSelectOptions(prop); track opt.value) {
                 <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
               }
             </syn-select>
