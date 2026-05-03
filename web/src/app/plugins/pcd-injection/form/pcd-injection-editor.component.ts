@@ -111,7 +111,7 @@ export class PcdInjectionEditorComponent implements NodeEditorComponent {
     return navigator.clipboard
       .writeText(text)
       .then(() => {
-        this.toast.success('URL copied to clipboard');
+        this.toast.success('Copied to clipboard');
       })
       .catch((err) => {
         console.error('Failed to copy to clipboard:', err);
