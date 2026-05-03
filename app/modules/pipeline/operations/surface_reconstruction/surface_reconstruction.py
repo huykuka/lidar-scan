@@ -23,10 +23,9 @@ import logging
 import time
 from typing import Any, Dict, Optional, Tuple
 
-import numpy as np
 import open3d as o3d
 
-from ...base import PipelineOperation, _tensor_map_keys
+from ...base import PipelineOperation
 from .reconstruction_base import (
     MIN_INPUT_POINTS,
     _VALID_ALGORITHMS,
@@ -49,12 +48,6 @@ _ALGORITHM_MAP: Dict[str, type] = {
     "alpha_shape": AlphaShapeReconstruction,
     "ball_pivoting": BallPivotingReconstruction,
     "poisson": PoissonReconstruction,
-}
-
-_PARAMS_MAP: Dict[str, type] = {
-    "alpha_shape": AlphaShapeParams,
-    "ball_pivoting": BallPivotingParams,
-    "poisson": PoissonReconstructionParams,
 }
 
 
@@ -127,7 +120,7 @@ class SurfaceReconstruction(PipelineOperation):
         n_in = _get_count(pcd)
 
         if n_in < MIN_INPUT_POINTS:
-            return pcd, self._meta(ReconstructionStatus.SKIPPED, n_in, 0, 0, 0, t0)
+            return pcd, self._build_meta(ReconstructionStatus.SKIPPED, n_in, 0, 0, 0, t0)
 
         try:
             # Convert to legacy for Open3D surface reconstruction APIs
@@ -165,13 +158,13 @@ class SurfaceReconstruction(PipelineOperation):
             if isinstance(pcd, o3d.t.geometry.PointCloud):
                 out_pcd = o3d.t.geometry.PointCloud.from_legacy(out_pcd)
 
-            return out_pcd, self._meta(
+            return out_pcd, self._build_meta(
                 ReconstructionStatus.SUCCESS, n_in, n_out, n_verts, n_tris, t0
             )
 
         except Exception as exc:
             logger.error("SurfaceReconstruction failed: %s", exc, exc_info=True)
-            return pcd, self._meta(
+            return pcd, self._build_meta(
                 ReconstructionStatus.ERROR, n_in, n_in, 0, 0, t0, error=str(exc)
             )
 
@@ -199,8 +192,8 @@ class SurfaceReconstruction(PipelineOperation):
             return model_cls(**raw)
         return raw
 
-    @staticmethod
-    def _meta(
+    def _build_meta(
+        self,
         status: ReconstructionStatus,
         n_in: int,
         n_out: int,
@@ -211,7 +204,7 @@ class SurfaceReconstruction(PipelineOperation):
     ) -> Dict[str, Any]:
         meta: Dict[str, Any] = {
             "status": status.value,
-            "algorithm": "",
+            "algorithm": self.algorithm,
             "input_points": n_in,
             "output_points": n_out,
             "mesh_vertices": n_verts,
