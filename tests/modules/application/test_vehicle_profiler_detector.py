@@ -287,3 +287,123 @@ class TestVehicleDetectorTriggerGate:
         for t, x in enumerate([-1.5, -1.0, -0.5, 0.0]):
             result = det.update(_scan_at_x(x), float(t))
             assert result.vehicle_present is True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TestPositionHistory
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestPositionHistory:
+    def test_get_position_at_returns_none_when_no_history(self):
+        det = _make_detector()
+        # No vehicle yet — no history recorded
+        assert det.get_position_at(99.0) is None
+
+    def test_get_position_at_matches_nearest_timestamp(self):
+        """Position history maps timestamps to positions.
+
+        Drive the truck through 3 frames with known shifts, then query a
+        timestamp that falls between two recorded entries — the nearest one
+        must be returned.
+        """
+        det = _make_detector(
+            min_vehicle_points=10,
+            dbscan_eps=0.5,
+            dbscan_min_samples=3,
+            max_correspondence_distance=1.0,
+            max_displacement=0.5,
+        )
+        # Seed with first frame (no displacement yet)
+        det.update(_profile_cluster(0.0), timestamp=0.0)
+        # t=1.0 → cluster shifted 0.1 m
+        det.update(_profile_cluster(0.1), timestamp=1.0)
+        pos_at_1 = det.get_position_at(1.0)
+        # t=2.0 → cluster shifted another 0.1 m
+        det.update(_profile_cluster(0.2), timestamp=2.0)
+        pos_at_2 = det.get_position_at(2.0)
+
+        # Positions should be monotonically increasing
+        assert pos_at_2 > pos_at_1
+
+        # Query timestamp 1.1 → nearest recorded timestamp is 1.0
+        pos_near_1 = det.get_position_at(1.1)
+        assert pos_near_1 == pytest.approx(pos_at_1)
+
+        # Query timestamp 1.9 → nearest recorded timestamp is 2.0
+        pos_near_2 = det.get_position_at(1.9)
+        assert pos_near_2 == pytest.approx(pos_at_2)
+
+    def test_position_history_cleared_on_reset(self):
+        det = _make_detector(
+            min_vehicle_points=10,
+            max_correspondence_distance=1.0,
+        )
+        det.update(_profile_cluster(0.0), timestamp=0.0)
+        det.update(_profile_cluster(0.1), timestamp=1.0)
+        det.reset()
+        # After reset, no history → None
+        assert det.get_position_at(1.0) is None
+
+    def test_get_position_at_returns_none_when_timestamp_drifts_too_far(self):
+        """Nearest sample beyond max_age → None, not a stale position."""
+        det = _make_detector(
+            min_vehicle_points=10,
+            dbscan_eps=0.5,
+            dbscan_min_samples=3,
+            max_correspondence_distance=1.0,
+            max_displacement=0.5,
+        )
+        det.update(_profile_cluster(0.0), timestamp=0.0)
+        det.update(_profile_cluster(0.1), timestamp=1.0)
+
+        # Side scan arrives with a 10-second clock drift — must be rejected
+        result = det.get_position_at(11.0, max_age=0.5)
+        assert result is None
+
+    def test_get_position_at_accepts_within_max_age(self):
+        """Sample within max_age window is returned normally."""
+        det = _make_detector(
+            min_vehicle_points=10,
+            dbscan_eps=0.5,
+            dbscan_min_samples=3,
+            max_correspondence_distance=1.0,
+            max_displacement=0.5,
+        )
+        det.update(_profile_cluster(0.0), timestamp=0.0)
+        det.update(_profile_cluster(0.1), timestamp=1.0)
+
+        # 0.3 s gap — within default 0.5 s window
+        result = det.get_position_at(1.3, max_age=0.5)
+        assert result is not None
+
+    def test_side_scan_latency_resolved(self):
+        """Simulate a side LiDAR running at half the velocity sensor rate.
+
+        Velocity frames arrive at t=0,1,2,3.  Side frames arrive at t=0.5,1.5,2.5.
+        get_position_at() must return the position closest to each side timestamp,
+        not the latest position.
+        """
+        det = _make_detector(
+            min_vehicle_points=10,
+            dbscan_eps=0.5,
+            dbscan_min_samples=3,
+            max_correspondence_distance=1.0,
+            max_displacement=0.5,
+        )
+        det.update(_profile_cluster(0.0), timestamp=0.0)
+        det.update(_profile_cluster(0.1), timestamp=1.0)
+        pos_after_t1 = det.current_position
+        det.update(_profile_cluster(0.2), timestamp=2.0)
+        pos_after_t2 = det.current_position
+        det.update(_profile_cluster(0.3), timestamp=3.0)
+
+        # Side scan at t=1.5: nearest velocity frame is t=1.0 or t=2.0
+        pos_side_1 = det.get_position_at(1.5)
+        assert pos_side_1 in (
+            pytest.approx(pos_after_t1, abs=0.02),
+            pytest.approx(pos_after_t2, abs=0.02),
+        )
+        # Side scan at t=0.5: nearest is t=1.0 (only recorded entry)
+        pos_side_0 = det.get_position_at(0.5)
+        assert pos_side_0 == pytest.approx(pos_after_t1, abs=0.02)

@@ -230,7 +230,9 @@ class VehicleProfilerNode(ModuleNode):
         if self._detector.current_velocity < self._min_velocity:
             return
 
-        position = self._detector.current_position
+        position = self._detector.get_position_at(timestamp)
+        if position is None:
+            return  # timestamp too far from any velocity sample — skip this line
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
 
         # Stream partial profile directly to WebSocket for real-time visualization only

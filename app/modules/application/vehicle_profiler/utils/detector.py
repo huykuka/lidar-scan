@@ -26,8 +26,9 @@ Pipeline (per frame)
    immediately.
 """
 import logging
+from collections import deque
 from dataclasses import dataclass
-from typing import Optional
+from typing import Deque, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
@@ -219,6 +220,12 @@ class VehicleDetector:
         self._velocity: float = 0.0
         self._last_t: Optional[float] = None
 
+        # Timestamped position history — used by get_position_at() so that
+        # side-LiDAR scan lines can look up the position nearest to their own
+        # timestamp, absorbing latency and frequency differences between sensors.
+        # Bounded to the last 256 entries — enough for several seconds at 50 Hz.
+        self._position_history: Deque[Tuple[float, float]] = deque(maxlen=256)
+
         # Tracking state
         self._vehicle_present: bool = False
 
@@ -351,11 +358,14 @@ class VehicleDetector:
         if displacement is not None:
             self._position += displacement
             self._velocity = (displacement / dt) if dt > 0 else 0.0
+            if displacement != 0.0:
+                self._position_history.append((timestamp, self._position))
             return self._result(timestamp, present=True)
 
         # ICP failed — dead-reckon from last velocity
         if dt > 0:
             self._position += self._velocity * dt
+            self._position_history.append((timestamp, self._position))
         return self._result(timestamp, present=True, icp_valid=False)
 
     # ── Reset ─────────────────────────────────────────────────────────────
@@ -367,12 +377,57 @@ class VehicleDetector:
         self._velocity = 0.0
         self._last_t = None
         self._vehicle_present = False
+        self._position_history.clear()
 
     def reset(self) -> None:
         """Full reset (alias for reset_tracking — no background model to clear)."""
         self.reset_tracking()
 
     # ── Accessors ─────────────────────────────────────────────────────────
+
+    def get_position_at(self, timestamp: float, max_age: float = 0.5) -> Optional[float]:
+        """Return the recorded position nearest to the given timestamp.
+
+        Side-LiDAR scan lines arrive with their own hardware timestamp which
+        may differ from the velocity sensor's timestamp due to latency or
+        different scan rates.  This method finds the position sample whose
+        timestamp is closest to the requested one, absorbing latency and
+        frequency differences between sensors.
+
+        Args:
+            timestamp:  The scan's own hardware timestamp (seconds).
+            max_age:    Maximum allowed time gap (seconds) between the
+                        requested timestamp and the nearest recorded sample.
+                        If the gap exceeds this, None is returned so the
+                        caller can discard the scan line rather than place
+                        it at an incorrect position.  Defaults to 0.5 s —
+                        generous enough for mixed 10/20 Hz setups but tight
+                        enough to catch clock drift or a stalled velocity
+                        sensor.
+
+        Returns:
+            Nearest recorded position (m), or None if no sample is within
+            max_age seconds (history empty, clock drift, or sensor stall).
+        """
+        if not self._position_history:
+            return None
+
+        best_t, best_pos = min(self._position_history, key=lambda tp: abs(tp[0] - timestamp))
+        dt = abs(best_t - timestamp)
+
+        if dt > max_age:
+            logger.warning(
+                "get_position_at %.4f: nearest sample is %.4f s away (max_age=%.2f s) "
+                "— discarding scan line to avoid position drift",
+                timestamp, dt, max_age,
+            )
+            return None
+
+        logger.debug(
+            "get_position_at %.4f → matched %.4f (Δt=%.4f s) pos=%.4f m",
+            timestamp, best_t, dt, best_pos,
+        )
+        return best_pos
 
     @property
     def vehicle_present(self) -> bool:
