@@ -9,3 +9,4 @@ from .debug import DebugSave, SaveDataStructure
 from .generate_plane import GeneratePlane
 from .patch_plane_segmentation import PatchPlaneSegmentation
 from .density import Densify
+from .surface_reconstruction import SurfaceReconstruction
