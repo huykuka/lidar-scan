@@ -69,6 +69,8 @@ async def parse_pcd_upload(file: UploadFile) -> np.ndarray:
         finally:
             os.close(fd)
     except OSError as exc:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
         raise HTTPException(status_code=500, detail=f"Server I/O error writing temp file: {exc}") from exc
 
     try:
