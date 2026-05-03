@@ -1,4 +1,5 @@
 export * from './calibration-api.service'
+export * from './detection-model-api.service'
 export * from './fusion-api.service'
 export * from './lidar-api.service'
 export * from './nodes-api.service'
