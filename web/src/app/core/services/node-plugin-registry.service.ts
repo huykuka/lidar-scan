@@ -18,6 +18,7 @@ import {OutputNodeEditorComponent} from '@plugins/flow-control/output/form/outpu
 import {PlaybackNodeCardComponent} from '@plugins/playback/node/playback-node-card/playback-node-card.component';
 import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-editor/playback-node-editor.component';
 import {PcdInjectionCardComponent} from '@plugins/pcd-injection/node/pcd-injection-card.component';
+import {PcdInjectionEditorComponent} from '@plugins/pcd-injection/form/pcd-injection-editor.component';
 import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
@@ -118,6 +119,7 @@ export class NodePluginRegistry {
         };
         const editorMap: Record<string, any> = {
           playback: PlaybackNodeEditorComponent,
+          pcd_injection: PcdInjectionEditorComponent,
         };
         this.plugins.set(type, {
           ...plugin,

@@ -91,7 +91,14 @@ async def inject_pcd(node_id: str, file: UploadFile) -> dict:
     """
     node = _get_injection_node(node_id)
     points = await parse_pcd_upload(file)
-    count = await node.inject_points(points)
+
+    try:
+        count = await node.inject_points(points)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to inject points into node '{node_id}': {exc}",
+        ) from exc
 
     return {
         "node_id": node_id,
