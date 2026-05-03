@@ -68,7 +68,10 @@ async def parse_pcd_upload(file: UploadFile) -> np.ndarray:
             os.write(fd, raw)
         finally:
             os.close(fd)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Server I/O error writing temp file: {exc}") from exc
 
+    try:
         pcd: o3d.geometry.PointCloud = await asyncio.to_thread(o3d.io.read_point_cloud, tmp_path)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Failed to parse PCD file: {exc}") from exc
