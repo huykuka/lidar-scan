@@ -3,6 +3,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '../flow-canvas-node.component';
 import {RecordingStoreService} from '@core/services/stores';
 import {RecordingApiService} from '@core/services/api';
+import {NodeStatusUpdate} from '@core/models';
 
 @Component({
   selector: 'app-node-recording-controls',
@@ -11,12 +12,15 @@ import {RecordingApiService} from '@core/services/api';
 })
 export class NodeRecordingControls implements OnDestroy {
   node = input.required<CanvasNode>();
+  status = input<NodeStatusUpdate | null>(null);
   protected recordingDuration = signal<number>(0);
   private recordingStore = inject(RecordingStoreService);
   protected isRecording = computed(() => {
     const checkFn = this.recordingStore.isRecording();
     return checkFn(this.node().id);
   });
+
+  protected hasError = computed(() => this.status()?.operational_state === 'ERROR');
 
   protected activeRecording = computed(() => {
     const getFn = this.recordingStore.getActiveRecordingByNodeId();

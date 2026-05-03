@@ -141,6 +141,7 @@ class SelectiveReloadManager:
         self.manager.nodes.pop(node_id, None)
 
         new_instance: Any = None
+        node_is_enabled: bool = True  # default; resolved from DB in step 9
         try:
             # ------------------------------------------------------------------
             # Step 9: Load fresh node data from DB
@@ -148,6 +149,9 @@ class SelectiveReloadManager:
             node_data = NodeRepository().get_by_id(node_id)
             if node_data is None:
                 raise ValueError(f"Node '{node_id}' not found in database.")
+
+            # Resolve enabled state as early as possible so rollback uses it
+            node_is_enabled = node_data.get("enabled", True)
 
             # ------------------------------------------------------------------
             # Step 10: Create new instance via NodeFactory
@@ -172,9 +176,11 @@ class SelectiveReloadManager:
             self.manager.nodes[node_id] = new_instance
 
             # ------------------------------------------------------------------
-            # Step 14: Start/enable new instance if manager is running
+            # Step 14: Start/enable new instance if manager is running AND node is enabled.
+            # A disabled node must NOT be started — the whole point of disabling is to
+            # stop the underlying worker / logic from running.
             # ------------------------------------------------------------------
-            if self.manager.is_running:
+            if self.manager.is_running and node_is_enabled:
                 if hasattr(new_instance, "start"):
                     import inspect
                     result = new_instance.start(
@@ -202,8 +208,8 @@ class SelectiveReloadManager:
                 "Attempting rollback.",
                 exc_info=True,
             )
-            # ----- Rollback: restore old instance -----
-            rolled_back = self._rollback(node_id, old_instance)
+            # ----- Rollback: restore old instance (respecting enabled state) -----
+            rolled_back = self._rollback(node_id, old_instance, node_was_enabled=node_is_enabled)
             # ----- Always resume downstream gates on error -----
             await self._resume_all_gates(downstream_ids)
             # ----- Clear rollback slot -----
@@ -319,15 +325,18 @@ class SelectiveReloadManager:
     # Private helpers
     # ------------------------------------------------------------------
 
-    def _rollback(self, node_id: str, old_instance: Any) -> bool:
+    def _rollback(self, node_id: str, old_instance: Any, node_was_enabled: bool = True) -> bool:
         """Restore *old_instance* into the nodes dict and attempt restart.
+
+        Only restarts the old instance when *node_was_enabled* is True —
+        a disabled node must not be restarted even during rollback.
 
         Returns True if rollback succeeded (old instance re-inserted), False
         if rollback itself encountered an error.
         """
         try:
             self.manager.nodes[node_id] = old_instance
-            if self.manager.is_running:
+            if self.manager.is_running and node_was_enabled:
                 if hasattr(old_instance, "start"):
                     import inspect
                     result = old_instance.start(
