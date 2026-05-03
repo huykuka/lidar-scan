@@ -1,0 +1,30 @@
+<div class="flex flex-col w-full min-w-105 mb-4">
+  <app-node-editor-header
+    [icon]="definition()?.icon || 'cloud_upload'"
+    iconColor="text-syn-color-primary-600"
+    [title]="definition()?.display_name || 'PCD Injection'"
+    [description]="definition()?.description"
+    [saveDisabled]="isSaveDisabled()"
+    (save)="onSave()"
+    (cancel)="onCancel()"
+  />
+
+  <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-3 text-sm">
+    <div class="grid grid-cols-2 gap-3">
+      <div class="col-span-2">
+        <syn-input formControlName="name"
+                   label="Display Name"
+                   placeholder="e.g. External PCD Source"
+                   size="small"
+        />
+      </div>
+    </div>
+
+    <div class="text-[11px] text-syn-color-neutral-500 mt-2">
+      <p>Upload PCD files to this node via:</p>
+      <code class="block mt-1 text-[10px] font-mono bg-syn-color-neutral-50 p-2 rounded">
+        POST /api/v1/pcd-injection/&#123;node_id&#125;/upload
+      </code>
+    </div>
+  </form>
+</div>

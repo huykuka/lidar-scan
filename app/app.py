@@ -83,6 +83,13 @@ OPENAPI_TAGS: list[dict] = [
         ),
     },
     {
+        "name": "PCD Injection",
+        "description": (
+            "Multipart PCD file upload for injecting point cloud data into the DAG. "
+            "POST a .pcd file to a running PCD Injection node."
+        ),
+    },
+    {
         "name": "Assets",
         "description": "Static image assets served directly from the lidar module bundle.",
     },
