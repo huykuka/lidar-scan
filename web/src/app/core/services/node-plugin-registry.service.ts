@@ -22,6 +22,7 @@ import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-
 import {PcdInjectionCardComponent} from '@plugins/pcd-injection/node/pcd-injection-card.component';
 import {PcdInjectionEditorComponent} from '@plugins/pcd-injection/form/pcd-injection-editor.component';
 import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
+import {DetectionNodeEditorComponent} from '@plugins/detection/form/detection-node-editor.component';
 
 const NODE_COLOR = 'var(--syn-color-primary-600)';
 
@@ -142,6 +143,12 @@ export class NodePluginRegistry {
         this.plugins.set(type, {
           ...plugin,
           editorComponent: ApplicationNodeEditorComponent,
+        });
+      }
+      if (plugin.category === 'detection') {
+        this.plugins.set(type, {
+          ...plugin,
+          editorComponent: DetectionNodeEditorComponent,
         });
       }
       if (plugin.category === 'flow_control') {
