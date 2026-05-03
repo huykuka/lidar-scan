@@ -1,0 +1,20 @@
+<!-- PCD Injection Node Card — compact status display for the flow canvas -->
+<div class="flex flex-col gap-1 px-2 py-1 text-xs" data-testid="pcd-injection-card">
+
+  @if (badge(); as b) {
+    <div
+      [class]="'flex items-center gap-1 font-medium ' + b.cssClass"
+      data-testid="injection-badge"
+    >
+      <span>{{ b.text }}</span>
+    </div>
+  }
+
+  <div class="flex flex-col gap-0.5 text-syn-color-neutral-500 text-[10px]">
+    <div class="flex items-center gap-1 truncate">
+      <syn-icon name="cloud_upload" class="text-xs" />
+      <span class="truncate font-mono">{{ endpoint() }}</span>
+    </div>
+  </div>
+
+</div>

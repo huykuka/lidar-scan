@@ -17,6 +17,7 @@ import {OutputNodeCardComponent} from '@plugins/flow-control/output/node/output-
 import {OutputNodeEditorComponent} from '@plugins/flow-control/output/form/output-node-editor/output-node-editor.component';
 import {PlaybackNodeCardComponent} from '@plugins/playback/node/playback-node-card/playback-node-card.component';
 import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-editor/playback-node-editor.component';
+import {PcdInjectionCardComponent} from '@plugins/pcd-injection/node/pcd-injection-card.component';
 import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
 
 /** Visual metadata per category — used to style the palette and canvas nodes. */
@@ -111,10 +112,17 @@ export class NodePluginRegistry {
         return;
       }
       if (plugin.category === 'sensor') {
+        const cardMap: Record<string, any> = {
+          playback: PlaybackNodeCardComponent,
+          pcd_injection: PcdInjectionCardComponent,
+        };
+        const editorMap: Record<string, any> = {
+          playback: PlaybackNodeEditorComponent,
+        };
         this.plugins.set(type, {
           ...plugin,
-          cardComponent: type === 'playback' ? PlaybackNodeCardComponent : SensorNodeCardComponent,
-          editorComponent: type === 'playback' ? PlaybackNodeEditorComponent : SensorNodeEditorComponent,
+          cardComponent: cardMap[type] ?? SensorNodeCardComponent,
+          editorComponent: editorMap[type] ?? SensorNodeEditorComponent,
         });
       }
       if (plugin.category === 'fusion') {
