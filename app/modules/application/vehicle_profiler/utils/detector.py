@@ -1,30 +1,37 @@
 """
-Vehicle detection and Kalman-filtered position tracking from a vertical 2D LiDAR.
+Vehicle detection and position tracking from a vertical 2D LiDAR.
 
 Physical setup
 --------------
-The vertical LiDAR scans a plane along the travel direction, covering the
-full gantry width so both the leading and trailing edges of the truck are
-visible throughout the entire pass.
+The vertical LiDAR scans a plane along the travel direction.  An upstream
+crop node is expected to deliver only the gantry-area scan (no far-field
+noise).  The detector's own trigger crop further restricts to the window
+``travel_axis >= -trigger_distance``.
 
 Pipeline (per frame)
 --------------------
-1. **Background learning** — per-beam median from the first N empty-scene frames.
-2. **Vehicle detection** — background subtraction; foreground = vehicle cluster.
-3. **ICP registration** — Open3D Point-to-Point ICP aligns previous cluster to
-   current cluster.  Travel-axis translation = raw displacement.
-4. **Kalman filter** — pykalman constant-velocity filter smooths position and
-   estimates velocity.  On ICP failure it dead-reckons using last velocity.
-5. **Stop** — cluster absent for > ``gap_debounce_s`` → vehicle departed.
+1. **Trigger crop** — keep only points where the travel-axis coordinate is
+   within ``trigger_distance`` metres of the gantry (X >= -trigger_distance).
+   Skipped when ``trigger_distance`` is None (use full scan).
+2. **DBSCAN clustering** — density-based clustering on the cropped scan.
+   Noise points (label=-1) are discarded.
+3. **Vehicle gate** — any cluster with at least ``min_vehicle_points`` is
+   considered a vehicle cluster.  The largest such cluster is forwarded to
+   the ICP tracker.
+4. **ICP registration** — Open3D Point-to-Point ICP aligns the previous
+   cluster to the current one.  Travel-axis translation = displacement.
+5. **Position / velocity** — cumulative ICP displacement and per-frame
+   velocity.  Dead-reckoning from last valid velocity on ICP failure.
+6. **Departure** — no valid cluster in the cropped zone → vehicle absent
+   immediately.
 """
 import logging
+from collections import deque
 from dataclasses import dataclass
-from typing import Optional
+from typing import Deque, Optional, Tuple
 
 import numpy as np
-import numpy.ma as ma
 import open3d as o3d
-from pykalman import KalmanFilter
 
 logger = logging.getLogger(__name__)
 
@@ -38,12 +45,11 @@ logger = logging.getLogger(__name__)
 class DetectionResult:
     """Output of a single detector update."""
 
-    position: float           # Kalman-filtered travel distance (m)
-    centroid_position: float  # cluster centroid on travel axis (m)
-    velocity: float           # Kalman-filtered velocity (m/s)
+    position: float        # Cumulative travel distance (m)
+    velocity: float        # Estimated velocity (m/s)
     timestamp: float
     vehicle_present: bool
-    icp_valid: bool = True    # False when ICP failed (dead-reckoned)
+    icp_valid: bool = True  # False when ICP failed (dead-reckoned)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -96,8 +102,6 @@ class ClusterTracker:
             pts3d = np.asarray(points[:, :3], dtype=np.float64)
         cloud = o3d.geometry.PointCloud()
         cloud.points = o3d.utility.Vector3dVector(pts3d)
-        if self._voxel_size > 0:
-            cloud = cloud.voxel_down_sample(self._voxel_size)
         return cloud
 
     # ── Public API ────────────────────────────────────────────────────────
@@ -120,21 +124,23 @@ class ClusterTracker:
         self._prev_cloud = cloud
 
         if reg.fitness < self._min_fitness:
-            logger.info("ICP fitness %.3f < min — rejected", reg.fitness)
+            logger.debug("ICP fitness %.3f < min %.3f — rejected", reg.fitness, self._min_fitness)
             return None
 
-        displacement = max(0.0, float(reg.transformation[self._travel_axis, 3]))
+        raw = float(reg.transformation[self._travel_axis, 3])
 
-        if displacement > self._max_displacement:
-            logger.info("ICP displacement %.4fm > max — rejected", displacement)
+        # Dead-zone: treat sub-millimetre displacements as zero
+        if abs(raw) < self._min_displacement:
+            raw = 0.0
+
+        # Outlier gate: reject implausibly large jumps
+        if abs(raw) > self._max_displacement + 1e-6:
+            logger.debug("ICP displacement %.4fm > max (%.4fm) — rejected", raw, self._max_displacement)
             return None
 
-        if displacement < self._min_displacement:
-            displacement = 0.0
-
-        self._last_displacement = displacement
-        logger.debug("ICP displacement=%.4fm  fitness=%.3f", displacement, reg.fitness)
-        return displacement
+        self._last_displacement = raw
+        logger.debug("ICP displacement=%.4fm  fitness=%.3f", raw, reg.fitness)
+        return raw
 
     def reset(self) -> None:
         self._prev_cloud = None
@@ -150,154 +156,55 @@ class ClusterTracker:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Kalman filter (pykalman)
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class PositionKalmanFilter:
-    """1-D constant-velocity Kalman filter backed by pykalman.
-
-    State: ``[position, velocity]``
-    Observation: velocity implied by ICP displacement (``displacement / dt``).
-
-    On ICP failure a masked observation triggers predict-only (dead-reckoning).
-    The transition matrix is rebuilt each step with the actual ``dt`` so the
-    filter handles variable frame rates correctly.
-
-    Args:
-        process_noise_pos:  Position process noise (m²/s).
-        process_noise_vel:  Velocity process noise (m²/s³).
-        measurement_noise:  Velocity measurement noise (m²/s²).
-        initial_covariance: Diagonal of the initial covariance matrix.
-    """
-
-    def __init__(
-        self,
-        process_noise_pos: float = 1e-4,
-        process_noise_vel: float = 1e-2,
-        measurement_noise: float = 1e-4,
-        initial_covariance: float = 1.0,
-    ) -> None:
-        self._q_pos = process_noise_pos
-        self._q_vel = process_noise_vel
-        self._R = measurement_noise
-        self._init_cov = initial_covariance
-
-        self._x: np.ndarray = np.array([0.0, 0.0])
-        self._P: np.ndarray = np.eye(2) * initial_covariance
-        self._last_t: Optional[float] = None
-        self._initialized = False
-
-    def _make_kf(self, dt: float) -> KalmanFilter:
-        """Build a pykalman KalmanFilter for the given dt."""
-        return KalmanFilter(
-            transition_matrices=np.array([[1.0, dt], [0.0, 1.0]]),
-            observation_matrices=np.array([[0.0, 1.0]]),
-            transition_covariance=np.array([
-                [self._q_pos * dt, 0.0],
-                [0.0, self._q_vel * dt],
-            ]),
-            observation_covariance=np.array([[self._R]]),
-        )
-
-    @property
-    def position(self) -> float:
-        return float(self._x[0])
-
-    @property
-    def velocity(self) -> float:
-        return float(self._x[1])
-
-    @property
-    def initialized(self) -> bool:
-        return self._initialized
-
-    def step(self, timestamp: float, displacement: Optional[float] = None) -> None:
-        """Predict, then update (or dead-reckon if *displacement* is None)."""
-        if not self._initialized:
-            self._last_t = timestamp
-            self._initialized = True
-            if displacement is not None:
-                self._x[0] += displacement
-            return
-
-        dt = timestamp - self._last_t if self._last_t is not None else 0.0
-        self._last_t = timestamp
-
-        if dt <= 0:
-            if displacement is not None:
-                self._x[0] += displacement
-            return
-
-        kf = self._make_kf(dt)
-
-        if displacement is not None:
-            obs = np.array([displacement / dt])
-            self._x, self._P = kf.filter_update(self._x, self._P, observation=obs)
-            # Trust ICP for position; let the KF smooth velocity only.
-            self._x[0] = self._x[0] - self._x[1] * dt + displacement
-        else:
-            self._x, self._P = kf.filter_update(
-                self._x, self._P, observation=ma.masked,
-            )
-
-        # Forward-only velocity
-        if self._x[1] < 0:
-            self._x[1] = 0.0
-
-    def reset(self) -> None:
-        self._x = np.array([0.0, 0.0])
-        self._P = np.eye(2) * self._init_cov
-        self._last_t = None
-        self._initialized = False
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Vehicle detector (orchestrates tracker + Kalman)
+# Vehicle detector (DBSCAN-based, no background model)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 class VehicleDetector:
-    """Detect vehicles via background subtraction and track position with
-    ICP + Kalman filtering.
+    """Detect vehicles via DBSCAN clustering on a trigger-cropped 2D scan.
+
+    No background learning is required.  An upstream crop node should
+    already restrict the scan to the gantry area; this detector further
+    crops to the leading-edge trigger window before clustering.
 
     Args:
-        bg_threshold:                Delta (m) above background → vehicle.
-        bg_learning_frames:          Frames for background model.
-        travel_axis:                 Travel direction axis (0=X, 1=Y).
-        gap_debounce_s:              Seconds of absence before departure.
-        min_vehicle_points:          Min foreground points per frame.
+        travel_axis:                 Axis index for the truck travel direction
+                                     (0=X, 1=Y).
+        min_vehicle_points:          Min points in a DBSCAN cluster to count
+                                     as a vehicle.  Acts as a size gate —
+                                     rejects noise and tiny debris clusters.
+        dbscan_eps:                  DBSCAN neighbourhood radius (m).  Tune
+                                     to the expected point spacing in the scan.
+        dbscan_min_samples:          DBSCAN min samples per core point.
+        trigger_distance:            Crop window: only consider points where
+                                     ``points[:, travel_axis] >= -trigger_distance``
+                                     (i.e. within trigger_distance metres of the
+                                     gantry).  None = use the full incoming scan.
         max_correspondence_distance: ICP correspondence distance (m).
-        min_icp_fitness:             Minimum ICP fitness to accept.
+        min_icp_fitness:             Minimum ICP fitness to accept result.
         voxel_size:                  ICP voxel down-sample (0 = disabled).
-        max_displacement:            Max per-frame displacement (m).
-        min_displacement:            Dead-zone (m).
-        process_noise_pos:           Kalman position process noise (m²/s).
-        process_noise_vel:           Kalman velocity process noise (m²/s³).
-        measurement_noise:           Kalman velocity measurement noise (m²/s²).
+        max_displacement:            Max per-frame ICP displacement (m).
+        min_displacement:            ICP dead-zone (m).
     """
 
     def __init__(
         self,
-        bg_threshold: float = 0.3,
-        bg_learning_frames: int = 20,
         travel_axis: int = 0,
-        gap_debounce_s: float = 3.0,
-        min_vehicle_points: int = 5,
+        min_vehicle_points: int = 10,
+        dbscan_eps: float = 0.3,
+        dbscan_min_samples: int = 5,
+        trigger_distance: Optional[float] = None,
         max_correspondence_distance: float = 0.5,
         min_icp_fitness: float = 0.3,
         voxel_size: float = 0.0,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
-        process_noise_pos: float = 1e-4,
-        process_noise_vel: float = 1e-2,
-        measurement_noise: float = 1e-4,
     ) -> None:
-        self._bg_threshold = bg_threshold
-        self._bg_learning_frames = bg_learning_frames
         self._travel_axis = travel_axis
-        self._gap_debounce_s = gap_debounce_s
         self._min_vehicle_points = min_vehicle_points
+        self._dbscan_eps = dbscan_eps
+        self._dbscan_min_samples = dbscan_min_samples
+        self._trigger_distance = trigger_distance
 
         self._tracker = ClusterTracker(
             travel_axis=travel_axis,
@@ -308,34 +215,95 @@ class VehicleDetector:
             min_displacement=min_displacement,
         )
 
-        self._kf = PositionKalmanFilter(
-            process_noise_pos=process_noise_pos,
-            process_noise_vel=process_noise_vel,
-            measurement_noise=measurement_noise,
-        )
+        # Position / velocity
+        self._position: float = 0.0
+        self._velocity: float = 0.0
+        self._last_t: Optional[float] = None
 
-        # Background model
-        self._bg_accumulator: list[np.ndarray] = []
-        self._bg_distances: Optional[np.ndarray] = None
+        # Timestamped position history — used by get_position_at() so that
+        # side-LiDAR scan lines can look up the position nearest to their own
+        # timestamp, absorbing latency and frequency differences between sensors.
+        # Bounded to the last 256 entries — enough for several seconds at 50 Hz.
+        self._position_history: Deque[Tuple[float, float]] = deque(maxlen=256)
 
         # Tracking state
-        self._last_t: Optional[float] = None
         self._vehicle_present: bool = False
-        self._absence_since: Optional[float] = None
 
     # ── Helpers ───────────────────────────────────────────────────────────
+
+    def _crop_to_trigger_window(self, points: np.ndarray) -> np.ndarray:
+        """Return only points inside the trigger window.
+
+        Keeps points where the travel-axis coordinate is >= -trigger_distance
+        (i.e. within ``trigger_distance`` metres of the gantry at X=0).
+        When trigger_distance is None the full scan is returned unchanged.
+        """
+        if self._trigger_distance is None:
+            return points
+        mask = points[:, self._travel_axis] >= -self._trigger_distance
+        return points[mask]
+
+    def _largest_vehicle_cluster(self, points: np.ndarray) -> Optional[np.ndarray]:
+        """Run DBSCAN and return the largest cluster with >= min_vehicle_points.
+
+        Returns None if no valid cluster is found (scene empty or only noise).
+        """
+        if len(points) < self._dbscan_min_samples:
+            return None
+
+        # Build Open3D cloud (pad 2D → 3D)
+        if points.shape[1] == 2:
+            pts3d = np.zeros((len(points), 3), dtype=np.float64)
+            pts3d[:, :2] = points
+        else:
+            pts3d = np.asarray(points[:, :3], dtype=np.float64)
+
+        cloud = o3d.geometry.PointCloud()
+        cloud.points = o3d.utility.Vector3dVector(pts3d)
+
+        labels = np.asarray(
+            cloud.cluster_dbscan(
+                eps=self._dbscan_eps,
+                min_points=self._dbscan_min_samples,
+                print_progress=False,
+            )
+        )
+
+        # labels == -1 → noise; valid clusters are 0, 1, 2, …
+        valid_labels = labels[labels >= 0]
+        if len(valid_labels) == 0:
+            return None
+
+        unique, counts = np.unique(valid_labels, return_counts=True)
+
+        # Size gate: discard clusters smaller than min_vehicle_points
+        big_mask = counts >= self._min_vehicle_points
+        if not big_mask.any():
+            logger.debug(
+                "DBSCAN: %d cluster(s) found but none reached min_vehicle_points=%d",
+                len(unique), self._min_vehicle_points,
+            )
+            return None
+
+        # Pick the largest cluster among valid ones
+        best_label = unique[big_mask][np.argmax(counts[big_mask])]
+        cluster_pts = points[labels == best_label]
+
+        logger.debug(
+            "DBSCAN: %d cluster(s), largest valid=%d pts (label %d)",
+            big_mask.sum(), len(cluster_pts), best_label,
+        )
+        return cluster_pts
 
     def _result(
         self,
         timestamp: float,
-        centroid_pos: float = 0.0,
         present: bool = True,
         icp_valid: bool = True,
     ) -> DetectionResult:
         return DetectionResult(
-            position=self._kf.position,
-            centroid_position=centroid_pos,
-            velocity=self._kf.velocity,
+            position=self._position,
+            velocity=self._velocity,
             timestamp=timestamp,
             vehicle_present=present,
             icp_valid=icp_valid,
@@ -343,92 +311,123 @@ class VehicleDetector:
 
     def _stop(self, timestamp: float) -> DetectionResult:
         self._vehicle_present = False
-        self._absence_since = None
         self._last_t = timestamp
         return self._result(timestamp, present=False)
 
     # ── Main update ───────────────────────────────────────────────────────
 
     def update(self, points: np.ndarray, timestamp: float) -> Optional[DetectionResult]:
-        """Process one scan frame.  Returns None during background learning."""
+        """Process one scan frame.  Always returns a DetectionResult (never None)."""
         if points is None or len(points) < 2:
-            return None
+            return self._result(timestamp, present=False) if self._last_t is not None else None
 
-        distances = np.linalg.norm(points[:, :2], axis=1)
+        # 1. Crop to trigger window
+        cropped = self._crop_to_trigger_window(points)
 
-        # Background learning
-        if self._bg_distances is None:
-            self._bg_accumulator.append(distances)
-            if len(self._bg_accumulator) >= self._bg_learning_frames:
-                max_len = max(len(d) for d in self._bg_accumulator)
-                padded = np.full((len(self._bg_accumulator), max_len), np.nan)
-                for i, d in enumerate(self._bg_accumulator):
-                    padded[i, : len(d)] = d
-                self._bg_distances = np.nanmedian(padded, axis=0)
-                self._bg_accumulator.clear()
-            return None
+        # 2. Cluster — find largest valid cluster
+        cluster = self._largest_vehicle_cluster(cropped)
 
-        # Vehicle detection
-        n = min(len(distances), len(self._bg_distances))
-        delta = self._bg_distances[:n] - distances[:n]
-        vehicle_mask = delta > self._bg_threshold
-        n_vehicle = int(vehicle_mask.sum())
-
-        # No cluster
-        if n_vehicle < self._min_vehicle_points:
+        # 3. No valid cluster → absent
+        if cluster is None:
             if self._vehicle_present:
-                if self._absence_since is None:
-                    self._absence_since = timestamp
-                if (timestamp - self._absence_since) < self._gap_debounce_s:
-                    return self._result(timestamp, present=True)
+                logger.info("Vehicle departed (no cluster in trigger window)")
                 return self._stop(timestamp)
             self._last_t = timestamp
             return self._result(timestamp, present=False)
 
-        # Cluster present
-        self._absence_since = None
-        vehicle_pts = points[:n][vehicle_mask]
-        spatial_pts = vehicle_pts[:, :3] if vehicle_pts.shape[1] >= 3 else vehicle_pts[:, :2]
-        centroid_pos = float(spatial_pts[:, self._travel_axis].mean())
-        self._last_t = timestamp
+        # 4. Cluster present → ICP tracking
+        spatial_pts = cluster[:, :3] if cluster.shape[1] >= 3 else cluster[:, :2]
 
         # First detection — seed tracker
         if not self._vehicle_present:
             self._tracker.update(spatial_pts, timestamp)
-            self._kf.step(timestamp, displacement=0.0)
+            self._last_t = timestamp
             self._vehicle_present = True
-            return self._result(timestamp, centroid_pos=centroid_pos, present=True)
+            logger.info(
+                "Vehicle detected — cluster size=%d trigger_distance=%s",
+                len(cluster), self._trigger_distance,
+            )
+            return self._result(timestamp, present=True)
 
-        # Normal tracking — ICP → Kalman
+        # Normal tracking — ICP displacement → position / velocity
+        dt = (timestamp - self._last_t) if self._last_t is not None else 0.0
+        self._last_t = timestamp
+
         displacement = self._tracker.update(spatial_pts, timestamp)
 
         if displacement is not None:
-            self._kf.step(timestamp, displacement=displacement)
-            return self._result(timestamp, centroid_pos=centroid_pos, present=True)
+            self._position += displacement
+            self._velocity = (displacement / dt) if dt > 0 else 0.0
+            if displacement != 0.0:
+                self._position_history.append((timestamp, self._position))
+            return self._result(timestamp, present=True)
 
-        # ICP failed — Kalman dead-reckons
-        self._kf.step(timestamp, displacement=None)
-        return self._result(
-            timestamp, centroid_pos=centroid_pos, present=True, icp_valid=False,
-        )
+        # ICP failed — dead-reckon from last velocity
+        if dt > 0:
+            self._position += self._velocity * dt
+            self._position_history.append((timestamp, self._position))
+        return self._result(timestamp, present=True, icp_valid=False)
 
     # ── Reset ─────────────────────────────────────────────────────────────
 
     def reset_tracking(self) -> None:
-        """Reset tracking state, preserve background model."""
+        """Reset tracking state only."""
         self._tracker.reset()
-        self._kf.reset()
+        self._position = 0.0
+        self._velocity = 0.0
         self._last_t = None
         self._vehicle_present = False
-        self._absence_since = None
+        self._position_history.clear()
 
     def reset(self) -> None:
-        """Full reset including background model."""
+        """Full reset (alias for reset_tracking — no background model to clear)."""
         self.reset_tracking()
-        self._bg_accumulator.clear()
-        self._bg_distances = None
 
     # ── Accessors ─────────────────────────────────────────────────────────
+
+    def get_position_at(self, timestamp: float, max_age: float = 0.5) -> Optional[float]:
+        """Return the recorded position nearest to the given timestamp.
+
+        Side-LiDAR scan lines arrive with their own hardware timestamp which
+        may differ from the velocity sensor's timestamp due to latency or
+        different scan rates.  This method finds the position sample whose
+        timestamp is closest to the requested one, absorbing latency and
+        frequency differences between sensors.
+
+        Args:
+            timestamp:  The scan's own hardware timestamp (seconds).
+            max_age:    Maximum allowed time gap (seconds) between the
+                        requested timestamp and the nearest recorded sample.
+                        If the gap exceeds this, None is returned so the
+                        caller can discard the scan line rather than place
+                        it at an incorrect position.  Defaults to 0.5 s —
+                        generous enough for mixed 10/20 Hz setups but tight
+                        enough to catch clock drift or a stalled velocity
+                        sensor.
+
+        Returns:
+            Nearest recorded position (m), or None if no sample is within
+            max_age seconds (history empty, clock drift, or sensor stall).
+        """
+        if not self._position_history:
+            return None
+
+        best_t, best_pos = min(self._position_history, key=lambda tp: abs(tp[0] - timestamp))
+        dt = abs(best_t - timestamp)
+
+        if dt > max_age:
+            logger.warning(
+                "get_position_at %.4f: nearest sample is %.4f s away (max_age=%.2f s) "
+                "— discarding scan line to avoid position drift",
+                timestamp, dt, max_age,
+            )
+            return None
+
+        logger.debug(
+            "get_position_at %.4f → matched %.4f (Δt=%.4f s) pos=%.4f m",
+            timestamp, best_t, dt, best_pos,
+        )
+        return best_pos
 
     @property
     def vehicle_present(self) -> bool:
@@ -436,10 +435,10 @@ class VehicleDetector:
 
     @property
     def current_position(self) -> float:
-        """Kalman-filtered travel distance (m)."""
-        return self._kf.position
+        """Cumulative ICP travel distance (m)."""
+        return self._position
 
     @property
     def current_velocity(self) -> float:
-        """Kalman-filtered velocity (m/s)."""
-        return self._kf.velocity
+        """Last valid ICP velocity (m/s)."""
+        return self._velocity

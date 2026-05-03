@@ -87,90 +87,63 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="voxel_size",
-                label="Voxel Down-sample Size (m)",
-                type="number",
-                default=0.0,
-                min=0.0,
-                max=0.5,
-                step=0.01,
-                help_text=(
-                    "Voxel size (metres) for down-sampling cluster clouds before "
-                    "ICP. Reduces computation on dense point clouds. 0 = disabled."
-                ),
-            ),
-            PropertySchema(
                 name="max_displacement",
                 label="Max Displacement per Frame (m)",
                 type="number",
                 default=0.5,
-                min=0.01,
+                min=0.001,
                 max=5.0,
-                step=0.01,
+                step=0.001,
                 help_text=(
-                    "Maximum ICP displacement per frame (metres). Any result "
-                    "exceeding this is rejected as noise. Set to roughly the "
-                    "maximum expected travel per scan frame (max_speed / scan_rate)."
+                    "Maximum displacement accepted per frame (metres). Results "
+                    "above this are rejected as outliers. Rule of thumb: "
+                    "max_speed (m/s) / scan_rate (Hz). E.g. 3 m/s at 10 Hz → 0.3 m."
                 ),
             ),
             PropertySchema(
                 name="min_displacement",
                 label="Min Displacement (Dead-zone) (m)",
                 type="number",
-                default=0.005,
+                default=0.001,
                 min=0.0,
-                max=0.1,
+                max=0.05,
                 step=0.001,
                 help_text=(
-                    "Dead-zone threshold (metres). ICP displacements below this "
-                    "are treated as zero (truck static). Prevents noise accumulation "
-                    "from ICP jitter on stationary vehicles. Set above ICP noise "
-                    "floor (~0.003–0.005 m for typical 2D LiDAR)."
+                    "Dead-zone threshold (metres). Displacements below this are treated as "
+                    "zero (truck static). Prevents noise accumulation from ICP jitter on "
+                    "a stationary vehicle. Typical noise floor is 0.001–0.003 m"
                 ),
             ),
             # ── Vehicle Detection ─────────────────────────────────────────
             PropertySchema(
-                name="bg_threshold",
-                label="Background Threshold (m)",
+                name="dbscan_eps",
+                label="Detection Sensitivity (m)",
                 type="number",
                 default=0.3,
                 min=0.05,
-                max=5.0,
-                step=0.001,
+                max=2.0,
+                step=0.05,
                 help_text=(
-                    "Distance (metres) closer than the learned background to "
-                    "classify a point as belonging to a vehicle. Increase for "
-                    "farther sensor mounting positions."
-                ),
-            ),
-            PropertySchema(
-                name="bg_learning_frames",
-                label="Background Learning Frames",
-                type="number",
-                default=20,
-                min=5,
-                max=200,
-                step=1,
-                help_text=(
-                    "Number of initial frames used to learn the background "
-                    "distance model (median). No vehicles should be present "
-                    "during this phase."
+                    "Maximum distance between two points for them to be considered "
+                    "part of the same cluster (DBSCAN ε). Lower values → tighter "
+                    "clusters, less sensitive. Higher values → merge spread-out "
+                    "returns into one cluster. Set to roughly 2× the expected "
+                    "point spacing at the sensor's typical detection range."
                 ),
             ),
             PropertySchema(
                 name="min_vehicle_points",
-                label="Min Vehicle Points",
+                label="Min Cluster Points",
                 type="number",
-                default=5,
-                min=1,
-                max=100,
+                default=10,
+                min=3,
+                max=200,
                 step=1,
                 help_text=(
-                    "Minimum number of vehicle points required in a frame to "
-                    "accept it as a valid position measurement. Frames with "
-                    "fewer points (e.g. bin walls, trailer gaps) are treated "
-                    "as absence and the position is predicted forward instead. "
-                    "Increase if bin interiors are pulling the position back to zero."
+                    "Minimum number of points a cluster must contain to be treated "
+                    "as a vehicle. Rejects small noise clusters and debris. Increase "
+                    "if spurious detections occur; decrease if the truck cross-section "
+                    "is partially occluded."
                 ),
             ),
             PropertySchema(
@@ -179,8 +152,8 @@ node_schema_registry.register(
                 type="select",
                 default=0,
                 options=[
-                    {"label": "X", "value": 0},
-                    {"label": "Y", "value": 1},
+                    {"label": "+X", "value": 0},
+                    {"label": "+Y", "value": 1},
                 ],
                 help_text=(
                     "Which axis corresponds to the vehicle travel direction. "
@@ -191,75 +164,18 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="gap_debounce_s",
-                label="Gap Debounce (s)",
+                name="trigger_distance",
+                label="Trigger Distance (m)",
                 type="number",
-                default=3.0,
-                min=0.1,
-                max=30.0,
+                default=None,
+                min=0.0,
+                max=20.0,
                 step=0.1,
                 help_text=(
-                    "Seconds the vehicle cluster may be absent before the "
-                    "detector declares departure. Bridges structural gaps "
-                    "(bin-to-trailer) without resetting position."
-                ),
-            ),
-            # ── Kalman Filter ─────────────────────────────────────────────
-            PropertySchema(
-                name="process_noise_pos",
-                label="KF Position Process Noise",
-                type="number",
-                default=0.0001,
-                min=0.0,
-                max=1.0,
-                step=0.0001,
-                help_text=(
-                    "Kalman filter position process noise (m²/s). Higher values "
-                    "make the filter trust ICP measurements more; lower values "
-                    "produce a smoother position trace. Typical range: 1e-5 to 1e-3."
-                ),
-            ),
-            PropertySchema(
-                name="process_noise_vel",
-                label="KF Velocity Process Noise",
-                type="number",
-                default=0.01,
-                min=0.0,
-                max=1.0,
-                step=0.001,
-                help_text=(
-                    "Kalman filter velocity process noise (m²/s³). Controls how "
-                    "quickly the filter adapts to speed changes. Higher = faster "
-                    "response to acceleration/deceleration. Typical range: 1e-3 to 0.1."
-                ),
-            ),
-            PropertySchema(
-                name="measurement_noise",
-                label="KF Measurement Noise",
-                type="number",
-                default=0.0001,
-                min=0.0,
-                max=1.0,
-                step=0.0001,
-                help_text=(
-                    "Kalman filter velocity measurement noise (m²/s²). Represents "
-                    "ICP displacement noise. Higher = smoother velocity but slower "
-                    "to react. Lower = follows ICP closely. Typical range: 1e-5 to 1e-2."
-                ),
-            ),
-           
-            # ── Profile Accumulation ──────────────────────────────────────
-            PropertySchema(
-                name="stream_partial",
-                label="Stream Partial Profile",
-                type="boolean",
-                default=False,
-                help_text=(
-                    "When enabled, the accumulated point cloud is streamed to "
-                    "connected outputs after every side-sensor scan line. This "
-                    "lets the UI show the profile building up in real-time. "
-                    "Disable to only emit the final complete profile when the "
-                    "vehicle leaves — reduces WebSocket traffic on slow connections."
+                    "How far before the gantry (X=0) the truck's leading edge "
+                    "must be to start detection. E.g. 0.1 fires only when the "
+                    "truck front is within 10 cm of the gantry. "
+                    "Leave empty to trigger anywhere in the scan zone."
                 ),
             ),
             PropertySchema(
@@ -267,55 +183,32 @@ node_schema_registry.register(
                 label="Min Scan Lines",
                 type="number",
                 default=10,
-                min=2,
-                max=1000,
+                min=1,
+                max=500,
                 step=1,
                 help_text=(
-                    "Minimum number of scan lines required from side sensors "
-                    "to emit a valid vehicle profile. Profiles with fewer "
-                    "scan lines are discarded."
+                    "Minimum number of side-sensor scan lines required to emit "
+                    "a valid profile. Profiles with fewer lines are discarded. "
+                    "Set based on truck length and scan rate."
                 ),
             ),
             PropertySchema(
-                name="max_gap_s",
-                label="Max Scan Gap (s)",
-                type="number",
-                default=2.0,
-                min=0.1,
-                max=30.0,
-                step=0.1,
-                help_text=(
-                    "Maximum allowed time gap (seconds) between consecutive "
-                    "side-sensor scans. If exceeded, the current accumulation "
-                    "is discarded (assumes the vehicle left or sensor stalled)."
-                ),
-            ),
-            PropertySchema(
-                name="min_position_delta",
-                label="Min Position Delta (m)",
+                name="min_height",
+                label="Min Point Height (m)",
                 type="number",
                 default=0.0,
                 min=0.0,
-                max=1.0,
-                step=0.001,
+                max=5.0,
+                step=0.05,
                 help_text=(
-                    "Minimum position change (metres) required between "
-                    "consecutive scan lines. At low vehicle speeds, many "
-                    "scans may land at nearly the same position — this "
-                    "deduplicates them for a cleaner profile. Set to 0 to "
-                    "keep every scan. Try 0.005–0.02 for slow miniature setups."
+                    "Minimum height (metres) a point must be above the ground "
+                    "to be included in the profile. Use this to remove ground "
+                    "noise when the LiDAR FOV is extended and beams reach the "
+                    "road surface ahead of or behind the truck. Set to 0 to "
+                    "keep all points. Typical value: 0.1–0.3 m."
                 ),
             ),
-            # ── Performance ───────────────────────────────────────────────
-            PropertySchema(
-                name="throttle_ms",
-                label="Throttle (ms)",
-                type="number",
-                default=0,
-                min=0,
-                step=10,
-                help_text="Minimum time between processing frames (0 = no limit).",
-            ),
+           
         ],
         inputs=[
             PortSchema(
