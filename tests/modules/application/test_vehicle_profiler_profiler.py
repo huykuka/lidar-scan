@@ -5,7 +5,6 @@ Covers:
   - Single-sensor accumulation and finish
   - Multi-sensor accumulation (two side LiDARs)
   - min_scan_lines enforcement
-  - max_gap_s timeout
   - VehicleProfile properties (duration, estimated_length)
   - abort / inactive state
 """
@@ -89,18 +88,16 @@ class TestProfileAccumulator:
         profile = acc.finish_vehicle()
         assert profile is None
 
-    def test_max_gap_clears_data_but_stays_active(self):
-        acc = ProfileAccumulator(min_scan_lines=2, max_gap_s=1.0)
+    def test_scan_lines_accumulate_across_positions(self):
+        """All scan lines are kept regardless of time gap — detector owns lifecycle."""
+        acc = ProfileAccumulator(min_scan_lines=2)
         acc.start_vehicle()
         acc.add_scan_line("s1", _scan_line(), position=0.0, timestamp=0.0)
         assert acc.scan_count == 1
-        # Gap too large — clears accumulated data but stays active
+        # Large time gap is fine — profiler does not self-terminate
         acc.add_scan_line("s1", _scan_line(), position=5.0, timestamp=5.0)
         assert acc.active is True
-        assert acc.scan_count == 0
-        # Can resume accumulating after the gap
-        acc.add_scan_line("s1", _scan_line(), position=5.1, timestamp=5.1)
-        acc.add_scan_line("s1", _scan_line(), position=5.2, timestamp=5.2)
+        assert acc.scan_count == 2
         profile = acc.finish_vehicle()
         assert profile is not None
         assert profile.scan_count == 2

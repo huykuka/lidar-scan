@@ -95,7 +95,6 @@ class VehicleProfilerNode(ModuleNode):
             bg_threshold=bg_threshold,
             bg_learning_frames=_bg_learning_frames,
             travel_axis=travel_axis,
-            gap_debounce_s=_gap_debounce_s,
             min_vehicle_points=_min_vehicle_points,
             max_correspondence_distance=max_correspondence_distance,
             min_icp_fitness=min_icp_fitness,
@@ -106,13 +105,11 @@ class VehicleProfilerNode(ModuleNode):
         )
 
         # Profile accumulator params
-        min_scan_lines = 60
-        max_gap_s = float(config.get("max_gap_s", 2.0))
+        min_scan_lines = int(config.get("min_scan_lines", 20))
         min_height = float(config.get("min_height", 0.0))
 
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
-            max_gap_s=max_gap_s,
             travel_axis=travel_axis,
             min_position_delta=min_displacement,
             min_height=min_height,
@@ -126,16 +123,16 @@ class VehicleProfilerNode(ModuleNode):
         self._state = _State.IDLE
         self._vehicles_counted: int = 0
 
-        # run concurrently so a slow ICP call never drops a profile frame.
-        self._velocity_processing: bool = False
-        self._profile_processing: bool = False
-
         # Runtime stats
         self.last_input_at: Optional[float] = None
         self.last_output_at: Optional[float] = None
         self.last_error: Optional[str] = None
 
         self.last_profile_points: int = 0
+
+        # Processing guards — prevent concurrent processing of same sensor type
+        self._velocity_processing: bool = False
+        self._profile_processing: bool = False
 
     # ── ModuleNode interface ──────────────────────────────────────────────
 
@@ -152,33 +149,15 @@ class VehicleProfilerNode(ModuleNode):
         self.last_input_at = time.time()
 
         try:
-            # Match velocity sensor by either lidar_id or node_id so that
-            # auto-detect (which picks from edge source_node) works even
-            # when the payload carries a different lidar_id through
-            # intermediate DAG nodes (e.g. Sensor → Crop → Profiler).
-            is_velocity = (
+            is_positioning_sensor = (
                 source_id == self._velocity_sensor_id
                 or payload.get("node_id") == self._velocity_sensor_id
                 or payload.get("lidar_id") == self._velocity_sensor_id
             )
-            if is_velocity:
-                if self._velocity_processing:
-                    logger.debug(f"[{self.id}] Dropping velocity frame — ICP still running")
-                    return
-                self._velocity_processing = True
-                try:
-                    await self._handle_velocity_frame(points, timestamp)
-                finally:
-                    self._velocity_processing = False
+            if is_positioning_sensor:
+                await self._handle_velocity_frame(points, timestamp)
             else:
-                if self._profile_processing:
-                    logger.debug(f"[{self.id}] Dropping profile frame — previous profile frame still processing")
-                    return
-                self._profile_processing = True
-                try:
-                    await self._handle_profile_frame(source_id, points, timestamp)
-                finally:
-                    self._profile_processing = False
+                await self._handle_profile_frame(source_id, points, timestamp)
             self.last_error = None
         except Exception as e:
             self.last_error = str(e)
@@ -225,6 +204,13 @@ class VehicleProfilerNode(ModuleNode):
 
         if result is None:
             return
+
+        logger.debug(
+            "[%s] detector: present=%s pos=%.3f vel=%.3f icp=%s state=%s",
+            self.id, result.vehicle_present, result.position,
+            result.velocity, result.icp_valid, self._state.value,
+        )
+
         if result.vehicle_present and self._state == _State.IDLE:
             self._state = _State.MEASURING
             self._profiler.start_vehicle()
@@ -232,6 +218,7 @@ class VehicleProfilerNode(ModuleNode):
             notify_status_change(self.id)
 
         elif not result.vehicle_present and self._state == _State.MEASURING:
+            logger.info(f"[{self.id}] Vehicle departed — finalizing profile")
             await self._finalize_profile()
 
     async def _handle_profile_frame(
@@ -274,7 +261,6 @@ class VehicleProfilerNode(ModuleNode):
 
     async def _finalize_profile(self) -> None:
         profile = await asyncio.to_thread(self._profiler.finish_vehicle)
-
         if profile is not None and len(profile.points) > 0:
             self._vehicles_counted += 1
             self.last_output_at = time.time()

@@ -30,8 +30,6 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "bg_learning_frames": 3,
     "travel_axis": 0,
     "min_scan_lines": 2,
-    "max_gap_s": 2.0,
-    "gap_debounce_s": 0.0,   # instant departure for unit tests
 }
 
 VELOCITY_SENSOR = "vel-001"

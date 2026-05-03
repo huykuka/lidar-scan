@@ -140,14 +140,14 @@ class TestClusterTracker:
         d = ct.update(c1, timestamp=1.0)
         assert d == pytest.approx(shift, abs=0.015)
 
-    def test_displacement_negative_clamped_to_zero(self):
-        """Backward displacement is clamped to 0 — forward-only motion."""
+    def test_displacement_negative_returned_as_negative(self):
+        """Backward displacement is returned as-is — VehicleDetector handles direction."""
         ct = ClusterTracker(
             travel_axis=0, max_displacement=0.2,
         )
         ct.update(_profile_cluster(0.1), timestamp=0.0)
         d = ct.update(_profile_cluster(0.0), timestamp=1.0)  # shifted backward
-        assert d == pytest.approx(0.0)
+        assert d is not None and d < 0.0
 
     def test_outlier_clamped_to_max_displacement(self):
         """A shift larger than max_displacement is rejected (returns None).
@@ -207,31 +207,28 @@ class TestVehicleDetector:
         assert result is not None
         assert result.vehicle_present is True
 
-    def test_vehicle_departure_after_debounce(self):
-        """Vehicle leaves → absent > gap_debounce_s → vehicle_present = False."""
-        det = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3, gap_debounce_s=1.0)
+    def test_vehicle_departure_immediate(self):
+        """Vehicle leaves → vehicle points drop → vehicle_present = False immediately."""
+        det = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3)
         for i in range(5):
             det.update(_background_scan(), timestamp=float(i))
         det.update(_vehicle_scan(), timestamp=5.0)
         assert det.vehicle_present is True
-        # Still within debounce
+        # No debounce — first background frame triggers departure
         result = det.update(_background_scan(), timestamp=5.5)
-        assert result.vehicle_present is True
-        # Past debounce
-        result = det.update(_background_scan(), timestamp=7.0)
         assert result.vehicle_present is False
         assert det.vehicle_present is False
 
-    def test_gap_within_debounce_keeps_vehicle_present(self):
-        """Short absence within gap_debounce_s does not stop the vehicle."""
-        det = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3, gap_debounce_s=2.0)
+    def test_vehicle_returns_after_gap_restarts_tracking(self):
+        """Truck re-enters scan zone after a gap — tracking restarts cleanly."""
+        det = VehicleDetector(bg_learning_frames=5, bg_threshold=0.3)
         for i in range(5):
             det.update(_background_scan(), timestamp=float(i))
         det.update(_vehicle_scan(), timestamp=5.0)
-        # Short gap
+        # Gap — truck leaves
         result = det.update(_background_scan(), timestamp=5.5)
-        assert result.vehicle_present is True
-        # Vehicle returns before debounce expires
+        assert result.vehicle_present is False
+        # Truck re-enters
         result = det.update(_vehicle_scan(), timestamp=6.0)
         assert result.vehicle_present is True
 

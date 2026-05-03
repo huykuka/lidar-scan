@@ -16,7 +16,7 @@ Pipeline (per frame)
 4. **Position / velocity** — position is the cumulative ICP displacement;
    velocity is displacement / dt.  On ICP failure the last valid velocity is
    used to dead-reckon position until ICP recovers.
-5. **Stop** — cluster absent for > ``gap_debounce_s`` → vehicle departed.
+5. **Stop** — cluster absent (vehicle points below threshold) → vehicle departed immediately.
 """
 import logging
 from dataclasses import dataclass
@@ -118,21 +118,24 @@ class ClusterTracker:
    
 
         if reg.fitness < self._min_fitness:
-            logger.info("ICP fitness %.3f < min — rejected", reg.fitness)
+            logger.debug("ICP fitness %.3f < min %.3f — rejected", reg.fitness, self._min_fitness)
             return None
 
-        displacement = max(0.0, float(reg.transformation[self._travel_axis, 3]))
+        raw = float(reg.transformation[self._travel_axis, 3])
 
-        if displacement > self._max_displacement:
-            logger.debug("ICP displacement %.4fm > max (%.4fm) — rejected", displacement, self._max_displacement)
+        # Dead-zone: treat sub-millimetre displacements as zero (truck static)
+        if abs(raw) < self._min_displacement:
+            raw = 0.0
+
+        # Outlier gate: reject implausibly large jumps.
+        # Small epsilon avoids rejecting displacements at the exact boundary.
+        if abs(raw) > self._max_displacement + 1e-6:
+            logger.debug("ICP displacement %.4fm > max (%.4fm) — rejected", raw, self._max_displacement)
             return None
 
-        if displacement < self._min_displacement:
-            displacement = 0.0
-
-        self._last_displacement = displacement
-        logger.debug("ICP displacement=%.4fm  fitness=%.3f", displacement, reg.fitness)
-        return displacement
+        self._last_displacement = raw
+        logger.debug("ICP displacement=%.4fm  fitness=%.3f", raw, reg.fitness)
+        return raw
 
     def reset(self) -> None:
         self._prev_cloud = None
@@ -160,15 +163,15 @@ class VehicleDetector:
     Velocity is displacement / dt for the current frame.  When ICP fails the
     last valid velocity is used to dead-reckon position until ICP recovers.
 
-    Vehicle travel direction is assumed to be positive-X.  Frames where ICP
-    reports negative displacement (truck reversing) are suppressed — the
-    detector returns vehicle_present=False until forward motion resumes.
+    Vehicle presence is determined solely by foreground point count: as long as
+    any part of the truck is visible in the scan beam the profile stays open.
+    Departure is signalled immediately when vehicle points drop below
+    min_vehicle_points — no debounce delay.
 
     Args:
         bg_threshold:                Delta (m) above background → vehicle.
         bg_learning_frames:          Frames for background model.
         travel_axis:                 Travel direction axis (0=X, 1=Y).
-        gap_debounce_s:              Seconds of absence before departure.
         min_vehicle_points:          Min foreground points per frame.
         max_correspondence_distance: ICP correspondence distance (m).
         min_icp_fitness:             Minimum ICP fitness to accept.
@@ -187,7 +190,6 @@ class VehicleDetector:
         bg_threshold: float = 0.3,
         bg_learning_frames: int = 20,
         travel_axis: int = 0,
-        gap_debounce_s: float = 3.0,
         min_vehicle_points: int = 5,
         max_correspondence_distance: float = 0.5,
         min_icp_fitness: float = 0.3,
@@ -199,11 +201,7 @@ class VehicleDetector:
         self._bg_threshold = bg_threshold
         self._bg_learning_frames = bg_learning_frames
         self._travel_axis = travel_axis
-        # trigger_distance crops the scan to X >= -trigger_distance before any
-        # background subtraction — points outside that window are invisible to
-        # the detector.  None = no crop (full scan used).
         self._trigger_distance = trigger_distance
-        self._gap_debounce_s = gap_debounce_s
         self._min_vehicle_points = min_vehicle_points
 
         self._tracker = ClusterTracker(
@@ -226,7 +224,6 @@ class VehicleDetector:
 
         # Tracking state
         self._vehicle_present: bool = False
-        self._absence_since: Optional[float] = None
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -288,19 +285,14 @@ class VehicleDetector:
         else:
             n_vehicle = int(vehicle_mask.sum())
 
-        # No cluster
+        # No cluster — truck has left the scan zone
         if n_vehicle < self._min_vehicle_points:
             if self._vehicle_present:
-                if self._absence_since is None:
-                    self._absence_since = timestamp
-                if (timestamp - self._absence_since) < self._gap_debounce_s:
-                    return self._result(timestamp, present=True)
                 return self._stop(timestamp)
             self._last_t = timestamp
             return self._result(timestamp, present=False)
 
         # Cluster present — ICP uses full scan
-        self._absence_since = None
         spatial_pts = points[:, :3] if points.shape[1] >= 3 else points[:, :2]
 
         # First detection — seed tracker, no displacement yet
@@ -332,7 +324,6 @@ class VehicleDetector:
         self._velocity = 0.0
         self._last_t = None
         self._vehicle_present = False
-        self._absence_since = None
 
     def reset(self) -> None:
         """Full reset including background model."""

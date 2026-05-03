@@ -149,8 +149,6 @@ class ProfileAccumulator:
 
     Args:
         min_scan_lines:     Minimum scan lines required to emit a valid profile.
-        max_gap_s:          Maximum time gap between consecutive scans before
-                            the accumulation is considered broken (vehicle left).
         travel_axis:        Which 3D axis corresponds to the vehicle travel
                             direction (0=X, 1=Y, 2=Z).  The position is placed
                             on this axis.
@@ -169,13 +167,11 @@ class ProfileAccumulator:
     def __init__(
         self,
         min_scan_lines: int = 10,
-        max_gap_s: float = 2.0,
         travel_axis: int = 2,
         min_position_delta: float = 0.0,
         min_height: float = 0.0,
     ):
         self._min_scan_lines = min_scan_lines
-        self._max_gap_s = max_gap_s
         self._travel_axis = travel_axis
         self._min_position_delta = min_position_delta
         self._min_height = min_height
@@ -207,16 +203,6 @@ class ProfileAccumulator:
     def scan_count(self) -> int:
         return len(self._scan_lines)
 
-    def touch_timestamp(self, timestamp: float) -> None:
-        """Update the gap timer without adding a scan line.
-
-        Call this when a frame is intentionally skipped (e.g. due to the
-        velocity filter) so that the gap timeout does not falsely expire
-        and clear accumulated data.
-        """
-        if self._active and self._last_time is not None:
-            self._last_time = timestamp
-
     def add_scan_line(
         self,
         sensor_id: str,
@@ -247,14 +233,6 @@ class ProfileAccumulator:
 
         if points is None or len(points) < 2:
             return
-
-        # # Check for stale gap — clear data but stay active so new
-        # # scan lines can still be accumulated for this vehicle pass.
-        if self._last_time is not None:
-            gap = timestamp - self._last_time
-            if gap > self._max_gap_s:
-                self._clear_accumulation()
-                return
 
         # Skip if position hasn't changed enough since last accepted scan.
         # This prevents redundant overlapping lines at low vehicle speeds.

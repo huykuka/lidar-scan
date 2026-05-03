@@ -162,6 +162,20 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
+                name="min_scan_lines",
+                label="Min Scan Lines",
+                type="number",
+                default=10,
+                min=1,
+                max=500,
+                step=1,
+                help_text=(
+                    "Minimum number of side-sensor scan lines required to emit "
+                    "a valid profile. Profiles with fewer lines are discarded. "
+                    "Set based on truck length and scan rate."
+                ),
+            ),
+            PropertySchema(
                 name="min_height",
                 label="Min Point Height (m)",
                 type="number",
