@@ -120,7 +120,7 @@ class SurfaceReconstruction(PipelineOperation):
         n_in = _get_count(pcd)
 
         if n_in < MIN_INPUT_POINTS:
-            return pcd, self._build_meta(ReconstructionStatus.SKIPPED, n_in, 0, 0, 0, t0)
+            return pcd, self._build_meta(ReconstructionStatus.SKIPPED, n_in, n_in, 0, 0, t0)
 
         try:
             # Convert to legacy for Open3D surface reconstruction APIs
