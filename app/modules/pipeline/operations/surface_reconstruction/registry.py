@@ -94,6 +94,22 @@ node_schema_registry.register(NodeDefinition(
 ))
 
 
+def _unflatten_dot_keys(flat: Dict[str, Any]) -> Dict[str, Any]:
+    """Unflatten dot-notation keys into nested dicts.
+
+    Example: {"poisson_params.depth": 12, "algorithm": "poisson"}
+          -> {"poisson_params": {"depth": 12}, "algorithm": "poisson"}
+    """
+    out: Dict[str, Any] = {}
+    for key, value in flat.items():
+        if "." in key:
+            parent, child = key.split(".", 1)
+            out.setdefault(parent, {})[child] = value
+        else:
+            out[key] = value
+    return out
+
+
 # --- Factory Builder ---
 @NodeFactory.register("surface_reconstruction")
 def build(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
@@ -106,6 +122,8 @@ def build(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]
         throttle_ms = float(throttle_ms)
     except (ValueError, TypeError):
         throttle_ms = 0.0
+
+    op_config = _unflatten_dot_keys(op_config)
 
     return OperationNode(
         manager=service_context,
