@@ -1,14 +1,13 @@
-import { Component, computed, input } from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { CanvasNode } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import { NodeStatusUpdate } from '@core/models/node-status.model';
-import { NodeCardComponent } from '@core/models/node-plugin.model';
+import {Component, computed, input} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
+import {NodeStatusUpdate} from '@core/models/node-status.model';
+import {NodeCardComponent} from '@core/models/node-plugin.model';
 
-interface InjectionBadge {
-  text: string;
-  cssClass: string;
-}
-
+/**
+ * Canvas card component for PCD Injection Nodes.
+ * Displays the injection status as a compact badge.
+ */
 @Component({
   selector: 'app-pcd-injection-card',
   standalone: true,
@@ -20,26 +19,35 @@ export class PcdInjectionCardComponent implements NodeCardComponent {
   node = input.required<CanvasNode>();
   status = input<NodeStatusUpdate | null>(null);
 
-  protected badge = computed<InjectionBadge | null>(() => {
+  /**
+   * Human-readable status label shown on the canvas card.
+   */
+  protected statusLabel = computed(() => {
     const s = this.status();
-    if (!s) return null;
-
+    if (!s) return 'Idle';
     const appValue = String(s.application_state?.value ?? '');
-
     switch (appValue) {
       case 'ready':
-        return { text: '● READY', cssClass: 'text-syn-color-success-600' };
+        return 'Receiving';
       case 'waiting':
-        return { text: '○ WAITING', cssClass: 'text-syn-color-neutral-400' };
+        return 'Waiting';
       case 'error':
-        return { text: '✕ ERROR', cssClass: 'text-syn-color-danger-600' };
+        return 'Error';
       default:
-        return null;
+        return 'Idle';
     }
   });
 
-  protected endpoint = computed(() => {
-    const nodeId = this.node().data.id;
-    return `/api/v1/pcd-injection/${nodeId}/upload`;
+  protected statusVariant = computed(() => {
+    const s = this.status();
+    const appValue = String(s?.application_state?.value ?? '');
+    switch (appValue) {
+      case 'ready':
+        return 'success' as const;
+      case 'error':
+        return 'danger' as const;
+      default:
+        return 'neutral' as const;
+    }
   });
 }
