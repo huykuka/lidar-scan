@@ -106,7 +106,7 @@ class VehicleProfilerNode(ModuleNode):
         )
 
         # Profile accumulator params
-        min_scan_lines = 100
+        min_scan_lines = 60
         max_gap_s = float(config.get("max_gap_s", 2.0))
         min_height = float(config.get("min_height", 0.0))
 

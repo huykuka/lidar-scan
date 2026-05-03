@@ -95,7 +95,7 @@ node_schema_registry.register(
                 max=5.0,
                 step=0.001,
                 help_text=(
-                    "Maximum ICP displacement accepted per frame (metres). Results "
+                    "Maximum displacement accepted per frame (metres). Results "
                     "above this are rejected as outliers. Rule of thumb: "
                     "max_speed (m/s) / scan_rate (Hz). E.g. 3 m/s at 10 Hz → 0.3 m."
                 ),
@@ -109,10 +109,9 @@ node_schema_registry.register(
                 max=0.05,
                 step=0.001,
                 help_text=(
-                    "Dead-zone threshold (metres). ICP displacements below this "
-                    "are treated as zero (truck static). Prevents noise accumulation "
-                    "from ICP jitter on a stationary vehicle. Typical ICP noise "
-                    "floor is 0.001–0.003 m for a 2D LiDAR."
+                    "Dead-zone threshold (metres). Displacements below this are treated as "
+                    "zero (truck static). Prevents noise accumulation from ICP jitter on "
+                    "a stationary vehicle. Typical noise floor is 0.001–0.003 m"
                 ),
             ),
             # ── Vehicle Detection ─────────────────────────────────────────
@@ -160,20 +159,6 @@ node_schema_registry.register(
                     "must be to start detection. E.g. 0.1 fires only when the "
                     "truck front is within 10 cm of the gantry. "
                     "Leave empty to trigger anywhere in the scan zone."
-                ),
-            ),
-            PropertySchema(
-                name="max_gap_s",
-                label="Max Scan Gap (s)",
-                type="number",
-                default=2.0,
-                min=0.1,
-                max=30.0,
-                step=0.1,
-                help_text=(
-                    "Maximum allowed time gap (seconds) between consecutive "
-                    "side-sensor scans. If exceeded, the current accumulation "
-                    "is discarded (assumes the vehicle left or sensor stalled)."
                 ),
             ),
             PropertySchema(

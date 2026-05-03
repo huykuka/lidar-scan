@@ -282,7 +282,7 @@ class VehicleDetector:
         # inside the crop window so the truck must be near the gantry before
         # detection starts.  Once tracking is active use the full count so
         # structural gaps in the far zone don't cause a false departure.
-        if self._trigger_distance is not None and not self._vehicle_present:
+        if self._trigger_distance is not None :
             crop_mask = points[:n, self._travel_axis] >= -self._trigger_distance
             n_vehicle = int((vehicle_mask & crop_mask).sum())
         else:
@@ -317,16 +317,10 @@ class VehicleDetector:
         displacement = self._tracker.update(spatial_pts, timestamp)
 
         if displacement is not None:
-            # Reverse motion — truck is backing up, suppress detection
-            if displacement < 0:
-                return self._result(timestamp, present=False)
             self._position += displacement
             self._velocity = (displacement / dt) if dt > 0 else 0.0
             return self._result(timestamp, present=True)
 
-        # ICP failed — dead-reckon position using last velocity
-        if dt > 0:
-            self._position += self._velocity * dt
         return self._result(timestamp, present=True, icp_valid=False)
 
     # ── Reset ─────────────────────────────────────────────────────────────
