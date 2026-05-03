@@ -34,6 +34,7 @@ export interface PropertySchema {
   step?: number;
   hidden?: boolean;
   depends_on?: Record<string, any[]>;
+  options_source?: string; // Dynamic options: "sensor_nodes" populates from DAG sensors
 }
 
 export interface PortSchema {

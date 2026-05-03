@@ -295,11 +295,26 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
             reloaded_ids = []
         elif change_type == "param_change":
             for node_id in changed_ids:
+                if node_id not in node_manager.nodes:
+                    # Node absent from runtime — check whether it is being re-enabled.
+                    node_record = NodeRepository().get_by_id(node_id)
+                    if node_record is not None and node_record.get("enabled", True):
+                        # Node was disabled and is now enabled: bootstrap it from scratch.
+                        logger.info(f"save_dag_config: node '{node_id}' re-enabled — bootstrapping into pipeline")
+                        await node_manager.bootstrap_node(node_id)
+                    else:
+                        # Still disabled — DB already saved, no runtime action needed.
+                        logger.debug(f"save_dag_config: skipping reload for disabled/absent node '{node_id}'")
+                    continue
                 await node_manager.selective_reload_node(node_id)
             reload_mode = "selective"
             reloaded_ids = changed_ids
         elif change_type == "pose_only":
             for node_id in changed_ids:
+                # Same guard for pose-only hot-updates.
+                if node_id not in node_manager.nodes:
+                    logger.debug(f"save_dag_config: skipping pose hot-update for disabled/absent node '{node_id}'")
+                    continue
                 await node_manager.hot_update_node_pose(node_id)
             reload_mode = "selective"
             reloaded_ids = changed_ids

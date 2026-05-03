@@ -4,8 +4,10 @@ import {Subscription} from 'rxjs';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 import {NodeEditorComponent} from '@core/models/node-plugin.model';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
+import {PropertySchema} from '@core/models/node.model';
 
 @Component({
   selector: 'app-application-node-editor',
@@ -23,6 +25,7 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
   protected configForm!: FormGroup;
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
+  private canvasEditStore = inject(CanvasEditStoreService);
   protected definition = computed(() => {
     const data = this.nodeStore.selectedNode();
     return this.nodeStore.nodeDefinitions().find((d) => d.type === data.type);
@@ -42,6 +45,12 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
       }
       return true;
     });
+  });
+  protected sensorNodeOptions = computed(() => {
+    const nodes = this.canvasEditStore.localNodes();
+    return nodes
+      .filter((n) => n.category === 'sensor')
+      .map((n) => ({label: n.name || n.id, value: n.id}));
   });
   private formValuesSub?: Subscription;
 
@@ -92,6 +101,13 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
   onCheckboxChange(propName: string, event: Event) {
     const checked = (event.target as any).checked;
     this.configForm.get(propName)?.setValue(checked);
+  }
+
+  getSelectOptions(prop: PropertySchema): {label: string; value: any}[] {
+    if (prop.options_source === 'sensor_nodes') {
+      return this.sensorNodeOptions();
+    }
+    return prop.options ?? [];
   }
 
   private initForm() {

@@ -125,7 +125,7 @@
     <!-- Right-aligned Unit-specific Controls -->
     <div class="flex items-center">
       @if (isNodeEnabled() && hasOutputPort() && isWebsocketEnabled()) {
-        <app-node-recording-controls [node]="node()"/>
+        <app-node-recording-controls [node]="node()" [status]="status()"/>
       }
     </div>
   </div>
