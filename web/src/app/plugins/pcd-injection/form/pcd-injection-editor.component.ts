@@ -57,6 +57,16 @@ export class PcdInjectionEditorComponent implements NodeEditorComponent {
       : null,
   );
 
+  /**
+   * Ready-to-use curl command for uploading a PCD file.
+   */
+  protected curlExample = computed(() => {
+    const url = this.uploadUrl();
+    return url
+      ? `curl -X POST ${url} \\\n  -F "file=@your_cloud.pcd"`
+      : null;
+  });
+
   constructor() {
     const node = this.nodeStore.selectedNode();
 
@@ -101,7 +111,7 @@ export class PcdInjectionEditorComponent implements NodeEditorComponent {
     return navigator.clipboard
       .writeText(text)
       .then(() => {
-        this.toast.success('URL copied to clipboard');
+        this.toast.success('Copied to clipboard');
       })
       .catch((err) => {
         console.error('Failed to copy to clipboard:', err);
