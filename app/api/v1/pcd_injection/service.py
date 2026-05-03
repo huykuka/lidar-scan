@@ -50,11 +50,11 @@ async def parse_pcd_upload(file: UploadFile) -> np.ndarray:
     ):
         logger.warning("Unexpected content-type for PCD upload: %s", file.content_type)
 
-    raw = await file.read()
+    raw = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(raw) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large ({len(raw)} bytes). Maximum is {MAX_UPLOAD_BYTES} bytes.",
+            detail=f"File too large. Maximum is {MAX_UPLOAD_BYTES} bytes.",
         )
     if len(raw) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")

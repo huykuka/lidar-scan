@@ -6,7 +6,6 @@ The parsed point cloud is forwarded into the DAG exactly like a hardware sensor 
 """
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import Any, Dict, Optional
 
@@ -104,7 +103,7 @@ class PcdInjectionNode(ModuleNode):
             self._last_inject_at = now
             self._last_error = None
 
-            asyncio.create_task(self.manager.forward_data(self.id, payload))
+            await self.manager.forward_data(self.id, payload)
             notify_status_change(self.id)
 
             logger.debug(
