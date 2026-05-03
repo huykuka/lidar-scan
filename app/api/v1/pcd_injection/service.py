@@ -64,8 +64,10 @@ async def parse_pcd_upload(file: UploadFile) -> np.ndarray:
     try:
         # Open3D requires a file path — write to a temporary file
         fd, tmp_path = tempfile.mkstemp(suffix=".pcd")
-        os.write(fd, raw)
-        os.close(fd)
+        try:
+            os.write(fd, raw)
+        finally:
+            os.close(fd)
 
         pcd: o3d.geometry.PointCloud = await asyncio.to_thread(o3d.io.read_point_cloud, tmp_path)
     except Exception as exc:
