@@ -125,7 +125,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
         return
 
     api_handle = SickScanApiCreate(sick_scan_library)
-    SickScanApiSetVerboseLevel(sick_scan_library, api_handle,3)
+    SickScanApiSetVerboseLevel(sick_scan_library, api_handle,5)
 
     # `launch_args` is typically: "<launchfile> key:=value ...".
     # The sick_scan_api parser expects the launchfile to be readable from the
