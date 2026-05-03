@@ -3,20 +3,27 @@ Vehicle detection and position tracking from a vertical 2D LiDAR.
 
 Physical setup
 --------------
-The vertical LiDAR scans a plane along the travel direction, covering the
-full gantry width so both the leading and trailing edges of the truck are
-visible throughout the entire pass.
+The vertical LiDAR scans a plane along the travel direction.  An upstream
+crop node is expected to deliver only the gantry-area scan (no far-field
+noise).  The detector's own trigger crop further restricts to the window
+``travel_axis >= -trigger_distance``.
 
 Pipeline (per frame)
 --------------------
-1. **Background learning** — per-beam median from the first N empty-scene frames.
-2. **Vehicle detection** — background subtraction; foreground = vehicle cluster.
-3. **ICP registration** — Open3D Point-to-Point ICP aligns previous cluster to
-   current cluster.  Travel-axis translation = displacement for this frame.
-4. **Position / velocity** — position is the cumulative ICP displacement;
-   velocity is displacement / dt.  On ICP failure the last valid velocity is
-   used to dead-reckon position until ICP recovers.
-5. **Stop** — cluster absent (vehicle points below threshold) → vehicle departed immediately.
+1. **Trigger crop** — keep only points where the travel-axis coordinate is
+   within ``trigger_distance`` metres of the gantry (X >= -trigger_distance).
+   Skipped when ``trigger_distance`` is None (use full scan).
+2. **DBSCAN clustering** — density-based clustering on the cropped scan.
+   Noise points (label=-1) are discarded.
+3. **Vehicle gate** — any cluster with at least ``min_vehicle_points`` is
+   considered a vehicle cluster.  The largest such cluster is forwarded to
+   the ICP tracker.
+4. **ICP registration** — Open3D Point-to-Point ICP aligns the previous
+   cluster to the current one.  Travel-axis translation = displacement.
+5. **Position / velocity** — cumulative ICP displacement and per-frame
+   velocity.  Dead-reckoning from last valid velocity on ICP failure.
+6. **Departure** — no valid cluster in the cropped zone → vehicle absent
+   immediately.
 """
 import logging
 from dataclasses import dataclass
@@ -37,12 +44,11 @@ logger = logging.getLogger(__name__)
 class DetectionResult:
     """Output of a single detector update."""
 
-    position: float               # Cumulative travel distance (m)
-    velocity: float
-    velocity: float           # Estimated velocity (m/s)
+    position: float        # Cumulative travel distance (m)
+    velocity: float        # Estimated velocity (m/s)
     timestamp: float
     vehicle_present: bool
-    icp_valid: bool = True    # False when ICP failed (dead-reckoned)
+    icp_valid: bool = True  # False when ICP failed (dead-reckoned)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -115,7 +121,6 @@ class ClusterTracker:
             o3d.pipelines.registration.TransformationEstimationPointToPoint(),
         )
         self._prev_cloud = cloud
-   
 
         if reg.fitness < self._min_fitness:
             logger.debug("ICP fitness %.3f < min %.3f — rejected", reg.fitness, self._min_fitness)
@@ -123,12 +128,11 @@ class ClusterTracker:
 
         raw = float(reg.transformation[self._travel_axis, 3])
 
-        # Dead-zone: treat sub-millimetre displacements as zero (truck static)
+        # Dead-zone: treat sub-millimetre displacements as zero
         if abs(raw) < self._min_displacement:
             raw = 0.0
 
-        # Outlier gate: reject implausibly large jumps.
-        # Small epsilon avoids rejecting displacements at the exact boundary.
+        # Outlier gate: reject implausibly large jumps
         if abs(raw) > self._max_displacement + 1e-6:
             logger.debug("ICP displacement %.4fm > max (%.4fm) — rejected", raw, self._max_displacement)
             return None
@@ -151,58 +155,55 @@ class ClusterTracker:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Vehicle detector (orchestrates tracker + direct position/velocity)
+# Vehicle detector (DBSCAN-based, no background model)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 class VehicleDetector:
-    """Detect vehicles via background subtraction and track position directly
-    from ICP displacement.
+    """Detect vehicles via DBSCAN clustering on a trigger-cropped 2D scan.
 
-    Position is the cumulative sum of accepted ICP displacements.
-    Velocity is displacement / dt for the current frame.  When ICP fails the
-    last valid velocity is used to dead-reckon position until ICP recovers.
-
-    Vehicle presence is determined solely by foreground point count: as long as
-    any part of the truck is visible in the scan beam the profile stays open.
-    Departure is signalled immediately when vehicle points drop below
-    min_vehicle_points — no debounce delay.
+    No background learning is required.  An upstream crop node should
+    already restrict the scan to the gantry area; this detector further
+    crops to the leading-edge trigger window before clustering.
 
     Args:
-        bg_threshold:                Delta (m) above background → vehicle.
-        bg_learning_frames:          Frames for background model.
-        travel_axis:                 Travel direction axis (0=X, 1=Y).
-        min_vehicle_points:          Min foreground points per frame.
+        travel_axis:                 Axis index for the truck travel direction
+                                     (0=X, 1=Y).
+        min_vehicle_points:          Min points in a DBSCAN cluster to count
+                                     as a vehicle.  Acts as a size gate —
+                                     rejects noise and tiny debris clusters.
+        dbscan_eps:                  DBSCAN neighbourhood radius (m).  Tune
+                                     to the expected point spacing in the scan.
+        dbscan_min_samples:          DBSCAN min samples per core point.
+        trigger_distance:            Crop window: only consider points where
+                                     ``points[:, travel_axis] >= -trigger_distance``
+                                     (i.e. within trigger_distance metres of the
+                                     gantry).  None = use the full incoming scan.
         max_correspondence_distance: ICP correspondence distance (m).
-        min_icp_fitness:             Minimum ICP fitness to accept.
+        min_icp_fitness:             Minimum ICP fitness to accept result.
         voxel_size:                  ICP voxel down-sample (0 = disabled).
-        max_displacement:            Max per-frame displacement (m).
-        min_displacement:            Dead-zone (m).
-        trigger_distance:            How far before the gantry (m, positive
-                                     value) the leading edge must be to trigger
-                                     detection.  E.g. 0.1 fires when the truck
-                                     front is within 10 cm of X=0.
-                                     None = trigger anywhere.
+        max_displacement:            Max per-frame ICP displacement (m).
+        min_displacement:            ICP dead-zone (m).
     """
 
     def __init__(
         self,
-        bg_threshold: float = 0.3,
-        bg_learning_frames: int = 20,
         travel_axis: int = 0,
-        min_vehicle_points: int = 5,
+        min_vehicle_points: int = 10,
+        dbscan_eps: float = 0.3,
+        dbscan_min_samples: int = 5,
+        trigger_distance: Optional[float] = None,
         max_correspondence_distance: float = 0.5,
         min_icp_fitness: float = 0.3,
         voxel_size: float = 0.0,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
-        trigger_distance: Optional[float] = None,
     ) -> None:
-        self._bg_threshold = bg_threshold
-        self._bg_learning_frames = bg_learning_frames
         self._travel_axis = travel_axis
-        self._trigger_distance = trigger_distance
         self._min_vehicle_points = min_vehicle_points
+        self._dbscan_eps = dbscan_eps
+        self._dbscan_min_samples = dbscan_min_samples
+        self._trigger_distance = trigger_distance
 
         self._tracker = ClusterTracker(
             travel_axis=travel_axis,
@@ -213,11 +214,7 @@ class VehicleDetector:
             min_displacement=min_displacement,
         )
 
-        # Background model
-        self._bg_accumulator: list[np.ndarray] = []
-        self._bg_distances: Optional[np.ndarray] = None
-
-        # Position / velocity (direct from ICP, no filter)
+        # Position / velocity
         self._position: float = 0.0
         self._velocity: float = 0.0
         self._last_t: Optional[float] = None
@@ -226,6 +223,70 @@ class VehicleDetector:
         self._vehicle_present: bool = False
 
     # ── Helpers ───────────────────────────────────────────────────────────
+
+    def _crop_to_trigger_window(self, points: np.ndarray) -> np.ndarray:
+        """Return only points inside the trigger window.
+
+        Keeps points where the travel-axis coordinate is >= -trigger_distance
+        (i.e. within ``trigger_distance`` metres of the gantry at X=0).
+        When trigger_distance is None the full scan is returned unchanged.
+        """
+        if self._trigger_distance is None:
+            return points
+        mask = points[:, self._travel_axis] >= -self._trigger_distance
+        return points[mask]
+
+    def _largest_vehicle_cluster(self, points: np.ndarray) -> Optional[np.ndarray]:
+        """Run DBSCAN and return the largest cluster with >= min_vehicle_points.
+
+        Returns None if no valid cluster is found (scene empty or only noise).
+        """
+        if len(points) < self._dbscan_min_samples:
+            return None
+
+        # Build Open3D cloud (pad 2D → 3D)
+        if points.shape[1] == 2:
+            pts3d = np.zeros((len(points), 3), dtype=np.float64)
+            pts3d[:, :2] = points
+        else:
+            pts3d = np.asarray(points[:, :3], dtype=np.float64)
+
+        cloud = o3d.geometry.PointCloud()
+        cloud.points = o3d.utility.Vector3dVector(pts3d)
+
+        labels = np.asarray(
+            cloud.cluster_dbscan(
+                eps=self._dbscan_eps,
+                min_points=self._dbscan_min_samples,
+                print_progress=False,
+            )
+        )
+
+        # labels == -1 → noise; valid clusters are 0, 1, 2, …
+        valid_labels = labels[labels >= 0]
+        if len(valid_labels) == 0:
+            return None
+
+        unique, counts = np.unique(valid_labels, return_counts=True)
+
+        # Size gate: discard clusters smaller than min_vehicle_points
+        big_mask = counts >= self._min_vehicle_points
+        if not big_mask.any():
+            logger.debug(
+                "DBSCAN: %d cluster(s) found but none reached min_vehicle_points=%d",
+                len(unique), self._min_vehicle_points,
+            )
+            return None
+
+        # Pick the largest cluster among valid ones
+        best_label = unique[big_mask][np.argmax(counts[big_mask])]
+        cluster_pts = points[labels == best_label]
+
+        logger.debug(
+            "DBSCAN: %d cluster(s), largest valid=%d pts (label %d)",
+            big_mask.sum(), len(cluster_pts), best_label,
+        )
+        return cluster_pts
 
     def _result(
         self,
@@ -243,63 +304,42 @@ class VehicleDetector:
 
     def _stop(self, timestamp: float) -> DetectionResult:
         self._vehicle_present = False
-        self._absence_since = None
         self._last_t = timestamp
         return self._result(timestamp, present=False)
 
     # ── Main update ───────────────────────────────────────────────────────
 
     def update(self, points: np.ndarray, timestamp: float) -> Optional[DetectionResult]:
-        """Process one scan frame.  Returns None during background learning."""
+        """Process one scan frame.  Always returns a DetectionResult (never None)."""
         if points is None or len(points) < 2:
-            return None
+            return self._result(timestamp, present=False) if self._last_t is not None else None
 
-        # Always compute distances from the full scan so the background model
-        # and ICP stay aligned on the same beam indices.
-        distances = np.linalg.norm(points[:, :2], axis=1)
+        # 1. Crop to trigger window
+        cropped = self._crop_to_trigger_window(points)
 
-        # Background learning — full scan
-        if self._bg_distances is None:
-            self._bg_accumulator.append(distances)
-            if len(self._bg_accumulator) >= self._bg_learning_frames:
-                max_len = max(len(d) for d in self._bg_accumulator)
-                padded = np.full((len(self._bg_accumulator), max_len), np.nan)
-                for i, d in enumerate(self._bg_accumulator):
-                    padded[i, : len(d)] = d
-                self._bg_distances = np.nanmedian(padded, axis=0)
-                self._bg_accumulator.clear()
-            return None
+        # 2. Cluster — find largest valid cluster
+        cluster = self._largest_vehicle_cluster(cropped)
 
-        # Vehicle detection — full-scan mask
-        n = min(len(distances), len(self._bg_distances))
-        delta = self._bg_distances[:n] - distances[:n]
-        vehicle_mask = delta > self._bg_threshold
-
-        # Trigger gate: for the initial trigger only, count vehicle points
-        # inside the crop window so the truck must be near the gantry before
-        # detection starts.  Once tracking is active use the full count so
-        # structural gaps in the far zone don't cause a false departure.
-        if self._trigger_distance is not None :
-            crop_mask = points[:n, self._travel_axis] >= -self._trigger_distance
-            n_vehicle = int((vehicle_mask & crop_mask).sum())
-        else:
-            n_vehicle = int(vehicle_mask.sum())
-
-        # No cluster — truck has left the scan zone
-        if n_vehicle < self._min_vehicle_points:
+        # 3. No valid cluster → absent
+        if cluster is None:
             if self._vehicle_present:
+                logger.info("Vehicle departed (no cluster in trigger window)")
                 return self._stop(timestamp)
             self._last_t = timestamp
             return self._result(timestamp, present=False)
 
-        # Cluster present — ICP uses full scan
-        spatial_pts = points[:, :3] if points.shape[1] >= 3 else points[:, :2]
+        # 4. Cluster present → ICP tracking
+        spatial_pts = cluster[:, :3] if cluster.shape[1] >= 3 else cluster[:, :2]
 
-        # First detection — seed tracker, no displacement yet
+        # First detection — seed tracker
         if not self._vehicle_present:
             self._tracker.update(spatial_pts, timestamp)
             self._last_t = timestamp
             self._vehicle_present = True
+            logger.info(
+                "Vehicle detected — cluster size=%d trigger_distance=%s",
+                len(cluster), self._trigger_distance,
+            )
             return self._result(timestamp, present=True)
 
         # Normal tracking — ICP displacement → position / velocity
@@ -313,12 +353,15 @@ class VehicleDetector:
             self._velocity = (displacement / dt) if dt > 0 else 0.0
             return self._result(timestamp, present=True)
 
+        # ICP failed — dead-reckon from last velocity
+        if dt > 0:
+            self._position += self._velocity * dt
         return self._result(timestamp, present=True, icp_valid=False)
 
     # ── Reset ─────────────────────────────────────────────────────────────
 
     def reset_tracking(self) -> None:
-        """Reset tracking state, preserve background model."""
+        """Reset tracking state only."""
         self._tracker.reset()
         self._position = 0.0
         self._velocity = 0.0
@@ -326,10 +369,8 @@ class VehicleDetector:
         self._vehicle_present = False
 
     def reset(self) -> None:
-        """Full reset including background model."""
+        """Full reset (alias for reset_tracking — no background model to clear)."""
         self.reset_tracking()
-        self._bg_accumulator.clear()
-        self._bg_distances = None
 
     # ── Accessors ─────────────────────────────────────────────────────────
 

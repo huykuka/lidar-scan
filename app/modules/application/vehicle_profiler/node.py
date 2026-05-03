@@ -74,34 +74,31 @@ class VehicleProfilerNode(ModuleNode):
         self._velocity_sensor_id = velocity_sensor_id
 
         # Vehicle detector params
-        bg_threshold = float(config.get("bg_threshold", 0.3))
         travel_axis = int(config.get("travel_axis", 0))
         max_correspondence_distance = float(config.get("max_correspondence_distance", 0.5))
         min_icp_fitness = float(config.get("min_icp_fitness", 0.3))
         max_displacement = float(config.get("max_displacement", 0.5))
         min_displacement = float(config.get("min_displacement", 0.001))
 
-        # Hardcoded defaults — not exposed in UI but can be overridden via config
-        # dict for testing purposes
-        _bg_learning_frames = int(config.get("bg_learning_frames", 20))
-        _min_vehicle_points = int(config.get("min_vehicle_points", 5))
-        _gap_debounce_s = float(config.get("gap_debounce_s", 3.0))
+        _min_vehicle_points = int(config.get("min_vehicle_points", 10))
+        _dbscan_eps = float(config.get("dbscan_eps", 0.3))
+        _dbscan_min_samples = int(config.get("dbscan_min_samples", 5))
         _voxel_size = float(config.get("voxel_size", 0.0))
 
         trigger_distance_raw = config.get("trigger_distance")
         trigger_distance = float(trigger_distance_raw) if trigger_distance_raw not in (None, "") else None
 
         self._detector = VehicleDetector(
-            bg_threshold=bg_threshold,
-            bg_learning_frames=_bg_learning_frames,
             travel_axis=travel_axis,
             min_vehicle_points=_min_vehicle_points,
+            dbscan_eps=_dbscan_eps,
+            dbscan_min_samples=_dbscan_min_samples,
+            trigger_distance=trigger_distance,
             max_correspondence_distance=max_correspondence_distance,
             min_icp_fitness=min_icp_fitness,
             voxel_size=_voxel_size,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
-            trigger_distance=trigger_distance,
         )
 
         # Profile accumulator params

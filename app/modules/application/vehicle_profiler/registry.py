@@ -116,17 +116,34 @@ node_schema_registry.register(
             ),
             # ── Vehicle Detection ─────────────────────────────────────────
             PropertySchema(
-                name="bg_threshold",
-                label="Background Threshold (m)",
+                name="dbscan_eps",
+                label="Detection Sensitivity (m)",
                 type="number",
                 default=0.3,
                 min=0.05,
-                max=5.0,
-                step=0.001,
+                max=2.0,
+                step=0.05,
                 help_text=(
-                    "Distance (metres) closer than the learned background to "
-                    "classify a point as belonging to a vehicle. Increase for "
-                    "farther sensor mounting positions."
+                    "Maximum distance between two points for them to be considered "
+                    "part of the same cluster (DBSCAN ε). Lower values → tighter "
+                    "clusters, less sensitive. Higher values → merge spread-out "
+                    "returns into one cluster. Set to roughly 2× the expected "
+                    "point spacing at the sensor's typical detection range."
+                ),
+            ),
+            PropertySchema(
+                name="min_vehicle_points",
+                label="Min Cluster Points",
+                type="number",
+                default=10,
+                min=3,
+                max=200,
+                step=1,
+                help_text=(
+                    "Minimum number of points a cluster must contain to be treated "
+                    "as a vehicle. Rejects small noise clusters and debris. Increase "
+                    "if spurious detections occur; decrease if the truck cross-section "
+                    "is partially occluded."
                 ),
             ),
             PropertySchema(
