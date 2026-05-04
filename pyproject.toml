@@ -25,6 +25,4 @@ dev = [
 ]
 ml = [
     "torch>=2.0",
-    # PointPillars model backend requires manual install:
-    #   pip install git+https://github.com/zhulf0804/PointPillars.git
 ]
