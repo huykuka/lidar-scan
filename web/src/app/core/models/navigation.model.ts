@@ -12,5 +12,6 @@ export const NAVIGATION_CONFIG: NavItem[] = [
   {label: 'Settings', route: '/settings', icon: 'settings', divider: true, footer: false},
   {label: 'Calibration', route: '/calibration', icon: 'tune', divider: true},
   {label: 'Recordings', route: '/recordings', icon: 'video_library', divider: true},
+  {label: 'Models', route: '/models', icon: 'model_training', divider: true},
   {label: 'Logs', route: '/logs', icon: 'description', divider: true},
 ];
