@@ -1,8 +1,8 @@
 """
 PointPillars 3D object detection model wrapper.
 
-Wraps the ``pointpillars`` PyTorch package (zhulf0804/PointPillars) behind
-the :class:`DetectionModel` interface.  Supports CPU and CUDA inference.
+Uses the embedded pure-PyTorch PointPillars network (no C++/CUDA extensions).
+Supports CPU and CUDA inference.
 
 Pretrained KITTI weights detect three classes: Pedestrian, Cyclist, Car.
 """
@@ -43,11 +43,12 @@ def _filter_point_range(pts: np.ndarray, point_range: List[float]) -> np.ndarray
     display_name="PointPillars (KITTI)",
     description=(
         "Fast voxel-based 3D detector. Pretrained on KITTI dataset "
-        "(Car, Pedestrian, Cyclist). ~200ms/frame on CPU."
+        "(Car, Pedestrian, Cyclist). No CUDA extensions required — "
+        "pure PyTorch, works on CPU and GPU."
     ),
 )
 class PointPillarsModel(DetectionModel):
-    """PointPillars wrapper using the ``pointpillars`` PyTorch package."""
+    """PointPillars wrapper using embedded pure-PyTorch network."""
 
     def __init__(self) -> None:
         self._model: Any = None
@@ -74,18 +75,19 @@ class PointPillarsModel(DetectionModel):
         """
         try:
             import torch
-            from pointpillars.model import PointPillars as _PointPillarsNet
         except ImportError as exc:
             raise ImportError(
-                "PointPillars requires 'torch' and 'pointpillars' packages. "
-                "Install with: pip install torch pointpillars"
+                "PointPillars requires 'torch'. "
+                "Install with: uv sync --group ml"
             ) from exc
+
+        from .pointpillars_net import PointPillarsNet
 
         self._torch = torch
         self._device_str = device
 
         torch_device = torch.device(device)
-        self._model = _PointPillarsNet(nclasses=self._nclasses)
+        self._model = PointPillarsNet(nclasses=self._nclasses)
 
         state_dict = torch.load(checkpoint_path, map_location=torch_device, weights_only=True)
         self._model.load_state_dict(state_dict)
@@ -147,6 +149,10 @@ class PointPillarsModel(DetectionModel):
         # Run inference
         with torch.no_grad():
             result = self._model(batched_pts=[pc_tensor], mode="test")[0]
+
+        # Network returns [] when no detections, or dict with arrays
+        if isinstance(result, list) and len(result) == 0:
+            return []
 
         lidar_bboxes = result.get("lidar_bboxes")
         labels = result.get("labels")
