@@ -20,6 +20,7 @@ class PropertySchema(BaseModel):
     step: Optional[float] = None
     hidden: bool = False  # Hide from UI but keep in schema
     depends_on: Optional[Dict[str, List[Any]]] = None
+    options_source: Optional[str] = None  # Dynamic options: "sensor_nodes" populates from DAG sensors
 
 class PortSchema(BaseModel):
     id: str

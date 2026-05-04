@@ -83,17 +83,17 @@
                       class="absolute right-0 top-1/2 translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
 
                     <div
-                      class="flex items-stretch h-8 rounded border border-black/20 shadow-sm overflow-hidden"
-                      [style.background-color]="plugin.style.color"
+                      class="flex items-stretch h-8 rounded border border-black/20 shadow-sm overflow-hidden bg-white"
                     >
                       <!-- Left Icon Section -->
-                      <div class="w-8 flex items-center justify-center bg-black/10 border-r border-black/5 shrink-0">
+                      <div class="w-8 flex items-center justify-center shrink-0 border-r border-black/10"
+                           [style.background-color]="plugin.style.color">
                         <syn-icon [name]="plugin.icon || 'extension'" class="text-lg text-white/90 drop-shadow-sm"/>
                       </div>
 
                       <!-- Label Section -->
                       <div class="flex-1 flex items-center justify-center px-2 min-w-0">
-                        <span class="text-[11px] font-bold text-black truncate leading-none text-center px-1">
+                        <span class="text-[11px] font-bold text-neutral-700 truncate leading-none text-center px-1">
                           {{ plugin.displayName }}
                         </span>
                       </div>

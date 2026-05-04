@@ -4,20 +4,19 @@ import {Subscription} from 'rxjs';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
-import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
 import {NodeEditorComponent} from '@core/models/node-plugin.model';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
 import {PropertySchema} from '@core/models/node.model';
 
 @Component({
-  selector: 'app-application-node-editor',
+  selector: 'app-detection-node-editor',
   standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
-  templateUrl: './application-node-editor.component.html',
-  styleUrl: './application-node-editor.component.css',
+  templateUrl: './detection-node-editor.component.html',
+  styleUrl: './detection-node-editor.component.css',
 })
-export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDestroy {
+export class DetectionNodeEditorComponent implements NodeEditorComponent, OnDestroy {
   saved = output<void>();
   cancelled = output<void>();
   protected isSaving = signal(false);
@@ -25,7 +24,6 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
   protected configForm!: FormGroup;
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
-  private canvasEditStore = inject(CanvasEditStoreService);
   protected definition = computed(() => {
     const data = this.nodeStore.selectedNode();
     return this.nodeStore.nodeDefinitions().find((d) => d.type === data.type);
@@ -45,12 +43,6 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
       }
       return true;
     });
-  });
-  protected sensorNodeOptions = computed(() => {
-    const nodes = this.canvasEditStore.localNodes();
-    return nodes
-      .filter((n) => n.category === 'sensor')
-      .map((n) => ({label: n.name || n.id, value: n.id}));
   });
   private formValuesSub?: Subscription;
 
@@ -104,9 +96,6 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
   }
 
   getSelectOptions(prop: PropertySchema): {label: string; value: any}[] {
-    if (prop.options_source === 'sensor_nodes') {
-      return this.sensorNodeOptions();
-    }
     return prop.options ?? [];
   }
 
@@ -120,19 +109,10 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
     if (def) {
       def.properties.forEach((prop) => {
         const val = (data.config as any)?.[prop.name];
-
-        if (prop.type === 'vec3') {
-          configGroup[prop.name] = this.fb.group({
-            0: [val ? val[0] : prop.default ? prop.default[0] : 0],
-            1: [val ? val[1] : prop.default ? prop.default[1] : 0],
-            2: [val ? val[2] : prop.default ? prop.default[2] : 0],
-          });
-        } else {
-          configGroup[prop.name] = [
-            val ?? prop.default,
-            prop.required ? [Validators.required] : [],
-          ];
-        }
+        configGroup[prop.name] = [
+          val ?? prop.default,
+          prop.required ? [Validators.required] : [],
+        ];
       });
     }
 

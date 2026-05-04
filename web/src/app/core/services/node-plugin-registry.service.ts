@@ -15,34 +15,25 @@ import {IfConditionCardComponent} from '@plugins/flow-control/if-block/node/if-c
 import {IfConditionEditorComponent} from '@plugins/flow-control/if-block/form/if-condition-editor.component';
 import {OutputNodeCardComponent} from '@plugins/flow-control/output/node/output-node-card/output-node-card.component';
 import {OutputNodeEditorComponent} from '@plugins/flow-control/output/form/output-node-editor/output-node-editor.component';
+import {SnapshotNodeCardComponent} from '@plugins/flow-control/snapshot/node/snapshot-node-card.component';
+import {SnapshotNodeEditorComponent} from '@plugins/flow-control/snapshot/form/snapshot-node-editor.component';
 import {PlaybackNodeCardComponent} from '@plugins/playback/node/playback-node-card/playback-node-card.component';
 import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-editor/playback-node-editor.component';
 import {PcdInjectionCardComponent} from '@plugins/pcd-injection/node/pcd-injection-card.component';
 import {PcdInjectionEditorComponent} from '@plugins/pcd-injection/form/pcd-injection-editor.component';
 import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
+import {DetectionNodeEditorComponent} from '@plugins/detection/form/detection-node-editor.component';
 
-/** Visual metadata per category — used to style the palette and canvas nodes. */
-const CATEGORY_STYLE: Record<string, { color: string; icon: string }> = {
-  sensor: {color: '#10b981', icon: 'sensors'},
-  fusion: {color: '#6366f1', icon: 'hub'},
-  calibration: {color: '#f59e0b', icon: 'tune'},
-  operation: {color: '#64748b', icon: 'settings_input_component'},
-  flow_control: {color: '#9c27b0', icon: 'call_split'},
-  output: {color: '#0ea5e9', icon: 'dashboard'},
-  /** Application-layer processing nodes (e.g. environment_filtering) */
-  application: {color: '#0891b2', icon: 'layers_clear'},
-};
+const NODE_COLOR = 'var(--syn-color-primary-600)';
 
 function definitionToPlugin(def: NodeDefinition): NodePlugin {
-  const style = CATEGORY_STYLE[def.category] ?? {color: '#64748b', icon: 'extension'};
-
   return {
     type: def.type,
     category: def.category,
     displayName: def.display_name,
     description: def.description ?? '',
-    icon: def.icon ?? style.icon,
-    style: {color: style.color},
+    icon: def.icon ?? 'extension',
+    style: {color: NODE_COLOR},
     ports: {
       inputs:
         def.inputs?.map((p: any) => ({
@@ -154,12 +145,26 @@ export class NodePluginRegistry {
           editorComponent: ApplicationNodeEditorComponent,
         });
       }
-      if (plugin.category === 'flow_control') {
+      if (plugin.category === 'detection') {
         this.plugins.set(type, {
           ...plugin,
-          cardComponent: IfConditionCardComponent,
-          editorComponent: IfConditionEditorComponent,
+          editorComponent: DetectionNodeEditorComponent,
         });
+      }
+      if (plugin.category === 'flow_control') {
+        if (type === 'snapshot') {
+          this.plugins.set(type, {
+            ...plugin,
+            cardComponent: SnapshotNodeCardComponent,
+            editorComponent: SnapshotNodeEditorComponent,
+          });
+        } else {
+          this.plugins.set(type, {
+            ...plugin,
+            cardComponent: IfConditionCardComponent,
+            editorComponent: IfConditionEditorComponent,
+          });
+        }
       }
     });
   }
