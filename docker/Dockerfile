@@ -36,35 +36,7 @@ COPY web/ ./
 RUN npm run build -- --configuration production
 
 # ----------------------------------------
-# Stage 3: Cython compilation (source → .so)
-# ----------------------------------------
-FROM python:3.12-slim-bookworm AS cython-builder
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  gcc \
-  python3-dev \
-  && rm -rf /var/lib/apt/lists/*
-
-RUN pip install --no-cache-dir cython setuptools
-
-WORKDIR /src
-COPY app/ ./app/
-COPY main.py build_cython.py ./
-
-# Compile .py → .so, then strip source for compiled modules only.
-# __init__.py files are always kept so package discovery still works.
-# Files with Pydantic/ORM models are auto-skipped by the build script
-# and remain as .py (their metaclass magic is incompatible with Cython).
-RUN python build_cython.py build_ext --inplace \
-  && find app/ -name '*.so' -print \
-     | sed 's/\.cpython-[^.]*\.so$/.py/' \
-     | xargs rm -f \
-  && find app/ -name '*.c' -delete \
-  && rm -f build_cython.py \
-  && rm -rf build/
-
-# ----------------------------------------
-# Stage 4: Final Python Application
+# Stage 3: Final Python Application
 # ----------------------------------------
 FROM python:3.12-slim-bookworm
 
@@ -104,7 +76,7 @@ COPY --from=backend-builder /workspace/sick_scan_xd/launch/ ./launch/
 
 # ✅ Compiled app: .so extensions + __init__.py stubs + non-Python assets
 COPY main.py .
-COPY --from=cython-builder /src/app/ ./app/
+COPY app/ ./app/
 
 # ✅ No stale static to clean — just write directly from frontend builder
 #    (remove the COPY app/ if app/static/ is the only thing under app/)
