@@ -89,7 +89,7 @@ class BinDetector:
         floor_ransac_iterations: int = 1000,
         wall_min_points: int = 50,
         voxel_size: float = 0.02,
-        vertical_tolerance_deg: float = 15.0,
+        vertical_tolerance_deg: float = 30.0,
         horizontal_tolerance_deg: float = 15.0,
     ) -> None:
         self._min_bin_length = min_bin_length
@@ -455,4 +455,4 @@ class BinDetector:
         bin_mask = in_length & in_width & in_height
         bin_pts = cloud_pts[bin_mask]
 
-        return bin_pts if len(bin_pts) > 0 else cloud_pts
+        return bin_pts if len(bin_pts) > 0 else cloud_pts[:0]

@@ -168,17 +168,19 @@ node_schema_registry.register(
             ),
             PropertySchema(
                 name="vertical_tolerance_deg",
-                label="Vertical Tolerance (deg)",
+                label="Wall Angle Tolerance (deg)",
                 type="number",
-                default=15.0,
+                default=30.0,
                 min=1.0,
-                max=45.0,
+                max=60.0,
                 step=1.0,
                 help_text=(
                     "Angular tolerance (degrees) from vertical for wall plane "
                     "normal classification. A plane with its normal within this "
-                    "angle of horizontal is classified as a wall. 15° handles "
-                    "typical bin tilt and scan noise."
+                    "angle of horizontal is classified as a wall. 30° handles "
+                    "tapered/angled bin walls that are not perpendicular to the "
+                    "floor (e.g. V-shaped or trapezoidal cross-sections). "
+                    "Increase for more heavily tapered bins."
                 ),
             ),
             PropertySchema(

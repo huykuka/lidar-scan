@@ -22,14 +22,10 @@ import enum
 import time
 from typing import Any, Dict, Optional
 
-import numpy as np
-
 from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
-from app.services.shared.binary import pack_points_binary
 from app.services.status_aggregator import notify_status_change
-from app.services.websocket.manager import manager as ws_manager
 
 from .utils.bin_detector import BinDetector, BinDetectionResult
 
@@ -123,6 +119,7 @@ class TruckBinDetectionNode(ModuleNode):
                 )
 
                 # Forward segmented bin cloud + metadata downstream
+                # (the routing manager handles WS broadcasting internally)
                 out_payload: Dict[str, Any] = {
                     "node_id": self.id,
                     "points": result.bin_points,
@@ -134,12 +131,6 @@ class TruckBinDetectionNode(ModuleNode):
                     },
                 }
                 asyncio.create_task(self.manager.forward_data(self.id, out_payload))
-
-                # Broadcast bin cloud to WebSocket for visualization
-                if result.bin_points is not None and len(result.bin_points) > 0:
-                    asyncio.create_task(
-                        self._broadcast_ws(result.bin_points, timestamp)
-                    )
             else:
                 logger.debug("[%s] No bin detected in input cloud", self.id)
 
@@ -213,15 +204,4 @@ class TruckBinDetectionNode(ModuleNode):
         self.last_error = None
         notify_status_change(self.id)
 
-    # ── Internal ──────────────────────────────────────────────────────────
 
-    async def _broadcast_ws(self, points: np.ndarray, timestamp: float) -> None:
-        """Broadcast bin point cloud to WebSocket subscribers (LIDR binary)."""
-        topic = self._ws_topic
-        if not topic or not ws_manager.has_subscribers(topic):
-            return
-        try:
-            binary = await asyncio.to_thread(pack_points_binary, points, timestamp)
-            await ws_manager.broadcast(topic, binary)
-        except Exception as e:
-            logger.warning("[%s] WS broadcast failed: %s", self.id, e)
