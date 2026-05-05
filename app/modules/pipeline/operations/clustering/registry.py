@@ -25,6 +25,8 @@ node_schema_registry.register(NodeDefinition(
                        help_text="Minimum points to form a cluster"),
         PropertySchema(name="emit_shapes", label="Emit Bounding Boxes", type="boolean", default=False,
                        help_text="When enabled, emits a wireframe bounding box and label for each detected cluster on the shapes topic"),
+        PropertySchema(name="invert", label="Invert", type="boolean", default=False,
+                       help_text="Keep noise (unclustered) points instead of the clustered points"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
