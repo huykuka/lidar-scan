@@ -70,7 +70,7 @@ class TruckBinDetectionNode(ModuleNode):
             floor_ransac_iterations=int(config.get("floor_ransac_iterations", 1000)),
             wall_min_points=int(config.get("wall_min_points", 50)),
             voxel_size=float(config.get("voxel_size", 0.02)),
-            vertical_tolerance_deg=float(config.get("vertical_tolerance_deg", 15.0)),
+            vertical_tolerance_deg=float(config.get("vertical_tolerance_deg", 30.0)),
             horizontal_tolerance_deg=float(config.get("horizontal_tolerance_deg", 15.0)),
         )
 
