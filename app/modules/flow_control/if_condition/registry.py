@@ -26,7 +26,7 @@ node_schema_registry.register(NodeDefinition(
             type="string",
             default="true",
             required=True,
-            help_text="Boolean expression: point_count > 1000 AND external_state == True"
+            help_text="Boolean expression evaluated each frame. Example: point_count > 1000 AND external_state == True"
         ),
         PropertySchema(
             name="throttle_ms",

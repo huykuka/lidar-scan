@@ -19,8 +19,8 @@ node_schema_registry.register(NodeDefinition(
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="distance_threshold", label="Distance Threshold", type="number", default=0.1, step=0.01,
-                       help_text="Max distance from plane to be considered an inlier"),
+        PropertySchema(name="distance_threshold", label="Distance Threshold (m)", type="number", default=0.1, step=0.01,
+                       help_text="Max distance from plane in meters to be considered an inlier"),
         PropertySchema(name="ransac_n", label="RANSAC N", type="number", default=3, min=3,
                        help_text="Number of points sampled per RANSAC iteration"),
         PropertySchema(name="num_iterations", label="Max Iterations", type="number", default=1000, step=10,

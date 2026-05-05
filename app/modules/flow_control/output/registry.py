@@ -26,6 +26,7 @@ node_schema_registry.register(NodeDefinition(
             label="Enable Webhook",
             type="boolean",
             default=False,
+            help_text="Send metadata to an external HTTPS endpoint on each update",
         ),
         PropertySchema(
             name="webhook_url",
@@ -61,6 +62,7 @@ node_schema_registry.register(NodeDefinition(
             label="Username",
             type="string",
             default="",
+            help_text="Username for HTTP Basic authentication",
             depends_on={"webhook_enabled": [True], "webhook_auth_type": ["basic"]},
         ),
         PropertySchema(
@@ -68,6 +70,7 @@ node_schema_registry.register(NodeDefinition(
             label="Password",
             type="string",
             default="",
+            help_text="Password for HTTP Basic authentication",
             depends_on={"webhook_enabled": [True], "webhook_auth_type": ["basic"]},
         ),
         PropertySchema(
@@ -75,6 +78,7 @@ node_schema_registry.register(NodeDefinition(
             label="Header Name",
             type="string",
             default="X-API-Key",
+            help_text="HTTP header name for the API key",
             depends_on={"webhook_enabled": [True], "webhook_auth_type": ["api_key"]},
         ),
         PropertySchema(
@@ -82,6 +86,7 @@ node_schema_registry.register(NodeDefinition(
             label="Key Value",
             type="string",
             default="",
+            help_text="API key value sent in the specified header",
             depends_on={"webhook_enabled": [True], "webhook_auth_type": ["api_key"]},
         ),
         PropertySchema(
