@@ -19,8 +19,8 @@ node_schema_registry.register(NodeDefinition(
     properties=[
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
-        PropertySchema(name="eps", label="Eps (Radius)", type="number", default=0.2, step=0.01,
-                       help_text="Neighborhood radius for clustering"),
+        PropertySchema(name="eps", label="Epsilon (m)", type="number", default=0.2, step=0.01,
+                       help_text="Maximum distance between two points to be considered neighbors"),
         PropertySchema(name="min_points", label="Min Points", type="number", default=10, min=1,
                        help_text="Minimum points to form a cluster"),
         PropertySchema(name="emit_shapes", label="Emit Bounding Boxes", type="boolean", default=False,

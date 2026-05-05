@@ -40,7 +40,7 @@ node_schema_registry.register(NodeDefinition(
             help_text="Estimate normals on input if missing. Required for Ball Pivoting and Poisson."
         ),
         PropertySchema(
-            name="normal_radius", label="Normal Radius", type="number",
+            name="normal_radius", label="Normal Radius (m)", type="number",
             default=0.1, min=0.001, max=10.0, step=0.01,
             help_text="Search radius for normal estimation."
         ),
@@ -58,7 +58,7 @@ node_schema_registry.register(NodeDefinition(
         ),
         # ── Ball Pivoting params ──────────────────────────────────────────────
         PropertySchema(
-            name="ball_pivoting_params.radii", label="Ball Radii", type="string",
+            name="ball_pivoting_params.radii", label="Ball Radii (m)", type="string",
             default="0.005,0.01,0.02,0.04",
             depends_on={"algorithm": ["ball_pivoting"]},
             help_text="Comma-separated ball radii. Multiple radii handle varying point densities."

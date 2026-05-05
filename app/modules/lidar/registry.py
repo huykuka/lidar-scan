@@ -64,7 +64,7 @@ node_schema_registry.register(NodeDefinition(
         PropertySchema(name="throttle_ms", label="Throttle (ms)", type="number", default=0, min=0, step=10,
                        help_text="Minimum time between processing frames (0 = no limit)"),
         PropertySchema(name="hostname", label="Hostname", type="string", default="192.168.100.124",
-                       help_text="Lidar IP address"),
+                       help_text="LiDAR sensor IP address or hostname"),
         PropertySchema(name="port", label="Port", type="number", default=2112, help_text="Device communication port",
                        depends_on={"lidar_type": _port_capable_models}),
         PropertySchema(name="udp_receiver_ip", label="UDP Receiver IP", type="string", default="192.168.100.10",

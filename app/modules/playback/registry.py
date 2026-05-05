@@ -34,6 +34,7 @@ node_schema_registry.register(NodeDefinition(
             type="select",
             required=True,
             options=[],   # populated dynamically by frontend from GET /api/v1/recordings
+            help_text="Select a previously saved recording to replay",
         ),
         PropertySchema(
             name="playback_speed",
@@ -46,12 +47,14 @@ node_schema_registry.register(NodeDefinition(
                 {"label": "0.25×", "value": 0.25},
                 {"label": "0.1×", "value": 0.1},
             ],
+            help_text="Replay rate multiplier (1× = original speed)",
         ),
         PropertySchema(
             name="loopable",
             label="Loop",
             type="boolean",
             default=False,
+            help_text="Restart playback from the beginning after reaching the end",
         ),
         PropertySchema(
             name="throttle_ms",
@@ -60,6 +63,7 @@ node_schema_registry.register(NodeDefinition(
             default=0,
             min=0,
             step=10,
+            help_text="Minimum time between replayed frames (0 = no limit)",
         ),
     ],
     outputs=[PortSchema(id="out", label="Output")],

@@ -14,7 +14,7 @@ node_schema_registry.register(NodeDefinition(
     type="outlier_removal",
     display_name="Stat. Outlier Removal",
     category="operation",
-    description="Removes noise from the point cloud using statistic",
+    description="Removes noise from the point cloud using statistical analysis",
     icon="auto_fix_normal",
     websocket_enabled=True,
     properties=[
