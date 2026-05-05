@@ -16,10 +16,11 @@ class PlaneSegmentation(PipelineOperation):
         num_iterations (int): Maximum number of iterations for RANSAC.
     """
 
-    def __init__(self, distance_threshold: float = 0.1, ransac_n: int = 3, num_iterations: int = 1000):
+    def __init__(self, distance_threshold: float = 0.1, ransac_n: int = 3, num_iterations: int = 1000, invert: bool = False):
         self.distance_threshold = float(distance_threshold)
         self.ransac_n = int(ransac_n)
         self.num_iterations = int(num_iterations)
+        self.invert = bool(invert)
 
     def apply(self, pcd: Any):
         if isinstance(pcd, o3d.t.geometry.PointCloud):
@@ -35,11 +36,12 @@ class PlaneSegmentation(PipelineOperation):
                     num_iterations=self.num_iterations,
                     probability=0.9999
                 )
-                pcd = pcd.select_by_index(inliers)
+                pcd = pcd.select_by_index(inliers, invert=self.invert)
 
                 return pcd, {
                     "plane_model": plane_model.cpu().numpy().tolist(),
-                    "inlier_count": len(inliers)
+                    "inlier_count": len(inliers),
+                    "inverted": self.invert,
                 }
             else:
                 plane_model, inliers = pcd.segment_plane(
@@ -48,11 +50,12 @@ class PlaneSegmentation(PipelineOperation):
                     num_iterations=self.num_iterations,
                     probability=0.9999
                 )
-                pcd = pcd.select_by_index(inliers)
+                pcd = pcd.select_by_index(inliers, invert=self.invert)
 
                 return pcd, {
                     "plane_model": plane_model.tolist(),
-                    "inlier_count": len(inliers)
+                    "inlier_count": len(inliers),
+                    "inverted": self.invert,
                 }
         return pcd, {}
 

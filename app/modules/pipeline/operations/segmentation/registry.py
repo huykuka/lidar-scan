@@ -25,6 +25,8 @@ node_schema_registry.register(NodeDefinition(
                        help_text="Number of points sampled per RANSAC iteration"),
         PropertySchema(name="num_iterations", label="Max Iterations", type="number", default=1000, step=10,
                        help_text="Maximum RANSAC iterations"),
+        PropertySchema(name="invert", label="Invert", type="boolean", default=False,
+                       help_text="Keep non-plane points instead of the segmented plane"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]

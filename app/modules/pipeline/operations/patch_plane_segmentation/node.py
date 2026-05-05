@@ -40,6 +40,7 @@ class PatchPlaneSegmentation(PipelineOperation):
         min_num_points: int = 0,
         max_nn: int = 30,
         search_radius: float = 0.1,
+        invert: bool = False,
     ):
         self.normal_variance_threshold_deg = float(normal_variance_threshold_deg)
         self.coplanarity_deg = float(coplanarity_deg)
@@ -48,6 +49,7 @@ class PatchPlaneSegmentation(PipelineOperation):
         self.min_num_points = int(min_num_points)
         self.max_nn = int(max_nn)
         self.search_radius = float(search_radius)
+        self.invert = bool(invert)
 
     def apply(self, pcd: Any):
         is_tensor = isinstance(pcd, o3d.t.geometry.PointCloud)
@@ -96,21 +98,25 @@ class PatchPlaneSegmentation(PipelineOperation):
 
         # Keep only points belonging to a patch (label >= 0), like DBSCAN noise removal
         inlier_mask = labels >= 0
-        inlier_indices = np.where(inlier_mask)[0]
+        if self.invert:
+            selected_indices = np.where(~inlier_mask)[0]
+        else:
+            selected_indices = np.where(inlier_mask)[0]
 
-        result = legacy_pcd.select_by_index(inlier_indices.tolist())
+        result = legacy_pcd.select_by_index(selected_indices.tolist())
 
-        # Color by patch membership using deterministic palette
-        rng = np.random.default_rng(42)
-        palette = rng.random((len(oboxes), 3))
-        inlier_colors = palette[labels[inlier_mask]]
-        result.colors = o3d.utility.Vector3dVector(inlier_colors)
+        if not self.invert:
+            # Color by patch membership using deterministic palette
+            rng = np.random.default_rng(42)
+            palette = rng.random((len(oboxes), 3))
+            inlier_colors = palette[labels[inlier_mask]]
+            result.colors = o3d.utility.Vector3dVector(inlier_colors)
 
         if is_tensor:
             result = o3d.t.geometry.PointCloud.from_legacy(result)
 
         return result, {
             "plane_count": len(oboxes),
-            "inlier_count": int(inlier_indices.shape[0]),
+            "inlier_count": int(np.sum(inlier_mask)),
             "original_count": count,
         }

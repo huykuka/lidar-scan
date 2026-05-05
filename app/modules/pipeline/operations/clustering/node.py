@@ -28,11 +28,13 @@ class Clustering(PipelineOperation):
         min_points: int = 10,
         emit_shapes: bool = False,
         min_cluster_points: int = 10,
+        invert: bool = False,
     ):
         self.eps = float(eps)
         self.min_points = int(min_points)
         self.emit_shapes = bool(emit_shapes)
         self.min_cluster_points = int(min_cluster_points)
+        self.invert = bool(invert)
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -99,6 +101,8 @@ class Clustering(PipelineOperation):
         if isinstance(pcd, o3d.t.geometry.PointCloud):
             labels = pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points, print_progress=False)
             mask = labels >= 0
+            if self.invert:
+                mask = ~mask
             pcd_out = pcd.select_by_mask(mask)
             cluster_count = int(labels.max().item() + 1) if labels.shape[0] > 0 else 0
 
@@ -111,7 +115,10 @@ class Clustering(PipelineOperation):
 
         else:
             labels_np = np.array(pcd.cluster_dbscan(eps=self.eps, min_points=self.min_points))
-            indices = np.where(labels_np >= 0)[0]
+            if self.invert:
+                indices = np.where(labels_np < 0)[0]
+            else:
+                indices = np.where(labels_np >= 0)[0]
             pcd_out = pcd.select_by_index(indices)
             cluster_count = int(labels_np.max() + 1) if labels_np.size > 0 else 0
             meta = {"cluster_count": cluster_count}

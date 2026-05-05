@@ -40,6 +40,8 @@ node_schema_registry.register(NodeDefinition(
         PropertySchema(name="search_radius", label="Search Radius (m)", type="number",
                        default=0.1, min=0.01, max=1.0, step=0.01,
                        help_text="KDTree hybrid search radius in metres. Only neighbours within this distance AND up to max_nn count are used"),
+        PropertySchema(name="invert", label="Invert", type="boolean", default=False,
+                       help_text="Keep non-patch points instead of the detected planar patches"),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Output")]
