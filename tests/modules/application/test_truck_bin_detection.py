@@ -420,6 +420,171 @@ class TestBinDetector:
         assert result.detected is True
         assert result.height > 0.5
 
+    # ── Plane intersection constraint tests ───────────────────────────────
+
+    def test_walls_intersecting_floor_are_kept(self):
+        """Walls that extend down to the floor level should pass intersection filter."""
+        cloud = _generate_open_top_truck_bin(
+            length=6.0, width=2.4, wall_height=1.5,
+            wall_density=800,
+        )
+        detector = BinDetector(
+            min_bin_length=2.0,
+            min_bin_width=1.5,
+            min_bin_height=0.5,
+            wall_min_points=30,
+            voxel_size=0.0,
+            intersection_tolerance=0.3,
+        )
+
+        result = detector.detect(cloud)
+
+        assert result.detected is True
+        assert result.wall_count >= 2
+
+    def test_floating_walls_rejected(self):
+        """Walls that float far above the floor should be rejected by intersection filter."""
+        # Build a floor
+        floor = _generate_bin_floor(
+            length=6.0, width=2.4, z_height=1.0, density=2000
+        )
+
+        # Build walls that start 2m above the floor (z_base=3.0 vs floor z=1.0)
+        half_l, half_w = 3.0, 1.2
+        floating_left = _generate_bin_wall(
+            start=np.array([-half_l, -half_w]),
+            end=np.array([half_l, -half_w]),
+            height=1.5, z_base=3.0, density=500,
+        )
+        floating_right = _generate_bin_wall(
+            start=np.array([-half_l, half_w]),
+            end=np.array([half_l, half_w]),
+            height=1.5, z_base=3.0, density=500,
+        )
+        floating_front = _generate_bin_wall(
+            start=np.array([half_l, -half_w]),
+            end=np.array([half_l, half_w]),
+            height=1.5, z_base=3.0, density=500,
+        )
+        floating_back = _generate_bin_wall(
+            start=np.array([-half_l, -half_w]),
+            end=np.array([-half_l, half_w]),
+            height=1.5, z_base=3.0, density=500,
+        )
+
+        cloud = np.vstack([
+            floor, floating_left, floating_right, floating_front, floating_back,
+        ])
+
+        detector = BinDetector(
+            min_bin_length=2.0,
+            min_bin_width=1.5,
+            min_bin_height=0.5,
+            wall_min_points=30,
+            voxel_size=0.0,
+            intersection_tolerance=0.3,  # Tight tolerance — 2m gap >> 0.3m
+        )
+
+        result = detector.detect(cloud)
+
+        # The floating walls should be rejected; detection may still succeed
+        # (based on PCA of floor extent and point height) but wall_count
+        # should be 0 since all walls are floating.
+        assert result.wall_count == 0
+
+    def test_mutual_intersection_rejects_isolated_wall(self):
+        """A single wall plane with no adjacent neighbour should be filtered out."""
+        from app.modules.application.truck_bin_detection.utils.bin_detector import (
+            _PlaneResult,
+        )
+
+        detector = BinDetector(intersection_tolerance=0.5)
+
+        # Two parallel walls (same normal direction) — should NOT count as
+        # intersecting each other because they face the same way (dot ~ 1).
+        wall_a = _PlaneResult(
+            normal=np.array([0.0, 1.0, 0.0]),
+            centroid=np.array([0.0, -1.0, 2.0]),
+            inlier_indices=np.array([0]),
+            inlier_count=1,
+            inlier_points=np.array([[0.0, -1.0, 2.0]]),
+        )
+        wall_b = _PlaneResult(
+            normal=np.array([0.0, 1.0, 0.0]),
+            centroid=np.array([0.0, 1.0, 2.0]),
+            inlier_indices=np.array([1]),
+            inlier_count=1,
+            inlier_points=np.array([[0.0, 1.0, 2.0]]),
+        )
+
+        kept = detector._filter_walls_by_mutual_intersection([wall_a, wall_b])
+        # Both walls are parallel (not adjacent) and there are only two
+        # of them, so neither has a non-parallel neighbour.
+        assert len(kept) == 0
+
+    def test_mutual_intersection_keeps_perpendicular_walls(self):
+        """Two perpendicular walls that are spatially close should both be kept."""
+        from app.modules.application.truck_bin_detection.utils.bin_detector import (
+            _PlaneResult,
+        )
+
+        detector = BinDetector(intersection_tolerance=0.5)
+
+        # Left wall (normal along Y) and front wall (normal along X)
+        wall_left = _PlaneResult(
+            normal=np.array([0.0, 1.0, 0.0]),
+            centroid=np.array([0.0, -1.2, 2.0]),
+            inlier_indices=np.array([0]),
+            inlier_count=1,
+            inlier_points=np.array([[0.0, -1.2, 2.0]]),
+        )
+        wall_front = _PlaneResult(
+            normal=np.array([1.0, 0.0, 0.0]),
+            centroid=np.array([3.0, 0.0, 2.0]),
+            inlier_indices=np.array([1]),
+            inlier_count=1,
+            inlier_points=np.array([[3.0, 0.0, 2.0]]),
+        )
+
+        kept = detector._filter_walls_by_mutual_intersection([wall_left, wall_front])
+        assert len(kept) == 2
+
+    def test_intersection_tolerance_configurable(self):
+        """Changing intersection_tolerance should affect which walls pass the floor check."""
+        from app.modules.application.truck_bin_detection.utils.bin_detector import (
+            _PlaneResult,
+        )
+
+        floor = _PlaneResult(
+            normal=np.array([0.0, 0.0, 1.0]),
+            centroid=np.array([0.0, 0.0, 1.0]),
+            inlier_indices=np.array([0]),
+            inlier_count=1,
+            inlier_points=np.array([[0.0, 0.0, 1.0]]),
+        )
+        # Wall whose lowest point is 0.5 m above the floor
+        wall = _PlaneResult(
+            normal=np.array([0.0, 1.0, 0.0]),
+            centroid=np.array([0.0, -1.2, 2.0]),
+            inlier_indices=np.array([0]),
+            inlier_count=1,
+            inlier_points=np.array([[0.0, -1.2, 1.5]]),
+        )
+
+        # With tight tolerance (0.3 m), the 0.5 m gap should reject the wall
+        tight = BinDetector(intersection_tolerance=0.3)
+        kept_tight = tight._filter_walls_by_floor_intersection(
+            [wall], floor, np.empty((0, 3))
+        )
+        assert len(kept_tight) == 0
+
+        # With loose tolerance (0.6 m), the 0.5 m gap should accept the wall
+        loose = BinDetector(intersection_tolerance=0.6)
+        kept_loose = loose._filter_walls_by_floor_intersection(
+            [wall], floor, np.empty((0, 3))
+        )
+        assert len(kept_loose) == 1
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TruckBinDetectionNode unit tests

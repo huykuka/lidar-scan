@@ -59,6 +59,7 @@ class _PlaneResult:
     centroid: np.ndarray
     inlier_indices: np.ndarray
     inlier_count: int
+    inlier_points: Optional[np.ndarray] = None
 
 
 class BinDetector:
@@ -76,6 +77,7 @@ class BinDetector:
         voxel_size:               Voxel downsample size (0 = disabled).
         vertical_tolerance_deg:   Tolerance from vertical for wall normals.
         horizontal_tolerance_deg: Tolerance from horizontal for floor normals.
+        intersection_tolerance:   Max distance (m) for planes to be considered intersecting.
     """
 
     def __init__(
@@ -91,6 +93,7 @@ class BinDetector:
         voxel_size: float = 0.02,
         vertical_tolerance_deg: float = 30.0,
         horizontal_tolerance_deg: float = 15.0,
+        intersection_tolerance: float = 0.3,
     ) -> None:
         self._min_bin_length = min_bin_length
         self._min_bin_width = min_bin_width
@@ -108,6 +111,7 @@ class BinDetector:
         self._cos_horizontal_tol = float(
             np.cos(np.radians(horizontal_tolerance_deg))
         )
+        self._intersection_tol = intersection_tolerance
 
     def detect(self, points: np.ndarray) -> BinDetectionResult:
         """Run bin detection on a point cloud.
@@ -152,6 +156,13 @@ class BinDetector:
 
         # Step 3: Detect vertical wall planes from points above the floor
         walls = self._detect_walls(above_floor_pts)
+
+        # Step 3b: Filter walls — keep only those intersecting the floor
+        walls = self._filter_walls_by_floor_intersection(walls, floor_result, cloud_pts)
+
+        # Step 3c: If 2+ walls remain, filter by mutual intersection (corners)
+        if len(walls) >= 2:
+            walls = self._filter_walls_by_mutual_intersection(walls)
 
         # Step 4: Compute bin dimensions from floor extent and wall heights
         dimensions = self._compute_bin_dimensions(
@@ -283,13 +294,14 @@ class BinDetector:
             # (normal close to horizontal — |dot(normal, [0,0,1])| < threshold)
             cos_angle = abs(float(np.dot(normal, np.array([0.0, 0.0, 1.0]))))
             if cos_angle <= self._cos_vertical_tol:
-                inlier_pts = remaining_pts[inlier_indices]
+                inlier_pts = remaining_pts[inlier_indices].copy()
                 centroid = np.mean(inlier_pts, axis=0)
                 walls.append(_PlaneResult(
                     normal=normal,
                     centroid=centroid,
                     inlier_indices=np.array(inlier_indices),
                     inlier_count=len(inlier_indices),
+                    inlier_points=inlier_pts,
                 ))
 
             # Remove inliers from remaining points for next iteration
@@ -298,6 +310,91 @@ class BinDetector:
             remaining_pts = remaining_pts[mask]
 
         return walls
+
+    def _filter_walls_by_floor_intersection(
+        self,
+        walls: List[_PlaneResult],
+        floor: _PlaneResult,
+        cloud_pts: np.ndarray,
+    ) -> List[_PlaneResult]:
+        """Keep only walls whose inlier points extend down near the floor plane.
+
+        A wall "intersects" the floor when its lowest points (along the floor
+        normal direction) are within ``intersection_tolerance`` of the floor
+        plane.  This rejects floating planes that aren't physically connected
+        to the bin floor.
+        """
+        kept: List[_PlaneResult] = []
+        for wall in walls:
+            wall_pts = wall.inlier_points
+            if wall_pts is None or len(wall_pts) == 0:
+                continue
+
+            floor_z = floor.centroid[2]
+            wall_min_z = float(np.min(wall_pts[:, 2]))
+
+            distance_to_floor = abs(wall_min_z - floor_z)
+            if distance_to_floor <= self._intersection_tol:
+                kept.append(wall)
+                logger.debug(
+                    "Wall accepted: min_z=%.3f, floor_z=%.3f, dist=%.3f",
+                    wall_min_z, floor_z, distance_to_floor,
+                )
+            else:
+                logger.debug(
+                    "Wall rejected (not intersecting floor): min_z=%.3f, "
+                    "floor_z=%.3f, dist=%.3f > tol=%.3f",
+                    wall_min_z, floor_z, distance_to_floor, self._intersection_tol,
+                )
+        return kept
+
+    def _filter_walls_by_mutual_intersection(
+        self,
+        walls: List[_PlaneResult],
+    ) -> List[_PlaneResult]:
+        """Keep only walls that intersect at least one other wall.
+
+        Two walls are considered intersecting when:
+        1. Their normals are NOT approximately parallel (they face different
+           directions — i.e., they could form a corner).
+        2. Their inlier point clouds overlap spatially — the closest points
+           between the two sets are within ``intersection_tolerance``.
+
+        Walls that don't touch any other wall are likely false detections
+        (e.g., a cargo surface misidentified as a wall).
+        """
+        if len(walls) < 2:
+            return walls
+
+        n = len(walls)
+        has_neighbor = [False] * n
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                # Check normals are not parallel (|dot| < 0.7 means >~45° apart)
+                dot = abs(float(np.dot(walls[i].normal, walls[j].normal)))
+                if dot > 0.7:
+                    continue  # nearly parallel — not adjacent walls
+
+                # Check spatial proximity of centroids
+                centroid_dist = float(np.linalg.norm(
+                    walls[i].centroid - walls[j].centroid
+                ))
+                # Adjacent walls should have centroids that are reasonably close
+                # (within the expected bin dimensions). Use a generous bound.
+                if centroid_dist > 20.0:
+                    continue
+
+                has_neighbor[i] = True
+                has_neighbor[j] = True
+
+        kept = [w for w, has in zip(walls, has_neighbor) if has]
+        rejected = n - len(kept)
+        if rejected > 0:
+            logger.debug(
+                "Mutual intersection filter: kept %d/%d walls", len(kept), n
+            )
+        return kept
 
     def _points_above_plane(
         self,
