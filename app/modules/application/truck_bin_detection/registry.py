@@ -203,17 +203,19 @@ node_schema_registry.register(
                 name="intersection_tolerance",
                 label="Plane Intersection Tolerance (m)",
                 type="number",
-                default=0.3,
+                default=0.5,
                 min=0.05,
                 max=2.0,
                 step=0.05,
                 help_text=(
-                    "Maximum distance (metres) between wall base and floor "
-                    "plane for the wall to be considered intersecting the floor. "
-                    "Also used to verify adjacent walls form valid corners. "
-                    "Walls that do not intersect the floor or any neighbouring "
-                    "wall are rejected as false positives. Increase for noisy "
-                    "scans or bins with rounded edges."
+                    "Maximum signed distance (metres) from the floor plane for "
+                    "a wall to be considered intersecting. Uses the floor plane "
+                    "equation (not raw Z) so it handles tilted floors correctly. "
+                    "LiDAR scans have vertical gaps between layers — set this "
+                    "above the expected layer spacing at your scan distance "
+                    "(e.g. 0.5 m for 16-beam LiDAR at ~10 m). Walls that do "
+                    "not intersect the floor or any neighbouring wall are "
+                    "rejected as false positives."
                 ),
             ),
         ],

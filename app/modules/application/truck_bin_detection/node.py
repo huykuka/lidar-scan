@@ -72,7 +72,7 @@ class TruckBinDetectionNode(ModuleNode):
             voxel_size=float(config.get("voxel_size", 0.02)),
             vertical_tolerance_deg=float(config.get("vertical_tolerance_deg", 30.0)),
             horizontal_tolerance_deg=float(config.get("horizontal_tolerance_deg", 15.0)),
-            intersection_tolerance=float(config.get("intersection_tolerance", 0.3)),
+            intersection_tolerance=float(config.get("intersection_tolerance", 0.5)),
         )
 
         # State machine

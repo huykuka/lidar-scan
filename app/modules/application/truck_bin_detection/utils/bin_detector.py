@@ -93,7 +93,7 @@ class BinDetector:
         voxel_size: float = 0.02,
         vertical_tolerance_deg: float = 30.0,
         horizontal_tolerance_deg: float = 15.0,
-        intersection_tolerance: float = 0.3,
+        intersection_tolerance: float = 0.5,
     ) -> None:
         self._min_bin_length = min_bin_length
         self._min_bin_width = min_bin_width
@@ -319,10 +319,11 @@ class BinDetector:
     ) -> List[_PlaneResult]:
         """Keep only walls whose inlier points extend down near the floor plane.
 
-        A wall "intersects" the floor when its lowest points (along the floor
-        normal direction) are within ``intersection_tolerance`` of the floor
-        plane.  This rejects floating planes that aren't physically connected
-        to the bin floor.
+        A wall "intersects" the floor when its closest point to the floor
+        plane (signed distance along floor normal) is within
+        ``intersection_tolerance``.  Uses the plane equation rather than
+        raw Z so the check is robust for tilted floors and LiDAR scans
+        with vertical layer gaps.
         """
         kept: List[_PlaneResult] = []
         for wall in walls:
@@ -330,21 +331,23 @@ class BinDetector:
             if wall_pts is None or len(wall_pts) == 0:
                 continue
 
-            floor_z = floor.centroid[2]
-            wall_min_z = float(np.min(wall_pts[:, 2]))
+            # Signed distance of each wall point to the floor plane:
+            #   d = (p - floor_centroid) · floor_normal
+            # Positive = above floor, negative = below.
+            signed_dists = (wall_pts - floor.centroid) @ floor.normal
+            min_dist = float(np.min(np.abs(signed_dists)))
 
-            distance_to_floor = abs(wall_min_z - floor_z)
-            if distance_to_floor <= self._intersection_tol:
+            if min_dist <= self._intersection_tol:
                 kept.append(wall)
                 logger.debug(
-                    "Wall accepted: min_z=%.3f, floor_z=%.3f, dist=%.3f",
-                    wall_min_z, floor_z, distance_to_floor,
+                    "Wall accepted: min plane dist=%.3f <= tol=%.3f",
+                    min_dist, self._intersection_tol,
                 )
             else:
                 logger.debug(
-                    "Wall rejected (not intersecting floor): min_z=%.3f, "
-                    "floor_z=%.3f, dist=%.3f > tol=%.3f",
-                    wall_min_z, floor_z, distance_to_floor, self._intersection_tol,
+                    "Wall rejected (not intersecting floor): "
+                    "min plane dist=%.3f > tol=%.3f",
+                    min_dist, self._intersection_tol,
                 )
         return kept
 
