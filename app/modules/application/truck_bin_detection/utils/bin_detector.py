@@ -495,7 +495,7 @@ class BinDetector:
                     dist = abs(float(
                         np.dot(walls[i].centroid - walls[j].centroid, avg_normal)
                     ))
-                    if best_width is None or dist > best_width:
+                    if best_width is None or dist < best_width:
                         best_width = dist
 
         return best_width
