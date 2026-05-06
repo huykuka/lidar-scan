@@ -201,7 +201,6 @@ class TruckBinDetectionNode(ModuleNode):
 
     def stop(self) -> None:
         self._state = _State.IDLE
-        self._processing = False
         self.last_error = None
         notify_status_change(self.id)
 
