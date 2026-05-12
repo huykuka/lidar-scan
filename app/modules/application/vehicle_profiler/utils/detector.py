@@ -234,13 +234,15 @@ class VehicleDetector:
     def _crop_to_trigger_window(self, points: np.ndarray) -> np.ndarray:
         """Return only points inside the trigger window.
 
-        Keeps points where the travel-axis coordinate is >= -trigger_distance
-        (i.e. within ``trigger_distance`` metres of the gantry at X=0).
+        Keeps points where the travel-axis coordinate is within
+        ``[-trigger_distance, +trigger_distance]`` of the gantry at X=0.
         When trigger_distance is None the full scan is returned unchanged.
         """
         if self._trigger_distance is None:
             return points
-        mask = points[:, self._travel_axis] >= -self._trigger_distance
+        mask = (points[:, self._travel_axis] >= -self._trigger_distance) & (
+            points[:, self._travel_axis] <= self._trigger_distance
+        )
         return points[mask]
 
     def _largest_vehicle_cluster(self, points: np.ndarray) -> Optional[np.ndarray]:
