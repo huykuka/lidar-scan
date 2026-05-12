@@ -73,8 +73,9 @@ class VehicleProfilerNode(ModuleNode):
 
         self._velocity_sensor_id = velocity_sensor_id
 
-        # Vehicle detector params
-        travel_axis = int(config.get("travel_axis", 0))
+        # Vehicle detector params — travel axis is always X (0)
+        movement_direction = int(config.get("movement_direction", 1))
+        reverse_tolerance = float(config.get("reverse_tolerance", 0.05))
         max_correspondence_distance = float(config.get("max_correspondence_distance", 0.5))
         min_icp_fitness = float(config.get("min_icp_fitness", 0.3))
         max_displacement = float(config.get("max_displacement", 0.5))
@@ -89,7 +90,9 @@ class VehicleProfilerNode(ModuleNode):
         trigger_distance = float(trigger_distance_raw) if trigger_distance_raw not in (None, "") else None
 
         self._detector = VehicleDetector(
-            travel_axis=travel_axis,
+            travel_axis=0,
+            movement_direction=movement_direction,
+            reverse_tolerance=reverse_tolerance,
             min_vehicle_points=_min_vehicle_points,
             dbscan_eps=_dbscan_eps,
             dbscan_min_samples=_dbscan_min_samples,
@@ -107,7 +110,7 @@ class VehicleProfilerNode(ModuleNode):
 
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
-            travel_axis=travel_axis,
+            travel_axis=0,
             min_position_delta=min_displacement,
             min_height=min_height,
         )

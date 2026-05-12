@@ -190,6 +190,8 @@ class VehicleDetector:
     def __init__(
         self,
         travel_axis: int = 0,
+        movement_direction: int = 1,
+        reverse_tolerance: float = 0.05,
         min_vehicle_points: int = 10,
         dbscan_eps: float = 0.3,
         dbscan_min_samples: int = 5,
@@ -201,6 +203,8 @@ class VehicleDetector:
         min_displacement: float = 0.001,
     ) -> None:
         self._travel_axis = travel_axis
+        self._movement_direction = movement_direction  # +1 or -1
+        self._reverse_tolerance = reverse_tolerance    # metres
         self._min_vehicle_points = min_vehicle_points
         self._dbscan_eps = dbscan_eps
         self._dbscan_min_samples = dbscan_min_samples
@@ -342,6 +346,20 @@ class VehicleDetector:
 
         # First detection — seed tracker
         if not self._vehicle_present:
+            # Guard: cluster must be approaching from the correct entry side.
+            # For movement_direction=+1 (+X) the vehicle enters from X<0.
+            # For movement_direction=-1 (−X) the vehicle enters from X>0.
+            # In both cases: centroid * movement_direction <= 0 means correct side.
+            centroid_axis = float(np.mean(spatial_pts[:, self._travel_axis]))
+            if centroid_axis * self._movement_direction > 0:
+                logger.debug(
+                    "First-detection rejected — cluster centroid %.3f is on the wrong "
+                    "side for movement_direction=%+d",
+                    centroid_axis, self._movement_direction,
+                )
+                self._last_t = timestamp
+                return self._result(timestamp, present=False)
+
             self._tracker.update(spatial_pts, timestamp)
             self._last_t = timestamp
             self._vehicle_present = True
@@ -358,6 +376,24 @@ class VehicleDetector:
         displacement = self._tracker.update(spatial_pts, timestamp)
 
         if displacement is not None:
+            # Reverse-motion guard with inertia tolerance.
+            # Small backward creep (|displacement| <= reverse_tolerance) is
+            # accepted — this covers the inevitable inertia movement when the
+            # truck pauses inside the gantry.  Larger reverse displacement
+            # (deliberate backing-up or sensor artefact) is clamped to zero.
+            if displacement * self._movement_direction < 0:
+                if abs(displacement) <= self._reverse_tolerance:
+                    logger.debug(
+                        "Reverse displacement %.4fm within tolerance (%.4fm) — accepted",
+                        displacement, self._reverse_tolerance,
+                    )
+                else:
+                    logger.debug(
+                        "Reverse displacement %.4fm exceeds tolerance (%.4fm) — ignored",
+                        displacement, self._reverse_tolerance,
+                    )
+                    displacement = 0.0
+
             self._position += displacement
             self._velocity = (displacement / dt) if dt > 0 else 0.0
             if displacement != 0.0:

@@ -147,20 +147,37 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="travel_axis",
-                label="Travel Axis",
+                name="movement_direction",
+                label="Movement Direction",
                 type="select",
-                default=0,
+                default=1,
                 options=[
-                    {"label": "+X", "value": 0},
-                    {"label": "+Y", "value": 1},
+                    {"label": "+X", "value": 1},
+                    {"label": "−X", "value": -1},
                 ],
                 help_text=(
-                    "Which axis corresponds to the vehicle travel direction. "
-                    "Used by both the detector (leading-edge tracking in the "
-                    "2D scan plane) and the profile accumulator (stacking "
-                    "scan lines along this axis in 3D). Typically X or Y "
-                    "depending on your sensor mounting orientation."
+                    "Expected travel direction along the X axis. "
+                    "+X: vehicle enters from the negative side (X < 0) and "
+                    "moves toward positive X. "
+                    "−X: vehicle enters from the positive side (X > 0) and "
+                    "moves toward negative X. "
+                    "Reverse displacement beyond the tolerance is silently ignored."
+                ),
+            ),
+            PropertySchema(
+                name="reverse_tolerance",
+                label="Reverse Tolerance (m)",
+                type="number",
+                default=0.05,
+                min=0.0,
+                max=0.5,
+                step=0.01,
+                help_text=(
+                    "Maximum backward displacement (metres) that is still "
+                    "accepted. Allows for the small inertia creep that occurs "
+                    "when a truck pauses inside the gantry. Reverse motion "
+                    "larger than this threshold is ignored entirely. "
+                    "Typical value: 0.03–0.10 m."
                 ),
             ),
             PropertySchema(
