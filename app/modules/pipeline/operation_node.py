@@ -9,7 +9,7 @@ from app.modules.pipeline.operations import (
     StatisticalOutlierRemoval, RadiusOutlierRemoval,
     PlaneSegmentation, PatchPlaneSegmentation,
     Clustering, Filter, FilterByKey,
-    BoundaryDetection, DebugSave, SaveDataStructure,
+    BoundaryDetection, DebugSave,
     GeneratePlane, Densify, SurfaceReconstruction,
 )
 
@@ -26,7 +26,6 @@ _OP_MAP = {
     "filter_by_key": FilterByKey,
     "boundary_detection": BoundaryDetection,
     "debug_save": DebugSave,
-    "save_structure": SaveDataStructure,
     "generate_plane": GeneratePlane,
     "densify": Densify,
     "patch_plane_segmentation": PatchPlaneSegmentation,

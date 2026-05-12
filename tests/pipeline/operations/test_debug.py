@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import open3d as o3d
 import os
-from app.modules.pipeline.operations.debug import DebugSave, SaveDataStructure
+from app.modules.pipeline.operations.debug import DebugSave
 
 def test_debug_save_legacy(tmp_path):
     pcd = o3d.geometry.PointCloud()
@@ -22,14 +22,3 @@ def test_debug_save_legacy(tmp_path):
     files = os.listdir(out_dir)
     assert len(files) == 2
 
-def test_save_structure_legacy(tmp_path):
-    pcd = o3d.geometry.PointCloud()
-    points = np.random.rand(10, 3)
-    pcd.points = o3d.utility.Vector3dVector(points)
-    
-    out_file = str(tmp_path / "structure.json")
-    op = SaveDataStructure(output_file=out_file)
-    res_pcd, meta = op.apply(pcd)
-    
-    assert "structure_file" in meta
-    assert os.path.exists(out_file)
