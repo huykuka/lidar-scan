@@ -21,9 +21,6 @@ services:
         max-size: "10m"
         max-file: "3"
     volumes:
-      - config:/app/config
-      - recordings:/app/recordings
+      - app_data:/app/data
 
-volumes:
-  config:
-  recordings:
+volumes: app_data
