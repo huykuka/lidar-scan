@@ -23,4 +23,6 @@ services:
     volumes:
       - app_data:/app/data
 
-volumes: app_data
+volumes:
+  app_data:
+    driver: local
