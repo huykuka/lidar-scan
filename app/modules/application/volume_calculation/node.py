@@ -48,6 +48,7 @@ import time
 from typing import Any, Dict, Optional
 
 import numpy as np
+import open3d as o3d
 
 from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
@@ -97,11 +98,13 @@ class VolumeCalculationNode(ModuleNode):
         name: str,
         empty_sensor_id: str,
         config: Dict[str, Any],
+        results_service: Any = None,
     ) -> None:
         self.manager = manager
         self.id = node_id
         self.name = name
         self._empty_sensor_id = empty_sensor_id
+        self._results_service = results_service
 
         self._calculator = VolumeCalculator(
             voxel_size=float(config.get("voxel_size", 0.005)),
@@ -223,6 +226,56 @@ class VolumeCalculationNode(ModuleNode):
 
     # ── Internal ──────────────────────────────────────────────────────────
 
+    async def _persist_result(
+        self,
+        empty_pts: np.ndarray,
+        loaded_pts: np.ndarray,
+        result: Any,
+        out_payload: Dict[str, Any],
+    ) -> None:
+        """Build pre-coloured PCDs and persist via ResultsStorageService."""
+        try:
+            def _build_pcds():
+                # empty → blue  (0, 0, 1)
+                empty_pcd = o3d.geometry.PointCloud()
+                empty_pcd.points = o3d.utility.Vector3dVector(empty_pts)
+                n_e = len(empty_pts)
+                empty_pcd.colors = o3d.utility.Vector3dVector(
+                    np.tile([0.2, 0.4, 1.0], (n_e, 1))
+                )
+
+                # loaded → red  (1, 0.2, 0.2)
+                loaded_pcd = o3d.geometry.PointCloud()
+                loaded_pcd.points = o3d.utility.Vector3dVector(loaded_pts)
+                n_l = len(loaded_pts)
+                loaded_pcd.colors = o3d.utility.Vector3dVector(
+                    np.tile([1.0, 0.2, 0.2], (n_l, 1))
+                )
+                return empty_pcd, loaded_pcd
+
+            empty_pcd, loaded_pcd = await asyncio.to_thread(_build_pcds)
+
+            metadata = {
+                "volume_m3": result.volume_m3,
+                "volume_l": result.volume_l,
+                "icp_fitness": result.icp_fitness,
+                "icp_valid": result.icp_valid,
+                "cell_count": result.cell_count,
+                "grid_res": result.grid_res,
+                "icp_rmse": result.icp_rmse,
+                "calculation_number": self._calculation_count,
+            }
+            status = "warning" if not result.icp_valid else "success"
+            result_id = await self._results_service.save_result(
+                node_id=self.id,
+                pcds=[("empty", empty_pcd), ("loaded", loaded_pcd)],
+                metadata=metadata,
+                status=status,
+            )
+            logger.info("[%s] Saved result %s", self.id, result_id)
+        except Exception as exc:
+            logger.error("[%s] Failed to persist result: %s", self.id, exc, exc_info=True)
+
     def _reset_buffers(self) -> None:
         self._empty_pts = None
         self._loaded_pts = None
@@ -272,6 +325,14 @@ class VolumeCalculationNode(ModuleNode):
                 },
             }
             asyncio.create_task(self.manager.forward_data(self.id, out_payload))
+
+            # Persist result with pre-coloured PCDs if storage service available
+            if self._results_service is not None:
+                asyncio.create_task(
+                    self._persist_result(
+                        empty_pts, loaded_pts, result, out_payload
+                    )
+                )
 
         except Exception as exc:
             self.last_error = str(exc)
