@@ -102,6 +102,13 @@ OPENAPI_TAGS: list[dict] = [
         ),
     },
     {
+        "name": "Results",
+        "description": (
+            "Persistent storage and retrieval of application node results. "
+            "Includes metadata, PCD file download, and result lifecycle management."
+        ),
+    },
+    {
         "name": "DAG",
         "description": (
             "Atomic DAG configuration save/load. "
@@ -136,6 +143,14 @@ async def lifespan(_: FastAPI):
 
     node_manager.load_config()
     await node_manager.start(asyncio.get_running_loop())
+    
+    # Startup orphan sweep: delete disk directories with no DB record
+    try:
+        from app.api.v1.results.router import _get_service as _get_results_service
+        results_svc = _get_results_service()
+        await results_svc.sweep_orphans()
+    except Exception as _sweep_exc:
+        logger.warning("Startup orphan sweep failed: %s", _sweep_exc)
     
     # Register system topics at startup
     manager.register_topic("shapes")
