@@ -185,44 +185,44 @@ Application nodes perform high-value, computationally expensive analysis (vehicl
 
 #### F6: Frontend Results Overview Page
 
-- [ ] Route: `/results` displays list of all application nodes with results
-- [ ] Component: `ResultsOverviewComponent` (standalone, Angular 20)
-- [ ] Uses `ResultsApiService` to fetch node list on page load
-- [ ] Manual refresh button calls API again and updates Signal state
-- [ ] Each node card shows:
+- [x] Route: `/results` displays list of all application nodes with results
+- [x] Component: `ResultsOverviewComponent` (standalone, Angular 20)
+- [x] Uses `ResultsApiService` to fetch node list on page load
+- [x] Manual refresh button calls API again and updates Signal state
+- [x] Each node card shows:
   - Node name, type icon (Synergy/Material Icon)
   - Result count badge
   - Last updated timestamp (relative time, e.g., "2 hours ago")
-- [ ] Click card navigates to `/results/{node_id}`
-- [ ] Empty state: "No application nodes with results available"
+- [x] Click card navigates to `/results/{node_id}`
+- [x] Empty state: "No application nodes with results available"
 
 #### F7: Frontend Node Result List Page
 
-- [ ] Route: `/results/:nodeId` displays result history for node
-- [ ] Component: `NodeResultsListComponent` with Signal-based state
-- [ ] Fetches results via `GET /api/v1/results/{nodeId}` on load
-- [ ] Displays results as sortable table or card list:
+- [x] Route: `/results/:nodeId` displays result history for node
+- [x] Component: `NodeResultsListComponent` with Signal-based state
+- [x] Fetches results via `GET /api/v1/results/{nodeId}` on load
+- [x] Displays results as sortable table or card list:
   - Columns: Timestamp, Key Metadata (dynamic), Status
   - Sort by timestamp (newest first default)
-- [ ] Manual refresh button re-fetches from API
-- [ ] Click result row navigates to `/results/{nodeId}/{resultId}`
-- [ ] Breadcrumb: "Results > {Node Name}"
-- [ ] Empty state: "No results recorded for this node yet"
+- [x] Manual refresh button re-fetches from API
+- [x] Click result row navigates to `/results/{nodeId}/{resultId}`
+- [x] Breadcrumb: "Results > {Node Name}"
+- [x] Empty state: "No results recorded for this node yet"
 
 #### F8: Frontend Result Detail Page
 
-- [ ] Route: `/results/:nodeId/:resultId` shows full result
-- [ ] Component: `ResultDetailComponent` with Three.js integration
-- [ ] Fetches result metadata via `GET /api/v1/results/{nodeId}/{resultId}`
-- [ ] Displays:
+- [x] Route: `/results/:nodeId/:resultId` shows full result
+- [x] Component: `ResultDetailComponent` with Three.js integration
+- [x] Fetches result metadata via `GET /api/v1/results/{nodeId}/{resultId}`
+- [x] Displays:
   - **Metadata Panel**: Renders all metadata fields as key-value table (generic, no hardcoded fields)
   - **PCD Tabs**: If multiple PCD files, tabs/dropdown to switch active file
   - **3D Viewer**: Renders selected PCD using existing Three.js workspace component
-- [ ] Loads PCD files via `GET /api/v1/results/{nodeId}/{resultId}/pcd/{label}`
-- [ ] Parses PCD format and extracts XYZ + RGB for Three.js rendering
-- [ ] Reuses existing `BufferGeometry` mutation patterns (60 FPS, no geometry recreation)
-- [ ] Breadcrumb: "Results > {Node Name} > {Result Timestamp}"
-- [ ] Back button or breadcrumb navigation to node result list
+- [x] Loads PCD files via `GET /api/v1/results/{nodeId}/{resultId}/pcd/{label}`
+- [x] Parses PCD format and extracts XYZ + RGB for Three.js rendering
+- [x] Reuses existing `BufferGeometry` mutation patterns (60 FPS, no geometry recreation)
+- [x] Breadcrumb: "Results > {Node Name} > {Result Timestamp}"
+- [x] Back button or breadcrumb navigation to node result list
 
 #### F9: Lifecycle Integration - Node Deletion
 
