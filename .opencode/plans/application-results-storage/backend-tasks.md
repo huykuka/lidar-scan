@@ -58,6 +58,14 @@
   - [x] 404 on unknown node_id / result_id
   - [x] Node delete cascade via orchestrator integration
 
+## Phase 7: Static File Serving
+
+- [x] Mount `StaticFiles(directory="data")` at `/data` in `app/app.py` (after all API routes, before SPA)
+- [x] `data/` directory created eagerly on startup (`mkdir parents=True, exist_ok=True`)
+- [x] `/data/` added to `PROTECTED_PREFIXES` (SPA fallback bypass)
+- [x] Sanity test: file written to `data/results/…` returns HTTP 200 via `/data/results/…` URL
+- [x] Technical spec updated with static serving section
+
 ## Phase 6: Main DB Unification (Refactor)
 
 - [x] `ApplicationResultModel` added to `app/db/models.py` with composite index `idx_results_node_ts`
