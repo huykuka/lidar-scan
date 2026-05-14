@@ -17,8 +17,8 @@ const mockDetail: ResultDetail = {
   status: 'success',
   metadata: {volume_m3: 12.4, icp_valid: true, cell_count: 2048},
   pcd_files: [
-    {label: 'empty', url: '/api/v1/results/volume_calc_abc123/550e8400.../pcd/empty'},
-    {label: 'loaded', url: '/api/v1/results/volume_calc_abc123/550e8400.../pcd/loaded'},
+    {label: 'empty', url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/empty.pcd'},
+    {label: 'loaded', url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd'},
   ],
 };
 
@@ -42,10 +42,15 @@ beforeAll(() => {
 describe('ResultDetailComponent', () => {
   let fixture: ComponentFixture<ResultDetailComponent>;
   let component: ResultDetailComponent;
-  let apiSpy: {getResultDetail: ReturnType<typeof vi.fn>};
+  let apiSpy: {getResultDetail: ReturnType<typeof vi.fn>; getPcdUrl: ReturnType<typeof vi.fn>};
 
   beforeEach(async () => {
-    apiSpy = {getResultDetail: vi.fn().mockReturnValue(of(mockDetail))};
+    apiSpy = {
+      getResultDetail: vi.fn().mockReturnValue(of(mockDetail)),
+      getPcdUrl: vi.fn((nodeId: string, resultId: string, label: string) =>
+        `/data/results/${nodeId}/${resultId}/${label}.pcd`,
+      ),
+    };
 
     await TestBed.configureTestingModule({
       imports: [ResultDetailComponent],
@@ -103,7 +108,7 @@ describe('ResultDetailComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    (component as any).setActiveTab({label: 'loaded', url: '/api/v1/results/.../pcd/loaded'});
+    (component as any).setActiveTab({label: 'loaded', url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd'});
     expect((component as any).activeLabel()).toBe('loaded');
   });
 
@@ -184,6 +189,50 @@ describe('ResultDetailComponent', () => {
     expect(breadcrumb).toContain('Volume Calculation');
     expect(breadcrumb).not.toContain('volume_calc_abc123');
     expect(breadcrumb).not.toContain('550e8400');
+  });
+
+  it('should compute activePcdUrl as static /data/results path (not API proxy)', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const url: string = (component as any).activePcdUrl;
+    expect(url).toBe(
+      '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/empty.pcd',
+    );
+    expect(url).not.toContain('/api/');
+    expect(url).not.toContain('/pcd/');
+  });
+
+  it('should render cloud viewer when file exists in data (static URL integration)', async () => {
+    // Simulate a successful fetch of a real static PCD binary from /data
+    vi.spyOn(window, 'fetch').mockResolvedValue(
+      new Response(new ArrayBuffer(10), {status: 200}),
+    );
+
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // activePcdUrl must point to static /data path — viewer should attempt to load it
+    const url: string = (component as any).activePcdUrl;
+    expect(url).toMatch(/^\/data\/results\/.+\/.+\/.+\.pcd$/);
+
+    const viewer = fixture.nativeElement.querySelector('app-pcd-viewer');
+    expect(viewer).toBeTruthy();
+  });
+
+  it('should not contain /api/ or /pcd/ segments in any PCD URL', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const result = (component as any).result() as typeof mockDetail;
+    for (const file of result.pcd_files) {
+      expect(file.url).toMatch(/^\/data\/results\//);
+      expect(file.url).not.toContain('/api/');
+      expect(file.url).not.toContain('/pcd/');
+    }
   });
 
   it('should show not-found state on 404 error', async () => {

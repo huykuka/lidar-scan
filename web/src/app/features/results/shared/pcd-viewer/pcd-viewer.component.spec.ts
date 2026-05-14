@@ -69,7 +69,24 @@ describe('PcdViewerComponent', () => {
     );
     mockParser.parse.mockImplementation(() => {
       throw new PcdParseError('Malformed PCD');
-    });
+  it('should accept static /data/results URL and not error when fetch succeeds', async () => {
+    vi.spyOn(window, 'fetch').mockResolvedValue(
+      new Response(new ArrayBuffer(10), {status: 200}),
+    );
+    mockParser.parse.mockReturnValue(mockParseResult);
+
+    fixture.componentRef.setInput('pcdUrl', '/data/results/volume_calc_abc123/res-001/empty.pcd');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((r) => setTimeout(r, 150));
+    fixture.detectChanges();
+
+    // The URL must follow the static /data/results pattern — no /api/ proxy
+    const url: string = fixture.componentRef.instance['pcdUrl']();
+    expect(url).toMatch(/^\/data\/results\/.+\/.+\/.+\.pcd$/);
+    expect(url).not.toContain('/api/');
+  });
+});
 
     fixture.componentRef.setInput('pcdUrl', 'http://localhost/bad.pcd');
     fixture.detectChanges();

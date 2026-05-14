@@ -93,15 +93,15 @@ export const MOCK_RESULT_DETAIL: Record<string, ResultDetail> = {
     pcd_files: [
       {
         label: 'empty',
-        url: '/api/v1/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/pcd/empty',
+        url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/empty.pcd',
       },
       {
         label: 'loaded',
-        url: '/api/v1/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/pcd/loaded',
+        url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd',
       },
       {
         label: 'merged',
-        url: '/api/v1/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/pcd/merged',
+        url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/merged.pcd',
       },
     ],
   },
@@ -138,11 +138,12 @@ export class ResultsApiService {
   }
 
   /**
-   * Returns the URL for a PCD file download.
-   * Used directly in component for `<src>` binding or fetch calls.
+   * Returns the static URL for a PCD file served from /data.
+   * Pattern: /data/results/<node_id>/<result_id>/<label>.pcd
+   * Used directly in component for fetch calls — no API proxy involved.
    */
   getPcdUrl(nodeId: string, resultId: string, label: string): string {
-    return `${this.baseUrl}/${nodeId}/${resultId}/pcd/${label}`;
+    return `/data/results/${nodeId}/${resultId}/${label}.pcd`;
   }
 
   /** Deletes a single result. Admin/debug use. */

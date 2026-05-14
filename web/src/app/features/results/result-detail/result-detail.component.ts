@@ -96,10 +96,12 @@ export class ResultDetailComponent implements OnInit {
   }
 
   protected get activePcdUrl(): string {
-    const r = this.result();
-    if (!r) return '';
-    const file = r.pcd_files.find((f) => f.label === this.activeLabel());
-    return file?.url ?? '';
+    const label = this.activeLabel();
+    const nodeId = this.nodeId();
+    const resultId = this.resultId();
+    if (!label || !nodeId || !resultId) return '';
+    // Always compute static URL: /data/results/<node_id>/<result_id>/<label>.pcd
+    return this.resultsApi.getPcdUrl(nodeId, resultId, label);
   }
 
   protected formatTimestamp(ts: number): string {
