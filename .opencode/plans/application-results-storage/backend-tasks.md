@@ -30,7 +30,8 @@
 - [x] `GET /api/v1/results` → calls `get_node_index()`, merges with active DAG application nodes (node_type filter)
 - [x] `GET /api/v1/results/{node_id}` → `get_results_by_node()`, 404 if node unknown
 - [x] `GET /api/v1/results/{node_id}/{result_id}` → `get_result_detail()`, 404 if not found
-- [x] `GET /api/v1/results/{node_id}/{result_id}/pcd/{label}` → `FileResponse` (binary PCD), 404 if file missing; `StreamingResponse` for files >10MB
+- [x] ~~`GET /api/v1/results/{node_id}/{result_id}/pcd/{label}`~~ → **REMOVED**: PCD files are served via static `/data/` mount only. No download/proxy endpoint.
+- [x] `PcdFileEntry` uses `path` (relative to `/data/`) instead of `url`. Frontend forms URL as `/data/${path}`.
 - [x] `DELETE /api/v1/results/{node_id}/{result_id}` → `delete_result()`, 404 if not found
 - [x] Swagger annotations on all endpoints and response models
 

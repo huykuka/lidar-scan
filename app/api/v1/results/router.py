@@ -4,6 +4,7 @@ Results API router — GET/DELETE endpoints for application node results.
 Spec: .opencode/plans/application-results-storage/api-spec.md
 Mounted at: /api/v1/results
 """
+
 from __future__ import annotations
 
 import os
@@ -11,7 +12,6 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
 
 from app.schemas.results import (
     DeleteResultResponse,
@@ -24,8 +24,6 @@ from app.services.results_storage import ResultsStorageService
 # Lazy singleton — initialised on first import of this module.
 # Tests may monkey-patch this attribute directly for isolation.
 _results_service: Optional[ResultsStorageService] = None
-
-_LARGE_FILE_THRESHOLD = 10 * 1024 * 1024  # 10 MB → StreamingResponse
 
 
 def _get_service() -> ResultsStorageService:
@@ -41,6 +39,7 @@ router = APIRouter(tags=["Results"])
 # ---------------------------------------------------------------------------
 # GET /results — node index (all application nodes merged with DAG state)
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/results",
@@ -134,6 +133,7 @@ async def list_node_results_index() -> List[NodeResultSummary]:
 # GET /results/{node_id} — per-node result list
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/results/{node_id}",
     response_model=List[ResultSummary],
@@ -176,6 +176,7 @@ async def list_results_by_node(
 # GET /results/{node_id}/{result_id} — result detail
 # ---------------------------------------------------------------------------
 
+
 @router.get(
     "/results/{node_id}/{result_id}",
     response_model=ResultDetail,
@@ -196,63 +197,9 @@ async def get_result_detail(node_id: str, result_id: str) -> ResultDetail:
 
 
 # ---------------------------------------------------------------------------
-# GET /results/{node_id}/{result_id}/pcd/{label} — PCD file download
-# ---------------------------------------------------------------------------
-
-@router.get(
-    "/results/{node_id}/{result_id}/pcd/{label}",
-    responses={
-        200: {
-            "content": {"application/octet-stream": {}},
-            "description": "Raw binary PCD file (Open3D format 0.7, little-endian, x y z r g b)",
-        },
-        404: {"description": "PCD file not found"},
-    },
-    summary="Download PCD file",
-    description=(
-        "Download a raw binary PCD file for a result. "
-        "Files ≤10 MB are served via FileResponse; "
-        "files >10 MB use a StreamingResponse."
-    ),
-)
-async def download_pcd(node_id: str, result_id: str, label: str):
-    svc = _get_service()
-
-    # Sanitize label to match stored filename
-    from app.services.results_storage import ResultsStorageService as _RSS
-
-    safe_label = _RSS._sanitize_label(label)
-    file_path = Path("data/results") / node_id / result_id / f"{safe_label}.pcd"
-
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="PCD file not found")
-
-    file_size = file_path.stat().st_size
-    filename = f"{safe_label}.pcd"
-
-    if file_size > _LARGE_FILE_THRESHOLD:
-        # Streaming for large files
-        def _iter_file():
-            with open(file_path, "rb") as f:
-                while chunk := f.read(65536):
-                    yield chunk
-
-        return StreamingResponse(
-            _iter_file(),
-            media_type="application/octet-stream",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
-
-    return FileResponse(
-        path=str(file_path),
-        media_type="application/octet-stream",
-        filename=filename,
-    )
-
-
-# ---------------------------------------------------------------------------
 # DELETE /results/{node_id}/{result_id}
 # ---------------------------------------------------------------------------
+
 
 @router.delete(
     "/results/{node_id}/{result_id}",

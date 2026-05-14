@@ -27,8 +27,13 @@ REST API (FastAPI)
     ├── GET /api/v1/results               → node index
     ├── GET /api/v1/results/{node_id}     → run history
     ├── GET /api/v1/results/{node_id}/{result_id}       → detail
-    ├── GET /api/v1/results/{node_id}/{result_id}/pcd/{label}  → file
     └── DELETE /api/v1/results/{node_id}/{result_id}    → admin
+
+    NOTE: No /pcd/{label} proxy/download endpoint exists.
+    PCD files are accessed directly via the static /data/ mount:
+      GET /data/results/{node_id}/{result_id}/{label}.pcd
+    The detail endpoint returns { label, path } entries where path is
+    relative to /data/.  Frontend forms the URL as /data/${path}.
 
 DAG Orchestrator (node delete hook)
     └──► ResultsStorageService.delete_results_by_node()
@@ -153,7 +158,7 @@ logger.info("Saved result %s for node %s", result_id, self.id)
 
 New router mounted at `/api/v1/results`. Thin handlers delegating to `ResultsStorageService`. All exceptions caught at router level as `HTTPException(404)` or `HTTPException(500)`.
 
-PCD file download endpoint streams via `FileResponse` with `media_type="application/octet-stream"`. For large files (>10MB), use `StreamingResponse` with chunked reads.
+**PCD file access policy**: No download/proxy endpoint is provided. PCD files are served exclusively via the static `/data/` mount. The detail endpoint returns `pcd_files: [{ label, path }]` where `path` is relative to `/data/` (e.g. `results/<node_id>/<result_id>/<label>.pcd`). Frontend forms the URL as `/data/${path}`. This is policy — do not introduce a proxy endpoint.
 
 ---
 

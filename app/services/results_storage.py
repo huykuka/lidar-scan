@@ -135,10 +135,13 @@ class ResultsStorageService:
     def _result_dir(self, node_id: str, result_id: str) -> Path:
         return Path(_RESULTS_BASE) / node_id / result_id
 
-    def _pcd_url(self, node_id: str, result_id: str, label: str) -> str:
-        return (
-            f"/api/v1/results/{node_id}/{result_id}/pcd/{self._sanitize_label(label)}"
-        )
+    def _pcd_path(self, node_id: str, result_id: str, label: str) -> str:
+        """Return the path of a PCD file relative to the /data/ static mount.
+
+        Frontend constructs the full URL as ``/data/${path}``.
+        The backend NEVER returns absolute URLs or proxy endpoints for PCD files.
+        """
+        return f"results/{node_id}/{result_id}/{self._sanitize_label(label)}.pcd"
 
     # -------------------------------------------------------------------------
     # Public API
@@ -344,7 +347,7 @@ class ResultsStorageService:
         pcd_files = [
             PcdFileEntry(
                 label=entry["label"],
-                url=self._pcd_url(node_id, result_id, entry["label"]),
+                path=self._pcd_path(node_id, result_id, entry["label"]),
             )
             for entry in pcd_entries
         ]

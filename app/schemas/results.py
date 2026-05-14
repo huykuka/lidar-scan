@@ -3,6 +3,7 @@ Pydantic V2 schemas for Application Node Results Storage.
 
 Spec: .opencode/plans/application-results-storage/api-spec.md
 """
+
 from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
@@ -11,10 +12,19 @@ from pydantic import BaseModel
 
 
 class PcdFileEntry(BaseModel):
-    """A single PCD file associated with a result."""
+    """A single PCD file associated with a result.
+
+    ``path`` is relative to the static ``/data/`` mount, e.g.
+    ``results/<node_id>/<result_id>/<label>.pcd``.
+
+    Frontend constructs the full URL as:  ``/data/${path}``
+
+    The backend NEVER emits absolute URLs or proxy/download endpoints for
+    result PCD files.  Files are served directly by the static-file mount.
+    """
 
     label: str
-    url: str
+    path: str  # relative to /data/, e.g. "results/<node_id>/<result_id>/<label>.pcd"
 
 
 class NodeResultSummary(BaseModel):

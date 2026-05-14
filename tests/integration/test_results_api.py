@@ -173,46 +173,43 @@ class TestResultDetail:
         labels = [f["label"] for f in data["pcd_files"]]
         assert "empty" in labels
         assert "loaded" in labels
-        # URLs must be correct
+        # paths must be correct (relative to /data/ static mount)
         for f in data["pcd_files"]:
-            assert f["url"].startswith("/api/v1/results/node_detail/")
+            assert f["path"].startswith("results/node_detail/")
+            assert f["path"].endswith(".pcd")
 
 
 # ---------------------------------------------------------------------------
-# Tests: GET /api/v1/results/{node_id}/{result_id}/pcd/{label}
+# Tests: PCD static path policy (no download/proxy endpoint)
 # ---------------------------------------------------------------------------
 
 
-class TestPcdDownload:
-    def test_404_for_unknown_label(self, results_client):
-        client, svc = results_client
-        resp = client.get("/api/v1/results/node_x/no_result/pcd/nolabel")
-        assert resp.status_code == 404
+class TestPcdStaticPath:
+    """PCD files are served via /data/ static mount — no proxy endpoint exists."""
 
-    def test_pcd_file_download(self, results_client, tmp_path, monkeypatch):
+    def test_pcd_files_have_path_not_url(self, results_client, tmp_path, monkeypatch):
         client, svc = results_client
         monkeypatch.chdir(tmp_path)
         pcd = _make_mock_pcd(20)
         result_id = asyncio.get_event_loop().run_until_complete(
             svc.save_result("node_pcd", [("merged", pcd)], {})
         )
-        resp = client.get(f"/api/v1/results/node_pcd/{result_id}/pcd/merged")
+        resp = client.get(f"/api/v1/results/node_pcd/{result_id}")
         assert resp.status_code == 200
-        assert resp.headers["content-type"] == "application/octet-stream"
-        assert len(resp.content) > 0
+        data = resp.json()
+        assert len(data["pcd_files"]) == 1
+        entry = data["pcd_files"][0]
+        assert "path" in entry
+        assert "url" not in entry
+        # path is relative to /data/
+        assert entry["path"] == f"results/node_pcd/{result_id}/merged.pcd"
 
-    def test_pcd_content_disposition_header(
-        self, results_client, tmp_path, monkeypatch
-    ):
-        client, svc = results_client
-        monkeypatch.chdir(tmp_path)
-        pcd = _make_mock_pcd(5)
-        result_id = asyncio.get_event_loop().run_until_complete(
-            svc.save_result("node_pcd2", [("empty", pcd)], {})
-        )
-        resp = client.get(f"/api/v1/results/node_pcd2/{result_id}/pcd/empty")
-        assert resp.status_code == 200
-        assert "empty.pcd" in resp.headers.get("content-disposition", "")
+    def test_no_pcd_proxy_endpoint(self, results_client):
+        """The /pcd/{label} download endpoint must not exist."""
+        client, _ = results_client
+        resp = client.get("/api/v1/results/node_x/no_result/pcd/nolabel")
+        # 404 expected because route does not exist (not 405 Method Not Allowed)
+        assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------
