@@ -93,15 +93,18 @@ export const MOCK_RESULT_DETAIL: Record<string, ResultDetail> = {
     pcd_files: [
       {
         label: 'empty',
-        url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/empty.pcd',
+        path: 'results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/empty.pcd',
+        color: '#00aaff',
       },
       {
         label: 'loaded',
-        url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd',
+        path: 'results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd',
+        color: '#ff6600',
       },
       {
         label: 'merged',
-        url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/merged.pcd',
+        path: 'results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/merged.pcd',
+        color: '#00ff88',
       },
     ],
   },
@@ -138,12 +141,19 @@ export class ResultsApiService {
   }
 
   /**
-   * Returns the static URL for a PCD file served from /data.
-   * Pattern: /data/results/<node_id>/<result_id>/<label>.pcd
-   * Used directly in component for fetch calls — no API proxy involved.
+   * Forms the full static URL for a PCD file from a relative path provided by the backend.
+   *
+   * **RULE:** PCD files are served as static assets from the backend's `/data` mount.
+   * Always returns `/data/${path}` — NEVER uses the download API or any proxy endpoint.
+   *
+   * @param path - The relative `PcdFileEntry.path` from the Results API,
+   *   e.g. `'results/<node_id>/<result_id>/<label>.pcd'`
+   * @returns Full fetch URL, e.g. `/data/results/<node_id>/<result_id>/<label>.pcd`
+   *
+   * @see PcdFileEntry
    */
-  getPcdUrl(nodeId: string, resultId: string, label: string): string {
-    return `/data/results/${nodeId}/${resultId}/${label}.pcd`;
+  getPcdUrl(path: string): string {
+    return `/data/${path}`;
   }
 
   /** Deletes a single result. Admin/debug use. */

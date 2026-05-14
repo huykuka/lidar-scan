@@ -16,6 +16,12 @@ import {PcdParserService} from '@core/services/pcd-parser.service';
 
 const MAX_POINTS = 500_000;
 
+/**
+ * Point size used for all rendered clouds.
+ * Kept deliberately small (0.01 world units) so dense clouds remain sharp.
+ */
+const POINT_SIZE = 0.01;
+
 @Component({
   selector: 'app-pcd-viewer',
   standalone: true,
@@ -24,7 +30,37 @@ const MAX_POINTS = 500_000;
   styleUrl: './pcd-viewer.component.css',
 })
 export class PcdViewerComponent implements AfterViewInit, OnDestroy {
+  /**
+   * Full URL to the PCD binary to render.
+   *
+   * **MAINTAINER NOTE:** This value MUST always be `/data/${entry.path}` where
+   * `entry.path` is the relative path from the backend's `PcdFileEntry` model.
+   * Example: `/data/results/<node_id>/<result_id>/<label>.pcd`
+   *
+   * Do NOT pass a download API URL (`/api/.../download`) or any proxy URL here.
+   * PCD files are served as static assets directly from the backend's `/data` mount.
+   * Use `ResultsApiService.getPcdUrl(entry.path)` to form this value.
+   */
   pcdUrl = input<string>('');
+
+  /**
+   * Optional override color for the entire point cloud, sourced from `PcdFileEntry.color`
+   * in the Results API response.
+   *
+   * **Rendering contract:**
+   * - When provided (any non-empty CSS/hex color string), this color is applied to
+   *   `THREE.PointsMaterial.color` and `vertexColors` is set to `false`, so per-point
+   *   RGB data in the PCD binary is **ignored** in favour of this uniform color.
+   * - When absent or empty, `vertexColors` is set to `true` and per-point RGB data
+   *   from the PCD file is used as-is.
+   *
+   * This enables the backend to assign semantically distinct colors to different PCD
+   * outputs of the same result (e.g. `'#00aaff'` for "empty", `'#ff6600'` for "loaded").
+   *
+   * @example '#ff0000'
+   * @example 'rgb(0, 128, 255)'
+   */
+  color = input<string>('');
 
   protected isLoading = signal(false);
   protected hasError = signal(false);
@@ -47,8 +83,12 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
   constructor() {
     effect(() => {
       const url = this.pcdUrl();
-      if (url && this.isThreeInit) {
-        void this.loadPcd(url);
+      const overrideColor = this.color();
+      if (this.isThreeInit) {
+        this.applyMaterialColor(overrideColor);
+        if (url) {
+          void this.loadPcd(url);
+        }
       }
     });
   }
@@ -58,6 +98,9 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
       this.initThree();
       this.isThreeInit = true;
       this.animate();
+
+      // Apply initial color before first load
+      this.applyMaterialColor(this.color());
 
       const url = this.pcdUrl();
       if (url) {
@@ -75,6 +118,33 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
     this.geometry?.dispose();
     (this.pointsObj?.material as THREE.Material)?.dispose();
     this.renderer?.dispose();
+  }
+
+  /**
+   * Applies (or removes) the JSON-provided color override on the material.
+   *
+   * When `overrideColor` is a non-empty string:
+   *   - Sets `material.color` to `new THREE.Color(overrideColor)`
+   *   - Sets `material.vertexColors = false` — per-point RGB from PCD is ignored
+   *
+   * When `overrideColor` is empty / absent:
+   *   - Resets `material.color` to white (neutral for vertex-color blending)
+   *   - Sets `material.vertexColors = true` — per-point RGB from the PCD file is used
+   *
+   * The material `needsUpdate` flag is set so Three.js recompiles the shader program.
+   */
+  private applyMaterialColor(overrideColor: string): void {
+    const mat = this.pointsObj?.material as THREE.PointsMaterial | undefined;
+    if (!mat) return;
+
+    if (overrideColor) {
+      mat.color = new THREE.Color(overrideColor);
+      mat.vertexColors = false;
+    } else {
+      mat.color = new THREE.Color(0xffffff);
+      mat.vertexColors = true;
+    }
+    mat.needsUpdate = true;
   }
 
   private initThree(): void {
@@ -109,8 +179,10 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
     this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.geometry.setDrawRange(0, 0);
 
+    // Default: vertex colors enabled, size 0.01 world units.
+    // `applyMaterialColor()` will override vertexColors / color on first effect run.
     const material = new THREE.PointsMaterial({
-      size: 0.05,
+      size: POINT_SIZE,
       vertexColors: true,
       sizeAttenuation: true,
     });
@@ -145,6 +217,9 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
       const posAttr = this.geometry.attributes['position'] as THREE.BufferAttribute;
       const colAttr = this.geometry.attributes['color'] as THREE.BufferAttribute;
       (posAttr.array as Float32Array).set(result.positions.subarray(0, count * 3));
+      // Always update the color buffer from the PCD file so the data is available
+      // if the user later switches to vertex-color mode; the material's vertexColors
+      // flag controls whether Three.js actually uses it.
       (colAttr.array as Float32Array).set(result.colors.subarray(0, count * 3));
       posAttr.needsUpdate = true;
       colAttr.needsUpdate = true;

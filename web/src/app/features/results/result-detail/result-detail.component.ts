@@ -97,11 +97,25 @@ export class ResultDetailComponent implements OnInit {
 
   protected get activePcdUrl(): string {
     const label = this.activeLabel();
-    const nodeId = this.nodeId();
-    const resultId = this.resultId();
-    if (!label || !nodeId || !resultId) return '';
-    // Always compute static URL: /data/results/<node_id>/<result_id>/<label>.pcd
-    return this.resultsApi.getPcdUrl(nodeId, resultId, label);
+    const entry = (this.result()?.pcd_files ?? []).find((f) => f.label === label);
+    if (!entry) return '';
+    // URL is always /data/${entry.path} — never uses download API or proxy.
+    // entry.path is a relative path from the backend, e.g. 'results/<node_id>/<result_id>/<label>.pcd'
+    return `/data/${entry.path}`;
+  }
+
+  /**
+   * Returns the JSON-provided display color for the active PCD file.
+   *
+   * Sourced from `PcdFileEntry.color` in the Results API response.
+   * When present, `PcdViewerComponent` will use this as a uniform `PointsMaterial.color`
+   * and disable per-point vertex colors (`vertexColors = false`).
+   * When absent, the viewer falls back to per-point RGB from the PCD binary.
+   */
+  protected get activePcdColor(): string {
+    const label = this.activeLabel();
+    const entry = (this.result()?.pcd_files ?? []).find((f) => f.label === label);
+    return entry?.color ?? '';
   }
 
   protected formatTimestamp(ts: number): string {

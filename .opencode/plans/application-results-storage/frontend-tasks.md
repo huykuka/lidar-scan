@@ -9,11 +9,12 @@
 ## Phase 1: API Service & Types
 
 - [x] Define TypeScript interfaces in `core/models/results.model.ts`: `NodeResultSummary`, `ResultSummary`, `ResultDetail`, `PcdFileEntry`
+  - `PcdFileEntry.path` is a **relative** path (e.g. `results/<node_id>/<result_id>/<label>.pcd`); frontend forms URL as `/data/${path}`
 - [x] Create `core/services/api/results-api.service.ts` with:
   - [x] `getNodeIndex(): Observable<NodeResultSummary[]>`
   - [x] `getResultsByNode(nodeId: string): Observable<ResultSummary[]>`
   - [x] `getResultDetail(nodeId: string, resultId: string): Observable<ResultDetail>`
-  - [x] `getPcdUrl(nodeId: string, resultId: string, label: string): string` (returns URL string, not Observable — used directly in component for `<src>` binding)
+  - [x] `getPcdUrl(path: string): string` — accepts relative `PcdFileEntry.path`, returns `/data/${path}`; no download API or proxy
   - [x] `deleteResult(nodeId: string, resultId: string): Observable<void>`
 
 ## Phase 2: PCD Parser Service
@@ -82,7 +83,19 @@
 - [x] `PcdViewerComponent`: loads valid URL, renders error on parse failure, does not recreate geometry on input change
 - [x] `ResultsOverviewComponent`: displays node cards, refresh triggers new API call
 - [x] `NodeResultsListComponent`: table renders, breadcrumb correct
-- [x] `ResultDetailComponent`: tab switching changes active PCD URL, metadata panel visible
+- [x] `ResultDetailComponent`: tab switching changes active PCD URL, metadata panel visible; `activePcdUrl` always `/data/${entry.path}`, never from download API
+
+## Phase 8: PCD URL Convention (Architectural Doc)
+
+- [x] **`PcdFileEntry` shape locked**: backend returns `{ label, path }` where `path` is always relative (`results/<node_id>/<result_id>/<label>.pcd`)
+- [x] **URL formation rule enforced**: frontend always forms `/data/${entry.path}` — never uses download API or proxy; rule documented in:
+  - `web/README.md` (project-level developer docs)
+  - `core/models/results.model.ts` (JSDoc on `PcdFileEntry.path`)
+  - `core/services/api/results-api.service.ts` (JSDoc on `getPcdUrl`)
+  - `features/results/shared/pcd-viewer/pcd-viewer.component.ts` (maintainer note on `pcdUrl` input)
+- [x] **`getPcdUrl` signature updated**: now accepts `path: string` (not `nodeId, resultId, label`)
+- [x] **`result-detail.component.ts`**: `activePcdUrl` derives from `entry.path` directly, no longer calls `getPcdUrl(nodeId, resultId, label)`
+- [x] **All specs updated**: mock `PcdFileEntry` uses `path` (relative), `getPcdUrl` spy updated to new signature
 
 ## Phase 7: ID-Free UI Audit
 
@@ -91,3 +104,18 @@
 - [x] `ResultDetailComponent`: breadcrumb shows `node_name`; fallback to `'Unnamed'`; `resultBreadcrumb` computed as `<Node Name> — <timestamp>`
 - [x] Tests updated: assert raw IDs (`node_id`, `result_id`) are never present in rendered DOM
 - [x] Tests added: "Unnamed" fallback when node not in index, humanized `node_type` display
+
+## Phase 9: PCD Color Override (JSON-Provided Color)
+
+- [x] Add optional `color?: string` field to `PcdFileEntry` interface in `core/models/results.model.ts` (with JSDoc rendering contract)
+- [x] Add `color = input<string>('')` Signal to `PcdViewerComponent`
+- [x] Implement `applyMaterialColor(overrideColor)` in `PcdViewerComponent`:
+  - When `color` is non-empty: `PointsMaterial.color = new THREE.Color(color)`, `vertexColors = false` (ignores per-point RGB from PCD binary)
+  - When `color` is empty: `PointsMaterial.color = white`, `vertexColors = true` (uses per-point RGB from PCD)
+  - Sets `material.needsUpdate = true` after each change
+- [x] Set `POINT_SIZE = 0.01` for all clouds (replaces previous 0.05)
+- [x] Add `activePcdColor` getter in `ResultDetailComponent` sourced from `entry.color`
+- [x] Bind `[color]="activePcdColor"` on `<app-pcd-viewer>` in `result-detail.component.html`
+- [x] Update mock data in `ResultsApiService` with distinct hex colors per PCD label
+- [x] Tests: `PcdViewerComponent` spec updated — validates `vertexColors=false` + correct `material.color` when color input provided, `vertexColors=true` + white when empty, `size=0.01` in both cases, and that material color is not overwritten by vertex data after load
+- [x] Document rendering contract in JSDoc: `PcdFileEntry.color`, `PcdViewerComponent.color` input, `applyMaterialColor`, and `ResultDetailComponent.activePcdColor`
