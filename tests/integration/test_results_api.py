@@ -6,6 +6,7 @@ Covers:
   - 404 on unknown node_id / result_id
   - Node delete cascade via orchestrator integration
 """
+
 import asyncio
 
 import numpy as np
@@ -14,6 +15,7 @@ import pytest
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_mock_pcd(n_points: int = 10):
     import open3d as o3d
@@ -30,28 +32,29 @@ def _make_mock_pcd(n_points: int = 10):
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def results_client(tmp_path, monkeypatch):
-    """TestClient with an isolated DB, results dir, and a known results_service singleton."""
+    """TestClient with an isolated main DB, results dir, and a known results_service singleton."""
     db_file = tmp_path / "test.db"
-    results_db = tmp_path / "results.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
     monkeypatch.chdir(tmp_path)
 
-    # Create the main app DB
+    # Create the main app DB (includes application_results table)
     from app.db.migrate import ensure_schema
     from app.db.session import init_engine
 
     engine = init_engine()
     ensure_schema(engine)
 
-    # Create isolated ResultsStorageService
+    # Create isolated ResultsStorageService (uses the main DB via SessionLocal)
     from app.services.results_storage import ResultsStorageService
 
-    svc = ResultsStorageService(db_path=str(results_db))
+    svc = ResultsStorageService()
 
     # Patch the singleton used by the router
     import app.api.v1.results.router as results_router_module
+
     monkeypatch.setattr(results_router_module, "_results_service", svc)
 
     from app.app import app
@@ -65,6 +68,7 @@ def results_client(tmp_path, monkeypatch):
 # Tests: GET /api/v1/results (overview)
 # ---------------------------------------------------------------------------
 
+
 class TestResultsOverview:
     def test_get_results_empty(self, results_client):
         client, svc = results_client
@@ -72,7 +76,9 @@ class TestResultsOverview:
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
-    def test_get_results_shows_node_with_results(self, results_client, tmp_path, monkeypatch):
+    def test_get_results_shows_node_with_results(
+        self, results_client, tmp_path, monkeypatch
+    ):
         client, svc = results_client
         monkeypatch.chdir(tmp_path)
         pcd = _make_mock_pcd(5)
@@ -90,6 +96,7 @@ class TestResultsOverview:
 # Tests: GET /api/v1/results/{node_id}
 # ---------------------------------------------------------------------------
 
+
 class TestNodeResultsList:
     def test_404_for_unknown_node(self, results_client):
         client, svc = results_client
@@ -97,7 +104,9 @@ class TestNodeResultsList:
         assert resp.status_code == 404
         assert "detail" in resp.json()
 
-    def test_returns_results_for_known_node(self, results_client, tmp_path, monkeypatch):
+    def test_returns_results_for_known_node(
+        self, results_client, tmp_path, monkeypatch
+    ):
         client, svc = results_client
         monkeypatch.chdir(tmp_path)
         pcd = _make_mock_pcd(5)
@@ -133,6 +142,7 @@ class TestNodeResultsList:
 # ---------------------------------------------------------------------------
 # Tests: GET /api/v1/results/{node_id}/{result_id}
 # ---------------------------------------------------------------------------
+
 
 class TestResultDetail:
     def test_404_for_unknown_result(self, results_client):
@@ -172,6 +182,7 @@ class TestResultDetail:
 # Tests: GET /api/v1/results/{node_id}/{result_id}/pcd/{label}
 # ---------------------------------------------------------------------------
 
+
 class TestPcdDownload:
     def test_404_for_unknown_label(self, results_client):
         client, svc = results_client
@@ -190,7 +201,9 @@ class TestPcdDownload:
         assert resp.headers["content-type"] == "application/octet-stream"
         assert len(resp.content) > 0
 
-    def test_pcd_content_disposition_header(self, results_client, tmp_path, monkeypatch):
+    def test_pcd_content_disposition_header(
+        self, results_client, tmp_path, monkeypatch
+    ):
         client, svc = results_client
         monkeypatch.chdir(tmp_path)
         pcd = _make_mock_pcd(5)
@@ -206,10 +219,13 @@ class TestPcdDownload:
 # Tests: DELETE /api/v1/results/{node_id}/{result_id}
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteResult:
     def test_404_for_unknown_result(self, results_client):
         client, svc = results_client
-        resp = client.delete("/api/v1/results/node_x/00000000-0000-0000-0000-000000000000")
+        resp = client.delete(
+            "/api/v1/results/node_x/00000000-0000-0000-0000-000000000000"
+        )
         assert resp.status_code == 404
 
     def test_delete_removes_result(self, results_client, tmp_path, monkeypatch):

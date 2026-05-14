@@ -8,10 +8,10 @@ Covers:
   - Rollback on simulated PCD write failure
   - Concurrent saves to same node (ThreadPoolExecutor)
 """
+
 import asyncio
 import os
 import shutil
-import sqlite3
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -24,6 +24,7 @@ import pytest
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_mock_pcd(n_points: int = 10):
     """Return a minimal open3d-like PointCloud mock that passes the 50 MB guard."""
@@ -41,35 +42,33 @@ def _make_mock_pcd(n_points: int = 10):
 # Fixtures
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def results_dir(tmp_path):
-    d = tmp_path / "data" / "results"
-    d.mkdir(parents=True)
-    return d
-
-
-@pytest.fixture
-def db_path(tmp_path):
-    return str(tmp_path / "test_results.db")
-
 
 @pytest.fixture
 def service(tmp_path, monkeypatch):
-    """Create a ResultsStorageService backed by a temp DB and temp results dir."""
+    """Create a ResultsStorageService backed by the main DB (temp) and temp results dir."""
     results_data_dir = tmp_path / "data" / "results"
     results_data_dir.mkdir(parents=True)
 
+    db_file = tmp_path / "data" / "test_main.db"
+    db_file.parent.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
     monkeypatch.chdir(tmp_path)  # ensures relative `data/results/` resolves correctly
+
+    from app.db.migrate import ensure_schema
+    from app.db.session import init_engine
+
+    engine = init_engine()
+    ensure_schema(engine)
 
     from app.services.results_storage import ResultsStorageService
 
-    svc = ResultsStorageService(db_path=str(tmp_path / "results.db"))
-    return svc
+    return ResultsStorageService()
 
 
 # ---------------------------------------------------------------------------
 # Tests: save + retrieve round-trip
 # ---------------------------------------------------------------------------
+
 
 class TestSaveAndRetrieve:
     @pytest.mark.asyncio
@@ -135,7 +134,9 @@ class TestSaveAndRetrieve:
         assert "loaded" in labels
 
     @pytest.mark.asyncio
-    async def test_get_result_detail_returns_none_for_unknown(self, service, tmp_path, monkeypatch):
+    async def test_get_result_detail_returns_none_for_unknown(
+        self, service, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         detail = await service.get_result_detail("no_node", "no_result_id")
         assert detail is None
@@ -156,7 +157,9 @@ class TestSaveAndRetrieve:
         assert results[0].timestamp >= results[1].timestamp
 
     @pytest.mark.asyncio
-    async def test_get_results_by_node_empty_for_unknown(self, service, tmp_path, monkeypatch):
+    async def test_get_results_by_node_empty_for_unknown(
+        self, service, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         results = await service.get_results_by_node("ghost_node")
         assert results == []
@@ -175,7 +178,7 @@ class TestSaveAndRetrieve:
         summary = results[0].metadata_summary
         assert "scalar" in summary
         assert "nested" not in summary  # non-scalar excluded
-        assert "arr" not in summary      # non-scalar excluded
+        assert "arr" not in summary  # non-scalar excluded
 
     @pytest.mark.asyncio
     async def test_get_node_index(self, service, tmp_path, monkeypatch):
@@ -199,9 +202,12 @@ class TestSaveAndRetrieve:
 # Tests: delete_results_by_node
 # ---------------------------------------------------------------------------
 
+
 class TestDeleteResultsByNode:
     @pytest.mark.asyncio
-    async def test_delete_results_by_node_removes_db_and_dir(self, service, tmp_path, monkeypatch):
+    async def test_delete_results_by_node_removes_db_and_dir(
+        self, service, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         pcd = _make_mock_pcd(5)
         result_id = await service.save_result(
@@ -219,7 +225,9 @@ class TestDeleteResultsByNode:
         assert results == []
 
     @pytest.mark.asyncio
-    async def test_delete_results_by_node_returns_zero_for_unknown(self, service, tmp_path, monkeypatch):
+    async def test_delete_results_by_node_returns_zero_for_unknown(
+        self, service, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         count = await service.delete_results_by_node("ghost_node")
         assert count == 0
@@ -245,7 +253,9 @@ class TestDeleteResultsByNode:
         assert remaining[0].result_id == r2
 
     @pytest.mark.asyncio
-    async def test_delete_single_result_returns_false_for_unknown(self, service, tmp_path, monkeypatch):
+    async def test_delete_single_result_returns_false_for_unknown(
+        self, service, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         deleted = await service.delete_result("no_node", "no_id")
         assert deleted is False
@@ -255,6 +265,7 @@ class TestDeleteResultsByNode:
 # Tests: rollback on PCD write failure
 # ---------------------------------------------------------------------------
 
+
 class TestRollback:
     @pytest.mark.asyncio
     async def test_rollback_on_pcd_write_failure(self, service, tmp_path, monkeypatch):
@@ -262,6 +273,7 @@ class TestRollback:
         monkeypatch.chdir(tmp_path)
 
         import open3d as o3d
+
         pcd = _make_mock_pcd(5)
 
         # Patch open3d.io.write_point_cloud to raise
@@ -284,16 +296,21 @@ class TestRollback:
             # If the node dir exists, it should have no result sub-dirs
             if node_dir.exists():
                 sub_dirs = [p for p in node_dir.iterdir() if p.is_dir()]
-                assert sub_dirs == [], f"Expected no result sub-dirs but found: {sub_dirs}"
+                assert sub_dirs == [], (
+                    f"Expected no result sub-dirs but found: {sub_dirs}"
+                )
 
 
 # ---------------------------------------------------------------------------
 # Tests: 50 MB PCD size limit
 # ---------------------------------------------------------------------------
 
+
 class TestSizeLimit:
     @pytest.mark.asyncio
-    async def test_pcd_over_50mb_raises_value_error(self, service, tmp_path, monkeypatch):
+    async def test_pcd_over_50mb_raises_value_error(
+        self, service, tmp_path, monkeypatch
+    ):
         monkeypatch.chdir(tmp_path)
         pcd = _make_mock_pcd(5)
 
@@ -312,9 +329,12 @@ class TestSizeLimit:
 # Tests: concurrent saves to same node
 # ---------------------------------------------------------------------------
 
+
 class TestConcurrentSaves:
     @pytest.mark.asyncio
-    async def test_concurrent_saves_no_data_corruption(self, service, tmp_path, monkeypatch):
+    async def test_concurrent_saves_no_data_corruption(
+        self, service, tmp_path, monkeypatch
+    ):
         """Multiple concurrent saves to same node should all succeed without corruption."""
         monkeypatch.chdir(tmp_path)
         pcd = _make_mock_pcd(5)

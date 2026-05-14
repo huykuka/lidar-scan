@@ -81,32 +81,73 @@ def ensure_schema(engine: Engine) -> None:
     with engine.begin() as conn:
         # Add visible column if it doesn't exist
         if "visible" not in _table_cols(conn, "nodes"):
-            conn.execute(text("ALTER TABLE nodes ADD COLUMN visible INTEGER NOT NULL DEFAULT 1"))
-        
+            conn.execute(
+                text("ALTER TABLE nodes ADD COLUMN visible INTEGER NOT NULL DEFAULT 1")
+            )
+
         # Add provenance tracking columns to calibration_history (ICP Flow Alignment feature)
         cal_cols = _table_cols(conn, "calibration_history")
         if "source_sensor_id" not in cal_cols:
-            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN source_sensor_id TEXT"))
+            conn.execute(
+                text("ALTER TABLE calibration_history ADD COLUMN source_sensor_id TEXT")
+            )
         if "processing_chain_json" not in cal_cols:
-            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN processing_chain_json TEXT NOT NULL DEFAULT '[]'"))
+            conn.execute(
+                text(
+                    "ALTER TABLE calibration_history ADD COLUMN processing_chain_json TEXT NOT NULL DEFAULT '[]'"
+                )
+            )
         if "run_id" not in cal_cols:
             conn.execute(text("ALTER TABLE calibration_history ADD COLUMN run_id TEXT"))
         if "node_id" not in cal_cols:
-            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN node_id TEXT"))
+            conn.execute(
+                text("ALTER TABLE calibration_history ADD COLUMN node_id TEXT")
+            )
         if "accepted_at" not in cal_cols:
-            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN accepted_at TEXT"))
+            conn.execute(
+                text("ALTER TABLE calibration_history ADD COLUMN accepted_at TEXT")
+            )
         if "accepted_by" not in cal_cols:
-            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN accepted_by TEXT"))
+            conn.execute(
+                text("ALTER TABLE calibration_history ADD COLUMN accepted_by TEXT")
+            )
         if "rollback_source_id" not in cal_cols:
-            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN rollback_source_id TEXT"))
+            conn.execute(
+                text(
+                    "ALTER TABLE calibration_history ADD COLUMN rollback_source_id TEXT"
+                )
+            )
         if "registration_method_json" not in cal_cols:
-            conn.execute(text("ALTER TABLE calibration_history ADD COLUMN registration_method_json TEXT DEFAULT 'null'"))
-        
+            conn.execute(
+                text(
+                    "ALTER TABLE calibration_history ADD COLUMN registration_method_json TEXT DEFAULT 'null'"
+                )
+            )
+
         # Backfill flat pose keys into nested config["pose"] (data-only, no DDL)
         _backfill_pose_into_config(conn)
 
     # Seed dag_meta row if table is empty (idempotent via INSERT OR IGNORE)
     with engine.begin() as conn:
-        conn.execute(text(
-            "INSERT OR IGNORE INTO dag_meta (id, config_version) VALUES (1, 0)"
-        ))
+        conn.execute(
+            text("INSERT OR IGNORE INTO dag_meta (id, config_version) VALUES (1, 0)")
+        )
+
+    # Add index on application_results if it was created without it (e.g. old DBs)
+    with engine.begin() as conn:
+        existing_indexes = {
+            row[1]
+            for row in conn.exec_driver_sql(
+                "SELECT * FROM sqlite_master WHERE type='index' AND tbl_name='application_results'"
+            ).fetchall()
+        }
+        if "idx_results_node_ts" not in existing_indexes:
+            try:
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS idx_results_node_ts "
+                        "ON application_results(node_id, timestamp DESC)"
+                    )
+                )
+            except Exception:
+                pass  # Table may not exist yet on first run; create_all handles it

@@ -8,9 +8,11 @@ from __future__ import annotations
 from typing import cast, Optional
 
 
-from sqlalchemy import Boolean, Float, Integer, String
+from sqlalchemy import Boolean, Float, Index, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import datetime
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -34,8 +36,11 @@ class NodeModel(Base):
 
     def to_dict(self) -> dict:
         import json
+
         config = json.loads(self.config_json) if self.config_json else {}
-        pose = config.pop("pose", None)   # surface pose at top level; local mutation only
+        pose = config.pop(
+            "pose", None
+        )  # surface pose at top level; local mutation only
         return {
             "id": self.id,
             "name": self.name,
@@ -48,6 +53,7 @@ class NodeModel(Base):
             "x": self.x,
             "y": self.y,
         }
+
 
 class EdgeModel(Base):
     """SQLAlchemy model for edges table."""
@@ -68,6 +74,7 @@ class EdgeModel(Base):
             "target_node": self.target_node,
             "target_port": self.target_port,
         }
+
 
 class DagMetaModel(Base):
     """Single-row table holding the monotonic DAG config version counter."""
@@ -94,7 +101,11 @@ class RecordingModel(Base):
     recording_timestamp: Mapped[str] = mapped_column(String, nullable=False)
     metadata_json: Mapped[str] = mapped_column(String, nullable=False)
     thumbnail_path: Mapped[str | None] = mapped_column(String)
-    created_at: Mapped[str] = mapped_column(String, nullable=False, default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat())
+    created_at: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
 
     def to_dict(self) -> dict:
         import json
@@ -126,16 +137,28 @@ class CalibrationHistoryModel(Base):
     timestamp: Mapped[str] = mapped_column(String, nullable=False)
     fitness: Mapped[float] = mapped_column(Float, nullable=False)
     rmse: Mapped[float] = mapped_column(Float, nullable=False)
-    quality: Mapped[str] = mapped_column(String, nullable=False)  # "excellent", "good", "poor"
-    stages_used_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON array: ["global", "icp"]
-    pose_before_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON dict: {x, y, z, roll, pitch, yaw}
-    pose_after_json: Mapped[str] = mapped_column(String, nullable=False)   # JSON dict: {x, y, z, roll, pitch, yaw}
-    transformation_matrix_json: Mapped[str] = mapped_column(String, nullable=False)  # JSON 4x4 matrix
+    quality: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # "excellent", "good", "poor"
+    stages_used_json: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # JSON array: ["global", "icp"]
+    pose_before_json: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # JSON dict: {x, y, z, roll, pitch, yaw}
+    pose_after_json: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # JSON dict: {x, y, z, roll, pitch, yaw}
+    transformation_matrix_json: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # JSON 4x4 matrix
     accepted: Mapped[bool] = mapped_column(Boolean, default=False)
     notes: Mapped[str] = mapped_column(String, default="")
-    
+
     # NEW: Provenance tracking fields for ICP Flow Alignment
-    source_sensor_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    source_sensor_id: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True, index=True
+    )
     processing_chain_json: Mapped[str] = mapped_column(String, default="[]")
     run_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     node_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -169,6 +192,43 @@ class CalibrationHistoryModel(Base):
             "accepted_by": self.accepted_by,
             "rollback_source_id": self.rollback_source_id,
             "registration_method": json.loads(self.registration_method_json or "null"),
+        }
+
+
+class ApplicationResultModel(Base):
+    """SQLAlchemy model for application_results table.
+
+    Stores results produced by application nodes (e.g. VolumeCalculation, VehicleProfiler).
+    ``node_id`` is a logical reference to the DAG node — no FK enforced (DAG nodes are
+    runtime objects, not DB entities).  Lifecycle integrity is enforced by the orchestrator
+    delete hook (``delete_results_by_node``).
+    """
+
+    __tablename__ = "application_results"
+
+    result_id: Mapped[str] = mapped_column(String, primary_key=True)
+    node_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    timestamp: Mapped[float] = mapped_column(Float, nullable=False)
+    metadata_json: Mapped[str] = mapped_column(
+        "metadata", String, nullable=False, default="{}"
+    )
+    pcd_files_json: Mapped[str] = mapped_column(
+        "pcd_files", String, nullable=False, default="[]"
+    )
+    status: Mapped[str] = mapped_column(String, nullable=False, default="success")
+
+    __table_args__ = (Index("idx_results_node_ts", "node_id", "timestamp"),)
+
+    def to_dict(self) -> dict:
+        import json
+
+        return {
+            "result_id": self.result_id,
+            "node_id": self.node_id,
+            "timestamp": self.timestamp,
+            "metadata": json.loads(self.metadata_json) if self.metadata_json else {},
+            "pcd_files": json.loads(self.pcd_files_json) if self.pcd_files_json else [],
+            "status": self.status,
         }
 
 
