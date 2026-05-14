@@ -80,6 +80,59 @@ describe('NodeResultsListComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Results');
   });
 
+  it('should never render raw result_id in the table', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text: string = fixture.nativeElement.textContent;
+    expect(text).not.toContain('res-001');
+    expect(text).not.toContain('res-002');
+    expect(text).not.toContain('volume_calc_abc123');
+  });
+
+  it('should show node_name in breadcrumb, not raw nodeId', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // The node 'volume_calc_abc123' is in MOCK_NODE_INDEX as 'Volume Calculation'
+    const breadcrumb: HTMLElement = fixture.nativeElement.querySelector('nav');
+    expect(breadcrumb?.textContent).not.toContain('volume_calc_abc123');
+  });
+
+  it('should show "Unnamed" in breadcrumb when node is not in index', async () => {
+    // Override route with unknown nodeId not in MOCK_NODE_INDEX
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [NodeResultsListComponent],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {provide: ResultsApiService, useValue: apiSpy},
+        NavigationService,
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: {get: (key: string) => (key === 'nodeId' ? 'unknown-id-xyz' : null)},
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+    const f = TestBed.createComponent(NodeResultsListComponent);
+    f.detectChanges();
+    await f.whenStable();
+    f.detectChanges();
+
+    const breadcrumb: HTMLElement = f.nativeElement.querySelector('nav');
+    // Must show 'Unnamed', never the raw id
+    expect(breadcrumb?.textContent).toContain('Unnamed');
+    expect(breadcrumb?.textContent).not.toContain('unknown-id-xyz');
+  });
+
   it('should show empty state message when API returns empty array', async () => {
     apiSpy.getResultsByNode.mockReturnValue(of([]));
     fixture.detectChanges();

@@ -59,6 +59,12 @@ export class ResultsOverviewComponent implements OnInit {
     return date.toLocaleDateString();
   }
 
+  protected formatNodeType(nodeType: string): string {
+    return nodeType
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   protected nodeTypeIcon(nodeType: string): string {
     const iconMap: Record<string, string> = {
       volume_calculation: 'view_in_ar',

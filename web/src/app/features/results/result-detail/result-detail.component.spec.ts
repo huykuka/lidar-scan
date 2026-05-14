@@ -116,6 +116,76 @@ describe('ResultDetailComponent', () => {
     expect(metaTable).toBeTruthy();
   });
 
+  it('should never render raw result_id or node_id in the visible UI', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const text: string = fixture.nativeElement.textContent;
+    // UUIDs and raw node IDs must not be visible to the user
+    expect(text).not.toContain('550e8400-e29b-41d4-a716-446655440000');
+    expect(text).not.toContain('volume_calc_abc123');
+  });
+
+  it('should show node_name in breadcrumb, not raw nodeId', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const breadcrumb: HTMLElement = fixture.nativeElement.querySelector('nav');
+    // 'volume_calc_abc123' is in MOCK_NODE_INDEX → should show as 'Volume Calculation'
+    expect(breadcrumb?.textContent).toContain('Volume Calculation');
+    expect(breadcrumb?.textContent).not.toContain('volume_calc_abc123');
+  });
+
+  it('should show "Unnamed" when node is not in index', async () => {
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [ResultDetailComponent],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {provide: ResultsApiService, useValue: apiSpy},
+        NavigationService,
+        PcdParserService,
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            snapshot: {
+              paramMap: {
+                get: (key: string) => {
+                  if (key === 'nodeId') return 'unknown-xyz-999';
+                  if (key === 'resultId') return '550e8400-e29b-41d4-a716-446655440000';
+                  return null;
+                },
+              },
+            },
+          },
+        },
+      ],
+    }).compileComponents();
+    const f = TestBed.createComponent(ResultDetailComponent);
+    f.detectChanges();
+    await f.whenStable();
+    f.detectChanges();
+
+    const breadcrumb: HTMLElement = f.nativeElement.querySelector('nav');
+    expect(breadcrumb?.textContent).toContain('Unnamed');
+    expect(breadcrumb?.textContent).not.toContain('unknown-xyz-999');
+  });
+
+  it('should compute resultBreadcrumb as "<Node Name> — <timestamp>"', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const breadcrumb: string = (component as any).resultBreadcrumb();
+    expect(breadcrumb).toContain('Volume Calculation');
+    expect(breadcrumb).not.toContain('volume_calc_abc123');
+    expect(breadcrumb).not.toContain('550e8400');
+  });
+
   it('should show not-found state on 404 error', async () => {
     apiSpy.getResultDetail.mockReturnValue(throwError(() => ({status: 404})));
 

@@ -44,7 +44,7 @@
                   {{ node.result_count }}
                 </span>
               </div>
-              <p class="text-xs text-syn-color-neutral-500 mt-0.5 truncate">{{ node.node_type }}</p>
+              <p class="text-xs text-syn-color-neutral-500 mt-0.5 truncate">{{ formatNodeType(node.node_type) }}</p>
               <p class="text-xs text-syn-color-neutral-400 mt-1">{{ formatTimestamp(node.latest_timestamp) }}</p>
             </div>
             <syn-icon name="chevron_right" class="text-syn-color-neutral-400 shrink-0 mt-1"></syn-icon>

@@ -83,3 +83,11 @@
 - [x] `ResultsOverviewComponent`: displays node cards, refresh triggers new API call
 - [x] `NodeResultsListComponent`: table renders, breadcrumb correct
 - [x] `ResultDetailComponent`: tab switching changes active PCD URL, metadata panel visible
+
+## Phase 7: ID-Free UI Audit
+
+- [x] `ResultsOverviewComponent`: render `node_name` not `node_id`; humanize `node_type` snake_case → Title Case
+- [x] `NodeResultsListComponent`: breadcrumb shows `node_name`; fallback to `'Unnamed'` (never raw `nodeId`)
+- [x] `ResultDetailComponent`: breadcrumb shows `node_name`; fallback to `'Unnamed'`; `resultBreadcrumb` computed as `<Node Name> — <timestamp>`
+- [x] Tests updated: assert raw IDs (`node_id`, `result_id`) are never present in rendered DOM
+- [x] Tests added: "Unnamed" fallback when node not in index, humanized `node_type` display

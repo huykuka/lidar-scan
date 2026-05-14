@@ -1,4 +1,4 @@
-import {Component, effect, inject, OnInit, signal} from '@angular/core';
+import {Component, computed, effect, inject, OnInit, signal} from '@angular/core';
 import {ActivatedRoute, RouterModule} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {ResultsApiService, MOCK_RESULT_DETAIL, MOCK_NODE_INDEX} from '@core/services/api/results-api.service';
@@ -24,6 +24,15 @@ export class ResultDetailComponent implements OnInit {
   protected notFound = signal(false);
   protected activeLabel = signal<string>('');
 
+  /** Human-friendly breadcrumb label: "<Node Name> — <timestamp>" */
+  protected resultBreadcrumb = computed<string>(() => {
+    const r = this.result();
+    const name = this.nodeName();
+    if (!r) return name;
+    const ts = this.formatTimestamp(r.timestamp);
+    return `${name} — ${ts}`;
+  });
+
   private route = inject(ActivatedRoute);
   private resultsApi = inject(ResultsApiService);
   private navService = inject(NavigationService);
@@ -45,11 +54,11 @@ export class ResultDetailComponent implements OnInit {
     this.resultId.set(resultId);
 
     const node = MOCK_NODE_INDEX.find((n) => n.node_id === nodeId);
-    this.nodeName.set(node?.node_name ?? nodeId);
+    this.nodeName.set(node?.node_name ?? 'Unnamed');
 
     this.navService.setPageConfig({
       title: 'Result Detail',
-      subtitle: `${node?.node_name ?? nodeId}`,
+      subtitle: `${node?.node_name ?? 'Unnamed'}`,
     });
   }
 

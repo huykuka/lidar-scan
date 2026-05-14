@@ -8,8 +8,7 @@
     @if (result()) {
       <syn-icon name="chevron_right" class="text-xs"></syn-icon>
       <span class="text-syn-typography-color-text font-medium">{{ formatTimestamp(result()!.timestamp) }}</span>
-    }
-  </nav>
+    }  </nav>
 
   @if (isLoading()) {
     <div class="flex items-center justify-center py-16">

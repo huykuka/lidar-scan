@@ -38,7 +38,7 @@ export class NodeResultsListComponent implements OnInit {
     const id = this.route.snapshot.paramMap.get('nodeId') ?? '';
     this.nodeId.set(id);
     const node = MOCK_NODE_INDEX.find((n) => n.node_id === id);
-    const name = node?.node_name ?? id;
+    const name = node?.node_name ?? 'Unnamed';
     this.nodeName.set(name);
     this.navService.setPageConfig({
       title: 'Results',
