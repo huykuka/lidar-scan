@@ -84,9 +84,9 @@ Full result detail.
     "calculation_number": 7
   },
   "pcd_files": [
-    { "label": "empty",  "path": "results/volume_calc_abc123/550e8400.../empty.pcd" },
-    { "label": "loaded", "path": "results/volume_calc_abc123/550e8400.../loaded.pcd" },
-    { "label": "merged", "path": "results/volume_calc_abc123/550e8400.../merged.pcd" }
+    { "label": "empty",  "path": "results/volume_calc_abc123/550e8400.../empty.pcd",  "color": "#2196F3" },
+    { "label": "loaded", "path": "results/volume_calc_abc123/550e8400.../loaded.pcd", "color": "#F44336" },
+    { "label": "merged", "path": "results/volume_calc_abc123/550e8400.../merged.pcd", "color": "#4CAF50" }
   ]
 }
 ```
@@ -116,6 +116,9 @@ class PcdFileEntry(BaseModel):
     path: str  # relative to /data/, e.g. "results/<node_id>/<result_id>/<label>.pcd"
                # Frontend constructs full URL as: /data/${path}
                # Backend NEVER returns absolute URLs or proxy endpoints for PCD files.
+    color: str  # hex color derived from label; canonical mapping:
+                #   empty="#2196F3" (blue), loaded="#F44336" (red),
+                #   merged="#4CAF50" (green), unknown="#9E9E9E" (grey)
 
 class NodeResultSummary(BaseModel):
     node_id: str
@@ -159,6 +162,8 @@ export interface PcdFileEntry {
    * The backend NEVER returns absolute URLs or proxy endpoints for PCD files.
    */
   path: string;
+  /** Hex color derived from PCD label. Canonical: empty=#2196F3, loaded=#F44336, merged=#4CAF50, unknown=#9E9E9E */
+  color: string;
 }
 
 export interface ResultSummary {
@@ -172,7 +177,8 @@ export interface ResultSummary {
 
 export interface PcdFileEntry {
   label: string;
-  url: string;
+  path: string;
+  color: string;
 }
 
 export interface ResultDetail {

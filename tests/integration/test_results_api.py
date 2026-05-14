@@ -177,6 +177,11 @@ class TestResultDetail:
         for f in data["pcd_files"]:
             assert f["path"].startswith("results/node_detail/")
             assert f["path"].endswith(".pcd")
+        # each PCD entry must carry a hex color
+        for f in data["pcd_files"]:
+            assert "color" in f
+            assert f["color"].startswith("#")
+            assert len(f["color"]) == 7
 
 
 # ---------------------------------------------------------------------------
@@ -241,3 +246,44 @@ class TestDeleteResult:
         # Subsequent GET should 404
         resp2 = client.get(f"/api/v1/results/node_del_api/{result_id}")
         assert resp2.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Tests: PCD color property in API responses
+# ---------------------------------------------------------------------------
+
+
+class TestPcdColorInApi:
+    def test_pcd_color_mapping_via_api(self, results_client, tmp_path, monkeypatch):
+        """API detail response must include correct domain colors per PCD label."""
+        client, svc = results_client
+        monkeypatch.chdir(tmp_path)
+        pcd = _make_mock_pcd(5)
+        result_id = asyncio.get_event_loop().run_until_complete(
+            svc.save_result(
+                "node_color_api",
+                [("empty", pcd), ("loaded", pcd), ("merged", pcd)],
+                {},
+            )
+        )
+        resp = client.get(f"/api/v1/results/node_color_api/{result_id}")
+        assert resp.status_code == 200
+        color_by_label = {f["label"]: f["color"] for f in resp.json()["pcd_files"]}
+        assert color_by_label["empty"] == "#2196F3"
+        assert color_by_label["loaded"] == "#F44336"
+        assert color_by_label["merged"] == "#4CAF50"
+
+    def test_pcd_color_default_for_unknown_label_via_api(
+        self, results_client, tmp_path, monkeypatch
+    ):
+        """Unknown label gets default grey color in API response."""
+        client, svc = results_client
+        monkeypatch.chdir(tmp_path)
+        pcd = _make_mock_pcd(5)
+        result_id = asyncio.get_event_loop().run_until_complete(
+            svc.save_result("node_unk_color", [("scan_raw", pcd)], {})
+        )
+        resp = client.get(f"/api/v1/results/node_unk_color/{result_id}")
+        assert resp.status_code == 200
+        entries = resp.json()["pcd_files"]
+        assert entries[0]["color"] == "#9E9E9E"

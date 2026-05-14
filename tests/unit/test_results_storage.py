@@ -353,3 +353,89 @@ class TestConcurrentSaves:
 
         results = await service.get_results_by_node("node_concurrent")
         assert len(results) == 5
+
+
+# ---------------------------------------------------------------------------
+# Tests: PCD color property
+# ---------------------------------------------------------------------------
+
+
+class TestPcdColor:
+    @pytest.mark.asyncio
+    async def test_pcd_files_have_color_property(self, service, tmp_path, monkeypatch):
+        """PcdFileEntry.color must be present in result detail."""
+        monkeypatch.chdir(tmp_path)
+        pcd = _make_mock_pcd(5)
+        result_id = await service.save_result(
+            node_id="node_color",
+            pcds=[("empty", pcd), ("loaded", pcd), ("merged", pcd)],
+            metadata={},
+        )
+        detail = await service.get_result_detail("node_color", result_id)
+        assert detail is not None
+        for entry in detail.pcd_files:
+            assert hasattr(entry, "color")
+            assert entry.color.startswith("#")
+            assert len(entry.color) == 7  # "#RRGGBB"
+
+    @pytest.mark.asyncio
+    async def test_pcd_color_mapping(self, service, tmp_path, monkeypatch):
+        """Color values must match the domain mapping: empty=blue, loaded=red, merged=green."""
+        monkeypatch.chdir(tmp_path)
+        pcd = _make_mock_pcd(5)
+        result_id = await service.save_result(
+            node_id="node_colormap",
+            pcds=[("empty", pcd), ("loaded", pcd), ("merged", pcd)],
+            metadata={},
+        )
+        detail = await service.get_result_detail("node_colormap", result_id)
+        assert detail is not None
+        color_by_label = {e.label: e.color for e in detail.pcd_files}
+        assert color_by_label["empty"] == "#2196F3"
+        assert color_by_label["loaded"] == "#F44336"
+        assert color_by_label["merged"] == "#4CAF50"
+
+    @pytest.mark.asyncio
+    async def test_pcd_color_default_for_unknown_label(
+        self, service, tmp_path, monkeypatch
+    ):
+        """Unknown labels receive the default grey color."""
+        monkeypatch.chdir(tmp_path)
+        pcd = _make_mock_pcd(5)
+        result_id = await service.save_result(
+            node_id="node_colorunk",
+            pcds=[("custom_slice", pcd)],
+            metadata={},
+        )
+        detail = await service.get_result_detail("node_colorunk", result_id)
+        assert detail is not None
+        assert detail.pcd_files[0].color == "#9E9E9E"
+
+    @pytest.mark.asyncio
+    async def test_pcd_color_fallback_for_legacy_record(
+        self, service, tmp_path, monkeypatch
+    ):
+        """Legacy DB records (no color field) should receive label-derived color on read."""
+        monkeypatch.chdir(tmp_path)
+        import json
+        import time
+
+        # Manually insert a record whose pcd_files_json has NO 'color' key
+        result_id = "legacy-id-0001"
+        pcd_files_json = json.dumps(
+            [
+                {"label": "empty", "path": f"node_legacy/{result_id}/empty.pcd"},
+            ]
+        )
+        await asyncio.to_thread(
+            service._insert_db_record,
+            result_id,
+            "node_legacy",
+            time.time(),
+            "{}",
+            pcd_files_json,
+            "success",
+        )
+        detail = await service.get_result_detail("node_legacy", result_id)
+        assert detail is not None
+        assert detail.pcd_files[0].color == "#2196F3"  # empty → blue via fallback

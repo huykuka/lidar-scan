@@ -74,3 +74,14 @@
 - [x] `ResultsStorageService` uses `SessionLocal` (main DB) — no separate `results.db`
 - [x] Tests updated: fixtures use `DATABASE_URL` env var + `init_engine()` (no `db_path` param)
 - [x] `asyncio.Lock` fix: concurrent saves no longer deadlock the event loop (16 unit + 12 integration tests pass)
+
+## Phase 8: PCD Color Property
+
+- [x] Add `PCD_LABEL_COLORS` mapping and `pcd_color_for_label()` helper to `app/schemas/results.py`
+- [x] Add `color: str` field to `PcdFileEntry` Pydantic model
+- [x] Persist `color` in `pcd_files_json` during `save_result()` (assigned via `pcd_color_for_label`)
+- [x] Emit `color` in `get_result_detail()` with fallback for legacy records (no stored color)
+- [x] Unit tests (`TestPcdColor`): color present, mapping correct, default grey, legacy fallback
+- [x] Integration tests (`TestPcdColorInApi`): color mapping and default verified via HTTP
+- [x] `api-spec.md` updated: `PcdFileEntry` schema + JSON examples + TS interface include `color`
+- [x] `technical.md` updated: PCD color mapping table + backward-compat note

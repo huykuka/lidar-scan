@@ -10,6 +10,33 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel
 
+# ---------------------------------------------------------------------------
+# Color domain mapping for PCD labels
+# ---------------------------------------------------------------------------
+
+#: Canonical hex color assigned to each well-known PCD label.
+#: Falls back to ``PCD_COLOR_DEFAULT`` for unknown labels.
+PCD_LABEL_COLORS: Dict[str, str] = {
+    "empty": "#2196F3",  # blue
+    "loaded": "#F44336",  # red
+    "merged": "#4CAF50",  # green
+}
+
+#: Default color for labels not present in ``PCD_LABEL_COLORS``.
+PCD_COLOR_DEFAULT: str = "#9E9E9E"  # grey
+
+
+def pcd_color_for_label(label: str) -> str:
+    """Return the canonical hex color for a PCD label (case-insensitive match).
+
+    Args:
+        label: Sanitized PCD label string (e.g. ``"empty"``, ``"loaded"``).
+
+    Returns:
+        Hex color string such as ``"#2196F3"``.
+    """
+    return PCD_LABEL_COLORS.get(label.lower(), PCD_COLOR_DEFAULT)
+
 
 class PcdFileEntry(BaseModel):
     """A single PCD file associated with a result.
@@ -21,10 +48,15 @@ class PcdFileEntry(BaseModel):
 
     The backend NEVER emits absolute URLs or proxy/download endpoints for
     result PCD files.  Files are served directly by the static-file mount.
+
+    ``color`` is a hex string (e.g. ``"#2196F3"``) derived from the PCD label
+    via ``pcd_color_for_label()``.  Canonical mapping: empty=blue, loaded=red,
+    merged=green; unknown labels receive the default grey ``"#9E9E9E"``.
     """
 
     label: str
     path: str  # relative to /data/, e.g. "results/<node_id>/<result_id>/<label>.pcd"
+    color: str  # hex color derived from label, e.g. "#2196F3"
 
 
 class NodeResultSummary(BaseModel):

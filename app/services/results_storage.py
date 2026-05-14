@@ -39,6 +39,7 @@ from app.schemas.results import (
     PcdFileEntry,
     ResultDetail,
     ResultSummary,
+    pcd_color_for_label,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,7 +198,10 @@ class ResultsStorageService:
                             f"exceeds {self._max_pcd_bytes / 1e6:.0f} MB limit"
                         )
                     rel_path = str(Path(node_id) / result_id / f"{safe_label}.pcd")
-                    pcd_entries.append({"label": safe_label, "path": rel_path})
+                    color = pcd_color_for_label(safe_label)
+                    pcd_entries.append(
+                        {"label": safe_label, "path": rel_path, "color": color}
+                    )
                 return pcd_entries
             except Exception:
                 shutil.rmtree(result_dir, ignore_errors=True)
@@ -348,6 +352,8 @@ class ResultsStorageService:
             PcdFileEntry(
                 label=entry["label"],
                 path=self._pcd_path(node_id, result_id, entry["label"]),
+                # Prefer stored color; fall back to label mapping for legacy records.
+                color=entry.get("color") or pcd_color_for_label(entry["label"]),
             )
             for entry in pcd_entries
         ]

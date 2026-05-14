@@ -61,8 +61,21 @@ CREATE INDEX IF NOT EXISTS idx_results_node_ts
 ```
 
 - **No FK to nodes table** — nodes are DAG runtime objects, not DB entities. Lifecycle enforced by orchestrator hook.
-- `pcd_files` stores paths **relative** to `data/results/` for portability.
+- `pcd_files` stores paths **relative** to `data/results/` for portability, plus a `color` hex string per entry.
 - `metadata` is free-form JSON. No schema validation enforced by storage service.
+
+### PCD Color Mapping (`app/schemas/results.py`)
+
+Each `PcdFileEntry` carries a `color: str` (hex) assigned at save time via `pcd_color_for_label()`:
+
+| Label   | Color | Hex       |
+|---------|-------|-----------|
+| empty   | blue  | `#2196F3` |
+| loaded  | red   | `#F44336` |
+| merged  | green | `#4CAF50` |
+| (other) | grey  | `#9E9E9E` |
+
+Color is persisted in `pcd_files_json` alongside `label` and `path`. On read, missing `color` (legacy records) falls back to `pcd_color_for_label(label)` for backward compatibility.
 
 ### Disk Layout
 
