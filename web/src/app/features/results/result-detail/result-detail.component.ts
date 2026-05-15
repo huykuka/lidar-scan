@@ -1,12 +1,16 @@
-import {Component, computed, effect, inject, OnInit, signal} from '@angular/core';
-import {ActivatedRoute, RouterModule} from '@angular/router';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {ResultsApiService, MOCK_RESULT_DETAIL, MOCK_NODE_INDEX} from '@core/services/api/results-api.service';
-import {NavigationService} from '@core/services';
-import {PcdFileEntry, ResultDetail} from '@core/models';
-import {MetadataTableComponent} from '../shared/metadata-table/metadata-table.component';
-import {PcdViewerComponent} from '../shared/pcd-viewer/pcd-viewer.component';
-import {firstValueFrom} from 'rxjs';
+import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute, RouterModule } from '@angular/router';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {
+  ResultsApiService,
+  MOCK_RESULT_DETAIL,
+  MOCK_NODE_INDEX,
+} from '@core/services/api/results-api.service';
+import { NavigationService } from '@core/services';
+import { PcdFileEntry, ResultDetail } from '@core/models';
+import { MetadataTableComponent } from '../shared/metadata-table/metadata-table.component';
+import { PcdViewerComponent } from '../shared/pcd-viewer/pcd-viewer.component';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-result-detail',
@@ -91,29 +95,35 @@ export class ResultDetailComponent implements OnInit {
     }
   }
 
+  /** Called by syn-tab-group's syn-tab-show event when the user switches tabs. */
+  protected onTabShow(event: Event): void {
+    const detail = (event as CustomEvent<{ name: string }>).detail;
+    this.activeLabel.set(detail.name);
+  }
+
+  /** @deprecated Use onTabShow / syn-tab-group instead. Kept for backward-compat in tests. */
   protected setActiveTab(pcdFile: PcdFileEntry): void {
     this.activeLabel.set(pcdFile.label);
   }
 
-  protected get activePcdUrl(): string {
-    const label = this.activeLabel();
+  /**
+   * Returns the static `/data/` URL for a specific PCD label.
+   * URL is always /data/${entry.path} — never uses download API or proxy.
+   */
+  protected getPcdUrlForLabel(label: string): string {
     const entry = (this.result()?.pcd_files ?? []).find((f) => f.label === label);
     if (!entry) return '';
-    // URL is always /data/${entry.path} — never uses download API or proxy.
-    // entry.path is a relative path from the backend, e.g. 'results/<node_id>/<result_id>/<label>.pcd'
-    return `/data/${entry.path}`;
+    return this.resultsApi.getPcdUrl(`data/${entry.path}`);
   }
 
   /**
-   * Returns the JSON-provided display color for the active PCD file.
+   * Returns the JSON-provided display color for a specific PCD label.
    *
-   * Sourced from `PcdFileEntry.color` in the Results API response.
-   * When present, `PcdViewerComponent` will use this as a uniform `PointsMaterial.color`
-   * and disable per-point vertex colors (`vertexColors = false`).
+   * When present, `PcdViewerComponent` uses this as a uniform `PointsMaterial.color`
+   * and disables per-point vertex colors (`vertexColors = false`).
    * When absent, the viewer falls back to per-point RGB from the PCD binary.
    */
-  protected get activePcdColor(): string {
-    const label = this.activeLabel();
+  protected getPcdColorForLabel(label: string): string {
     const entry = (this.result()?.pcd_files ?? []).find((f) => f.label === label);
     return entry?.color ?? '';
   }
@@ -122,7 +132,9 @@ export class ResultDetailComponent implements OnInit {
     return new Date(ts * 1000).toLocaleString();
   }
 
-  protected statusVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' {
+  protected statusVariant(
+    status: string,
+  ): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' {
     const map: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
       success: 'success',
       warning: 'warning',

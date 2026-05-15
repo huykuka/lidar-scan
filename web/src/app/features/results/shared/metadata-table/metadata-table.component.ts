@@ -1,4 +1,4 @@
-import {Component, computed, input, signal} from '@angular/core';
+import { Component, computed, input, Pipe, signal } from '@angular/core';
 
 @Component({
   selector: 'app-metadata-table',
@@ -29,6 +29,7 @@ export class MetadataTableComponent {
   protected displayValue(value: unknown): string {
     if (value === null) return 'null';
     if (typeof value === 'boolean') return value ? 'true' : 'false';
+    if (typeof value === 'number') return value.toFixed(3);
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
   }

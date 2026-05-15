@@ -30,6 +30,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 import open3d as o3d
+# pyrefly: ignore [missing-import]
 import open3d.t.pipelines.registration as treg
 from scipy.interpolate import griddata
 from scipy.ndimage import binary_opening

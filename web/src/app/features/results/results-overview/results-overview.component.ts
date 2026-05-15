@@ -1,10 +1,10 @@
-import {Component, inject, OnInit, signal} from '@angular/core';
-import {Router} from '@angular/router';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {ResultsApiService, MOCK_NODE_INDEX} from '@core/services/api/results-api.service';
-import {NavigationService} from '@core/services';
-import {NodeResultSummary} from '@core/models';
-import {firstValueFrom} from 'rxjs';
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { ResultsApiService, MOCK_NODE_INDEX } from '@core/services/api/results-api.service';
+import { NavigationService } from '@core/services';
+import { NodeResultSummary } from '@core/models';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-results-overview',
@@ -60,9 +60,7 @@ export class ResultsOverviewComponent implements OnInit {
   }
 
   protected formatNodeType(nodeType: string): string {
-    return nodeType
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return nodeType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
   protected nodeTypeIcon(nodeType: string): string {

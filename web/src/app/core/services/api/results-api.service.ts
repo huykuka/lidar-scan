@@ -1,13 +1,8 @@
-import {inject, Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
-import {Observable, of} from 'rxjs';
-import {environment} from '@env/environment';
-import {
-  DeleteResultResponse,
-  NodeResultSummary,
-  ResultDetail,
-  ResultSummary,
-} from '@core/models';
+import { inject, Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, of } from 'rxjs';
+import { environment } from '@env/environment';
+import { DeleteResultResponse, NodeResultSummary, ResultDetail, ResultSummary } from '@core/models';
 
 // ---------------------------------------------------------------------------
 // Mock data — used when backend is not yet available
@@ -43,7 +38,7 @@ export const MOCK_RESULTS_BY_NODE: Record<string, ResultSummary[]> = {
       node_id: 'volume_calc_abc123',
       timestamp: 1715000000.123,
       status: 'success',
-      metadata_summary: {volume_m3: 12.4, icp_valid: true},
+      metadata_summary: { volume_m3: 12.4, icp_valid: true },
       pcd_count: 3,
     },
     {
@@ -51,7 +46,7 @@ export const MOCK_RESULTS_BY_NODE: Record<string, ResultSummary[]> = {
       node_id: 'volume_calc_abc123',
       timestamp: 1714995000.0,
       status: 'warning',
-      metadata_summary: {volume_m3: 9.1, icp_valid: false},
+      metadata_summary: { volume_m3: 9.1, icp_valid: false },
       pcd_count: 3,
     },
     {
@@ -59,7 +54,7 @@ export const MOCK_RESULTS_BY_NODE: Record<string, ResultSummary[]> = {
       node_id: 'volume_calc_abc123',
       timestamp: 1714990000.0,
       status: 'error',
-      metadata_summary: {volume_m3: 0, icp_valid: false},
+      metadata_summary: { volume_m3: 0, icp_valid: false },
       pcd_count: 0,
     },
   ],
@@ -69,7 +64,7 @@ export const MOCK_RESULTS_BY_NODE: Record<string, ResultSummary[]> = {
       node_id: 'vehicle_profiler_def456',
       timestamp: 1714990000.0,
       status: 'success',
-      metadata_summary: {vehicle_length_m: 5.2, confidence: 0.95},
+      metadata_summary: { vehicle_length_m: 5.2, confidence: 0.95 },
       pcd_count: 2,
     },
   ],
@@ -125,13 +120,9 @@ export class ResultsApiService {
   }
 
   /** Lists all results for a node, newest first. */
-  getResultsByNode(
-    nodeId: string,
-    limit = 100,
-    offset = 0,
-  ): Observable<ResultSummary[]> {
+  getResultsByNode(nodeId: string, limit = 100, offset = 0): Observable<ResultSummary[]> {
     return this.http.get<ResultSummary[]>(`${this.baseUrl}/${nodeId}`, {
-      params: {limit: limit.toString(), offset: offset.toString()},
+      params: { limit: limit.toString(), offset: offset.toString() },
     });
   }
 
@@ -153,7 +144,8 @@ export class ResultsApiService {
    * @see PcdFileEntry
    */
   getPcdUrl(path: string): string {
-    return `/data/${path}`;
+    console.log(path);
+    return `${environment.staticUrl}/${path}`;
   }
 
   /** Deletes a single result. Admin/debug use. */

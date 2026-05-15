@@ -21,7 +21,41 @@ describe('MetadataTableComponent', () => {
     const rows = fixture.nativeElement.querySelectorAll('tbody tr');
     expect(rows.length).toBe(2);
     expect(fixture.nativeElement.textContent).toContain('volume_m3');
-    expect(fixture.nativeElement.textContent).toContain('12.4');
+    // Numbers are now rendered to 3 decimal places
+    expect(fixture.nativeElement.textContent).toContain('12.400');
+  });
+
+  describe('number rendering (3 decimal places)', () => {
+    it('should render a float to 3 decimal places', () => {
+      fixture.componentRef.setInput('metadata', {pi: 3.14159});
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('3.142');
+    });
+
+    it('should render an integer to 3 decimal places', () => {
+      fixture.componentRef.setInput('metadata', {count: 42});
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('42.000');
+    });
+
+    it('should render a float with fewer than 3 decimal digits padded', () => {
+      fixture.componentRef.setInput('metadata', {val: 1.5});
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('1.500');
+    });
+
+    it('should NOT alter string values', () => {
+      fixture.componentRef.setInput('metadata', {label: 'hello'});
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('hello');
+    });
+
+    it('should NOT alter boolean values', () => {
+      fixture.componentRef.setInput('metadata', {flag: true});
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('true');
+      expect(fixture.nativeElement.textContent).not.toContain('1.000');
+    });
   });
 
   it('should render "No metadata available" for empty metadata', () => {

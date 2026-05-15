@@ -60,8 +60,8 @@
 - [x] Scaffold `features/results/result-detail/` via Angular CLI
   - [x] Route: `/results/:nodeId/:resultId`
   - [x] `effect()` on params → fetch `getResultDetail()`
-  - [x] Tab bar for PCD files (if >1): Signal `activeLabel`; on change, update `PcdViewerComponent` input
-  - [x] `<app-pcd-viewer>` + `<app-metadata-table>` side-by-side layout (Tailwind grid)
+  - [x] Tab bar for PCD files: Synergy `<syn-tab-group>` / `<syn-tab>` / `<syn-tab-panel>` (all files, not only >1); Signal `activeLabel` updated via `onTabShow(syn-tab-show)` event; each panel contains only `<app-pcd-viewer>`
+  - [x] `<app-metadata-table>` rendered **outside** the tab group (always visible below the viewer tabs)
   - [x] Breadcrumb: "Results > {node_name} > {timestamp}"
   - [x] 404 handling: show "Result not found" with back link
 

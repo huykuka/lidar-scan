@@ -29,7 +29,7 @@ const MOCK_DETAIL: ResultDetail = {
   timestamp: 1715000000.0,
   status: 'success',
   metadata: {volume_m3: 12.4, icp_valid: true},
-  pcd_files: [{label: 'empty', url: '/data/results/vol_node_001/res-001/empty.pcd'}],
+  pcd_files: [{label: 'empty', path: 'results/vol_node_001/res-001/empty.pcd'}],
 };
 
 describe('ResultsApiService', () => {
@@ -79,7 +79,7 @@ describe('ResultsApiService', () => {
   });
 
   it('should return static PCD URL without HTTP request', () => {
-    const url = service.getPcdUrl('vol_node_001', 'res-001', 'empty');
+    const url = service.getPcdUrl('results/vol_node_001/res-001/empty.pcd');
     expect(url).toBe('/data/results/vol_node_001/res-001/empty.pcd');
   });
 

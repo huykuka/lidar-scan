@@ -1,4 +1,4 @@
-<div class="overflow-x-auto rounded border border-syn-color-neutral-200">
+<div class="overflow-x-auto">
   <table class="w-full text-sm">
     <thead class="bg-syn-color-neutral-100">
       <tr>
@@ -20,7 +20,10 @@
                 {{ isExpanded(row.key) ? 'Collapse' : 'Expand' }}
               </button>
               @if (isExpanded(row.key)) {
-                <pre class="mt-1 text-xs whitespace-pre-wrap break-all text-syn-color-neutral-700">{{ row.displayValue }}</pre>
+                <pre
+                  class="mt-1 text-xs whitespace-pre-wrap break-all text-syn-color-neutral-700"
+                  >{{ row.displayValue }}</pre
+                >
               } @else {
                 <span class="font-mono text-xs text-syn-color-neutral-500 truncate block max-w-xs">
                   {{ row.displayValue }}

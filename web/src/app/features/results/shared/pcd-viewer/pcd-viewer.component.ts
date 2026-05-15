@@ -10,9 +10,9 @@ import {
   viewChild,
 } from '@angular/core';
 import * as THREE from 'three';
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {PcdParserService} from '@core/services/pcd-parser.service';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { PcdParserService } from '@core/services/pcd-parser.service';
 
 const MAX_POINTS = 500_000;
 
@@ -159,7 +159,7 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
     this.camera.position.set(10, 10, 10);
     this.camera.lookAt(0, 0, 0);
 
-    this.renderer = new THREE.WebGLRenderer({antialias: true});
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(w, h);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(this.renderer.domElement);
@@ -208,7 +208,9 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
 
       // Warn if too many points (do not crash)
       if (result.pointCount > MAX_POINTS) {
-        console.warn(`[PcdViewer] Point count ${result.pointCount} exceeds cap ${MAX_POINTS}; truncating.`);
+        console.warn(
+          `[PcdViewer] Point count ${result.pointCount} exceeds cap ${MAX_POINTS}; truncating.`,
+        );
       }
 
       const count = Math.min(result.pointCount, MAX_POINTS);
