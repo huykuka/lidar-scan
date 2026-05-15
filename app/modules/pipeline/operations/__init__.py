@@ -10,3 +10,4 @@ from .generate_plane import GeneratePlane
 from .patch_plane_segmentation import PatchPlaneSegmentation
 from .density import Densify
 from .surface_reconstruction import SurfaceReconstruction
+from .centroid_calculation import CentroidCalculation
