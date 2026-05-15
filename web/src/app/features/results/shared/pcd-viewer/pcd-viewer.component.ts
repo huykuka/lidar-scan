@@ -112,6 +112,20 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#0a0a0a');
+    // Axis Labels
+    const axisX = this.createTextSprite('Y', '#ff0000');
+    axisX.position.set(5.5, 0, 0);
+    axisX.visible = true;
+
+    const axisY = this.createTextSprite('Z', '#00ff00');
+    axisY.position.set(0, 5.5, 0);
+    axisY.visible = true;
+
+    const axisZ = this.createTextSprite('X', '#0000ff');
+    axisZ.position.set(0, 0, 5.5);
+    axisZ.visible = true;
+
+    this.scene.add(...[axisX, axisY, axisZ]);
 
     this.camera = new THREE.PerspectiveCamera(50, w / h, 0.01, 1000);
     this.camera.position.set(10, 10, 10);
@@ -129,6 +143,10 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
     const grid = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
     this.scene.add(grid);
 
+    const axesHelper = new THREE.AxesHelper(5);
+    axesHelper.visible = true;
+    axesHelper.scale.set(0.5, 0.5, 0.5);
+    this.scene.add(axesHelper);
     // Pre-allocate geometry with max buffer size (mutated in-place on load)
     this.geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(MAX_POINTS * 3);
@@ -146,6 +164,9 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
     });
     this.pointsObj = new THREE.Points(this.geometry, material);
     this.pointsObj.frustumCulled = false;
+    this.pointsObj.rotation.x = -Math.PI / 2;
+    this.pointsObj.rotation.z = -Math.PI / 2;
+
     this.scene.add(this.pointsObj);
 
     this.resizeObserver = new ResizeObserver(() => this.syncSize());
@@ -210,5 +231,32 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
     this.animationId = requestAnimationFrame(() => this.animate());
     this.controls?.update();
     this.renderer?.render(this.scene, this.camera);
+  }
+
+  private createTextSprite(message: string, color: string = '#888888'): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    const context = canvas.getContext('2d')!;
+    context.fillStyle = 'rgba(0,0,0,0)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    context.font = 'bold 20px ';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillStyle = color;
+    context.fillText(message, canvas.width / 2, canvas.height / 2);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: true,
+    });
+    const sprite = new THREE.Sprite(material);
+
+    // Dynamic scaling happens in animate() to make it responsive to zoom
+    return sprite;
   }
 }
