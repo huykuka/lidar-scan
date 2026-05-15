@@ -17,8 +17,8 @@ const mockDetail: ResultDetail = {
   status: 'success',
   metadata: {volume_m3: 12.4, icp_valid: true, cell_count: 2048},
   pcd_files: [
-    {label: 'empty', url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/empty.pcd'},
-    {label: 'loaded', url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd'},
+    {label: 'empty', path: 'results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/empty.pcd'},
+    {label: 'loaded', path: 'results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd'},
   ],
 };
 
@@ -47,9 +47,7 @@ describe('ResultDetailComponent', () => {
   beforeEach(async () => {
     apiSpy = {
       getResultDetail: vi.fn().mockReturnValue(of(mockDetail)),
-      getPcdUrl: vi.fn((nodeId: string, resultId: string, label: string) =>
-        `/data/results/${nodeId}/${resultId}/${label}.pcd`,
-      ),
+      getPcdUrl: vi.fn((path: string) => `/data/${path}`),
     };
 
     await TestBed.configureTestingModule({
@@ -103,14 +101,61 @@ describe('ResultDetailComponent', () => {
     expect((component as any).activeLabel()).toBe('empty');
   });
 
-  it('should switch active tab on setActiveTab call', async () => {
+  it('should switch active tab on setActiveTab call (backward-compat)', async () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    (component as any).setActiveTab({label: 'loaded', url: '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd'});
+    (component as any).setActiveTab({label: 'loaded', path: 'results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd'});
     expect((component as any).activeLabel()).toBe('loaded');
   });
+
+  it('should switch active tab when onTabShow fires with detail.name', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const event = new CustomEvent('syn-tab-show', {detail: {name: 'loaded'}});
+    (component as any).onTabShow(event);
+    expect((component as any).activeLabel()).toBe('loaded');
+  });
+
+  // ── Synergy tab structure ────────────────────────────────────────────────
+
+  it('should render syn-tab-group for PCD file tabs', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const tabGroup = fixture.nativeElement.querySelector('syn-tab-group');
+    expect(tabGroup).toBeTruthy();
+  });
+
+  it('should render a syn-tab for each PCD file', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const tabs: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('syn-tab[slot="nav"]');
+    expect(tabs.length).toBe(mockDetail.pcd_files.length);
+    const labels = Array.from(tabs).map((t) => t.textContent?.trim());
+    expect(labels).toContain('empty');
+    expect(labels).toContain('loaded');
+  });
+
+  it('should render a syn-tab-panel for each PCD file containing app-pcd-viewer', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const panels: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('syn-tab-panel');
+    expect(panels.length).toBe(mockDetail.pcd_files.length);
+    panels.forEach((panel) => {
+      expect(panel.querySelector('app-pcd-viewer')).toBeTruthy();
+    });
+  });
+
+  // ── Metadata always outside tabs ─────────────────────────────────────────
 
   it('should render metadata table', async () => {
     fixture.detectChanges();
@@ -120,6 +165,82 @@ describe('ResultDetailComponent', () => {
     const metaTable = fixture.nativeElement.querySelector('app-metadata-table');
     expect(metaTable).toBeTruthy();
   });
+
+  it('should render app-metadata-table outside any syn-tab-group (never inside tabs)', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const tabGroup: HTMLElement | null = fixture.nativeElement.querySelector('syn-tab-group');
+    // metadata table must NOT be a descendant of syn-tab-group
+    const metaInsideTab = tabGroup?.querySelector('app-metadata-table');
+    expect(metaInsideTab).toBeFalsy();
+
+    // …but it must still be present in the component root
+    const metaOutside = fixture.nativeElement.querySelector('app-metadata-table');
+    expect(metaOutside).toBeTruthy();
+  });
+
+  // ── Layout: responsive viewer + metadata side-by-side ───────────────────
+
+  it('should wrap viewer and metadata in a flex/grid responsive container', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    // The outer responsive container must exist
+    const responsiveRow: HTMLElement | null = fixture.nativeElement.querySelector('.viewer-column');
+    expect(responsiveRow).toBeTruthy();
+    const metaColumn: HTMLElement | null = fixture.nativeElement.querySelector('.metadata-column');
+    expect(metaColumn).toBeTruthy();
+  });
+
+  it('should render the metadata inside a titled metadata-card', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const metaCard: HTMLElement | null = fixture.nativeElement.querySelector('.metadata-card');
+    expect(metaCard).toBeTruthy();
+    // card header must contain a "Metadata" label
+    expect(metaCard?.textContent).toContain('Metadata');
+    // metadata table must be inside the card
+    expect(metaCard?.querySelector('app-metadata-table')).toBeTruthy();
+  });
+
+  it('syn-tab-group must be a direct ancestor of app-pcd-viewer (tabs flush above viewer)', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const tabGroup: HTMLElement | null = fixture.nativeElement.querySelector('syn-tab-group');
+    expect(tabGroup).toBeTruthy();
+    // pcd-viewer lives inside the tab group
+    const viewerInTabs = tabGroup?.querySelector('app-pcd-viewer');
+    expect(viewerInTabs).toBeTruthy();
+  });
+
+  it('viewer canvas area should have viewer-canvas-area class for aspect-ratio enforcement', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const canvasArea: HTMLElement | null = fixture.nativeElement.querySelector('.viewer-canvas-area');
+    expect(canvasArea).toBeTruthy();
+  });
+
+  it('viewer-card should have shadow and rounded classes', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const viewerCard: HTMLElement | null = fixture.nativeElement.querySelector('.viewer-card');
+    expect(viewerCard).toBeTruthy();
+    expect(viewerCard?.classList).toContain('shadow-lg');
+    expect(viewerCard?.classList).toContain('rounded-xl');
+  });
+
+  // ── URL / ID hygiene ──────────────────────────────────────────────────────
 
   it('should never render raw result_id or node_id in the visible UI', async () => {
     fixture.detectChanges();
@@ -204,6 +325,19 @@ describe('ResultDetailComponent', () => {
     expect(url).not.toContain('/pcd/');
   });
 
+  it('getPcdUrlForLabel should return correct static path for each label', async () => {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect((component as any).getPcdUrlForLabel('empty')).toBe(
+      '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/empty.pcd',
+    );
+    expect((component as any).getPcdUrlForLabel('loaded')).toBe(
+      '/data/results/volume_calc_abc123/550e8400-e29b-41d4-a716-446655440000/loaded.pcd',
+    );
+  });
+
   it('should render cloud viewer when file exists in data (static URL integration)', async () => {
     // Simulate a successful fetch of a real static PCD binary from /data
     vi.spyOn(window, 'fetch').mockResolvedValue(
@@ -229,9 +363,9 @@ describe('ResultDetailComponent', () => {
 
     const result = (component as any).result() as typeof mockDetail;
     for (const file of result.pcd_files) {
-      expect(file.url).toMatch(/^\/data\/results\//);
-      expect(file.url).not.toContain('/api/');
-      expect(file.url).not.toContain('/pcd/');
+      expect(`/data/${file.path}`).toMatch(/^\/data\/results\//);
+      expect(file.path).not.toContain('/api/');
+      expect(file.path).not.toContain('/pcd/');
     }
   });
 
@@ -246,3 +380,4 @@ describe('ResultDetailComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Result not found');
   });
 });
+

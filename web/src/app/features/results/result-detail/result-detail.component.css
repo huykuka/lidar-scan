@@ -1,0 +1,46 @@
+/* ── Viewer column: constrain max width so the 3D canvas never gets huge ── */
+.viewer-column {
+  max-width: 1200px;
+}
+
+/* ── Viewer card: keeps the tab nav + canvas together with no gap ── */
+.viewer-card {
+  /* shadow is handled by Tailwind shadow-lg on the element */
+}
+
+/* ── Tab group: suppress default Synergy padding so nav is flush ── */
+.viewer-tab-group::part(base) {
+  padding: 0;
+}
+
+.viewer-tab-group::part(body) {
+  padding: 0;
+}
+
+/* ── Canvas area: 16:9 aspect ratio, black background ── */
+.viewer-canvas-area {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+
+/* ── Metadata card: make the inner table scroll if needed ── */
+.metadata-card {
+  /* ensure the card doesn't grow taller than viewport */
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+/* ── On mobile, metadata column is full width (lg breakpoint resets this) ── */
+@media (max-width: 1023px) {
+  .viewer-column,
+  .metadata-column {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .metadata-card {
+    max-height: none;
+  }
+}
