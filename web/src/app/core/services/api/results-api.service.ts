@@ -144,7 +144,6 @@ export class ResultsApiService {
    * @see PcdFileEntry
    */
   getPcdUrl(path: string): string {
-    console.log(path);
     return `${environment.staticUrl}/${path}`;
   }
 

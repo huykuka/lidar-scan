@@ -73,8 +73,8 @@
                       <!-- 16:9 aspect-ratio canvas area -->
                       <div class="viewer-canvas-area">
                         <app-pcd-viewer
-                          [pcdUrl]="getPcdUrlForLabel(pcd.label)"
-                          [color]="getPcdColorForLabel(pcd.label)"
+                          [pcdUrl]="pcdFileMap().get(pcd.label)?.url ?? ''"
+                          [color]="pcdFileMap().get(pcd.label)?.color ?? ''"
                           class="w-full h-full"
                         ></app-pcd-viewer>
                       </div>

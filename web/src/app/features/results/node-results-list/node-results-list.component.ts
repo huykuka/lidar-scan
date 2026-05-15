@@ -1,10 +1,14 @@
-import {Component, effect, inject, OnInit, signal} from '@angular/core';
-import {ActivatedRoute, Router, RouterModule} from '@angular/router';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {ResultsApiService, MOCK_RESULTS_BY_NODE, MOCK_NODE_INDEX} from '@core/services/api/results-api.service';
-import {NavigationService} from '@core/services';
-import {NodeResultSummary, ResultSummary} from '@core/models';
-import {firstValueFrom} from 'rxjs';
+import { Component, effect, inject, OnInit, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {
+  ResultsApiService,
+  MOCK_RESULTS_BY_NODE,
+  MOCK_NODE_INDEX,
+} from '@core/services/api/results-api.service';
+import { NavigationService } from '@core/services';
+import { NodeResultSummary, ResultSummary } from '@core/models';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-node-results-list',
@@ -29,7 +33,7 @@ export class NodeResultsListComponent implements OnInit {
     effect(() => {
       const id = this.nodeId();
       if (id) {
-        void this.loadResults(id);
+        this.loadResults(id);
       }
     });
   }
@@ -68,7 +72,9 @@ export class NodeResultsListComponent implements OnInit {
     return new Date(ts * 1000).toLocaleString();
   }
 
-  protected statusVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' {
+  protected statusVariant(
+    status: string,
+  ): 'success' | 'warning' | 'danger' | 'neutral' | 'primary' {
     const map: Record<string, 'success' | 'warning' | 'danger' | 'neutral'> = {
       success: 'success',
       warning: 'warning',

@@ -1,11 +1,7 @@
-import { Component, computed, effect, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import {
-  ResultsApiService,
-  MOCK_RESULT_DETAIL,
-  MOCK_NODE_INDEX,
-} from '@core/services/api/results-api.service';
+import { ResultsApiService, MOCK_NODE_INDEX } from '@core/services/api/results-api.service';
 import { NavigationService } from '@core/services';
 import { PcdFileEntry, ResultDetail } from '@core/models';
 import { MetadataTableComponent } from '../shared/metadata-table/metadata-table.component';
@@ -14,10 +10,10 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-result-detail',
-  standalone: true,
   imports: [SynergyComponentsModule, RouterModule, MetadataTableComponent, PcdViewerComponent],
   templateUrl: './result-detail.component.html',
   styleUrl: './result-detail.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResultDetailComponent implements OnInit {
   protected nodeId = signal<string>('');
@@ -27,6 +23,9 @@ export class ResultDetailComponent implements OnInit {
   protected isLoading = signal(false);
   protected notFound = signal(false);
   protected activeLabel = signal<string>('');
+
+  /** Precomputed map from label → {url, color} to avoid method calls in template. */
+  protected pcdFileMap = signal<Map<string, { url: string; color: string }>>(new Map());
 
   /** Human-friendly breadcrumb label: "<Node Name> — <timestamp>" */
   protected resultBreadcrumb = computed<string>(() => {
@@ -41,21 +40,12 @@ export class ResultDetailComponent implements OnInit {
   private resultsApi = inject(ResultsApiService);
   private navService = inject(NavigationService);
 
-  constructor() {
-    effect(() => {
-      const nodeId = this.nodeId();
-      const resultId = this.resultId();
-      if (nodeId && resultId) {
-        void this.loadDetail(nodeId, resultId);
-      }
-    });
-  }
-
   ngOnInit(): void {
     const nodeId = this.route.snapshot.paramMap.get('nodeId') ?? '';
     const resultId = this.route.snapshot.paramMap.get('resultId') ?? '';
     this.nodeId.set(nodeId);
     this.resultId.set(resultId);
+    this.loadDetail(nodeId, resultId);
 
     const node = MOCK_NODE_INDEX.find((n) => n.node_id === nodeId);
     this.nodeName.set(node?.node_name ?? 'Unnamed');
@@ -72,23 +62,21 @@ export class ResultDetailComponent implements OnInit {
     try {
       const detail = await firstValueFrom(this.resultsApi.getResultDetail(nodeId, resultId));
       this.result.set(detail);
+      // Precompute url+color map so template never calls methods on each CD cycle
+      const map = new Map<string, { url: string; color: string }>();
+      for (const f of detail.pcd_files) {
+        map.set(f.label, {
+          url: this.resultsApi.getPcdUrl(`data/${f.path}`),
+          color: f.color ?? '',
+        });
+      }
+      this.pcdFileMap.set(map);
       if (detail.pcd_files.length > 0) {
         this.activeLabel.set(detail.pcd_files[0].label);
       }
     } catch (err: any) {
       if (err?.status === 404) {
         this.notFound.set(true);
-      } else {
-        // Fallback to mock
-        const mock = MOCK_RESULT_DETAIL[resultId];
-        if (mock) {
-          this.result.set(mock);
-          if (mock.pcd_files.length > 0) {
-            this.activeLabel.set(mock.pcd_files[0].label);
-          }
-        } else {
-          this.notFound.set(true);
-        }
       }
     } finally {
       this.isLoading.set(false);
@@ -99,33 +87,6 @@ export class ResultDetailComponent implements OnInit {
   protected onTabShow(event: Event): void {
     const detail = (event as CustomEvent<{ name: string }>).detail;
     this.activeLabel.set(detail.name);
-  }
-
-  /** @deprecated Use onTabShow / syn-tab-group instead. Kept for backward-compat in tests. */
-  protected setActiveTab(pcdFile: PcdFileEntry): void {
-    this.activeLabel.set(pcdFile.label);
-  }
-
-  /**
-   * Returns the static `/data/` URL for a specific PCD label.
-   * URL is always /data/${entry.path} — never uses download API or proxy.
-   */
-  protected getPcdUrlForLabel(label: string): string {
-    const entry = (this.result()?.pcd_files ?? []).find((f) => f.label === label);
-    if (!entry) return '';
-    return this.resultsApi.getPcdUrl(`data/${entry.path}`);
-  }
-
-  /**
-   * Returns the JSON-provided display color for a specific PCD label.
-   *
-   * When present, `PcdViewerComponent` uses this as a uniform `PointsMaterial.color`
-   * and disables per-point vertex colors (`vertexColors = false`).
-   * When absent, the viewer falls back to per-point RGB from the PCD binary.
-   */
-  protected getPcdColorForLabel(label: string): string {
-    const entry = (this.result()?.pcd_files ?? []).find((f) => f.label === label);
-    return entry?.color ?? '';
   }
 
   protected formatTimestamp(ts: number): string {

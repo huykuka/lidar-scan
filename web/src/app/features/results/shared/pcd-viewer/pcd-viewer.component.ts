@@ -1,7 +1,6 @@
 import {
   AfterViewInit,
   Component,
-  effect,
   ElementRef,
   inject,
   input,
@@ -30,36 +29,8 @@ const POINT_SIZE = 0.01;
   styleUrl: './pcd-viewer.component.css',
 })
 export class PcdViewerComponent implements AfterViewInit, OnDestroy {
-  /**
-   * Full URL to the PCD binary to render.
-   *
-   * **MAINTAINER NOTE:** This value MUST always be `/data/${entry.path}` where
-   * `entry.path` is the relative path from the backend's `PcdFileEntry` model.
-   * Example: `/data/results/<node_id>/<result_id>/<label>.pcd`
-   *
-   * Do NOT pass a download API URL (`/api/.../download`) or any proxy URL here.
-   * PCD files are served as static assets directly from the backend's `/data` mount.
-   * Use `ResultsApiService.getPcdUrl(entry.path)` to form this value.
-   */
   pcdUrl = input<string>('');
 
-  /**
-   * Optional override color for the entire point cloud, sourced from `PcdFileEntry.color`
-   * in the Results API response.
-   *
-   * **Rendering contract:**
-   * - When provided (any non-empty CSS/hex color string), this color is applied to
-   *   `THREE.PointsMaterial.color` and `vertexColors` is set to `false`, so per-point
-   *   RGB data in the PCD binary is **ignored** in favour of this uniform color.
-   * - When absent or empty, `vertexColors` is set to `true` and per-point RGB data
-   *   from the PCD file is used as-is.
-   *
-   * This enables the backend to assign semantically distinct colors to different PCD
-   * outputs of the same result (e.g. `'#00aaff'` for "empty", `'#ff6600'` for "loaded").
-   *
-   * @example '#ff0000'
-   * @example 'rgb(0, 128, 255)'
-   */
   color = input<string>('');
 
   protected isLoading = signal(false);
@@ -80,19 +51,6 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
   private resizeObserver?: ResizeObserver;
   private isThreeInit = false;
 
-  constructor() {
-    effect(() => {
-      const url = this.pcdUrl();
-      const overrideColor = this.color();
-      if (this.isThreeInit) {
-        this.applyMaterialColor(overrideColor);
-        if (url) {
-          void this.loadPcd(url);
-        }
-      }
-    });
-  }
-
   ngAfterViewInit(): void {
     try {
       this.initThree();
@@ -104,7 +62,7 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
 
       const url = this.pcdUrl();
       if (url) {
-        void this.loadPcd(url);
+        this.loadPcd(url);
       }
     } catch (err) {
       this.hasError.set(true);
