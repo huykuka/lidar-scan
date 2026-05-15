@@ -19,7 +19,7 @@ const MAX_POINTS = 500_000;
  * Point size used for all rendered clouds.
  * Kept deliberately small (0.01 world units) so dense clouds remain sharp.
  */
-const POINT_SIZE = 0.01;
+const POINT_SIZE = 0.005;
 
 @Component({
   selector: 'app-pcd-viewer',

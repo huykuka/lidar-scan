@@ -17,12 +17,20 @@
   padding: 0;
 }
 
-/* ── Canvas area: 16:9 aspect ratio, black background ── */
+/* ── Canvas area: responsive height.
+   Mobile: fixed 50vh so it's always visible.
+   Desktop (lg+): fills remaining viewport minus header chrome. ── */
 .viewer-canvas-area {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 50vh;
+  min-height: 300px;
   overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .viewer-canvas-area {
+    height: calc(100vh - 260px);
+    min-height: 400px;
+  }
 }
 
 /* ── Metadata card: make the inner table scroll if needed ── */
