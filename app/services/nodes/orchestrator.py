@@ -395,10 +395,26 @@ class NodeManager:
         This is useful for runtime reconfiguration without full restart.
         Cleans up all resources including WebSocket connections, topics, routing, and state.
         
+        Also triggers deletion of stored results for application nodes.
+        
         Args:
             node_id: The ID of the node to remove
         """
         await self._lifecycle_manager.remove_node_async(node_id)
+        # Lifecycle hook: delete stored results for application nodes
+        try:
+            from app.api.v1.results.router import _results_service
+            if _results_service is not None:
+                deleted = await _results_service.delete_results_by_node(node_id)
+                if deleted > 0:
+                    logger.info(
+                        "[NodeManager] Deleted %d stored result(s) for removed node '%s'",
+                        deleted, node_id,
+                    )
+        except Exception as exc:
+            logger.warning(
+                "[NodeManager] Failed to delete results for node '%s': %s", node_id, exc
+            )
 
     async def set_node_visible(self, node_id: str, visible: bool) -> None:
         """

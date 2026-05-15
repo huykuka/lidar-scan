@@ -270,10 +270,17 @@ def build_vehicle_profiler(
         if incoming_edges:
             velocity_sensor_id = incoming_edges[0]["source_node"]
 
+    try:
+        from app.api.v1.results.router import _get_service as _get_results_svc
+        results_svc = _get_results_svc()
+    except Exception:
+        results_svc = None
+
     return VehicleProfilerNode(
         manager=service_context,
         node_id=node["id"],
         name=node.get("name") or "Vehicle Profiler",
         velocity_sensor_id=velocity_sensor_id,
         config=config,
+        results_service=results_svc,
     )

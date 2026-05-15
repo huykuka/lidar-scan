@@ -212,7 +212,14 @@ def build_volume_calculation(node, service_context, edges):
         if incoming_edges:
             empty_sensor_id = incoming_edges[0]["source_node"]
 
+    # Lazy-import to avoid circular dependency at module load time
     from .node import VolumeCalculationNode
+
+    try:
+        from app.api.v1.results.router import _get_service as _get_results_service
+        results_service = _get_results_service()
+    except Exception:
+        results_service = None
 
     return VolumeCalculationNode(
         manager=service_context,
@@ -220,4 +227,5 @@ def build_volume_calculation(node, service_context, edges):
         name=node.get("name") or "Volume Calculation",
         empty_sensor_id=empty_sensor_id,
         config=config,
+        results_service=results_service,
     )
