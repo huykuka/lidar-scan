@@ -32,6 +32,7 @@ from typing import Deque, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
+import open3d.t.pipelines.registration as treg
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +59,10 @@ class DetectionResult:
 
 
 class ClusterTracker:
-    """Per-frame displacement via Open3D Point-to-Point ICP.
+    """Per-frame displacement via Open3D Tensor Point-to-Point ICP.
 
-    Aligns the previous cluster cloud to the current one and returns the
+    Aligns the previous cluster cloud to the current one using the
+    ``open3d.t.pipelines.registration.icp`` (tensor) API and returns the
     travel-axis component of the resulting translation.
 
     Args:
@@ -88,21 +90,21 @@ class ClusterTracker:
         self._min_displacement = min_displacement
         self._voxel_size = voxel_size
 
-        self._prev_cloud: Optional[o3d.geometry.PointCloud] = None
+        self._prev_cloud: Optional[o3d.t.geometry.PointCloud] = None
         self._last_displacement: float = 0.0
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
-    def _to_cloud(self, points: np.ndarray) -> o3d.geometry.PointCloud:
-        """Convert Nx2 or Nx3 array → Open3D PointCloud (pads to 3D)."""
+    def _to_cloud(self, points: np.ndarray) -> o3d.t.geometry.PointCloud:
+        """Convert Nx2 or Nx3 array → Open3D Tensor PointCloud (pads to 3D)."""
         if points.shape[1] == 2:
-            pts3d = np.zeros((len(points), 3), dtype=np.float64)
+            pts3d = np.zeros((len(points), 3), dtype=np.float32)
             pts3d[:, :2] = points
         else:
-            pts3d = np.asarray(points[:, :3], dtype=np.float64)
-        cloud = o3d.geometry.PointCloud()
-        cloud.points = o3d.utility.Vector3dVector(pts3d)
-        return cloud
+            pts3d = np.asarray(points[:, :3], dtype=np.float32)
+        return o3d.t.geometry.PointCloud(
+            {"positions": o3d.core.Tensor(pts3d, dtype=o3d.core.Dtype.Float32)}
+        )
 
     # ── Public API ────────────────────────────────────────────────────────
 
@@ -110,24 +112,26 @@ class ClusterTracker:
         """Return displacement (m, forward-positive), or None on failure."""
         cloud = self._to_cloud(points)
 
-        if self._prev_cloud is None or len(self._prev_cloud.points) < 3:
+        if self._prev_cloud is None or len(self._prev_cloud.point["positions"]) < 3:
             self._prev_cloud = cloud
             return 0.0
 
-        reg = o3d.pipelines.registration.registration_icp(
+        result = treg.icp(
             self._prev_cloud,
             cloud,
             self._max_corr_dist,
-            np.eye(4),
-            o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+            o3d.core.Tensor.eye(4, dtype=o3d.core.Dtype.Float64),
+            treg.TransformationEstimationPointToPoint(),
+            treg.ICPConvergenceCriteria(max_iteration=30),
         )
         self._prev_cloud = cloud
 
-        if reg.fitness < self._min_fitness:
-            logger.debug("ICP fitness %.3f < min %.3f — rejected", reg.fitness, self._min_fitness)
+        if result.fitness < self._min_fitness:
+            logger.debug("ICP fitness %.3f < min %.3f — rejected", result.fitness, self._min_fitness)
             return None
 
-        raw = float(reg.transformation[self._travel_axis, 3])
+        transformation = result.transformation.numpy()
+        raw = float(transformation[self._travel_axis, 3])
 
         # Dead-zone: treat sub-millimetre displacements as zero
         if abs(raw) < self._min_displacement:
@@ -139,7 +143,7 @@ class ClusterTracker:
             return None
 
         self._last_displacement = raw
-        logger.debug("ICP displacement=%.4fm  fitness=%.3f", raw, reg.fitness)
+        logger.debug("ICP displacement=%.4fm  fitness=%.3f", raw, result.fitness)
         return raw
 
     def reset(self) -> None:

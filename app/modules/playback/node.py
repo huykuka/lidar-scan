@@ -293,6 +293,7 @@ class PlaybackNode(ModuleNode):
                 # ─────────────────────────────────────────────────────────
 
                 payload: Dict[str, Any] = {
+                    "lidar_id": self.id,
                     "points": points,
                     "timestamp": timestamp,
                     "node_id": self.id,
