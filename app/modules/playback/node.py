@@ -296,6 +296,7 @@ class PlaybackNode(ModuleNode):
                     "points": points,
                     "timestamp": timestamp,
                     "node_id": self.id,
+                    "lidar_id":self.id,
                     "metadata": {
                         "source": "playback",
                         "recording_id": self._recording_id,
