@@ -215,7 +215,7 @@ app.add_middleware(
 app.include_router(api_router)
 
 # Mount recordings directory statically
-recordings_dir = Path("recordings")
+recordings_dir = Path("data/recordings")
 recordings_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/recordings", StaticFiles(directory=str(recordings_dir)), name="recordings")
 
