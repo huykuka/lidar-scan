@@ -79,14 +79,13 @@ class VehicleProfilerNode(ModuleNode):
         movement_direction = int(config.get("movement_direction", 1))
         reverse_tolerance = float(config.get("reverse_tolerance", 0.05))
         max_correspondence_distance = float(config.get("max_correspondence_distance", 0.5))
-        min_icp_fitness = float(config.get("min_icp_fitness", 0.3))
+        min_fitness = float(config.get("min_icp_fitness", 0.3))
         max_displacement = float(config.get("max_displacement", 0.5))
         min_displacement = float(config.get("min_displacement", 0.001))
 
         _min_vehicle_points = int(config.get("min_vehicle_points", 10))
         _dbscan_eps = float(config.get("dbscan_eps", 0.3))
         _dbscan_min_samples = int(config.get("dbscan_min_samples", 5))
-        _voxel_size = float(config.get("voxel_size", 0.0))
 
         trigger_distance_raw = config.get("trigger_distance")
         trigger_distance = float(trigger_distance_raw) if trigger_distance_raw not in (None, "") else None
@@ -100,8 +99,7 @@ class VehicleProfilerNode(ModuleNode):
             dbscan_min_samples=_dbscan_min_samples,
             trigger_distance=trigger_distance,
             max_correspondence_distance=max_correspondence_distance,
-            min_icp_fitness=min_icp_fitness,
-            voxel_size=_voxel_size,
+            min_fitness=min_fitness,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
         )

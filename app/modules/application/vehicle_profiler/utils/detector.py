@@ -17,24 +17,48 @@ Pipeline (per frame)
    Noise points (label=-1) are discarded.
 3. **Vehicle gate** — any cluster with at least ``min_vehicle_points`` is
    considered a vehicle cluster.  The largest such cluster is forwarded to
-   the ICP tracker.
-4. **ICP registration** — Open3D Point-to-Point ICP aligns the previous
-   cluster to the current one.  Travel-axis translation = displacement.
-5. **Position / velocity** — cumulative ICP displacement and per-frame
-   velocity.  Dead-reckoning from last valid velocity on ICP failure.
+   the tracker.
+4. **Registration** — `small_gicp` Generalised ICP aligns the previous
+   cluster to the current one and returns the SE(3) transformation.
+   Travel-axis translation extracted from the result = displacement.
+5. **Position / velocity** — cumulative displacement and per-frame velocity.
+   Dead-reckoning from last valid velocity on registration failure.
 6. **Departure** — no valid cluster in the cropped zone → vehicle absent
    immediately.
 """
 import logging
+import contextlib
+import os
+import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Deque, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
-import open3d.t.pipelines.registration as treg
+import small_gicp
 
 logger = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def _suppress_c_stderr():
+    """Redirect C-level stderr to /dev/null for the duration of the block.
+
+    ``small_gicp`` emits harmless "voxel coord is out of range" warnings
+    straight to C stderr when ``downsampling_resolution=0.0``.  Python's
+    ``logging`` and ``sys.stderr`` redirects cannot silence them — only an
+    ``os.dup2`` swap at the file-descriptor level works.
+    """
+    devnull_fd = os.open(os.devnull, os.O_WRONLY)
+    saved_fd = os.dup(2)
+    os.dup2(devnull_fd, 2)
+    os.close(devnull_fd)
+    try:
+        yield
+    finally:
+        os.dup2(saved_fd, 2)
+        os.close(saved_fd)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -50,105 +74,130 @@ class DetectionResult:
     velocity: float        # Estimated velocity (m/s)
     timestamp: float
     vehicle_present: bool
-    icp_valid: bool = True  # False when ICP failed (dead-reckoned)
+    icp_valid: bool = True  # False when registration failed (dead-reckoned)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# ICP-based cluster tracker
+# Cluster tracker — small_gicp GICP
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 class ClusterTracker:
-    """Per-frame displacement via Open3D Tensor Point-to-Point ICP.
+    """Per-frame displacement estimation via small_gicp GICP.
 
-    Aligns the previous cluster cloud to the current one using the
-    ``open3d.t.pipelines.registration.icp`` (tensor) API and returns the
-    travel-axis component of the resulting translation.
+    `small_gicp` Generalised ICP fits a 3-D local covariance around each
+    point and solves the covariance-weighted alignment using analytic
+    gradients and a KD-tree.  ~0.3 ms/frame on a 200-point cluster.
 
     Args:
         travel_axis:                   Axis index for travel direction (0=X).
-        max_correspondence_distance:   ICP max correspondence distance (m).
-        min_icp_fitness:               Minimum fitness to accept ICP result.
+        max_correspondence_distance:   Max correspondence distance (m).
+        min_fitness:                   Unused — kept for API compatibility.
+                                       GICP acceptance uses ``converged`` flag.
         max_displacement:              Outlier gate (m).
         min_displacement:              Dead-zone (m).
-        voxel_size:                    Downsample voxel size (0 = disabled).
+        gicp_max_iter:                 Max GICP iterations (default 20).
     """
 
     def __init__(
         self,
         travel_axis: int = 0,
         max_correspondence_distance: float = 0.5,
-        min_icp_fitness: float = 0.3,
+        min_fitness: float = 0.3,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
-        voxel_size: float = 0.0,
+        gicp_max_iter: int = 20,
     ) -> None:
         self._travel_axis = travel_axis
         self._max_corr_dist = max_correspondence_distance
-        self._min_fitness = min_icp_fitness
+        self._min_fitness = min_fitness
         self._max_displacement = max_displacement
         self._min_displacement = min_displacement
-        self._voxel_size = voxel_size
+        self._gicp_max_iter = gicp_max_iter
 
-        self._prev_cloud: Optional[o3d.t.geometry.PointCloud] = None
+        self._prev_pts3d: Optional[np.ndarray] = None
         self._last_displacement: float = 0.0
+        self._last_frame_ts: Optional[float] = None   # sensor timestamp of last frame
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
-    def _to_cloud(self, points: np.ndarray) -> o3d.t.geometry.PointCloud:
-        """Convert Nx2 or Nx3 array → Open3D Tensor PointCloud (pads to 3D)."""
+    @staticmethod
+    def _to_3d(points: np.ndarray) -> np.ndarray:
+        """Return contiguous float64 (N, 3) array.
+
+        For Nx2 input (X, Z) pads a zero Y column.
+        For Nx3+ input passes through as-is (Y≈0 from sensor is fine).
+        """
         if points.shape[1] == 2:
-            pts3d = np.zeros((len(points), 3), dtype=np.float32)
-            pts3d[:, :2] = points
+            pts = np.zeros((len(points), 3), dtype=np.float64)
+            pts[:, 0] = points[:, 0]
+            pts[:, 2] = points[:, 1]
+            return pts
+        return np.ascontiguousarray(points[:, :3], dtype=np.float64)
+
+    # ── GICP (small_gicp) ─────────────────────────────────────────────────
+
+    def _update_gicp(self, points: np.ndarray, timestamp: float) -> Optional[float]:
+        """Align with small_gicp GICP; return travel-axis displacement or None."""
+        pts3d = self._to_3d(points)
+
+        if self._prev_pts3d is None or len(self._prev_pts3d) < 3:
+            self._prev_pts3d = pts3d
+            self._last_frame_ts = timestamp
+            return 0.0
+
+        # Numpy overload: align(target_points, source_points, ...)
+        # source = prev frame, target = current frame → T_target_source
+        # downsampling_resolution=0.0 collapses all points into one voxel and
+        # causes voxel-coord overflow in C++; 0.001 (1 mm) keeps all points
+        # for typical LiDAR clusters while avoiding the degenerate case.
+        t0 = time.perf_counter()
+        with _suppress_c_stderr():
+            result = small_gicp.align(
+                pts3d,                   # target (current frame)
+                self._prev_pts3d,        # source (previous frame)
+                registration_type="ICP",
+                downsampling_resolution=0.001,
+                max_correspondence_distance=self._max_corr_dist,
+                max_iterations=self._gicp_max_iter,
+                num_threads=1,
+            )
+        proc_ms = (time.perf_counter() - t0) * 1000.0
+
+        # Frame-drop detection: warn if GICP took longer than the sensor interval
+        if self._last_frame_ts is not None:
+            frame_dt = timestamp - self._last_frame_ts
+            if frame_dt > 0 and proc_ms > frame_dt * 1000.0:
+                logger.warning(
+                    "icp %.1f ms > frame interval %.1f ms — system may drop frames",
+                    proc_ms, frame_dt * 1000.0,
+                )
+            else:
+                logger.debug("icp %.2f ms (frame interval %.1f ms)", proc_ms, frame_dt * 1000.0)
         else:
-            pts3d = np.asarray(points[:, :3], dtype=np.float32)
-        return o3d.t.geometry.PointCloud(
-            {"positions": o3d.core.Tensor(pts3d, dtype=o3d.core.Dtype.Float32)}
-        )
+            logger.debug("icp %.2f ms", proc_ms)
+
+        self._prev_pts3d = pts3d
+        self._last_frame_ts = timestamp
+
+        if not result.converged:
+            logger.info("icp did not converge — rejected")
+            return None
+
+        # T_target_source: 4×4 SE(3); translation at column 3
+        raw = float(result.T_target_source[self._travel_axis, 3])
+        return self._gate(raw, "icp")
 
     # ── Public API ────────────────────────────────────────────────────────
 
     def update(self, points: np.ndarray, timestamp: float) -> Optional[float]:
         """Return displacement (m, forward-positive), or None on failure."""
-        cloud = self._to_cloud(points)
-
-        if self._prev_cloud is None or len(self._prev_cloud.point["positions"]) < 3:
-            self._prev_cloud = cloud
-            return 0.0
-
-        result = treg.icp(
-            self._prev_cloud,
-            cloud,
-            self._max_corr_dist,
-            o3d.core.Tensor.eye(4, dtype=o3d.core.Dtype.Float64),
-            treg.TransformationEstimationPointToPoint(),
-            treg.ICPConvergenceCriteria(max_iteration=30),
-        )
-        self._prev_cloud = cloud
-
-        if result.fitness < self._min_fitness:
-            logger.debug("ICP fitness %.3f < min %.3f — rejected", result.fitness, self._min_fitness)
-            return None
-
-        transformation = result.transformation.numpy()
-        raw = float(transformation[self._travel_axis, 3])
-
-        # Dead-zone: treat sub-millimetre displacements as zero
-        if abs(raw) < self._min_displacement:
-            raw = 0.0
-
-        # Outlier gate: reject implausibly large jumps
-        if abs(raw) > self._max_displacement + 1e-6:
-            logger.debug("ICP displacement %.4fm > max (%.4fm) — rejected", raw, self._max_displacement)
-            return None
-
-        self._last_displacement = raw
-        logger.debug("ICP displacement=%.4fm  fitness=%.3f", raw, result.fitness)
-        return raw
+        return self._update_gicp(points, timestamp)
 
     def reset(self) -> None:
-        self._prev_cloud = None
+        self._prev_pts3d = None
         self._last_displacement = 0.0
+        self._last_frame_ts = None
 
     @property
     def last_displacement(self) -> float:
@@ -156,7 +205,23 @@ class ClusterTracker:
 
     @property
     def initialized(self) -> bool:
-        return self._prev_cloud is not None
+        return self._prev_pts3d is not None
+
+    # ── Gate helper ───────────────────────────────────────────────────────
+
+    def _gate(self, raw: float, method: str) -> Optional[float]:
+        """Apply dead-zone and outlier gate; return None if rejected."""
+        if abs(raw) < self._min_displacement:
+            raw = 0.0
+        if abs(raw) > self._max_displacement + 1e-6:
+            logger.info(
+                "%s displacement %.4fm > max (%.4fm) — rejected",
+                method, raw, self._max_displacement,
+            )
+            return None
+        self._last_displacement = raw
+        logger.info("%s displacement=%.4fm", method, raw)
+        return raw
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -184,11 +249,12 @@ class VehicleDetector:
                                      ``points[:, travel_axis] >= -trigger_distance``
                                      (i.e. within trigger_distance metres of the
                                      gantry).  None = use the full incoming scan.
-        max_correspondence_distance: ICP correspondence distance (m).
-        min_icp_fitness:             Minimum ICP fitness to accept result.
-        voxel_size:                  ICP voxel down-sample (0 = disabled).
-        max_displacement:            Max per-frame ICP displacement (m).
-        min_displacement:            ICP dead-zone (m).
+        max_correspondence_distance: Correspondence distance (m).
+        min_fitness:                 Unused — kept for API compatibility.
+                                     GICP acceptance uses convergence flag.
+        max_displacement:            Max per-frame displacement (m).
+        min_displacement:            Dead-zone (m).
+        gicp_max_iter:               Max GICP iterations.
     """
 
     def __init__(
@@ -200,11 +266,11 @@ class VehicleDetector:
         dbscan_eps: float = 0.3,
         dbscan_min_samples: int = 5,
         trigger_distance: Optional[float] = None,
-        max_correspondence_distance: float = 0.5,
-        min_icp_fitness: float = 0.3,
-        voxel_size: float = 0.0,
+        max_correspondence_distance: float = 0.1,
+        min_fitness: float = 0.3,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
+        gicp_max_iter: int = 20,
     ) -> None:
         self._travel_axis = travel_axis
         self._movement_direction = movement_direction  # +1 or -1
@@ -217,22 +283,17 @@ class VehicleDetector:
         self._tracker = ClusterTracker(
             travel_axis=travel_axis,
             max_correspondence_distance=max_correspondence_distance,
-            min_icp_fitness=min_icp_fitness,
-            voxel_size=voxel_size,
+            min_fitness=min_fitness,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
+            gicp_max_iter=gicp_max_iter,
         )
 
         # Position / velocity
         self._position: float = 0.0
         self._velocity: float = 0.0
         self._last_t: Optional[float] = None
-
-        # Timestamped position history — used by get_position_at() so that
-        # side-LiDAR scan lines can look up the position nearest to their own
-        # timestamp, absorbing latency and frequency differences between sensors.
-        # Bounded to the last 256 entries — enough for several seconds at 50 Hz.
-        self._position_history: Deque[Tuple[float, float]] = deque(maxlen=256)
+        self._position_history: Deque[Tuple[float, float]] = deque(maxlen=512)
 
         # Tracking state
         self._vehicle_present: bool = False
@@ -400,8 +461,7 @@ class VehicleDetector:
 
             self._position += displacement
             self._velocity = (displacement / dt) if dt > 0 else 0.0
-            if displacement != 0.0:
-                self._position_history.append((timestamp, self._position))
+            self._position_history.append((timestamp, self._position))
             return self._result(timestamp, present=True)
 
         # ICP failed — dead-reckon from last velocity
@@ -428,48 +488,64 @@ class VehicleDetector:
     # ── Accessors ─────────────────────────────────────────────────────────
 
     def get_position_at(self, timestamp: float, max_age: float = 0.5) -> Optional[float]:
-        """Return the recorded position nearest to the given timestamp.
+        """Return interpolated position at the given timestamp.
 
-        Side-LiDAR scan lines arrive with their own hardware timestamp which
-        may differ from the velocity sensor's timestamp due to latency or
-        different scan rates.  This method finds the position sample whose
-        timestamp is closest to the requested one, absorbing latency and
-        frequency differences between sensors.
+        Profile-sensor scan lines may arrive at timestamps that fall between
+        two velocity-sensor frames.  This method linearly interpolates between
+        the two bracketing history entries so that each scan line gets a unique,
+        correctly-spaced X position rather than being snapped to the nearest
+        velocity frame (which causes the "comb" artefact when the profile sensor
+        runs faster than the velocity sensor).
+
+        For timestamps ahead of the last history entry the position is
+        extrapolated forward using the last known velocity.
 
         Args:
-            timestamp:  The scan's own hardware timestamp (seconds).
-            max_age:    Maximum allowed time gap (seconds) between the
-                        requested timestamp and the nearest recorded sample.
-                        If the gap exceeds this, None is returned so the
-                        caller can discard the scan line rather than place
-                        it at an incorrect position.  Defaults to 0.5 s —
-                        generous enough for mixed 10/20 Hz setups but tight
-                        enough to catch clock drift or a stalled velocity
-                        sensor.
-
-        Returns:
-            Nearest recorded position (m), or None if no sample is within
-            max_age seconds (history empty, clock drift, or sensor stall).
+            timestamp:  The scan line's hardware timestamp (seconds).
+            max_age:    Maximum gap (s) allowed between *timestamp* and the
+                        nearest history boundary.  Returns None if exceeded.
         """
         if not self._position_history:
             return None
 
-        best_t, best_pos = min(self._position_history, key=lambda tp: abs(tp[0] - timestamp))
-        dt = abs(best_t - timestamp)
+        # history is kept in insertion (= chronological) order
+        last_t, last_pos = self._position_history[-1]
+        first_t, first_pos = self._position_history[0]
 
-        if dt > max_age:
-            logger.warning(
-                "get_position_at %.4f: nearest sample is %.4f s away (max_age=%.2f s) "
-                "— discarding scan line to avoid position drift",
-                timestamp, dt, max_age,
-            )
-            return None
+        # ── Forward extrapolation (profile sensor ahead of velocity sensor) ──
+        if timestamp >= last_t:
+            dt = timestamp - last_t
+            if dt > max_age:
+                logger.warning(
+                    "get_position_at %.4f: %.3f s ahead of last velocity sample "
+                    "(max_age=%.2f s) — discarding scan line",
+                    timestamp, dt, max_age,
+                )
+                return None
+            return last_pos + self._velocity * dt
 
-        logger.debug(
-            "get_position_at %.4f → matched %.4f (Δt=%.4f s) pos=%.4f m",
-            timestamp, best_t, dt, best_pos,
-        )
-        return best_pos
+        # ── Before the first history entry ────────────────────────────────────
+        if timestamp <= first_t:
+            dt = first_t - timestamp
+            if dt > max_age:
+                logger.warning(
+                    "get_position_at %.4f: %.3f s before first velocity sample "
+                    "(max_age=%.2f s) — discarding scan line",
+                    timestamp, dt, max_age,
+                )
+                return None
+            return first_pos
+
+        # ── Linear interpolation between bracketing entries ───────────────────
+        # Scan from the end of the deque (most queries are for recent times).
+        prev_t, prev_pos = last_t, last_pos
+        for t, pos in reversed(self._position_history):
+            if t <= timestamp:
+                alpha = (timestamp - t) / (prev_t - t)
+                return pos + alpha * (prev_pos - pos)
+            prev_t, prev_pos = t, pos
+
+        return first_pos  # fallback (should not reach)
 
     @property
     def vehicle_present(self) -> bool:

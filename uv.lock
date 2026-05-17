@@ -471,6 +471,7 @@ dependencies = [
     { name = "pykalman" },
     { name = "python-multipart" },
     { name = "scipy" },
+    { name = "small-gicp" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "wsproto" },
@@ -492,6 +493,7 @@ requires-dist = [
     { name = "pykalman", specifier = ">=0.11.2" },
     { name = "python-multipart", specifier = ">=0.0.26" },
     { name = "scipy", specifier = ">=1.7" },
+    { name = "small-gicp", specifier = ">=1.0.0" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.44.0" },
     { name = "wsproto", specifier = ">=1.2.0" },
@@ -999,6 +1001,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
+]
+
+[[package]]
+name = "small-gicp"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c2/ab/cfd2fdb69b49b9554640a5696b2cef5f5d65010cad522e1818fc37b45090/small_gicp-1.0.0.tar.gz", hash = "sha256:8fa680ed19023dbd069e69ebc6c03a15ffafc97a6aa062962dcfa0acf65e5443", size = 2575982, upload-time = "2024-08-09T04:57:42.616Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/c3/8f952cfd9a6abf025c2739622ba7bebf2d48fbc3212f8c9afc7121ed4e3e/small_gicp-1.0.0-cp312-abi3-macosx_11_0_arm64.whl", hash = "sha256:7c9f20d05ae195695a9f76eadd9ef177d9008fb4ba21396caac95f77c8617e4c", size = 434614, upload-time = "2024-08-09T04:57:25.311Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/7b/2f6a0457b51d5dc0c93bc533e8cae3932188ad084f80e159eb67483419a2/small_gicp-1.0.0-cp312-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:dcd829e4f9c79899ee0bf47d50c93a36274d906919a90fc7f85587512f1a7654", size = 313219, upload-time = "2024-08-09T04:57:26.785Z" },
+    { url = "https://files.pythonhosted.org/packages/47/80/2070cfeb654ef103c6b5345c5b09e3b597c6c223d170ce10900011facc60/small_gicp-1.0.0-cp312-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:f81303a9a05ffa6609c4709f58098632f9239655d17eb66690f4d478dd3c8cb4", size = 337387, upload-time = "2024-08-09T04:57:28.488Z" },
+    { url = "https://files.pythonhosted.org/packages/c4/c9/a6a2ea0f2fb893fd4c213a7e285080383bbb4867331e12d1b94d6c33b5e4/small_gicp-1.0.0-cp312-abi3-win_amd64.whl", hash = "sha256:a75119bbde852742b86b54cf7e35cede9ea24b6b3335b68c3bdffd6047776258", size = 223002, upload-time = "2024-08-09T04:57:29.506Z" },
 ]
 
 [[package]]
