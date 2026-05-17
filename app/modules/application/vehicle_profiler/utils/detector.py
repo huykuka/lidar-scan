@@ -158,7 +158,7 @@ class ClusterTracker:
                 downsampling_resolution=0.001,
                 max_correspondence_distance=corr_dist,
                 max_iterations=self._icp_max_iter,
-                num_threads=4,
+                num_threads=1,
             )
         proc_ms = (time.perf_counter() - t0) * 1000.0
 
@@ -282,8 +282,6 @@ class VehicleDetector:
         ``[-trigger_distance, +trigger_distance]`` of the gantry at X=0.
         When trigger_distance is None the full scan is returned unchanged.
         """
-        if self._trigger_distance is None:
-            return points
         mask = (points[:, self._travel_axis] >= -self._trigger_distance) & (
             points[:, self._travel_axis] <= self._trigger_distance
         )
@@ -363,10 +361,11 @@ class VehicleDetector:
         if points is None or len(points) < 2:
             return self._result(timestamp, present=False) if self._last_t is not None else None
 
-        # 1. Crop to trigger window
+        # 1. Crop to trigger window (presence detection only)
         cropped = self._crop_to_trigger_window(points)
 
-        # 2. Cluster — find largest valid cluster
+        # 2. Cluster on full scan — trigger crop only gates presence,
+        #    ICP needs the widest possible geometric context.
         cluster = self._largest_vehicle_cluster(cropped)
 
         # 3. No valid cluster → absent
@@ -395,7 +394,7 @@ class VehicleDetector:
                 self._last_t = timestamp
                 return self._result(timestamp, present=False)
 
-            self._tracker.update(spatial_pts, timestamp)
+            self._tracker.update(points, timestamp)
             self._last_t = timestamp
             self._vehicle_present = True
             logger.info(
@@ -408,7 +407,7 @@ class VehicleDetector:
         dt = (timestamp - self._last_t) if self._last_t is not None else 0.0
         self._last_t = timestamp
 
-        displacement = self._tracker.update(spatial_pts, timestamp)
+        displacement = self._tracker.update(points, timestamp)
 
         if displacement is not None:
             # Reverse-motion guard with inertia tolerance.
