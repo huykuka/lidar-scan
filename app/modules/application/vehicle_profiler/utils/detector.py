@@ -28,27 +28,6 @@ import small_gicp
 
 logger = logging.getLogger(__name__)
 
-
-@contextlib.contextmanager
-def _suppress_c_stderr():
-    """Redirect C-level stderr to /dev/null for the duration of the block.
-
-    ``small_gicp`` emits harmless "voxel coord is out of range" warnings
-    straight to C stderr when ``downsampling_resolution=0.0``.  Python's
-    ``logging`` and ``sys.stderr`` redirects cannot silence them — only an
-    ``os.dup2`` swap at the file-descriptor level works.
-    """
-    devnull_fd = os.open(os.devnull, os.O_WRONLY)
-    saved_fd = os.dup(2)
-    os.dup2(devnull_fd, 2)
-    os.close(devnull_fd)
-    try:
-        yield
-    finally:
-        os.dup2(saved_fd, 2)
-        os.close(saved_fd)
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Data classes
 # ──────────────────────────────────────────────────────────────────────────────
@@ -149,8 +128,7 @@ class ClusterTracker:
         corr_dist = max(self._max_corr_dist, abs(predicted_dx) * 0.5 + self._max_corr_dist)
 
         t0 = time.perf_counter()
-        with _suppress_c_stderr():
-            result = small_gicp.align(
+        result = small_gicp.align(
                 pts3d,                   # target (current frame)
                 self._prev_pts3d,        # source (previous frame)
                 init_T,                  # init_T_target_source (positional)
@@ -158,8 +136,7 @@ class ClusterTracker:
                 downsampling_resolution=0.001,
                 max_correspondence_distance=corr_dist,
                 max_iterations=self._icp_max_iter,
-                num_threads=1,
-            )
+        )
         proc_ms = (time.perf_counter() - t0) * 1000.0
 
         if dt > 0 and proc_ms > dt * 1000.0:
