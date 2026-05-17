@@ -79,9 +79,9 @@ class VehicleProfilerNode(ModuleNode):
         movement_direction = int(config.get("movement_direction", 1))
         reverse_tolerance = float(config.get("reverse_tolerance", 0.05))
         max_correspondence_distance = float(config.get("max_correspondence_distance", 0.5))
-        min_fitness = float(config.get("min_icp_fitness", 0.3))
         max_displacement = float(config.get("max_displacement", 0.5))
         min_displacement = float(config.get("min_displacement", 0.001))
+        icp_max_iter = int(config.get("icp_max_iter", 20))
 
         _min_vehicle_points = int(config.get("min_vehicle_points", 10))
         _dbscan_eps = float(config.get("dbscan_eps", 0.3))
@@ -99,9 +99,9 @@ class VehicleProfilerNode(ModuleNode):
             dbscan_min_samples=_dbscan_min_samples,
             trigger_distance=trigger_distance,
             max_correspondence_distance=max_correspondence_distance,
-            min_fitness=min_fitness,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
+            icp_max_iter=icp_max_iter,
         )
 
         # Profile accumulator params
@@ -130,9 +130,13 @@ class VehicleProfilerNode(ModuleNode):
 
         self.last_profile_points: int = 0
 
-        # Processing guards — prevent concurrent processing of same sensor type
-        self._velocity_processing: bool = False
-        self._profile_processing: bool = False
+        # Serialise all detector access: ICP runs in a thread-pool via
+        # asyncio.to_thread; without a lock a second velocity frame can start
+        # ICP while the first is still running, corrupting shared state
+        # (_prev_pts3d, _last_frame_ts, _position_history, …).
+        # Profile frames read get_position_at() from the event loop — also
+        # guarded so they never read mid-write.
+        self._detector_lock = asyncio.Lock()
 
     # ── ModuleNode interface ──────────────────────────────────────────────
 
@@ -200,7 +204,8 @@ class VehicleProfilerNode(ModuleNode):
     # ── Internal handlers ─────────────────────────────────────────────────
 
     async def _handle_velocity_frame(self, points: np.ndarray, timestamp: float) -> None:
-        result = await asyncio.to_thread(self._detector.update, points, timestamp)
+        async with self._detector_lock:
+            result = await asyncio.to_thread(self._detector.update, points, timestamp)
 
         if result is None:
             return
@@ -233,7 +238,9 @@ class VehicleProfilerNode(ModuleNode):
         if self._detector.current_velocity < self._min_velocity:
             return
 
-        position = self._detector.get_position_at(timestamp)
+        async with self._detector_lock:
+            position = self._detector.get_position_at(timestamp)
+
         if position is None:
             return  # timestamp too far from any velocity sample — skip this line
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)

@@ -33,9 +33,10 @@ node_schema_registry.register(
         category="application",
         description=(
             "Multi-2D-LiDAR vehicle profiling node. Uses one vertically-mounted "
-            "LiDAR (full gantry FOV) to measure vehicle velocity via cluster centroid "
-            "NN tracking, and one or more side-mounted LiDARs to reconstruct the "
-            "vehicle's cross-section profile. Outputs a 3D point cloud of the vehicle shape."
+            "LiDAR to measure vehicle velocity via small_gicp point-to-point ICP "
+            "with motion-predicted initial guess, and one or more side-mounted "
+            "LiDARs to reconstruct the vehicle cross-section profile. "
+            "Outputs a 3D point cloud of the vehicle shape."
         ),
         icon="directions_car",
         websocket_enabled=True,
@@ -58,32 +59,33 @@ node_schema_registry.register(
             # ── Cluster Tracker (ICP) ─────────────────────────────────────
             PropertySchema(
                 name="max_correspondence_distance",
-                label="ICP Max Correspondence Distance (m)",
+                label="ICP Correspondence Distance (m)",
                 type="number",
                 default=0.5,
                 min=0.05,
                 max=5.0,
                 step=0.05,
                 help_text=(
-                    "Maximum point-to-point distance (metres) for ICP "
-                    "correspondences. Set to roughly 2× the expected distance "
-                    "the vehicle travels per scan frame — e.g. 0.5 m for a "
-                    "vehicle moving at 5 m/s scanned at 20 Hz."
+                    "Tight search radius (metres) used once ICP has a velocity "
+                    "estimate and pre-shifts the source cloud via motion prediction. "
+                    "On the first frame (no prior velocity) the search opens up to "
+                    "max_displacement automatically. Rule of thumb: set to the "
+                    "expected point-spacing noise, not the inter-frame step."
                 ),
             ),
             PropertySchema(
-                name="min_icp_fitness",
-                label="Min ICP Fitness",
+                name="icp_max_iter",
+                label="ICP Max Iterations",
                 type="number",
-                default=0.3,
-                min=0.05,
-                max=1.0,
-                step=0.0001,
+                default=20,
+                min=5,
+                max=100,
+                step=1,
                 help_text=(
-                    "Minimum ICP fitness score [0–1] to accept a registration "
-                    "result as a valid velocity measurement. Below this threshold "
-                    "the Kalman filter runs a predict-only step (dead-reckoning "
-                    "at last velocity)."
+                    "Maximum number of ICP iterations per frame. Higher values "
+                    "improve accuracy at the cost of per-frame compute time. "
+                    "20 iterations is sufficient for typical inter-frame displacements "
+                    "with motion-predicted initialisation."
                 ),
             ),
             PropertySchema(

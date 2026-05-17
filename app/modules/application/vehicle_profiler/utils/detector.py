@@ -1,30 +1,18 @@
 """
 Vehicle detection and position tracking from a vertical 2D LiDAR.
 
-Physical setup
---------------
-The vertical LiDAR scans a plane along the travel direction.  An upstream
-crop node is expected to deliver only the gantry-area scan (no far-field
-noise).  The detector's own trigger crop further restricts to the window
-``travel_axis >= -trigger_distance``.
-
 Pipeline (per frame)
 --------------------
-1. **Trigger crop** — keep only points where the travel-axis coordinate is
-   within ``trigger_distance`` metres of the gantry (X >= -trigger_distance).
-   Skipped when ``trigger_distance`` is None (use full scan).
-2. **DBSCAN clustering** — density-based clustering on the cropped scan.
-   Noise points (label=-1) are discarded.
-3. **Vehicle gate** — any cluster with at least ``min_vehicle_points`` is
-   considered a vehicle cluster.  The largest such cluster is forwarded to
-   the tracker.
-4. **Registration** — `small_gicp` Generalised ICP aligns the previous
-   cluster to the current one and returns the SE(3) transformation.
-   Travel-axis translation extracted from the result = displacement.
-5. **Position / velocity** — cumulative displacement and per-frame velocity.
+1. **Trigger crop** — keep only points within ``trigger_distance`` metres of
+   the gantry.  Skipped when ``trigger_distance`` is None.
+2. **DBSCAN clustering** — largest cluster with >= ``min_vehicle_points`` is
+   selected; noise and small clusters are discarded.
+3. **ICP registration** — ``small_gicp`` point-to-point ICP aligns the
+   previous cluster to the current one.  Result is accepted when
+   ``converged=True``.
+4. **Position / velocity** — cumulative displacement and per-frame velocity.
    Dead-reckoning from last valid velocity on registration failure.
-6. **Departure** — no valid cluster in the cropped zone → vehicle absent
-   immediately.
+5. **Departure** — no valid cluster in the trigger window → vehicle absent.
 """
 import logging
 import contextlib
@@ -78,46 +66,42 @@ class DetectionResult:
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Cluster tracker — small_gicp GICP
+# Cluster tracker — small_gicp ICP
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 class ClusterTracker:
-    """Per-frame displacement estimation via small_gicp GICP.
+    """Per-frame displacement estimation via small_gicp point-to-point ICP.
 
-    `small_gicp` Generalised ICP fits a 3-D local covariance around each
-    point and solves the covariance-weighted alignment using analytic
-    gradients and a KD-tree.  ~0.3 ms/frame on a 200-point cluster.
+    ~0.5 ms/frame on a 200-point cluster (single thread, 1 mm voxel grid).
 
     Args:
         travel_axis:                   Axis index for travel direction (0=X).
-        max_correspondence_distance:   Max correspondence distance (m).
-        min_fitness:                   Unused — kept for API compatibility.
-                                       GICP acceptance uses ``converged`` flag.
+        max_correspondence_distance:   Max point-pair distance for ICP (m).
         max_displacement:              Outlier gate (m).
-        min_displacement:              Dead-zone (m).
-        gicp_max_iter:                 Max GICP iterations (default 20).
+        min_displacement:              Dead-zone below which displacement is
+                                       zeroed (m).
+        icp_max_iter:                  Maximum ICP iterations per frame.
     """
 
     def __init__(
         self,
         travel_axis: int = 0,
         max_correspondence_distance: float = 0.5,
-        min_fitness: float = 0.3,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
-        gicp_max_iter: int = 20,
+        icp_max_iter: int = 20,
     ) -> None:
         self._travel_axis = travel_axis
         self._max_corr_dist = max_correspondence_distance
-        self._min_fitness = min_fitness
         self._max_displacement = max_displacement
         self._min_displacement = min_displacement
-        self._gicp_max_iter = gicp_max_iter
+        self._icp_max_iter = icp_max_iter
 
         self._prev_pts3d: Optional[np.ndarray] = None
         self._last_displacement: float = 0.0
-        self._last_frame_ts: Optional[float] = None   # sensor timestamp of last frame
+        self._last_velocity: float = 0.0   # m/s — used to predict next displacement
+        self._last_frame_ts: Optional[float] = None
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -125,8 +109,8 @@ class ClusterTracker:
     def _to_3d(points: np.ndarray) -> np.ndarray:
         """Return contiguous float64 (N, 3) array.
 
-        For Nx2 input (X, Z) pads a zero Y column.
-        For Nx3+ input passes through as-is (Y≈0 from sensor is fine).
+        Nx2 input (X, Z) → pad a zero Y column.
+        Nx3+ input → pass through (Y≈0 from sensor is fine).
         """
         if points.shape[1] == 2:
             pts = np.zeros((len(points), 3), dtype=np.float64)
@@ -135,10 +119,10 @@ class ClusterTracker:
             return pts
         return np.ascontiguousarray(points[:, :3], dtype=np.float64)
 
-    # ── GICP (small_gicp) ─────────────────────────────────────────────────
+    # ── ICP (small_gicp) ──────────────────────────────────────────────────
 
-    def _update_gicp(self, points: np.ndarray, timestamp: float) -> Optional[float]:
-        """Align with small_gicp GICP; return travel-axis displacement or None."""
+    def _update_icp(self, points: np.ndarray, timestamp: float) -> Optional[float]:
+        """Align with small_gicp ICP; return travel-axis displacement or None."""
         pts3d = self._to_3d(points)
 
         if self._prev_pts3d is None or len(self._prev_pts3d) < 3:
@@ -146,53 +130,58 @@ class ClusterTracker:
             self._last_frame_ts = timestamp
             return 0.0
 
-        # Numpy overload: align(target_points, source_points, ...)
-        # source = prev frame, target = current frame → T_target_source
-        # downsampling_resolution=0.0 collapses all points into one voxel and
-        # causes voxel-coord overflow in C++; 0.001 (1 mm) keeps all points
-        # for typical LiDAR clusters while avoiding the degenerate case.
+        dt = timestamp - self._last_frame_ts if self._last_frame_ts is not None else 0.0
+
+        # ── Motion-predicted initial guess ───────────────────────────────────
+        # Seed ICP with the displacement we expect from the last known velocity.
+        # Without this, ICP starts from identity every frame; a sudden speed
+        # change can push the actual displacement past max_correspondence_distance
+        # so ICP finds zero correspondences and diverges.
+        predicted_dx = self._last_velocity * dt
+        init_T = np.eye(4)
+        init_T[self._travel_axis, 3] = predicted_dx
+
+        # ── Adaptive correspondence distance ─────────────────────────────────
+        # At the predicted displacement the clouds are already aligned by init_T,
+        # so residual error should be small — keep a tight window.  But add a
+        # safety margin of 50% of the predicted step so small velocity
+        # estimation errors don't cause misses.
+        corr_dist = max(self._max_corr_dist, abs(predicted_dx) * 0.5 + self._max_corr_dist)
+
         t0 = time.perf_counter()
         with _suppress_c_stderr():
             result = small_gicp.align(
                 pts3d,                   # target (current frame)
                 self._prev_pts3d,        # source (previous frame)
+                init_T,                  # init_T_target_source (positional)
                 registration_type="ICP",
                 downsampling_resolution=0.001,
-                max_correspondence_distance=self._max_corr_dist,
-                max_iterations=self._gicp_max_iter,
-                num_threads=1,
+                max_correspondence_distance=corr_dist,
+                max_iterations=self._icp_max_iter,
+                num_threads=4,
             )
         proc_ms = (time.perf_counter() - t0) * 1000.0
 
-        # Frame-drop detection: warn if GICP took longer than the sensor interval
-        if self._last_frame_ts is not None:
-            frame_dt = timestamp - self._last_frame_ts
-            if frame_dt > 0 and proc_ms > frame_dt * 1000.0:
-                logger.warning(
-                    "icp %.1f ms > frame interval %.1f ms — system may drop frames",
-                    proc_ms, frame_dt * 1000.0,
-                )
-            else:
-                logger.debug("icp %.2f ms (frame interval %.1f ms)", proc_ms, frame_dt * 1000.0)
+        if dt > 0 and proc_ms > dt * 1000.0:
+            logger.warning("icp %.1f ms > frame interval %.1f ms — may drop frames", proc_ms, dt * 1000.0)
         else:
-            logger.debug("icp %.2f ms", proc_ms)
+            logger.debug("icp %.2f ms (pred=%.4fm corr_dist=%.3fm)", proc_ms, predicted_dx, corr_dist)
 
         self._prev_pts3d = pts3d
         self._last_frame_ts = timestamp
 
         if not result.converged:
-            logger.info("icp did not converge — rejected")
+            logger.debug("icp did not converge — rejected (error=%.4f, pred=%.4fm)", result.error, predicted_dx)
             return None
 
-        # T_target_source: 4×4 SE(3); translation at column 3
         raw = float(result.T_target_source[self._travel_axis, 3])
-        return self._gate(raw, "icp")
+        return self._gate(raw, dt)
 
     # ── Public API ────────────────────────────────────────────────────────
 
     def update(self, points: np.ndarray, timestamp: float) -> Optional[float]:
         """Return displacement (m, forward-positive), or None on failure."""
-        return self._update_gicp(points, timestamp)
+        return self._update_icp(points, timestamp)
 
     def reset(self) -> None:
         self._prev_pts3d = None
@@ -209,18 +198,15 @@ class ClusterTracker:
 
     # ── Gate helper ───────────────────────────────────────────────────────
 
-    def _gate(self, raw: float, method: str) -> Optional[float]:
-        """Apply dead-zone and outlier gate; return None if rejected."""
+    def _gate(self, raw: float, dt: float) -> Optional[float]:
+        """Apply dead-zone and outlier gate; update velocity on success."""
         if abs(raw) < self._min_displacement:
             raw = 0.0
         if abs(raw) > self._max_displacement + 1e-6:
-            logger.info(
-                "%s displacement %.4fm > max (%.4fm) — rejected",
-                method, raw, self._max_displacement,
-            )
+            logger.debug("icp displacement %.4fm > max %.4fm — rejected", raw, self._max_displacement)
             return None
         self._last_displacement = raw
-        logger.info("%s displacement=%.4fm", method, raw)
+        self._last_velocity = (raw / dt) if dt > 0 else self._last_velocity
         return raw
 
 
@@ -232,29 +218,20 @@ class ClusterTracker:
 class VehicleDetector:
     """Detect vehicles via DBSCAN clustering on a trigger-cropped 2D scan.
 
-    No background learning is required.  An upstream crop node should
-    already restrict the scan to the gantry area; this detector further
-    crops to the leading-edge trigger window before clustering.
-
     Args:
         travel_axis:                 Axis index for the truck travel direction
                                      (0=X, 1=Y).
+        movement_direction:          Expected travel direction (+1 or -1).
+        reverse_tolerance:           Backward creep allowed before clamping (m).
         min_vehicle_points:          Min points in a DBSCAN cluster to count
-                                     as a vehicle.  Acts as a size gate —
-                                     rejects noise and tiny debris clusters.
-        dbscan_eps:                  DBSCAN neighbourhood radius (m).  Tune
-                                     to the expected point spacing in the scan.
+                                     as a vehicle.
+        dbscan_eps:                  DBSCAN neighbourhood radius (m).
         dbscan_min_samples:          DBSCAN min samples per core point.
-        trigger_distance:            Crop window: only consider points where
-                                     ``points[:, travel_axis] >= -trigger_distance``
-                                     (i.e. within trigger_distance metres of the
-                                     gantry).  None = use the full incoming scan.
-        max_correspondence_distance: Correspondence distance (m).
-        min_fitness:                 Unused — kept for API compatibility.
-                                     GICP acceptance uses convergence flag.
-        max_displacement:            Max per-frame displacement (m).
-        min_displacement:            Dead-zone (m).
-        gicp_max_iter:               Max GICP iterations.
+        trigger_distance:            Crop window half-width (m).  None = full scan.
+        max_correspondence_distance: ICP point-pair distance limit (m).
+        max_displacement:            Max per-frame displacement outlier gate (m).
+        min_displacement:            Dead-zone below which displacement is zeroed (m).
+        icp_max_iter:                Maximum ICP iterations per frame.
     """
 
     def __init__(
@@ -267,14 +244,13 @@ class VehicleDetector:
         dbscan_min_samples: int = 5,
         trigger_distance: Optional[float] = None,
         max_correspondence_distance: float = 0.1,
-        min_fitness: float = 0.3,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
-        gicp_max_iter: int = 20,
+        icp_max_iter: int = 20,
     ) -> None:
         self._travel_axis = travel_axis
-        self._movement_direction = movement_direction  # +1 or -1
-        self._reverse_tolerance = reverse_tolerance    # metres
+        self._movement_direction = movement_direction
+        self._reverse_tolerance = reverse_tolerance
         self._min_vehicle_points = min_vehicle_points
         self._dbscan_eps = dbscan_eps
         self._dbscan_min_samples = dbscan_min_samples
@@ -283,10 +259,9 @@ class VehicleDetector:
         self._tracker = ClusterTracker(
             travel_axis=travel_axis,
             max_correspondence_distance=max_correspondence_distance,
-            min_fitness=min_fitness,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
-            gicp_max_iter=gicp_max_iter,
+            icp_max_iter=icp_max_iter,
         )
 
         # Position / velocity
@@ -360,10 +335,6 @@ class VehicleDetector:
         best_label = unique[big_mask][np.argmax(counts[big_mask])]
         cluster_pts = points[labels == best_label]
 
-        logger.debug(
-            "DBSCAN: %d cluster(s), largest valid=%d pts (label %d)",
-            big_mask.sum(), len(cluster_pts), best_label,
-        )
         return cluster_pts
 
     def _result(
@@ -418,8 +389,7 @@ class VehicleDetector:
             centroid_axis = float(np.mean(spatial_pts[:, self._travel_axis]))
             if centroid_axis * self._movement_direction > 0:
                 logger.debug(
-                    "First-detection rejected — cluster centroid %.3f is on the wrong "
-                    "side for movement_direction=%+d",
+                    "First-detection rejected — centroid %.3f on wrong side for direction=%+d",
                     centroid_axis, self._movement_direction,
                 )
                 self._last_t = timestamp
@@ -448,15 +418,9 @@ class VehicleDetector:
             # (deliberate backing-up or sensor artefact) is clamped to zero.
             if displacement * self._movement_direction < 0:
                 if abs(displacement) <= self._reverse_tolerance:
-                    logger.debug(
-                        "Reverse displacement %.4fm within tolerance (%.4fm) — accepted",
-                        displacement, self._reverse_tolerance,
-                    )
+                    logger.debug("reverse %.4fm within tolerance — accepted", displacement)
                 else:
-                    logger.debug(
-                        "Reverse displacement %.4fm exceeds tolerance (%.4fm) — ignored",
-                        displacement, self._reverse_tolerance,
-                    )
+                    logger.debug("reverse %.4fm exceeds tolerance — clamped to zero", displacement)
                     displacement = 0.0
 
             self._position += displacement
