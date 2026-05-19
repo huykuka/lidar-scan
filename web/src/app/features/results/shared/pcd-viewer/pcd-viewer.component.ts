@@ -1,5 +1,6 @@
 import {
   AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   ElementRef,
   inject,
@@ -19,12 +20,13 @@ const MAX_POINTS = 500_000;
  * Point size used for all rendered clouds.
  * Kept deliberately small (0.01 world units) so dense clouds remain sharp.
  */
-const POINT_SIZE = 0.01;
+const POINT_SIZE = 0.04;
 
 @Component({
   selector: 'app-pcd-viewer',
   standalone: true,
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './pcd-viewer.component.html',
   styleUrl: './pcd-viewer.component.css',
 })
@@ -32,6 +34,9 @@ export class PcdViewerComponent implements AfterViewInit, OnDestroy {
   pcdUrl = input<string>('');
 
   color = input<string>('');
+
+  /** Optional download callback — when provided, a download button is shown over the canvas. */
+  onDownload = input<(() => void) | null>(null);
 
   protected isLoading = signal(false);
   protected hasError = signal(false);

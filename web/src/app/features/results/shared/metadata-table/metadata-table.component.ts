@@ -1,8 +1,8 @@
-import { Component, computed, input, Pipe, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, Pipe, signal } from '@angular/core';
 
 @Component({
   selector: 'app-metadata-table',
-  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [],
   templateUrl: './metadata-table.component.html',
   styleUrl: './metadata-table.component.css',

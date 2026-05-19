@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { ResultsApiService, MOCK_NODE_INDEX } from '@core/services/api/results-api.service';
@@ -10,6 +17,7 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-result-detail',
+  standalone: true,
   imports: [SynergyComponentsModule, RouterModule, MetadataTableComponent, PcdViewerComponent],
   templateUrl: './result-detail.component.html',
   styleUrl: './result-detail.component.css',
@@ -26,6 +34,11 @@ export class ResultDetailComponent implements OnInit {
 
   /** Precomputed map from label → {url, color} to avoid method calls in template. */
   protected pcdFileMap = signal<Map<string, { url: string; color: string }>>(new Map());
+
+  /** The currently active PcdFileEntry, derived from activeLabel. */
+  protected activeTab = computed<PcdFileEntry | undefined>(() =>
+    this.result()?.pcd_files.find((f) => f.label === this.activeLabel()),
+  );
 
   /** Human-friendly breadcrumb label: "<Node Name> — <timestamp>" */
   protected resultBreadcrumb = computed<string>(() => {
