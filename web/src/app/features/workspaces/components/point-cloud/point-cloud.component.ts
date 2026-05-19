@@ -1,17 +1,31 @@
-import {AfterViewInit, Component, effect, ElementRef, inject, input, OnDestroy, OnInit, signal, viewChild} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  AfterViewInit,
+  Component,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import * as THREE from 'three';
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {PointCloudDataService} from '@core/services/point-cloud-data.service';
-import {ViewOrientation} from '@core/services/split-layout-store.service';
-import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
-import {ShapeLayerService} from '@core/services/shape-layer.service';
-import {ShapesWsService} from '@core/services/shapes-ws.service';
-import {Subscription} from 'rxjs';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { PointCloudDataService } from '@core/services/point-cloud-data.service';
+import { ViewOrientation } from '@core/services/split-layout-store.service';
+import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
+import { ShapeLayerService } from '@core/services/shape-layer.service';
+import { ShapesWsService } from '@core/services/shapes-ws.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-point-cloud',
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+
   /**
    * ShapeLayerService is provided HERE — at the component level — so that
    * Angular creates a **fresh, isolated instance** for every PointCloudComponent
@@ -26,13 +40,14 @@ import {Subscription} from 'rxjs';
    * DO NOT move this back to providedIn: 'root'.
    */
   providers: [ShapeLayerService],
-  template: `
-    <div
+  template: ` <div
       #container
       class="w-full h-full min-h-0 bg-transparent rounded-md overflow-hidden"
     ></div>
     @if (hasError()) {
-      <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg z-10 p-4 text-center">
+      <div
+        class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg z-10 p-4 text-center"
+      >
         <syn-icon name="error" class="text-4xl text-red-400 mb-2"></syn-icon>
         <p class="text-white font-semibold text-sm">Rendering Error</p>
         <p class="text-syn-color-neutral-300 text-xs mt-1 break-all">{{ errorMessage() }}</p>
@@ -143,7 +158,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     effect(() => {
       // Update point size for all clouds
       const size = this.pointSize();
-      this.pointClouds.forEach(({material}) => {
+      this.pointClouds.forEach(({ material }) => {
         material.size = size;
       });
     });
@@ -184,10 +199,10 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     effect(() => {
       const selectedTopics = this.workspaceStore.selectedTopics(); // tracked signal
       if (!this.scene) return;
-      const enabledSet = new Set(selectedTopics.filter(t => t.enabled).map(t => t.topic));
+      const enabledSet = new Set(selectedTopics.filter((t) => t.enabled).map((t) => t.topic));
 
       // Remove clouds for topics no longer enabled
-      Array.from(this.pointClouds.keys()).forEach(topic => {
+      Array.from(this.pointClouds.keys()).forEach((topic) => {
         if (!enabledSet.has(topic)) this.removePointCloud(topic);
       });
 
@@ -209,8 +224,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  ngOnInit() {
-  }
+  ngOnInit() {}
 
   ngAfterViewInit() {
     try {
@@ -251,7 +265,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.resizeObserver?.disconnect();
     // Dispose all point clouds
-    this.pointClouds.forEach(({geometry, material}) => {
+    this.pointClouds.forEach(({ geometry, material }) => {
       geometry.dispose();
       material.dispose();
     });
@@ -343,13 +357,11 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     cloud.geometry.attributes['position'].needsUpdate = true;
   }
 
-
   resetCamera() {
     this.perspCamera.position.set(15, 15, 15);
     this.controls.target.set(0, 0, 0);
     this.controls.update();
   }
-
 
   /**
    * Synchronise Three.js point cloud objects with the currently selected topics.
@@ -358,10 +370,10 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private syncTopicClouds(): void {
     const selectedTopics = this.workspaceStore.selectedTopics();
-    const enabledSet = new Set(selectedTopics.filter(t => t.enabled).map(t => t.topic));
+    const enabledSet = new Set(selectedTopics.filter((t) => t.enabled).map((t) => t.topic));
 
     // Remove clouds for topics no longer enabled
-    Array.from(this.pointClouds.keys()).forEach(topic => {
+    Array.from(this.pointClouds.keys()).forEach((topic) => {
       if (!enabledSet.has(topic)) {
         this.removePointCloud(topic);
       }
@@ -428,7 +440,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     this.orthoCamera.lookAt(0, 0, 0);
 
     // Renderer
-    this.renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(this.renderer.domElement);

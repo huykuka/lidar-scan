@@ -1,26 +1,40 @@
-import {Component, computed, effect, inject, signal} from '@angular/core';
-import {SplitGroup, SplitLayoutStoreService, LayoutMode, ViewPane} from '@core/services/split-layout-store.service';
-import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
-import {PointCloudComponent} from '../../point-cloud/point-cloud.component';
-import {ViewportOverlayComponent} from '../../viewport-overlay/viewport-overlay.component';
-import {ResizableDividerDirective} from '../resizable-divider.directive';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
+import {
+  SplitGroup,
+  SplitLayoutStoreService,
+  LayoutMode,
+  ViewPane,
+} from '@core/services/split-layout-store.service';
+import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
+import { PointCloudComponent } from '../../point-cloud/point-cloud.component';
+import { ViewportOverlayComponent } from '../../viewport-overlay/viewport-overlay.component';
+import { ResizableDividerDirective } from '../resizable-divider.directive';
 
 @Component({
   selector: 'app-split-pane-container',
   imports: [PointCloudComponent, ViewportOverlayComponent, ResizableDividerDirective],
   templateUrl: './split-pane-container.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+
   styleUrl: './split-pane-container.component.css',
 })
 export class SplitPaneContainerComponent {
   protected layout = inject(SplitLayoutStoreService);
-  protected store  = inject(WorkspaceStoreService);
+  protected store = inject(WorkspaceStoreService);
 
-  protected groups     = computed(() => this.layout.groups());
-  protected paneCount  = computed(() => this.layout.paneCount());
+  protected groups = computed(() => this.layout.groups());
+  protected paneCount = computed(() => this.layout.paneCount());
   protected layoutMode = computed(() => this.layout.layoutMode());
 
   /** True when the active layout is the 2×2 grid preset */
-  protected isGridLayout   = computed(() => this.layout.layoutMode() === '4-grid');
+  protected isGridLayout = computed(() => this.layout.layoutMode() === '4-grid');
   protected isOneTwoLayout = computed(() => this.layout.layoutMode() === '1+2');
 
   /** All panes flattened — used by the grid template */

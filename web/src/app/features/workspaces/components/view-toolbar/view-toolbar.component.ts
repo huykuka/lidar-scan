@@ -1,6 +1,6 @@
-import {Component, computed, inject,} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {LayoutMode, SplitLayoutStoreService} from '@core/services/split-layout-store.service';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { LayoutMode, SplitLayoutStoreService } from '@core/services/split-layout-store.service';
 
 interface LayoutPreset {
   id: LayoutMode;
@@ -14,6 +14,7 @@ interface LayoutPreset {
   imports: [SynergyComponentsModule],
   templateUrl: './view-toolbar.component.html',
   styleUrl: './view-toolbar.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ViewToolbarComponent {
   protected layout = inject(SplitLayoutStoreService);
@@ -22,20 +23,35 @@ export class ViewToolbarComponent {
   protected activeMode = computed(() => this.layout.layoutMode());
 
   readonly presets: LayoutPreset[] = [
-    { id: 'single',  label: '1',    title: 'Single pane (perspective)',             icon: 'crop_square'        },
-    { id: 'h-split', label: '2H',   title: 'Horizontal split (top/bottom)',         icon: 'horizontal_split'   },
-    { id: 'v-split', label: '2V',   title: 'Vertical split (left/right)',           icon: 'vertical_split'     },
-    { id: '1+2',     label: '1+2',  title: '1+2 split (perspective + top/front)',   icon: 'view_sidebar'       },
-    { id: '4-grid',  label: '4',    title: '4-pane grid (2×2)',                     icon: 'grid_view'          },
+    { id: 'single', label: '1', title: 'Single pane (perspective)', icon: 'crop_square' },
+    {
+      id: 'h-split',
+      label: '2H',
+      title: 'Horizontal split (top/bottom)',
+      icon: 'horizontal_split',
+    },
+    { id: 'v-split', label: '2V', title: 'Vertical split (left/right)', icon: 'vertical_split' },
+    { id: '1+2', label: '1+2', title: '1+2 split (perspective + top/front)', icon: 'view_sidebar' },
+    { id: '4-grid', label: '4', title: '4-pane grid (2×2)', icon: 'grid_view' },
   ];
 
   applyPreset(id: LayoutMode): void {
     switch (id) {
-      case 'single':  this.layout.resetToDefault();     break;
-      case 'h-split': this.layout.setHorizontalSplit(); break;
-      case 'v-split': this.layout.setVerticalSplit();   break;
-      case '1+2':     this.layout.setSplitOneTwo();     break;
-      case '4-grid':  this.layout.setFourPaneGrid();    break;
+      case 'single':
+        this.layout.resetToDefault();
+        break;
+      case 'h-split':
+        this.layout.setHorizontalSplit();
+        break;
+      case 'v-split':
+        this.layout.setVerticalSplit();
+        break;
+      case '1+2':
+        this.layout.setSplitOneTwo();
+        break;
+      case '4-grid':
+        this.layout.setFourPaneGrid();
+        break;
     }
   }
 }
