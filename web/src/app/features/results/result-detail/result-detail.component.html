@@ -1,4 +1,4 @@
-<div class="flex flex-col h-full overflow-hidden">
+<div class="flex flex-col lg:h-full lg:overflow-hidden">
   <!-- Breadcrumb + Back button row -->
   <div class="flex items-center gap-2 shrink-0 mb-4">
     <syn-button variant="text" size="small" [routerLink]="['/results', nodeId()]">
@@ -58,9 +58,9 @@
       - On desktop (lg+): viewer left (flex-1), metadata right (fixed width, scrolls)
       - On mobile: stacked
     -->
-    <div class="flex-1 flex flex-col lg:flex-row gap-6 min-h-0 overflow-hidden">
+    <div class="flex-1 flex flex-col lg:flex-row gap-6 lg:min-h-0 lg:overflow-hidden">
       <!-- Left: PCD Tab Group + 3D Viewer -->
-      <div class="viewer-column flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div class="viewer-column flex-1 flex flex-col lg:min-h-0 lg:overflow-hidden">
         @if (result()!.pcd_files.length > 0) {
           <!-- viewer-card grows to fill viewer-column -->
           <div
