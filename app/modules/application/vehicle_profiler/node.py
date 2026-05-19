@@ -107,12 +107,18 @@ class VehicleProfilerNode(ModuleNode):
         # Profile accumulator params
         min_scan_lines = int(config.get("min_scan_lines", 20))
         min_height = float(config.get("min_height", 0.0))
+        voxel_size = float(config.get("voxel_size", 0.0))
+        sor_neighbors = int(config.get("sor_neighbors", 0))
+        sor_std_ratio = float(config.get("sor_std_ratio", 2.0))
 
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
             travel_axis=0,
             min_position_delta=min_displacement,
             min_height=min_height,
+            voxel_size=voxel_size,
+            sor_neighbors=sor_neighbors,
+            sor_std_ratio=sor_std_ratio,
         )
 
         # Minimum velocity gate — profile frames are discarded when the

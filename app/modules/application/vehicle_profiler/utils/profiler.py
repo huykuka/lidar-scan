@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
 import numpy as np
+import open3d as o3d
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,16 @@ class ProfileAccumulator:
                             Points at or below this threshold are ground noise
                             and are dropped before accumulation.  Set to 0.0
                             (default) to keep all points.
+        voxel_size:         Voxel grid cell size (m) for downsampling the final
+                            profile.  Merges overlapping points from adjacent
+                            scan lines into a cleaner cloud.  Set to 0.0
+                            (default) to skip downsampling.
+        sor_neighbors:      Number of neighbours used by Statistical Outlier
+                            Removal on the final profile.  Set to 0 (default)
+                            to skip outlier removal.
+        sor_std_ratio:      Standard-deviation multiplier for SOR.  Points
+                            whose mean distance to neighbours exceeds
+                            ``mean + sor_std_ratio * std`` are removed.
     """
 
     def __init__(
@@ -170,11 +181,17 @@ class ProfileAccumulator:
         travel_axis: int = 2,
         min_position_delta: float = 0.0,
         min_height: float = 0.0,
+        voxel_size: float = 0.0,
+        sor_neighbors: int = 0,
+        sor_std_ratio: float = 2.0,
     ):
         self._min_scan_lines = min_scan_lines
         self._travel_axis = travel_axis
         self._min_position_delta = min_position_delta
         self._min_height = min_height
+        self._voxel_size = voxel_size
+        self._sor_neighbors = sor_neighbors
+        self._sor_std_ratio = sor_std_ratio
         self._reset()
 
     def _clear_accumulation(self) -> None:
@@ -308,6 +325,8 @@ class ProfileAccumulator:
 
         all_points = np.concatenate(self._scan_lines, axis=0)
 
+        all_points = self._refine_cloud(all_points)
+
         profile = VehicleProfile(
             points=all_points,
             start_time=self._start_time or 0.0,
@@ -318,6 +337,28 @@ class ProfileAccumulator:
         )
         self._reset()
         return profile
+
+    def _refine_cloud(self, points: np.ndarray) -> np.ndarray:
+        """Apply voxel downsampling and statistical outlier removal."""
+        if len(points) < 3:
+            return points
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(np.asarray(points, dtype=np.float64))
+
+        if self._voxel_size > 0:
+            pcd = pcd.voxel_down_sample(self._voxel_size)
+
+        if self._sor_neighbors > 0 and len(pcd.points) >= self._sor_neighbors:
+            pcd, _ = pcd.remove_statistical_outlier(
+                nb_neighbors=self._sor_neighbors,
+                std_ratio=self._sor_std_ratio,
+            )
+
+        refined = np.asarray(pcd.points, dtype=np.float64)
+        if len(refined) == 0:
+            return points
+        return refined
 
     def abort(self) -> None:
         """Discard the current accumulation without emitting a profile."""
