@@ -76,12 +76,21 @@
               }
               @for (pcd of result()!.pcd_files; track pcd.label) {
                 <syn-tab-panel [name]="pcd.label" class="w-full">
-                  <div class="viewer-canvas-area w-full">
+                  <div class="viewer-canvas-area w-full relative">
                     <app-pcd-viewer
                       [pcdUrl]="pcdFileMap().get(pcd.label)?.url ?? ''"
                       [color]="pcdFileMap().get(pcd.label)?.color ?? ''"
                       class="w-full h-full"
                     ></app-pcd-viewer>
+                    <syn-button
+                      class="absolute top-2 right-2 z-10"
+                      size="small"
+                      variant="outline"
+                      (click)="downloadPcd(pcd)"
+                    >
+                      <syn-icon name="download" slot="prefix"></syn-icon>
+                      Download
+                    </syn-button>
                   </div>
                 </syn-tab-panel>
               }

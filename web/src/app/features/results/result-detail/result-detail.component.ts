@@ -89,6 +89,17 @@ export class ResultDetailComponent implements OnInit {
     this.activeLabel.set(detail.name);
   }
 
+  protected downloadPcd(pcd: PcdFileEntry): void {
+    const entry = this.pcdFileMap().get(pcd.label);
+    if (!entry?.url) return;
+    const a = document.createElement('a');
+    a.href = entry.url;
+    a.download = `${pcd.label}.pcd`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
   protected formatTimestamp(ts: number): string {
     return new Date(ts * 1000).toLocaleString();
   }
