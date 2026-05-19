@@ -113,6 +113,11 @@ export class ResultDetailComponent implements OnInit {
     a.remove();
   }
 
+  /** Returns a stable bound callback for use as [onDownload] input on app-pcd-viewer. */
+  protected getDownloadFn(pcd: PcdFileEntry): () => void {
+    return () => this.downloadPcd(pcd);
+  }
+
   protected formatTimestamp(ts: number): string {
     return new Date(ts * 1000).toLocaleString();
   }
