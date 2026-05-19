@@ -227,7 +227,52 @@ node_schema_registry.register(
                     "keep all points. Typical value: 0.1–0.3 m."
                 ),
             ),
-           
+            # ── Profile Refinement ────────────────────────────────────────
+            PropertySchema(
+                name="voxel_size",
+                label="Voxel Downsample Size (m)",
+                type="number",
+                default=0.0,
+                min=0.0,
+                max=0.5,
+                step=0.005,
+                help_text=(
+                    "Voxel grid cell size (metres) for downsampling the final "
+                    "profile cloud. Merges overlapping points from adjacent "
+                    "scan lines into a cleaner, more uniform cloud. Set to 0 "
+                    "to skip downsampling. Typical value: 0.01–0.05 m."
+                ),
+            ),
+            PropertySchema(
+                name="sor_neighbors",
+                label="Outlier Removal Neighbours",
+                type="number",
+                default=0,
+                min=0,
+                max=100,
+                step=1,
+                help_text=(
+                    "Number of nearest neighbours used by Statistical Outlier "
+                    "Removal (SOR) on the final profile. Points whose mean "
+                    "distance to neighbours is unusually large are removed. "
+                    "Set to 0 to skip outlier removal. Typical value: 10–30."
+                ),
+            ),
+            PropertySchema(
+                name="sor_std_ratio",
+                label="Outlier Removal Std Ratio",
+                type="number",
+                default=2.0,
+                min=0.5,
+                max=5.0,
+                step=0.1,
+                help_text=(
+                    "Standard-deviation multiplier for SOR. A point is removed "
+                    "when its mean neighbour distance exceeds "
+                    "mean + sor_std_ratio × std. Lower values are more "
+                    "aggressive. Typical value: 1.5–3.0."
+                ),
+            ),
         ],
         inputs=[
             PortSchema(
