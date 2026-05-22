@@ -1,17 +1,31 @@
-import {AfterViewInit, Component, effect, ElementRef, inject, input, OnDestroy, OnInit, signal, viewChild} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  AfterViewInit,
+  Component,
+  effect,
+  ElementRef,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import * as THREE from 'three';
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {PointCloudDataService} from '@core/services/point-cloud-data.service';
-import {ViewOrientation} from '@core/services/split-layout-store.service';
-import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
-import {ShapeLayerService} from '@core/services/shape-layer.service';
-import {ShapesWsService} from '@core/services/shapes-ws.service';
-import {Subscription} from 'rxjs';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { PointCloudDataService } from '@core/services/point-cloud-data.service';
+import { ViewOrientation } from '@core/services/split-layout-store.service';
+import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
+import { ShapeLayerService } from '@core/services/shape-layer.service';
+import { ShapesWsService } from '@core/services/shapes-ws.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-point-cloud',
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+
   /**
    * ShapeLayerService is provided HERE — at the component level — so that
    * Angular creates a **fresh, isolated instance** for every PointCloudComponent
@@ -26,13 +40,14 @@ import {Subscription} from 'rxjs';
    * DO NOT move this back to providedIn: 'root'.
    */
   providers: [ShapeLayerService],
-  template: `
-    <div
+  template: ` <div
       #container
       class="w-full h-full min-h-0 bg-transparent rounded-md overflow-hidden"
     ></div>
     @if (hasError()) {
-      <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg z-10 p-4 text-center">
+      <div
+        class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg z-10 p-4 text-center"
+      >
         <syn-icon name="error" class="text-4xl text-red-400 mb-2"></syn-icon>
         <p class="text-white font-semibold text-sm">Rendering Error</p>
         <p class="text-syn-color-neutral-300 text-xs mt-1 break-all">{{ errorMessage() }}</p>
@@ -117,6 +132,12 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   private currentGridSize = 50;
 
   private animationId?: number;
+  /**
+   * Dirty flag — when true the next animation-loop tick will actually call
+   * renderer.render().  Every mutation that touches the scene graph, camera
+   * or material must call requestRender() so the flag is set.
+   */
+  private needsRender = true;
   /** Full-quality cap (default: no adaptive LOD) */
   readonly MAX_POINTS = 250_000;
   /** Reduced cap used when adaptiveLod input is true */
@@ -143,9 +164,10 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     effect(() => {
       // Update point size for all clouds
       const size = this.pointSize();
-      this.pointClouds.forEach(({material}) => {
+      this.pointClouds.forEach(({ material }) => {
         material.size = size;
       });
+      this.requestRender();
     });
 
     effect(() => {
@@ -153,6 +175,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
         const isVisible = this.showGrid();
         this.gridHelper.visible = isVisible;
         this.gridLabels.forEach((l) => (l.visible = isVisible));
+        this.requestRender();
       }
     });
 
@@ -161,6 +184,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
         const isVisible = this.showAxes();
         this.axesHelper.visible = isVisible;
         this.axesLabels.forEach((l) => (l.visible = isVisible));
+        this.requestRender();
       }
     });
 
@@ -168,6 +192,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       const color = this.backgroundColor();
       if (this.scene) {
         this.scene.background = new THREE.Color(color);
+        this.requestRender();
       }
     });
 
@@ -184,10 +209,10 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     effect(() => {
       const selectedTopics = this.workspaceStore.selectedTopics(); // tracked signal
       if (!this.scene) return;
-      const enabledSet = new Set(selectedTopics.filter(t => t.enabled).map(t => t.topic));
+      const enabledSet = new Set(selectedTopics.filter((t) => t.enabled).map((t) => t.topic));
 
       // Remove clouds for topics no longer enabled
-      Array.from(this.pointClouds.keys()).forEach(topic => {
+      Array.from(this.pointClouds.keys()).forEach((topic) => {
         if (!enabledSet.has(topic)) this.removePointCloud(topic);
       });
 
@@ -209,8 +234,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  ngOnInit() {
-  }
+  ngOnInit() {}
 
   ngAfterViewInit() {
     try {
@@ -234,6 +258,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     this.orthoCamera.layers.enableAll();
     this.shapesSubscription = this.shapesWsService.frames$.subscribe((frame) => {
       this.shapeLayerService.applyFrame(frame);
+      this.requestRender();
     });
     // ResizeObserver keeps canvas in sync whenever the pane is resized
     // (including the initial paint, layout-switch re-paints, and divider drags).
@@ -251,7 +276,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     this.resizeObserver?.disconnect();
     // Dispose all point clouds
-    this.pointClouds.forEach(({geometry, material}) => {
+    this.pointClouds.forEach(({ geometry, material }) => {
       geometry.dispose();
       material.dispose();
     });
@@ -305,6 +330,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       material,
       lastCount: 0,
     });
+    this.requestRender();
   }
 
   /**
@@ -319,6 +345,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     cloud.geometry.dispose();
     cloud.material.dispose();
     this.pointClouds.delete(topic);
+    this.requestRender();
   }
 
   /**
@@ -341,15 +368,15 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     cloud.lastCount = copyCount;
     cloud.geometry.setDrawRange(0, copyCount);
     cloud.geometry.attributes['position'].needsUpdate = true;
+    this.requestRender();
   }
-
 
   resetCamera() {
     this.perspCamera.position.set(15, 15, 15);
     this.controls.target.set(0, 0, 0);
     this.controls.update();
+    this.requestRender();
   }
-
 
   /**
    * Synchronise Three.js point cloud objects with the currently selected topics.
@@ -358,10 +385,10 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   private syncTopicClouds(): void {
     const selectedTopics = this.workspaceStore.selectedTopics();
-    const enabledSet = new Set(selectedTopics.filter(t => t.enabled).map(t => t.topic));
+    const enabledSet = new Set(selectedTopics.filter((t) => t.enabled).map((t) => t.topic));
 
     // Remove clouds for topics no longer enabled
-    Array.from(this.pointClouds.keys()).forEach(topic => {
+    Array.from(this.pointClouds.keys()).forEach((topic) => {
       if (!enabledSet.has(topic)) {
         this.removePointCloud(topic);
       }
@@ -398,6 +425,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       }
 
       this.renderer.setSize(w, h);
+      this.requestRender();
     }
   }
 
@@ -428,15 +456,18 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     this.orthoCamera.lookAt(0, 0, 0);
 
     // Renderer
-    this.renderer = new THREE.WebGLRenderer({antialias: true, preserveDrawingBuffer: true});
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(this.renderer.domElement);
 
     // Controls — always attach to the active camera's type
     this.controls = new OrbitControls(this.perspCamera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.target.set(0, 0, 0);
+
+    // Mark frame dirty whenever OrbitControls moves the camera (includes damping ticks)
+    this.controls.addEventListener('change', () => this.requestRender());
 
     // Apply initial camera preset from viewType input
     this.initCamera(this.viewType());
@@ -464,9 +495,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     this.axesLabels = [axisX, axisY, axisZ];
     this.scene.add(...this.axesLabels);
 
-    // Resize observer
-    const resizeObserver = new ResizeObserver(() => this.syncSize());
-    resizeObserver.observe(container);
+    // NOTE: ResizeObserver is created in ngAfterViewInit — do NOT add a second one here.
   }
 
   /**
@@ -503,22 +532,40 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.controls.target.set(0, 0, 0);
     this.controls.update();
+    this.requestRender();
+  }
+
+  /**
+   * Mark the scene as needing a repaint on the next animation-loop tick.
+   * Cheap to call many times per frame — only the next tick will render.
+   */
+  requestRender(): void {
+    this.needsRender = true;
   }
 
   private animate() {
     this.animationId = requestAnimationFrame(() => this.animate());
+    // controls.update() must run every tick for damping to work;
+    // it fires the 'change' event (→ requestRender) only when the camera actually moves.
     this.controls.update();
+
+    if (!this.needsRender) return;
+    this.needsRender = false;
 
     // Dynamically scale text sprites based on active camera distance
     const cam = this.activeCamera;
-    const spritesToScale = [...this.gridLabels, ...this.axesLabels];
-    spritesToScale.forEach((label) => {
-      if (!label.visible) return;
+    for (const label of this.gridLabels) {
+      if (!label.visible) continue;
       const distance = cam.position.distanceTo(label.position);
-      // Determine a base scale factor that makes it readable but appropriately small
       const scaleBase = Math.max(0.2, distance * 0.05);
       label.scale.set(scaleBase * 2, scaleBase, 1);
-    });
+    }
+    for (const label of this.axesLabels) {
+      if (!label.visible) continue;
+      const distance = cam.position.distanceTo(label.position);
+      const scaleBase = Math.max(0.2, distance * 0.05);
+      label.scale.set(scaleBase * 2, scaleBase, 1);
+    }
 
     this.renderer.render(this.scene, this.activeCamera);
   }
@@ -562,6 +609,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       this.gridLabels.push(spriteZ);
       this.scene.add(spriteZ);
     }
+    this.requestRender();
   }
 
   private createTextSprite(message: string, color: string = '#888888'): THREE.Sprite {

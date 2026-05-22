@@ -329,9 +329,13 @@ class NodeManager:
             self.remove_node(node_id)
     
     async def _cleanup_all_nodes_async(self) -> None:
-        """Async remove all nodes and their resources during reload."""
+        """Async remove all nodes and their resources during reload.
+        
+        Results are preserved (delete_results=False) because this is a transient
+        reload/reconfiguration, not a permanent node removal.
+        """
         for node_id in list(self.nodes.keys()):
-            await self.remove_node_async(node_id)
+            await self.remove_node_async(node_id, delete_results=False)
 
     # ========================================
     # Lifecycle Management
@@ -388,7 +392,7 @@ class NodeManager:
         """
         self._lifecycle_manager.remove_node(node_id)
     
-    async def remove_node_async(self, node_id: str):
+    async def remove_node_async(self, node_id: str, *, delete_results: bool = True):
         """
         Async dynamically remove a node from the running pipeline with proper cleanup.
         
@@ -397,8 +401,27 @@ class NodeManager:
         
         Args:
             node_id: The ID of the node to remove
+            delete_results: When True (default), permanently deletes stored results for the
+                node from the database. Pass False during reload/reconfiguration to preserve
+                results across restarts — only pass True when the node is being permanently
+                removed by the user.
         """
         await self._lifecycle_manager.remove_node_async(node_id)
+        # Only delete stored results on permanent removal, not during reload cleanup
+        if delete_results:
+            try:
+                from app.api.v1.results.router import _results_service
+                if _results_service is not None:
+                    deleted = await _results_service.delete_results_by_node(node_id)
+                    if deleted > 0:
+                        logger.info(
+                            "[NodeManager] Deleted %d stored result(s) for removed node '%s'",
+                            deleted, node_id,
+                        )
+            except Exception as exc:
+                logger.warning(
+                    "[NodeManager] Failed to delete results for node '%s': %s", node_id, exc
+                )
 
     async def set_node_visible(self, node_id: str, visible: bool) -> None:
         """

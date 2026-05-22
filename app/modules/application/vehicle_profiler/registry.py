@@ -33,9 +33,10 @@ node_schema_registry.register(
         category="application",
         description=(
             "Multi-2D-LiDAR vehicle profiling node. Uses one vertically-mounted "
-            "LiDAR (full gantry FOV) to measure vehicle velocity via cluster centroid "
-            "NN tracking, and one or more side-mounted LiDARs to reconstruct the "
-            "vehicle's cross-section profile. Outputs a 3D point cloud of the vehicle shape."
+            "LiDAR to measure vehicle velocity via small_gicp point-to-point ICP "
+            "with motion-predicted initial guess, and one or more side-mounted "
+            "LiDARs to reconstruct the vehicle cross-section profile. "
+            "Outputs a 3D point cloud of the vehicle shape."
         ),
         icon="directions_car",
         websocket_enabled=True,
@@ -58,32 +59,33 @@ node_schema_registry.register(
             # ── Cluster Tracker (ICP) ─────────────────────────────────────
             PropertySchema(
                 name="max_correspondence_distance",
-                label="ICP Max Correspondence Distance (m)",
+                label="ICP Correspondence Distance (m)",
                 type="number",
                 default=0.5,
                 min=0.05,
                 max=5.0,
                 step=0.05,
                 help_text=(
-                    "Maximum point-to-point distance (metres) for ICP "
-                    "correspondences. Set to roughly 2× the expected distance "
-                    "the vehicle travels per scan frame — e.g. 0.5 m for a "
-                    "vehicle moving at 5 m/s scanned at 20 Hz."
+                    "Tight search radius (metres) used once ICP has a velocity "
+                    "estimate and pre-shifts the source cloud via motion prediction. "
+                    "On the first frame (no prior velocity) the search opens up to "
+                    "max_displacement automatically. Rule of thumb: set to the "
+                    "expected point-spacing noise, not the inter-frame step."
                 ),
             ),
             PropertySchema(
-                name="min_icp_fitness",
-                label="Min ICP Fitness",
+                name="icp_max_iter",
+                label="ICP Max Iterations",
                 type="number",
-                default=0.3,
-                min=0.05,
-                max=1.0,
-                step=0.0001,
+                default=20,
+                min=5,
+                max=100,
+                step=1,
                 help_text=(
-                    "Minimum ICP fitness score [0–1] to accept a registration "
-                    "result as a valid velocity measurement. Below this threshold "
-                    "the Kalman filter runs a predict-only step (dead-reckoning "
-                    "at last velocity)."
+                    "Maximum number of ICP iterations per frame. Higher values "
+                    "improve accuracy at the cost of per-frame compute time. "
+                    "20 iterations is sufficient for typical inter-frame displacements "
+                    "with motion-predicted initialisation."
                 ),
             ),
             PropertySchema(
@@ -147,20 +149,37 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="travel_axis",
-                label="Travel Axis",
+                name="movement_direction",
+                label="Movement Direction",
                 type="select",
-                default=0,
+                default=1,
                 options=[
-                    {"label": "+X", "value": 0},
-                    {"label": "+Y", "value": 1},
+                    {"label": "+X", "value": 1},
+                    {"label": "−X", "value": -1},
                 ],
                 help_text=(
-                    "Which axis corresponds to the vehicle travel direction. "
-                    "Used by both the detector (leading-edge tracking in the "
-                    "2D scan plane) and the profile accumulator (stacking "
-                    "scan lines along this axis in 3D). Typically X or Y "
-                    "depending on your sensor mounting orientation."
+                    "Expected travel direction along the X axis. "
+                    "+X: vehicle enters from the negative side (X < 0) and "
+                    "moves toward positive X. "
+                    "−X: vehicle enters from the positive side (X > 0) and "
+                    "moves toward negative X. "
+                    "Reverse displacement beyond the tolerance is silently ignored."
+                ),
+            ),
+            PropertySchema(
+                name="reverse_tolerance",
+                label="Reverse Tolerance (m)",
+                type="number",
+                default=0.05,
+                min=0.0,
+                max=0.5,
+                step=0.01,
+                help_text=(
+                    "Maximum backward displacement (metres) that is still "
+                    "accepted. Allows for the small inertia creep that occurs "
+                    "when a truck pauses inside the gantry. Reverse motion "
+                    "larger than this threshold is ignored entirely. "
+                    "Typical value: 0.03–0.10 m."
                 ),
             ),
             PropertySchema(
@@ -208,7 +227,52 @@ node_schema_registry.register(
                     "keep all points. Typical value: 0.1–0.3 m."
                 ),
             ),
-           
+            # ── Profile Refinement ────────────────────────────────────────
+            PropertySchema(
+                name="voxel_size",
+                label="Voxel Downsample Size (m)",
+                type="number",
+                default=0.0,
+                min=0.0,
+                max=0.5,
+                step=0.005,
+                help_text=(
+                    "Voxel grid cell size (metres) for downsampling the final "
+                    "profile cloud. Merges overlapping points from adjacent "
+                    "scan lines into a cleaner, more uniform cloud. Set to 0 "
+                    "to skip downsampling. Typical value: 0.01–0.05 m."
+                ),
+            ),
+            PropertySchema(
+                name="sor_neighbors",
+                label="Outlier Removal Neighbours",
+                type="number",
+                default=0,
+                min=0,
+                max=100,
+                step=1,
+                help_text=(
+                    "Number of nearest neighbours used by Statistical Outlier "
+                    "Removal (SOR) on the final profile. Points whose mean "
+                    "distance to neighbours is unusually large are removed. "
+                    "Set to 0 to skip outlier removal. Typical value: 10–30."
+                ),
+            ),
+            PropertySchema(
+                name="sor_std_ratio",
+                label="Outlier Removal Std Ratio",
+                type="number",
+                default=2.0,
+                min=0.5,
+                max=5.0,
+                step=0.1,
+                help_text=(
+                    "Standard-deviation multiplier for SOR. A point is removed "
+                    "when its mean neighbour distance exceeds "
+                    "mean + sor_std_ratio × std. Lower values are more "
+                    "aggressive. Typical value: 1.5–3.0."
+                ),
+            ),
         ],
         inputs=[
             PortSchema(
@@ -253,10 +317,17 @@ def build_vehicle_profiler(
         if incoming_edges:
             velocity_sensor_id = incoming_edges[0]["source_node"]
 
+    try:
+        from app.api.v1.results.router import _get_service as _get_results_svc
+        results_svc = _get_results_svc()
+    except Exception:
+        results_svc = None
+
     return VehicleProfilerNode(
         manager=service_context,
         node_id=node["id"],
         name=node.get("name") or "Vehicle Profiler",
         velocity_sensor_id=velocity_sensor_id,
         config=config,
+        results_service=results_svc,
     )

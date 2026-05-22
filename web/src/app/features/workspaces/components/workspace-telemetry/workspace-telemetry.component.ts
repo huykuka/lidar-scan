@@ -1,11 +1,13 @@
-import {Component, computed, inject} from '@angular/core';
-import {DecimalPipe} from '@angular/common';
-import {WorkspaceStoreService} from '@core/services';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
+import { WorkspaceStoreService } from '@core/services';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-workspace-telemetry',
   imports: [SynergyComponentsModule, DecimalPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+
   template: `
     @if (showHud()) {
       <div
@@ -17,35 +19,35 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           <div class="flex flex-col gap-4 min-w-50">
             <div class="flex flex-col">
               <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
-              >Total Points</span
+                >Total Points</span
               >
               <span class="text-xl font-mono font-black text-white leading-none mt-1">
-                  {{ pointCount() | number }}
-                </span>
+                {{ pointCount() | number }}
+              </span>
             </div>
             <div class="h-px bg-white/10 w-full"></div>
             <div class="flex flex-col">
-                <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
+              <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
                 >Data Framing</span
-                >
+              >
               <span class="text-xl font-mono font-black text-white leading-none mt-1">
-                    {{ fps() }} <span class="text-xs">Hz</span>
-                  </span>
+                {{ fps() }} <span class="text-xs">Hz</span>
+              </span>
             </div>
             <div class="h-px bg-white/10 w-full"></div>
             <div class="flex flex-col">
-                  <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
-                  >Lidar Time</span
-                  >
+              <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
+                >Lidar Time</span
+              >
               <span class="text-lg font-mono font-black text-white leading-none mt-1">
-                      {{ lidarTime() }}
-                    </span>
+                {{ lidarTime() }}
+              </span>
             </div>
             <div class="h-px bg-white/10 w-full"></div>
             <div class="flex flex-col">
-                    <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
-                    >Active Topics ({{ enabledTopicsCount() }})</span
-                    >
+              <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
+                >Active Topics ({{ enabledTopicsCount() }})</span
+              >
               @if (enabledTopics().length > 0) {
                 <div class="flex flex-col gap-1.5 mt-1.5">
                   @for (topic of enabledTopics(); track topic) {
@@ -55,18 +57,14 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
                         [style.background-color]="topic.color"
                       ></div>
                       <span class="text-[11px] font-mono font-bold text-white truncate">
-                                {{ topic.topic }}
-                              </span>
+                        {{ topic.topic }}
+                      </span>
                     </div>
                   }
                 </div>
               }
               @if (enabledTopics().length === 0) {
-                <span
-                  class="text-[11px] font-mono text-white/50 mt-1"
-                >
-                          No topics selected
-                        </span>
+                <span class="text-[11px] font-mono text-white/50 mt-1"> No topics selected </span>
               }
             </div>
           </div>

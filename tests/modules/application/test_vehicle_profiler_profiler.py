@@ -266,6 +266,89 @@ class TestProfileAccumulator:
         assert set(profile.sensor_ids) == {"left", "right"}
         assert len(profile.points) == 40
 
+    # ── Voxel downsample tests ────────────────────────────────────────────
+
+    def test_voxel_downsample_reduces_points(self):
+        """Voxel downsampling with a coarse grid merges overlapping points."""
+        acc = ProfileAccumulator(min_scan_lines=2, voxel_size=0.5)
+        acc.start_vehicle()
+        # Add many overlapping scan lines at similar positions
+        for i in range(10):
+            acc.add_scan_line("s1", _scan_line(20), position=float(i) * 0.01, timestamp=float(i) * 0.1)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        # 200 raw points should be reduced by the voxel grid
+        assert len(profile.points) < 200
+
+    def test_voxel_downsample_zero_skips(self):
+        """voxel_size=0 (default) should not alter the point count."""
+        acc = ProfileAccumulator(min_scan_lines=2, voxel_size=0.0)
+        acc.start_vehicle()
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(5), position=1.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        assert len(profile.points) == 10
+
+    # ── Statistical outlier removal tests ─────────────────────────────────
+
+    def test_sor_removes_outliers(self):
+        """SOR should remove isolated outlier points."""
+        acc = ProfileAccumulator(min_scan_lines=2, sor_neighbors=10, sor_std_ratio=1.0)
+        acc.start_vehicle()
+        # Dense cluster of points
+        rng = np.random.default_rng(42)
+        dense = rng.normal(loc=[0, 0], scale=0.05, size=(50, 2))
+        acc.add_scan_line("s1", dense, position=0.0, timestamp=0.0)
+        # Add a far-away outlier cluster
+        outlier = np.array([[10.0, 10.0], [10.1, 10.1]])
+        acc.add_scan_line("s1", outlier, position=1.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        # The 2 outlier points should have been removed (or at least reduced)
+        assert len(profile.points) < 52
+
+    def test_sor_zero_neighbors_skips(self):
+        """sor_neighbors=0 (default) should not alter the point count."""
+        acc = ProfileAccumulator(min_scan_lines=2, sor_neighbors=0)
+        acc.start_vehicle()
+        acc.add_scan_line("s1", _scan_line(5), position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", _scan_line(5), position=1.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        assert len(profile.points) == 10
+
+    def test_voxel_and_sor_combined(self):
+        """Both refinement steps applied together."""
+        acc = ProfileAccumulator(
+            min_scan_lines=2, voxel_size=0.3, sor_neighbors=10, sor_std_ratio=1.5,
+        )
+        acc.start_vehicle()
+        rng = np.random.default_rng(42)
+        dense = rng.normal(loc=[0, 0], scale=0.05, size=(80, 2))
+        acc.add_scan_line("s1", dense, position=0.0, timestamp=0.0)
+        outlier = np.array([[10.0, 10.0], [10.1, 10.1]])
+        acc.add_scan_line("s1", outlier, position=1.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        # Combination of voxel + SOR should significantly reduce the raw 82 points
+        assert len(profile.points) < 82
+
+    def test_refinement_preserves_travel_axis_range(self):
+        """Refinement should not collapse the travel-axis extent."""
+        acc = ProfileAccumulator(
+            min_scan_lines=2, travel_axis=0, voxel_size=0.01, sor_neighbors=5, sor_std_ratio=2.0,
+        )
+        acc.start_vehicle()
+        rng = np.random.default_rng(42)
+        pts = rng.normal(loc=[0, 0], scale=0.05, size=(30, 2))
+        acc.add_scan_line("s1", pts, position=0.0, timestamp=0.0)
+        acc.add_scan_line("s1", pts, position=3.0, timestamp=1.0)
+        profile = acc.finish_vehicle()
+        assert profile is not None
+        # Travel axis range should still span ~3.0
+        assert profile.estimated_length == pytest.approx(3.0, abs=0.1)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TestVehicleProfile

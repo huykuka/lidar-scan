@@ -4,23 +4,25 @@
 
   <div class="flex flex-1 overflow-hidden relative min-h-0">
     <!-- Sidebar -->
-    <app-side-nav #sideNav
+    <app-side-nav
+      #sideNav
       (onHide)="handleSideNavHide()"
       (onShow)="handleSideNavShow()"
       [open]="isSideNavOpen()"
-      class="h-full shrink-0 border-r  shadow-sm"
-     />
+      class="h-full shrink-0 border-r shadow-sm"
+    />
 
     <!-- Content Area -->
     <div class="flex-1 flex flex-col overflow-hidden bg-syn-page-background-color-muted min-h-0">
-      <main class="flex-1 flex flex-col px-4 py-3 overflow-hidden min-h-0">
+        <main class="flex-1 flex flex-col px-4 py-3 overflow-auto lg:overflow-hidden min-h-0">
+
         <header class="mb-2 px-2 shrink-0 flex justify-between items-end">
           <div class="flex flex-col">
             <h1 class="text-2xl font-black tracking-tight text-syn-typography-color-text">
               {{ headline() }}
             </h1>
             @if (subtitle()) {
-              <p class="mt-1 text-sm  ">
+              <p class="mt-1 text-sm">
                 {{ subtitle() }}
               </p>
             } @else {
@@ -37,10 +39,7 @@
         </header>
 
         <!-- Main Content Slot -->
-        <div
-          [@routeAnimations]="getRouteAnimationData()"
-          class="flex-1 flex flex-col min-h-0 relative overflow-hidden"
-        >
+        <div class="flex-1 flex flex-col lg:min-h-0 relative lg:overflow-hidden">
           <router-outlet />
         </div>
       </main>

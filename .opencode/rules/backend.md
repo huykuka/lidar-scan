@@ -21,3 +21,4 @@ The backend is a dynamic Directed Acyclic Graph (DAG) orchestration engine. It r
 - **Error Handling**: Use explicit FastAPI `HTTPException` raises in the `/api/v1/` routing layer, not deep inside module services.
 - **Node Implementation**: When building new processing nodes, inherit from `ModuleNode` and ensure you implement `async def on_input(self, payload)`.
 - **Swagger**: Use Swagger annotations to document API endpoints and models.
+- **Static PCD file URLs**: The backend MUST NEVER return absolute URLs or introduce proxy/download endpoints for result PCD files. The `pcd_files` list in result responses uses `{ label, path }` where `path` is relative to the `/data/` static mount (e.g. `results/<node_id>/<result_id>/<label>.pcd`). Frontend constructs the full URL as `/data/${path}`. Policy documented in `.opencode/plans/application-results-storage/technical.md`.

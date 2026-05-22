@@ -293,9 +293,11 @@ class PlaybackNode(ModuleNode):
                 # ─────────────────────────────────────────────────────────
 
                 payload: Dict[str, Any] = {
+                    "lidar_id": self.id,
                     "points": points,
                     "timestamp": timestamp,
                     "node_id": self.id,
+                    "lidar_id":self.id,
                     "metadata": {
                         "source": "playback",
                         "recording_id": self._recording_id,

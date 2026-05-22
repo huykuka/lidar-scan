@@ -17,7 +17,10 @@ from app.db.migrate import ensure_schema
 from app.db.session import init_engine
 from app.services.nodes.instance import node_manager
 from app.services.shared.recorder import get_recorder
-from app.services.status_aggregator import start_status_aggregator, stop_status_aggregator
+from app.services.status_aggregator import (
+    start_status_aggregator,
+    stop_status_aggregator,
+)
 from app.services.websocket.manager import manager
 
 logger = get_logger("app")
@@ -102,6 +105,13 @@ OPENAPI_TAGS: list[dict] = [
         ),
     },
     {
+        "name": "Results",
+        "description": (
+            "Persistent storage and retrieval of application node results. "
+            "Includes metadata, PCD file download, and result lifecycle management."
+        ),
+    },
+    {
         "name": "DAG",
         "description": (
             "Atomic DAG configuration save/load. "
@@ -111,15 +121,16 @@ OPENAPI_TAGS: list[dict] = [
     },
 ]
 
+
 def get_static_path():
     """Get the correct static files path for both development and PyInstaller builds."""
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         # Running in PyInstaller bundle
         base_path = Path(sys._MEIPASS)
     else:
         # Running in development
         base_path = Path(__file__).parent.parent
-    
+
     static_path = base_path / "app" / "static"
     return str(static_path)
 
@@ -129,21 +140,31 @@ async def lifespan(_: FastAPI):
     # Startup
     engine = init_engine()
     ensure_schema(engine)
-    
+
     # Initialize recorder and connect to WebSocket manager
     recorder = get_recorder()
     manager.recorder = recorder
 
     node_manager.load_config()
     await node_manager.start(asyncio.get_running_loop())
-    
+
+    # Startup orphan sweep: delete disk directories with no DB record
+    try:
+        from app.api.v1.results.router import _get_service as _get_results_service
+
+        results_svc = _get_results_service()
+        await results_svc.sweep_orphans()
+    except Exception as _sweep_exc:
+        logger.warning("Startup orphan sweep failed: %s", _sweep_exc)
+
     # Register system topics at startup
     manager.register_topic("shapes")
-    
+
     # Start status aggregator (replaces legacy status_broadcaster)
     start_status_aggregator()
     # Emit initial status for all nodes
     from app.services.status_aggregator import notify_status_change
+
     for node_id in node_manager.nodes:
         notify_status_change(node_id)
 
@@ -151,11 +172,12 @@ async def lifespan(_: FastAPI):
 
     # Shutdown
     stop_status_aggregator()
-    
+
     # Stop all active recordings
     await recorder.stop_all_recordings()
-    
+
     node_manager.stop()
+
 
 app = FastAPI(
     title="LiDAR Standalone API",
@@ -193,9 +215,17 @@ app.add_middleware(
 app.include_router(api_router)
 
 # Mount recordings directory statically
-recordings_dir = Path("recordings")
+recordings_dir = Path("data/recordings")
 recordings_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/recordings", StaticFiles(directory=str(recordings_dir)), name="recordings")
+
+# Mount /data directory statically so all files under data/results/... are publicly
+# accessible at http://<host>/data/results/<node_id>/<result_id>/<label>.pcd.
+# This is intentionally open (no auth) for local/dev usage.
+# Directory is created eagerly so the mount never fails on a fresh checkout.
+data_dir = Path("data")
+data_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/data", StaticFiles(directory=str(data_dir)), name="data")
 
 # Serve Angular SPA (and assets) from app/static at root.
 # Keep this mount LAST so API routes (e.g. /lidars, /ws/*, /status) take precedence.
@@ -204,19 +234,28 @@ if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="spa")
 
     # Protected prefixes that should not fall through to SPA
-    PROTECTED_PREFIXES = ("/api/", "/recordings/", "/docs", "/redoc", "/openapi.json")
+    PROTECTED_PREFIXES = (
+        "/api/",
+        "/recordings/",
+        "/data/",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+    )
 
     @app.exception_handler(StarletteHTTPException)
-    async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    async def custom_http_exception_handler(
+        request: Request, exc: StarletteHTTPException
+    ):
         if exc.status_code == 404:
             # If the request is not for protected paths, return the SPA index.html
             if not any(request.url.path.startswith(p) for p in PROTECTED_PREFIXES):
                 index_path = Path(static_dir) / "index.html"
                 if index_path.exists():
                     return FileResponse(index_path)
-                    
+
         # Otherwise, fall back to standard JSON response
         return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
-        
+
 else:
     logger.warning(f"Static directory not found at {static_dir}")

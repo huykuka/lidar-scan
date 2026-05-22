@@ -45,6 +45,27 @@ export const routes: Routes = [
         loadComponent: () => import('./features/logs/logs.component').then((m) => m.LogsComponent),
       },
       {
+        path: 'results',
+        loadComponent: () =>
+          import('./features/results/results-overview/results-overview.component').then(
+            (m) => m.ResultsOverviewComponent,
+          ),
+      },
+      {
+        path: 'results/:nodeId',
+        loadComponent: () =>
+          import('./features/results/node-results-list/node-results-list.component').then(
+            (m) => m.NodeResultsListComponent,
+          ),
+      },
+      {
+        path: 'results/:nodeId/:resultId',
+        loadComponent: () =>
+          import('./features/results/result-detail/result-detail.component').then(
+            (m) => m.ResultDetailComponent,
+          ),
+      },
+      {
         path: 'calibration',
         loadComponent: () =>
           import('./features/calibration/calibration.component').then((m) => m.CalibrationComponent),

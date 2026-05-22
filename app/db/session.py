@@ -15,7 +15,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 
-DB_PATH = Path("config/data.db")
+DB_PATH = Path("data/config/data.db")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False)
 _engine: Optional[Engine] = None

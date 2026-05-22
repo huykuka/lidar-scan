@@ -65,51 +65,60 @@ class VehicleProfilerNode(ModuleNode):
         name: str,
         velocity_sensor_id: str,
         config: Dict[str, Any],
+        results_service: Any = None,
     ) -> None:
         self.manager = manager
         self.id = node_id
         self.name = name
         self._ws_topic: Optional[str] = None  # set by orchestrator on registration
+        self._results_service = results_service
 
         self._velocity_sensor_id = velocity_sensor_id
 
-        # Vehicle detector params
-        travel_axis = int(config.get("travel_axis", 0))
+        # Vehicle detector params — travel axis is always X (0)
+        movement_direction = int(config.get("movement_direction", 1))
+        reverse_tolerance = float(config.get("reverse_tolerance", 0.05))
         max_correspondence_distance = float(config.get("max_correspondence_distance", 0.5))
-        min_icp_fitness = float(config.get("min_icp_fitness", 0.3))
         max_displacement = float(config.get("max_displacement", 0.5))
         min_displacement = float(config.get("min_displacement", 0.001))
+        icp_max_iter = int(config.get("icp_max_iter", 20))
 
         _min_vehicle_points = int(config.get("min_vehicle_points", 10))
         _dbscan_eps = float(config.get("dbscan_eps", 0.3))
         _dbscan_min_samples = int(config.get("dbscan_min_samples", 5))
-        _voxel_size = float(config.get("voxel_size", 0.0))
 
         trigger_distance_raw = config.get("trigger_distance")
         trigger_distance = float(trigger_distance_raw) if trigger_distance_raw not in (None, "") else None
 
         self._detector = VehicleDetector(
-            travel_axis=travel_axis,
+            travel_axis=0,
+            movement_direction=movement_direction,
+            reverse_tolerance=reverse_tolerance,
             min_vehicle_points=_min_vehicle_points,
             dbscan_eps=_dbscan_eps,
             dbscan_min_samples=_dbscan_min_samples,
             trigger_distance=trigger_distance,
             max_correspondence_distance=max_correspondence_distance,
-            min_icp_fitness=min_icp_fitness,
-            voxel_size=_voxel_size,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
+            icp_max_iter=icp_max_iter,
         )
 
         # Profile accumulator params
         min_scan_lines = int(config.get("min_scan_lines", 20))
         min_height = float(config.get("min_height", 0.0))
+        voxel_size = float(config.get("voxel_size", 0.0))
+        sor_neighbors = int(config.get("sor_neighbors", 0))
+        sor_std_ratio = float(config.get("sor_std_ratio", 2.0))
 
         self._profiler = ProfileAccumulator(
             min_scan_lines=min_scan_lines,
-            travel_axis=travel_axis,
+            travel_axis=0,
             min_position_delta=min_displacement,
             min_height=min_height,
+            voxel_size=voxel_size,
+            sor_neighbors=sor_neighbors,
+            sor_std_ratio=sor_std_ratio,
         )
 
         # Minimum velocity gate — profile frames are discarded when the
@@ -127,9 +136,13 @@ class VehicleProfilerNode(ModuleNode):
 
         self.last_profile_points: int = 0
 
-        # Processing guards — prevent concurrent processing of same sensor type
-        self._velocity_processing: bool = False
-        self._profile_processing: bool = False
+        # Serialise all detector access: ICP runs in a thread-pool via
+        # asyncio.to_thread; without a lock a second velocity frame can start
+        # ICP while the first is still running, corrupting shared state
+        # (_prev_pts3d, _last_frame_ts, _position_history, …).
+        # Profile frames read get_position_at() from the event loop — also
+        # guarded so they never read mid-write.
+        self._detector_lock = asyncio.Lock()
 
     # ── ModuleNode interface ──────────────────────────────────────────────
 
@@ -197,7 +210,8 @@ class VehicleProfilerNode(ModuleNode):
     # ── Internal handlers ─────────────────────────────────────────────────
 
     async def _handle_velocity_frame(self, points: np.ndarray, timestamp: float) -> None:
-        result = await asyncio.to_thread(self._detector.update, points, timestamp)
+        async with self._detector_lock:
+            result = await asyncio.to_thread(self._detector.update, points, timestamp)
 
         if result is None:
             return
@@ -230,7 +244,9 @@ class VehicleProfilerNode(ModuleNode):
         if self._detector.current_velocity < self._min_velocity:
             return
 
-        position = self._detector.get_position_at(timestamp)
+        async with self._detector_lock:
+            position = self._detector.get_position_at(timestamp)
+
         if position is None:
             return  # timestamp too far from any velocity sample — skip this line
         self._profiler.add_scan_line(sensor_id, points, position, timestamp)
@@ -286,10 +302,43 @@ class VehicleProfilerNode(ModuleNode):
                 },
             }
             asyncio.create_task(self.manager.forward_data(self.id, out_payload))
+
+            # Persist result if storage service is available
+            if self._results_service is not None:
+                asyncio.create_task(self._persist_profile_result(profile, out_payload))
         else:
             logger.debug(f"[{self.id}] Vehicle left but profile had too few scan lines — discarded")
 
         self._transition_to_idle()
+
+    async def _persist_profile_result(self, profile: Any, out_payload: Dict[str, Any]) -> None:
+        """Persist vehicle profile PCD + metadata via ResultsStorageService."""
+        try:
+            import open3d as o3d
+            import numpy as np
+
+            def _build_pcd():
+                pcd = o3d.geometry.PointCloud()
+                pts = np.asarray(profile.points, dtype=np.float64)
+                pcd.points = o3d.utility.Vector3dVector(pts)
+                n = len(pts)
+                # Profile slice: green (0.2, 0.9, 0.3)
+                pcd.colors = o3d.utility.Vector3dVector(
+                    np.tile([0.2, 0.9, 0.3], (n, 1))
+                )
+                return pcd
+
+            profile_pcd = await asyncio.to_thread(_build_pcd)
+            metadata = dict(out_payload.get("metadata", {}))
+            result_id = await self._results_service.save_result(
+                node_id=self.id,
+                pcds=[("profile", profile_pcd)],
+                metadata=metadata,
+                status="success",
+            )
+            logger.info("[%s] Saved vehicle profile result %s", self.id, result_id)
+        except Exception as exc:
+            logger.error("[%s] Failed to persist profile result: %s", self.id, exc, exc_info=True)
 
     def _transition_to_idle(self) -> None:
         self._state = _State.IDLE

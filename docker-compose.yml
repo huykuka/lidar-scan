@@ -20,10 +20,19 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    # GPU access — requires nvidia-container-toolkit on the host.
+    # Docker Compose silently ignores this block when no GPU is present,
+    # so the file works on CPU-only machines too.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     volumes:
-      - config:/app/config
-      - recordings:/app/recordings
+      - app_data:/app/data
 
 volumes:
-  config:
-  recordings:
+  app_data:
+    driver: local

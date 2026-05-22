@@ -1,0 +1,71 @@
+<div class="flex flex-col gap-4 h-full overflow-hidden">
+  <!-- Breadcrumb -->
+  <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 shrink-0">
+    <a [routerLink]="['/results']" class="hover:text-syn-color-primary-600 cursor-pointer">Results</a>
+    <syn-icon name="chevron_right" class="text-xs"></syn-icon>
+    <span class="text-syn-typography-color-text font-medium">{{ nodeName() }}</span>
+  </nav>
+
+  <!-- Toolbar -->
+  <div class="flex items-center justify-between shrink-0">
+    <p class="text-sm text-syn-color-neutral-600">{{ results().length }} result(s)</p>
+    <syn-button
+      (click)="loadResults(nodeId())"
+      [disabled]="isLoading()"
+      size="small"
+      variant="outline"
+    >
+      <syn-icon name="refresh" slot="prefix"></syn-icon>
+      Refresh
+    </syn-button>
+  </div>
+
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-16">
+      <syn-spinner></syn-spinner>
+    </div>
+  } @else if (results().length === 0) {
+    <div class="flex flex-col items-center justify-center py-16 text-center">
+      <syn-icon name="inbox" class="text-5xl text-syn-color-neutral-400 mb-3"></syn-icon>
+      <p class="text-syn-color-neutral-600 font-medium">No results for this node</p>
+    </div>
+  } @else {
+    <div class="flex-1 overflow-auto rounded-lg border border-syn-color-neutral-200">
+      <table class="w-full text-sm">
+        <thead class="bg-syn-color-neutral-100 sticky top-0">
+          <tr>
+            <th class="px-4 py-2 text-left font-semibold text-syn-color-neutral-700">Timestamp</th>
+            <th class="px-4 py-2 text-left font-semibold text-syn-color-neutral-700">Key Metadata</th>
+            <th class="px-4 py-2 text-left font-semibold text-syn-color-neutral-700">PCD Files</th>
+            <th class="px-4 py-2 text-left font-semibold text-syn-color-neutral-700">Status</th>
+            <th class="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (result of results(); track result.result_id) {
+            <tr
+              (click)="goToResult(result)"
+              class="border-t border-syn-color-neutral-100 hover:bg-syn-color-primary-50 cursor-pointer transition-colors"
+            >
+              <td class="px-4 py-3 font-mono text-xs whitespace-nowrap">
+                {{ formatTimestamp(result.timestamp) }}
+              </td>
+              <td class="px-4 py-3 text-syn-color-neutral-600 text-xs max-w-xs truncate">
+                {{ metaSummaryDisplay(result.metadata_summary) }}
+              </td>
+              <td class="px-4 py-3 text-center">
+                <span class="text-xs text-syn-color-neutral-500">{{ result.pcd_count }}</span>
+              </td>
+              <td class="px-4 py-3">
+                <syn-badge [variant]="statusVariant(result.status)">{{ result.status }}</syn-badge>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <syn-icon name="chevron_right" class="text-syn-color-neutral-400"></syn-icon>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

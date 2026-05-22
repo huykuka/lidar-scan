@@ -9,8 +9,9 @@ from app.modules.pipeline.operations import (
     StatisticalOutlierRemoval, RadiusOutlierRemoval,
     PlaneSegmentation, PatchPlaneSegmentation,
     Clustering, Filter, FilterByKey,
-    BoundaryDetection, DebugSave, SaveDataStructure,
+    BoundaryDetection, DebugSave,
     GeneratePlane, Densify, SurfaceReconstruction,
+    CentroidCalculation,
 )
 
 _OP_MAP = {
@@ -26,11 +27,11 @@ _OP_MAP = {
     "filter_by_key": FilterByKey,
     "boundary_detection": BoundaryDetection,
     "debug_save": DebugSave,
-    "save_structure": SaveDataStructure,
     "generate_plane": GeneratePlane,
     "densify": Densify,
     "patch_plane_segmentation": PatchPlaneSegmentation,
     "surface_reconstruction": SurfaceReconstruction,
+    "centroid_calculation": CentroidCalculation,
 }
 
 # Op types that are CPU-heavy and benefit from an isolated single-thread executor.
@@ -162,9 +163,19 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
                 for shape in pending_shapes:
                     self.emit_shape(shape)
 
+            # Strip non-JSON-serializable values (e.g. Open3D mesh/geometry
+            # objects embedded by GeneratePlane) before status reporting and
+            # payload propagation.  Primitive types (str, int, float, bool,
+            # None, list, dict) are kept; everything else is dropped.
+            _PRIMITIVE = (str, int, float, bool, type(None), list, dict)
+            serializable_metadata: Dict[str, Any] = {
+                k: v for k, v in (op_metadata or {}).items()
+                if isinstance(v, _PRIMITIVE)
+            }
+
             # Store metadata for status reporting (displayed on node badge)
-            if op_metadata:
-                self.last_metadata = op_metadata
+            if serializable_metadata:
+                self.last_metadata = serializable_metadata
 
             # Notify on first frame or when metadata changes
             if first_frame or op_metadata:
@@ -181,9 +192,11 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
             # results like patch_count, inlier_count, cluster_count, etc.
             # - Top-level keys: for IfConditionNode expression evaluation
             # - "metadata" key: for OutputNode WebSocket JSON broadcast
-            if op_metadata:
-                new_payload.update(op_metadata)
-                new_payload["metadata"] = op_metadata
+            # Only serializable keys are forwarded to avoid poisoning the
+            # payload with Open3D geometry objects (e.g. mesh from GeneratePlane).
+            if serializable_metadata:
+                new_payload.update(serializable_metadata)
+                new_payload["metadata"] = serializable_metadata
             
             # Forward to downstream nodes via Manager (fire-and-forget)
             # NodeManager will handle WebSocket broadcasting automatically.

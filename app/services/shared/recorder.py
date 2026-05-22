@@ -56,10 +56,10 @@ class RecordingService:
         Initialize recording service.
         
         Args:
-            recordings_dir: Directory for storing recordings (default: config/recordings)
+            recordings_dir: Directory for storing recordings (default: data/recordings)
         """
         if recordings_dir is None:
-            recordings_dir = Path("recordings")
+            recordings_dir = Path("data/recordings")
         
         self.recordings_dir = Path(recordings_dir)
         self.recordings_dir.mkdir(parents=True, exist_ok=True)

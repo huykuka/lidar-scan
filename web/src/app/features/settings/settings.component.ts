@@ -1,20 +1,20 @@
-import {Component, computed, effect, HostListener, inject, OnInit, signal} from '@angular/core';
+import { Component, computed, effect, HostListener, inject, OnInit, signal } from '@angular/core';
 
-import {FormsModule} from '@angular/forms';
-import {NavigationService, ToastService} from '@core/services';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {SystemStatusService} from '@core/services/system-status.service';
-import {DagApiService} from '@core/services/api/dag-api.service';
-import {ConfigTransferService} from '@core/services/api/config-transfer.service';
-import {ConfigExport, ConfigValidationResponse,} from '@core/models/config.model';
-import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
-import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
-import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
-import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
-import {DialogService} from '@core/services/dialog.service';
-import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
-import {HasUnsavedChanges} from '@core/guards/unsaved-changes.guard';
+import { FormsModule } from '@angular/forms';
+import { NavigationService, ToastService } from '@core/services';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { SystemStatusService } from '@core/services/system-status.service';
+import { DagApiService } from '@core/services/api/dag-api.service';
+import { ConfigTransferService } from '@core/services/api/config-transfer.service';
+import { ConfigExport, ConfigValidationResponse } from '@core/models/config.model';
+import { ConfigImportDialogComponent } from './components/config-import-dialog/config-import-dialog.component';
+import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.component';
+import { NodeStoreService } from '@core/services/stores/node-store.service';
+import { CanvasEditStoreService } from '@features/settings/services/canvas-edit-store.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { DialogService } from '@core/services/dialog.service';
+import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
+import { HasUnsavedChanges } from '@core/guards/unsaved-changes.guard';
 
 @Component({
   selector: 'app-settings',
@@ -22,12 +22,7 @@ import {HasUnsavedChanges} from '@core/guards/unsaved-changes.guard';
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
   providers: [CanvasEditStoreService],
-  imports: [
-    FormsModule,
-    SynergyComponentsModule,
-    ConfigImportDialogComponent,
-    FlowCanvasComponent
-  ],
+  imports: [FormsModule, SynergyComponentsModule, ConfigImportDialogComponent, FlowCanvasComponent],
 })
 export class SettingsComponent implements OnInit, HasUnsavedChanges {
   protected nodeStore = inject(NodeStoreService);
@@ -68,7 +63,6 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
   private pluginRegistry = inject(NodePluginRegistry);
 
   constructor() {
-
     effect(() => {
       const dirty = this.canvasEditStore.isDirty();
       this.navService.setPageConfig({
@@ -79,21 +73,19 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
     });
 
     // Phase 4.5: subscribe to conflict events
-    this.canvasEditStore.conflictDetected$
-      .pipe(takeUntilDestroyed())
-      .subscribe((detail) => {
-        this.dialog
-          .confirm({
-            title: 'DAG Conflict Detected',
-            message: `Another save has occurred. Your unsaved changes are preserved but cannot be saved. Click "Sync & Discard" to load the latest configuration.`,
-            confirmLabel: 'Sync & Discard My Changes',
-            cancelLabel: 'Stay & Keep Editing',
-            variant: 'neutral',
-          })
-          .then((confirmed) => {
-            if (confirmed) this.canvasEditStore.syncFromBackend(true);
-          });
-      });
+    this.canvasEditStore.conflictDetected$.pipe(takeUntilDestroyed()).subscribe((detail) => {
+      this.dialog
+        .confirm({
+          title: 'DAG Conflict Detected',
+          message: `Another save has occurred. Your unsaved changes are preserved but cannot be saved. Click "Sync & Discard" to load the latest configuration.`,
+          confirmLabel: 'Sync & Discard My Changes',
+          cancelLabel: 'Stay & Keep Editing',
+          variant: 'neutral',
+        })
+        .then((confirmed) => {
+          if (confirmed) this.canvasEditStore.syncFromBackend(true);
+        });
+    });
   }
 
   async ngOnInit() {
@@ -168,7 +160,7 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
   onExportConfig() {
     this.isExporting.set(true);
     this.configTransfer.downloadConfig().subscribe({
-      next: ({blob, filename}) => {
+      next: ({ blob, filename }) => {
         // Trigger browser download — UI concern, stays in the component
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -212,7 +204,7 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
   onConfirmImport() {
     const config = this.pendingImportConfig();
     if (!config) return;
-
+    this.isImporting.set(true);
     this.configTransfer.importConfig(config, this.importMergeMode()).subscribe({
       next: (result) => {
         this.showValidationDialog.set(false);
@@ -232,11 +224,11 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
   private readAndValidateConfigFile(file: File) {
     this.isImporting.set(true);
     this.configTransfer.readAndValidate(file).subscribe({
-      next: ({config, validation}) => {
+      next: ({ config, validation }) => {
         this.validationResult.set(validation);
         this.pendingImportConfig.set(config);
         this.showValidationDialog.set(true);
-
+        this.isImporting.set(false);
         if (!validation.valid) {
           this.toast.warning('Configuration has validation errors. Please review.');
         }

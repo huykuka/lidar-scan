@@ -429,7 +429,7 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
         HTTPException 400: If the file is not a valid recording ZIP.
         HTTPException 500: If saving fails unexpectedly.
     """
-    recordings_dir = Path("recordings")
+    recordings_dir = Path("data/recordings")
     recordings_dir.mkdir(parents=True, exist_ok=True)
 
     recording_id = str(uuid.uuid4()).replace("-", "")

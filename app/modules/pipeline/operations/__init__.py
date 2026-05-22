@@ -5,8 +5,9 @@ from .segmentation import PlaneSegmentation
 from .clustering import Clustering
 from .filter import Filter, FilterByKey
 from .boundary import BoundaryDetection
-from .debug import DebugSave, SaveDataStructure
+from .debug import DebugSave
 from .generate_plane import GeneratePlane
 from .patch_plane_segmentation import PatchPlaneSegmentation
 from .density import Densify
 from .surface_reconstruction import SurfaceReconstruction
+from .centroid_calculation import CentroidCalculation

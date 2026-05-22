@@ -1,20 +1,23 @@
-import {Component, computed, effect, inject, OnDestroy, OnInit, signal} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NavigationService} from '@core/services/navigation.service';
-import {TopicApiService} from '@core/services/api/topic-api.service';
-import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
-import {NodeStatusService} from '@core/services/node-status.service';
-import {SplitLayoutStoreService} from '@core/services/split-layout-store.service';
 import {
-  WorkspaceTelemetryComponent
-} from '@features/workspaces/components/workspace-telemetry/workspace-telemetry.component';
-import {
-  WorkspaceControlsComponent
-} from '@features/workspaces/components/workspace-controls/workspace-controls.component';
-import {
-  SplitPaneContainerComponent
-} from '@features/workspaces/components/split-pane/split-pane-container/split-pane-container.component';
-import {ViewToolbarComponent} from '@features/workspaces/components/view-toolbar/view-toolbar.component';
+  Component,
+  computed,
+  effect,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+  ChangeDetectionStrategy,
+} from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { NavigationService } from '@core/services/navigation.service';
+import { TopicApiService } from '@core/services/api/topic-api.service';
+import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
+import { NodeStatusService } from '@core/services/node-status.service';
+import { SplitLayoutStoreService } from '@core/services/split-layout-store.service';
+import { WorkspaceTelemetryComponent } from '@features/workspaces/components/workspace-telemetry/workspace-telemetry.component';
+import { WorkspaceControlsComponent } from '@features/workspaces/components/workspace-controls/workspace-controls.component';
+import { SplitPaneContainerComponent } from '@features/workspaces/components/split-pane/split-pane-container/split-pane-container.component';
+import { ViewToolbarComponent } from '@features/workspaces/components/view-toolbar/view-toolbar.component';
 
 @Component({
   selector: 'app-workspaces',
@@ -25,6 +28,7 @@ import {ViewToolbarComponent} from '@features/workspaces/components/view-toolbar
     SplitPaneContainerComponent,
     ViewToolbarComponent,
   ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './workspaces.component.html',
   styleUrl: './workspaces.component.css',
 })
@@ -56,7 +60,10 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
       const status = this.statusWs.status();
       if (!status) return;
 
-      const nodeIds = status.nodes.map((n) => n.node_id).sort().join(',');
+      const nodeIds = status.nodes
+        .map((n) => n.node_id)
+        .sort()
+        .join(',');
       if (nodeIds === this.lastNodeIds) return;
 
       this.lastNodeIds = nodeIds;
@@ -81,16 +88,14 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
   protected onDrawerRequestClose(event: CustomEvent) {
     if (event.detail.source !== 'close-button') {
       event.preventDefault();
-      return
+      return;
     }
     this.workspaceStore.set('showCockpit', false);
-
   }
 
   protected toggleCockpit() {
     this.workspaceStore.set('showCockpit', !this.showCockpit());
   }
-
 
   private async refreshTopics() {
     const topics = await this.topicApi.getTopics();

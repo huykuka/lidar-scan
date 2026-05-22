@@ -1,7 +1,5 @@
 """
-Debug operation package.
-Re-exports DebugSave and SaveDataStructure for backwards-compatible imports.
-"""
-from app.modules.pipeline.operations.debug.node import DebugSave, SaveDataStructure
+Debug operation package."""
+from app.modules.pipeline.operations.debug.node import DebugSave
 
-__all__ = ["DebugSave", "SaveDataStructure"]
+__all__ = ["DebugSave"]

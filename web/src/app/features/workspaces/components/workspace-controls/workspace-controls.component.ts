@@ -1,14 +1,15 @@
-import {Component, computed, inject, output} from '@angular/core';
-import {DecimalPipe} from '@angular/common';
-import {TopicApiService, WorkspaceStoreService} from '@core/services';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {PointCloudDataService} from '@core/services/point-cloud-data.service';
+import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
+import { TopicApiService, WorkspaceStoreService } from '@core/services';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { PointCloudDataService } from '@core/services/point-cloud-data.service';
 
 @Component({
   selector: 'app-workspace-controls',
   imports: [SynergyComponentsModule, DecimalPipe],
   templateUrl: './workspace-controls.component.html',
   styleUrl: './workspace-controls.component.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceControlsComponent {
   readonly actionTaken = output<void>();

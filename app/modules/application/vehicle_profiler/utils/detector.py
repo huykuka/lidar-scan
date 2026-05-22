@@ -1,40 +1,32 @@
 """
 Vehicle detection and position tracking from a vertical 2D LiDAR.
 
-Physical setup
---------------
-The vertical LiDAR scans a plane along the travel direction.  An upstream
-crop node is expected to deliver only the gantry-area scan (no far-field
-noise).  The detector's own trigger crop further restricts to the window
-``travel_axis >= -trigger_distance``.
-
 Pipeline (per frame)
 --------------------
-1. **Trigger crop** — keep only points where the travel-axis coordinate is
-   within ``trigger_distance`` metres of the gantry (X >= -trigger_distance).
-   Skipped when ``trigger_distance`` is None (use full scan).
-2. **DBSCAN clustering** — density-based clustering on the cropped scan.
-   Noise points (label=-1) are discarded.
-3. **Vehicle gate** — any cluster with at least ``min_vehicle_points`` is
-   considered a vehicle cluster.  The largest such cluster is forwarded to
-   the ICP tracker.
-4. **ICP registration** — Open3D Point-to-Point ICP aligns the previous
-   cluster to the current one.  Travel-axis translation = displacement.
-5. **Position / velocity** — cumulative ICP displacement and per-frame
-   velocity.  Dead-reckoning from last valid velocity on ICP failure.
-6. **Departure** — no valid cluster in the cropped zone → vehicle absent
-   immediately.
+1. **Trigger crop** — keep only points within ``trigger_distance`` metres of
+   the gantry.  Skipped when ``trigger_distance`` is None.
+2. **DBSCAN clustering** — largest cluster with >= ``min_vehicle_points`` is
+   selected; noise and small clusters are discarded.
+3. **ICP registration** — ``small_gicp`` point-to-point ICP aligns the
+   previous cluster to the current one.  Result is accepted when
+   ``converged=True``.
+4. **Position / velocity** — cumulative displacement and per-frame velocity.
+   Dead-reckoning from last valid velocity on registration failure.
+5. **Departure** — no valid cluster in the trigger window → vehicle absent.
 """
 import logging
+import contextlib
+import os
+import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Deque, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
+import small_gicp
 
 logger = logging.getLogger(__name__)
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Data classes
@@ -49,102 +41,129 @@ class DetectionResult:
     velocity: float        # Estimated velocity (m/s)
     timestamp: float
     vehicle_present: bool
-    icp_valid: bool = True  # False when ICP failed (dead-reckoned)
+    icp_valid: bool = True  # False when registration failed (dead-reckoned)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# ICP-based cluster tracker
+# Cluster tracker — small_gicp ICP
 # ──────────────────────────────────────────────────────────────────────────────
 
 
 class ClusterTracker:
-    """Per-frame displacement via Open3D Point-to-Point ICP.
+    """Per-frame displacement estimation via small_gicp point-to-point ICP.
 
-    Aligns the previous cluster cloud to the current one and returns the
-    travel-axis component of the resulting translation.
+    ~0.5 ms/frame on a 200-point cluster (single thread, 1 mm voxel grid).
 
     Args:
         travel_axis:                   Axis index for travel direction (0=X).
-        max_correspondence_distance:   ICP max correspondence distance (m).
-        min_icp_fitness:               Minimum fitness to accept ICP result.
+        max_correspondence_distance:   Max point-pair distance for ICP (m).
         max_displacement:              Outlier gate (m).
-        min_displacement:              Dead-zone (m).
-        voxel_size:                    Downsample voxel size (0 = disabled).
+        min_displacement:              Dead-zone below which displacement is
+                                       zeroed (m).
+        icp_max_iter:                  Maximum ICP iterations per frame.
     """
 
     def __init__(
         self,
         travel_axis: int = 0,
         max_correspondence_distance: float = 0.5,
-        min_icp_fitness: float = 0.3,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
-        voxel_size: float = 0.0,
+        icp_max_iter: int = 20,
     ) -> None:
         self._travel_axis = travel_axis
         self._max_corr_dist = max_correspondence_distance
-        self._min_fitness = min_icp_fitness
         self._max_displacement = max_displacement
         self._min_displacement = min_displacement
-        self._voxel_size = voxel_size
+        self._icp_max_iter = icp_max_iter
 
-        self._prev_cloud: Optional[o3d.geometry.PointCloud] = None
+        self._prev_pts3d: Optional[np.ndarray] = None
         self._last_displacement: float = 0.0
+        self._last_velocity: float = 0.0   # m/s — used to predict next displacement
+        self._last_frame_ts: Optional[float] = None
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
-    def _to_cloud(self, points: np.ndarray) -> o3d.geometry.PointCloud:
-        """Convert Nx2 or Nx3 array → Open3D PointCloud (pads to 3D)."""
+    @staticmethod
+    def _to_3d(points: np.ndarray) -> np.ndarray:
+        """Return contiguous float64 (N, 3) array.
+
+        Nx2 input (X, Z) → pad a zero Y column.
+        Nx3+ input → pass through (Y≈0 from sensor is fine).
+        """
         if points.shape[1] == 2:
-            pts3d = np.zeros((len(points), 3), dtype=np.float64)
-            pts3d[:, :2] = points
+            pts = np.zeros((len(points), 3), dtype=np.float64)
+            pts[:, 0] = points[:, 0]
+            pts[:, 2] = points[:, 1]
+            return pts
+        return np.ascontiguousarray(points[:, :3], dtype=np.float64)
+
+    # ── ICP (small_gicp) ──────────────────────────────────────────────────
+
+    def _update_icp(self, points: np.ndarray, timestamp: float) -> Optional[float]:
+        """Align with small_gicp ICP; return travel-axis displacement or None."""
+        pts3d = self._to_3d(points)
+
+        if self._prev_pts3d is None or len(self._prev_pts3d) < 3:
+            self._prev_pts3d = pts3d
+            self._last_frame_ts = timestamp
+            return 0.0
+
+        dt = timestamp - self._last_frame_ts if self._last_frame_ts is not None else 0.0
+
+        # ── Motion-predicted initial guess ───────────────────────────────────
+        # Seed ICP with the displacement we expect from the last known velocity.
+        # Without this, ICP starts from identity every frame; a sudden speed
+        # change can push the actual displacement past max_correspondence_distance
+        # so ICP finds zero correspondences and diverges.
+        predicted_dx = self._last_velocity * dt
+        init_T = np.eye(4)
+        init_T[self._travel_axis, 3] = predicted_dx
+
+        # ── Adaptive correspondence distance ─────────────────────────────────
+        # At the predicted displacement the clouds are already aligned by init_T,
+        # so residual error should be small — keep a tight window.  But add a
+        # safety margin of 50% of the predicted step so small velocity
+        # estimation errors don't cause misses.
+        corr_dist = max(self._max_corr_dist, abs(predicted_dx) * 0.5 + self._max_corr_dist)
+
+        t0 = time.perf_counter()
+        result = small_gicp.align(
+                pts3d,                   # target (current frame)
+                self._prev_pts3d,        # source (previous frame)
+                init_T,                  # init_T_target_source (positional)
+                registration_type="ICP",
+                downsampling_resolution=0.001,
+                max_correspondence_distance=corr_dist,
+                max_iterations=self._icp_max_iter,
+        )
+        proc_ms = (time.perf_counter() - t0) * 1000.0
+
+        if dt > 0 and proc_ms > dt * 1000.0:
+            logger.warning("icp %.1f ms > frame interval %.1f ms — may drop frames", proc_ms, dt * 1000.0)
         else:
-            pts3d = np.asarray(points[:, :3], dtype=np.float64)
-        cloud = o3d.geometry.PointCloud()
-        cloud.points = o3d.utility.Vector3dVector(pts3d)
-        return cloud
+            logger.debug("icp %.2f ms (pred=%.4fm corr_dist=%.3fm)", proc_ms, predicted_dx, corr_dist)
+
+        self._prev_pts3d = pts3d
+        self._last_frame_ts = timestamp
+
+        if not result.converged:
+            logger.debug("icp did not converge — rejected (error=%.4f, pred=%.4fm)", result.error, predicted_dx)
+            return None
+
+        raw = float(result.T_target_source[self._travel_axis, 3])
+        return self._gate(raw, dt)
 
     # ── Public API ────────────────────────────────────────────────────────
 
     def update(self, points: np.ndarray, timestamp: float) -> Optional[float]:
         """Return displacement (m, forward-positive), or None on failure."""
-        cloud = self._to_cloud(points)
-
-        if self._prev_cloud is None or len(self._prev_cloud.points) < 3:
-            self._prev_cloud = cloud
-            return 0.0
-
-        reg = o3d.pipelines.registration.registration_icp(
-            self._prev_cloud,
-            cloud,
-            self._max_corr_dist,
-            np.eye(4),
-            o3d.pipelines.registration.TransformationEstimationPointToPoint(),
-        )
-        self._prev_cloud = cloud
-
-        if reg.fitness < self._min_fitness:
-            logger.debug("ICP fitness %.3f < min %.3f — rejected", reg.fitness, self._min_fitness)
-            return None
-
-        raw = float(reg.transformation[self._travel_axis, 3])
-
-        # Dead-zone: treat sub-millimetre displacements as zero
-        if abs(raw) < self._min_displacement:
-            raw = 0.0
-
-        # Outlier gate: reject implausibly large jumps
-        if abs(raw) > self._max_displacement + 1e-6:
-            logger.debug("ICP displacement %.4fm > max (%.4fm) — rejected", raw, self._max_displacement)
-            return None
-
-        self._last_displacement = raw
-        logger.debug("ICP displacement=%.4fm  fitness=%.3f", raw, reg.fitness)
-        return raw
+        return self._update_icp(points, timestamp)
 
     def reset(self) -> None:
-        self._prev_cloud = None
+        self._prev_pts3d = None
         self._last_displacement = 0.0
+        self._last_frame_ts = None
 
     @property
     def last_displacement(self) -> float:
@@ -152,7 +171,20 @@ class ClusterTracker:
 
     @property
     def initialized(self) -> bool:
-        return self._prev_cloud is not None
+        return self._prev_pts3d is not None
+
+    # ── Gate helper ───────────────────────────────────────────────────────
+
+    def _gate(self, raw: float, dt: float) -> Optional[float]:
+        """Apply dead-zone and outlier gate; update velocity on success."""
+        if abs(raw) < self._min_displacement:
+            raw = 0.0
+        if abs(raw) > self._max_displacement + 1e-6:
+            logger.debug("icp displacement %.4fm > max %.4fm — rejected", raw, self._max_displacement)
+            return None
+        self._last_displacement = raw
+        self._last_velocity = (raw / dt) if dt > 0 else self._last_velocity
+        return raw
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -163,44 +195,39 @@ class ClusterTracker:
 class VehicleDetector:
     """Detect vehicles via DBSCAN clustering on a trigger-cropped 2D scan.
 
-    No background learning is required.  An upstream crop node should
-    already restrict the scan to the gantry area; this detector further
-    crops to the leading-edge trigger window before clustering.
-
     Args:
         travel_axis:                 Axis index for the truck travel direction
                                      (0=X, 1=Y).
+        movement_direction:          Expected travel direction (+1 or -1).
+        reverse_tolerance:           Backward creep allowed before clamping (m).
         min_vehicle_points:          Min points in a DBSCAN cluster to count
-                                     as a vehicle.  Acts as a size gate —
-                                     rejects noise and tiny debris clusters.
-        dbscan_eps:                  DBSCAN neighbourhood radius (m).  Tune
-                                     to the expected point spacing in the scan.
+                                     as a vehicle.
+        dbscan_eps:                  DBSCAN neighbourhood radius (m).
         dbscan_min_samples:          DBSCAN min samples per core point.
-        trigger_distance:            Crop window: only consider points where
-                                     ``points[:, travel_axis] >= -trigger_distance``
-                                     (i.e. within trigger_distance metres of the
-                                     gantry).  None = use the full incoming scan.
-        max_correspondence_distance: ICP correspondence distance (m).
-        min_icp_fitness:             Minimum ICP fitness to accept result.
-        voxel_size:                  ICP voxel down-sample (0 = disabled).
-        max_displacement:            Max per-frame ICP displacement (m).
-        min_displacement:            ICP dead-zone (m).
+        trigger_distance:            Crop window half-width (m).  None = full scan.
+        max_correspondence_distance: ICP point-pair distance limit (m).
+        max_displacement:            Max per-frame displacement outlier gate (m).
+        min_displacement:            Dead-zone below which displacement is zeroed (m).
+        icp_max_iter:                Maximum ICP iterations per frame.
     """
 
     def __init__(
         self,
         travel_axis: int = 0,
+        movement_direction: int = 1,
+        reverse_tolerance: float = 0.05,
         min_vehicle_points: int = 10,
         dbscan_eps: float = 0.3,
         dbscan_min_samples: int = 5,
         trigger_distance: Optional[float] = None,
-        max_correspondence_distance: float = 0.5,
-        min_icp_fitness: float = 0.3,
-        voxel_size: float = 0.0,
+        max_correspondence_distance: float = 0.1,
         max_displacement: float = 0.5,
         min_displacement: float = 0.001,
+        icp_max_iter: int = 20,
     ) -> None:
         self._travel_axis = travel_axis
+        self._movement_direction = movement_direction
+        self._reverse_tolerance = reverse_tolerance
         self._min_vehicle_points = min_vehicle_points
         self._dbscan_eps = dbscan_eps
         self._dbscan_min_samples = dbscan_min_samples
@@ -209,22 +236,16 @@ class VehicleDetector:
         self._tracker = ClusterTracker(
             travel_axis=travel_axis,
             max_correspondence_distance=max_correspondence_distance,
-            min_icp_fitness=min_icp_fitness,
-            voxel_size=voxel_size,
             max_displacement=max_displacement,
             min_displacement=min_displacement,
+            icp_max_iter=icp_max_iter,
         )
 
         # Position / velocity
         self._position: float = 0.0
         self._velocity: float = 0.0
         self._last_t: Optional[float] = None
-
-        # Timestamped position history — used by get_position_at() so that
-        # side-LiDAR scan lines can look up the position nearest to their own
-        # timestamp, absorbing latency and frequency differences between sensors.
-        # Bounded to the last 256 entries — enough for several seconds at 50 Hz.
-        self._position_history: Deque[Tuple[float, float]] = deque(maxlen=256)
+        self._position_history: Deque[Tuple[float, float]] = deque(maxlen=512)
 
         # Tracking state
         self._vehicle_present: bool = False
@@ -234,13 +255,13 @@ class VehicleDetector:
     def _crop_to_trigger_window(self, points: np.ndarray) -> np.ndarray:
         """Return only points inside the trigger window.
 
-        Keeps points where the travel-axis coordinate is >= -trigger_distance
-        (i.e. within ``trigger_distance`` metres of the gantry at X=0).
+        Keeps points where the travel-axis coordinate is within
+        ``[-trigger_distance, +trigger_distance]`` of the gantry at X=0.
         When trigger_distance is None the full scan is returned unchanged.
         """
-        if self._trigger_distance is None:
-            return points
-        mask = points[:, self._travel_axis] >= -self._trigger_distance
+        mask = (points[:, self._travel_axis] >= -self._trigger_distance) & (
+            points[:, self._travel_axis] <= self._trigger_distance
+        )
         return points[mask]
 
     def _largest_vehicle_cluster(self, points: np.ndarray) -> Optional[np.ndarray]:
@@ -289,10 +310,6 @@ class VehicleDetector:
         best_label = unique[big_mask][np.argmax(counts[big_mask])]
         cluster_pts = points[labels == best_label]
 
-        logger.debug(
-            "DBSCAN: %d cluster(s), largest valid=%d pts (label %d)",
-            big_mask.sum(), len(cluster_pts), best_label,
-        )
         return cluster_pts
 
     def _result(
@@ -321,10 +338,11 @@ class VehicleDetector:
         if points is None or len(points) < 2:
             return self._result(timestamp, present=False) if self._last_t is not None else None
 
-        # 1. Crop to trigger window
+        # 1. Crop to trigger window (presence detection only)
         cropped = self._crop_to_trigger_window(points)
 
-        # 2. Cluster — find largest valid cluster
+        # 2. Cluster on full scan — trigger crop only gates presence,
+        #    ICP needs the widest possible geometric context.
         cluster = self._largest_vehicle_cluster(cropped)
 
         # 3. No valid cluster → absent
@@ -340,7 +358,20 @@ class VehicleDetector:
 
         # First detection — seed tracker
         if not self._vehicle_present:
-            self._tracker.update(spatial_pts, timestamp)
+            # Guard: cluster must be approaching from the correct entry side.
+            # For movement_direction=+1 (+X) the vehicle enters from X<0.
+            # For movement_direction=-1 (−X) the vehicle enters from X>0.
+            # In both cases: centroid * movement_direction <= 0 means correct side.
+            centroid_axis = float(np.mean(spatial_pts[:, self._travel_axis]))
+            if centroid_axis * self._movement_direction > 0:
+                logger.debug(
+                    "First-detection rejected — centroid %.3f on wrong side for direction=%+d",
+                    centroid_axis, self._movement_direction,
+                )
+                self._last_t = timestamp
+                return self._result(timestamp, present=False)
+
+            self._tracker.update(points, timestamp)
             self._last_t = timestamp
             self._vehicle_present = True
             logger.info(
@@ -353,13 +384,24 @@ class VehicleDetector:
         dt = (timestamp - self._last_t) if self._last_t is not None else 0.0
         self._last_t = timestamp
 
-        displacement = self._tracker.update(spatial_pts, timestamp)
+        displacement = self._tracker.update(points, timestamp)
 
         if displacement is not None:
+            # Reverse-motion guard with inertia tolerance.
+            # Small backward creep (|displacement| <= reverse_tolerance) is
+            # accepted — this covers the inevitable inertia movement when the
+            # truck pauses inside the gantry.  Larger reverse displacement
+            # (deliberate backing-up or sensor artefact) is clamped to zero.
+            if displacement * self._movement_direction < 0:
+                if abs(displacement) <= self._reverse_tolerance:
+                    logger.debug("reverse %.4fm within tolerance — accepted", displacement)
+                else:
+                    logger.debug("reverse %.4fm exceeds tolerance — clamped to zero", displacement)
+                    displacement = 0.0
+
             self._position += displacement
             self._velocity = (displacement / dt) if dt > 0 else 0.0
-            if displacement != 0.0:
-                self._position_history.append((timestamp, self._position))
+            self._position_history.append((timestamp, self._position))
             return self._result(timestamp, present=True)
 
         # ICP failed — dead-reckon from last velocity
@@ -386,48 +428,64 @@ class VehicleDetector:
     # ── Accessors ─────────────────────────────────────────────────────────
 
     def get_position_at(self, timestamp: float, max_age: float = 0.5) -> Optional[float]:
-        """Return the recorded position nearest to the given timestamp.
+        """Return interpolated position at the given timestamp.
 
-        Side-LiDAR scan lines arrive with their own hardware timestamp which
-        may differ from the velocity sensor's timestamp due to latency or
-        different scan rates.  This method finds the position sample whose
-        timestamp is closest to the requested one, absorbing latency and
-        frequency differences between sensors.
+        Profile-sensor scan lines may arrive at timestamps that fall between
+        two velocity-sensor frames.  This method linearly interpolates between
+        the two bracketing history entries so that each scan line gets a unique,
+        correctly-spaced X position rather than being snapped to the nearest
+        velocity frame (which causes the "comb" artefact when the profile sensor
+        runs faster than the velocity sensor).
+
+        For timestamps ahead of the last history entry the position is
+        extrapolated forward using the last known velocity.
 
         Args:
-            timestamp:  The scan's own hardware timestamp (seconds).
-            max_age:    Maximum allowed time gap (seconds) between the
-                        requested timestamp and the nearest recorded sample.
-                        If the gap exceeds this, None is returned so the
-                        caller can discard the scan line rather than place
-                        it at an incorrect position.  Defaults to 0.5 s —
-                        generous enough for mixed 10/20 Hz setups but tight
-                        enough to catch clock drift or a stalled velocity
-                        sensor.
-
-        Returns:
-            Nearest recorded position (m), or None if no sample is within
-            max_age seconds (history empty, clock drift, or sensor stall).
+            timestamp:  The scan line's hardware timestamp (seconds).
+            max_age:    Maximum gap (s) allowed between *timestamp* and the
+                        nearest history boundary.  Returns None if exceeded.
         """
         if not self._position_history:
             return None
 
-        best_t, best_pos = min(self._position_history, key=lambda tp: abs(tp[0] - timestamp))
-        dt = abs(best_t - timestamp)
+        # history is kept in insertion (= chronological) order
+        last_t, last_pos = self._position_history[-1]
+        first_t, first_pos = self._position_history[0]
 
-        if dt > max_age:
-            logger.warning(
-                "get_position_at %.4f: nearest sample is %.4f s away (max_age=%.2f s) "
-                "— discarding scan line to avoid position drift",
-                timestamp, dt, max_age,
-            )
-            return None
+        # ── Forward extrapolation (profile sensor ahead of velocity sensor) ──
+        if timestamp >= last_t:
+            dt = timestamp - last_t
+            if dt > max_age:
+                logger.warning(
+                    "get_position_at %.4f: %.3f s ahead of last velocity sample "
+                    "(max_age=%.2f s) — discarding scan line",
+                    timestamp, dt, max_age,
+                )
+                return None
+            return last_pos + self._velocity * dt
 
-        logger.debug(
-            "get_position_at %.4f → matched %.4f (Δt=%.4f s) pos=%.4f m",
-            timestamp, best_t, dt, best_pos,
-        )
-        return best_pos
+        # ── Before the first history entry ────────────────────────────────────
+        if timestamp <= first_t:
+            dt = first_t - timestamp
+            if dt > max_age:
+                logger.warning(
+                    "get_position_at %.4f: %.3f s before first velocity sample "
+                    "(max_age=%.2f s) — discarding scan line",
+                    timestamp, dt, max_age,
+                )
+                return None
+            return first_pos
+
+        # ── Linear interpolation between bracketing entries ───────────────────
+        # Scan from the end of the deque (most queries are for recent times).
+        prev_t, prev_pos = last_t, last_pos
+        for t, pos in reversed(self._position_history):
+            if t <= timestamp:
+                alpha = (timestamp - t) / (prev_t - t)
+                return pos + alpha * (prev_pos - pos)
+            prev_t, prev_pos = t, pos
+
+        return first_pos  # fallback (should not reach)
 
     @property
     def vehicle_present(self) -> bool:
