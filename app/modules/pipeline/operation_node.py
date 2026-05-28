@@ -11,7 +11,7 @@ from app.modules.pipeline.operations import (
     Clustering, Filter, FilterByKey,
     BoundaryDetection, DebugSave,
     GeneratePlane, Densify, SurfaceReconstruction,
-    CentroidCalculation,
+    CentroidCalculation, CoordinateTransform,
 )
 
 _OP_MAP = {
@@ -32,6 +32,7 @@ _OP_MAP = {
     "patch_plane_segmentation": PatchPlaneSegmentation,
     "surface_reconstruction": SurfaceReconstruction,
     "centroid_calculation": CentroidCalculation,
+    "coordinate_transform": CoordinateTransform,
 }
 
 # Op types that are CPU-heavy and benefit from an isolated single-thread executor.
