@@ -9,6 +9,7 @@ Loaded automatically via discover_modules() at application startup.
 """
 from typing import Any, Dict, List
 
+from app.schemas.pose import Pose
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition, PropertySchema, PortSchema, node_schema_registry,
@@ -25,7 +26,14 @@ node_schema_registry.register(NodeDefinition(
     description="Receive PCD point cloud data via HTTP multipart upload",
     icon="cloud_upload",
     websocket_enabled=True,
-    properties=[],
+    properties=[
+        PropertySchema(
+            name="pose",
+            label="Sensor Pose",
+            type="pose",
+            help_text="6-DOF pose: position (mm) and orientation (degrees)",
+        ),
+    ],
     outputs=[PortSchema(id="out", label="Output")],
 ))
 
@@ -57,9 +65,20 @@ def build_pcd_injection(
 
     topic_prefix = service_context._topic_registry.register(name, node_id[:8])
 
-    return PcdInjectionNode(
+    # Read pose from the canonical top-level "pose" key
+    raw_pose = node.get("pose") or {}
+    p_x = float(raw_pose.get("x", 0) or 0)
+    p_y = float(raw_pose.get("y", 0) or 0)
+    p_z = float(raw_pose.get("z", 0) or 0)
+    p_roll = float(raw_pose.get("roll", 0) or 0)
+    p_pitch = float(raw_pose.get("pitch", 0) or 0)
+    p_yaw = float(raw_pose.get("yaw", 0) or 0)
+
+    node_instance = PcdInjectionNode(
         manager=service_context,
         node_id=node_id,
         name=name,
         topic_prefix=topic_prefix,
     )
+    node_instance.set_pose(Pose(x=p_x, y=p_y, z=p_z, roll=p_roll, pitch=p_pitch, yaw=p_yaw))
+    return node_instance

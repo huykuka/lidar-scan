@@ -6,12 +6,15 @@ The parsed point cloud is forwarded into the DAG exactly like a hardware sensor 
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import Any, Dict, Optional
 
 import numpy as np
 
 from app.core.logging import get_logger
+from app.modules.lidar.core import create_transformation_matrix
+from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 from app.services.status_aggregator import notify_status_change
@@ -43,10 +46,24 @@ class PcdInjectionNode(ModuleNode):
         self.name = name
         self.topic_prefix = topic_prefix
 
+        # 6-DOF pose & transformation matrix
+        self.transformation = np.eye(4)
+        self.pose_params: Pose = Pose.zero()
+
         # Runtime counters
         self._frames_injected: int = 0
         self._last_inject_at: Optional[float] = None
         self._last_error: Optional[str] = None
+
+    def set_pose(self, pose: Pose) -> "PcdInjectionNode":
+        """Set the node pose and recompute the transformation matrix."""
+        self.transformation = create_transformation_matrix(**pose.to_flat_dict())
+        self.pose_params = pose
+        return self
+
+    def get_pose_params(self) -> Pose:
+        """Return the current node pose."""
+        return self.pose_params
 
     # ------------------------------------------------------------------
     # ModuleNode interface
@@ -93,9 +110,12 @@ class PcdInjectionNode(ModuleNode):
             Number of points forwarded.
         """
         try:
+            from app.modules.lidar.core.transformations import transform_points
+
             now = time.time()
+            transformed = await asyncio.to_thread(transform_points, points, self.transformation)
             payload: Dict[str, Any] = {
-                "points": points,
+                "points": transformed,
                 "timestamp": now,
                 "node_id": self.id,
             }

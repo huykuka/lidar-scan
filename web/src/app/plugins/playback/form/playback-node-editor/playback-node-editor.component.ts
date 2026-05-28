@@ -16,6 +16,8 @@ import { RecordingApiService } from '@core/services/api/recording-api.service';
 import { NodeEditorFacadeService } from '@features/settings/services/node-editor-facade.service';
 import { NodeEditorComponent } from '@core/models/node-plugin.model';
 import { NodeEditorHeaderComponent } from '@plugins/shared/node-editor-header/node-editor-header.component';
+import { PoseFormComponent } from '@plugins/sensor/form/pose-form/pose-form.component';
+import { Pose, ZERO_POSE } from '@core/models/pose.model';
 import { Recording } from '@core/models/recording.model';
 import {
   PLAYBACK_SPEED_OPTIONS,
@@ -27,7 +29,7 @@ import {
 @Component({
   selector: 'app-playback-node-editor',
   standalone: true,
-  imports: [SynergyComponentsModule, NodeEditorHeaderComponent, DatePipe, DecimalPipe],
+  imports: [SynergyComponentsModule, NodeEditorHeaderComponent, PoseFormComponent, DatePipe, DecimalPipe],
   providers: [NodeEditorFacadeService],
   templateUrl: './playback-node-editor.component.html',
   styleUrl: './playback-node-editor.component.css',
@@ -48,6 +50,8 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
   protected throttleMs = signal<number>(0);
   protected isSaving = signal<boolean>(false);
   protected isLoadingRecordings = signal<boolean>(false);
+  protected poseValue = signal<Pose>(ZERO_POSE);
+  protected isPoseValid = signal<boolean>(true);
 
   protected isSaveDisabled = computed(
     () => !this.recordingId() || this.isSaving(),
@@ -75,6 +79,7 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
         this.setPlaybackSpeed((cfg?.playback_speed as PlaybackSpeed) ?? 1.0);
         this.loopable.set(cfg?.loopable ?? false);
         this.throttleMs.set(cfg?.throttle_ms ?? 0);
+        this.poseValue.set(node?.pose ?? ZERO_POSE);
       });
     });
 
@@ -122,6 +127,10 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
     this.loopable.set((event.target as HTMLInputElement).checked);
   }
 
+  onPoseChange(pose: Pose): void {
+    this.poseValue.set(pose);
+  }
+
   async onSave(): Promise<void> {
     if (!this.recordingId()) return;
 
@@ -138,6 +147,7 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
     const success = await this.facade.saveNode({
       name: node?.name ?? 'Playback',
       config,
+      pose: this.poseValue(),
       definition: {
         type: 'playback',
         display_name: 'Playback',

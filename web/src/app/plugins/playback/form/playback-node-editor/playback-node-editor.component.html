@@ -82,4 +82,10 @@
     </syn-switch>
   </div>
 
+  <!-- 6-DOF Pose -->
+  <app-pose-form
+    [pose]="poseValue()"
+    (poseChange)="onPoseChange($event)"
+  />
+
 </div>
