@@ -11,3 +11,4 @@ from .patch_plane_segmentation import PatchPlaneSegmentation
 from .density import Densify
 from .surface_reconstruction import SurfaceReconstruction
 from .centroid_calculation import CentroidCalculation
+from .coordinate_transform import CoordinateTransform
