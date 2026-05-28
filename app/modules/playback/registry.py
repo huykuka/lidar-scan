@@ -11,6 +11,7 @@ from typing import Any, Dict, List
 
 from app.db.session import SessionLocal
 from app.repositories.recordings_orm import RecordingRepository
+from app.schemas.pose import Pose
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition, PropertySchema, PortSchema, node_schema_registry,
@@ -64,6 +65,12 @@ node_schema_registry.register(NodeDefinition(
             min=0,
             step=10,
             help_text="Minimum time between replayed frames (0 = no limit)",
+        ),
+        PropertySchema(
+            name="pose",
+            label="Sensor Pose",
+            type="pose",
+            help_text="6-DOF pose: position (mm) and orientation (degrees)",
         ),
     ],
     outputs=[PortSchema(id="out", label="Output")],
@@ -124,7 +131,16 @@ def build_playback(
             "Use GET /api/v1/recordings to list available recordings."
         )
 
-    return PlaybackNode(
+    # Read pose from the canonical top-level "pose" key
+    raw_pose = node.get("pose") or {}
+    p_x = float(raw_pose.get("x", 0) or 0)
+    p_y = float(raw_pose.get("y", 0) or 0)
+    p_z = float(raw_pose.get("z", 0) or 0)
+    p_roll = float(raw_pose.get("roll", 0) or 0)
+    p_pitch = float(raw_pose.get("pitch", 0) or 0)
+    p_yaw = float(raw_pose.get("yaw", 0) or 0)
+
+    node_instance = PlaybackNode(
         manager=service_context,
         node_id=node_id,
         name=name,
@@ -133,3 +149,5 @@ def build_playback(
         loopable=loopable,
         throttle_ms=throttle_ms,
     )
+    node_instance.set_pose(Pose(x=p_x, y=p_y, z=p_z, roll=p_roll, pitch=p_pitch, yaw=p_yaw))
+    return node_instance

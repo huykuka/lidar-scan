@@ -6,7 +6,9 @@ import {NodeEditorComponent} from '@core/models/node-plugin.model';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {ToastService} from '@core/services/toast.service';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
+import {PoseFormComponent} from '@plugins/sensor/form/pose-form/pose-form.component';
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {Pose, ZERO_POSE} from '@core/models/pose.model';
 import {environment} from '@env/environment';
 
 /**
@@ -24,6 +26,7 @@ import {environment} from '@env/environment';
     SynergyComponentsModule,
     SynergyFormsModule,
     NodeEditorHeaderComponent,
+    PoseFormComponent,
   ],
   providers: [NodeEditorFacadeService],
   templateUrl: './pcd-injection-editor.component.html',
@@ -39,6 +42,8 @@ export class PcdInjectionEditorComponent implements NodeEditorComponent {
 
   form!: FormGroup;
   protected isSaving = signal(false);
+  protected poseValue = signal<Pose>(ZERO_POSE);
+  protected isPoseValid = signal<boolean>(true);
 
   protected definition = computed(() =>
     this.nodeStore.nodeDefinitions().find((d) => d.type === 'pcd_injection'),
@@ -73,6 +78,12 @@ export class PcdInjectionEditorComponent implements NodeEditorComponent {
     this.form = new FormGroup({
       name: new FormControl(node?.name || 'PCD Injection', [Validators.required]),
     });
+
+    this.poseValue.set(node?.pose ?? ZERO_POSE);
+  }
+
+  onPoseChange(pose: Pose): void {
+    this.poseValue.set(pose);
   }
 
   async onSave(): Promise<void> {
@@ -94,6 +105,7 @@ export class PcdInjectionEditorComponent implements NodeEditorComponent {
       config: {},
       definition: def,
       existingNode: this.nodeStore.selectedNode(),
+      pose: this.poseValue(),
     });
 
     this.isSaving.set(false);

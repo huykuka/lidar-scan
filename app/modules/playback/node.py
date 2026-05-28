@@ -11,9 +11,13 @@ import os
 from asyncio import sleep as asyncio_sleep
 from typing import Any, Dict, Optional
 
+import numpy as np
+
 from app.core.logging import get_logger
 from app.db.session import SessionLocal
+from app.modules.lidar.core import create_transformation_matrix
 from app.repositories.recordings_orm import RecordingRepository
+from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 
@@ -70,6 +74,10 @@ class PlaybackNode(ModuleNode):
         self.id = node_id
         self.name = name
 
+        # 6-DOF pose & transformation matrix
+        self.transformation = np.eye(4)
+        self.pose_params: Pose = Pose.zero()
+
         # Config
         self._recording_id: str = recording_id
         self._playback_speed: float = _validate_speed(float(playback_speed))
@@ -83,6 +91,16 @@ class PlaybackNode(ModuleNode):
         self._current_frame: int = 0
         self._total_frames: int = 0
         self._error_message: Optional[str] = None
+
+    def set_pose(self, pose: Pose) -> "PlaybackNode":
+        """Set the node pose and recompute the transformation matrix."""
+        self.transformation = create_transformation_matrix(**pose.to_flat_dict())
+        self.pose_params = pose
+        return self
+
+    def get_pose_params(self) -> Pose:
+        """Return the current node pose."""
+        return self.pose_params
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -291,6 +309,9 @@ class PlaybackNode(ModuleNode):
                     )
                     break
                 # ─────────────────────────────────────────────────────────
+
+                from app.modules.lidar.core.transformations import transform_points
+                points = await asyncio.to_thread(transform_points, points, self.transformation)
 
                 payload: Dict[str, Any] = {
                     "lidar_id": self.id,
