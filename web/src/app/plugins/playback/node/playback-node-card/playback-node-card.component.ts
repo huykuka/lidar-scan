@@ -3,6 +3,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { CanvasNode } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
 import { NodeStatusUpdate } from '@core/models/node-status.model';
 import { NodeCardComponent } from '@core/models/node-plugin.model';
+import { ZERO_POSE } from '@core/models/pose.model';
 
 interface PlaybackBadge {
   text: string;
@@ -61,5 +62,15 @@ export class PlaybackNodeCardComponent implements NodeCardComponent {
       default:
         return null;
     }
+  });
+
+  protected pose = computed(() => {
+    const p = this.node().data.pose ?? ZERO_POSE;
+    return [p.x.toFixed(2), p.y.toFixed(2), p.z.toFixed(2)];
+  });
+
+  protected rotation = computed(() => {
+    const p = this.node().data.pose ?? ZERO_POSE;
+    return [p.roll.toFixed(1), p.pitch.toFixed(1), p.yaw.toFixed(1)];
   });
 }

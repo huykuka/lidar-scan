@@ -4,4 +4,16 @@
     <span>PCD Injection</span>
   </div>
   <syn-badge [variant]="statusVariant()" size="small">{{ statusLabel() }}</syn-badge>
+
+  <div class="flex flex-col gap-1 pt-2 border-t border-syn-color-neutral-100">
+    <span class="text-[10px] text-syn-color-neutral-500 uppercase tracking-tighter pb-0.5">Transform</span>
+    <div class="flex justify-between items-center w-full gap-2 min-w-0">
+      <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Position</span>
+      <span class="font-mono text-[11px] text-right shrink-0">{{ pose()[0] }}, {{ pose()[1] }}, {{ pose()[2] }}</span>
+    </div>
+    <div class="flex justify-between items-center w-full gap-2 min-w-0">
+      <span class="text-[10px] text-syn-color-neutral-400 uppercase tracking-tighter shrink-0">Rotation</span>
+      <span class="font-mono text-[11px] text-right shrink-0">{{ rotation()[0] }}°, {{ rotation()[1] }}°, {{ rotation()[2] }}°</span>
+    </div>
+  </div>
 </div>
