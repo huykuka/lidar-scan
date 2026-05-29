@@ -92,6 +92,38 @@ def parse_sick_scan_pointcloud(msg_contents):
     return points_reshaped, topic
 
 
+def _parse_imu_msg(msg_contents) -> dict:
+    """
+    Extract IMU fields from a SickScanImuMsg into a plain dict.
+
+    Returns a lightweight snapshot suitable for inter-process transfer
+    (no ctypes pointers — only Python floats).
+    """
+    timestamp = (
+        msg_contents.header.timestamp_sec
+        + msg_contents.header.timestamp_nsec / 1e9
+    )
+    return {
+        "timestamp": timestamp,
+        "orientation": {
+            "x": msg_contents.orientation.x,
+            "y": msg_contents.orientation.y,
+            "z": msg_contents.orientation.z,
+            "w": msg_contents.orientation.w,
+        },
+        "angular_velocity": {
+            "x": msg_contents.angular_velocity.x,
+            "y": msg_contents.angular_velocity.y,
+            "z": msg_contents.angular_velocity.z,
+        },
+        "linear_acceleration": {
+            "x": msg_contents.linear_acceleration.x,
+            "y": msg_contents.linear_acceleration.y,
+            "z": msg_contents.linear_acceleration.z,
+        },
+    }
+
+
 def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_event: Any):
     """
     Worker process that owns its own instance of sick_scan_xd library AND its own pipeline.
@@ -150,6 +182,16 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
 
     SickScanApiInitByLaunchfile(sick_scan_library, api_handle, launch_args)
 
+    # Process-local latest IMU snapshot (written by IMU callback, read by PC callback)
+    _latest_imu: dict = {}
+
+    def _py_imu_cb(handle, msg):
+        nonlocal _latest_imu
+        try:
+            _latest_imu = _parse_imu_msg(msg.contents)
+        except Exception as e:
+            logger.error(f"[{lidar_id}] IMU callback error: {e}")
+
     def _py_pointcloud_cb(handle, msg):
         try:
             msg_contents = msg.contents
@@ -168,7 +210,8 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
                 "processed": False,
                 "points": points_reshaped,
                 "count": len(points_reshaped),
-                "timestamp": timestamp
+                "timestamp": timestamp,
+                "imu": _latest_imu or None,
             }
 
             try:
@@ -182,6 +225,15 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
     # 2. Register Callbacks
     pc_callback = SickScanPointCloudMsgCallback(_py_pointcloud_cb)
     SickScanApiRegisterCartesianPointCloudMsg(sick_scan_library, api_handle, pc_callback)
+
+    # IMU callback (multiScan only — silently skipped if the library/device
+    # doesn't support it, e.g. TiM 2D scanners).
+    imu_callback = SickScanImuMsgCallback(_py_imu_cb)
+    try:
+        SickScanApiRegisterImuMsg(sick_scan_library, api_handle, imu_callback)
+    except Exception:
+        imu_callback = None
+        logger.debug(f"[{lidar_id}] IMU registration not supported — skipping")
 
     # Diagnostic callback to catch disconnection and errors
     def _py_diagnostic_cb(handle, msg):
@@ -249,6 +301,11 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
 
     finally:
         SickScanApiDeregisterCartesianPointCloudMsg(sick_scan_library, api_handle, pc_callback)
+        if imu_callback is not None:
+            try:
+                SickScanApiDeregisterImuMsg(sick_scan_library, api_handle, imu_callback)
+            except Exception:
+                pass
         SickScanApiDeregisterDiagnosticMsg(sick_scan_library, api_handle, diagnostic_callback)
         SickScanApiClose(sick_scan_library, api_handle)
         SickScanApiRelease(sick_scan_library, api_handle)

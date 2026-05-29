@@ -2,6 +2,7 @@
 LiDAR sensor model representing configuration and state.
 """
 from typing import Dict, Optional, Any
+from dataclasses import dataclass, field
 import asyncio
 import multiprocessing as mp
 import time
@@ -16,6 +17,25 @@ from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationSt
 from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class ImuSnapshot:
+    """Latest IMU reading from the sensor's built-in inertial measurement unit."""
+
+    timestamp: float = 0.0
+    orientation: Dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0})
+    angular_velocity: Dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0, "z": 0.0})
+    linear_acceleration: Dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0, "z": 0.0})
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "timestamp": self.timestamp,
+            "orientation": dict(self.orientation),
+            "angular_velocity": dict(self.angular_velocity),
+            "linear_acceleration": dict(self.linear_acceleration),
+        }
+
 
 class LidarSensor(ModuleNode):
     """Represents a single Lidar sensor and its processing pipeline configuration"""
@@ -45,6 +65,9 @@ class LidarSensor(ModuleNode):
         
         self.transformation = transformation if transformation is not None else np.eye(4)
         self.pose_params: Pose = Pose.zero()
+
+        # Latest IMU reading (None until first IMU message arrives)
+        self.latest_imu: Optional[ImuSnapshot] = None
         
         self._process = None
         self._stop_event = None
@@ -174,6 +197,16 @@ class LidarSensor(ModuleNode):
                 # Increment frame counter for debug logging
                 frame_count = runtime_status[self.id].get("frame_count", 0) + 1
                 runtime_status[self.id]["frame_count"] = frame_count
+
+            # Extract and store IMU data if present
+            imu_raw = payload.get("imu")
+            if imu_raw is not None:
+                self.latest_imu = ImuSnapshot(
+                    timestamp=imu_raw.get("timestamp", 0.0),
+                    orientation=imu_raw.get("orientation", {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0}),
+                    angular_velocity=imu_raw.get("angular_velocity", {"x": 0.0, "y": 0.0, "z": 0.0}),
+                    linear_acceleration=imu_raw.get("linear_acceleration", {"x": 0.0, "y": 0.0, "z": 0.0}),
+                )
 
             points = payload.get("points")
             if points is not None:
