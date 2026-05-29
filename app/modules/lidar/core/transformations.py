@@ -72,6 +72,42 @@ def transform_points(points: np.ndarray, T: np.ndarray) -> np.ndarray:
     return result
 
 
+def gravity_to_roll_pitch(ax: float, ay: float, az: float) -> tuple[float, float]:
+    """Derive roll and pitch (in degrees) from a raw accelerometer / gravity vector.
+
+    The sensor's linear_acceleration field contains gravity when stationary.
+    Assuming the sensor's Z-axis points roughly upward:
+
+        roll  = atan2(ay, az)          — tilt around X
+        pitch = atan2(-ax, √(ay² + az²)) — tilt around Y
+
+    Returns:
+        (roll_deg, pitch_deg)
+    """
+    roll = np.degrees(np.arctan2(ay, az))
+    pitch = np.degrees(np.arctan2(-ax, np.sqrt(ay ** 2 + az ** 2)))
+    return float(roll), float(pitch)
+
+
+def imu_gravity_alignment_matrix(ax: float, ay: float, az: float) -> np.ndarray:
+    """Build a pure-rotation 4×4 matrix that aligns the gravity vector with -Z.
+
+    When applied to a point cloud the result is "gravity-compensated" — the
+    world Z axis points opposite to gravity regardless of how the sensor is
+    physically mounted.
+
+    Args:
+        ax, ay, az: Linear acceleration readings (m/s²). Expected to be
+            dominated by the gravity component when the sensor is stationary.
+
+    Returns:
+        4×4 rotation-only transformation matrix (no translation).
+    """
+    roll, pitch = gravity_to_roll_pitch(ax, ay, az)
+    # Negate to *undo* the tilt (align gravity back to -Z)
+    return create_transformation_matrix(0, 0, 0, roll=-roll, pitch=-pitch, yaw=0)
+
+
 def pose_to_dict(
     x: float, y: float, z: float,
     roll: float, pitch: float, yaw: float

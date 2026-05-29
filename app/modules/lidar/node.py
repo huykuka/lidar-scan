@@ -10,7 +10,12 @@ import time
 import numpy as np
 
 from app.core.logging import get_logger
-from app.modules.lidar.core import create_transformation_matrix, pose_to_dict
+from app.modules.lidar.core import (
+    create_transformation_matrix,
+    gravity_to_roll_pitch,
+    imu_gravity_alignment_matrix,
+    pose_to_dict,
+)
 from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
@@ -51,7 +56,8 @@ class LidarSensor(ModuleNode):
         transformation: Optional[np.ndarray] = None,
         name: Optional[str] = None,
         topic_prefix: Optional[str] = None,
-        throttle_ms: float = 0
+        throttle_ms: float = 0,
+        imu_auto_level: bool = False,
     ):
         self.manager = manager
         self.id = sensor_id
@@ -66,8 +72,10 @@ class LidarSensor(ModuleNode):
         self.transformation = transformation if transformation is not None else np.eye(4)
         self.pose_params: Pose = Pose.zero()
 
-        # Latest IMU reading (None until first IMU message arrives)
+        # IMU state
         self.latest_imu: Optional[ImuSnapshot] = None
+        self.imu_auto_level: bool = imu_auto_level
+        self._imu_gravity_matrix: Optional[np.ndarray] = None
         
         self._process = None
         self._stop_event = None
@@ -201,17 +209,28 @@ class LidarSensor(ModuleNode):
             # Extract and store IMU data if present
             imu_raw = payload.get("imu")
             if imu_raw is not None:
+                acc = imu_raw.get("linear_acceleration", {"x": 0.0, "y": 0.0, "z": 0.0})
                 self.latest_imu = ImuSnapshot(
                     timestamp=imu_raw.get("timestamp", 0.0),
                     orientation=imu_raw.get("orientation", {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0}),
                     angular_velocity=imu_raw.get("angular_velocity", {"x": 0.0, "y": 0.0, "z": 0.0}),
-                    linear_acceleration=imu_raw.get("linear_acceleration", {"x": 0.0, "y": 0.0, "z": 0.0}),
+                    linear_acceleration=acc,
                 )
+                if self.imu_auto_level:
+                    self._imu_gravity_matrix = imu_gravity_alignment_matrix(
+                        acc["x"], acc["y"], acc["z"],
+                    )
 
             points = payload.get("points")
             if points is not None:
-                # 1. Transform points to world space off the main thread
-                transformed_points = await asyncio.to_thread(transform_points, points, self.transformation)
+                # 1. Build effective transformation:
+                #    pose_transform @ imu_gravity_correction (when auto-level is on)
+                effective_T = self.transformation
+                if self.imu_auto_level and self._imu_gravity_matrix is not None:
+                    effective_T = self.transformation @ self._imu_gravity_matrix
+
+                # 2. Transform points to world space off the main thread
+                transformed_points = await asyncio.to_thread(transform_points, points, effective_T)
                 # Update payload for downstream
                 payload["points"] = transformed_points
 
@@ -230,6 +249,47 @@ class LidarSensor(ModuleNode):
             logger.error(f"Error handling data for {self.id}: {e}", exc_info=True)
             if self.id in runtime_status:
                 runtime_status[self.id]["last_error"] = str(e)
+
+    def calibrate_from_imu(self) -> Optional[Pose]:
+        """Snapshot current IMU orientation and bake it into the sensor pose.
+
+        Reads the latest gravity vector, derives roll/pitch, merges with
+        the current pose (keeping x, y, z and yaw), persists to DB, and
+        hot-updates the in-memory transformation.
+
+        Returns:
+            The new Pose if successful, None if no IMU data is available.
+        """
+        if self.latest_imu is None:
+            return None
+
+        acc = self.latest_imu.linear_acceleration
+        roll, pitch = gravity_to_roll_pitch(acc["x"], acc["y"], acc["z"])
+
+        # Clamp to valid Pose range [-180, +180]
+        roll = max(-180.0, min(180.0, -roll))
+        pitch = max(-180.0, min(180.0, -pitch))
+
+        current = self.pose_params
+        new_pose = Pose(
+            x=current.x,
+            y=current.y,
+            z=current.z,
+            roll=roll,
+            pitch=pitch,
+            yaw=current.yaw,
+        )
+
+        self.set_pose(new_pose)
+
+        # Persist to database
+        from app.repositories.node_orm import NodeRepository
+        NodeRepository().update_node_pose(self.id, new_pose)
+
+        logger.info(
+            f"[{self.id}] IMU calibration applied: roll={roll:.2f}° pitch={pitch:.2f}°"
+        )
+        return new_pose
 
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardized status for this sensor node.

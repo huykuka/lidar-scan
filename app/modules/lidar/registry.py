@@ -73,6 +73,10 @@ node_schema_registry.register(NodeDefinition(
         PropertySchema(name="imu_udp_port", label="IMU UDP Port", type="number", default=7503,
                        help_text="UDP port for IMU data",
                        depends_on={"lidar_type": _imu_capable_models}),
+        PropertySchema(name="imu_auto_level", label="IMU Auto-Level", type="boolean", default=False,
+                       help_text="Continuously compensate point clouds for sensor tilt using the IMU gravity vector. "
+                                 "Disable for dynamic mounting where raw IMU data should flow through for calibration.",
+                       depends_on={"lidar_type": _imu_capable_models}),
         PropertySchema(name="pose", label="Sensor Pose", type="pose",
                        help_text="6-DOF sensor pose: position (mm) and orientation (degrees)"),
     ],
@@ -141,13 +145,16 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
     # The TopicRegistry will automatically slugify and ensure uniqueness
     final_topic_prefix = service_context._topic_registry.register(desired_prefix, sensor_id[:8])
 
+    imu_auto_level = bool(config.get("imu_auto_level", False))
+
     sensor = LidarSensor(
         manager=service_context,
         sensor_id=sensor_id,
         name=sensor_name,
         topic_prefix=final_topic_prefix,
         launch_args=launch_args,
-        throttle_ms=throttle_ms
+        throttle_ms=throttle_ms,
+        imu_auto_level=imu_auto_level,
     )
 
     # Apply canonical pose (already parsed from node["pose"] above)
