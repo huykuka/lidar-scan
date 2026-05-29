@@ -53,11 +53,13 @@ class TruckBinDetectionNode(ModuleNode):
         node_id: str,
         name: str,
         config: Dict[str, Any],
+        results_service: Any = None,
     ) -> None:
         self.manager = manager
         self.id = node_id
         self.name = name
         self._ws_topic: Optional[str] = None
+        self._results_service = results_service
 
         # Build detector from config
         self._detector = BinDetector(
@@ -132,6 +134,10 @@ class TruckBinDetectionNode(ModuleNode):
                     },
                 }
                 asyncio.create_task(self.manager.forward_data(self.id, out_payload))
+
+                # Persist result if storage service is available
+                if self._results_service is not None:
+                    asyncio.create_task(self._persist_bin_result(result, out_payload))
             else:
                 logger.debug("[%s] No bin detected in input cloud", self.id)
 
@@ -203,5 +209,35 @@ class TruckBinDetectionNode(ModuleNode):
         self._state = _State.IDLE
         self.last_error = None
         notify_status_change(self.id)
+
+    async def _persist_bin_result(self, result: Any, out_payload: Dict[str, Any]) -> None:
+        """Persist bin detection PCD + metadata via ResultsStorageService."""
+        try:
+            import open3d as o3d
+            import numpy as np
+
+            def _build_pcd():
+                pcd = o3d.geometry.PointCloud()
+                pts = np.asarray(result.bin_points, dtype=np.float64)
+                pcd.points = o3d.utility.Vector3dVector(pts)
+                n = len(pts)
+                # Bin cloud: orange (0.9, 0.5, 0.1)
+                pcd.colors = o3d.utility.Vector3dVector(
+                    np.tile([0.9, 0.5, 0.1], (n, 1))
+                )
+                return pcd
+
+            bin_pcd = await asyncio.to_thread(_build_pcd)
+            metadata = dict(out_payload.get("metadata", {}).get("bin", {}))
+            metadata["detection_number"] = out_payload.get("metadata", {}).get("detection_number")
+            result_id = await self._results_service.save_result(
+                node_id=self.id,
+                pcds=[("bin", bin_pcd)],
+                metadata=metadata,
+                status="success",
+            )
+            logger.info("[%s] Saved bin detection result %s", self.id, result_id)
+        except Exception as exc:
+            logger.error("[%s] Failed to persist bin result: %s", self.id, exc, exc_info=True)
 
 

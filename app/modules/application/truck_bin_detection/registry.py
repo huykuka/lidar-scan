@@ -253,9 +253,16 @@ def build_truck_bin_detection(
 
     config: Dict[str, Any] = node.get("config") or {}
 
+    try:
+        from app.api.v1.results.router import _get_service as _get_results_svc
+        results_svc = _get_results_svc()
+    except Exception:
+        results_svc = None
+
     return TruckBinDetectionNode(
         manager=service_context,
         node_id=node["id"],
         name=node.get("name") or "Truck Bin Detection",
         config=config,
+        results_service=results_svc,
     )
