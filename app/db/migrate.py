@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from app.db.models import Base
+from app.db.session import SessionLocal
 
 _POSE_KEYS = {"x", "y", "z", "roll", "pitch", "yaw"}
 
@@ -70,6 +71,40 @@ def _backfill_pose_into_config(conn) -> None:
             text("UPDATE nodes SET config = :cfg WHERE id = :id"),
             {"cfg": json.dumps(cfg), "id": row_id},
         )
+
+
+def _seed_default_users() -> None:
+    """Create default admin and user accounts if the users table is empty."""
+    import uuid
+    import bcrypt
+    from app.db.models import UserModel
+
+    session = SessionLocal()
+    try:
+        count = session.query(UserModel).count()
+        if count > 0:
+            return
+
+        defaults = [
+            ("admin", "admin", "admin"),
+            ("user", "user", "user"),
+        ]
+        for username, password, role in defaults:
+            pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+            session.add(
+                UserModel(
+                    id=str(uuid.uuid4()),
+                    username=username,
+                    password_hash=pw_hash,
+                    role=role,
+                )
+            )
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def _seed_node_type_registry() -> None:
@@ -146,6 +181,9 @@ def ensure_schema(engine: Engine) -> None:
         conn.execute(
             text("INSERT OR IGNORE INTO dag_meta (id, config_version) VALUES (1, 0)")
         )
+
+    # Seed default users (admin/user) if users table is empty
+    _seed_default_users()
 
     # Seed node_type_registry from discovered definitions (all enabled by default)
     _seed_node_type_registry()

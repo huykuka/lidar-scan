@@ -6,7 +6,7 @@
   noFocusTrapping
   variant="sticky"
 >
-  @for (item of mainNavItems; track item) {
+  @for (item of mainNavItems(); track item) {
     <syn-nav-item
       #rla="routerLinkActive"
       [attr.divider]="item.divider ? '' : null"

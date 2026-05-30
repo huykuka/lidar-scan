@@ -15,5 +15,21 @@
 
     <!-- Per-page actions injected by child routes -->
     <ng-content select="[meta-nav]" />
+
+    @if (auth.isAuthenticated()) {
+      <syn-divider [vertical]="true"></syn-divider>
+      <div class="flex items-center gap-2 px-2">
+        <syn-icon name="person" class="text-sm"></syn-icon>
+        <span class="text-xs font-medium">{{ auth.user()?.username }}</span>
+        <span class="text-[10px] uppercase px-1.5 py-0.5 rounded font-bold"
+              [class]="auth.isAdmin() ? 'bg-primary-600 text-white' : 'bg-neutral-200 text-neutral-700'">
+          {{ auth.user()?.role }}
+        </span>
+        <syn-button size="small" variant="text" (click)="onLogout()">
+          <syn-icon name="logout" slot="prefix"></syn-icon>
+          Logout
+        </syn-button>
+      </div>
+    }
   </nav>
 </syn-header>

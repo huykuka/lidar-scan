@@ -5,7 +5,10 @@ All node creation, update, and deletion is now performed atomically via
 PUT /api/v1/dag/config. This router retains read-only and live-action endpoints.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+
+from app.api.v1.auth.dependencies import require_admin
+from app.api.v1.auth.service import UserInfo
 from app.services.nodes.schema import NodeDefinition
 from app.api.v1.schemas.nodes import (
     NodeRecord,
@@ -56,7 +59,9 @@ async def nodes_definitions_endpoint():
         "Disabled types are hidden from the palette but remain on disk."
     ),
 )
-async def nodes_definitions_registry_endpoint():
+async def nodes_definitions_registry_endpoint(
+    _admin: UserInfo = Depends(require_admin),
+):
     return await list_node_type_registry()
 
 
@@ -69,7 +74,11 @@ async def nodes_definitions_registry_endpoint():
     ),
     responses={404: {"description": "Node type not found"}},
 )
-async def nodes_definition_toggle_endpoint(node_type: str, req: NodeTypeToggle):
+async def nodes_definition_toggle_endpoint(
+    node_type: str,
+    req: NodeTypeToggle,
+    _admin: UserInfo = Depends(require_admin),
+):
     return await set_node_type_enabled(node_type, req)
 
 
