@@ -18,7 +18,8 @@ from .service import (
     list_nodes, list_node_definitions, get_node,
     set_node_enabled, set_node_visible, reload_all_config, get_nodes_status,
     reload_single_node, get_reload_status,
-    NodeStatusToggle, NodeVisibilityToggle
+    list_node_type_registry, set_node_type_enabled,
+    NodeStatusToggle, NodeVisibilityToggle, NodeTypeToggle, NodeTypeRecord,
 )
 
 
@@ -44,6 +45,32 @@ async def nodes_list_endpoint():
 )
 async def nodes_definitions_endpoint():
     return await list_node_definitions()
+
+
+@router.get(
+    "/nodes/definitions/registry",
+    response_model=list[NodeTypeRecord],
+    summary="List Node Type Registry",
+    description=(
+        "Returns every scanned node definition with its enabled/disabled state. "
+        "Disabled types are hidden from the palette but remain on disk."
+    ),
+)
+async def nodes_definitions_registry_endpoint():
+    return await list_node_type_registry()
+
+
+@router.put(
+    "/nodes/definitions/{node_type}/enabled",
+    summary="Enable / Disable a Node Type",
+    description=(
+        "Toggle a node type on or off. Disabling a type hides it from the "
+        "palette and disables all existing DAG instances of that type."
+    ),
+    responses={404: {"description": "Node type not found"}},
+)
+async def nodes_definition_toggle_endpoint(node_type: str, req: NodeTypeToggle):
+    return await set_node_type_enabled(node_type, req)
 
 
 @router.get(

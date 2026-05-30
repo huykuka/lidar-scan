@@ -25,14 +25,14 @@ export class AdminApiService {
 
   async getNodeTypes(): Promise<NodeTypeRecord[]> {
     return firstValueFrom(
-      this.http.get<NodeTypeRecord[]>(`${environment.apiUrl}/admin/node-types`),
+      this.http.get<NodeTypeRecord[]>(`${environment.apiUrl}/nodes/definitions/registry`),
     );
   }
 
   async setNodeTypeEnabled(nodeType: string, enabled: boolean): Promise<NodeTypeToggleResponse> {
     return firstValueFrom(
       this.http.put<NodeTypeToggleResponse>(
-        `${environment.apiUrl}/admin/node-types/${nodeType}/enabled`,
+        `${environment.apiUrl}/nodes/definitions/${nodeType}/enabled`,
         {enabled},
       ),
     );

@@ -63,7 +63,7 @@ export class AdminComponent implements OnInit {
 
   async ngOnInit() {
     this.navService.setPageConfig({
-      title: 'Admin',
+      title: 'Node Definitions',
       subtitle: 'Manage available node types in the processing palette',
     });
     await this.loadNodeTypes();

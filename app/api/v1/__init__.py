@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 
-from .admin import router as admin_router
 from .assets import router as assets_router
 from .calibration import router as calibration_router
 from .config import router as config_router
@@ -31,4 +30,3 @@ router.include_router(assets_router)
 router.include_router(flow_control_router)
 router.include_router(dag_router)
 router.include_router(ws_router)
-router.include_router(admin_router)

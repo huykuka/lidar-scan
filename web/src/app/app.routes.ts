@@ -41,7 +41,7 @@ export const routes: Routes = [
           ),
       },
       {
-        path: 'admin',
+        path: 'node-definitions',
         loadComponent: () =>
           import('./features/admin/admin.component').then((m) => m.AdminComponent),
       },
