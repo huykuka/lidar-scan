@@ -38,8 +38,10 @@ async def list_node_definitions():
     """Returns only enabled node types and their configuration schemas."""
     from app.repositories.node_type_registry_orm import NodeTypeRegistryRepository
 
-    enabled_types = NodeTypeRegistryRepository().get_enabled_types()
-    return [d for d in node_schema_registry.get_all() if d.type in enabled_types]
+    registry_repo = NodeTypeRegistryRepository()
+    db_rows = registry_repo.list_all()
+    disabled_types = {r["type"] for r in db_rows if not r["enabled"]}
+    return [d for d in node_schema_registry.get_all() if d.type not in disabled_types]
 
 
 async def get_node(node_id: str):

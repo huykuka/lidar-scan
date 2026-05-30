@@ -81,6 +81,9 @@ class NodeTypeRegistryRepository:
             else:
                 session.add(NodeTypeRegistryModel(type=node_type, enabled=enabled))
             session.commit()
+        except Exception:
+            session.rollback()
+            raise
         finally:
             if self._should_close():
                 session.close()
@@ -97,6 +100,9 @@ class NodeTypeRegistryRepository:
                 if t not in existing:
                     session.add(NodeTypeRegistryModel(type=t, enabled=True))
             session.commit()
+        except Exception:
+            session.rollback()
+            raise
         finally:
             if self._should_close():
                 session.close()
