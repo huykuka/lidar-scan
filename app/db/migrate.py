@@ -72,6 +72,20 @@ def _backfill_pose_into_config(conn) -> None:
         )
 
 
+def _seed_node_type_registry() -> None:
+    """Seed node_type_registry rows for every discovered definition.
+
+    New types default to enabled.  Existing rows are not touched so that
+    admin disable decisions are preserved across restarts.
+    """
+    from app.repositories.node_type_registry_orm import NodeTypeRegistryRepository
+    from app.services.nodes.schema import node_schema_registry
+
+    all_types = [d.type for d in node_schema_registry.get_all()]
+    if all_types:
+        NodeTypeRegistryRepository().seed_from_definitions(all_types)
+
+
 def ensure_schema(engine: Engine) -> None:
     """Create tables + apply additive migrations/backfills."""
 
@@ -132,6 +146,9 @@ def ensure_schema(engine: Engine) -> None:
         conn.execute(
             text("INSERT OR IGNORE INTO dag_meta (id, config_version) VALUES (1, 0)")
         )
+
+    # Seed node_type_registry from discovered definitions (all enabled by default)
+    _seed_node_type_registry()
 
     # Add index on application_results if it was created without it (e.g. old DBs)
     with engine.begin() as conn:

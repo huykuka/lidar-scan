@@ -1,3 +1,4 @@
+export * from './admin-api.service'
 export * from './calibration-api.service'
 export * from './fusion-api.service'
 export * from './lidar-api.service'

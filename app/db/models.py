@@ -232,6 +232,26 @@ class ApplicationResultModel(Base):
         }
 
 
+class NodeTypeRegistryModel(Base):
+    """Tracks which node types are enabled/disabled in the palette.
+
+    One row per node type (e.g. ``truck_bin_detection``).  The ``enabled``
+    flag controls whether the definition appears in ``GET /nodes/definitions``
+    and is available for use in the DAG canvas.
+    """
+
+    __tablename__ = "node_type_registry"
+
+    type: Mapped[str] = mapped_column(String, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "type": self.type,
+            "enabled": self.enabled,
+        }
+
+
 def init_db() -> None:
     # Kept for backwards-compatibility; prefer `app.db.migrate.ensure_schema`.
     from app.db.session import get_engine
