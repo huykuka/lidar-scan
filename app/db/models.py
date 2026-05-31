@@ -232,6 +232,30 @@ class ApplicationResultModel(Base):
         }
 
 
+class UserModel(Base):
+    """User accounts for authentication and role-based access control."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False, default="user")
+    created_at: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "username": self.username,
+            "role": self.role,
+            "created_at": self.created_at,
+        }
+
+
 class NodeTypeRegistryModel(Base):
     """Tracks which node types are enabled/disabled in the palette.
 
