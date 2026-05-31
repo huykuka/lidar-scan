@@ -1,6 +1,5 @@
 import {Injectable, signal, computed} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
-import {Router} from '@angular/router';
 import {firstValueFrom} from 'rxjs';
 import {environment} from '@env/environment';
 
@@ -28,10 +27,7 @@ export class AuthService {
   readonly isAuthenticated = computed(() => this.currentUser() !== null);
   readonly isAdmin = computed(() => this.currentUser()?.role === 'admin');
 
-  constructor(
-    private http: HttpClient,
-    private router: Router,
-  ) {}
+  constructor(private http: HttpClient) {}
 
   getToken(): string | null {
     return this.token();
@@ -53,7 +49,6 @@ export class AuthService {
     this.currentUser.set(null);
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
-    this.router.navigate(['/login']);
   }
 
   private loadTokenFromStorage(): string | null {

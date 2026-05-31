@@ -2,10 +2,48 @@
   display: block;
 }
 
-.user-label {
-  font-size: var(--syn-font-size-x-small);
+.account-panel {
+  padding: var(--syn-spacing-medium);
+  min-width: 260px;
+  background: var(--syn-color-neutral-0);
+}
+
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: var(--syn-spacing-small);
+  padding-bottom: var(--syn-spacing-small);
+}
+
+.account-avatar {
+  font-size: 2rem;
+  color: var(--syn-color-neutral-500);
+}
+
+.account-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-name {
+  font-size: var(--syn-font-size-small);
   font-weight: 600;
-  color: var(--syn-color-neutral-700);
-  white-space: nowrap;
-  padding: 0 var(--syn-spacing-2x-small);
+  color: var(--syn-color-neutral-900);
+}
+
+.account-role {
+  font-size: var(--syn-font-size-x-small);
+  color: var(--syn-color-neutral-500);
+  text-transform: capitalize;
+}
+
+.account-action {
+  width: 100%;
+  margin-top: var(--syn-spacing-small);
+}
+
+.login-inline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-small);
 }
