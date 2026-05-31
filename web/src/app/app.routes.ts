@@ -1,7 +1,7 @@
 import {Routes} from '@angular/router';
 import {MainLayoutComponent} from '@layout/main-layout/main-layout.component';
 import {unsavedChangesGuard} from '@core/guards/unsaved-changes.guard';
-import {adminGuard} from '@core/guards/auth.guard';
+import {serviceGuard} from '@core/guards/auth.guard';
 
 export const routes: Routes = [
   {
@@ -43,7 +43,7 @@ export const routes: Routes = [
       },
       {
         path: 'node-definitions',
-        canActivate: [adminGuard],
+        canActivate: [serviceGuard],
         loadComponent: () =>
           import('./features/admin/admin.component').then((m) => m.AdminComponent),
       },

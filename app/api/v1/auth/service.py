@@ -41,6 +41,11 @@ class RegisterRequest(BaseModel):
     password: str
     role: str = "user"
 
+    def model_post_init(self, __context: object) -> None:
+        valid = {"user", "admin", "service"}
+        if self.role not in valid:
+            raise ValueError(f"role must be one of {valid}")
+
 
 def authenticate_user(username: str, password: str) -> Optional[UserModel]:
     """Verify username/password and return the user model if valid."""
