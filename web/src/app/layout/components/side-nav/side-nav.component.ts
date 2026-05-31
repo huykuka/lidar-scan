@@ -4,7 +4,9 @@ import {NavigationEnd, Router, RouterModule} from '@angular/router';
 import {filter} from 'rxjs/operators';
 import {SynergyComponentsModule, SynSideNavComponent} from '@synergy-design-system/angular';
 import {NAVIGATION_CONFIG} from '@core/models';
-import {AuthService} from '@core/services/auth.service';
+import {AuthService, UserRole} from '@core/services/auth.service';
+
+const ROLE_LEVELS: Record<UserRole, number> = {user: 0, admin: 1, service: 2};
 
 @Component({
   selector: 'app-side-nav',
@@ -23,8 +25,9 @@ export class SideNavComponent {
   readonly onHide = output<void>();
   protected readonly mainNavItems = computed(() => {
     const role = this.auth.user()?.role;
+    const userLevel = role ? ROLE_LEVELS[role] : -1;
     return NAVIGATION_CONFIG.filter(
-      (item) => !item.footer && (!item.requiredRole || item.requiredRole === role),
+      (item) => !item.footer && (!item.requiredRole || userLevel >= ROLE_LEVELS[item.requiredRole]),
     );
   });
   protected readonly footerNavItems = NAVIGATION_CONFIG.filter((item) => item.footer);

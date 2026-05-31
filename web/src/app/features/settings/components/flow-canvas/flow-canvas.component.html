@@ -19,12 +19,14 @@
   }
 
   <div class="flex flex-1 min-h-0 relative">
-    <!-- Left Palette Sidebar -->
-    <app-flow-canvas-palette (onPluginDragEnd)="onPaletteDragEnd()"
-                             (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
-                             [isLoading]="isPaletteLoading()"
-                             [plugins]="availablePlugins()"
-    />
+    <!-- Left Palette Sidebar (hidden in read-only mode) -->
+    @if (!readOnly()) {
+      <app-flow-canvas-palette (onPluginDragEnd)="onPaletteDragEnd()"
+                               (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
+                               [isLoading]="isPaletteLoading()"
+                               [plugins]="availablePlugins()"
+      />
+    }
 
     <!-- Canvas Area: relative container holds both the scrollable canvas and the fixed controls overlay -->
     <div class="flex-1 relative overflow-hidden">
@@ -90,8 +92,8 @@
             <!-- Nodes Layer -->
             @for (node of canvasNodes(); track node.id) {
               <div
-                (dblclick)="onEditNode(node)"
-                (mousedown)="onNodeMouseDown($event, node)"
+                (dblclick)="readOnly() ? null : onEditNode(node)"
+                (mousedown)="readOnly() ? null : onNodeMouseDown($event, node)"
                 [class.ring-2]="selectedCanvasNode()?.id === node.id"
                 [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
                 [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
@@ -105,11 +107,11 @@
                 class="absolute transition-shadow rounded-lg"
                 title="Double-click to edit"
               >
-                <app-flow-canvas-node (onEdit)="onEditNode(node)"
-                                      (onToggleEnabled)="onToggleNodeEnabled(node, $event)"
-                                      (onToggleVisibility)="onToggleNodeVisibility(node, $event)"
-                                      (portDragStart)="onPortDragStart($event)"
-                                      (portDrop)="onPortDrop($event)"
+                <app-flow-canvas-node (onEdit)="readOnly() ? null : onEditNode(node)"
+                                      (onToggleEnabled)="readOnly() ? null : onToggleNodeEnabled(node, $event)"
+                                      (onToggleVisibility)="readOnly() ? null : onToggleNodeVisibility(node, $event)"
+                                      (portDragStart)="readOnly() ? null : onPortDragStart($event)"
+                                      (portDrop)="readOnly() ? null : onPortDrop($event)"
                                       [isDragging]="draggingNode()?.id === node.id"
                                       [isLoading]="isNodeLoading(node.id)"
                                       [isReloading]="reloadingNodeIds().has(node.data.id)"

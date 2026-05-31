@@ -7,7 +7,7 @@ PUT /api/v1/dag/config. This router retains read-only and live-action endpoints.
 
 from fastapi import APIRouter, Depends
 
-from app.api.v1.auth.dependencies import require_admin
+from app.api.v1.auth.dependencies import require_admin, require_service
 from app.api.v1.auth.service import UserInfo
 from app.services.nodes.schema import NodeDefinition
 from app.api.v1.schemas.nodes import (
@@ -60,7 +60,7 @@ async def nodes_definitions_endpoint():
     ),
 )
 async def nodes_definitions_registry_endpoint(
-    _admin: UserInfo = Depends(require_admin),
+    _service: UserInfo = Depends(require_service),
 ):
     return await list_node_type_registry()
 
@@ -77,7 +77,7 @@ async def nodes_definitions_registry_endpoint(
 async def nodes_definition_toggle_endpoint(
     node_type: str,
     req: NodeTypeToggle,
-    _admin: UserInfo = Depends(require_admin),
+    _service: UserInfo = Depends(require_service),
 ):
     return await set_node_type_enabled(node_type, req)
 
@@ -99,7 +99,9 @@ async def nodes_reload_status_endpoint():
     summary="Reload Configuration",
     description="Reload all node configurations from database.",
 )
-async def nodes_reload_endpoint():
+async def nodes_reload_endpoint(
+    _admin: UserInfo = Depends(require_admin),
+):
     return await reload_all_config()
 
 
@@ -114,7 +116,10 @@ async def nodes_reload_endpoint():
     summary="Selective Node Reload",
     description="Reload a single node's runtime in-place without affecting other nodes or WebSocket connections.",
 )
-async def node_reload_endpoint(node_id: str):
+async def node_reload_endpoint(
+    node_id: str,
+    _admin: UserInfo = Depends(require_admin),
+):
     return await reload_single_node(node_id)
 
 
@@ -139,7 +144,11 @@ async def node_get_endpoint(node_id: str):
     summary="Set Node Visible",
     description="Toggle node visibility state. Controls whether the node streams data to WebSocket.",
 )
-async def node_visible_endpoint(node_id: str, req: NodeVisibilityToggle):
+async def node_visible_endpoint(
+    node_id: str,
+    req: NodeVisibilityToggle,
+    _admin: UserInfo = Depends(require_admin),
+):
     return await set_node_visible(node_id, req)
 
 
@@ -149,7 +158,11 @@ async def node_visible_endpoint(node_id: str, req: NodeVisibilityToggle):
     summary="Set Node Enabled",
     description="Toggle node enabled state.",
 )
-async def node_enabled_endpoint(node_id: str, req: NodeStatusToggle):
+async def node_enabled_endpoint(
+    node_id: str,
+    req: NodeStatusToggle,
+    _admin: UserInfo = Depends(require_admin),
+):
     return await set_node_enabled(node_id, req)
 
 

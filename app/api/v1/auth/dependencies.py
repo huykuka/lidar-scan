@@ -1,4 +1,7 @@
-"""FastAPI dependencies for authentication and authorization."""
+"""FastAPI dependencies for authentication and authorization.
+
+Role hierarchy (highest to lowest): service > admin > user
+"""
 
 from __future__ import annotations
 
@@ -8,6 +11,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from .service import UserInfo, decode_access_token, get_user_by_id
 
 _bearer_scheme = HTTPBearer(auto_error=False)
+
+ROLE_LEVELS = {"user": 0, "admin": 1, "service": 2}
 
 
 async def get_current_user(
@@ -41,10 +46,22 @@ async def get_current_user(
 async def require_admin(
     user: UserInfo = Depends(get_current_user),
 ) -> UserInfo:
-    """Require the current user to have the 'admin' role."""
-    if user.role != "admin":
+    """Require at least admin role (admin or service)."""
+    if ROLE_LEVELS.get(user.role, 0) < ROLE_LEVELS["admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
+        )
+    return user
+
+
+async def require_service(
+    user: UserInfo = Depends(get_current_user),
+) -> UserInfo:
+    """Require the service role."""
+    if user.role != "service":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Service access required",
         )
     return user

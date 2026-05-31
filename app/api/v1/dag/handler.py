@@ -7,8 +7,10 @@ Endpoints:
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.api.v1.auth.dependencies import require_admin
+from app.api.v1.auth.service import UserInfo
 from app.api.v1.schemas.dag import (
     DagConfigResponse,
     DagConfigSaveRequest,
@@ -48,5 +50,8 @@ async def dag_config_get_endpoint() -> DagConfigResponse:
     ),
     tags=["DAG"],
 )
-async def dag_config_save_endpoint(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
+async def dag_config_save_endpoint(
+    req: DagConfigSaveRequest,
+    _admin: UserInfo = Depends(require_admin),
+) -> DagConfigSaveResponse:
     return await save_dag_config(req)

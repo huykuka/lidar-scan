@@ -41,6 +41,12 @@ class RegisterRequest(BaseModel):
     password: str
     role: str = "user"
 
+    @classmethod
+    def _validate_role(cls, v: str) -> str:
+        if v not in ("user", "admin", "service"):
+            raise ValueError("role must be one of: user, admin, service")
+        return v
+
 
 def authenticate_user(username: str, password: str) -> Optional[UserModel]:
     """Verify username/password and return the user model if valid."""

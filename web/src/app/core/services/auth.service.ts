@@ -3,10 +3,12 @@ import {HttpClient} from '@angular/common/http';
 import {firstValueFrom} from 'rxjs';
 import {environment} from '@env/environment';
 
+export type UserRole = 'user' | 'admin' | 'service';
+
 export interface UserInfo {
   id: string;
   username: string;
-  role: 'admin' | 'user';
+  role: UserRole;
 }
 
 interface LoginResponse {
@@ -23,9 +25,16 @@ export class AuthService {
   private readonly currentUser = signal<UserInfo | null>(this.loadUserFromStorage());
   private readonly token = signal<string | null>(this.loadTokenFromStorage());
 
+  private static readonly ROLE_LEVELS: Record<UserRole, number> = {user: 0, admin: 1, service: 2};
+
   readonly user = this.currentUser.asReadonly();
   readonly isAuthenticated = computed(() => this.currentUser() !== null);
-  readonly isAdmin = computed(() => this.currentUser()?.role === 'admin');
+  readonly isAdmin = computed(() => {
+    const role = this.currentUser()?.role;
+    return role !== undefined && AuthService.ROLE_LEVELS[role] >= AuthService.ROLE_LEVELS['admin'];
+  });
+  readonly isService = computed(() => this.currentUser()?.role === 'service');
+  readonly canEdit = this.isAdmin;
 
   constructor(private http: HttpClient) {}
 

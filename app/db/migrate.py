@@ -86,6 +86,7 @@ def _seed_default_users() -> None:
             return
 
         defaults = [
+            ("service", "service", "service"),
             ("admin", "admin", "admin"),
             ("user", "user", "user"),
         ]

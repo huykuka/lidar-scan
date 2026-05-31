@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { NavigationService, ToastService } from '@core/services';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { SystemStatusService } from '@core/services/system-status.service';
+import { AuthService } from '@core/services/auth.service';
 import { DagApiService } from '@core/services/api/dag-api.service';
 import { ConfigTransferService } from '@core/services/api/config-transfer.service';
 import { ConfigExport, ConfigValidationResponse } from '@core/models/config.model';
@@ -25,6 +26,8 @@ import { HasUnsavedChanges } from '@core/guards/unsaved-changes.guard';
   imports: [FormsModule, SynergyComponentsModule, ConfigImportDialogComponent, FlowCanvasComponent],
 })
 export class SettingsComponent implements OnInit, HasUnsavedChanges {
+  protected auth = inject(AuthService);
+  protected canEdit = this.auth.canEdit;
   protected nodeStore = inject(NodeStoreService);
   protected systemStatus = inject(SystemStatusService);
   protected isSystemRunning = this.systemStatus.isRunning;
