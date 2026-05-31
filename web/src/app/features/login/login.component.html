@@ -1,15 +1,13 @@
-<div class="min-h-screen flex items-center justify-center bg-syn-page-background-color-muted">
-  <div class="w-full max-w-md p-8">
-    <div class="text-center mb-8">
-      <syn-icon name="sensors" class="text-6xl text-primary-600 mb-4"></syn-icon>
-      <h1 class="text-2xl font-black tracking-tight text-syn-typography-color-text">
-        3D LiDAR Control Cockpit
-      </h1>
-      <p class="mt-2 text-sm text-neutral-500">Sign in to continue</p>
+<div class="login-page">
+  <div class="login-container">
+    <div class="login-branding">
+      <syn-icon name="sensors" class="login-logo"></syn-icon>
+      <h1 class="login-title">3D LiDAR Control Cockpit</h1>
+      <p class="login-subtitle">Sign in to continue</p>
     </div>
 
-    <syn-card class="block">
-      <form (submit)="onSubmit($event)" class="flex flex-col gap-4 p-2">
+    <syn-card class="login-card">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
         @if (errorMessage()) {
           <syn-alert variant="danger" open>
             <syn-icon name="error" slot="icon"></syn-icon>
@@ -20,8 +18,7 @@
         <syn-input
           label="Username"
           placeholder="Enter your username"
-          [value]="username()"
-          (synInput)="onUsernameInput($event)"
+          formControlName="username"
           required
           autocomplete="username"
         >
@@ -32,8 +29,7 @@
           label="Password"
           type="password"
           placeholder="Enter your password"
-          [value]="password()"
-          (synInput)="onPasswordInput($event)"
+          formControlName="password"
           required
           password-toggle
           autocomplete="current-password"
@@ -44,9 +40,9 @@
         <syn-button
           type="submit"
           variant="filled"
-          class="w-full mt-2"
+          class="login-submit"
           [loading]="isLoading()"
-          [disabled]="isLoading()"
+          [disabled]="isLoading() || form.invalid"
         >
           <syn-icon name="login" slot="prefix"></syn-icon>
           Sign In
@@ -54,7 +50,7 @@
       </form>
     </syn-card>
 
-    <p class="text-center text-xs text-neutral-400 mt-6">
+    <p class="login-hint">
       Default credentials: admin / admin
     </p>
   </div>

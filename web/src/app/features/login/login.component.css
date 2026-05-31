@@ -1,3 +1,66 @@
 :host {
   display: block;
+  height: 100%;
+}
+
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--syn-color-neutral-50);
+}
+
+.login-container {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--syn-spacing-2x-large);
+}
+
+.login-branding {
+  text-align: center;
+  margin-bottom: var(--syn-spacing-2x-large);
+}
+
+.login-logo {
+  font-size: 3rem;
+  color: var(--syn-color-primary-600);
+  margin-bottom: var(--syn-spacing-small);
+}
+
+.login-title {
+  font-size: var(--syn-font-size-x-large);
+  font-weight: 700;
+  color: var(--syn-color-neutral-900);
+  margin: 0;
+  letter-spacing: -0.025em;
+}
+
+.login-subtitle {
+  font-size: var(--syn-font-size-small);
+  color: var(--syn-color-neutral-500);
+  margin: var(--syn-spacing-x-small) 0 0;
+}
+
+.login-card {
+  display: block;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-medium);
+  padding: var(--syn-spacing-small);
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: var(--syn-spacing-x-small);
+}
+
+.login-hint {
+  text-align: center;
+  font-size: var(--syn-font-size-x-small);
+  color: var(--syn-color-neutral-400);
+  margin-top: var(--syn-spacing-x-large);
 }

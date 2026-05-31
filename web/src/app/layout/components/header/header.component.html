@@ -18,18 +18,15 @@
 
     @if (auth.isAuthenticated()) {
       <syn-divider [vertical]="true"></syn-divider>
-      <div class="flex items-center gap-2 px-2">
-        <syn-icon name="person" class="text-sm"></syn-icon>
-        <span class="text-xs font-medium">{{ auth.user()?.username }}</span>
-        <span class="text-[10px] uppercase px-1.5 py-0.5 rounded font-bold"
-              [class]="auth.isAdmin() ? 'bg-primary-600 text-white' : 'bg-neutral-200 text-neutral-700'">
-          {{ auth.user()?.role }}
-        </span>
-        <syn-button size="small" variant="text" (click)="onLogout()">
-          <syn-icon name="logout" slot="prefix"></syn-icon>
-          Logout
-        </syn-button>
-      </div>
+      <span class="user-label" [title]="'Signed in as ' + auth.user()?.username + ' (' + auth.user()?.role + ')'">
+        {{ auth.user()?.username }}
+      </span>
+      <syn-icon-button
+        name="logout"
+        label="Logout"
+        size="large"
+        (click)="onLogout()"
+      ></syn-icon-button>
     }
   </nav>
 </syn-header>
