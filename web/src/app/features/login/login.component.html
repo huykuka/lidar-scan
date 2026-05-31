@@ -7,7 +7,7 @@
     </div>
 
     <syn-card class="login-card">
-      <form (submit)="onSubmit($event)" class="login-form">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
         @if (errorMessage()) {
           <syn-alert variant="danger" open>
             <syn-icon name="error" slot="icon"></syn-icon>
@@ -18,8 +18,7 @@
         <syn-input
           label="Username"
           placeholder="Enter your username"
-          [value]="username()"
-          (syn-input)="onUsernameInput($event)"
+          formControlName="username"
           required
           autocomplete="username"
         >
@@ -30,8 +29,7 @@
           label="Password"
           type="password"
           placeholder="Enter your password"
-          [value]="password()"
-          (syn-input)="onPasswordInput($event)"
+          formControlName="password"
           required
           password-toggle
           autocomplete="current-password"
@@ -44,7 +42,7 @@
           variant="filled"
           class="login-submit"
           [loading]="isLoading()"
-          [disabled]="isLoading()"
+          [disabled]="isLoading() || form.invalid"
         >
           <syn-icon name="login" slot="prefix"></syn-icon>
           Sign In
