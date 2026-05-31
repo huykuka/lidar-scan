@@ -1,3 +1,11 @@
 :host {
   display: block;
 }
+
+.user-label {
+  font-size: var(--syn-font-size-x-small);
+  font-weight: 600;
+  color: var(--syn-color-neutral-700);
+  white-space: nowrap;
+  padding: 0 var(--syn-spacing-2x-small);
+}
