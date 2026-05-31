@@ -27,7 +27,7 @@
         [style.color]="auth.isAuthenticated() ? 'var(--syn-color-primary-600)' : 'inherit'"
       ></syn-icon-button>
 
-      <div class="account-panel">
+      <div class="account-panel rounded-lg">
         @if (auth.isAuthenticated()) {
           <div class="account-info">
             <syn-icon name="account_circle" class="account-avatar"></syn-icon>
@@ -46,7 +46,6 @@
             <syn-icon name="account_circle" class="account-avatar"></syn-icon>
             <div class="account-details">
               <span class="account-name">Guest</span>
-              <span class="account-role">Sign in for admin access</span>
             </div>
           </div>
           <syn-divider></syn-divider>
