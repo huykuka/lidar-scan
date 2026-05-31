@@ -35,8 +35,94 @@ async def list_nodes():
 
 
 async def list_node_definitions():
-    """Returns all available node types and their configuration schemas"""
-    return node_schema_registry.get_all()
+    """Returns only enabled node types and their configuration schemas."""
+    from app.repositories.node_type_registry_orm import NodeTypeRegistryRepository
+
+    registry_repo = NodeTypeRegistryRepository()
+    db_rows = registry_repo.list_all()
+    disabled_types = {r["type"] for r in db_rows if not r["enabled"]}
+    return [d for d in node_schema_registry.get_all() if d.type not in disabled_types]
+
+
+# ── Node type registry (enable / disable) ─────────────────────────────────
+
+
+class NodeTypeToggle(BaseModel):
+    enabled: bool
+
+
+class NodeTypeRecord(BaseModel):
+    type: str
+    display_name: str
+    category: str
+    description: str
+    icon: str
+    enabled: bool
+
+
+async def list_node_type_registry() -> list[NodeTypeRecord]:
+    """Return every scanned node definition with its enabled state."""
+    from app.repositories.node_type_registry_orm import NodeTypeRegistryRepository
+
+    registry_repo = NodeTypeRegistryRepository()
+    all_defs = node_schema_registry.get_all()
+
+    db_rows = registry_repo.list_all()
+    enabled_map: dict[str, bool] = {r["type"]: r["enabled"] for r in db_rows}
+
+    result: list[NodeTypeRecord] = []
+    for d in all_defs:
+        result.append(
+            NodeTypeRecord(
+                type=d.type,
+                display_name=d.display_name,
+                category=d.category,
+                description=d.description or "",
+                icon=d.icon,
+                enabled=enabled_map.get(d.type, True),
+            )
+        )
+    return result
+
+
+async def set_node_type_enabled(node_type: str, req: NodeTypeToggle) -> dict:
+    """Enable or disable a node type.
+
+    When disabling, all DAG node instances of that type are also disabled.
+    """
+    from app.repositories.node_type_registry_orm import NodeTypeRegistryRepository
+
+    definition = node_schema_registry.get(node_type)
+    if definition is None:
+        raise HTTPException(status_code=404, detail=f"Node type '{node_type}' not found")
+
+    registry_repo = NodeTypeRegistryRepository()
+    registry_repo.set_enabled(node_type, req.enabled)
+
+    disabled_instances: list[str] = []
+
+    if not req.enabled:
+        node_repo = NodeRepository()
+        all_nodes = node_repo.list()
+        for node in all_nodes:
+            if node["type"] == node_type and node.get("enabled", True):
+                node_repo.set_enabled(node["id"], False)
+                disabled_instances.append(node["id"])
+
+        if disabled_instances:
+            logger.info(
+                "Disabled %d DAG instance(s) of type '%s': %s",
+                len(disabled_instances),
+                node_type,
+                disabled_instances,
+            )
+
+    return {
+        "status": "success",
+        "type": node_type,
+        "enabled": req.enabled,
+        "disabled_instances": disabled_instances,
+    }
 
 
 async def get_node(node_id: str):

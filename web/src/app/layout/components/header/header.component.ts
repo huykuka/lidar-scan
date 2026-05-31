@@ -2,6 +2,7 @@ import {Component, inject, input, viewChild} from '@angular/core';
 import {SynergyComponentsModule, SynHeaderComponent} from '@synergy-design-system/angular';
 import {SystemStatusService} from '../../../core/services/system-status.service';
 import {NavigationService} from '../../../core/services/navigation.service';
+import {AuthService} from '../../../core/services/auth.service';
 import {ConnectionStatusComponent} from './connection-status/connection-status.component';
 import {SensorStatusComponent} from './sensor-status/sensor-status.component';
 import {NoticesStatusComponent} from './notices-status/notices-status.component';
@@ -24,6 +25,7 @@ export class HeaderComponent {
 
   private readonly systemStatus = inject(SystemStatusService);
   private readonly navService = inject(NavigationService);
+  protected readonly auth = inject(AuthService);
 
   protected readonly currentPage = this.navService.headline;
 
@@ -37,5 +39,9 @@ export class HeaderComponent {
 
   protected onAcknowledge(): void {
     this.systemStatus.acknowledge();
+  }
+
+  protected onLogout(): void {
+    this.auth.logout();
   }
 }

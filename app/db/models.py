@@ -232,6 +232,50 @@ class ApplicationResultModel(Base):
         }
 
 
+class UserModel(Base):
+    """User accounts for authentication and role-based access control."""
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    password_hash: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False, default="user")
+    created_at: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "username": self.username,
+            "role": self.role,
+            "created_at": self.created_at,
+        }
+
+
+class NodeTypeRegistryModel(Base):
+    """Tracks which node types are enabled/disabled in the palette.
+
+    One row per node type (e.g. ``truck_bin_detection``).  The ``enabled``
+    flag controls whether the definition appears in ``GET /nodes/definitions``
+    and is available for use in the DAG canvas.
+    """
+
+    __tablename__ = "node_type_registry"
+
+    type: Mapped[str] = mapped_column(String, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    def to_dict(self) -> dict:
+        return {
+            "type": self.type,
+            "enabled": self.enabled,
+        }
+
+
 def init_db() -> None:
     # Kept for backwards-compatibility; prefer `app.db.migrate.ensure_schema`.
     from app.db.session import get_engine

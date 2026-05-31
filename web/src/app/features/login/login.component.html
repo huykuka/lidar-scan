@@ -1,0 +1,61 @@
+<div class="min-h-screen flex items-center justify-center bg-syn-page-background-color-muted">
+  <div class="w-full max-w-md p-8">
+    <div class="text-center mb-8">
+      <syn-icon name="sensors" class="text-6xl text-primary-600 mb-4"></syn-icon>
+      <h1 class="text-2xl font-black tracking-tight text-syn-typography-color-text">
+        3D LiDAR Control Cockpit
+      </h1>
+      <p class="mt-2 text-sm text-neutral-500">Sign in to continue</p>
+    </div>
+
+    <syn-card class="block">
+      <form (submit)="onSubmit($event)" class="flex flex-col gap-4 p-2">
+        @if (errorMessage()) {
+          <syn-alert variant="danger" open>
+            <syn-icon name="error" slot="icon"></syn-icon>
+            {{ errorMessage() }}
+          </syn-alert>
+        }
+
+        <syn-input
+          label="Username"
+          placeholder="Enter your username"
+          [value]="username()"
+          (synInput)="onUsernameInput($event)"
+          required
+          autocomplete="username"
+        >
+          <syn-icon name="person" slot="prefix"></syn-icon>
+        </syn-input>
+
+        <syn-input
+          label="Password"
+          type="password"
+          placeholder="Enter your password"
+          [value]="password()"
+          (synInput)="onPasswordInput($event)"
+          required
+          password-toggle
+          autocomplete="current-password"
+        >
+          <syn-icon name="lock" slot="prefix"></syn-icon>
+        </syn-input>
+
+        <syn-button
+          type="submit"
+          variant="filled"
+          class="w-full mt-2"
+          [loading]="isLoading()"
+          [disabled]="isLoading()"
+        >
+          <syn-icon name="login" slot="prefix"></syn-icon>
+          Sign In
+        </syn-button>
+      </form>
+    </syn-card>
+
+    <p class="text-center text-xs text-neutral-400 mt-6">
+      Default credentials: admin / admin
+    </p>
+  </div>
+</div>

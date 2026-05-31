@@ -9,6 +9,7 @@ import { PreloadAllModules, provideRouter, withPreloading } from '@angular/route
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 
 import { routes } from './app.routes';
+import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { httpToastInterceptor } from './core/interceptors/http-toast.interceptor';
 import { GlobalErrorHandler } from './core/errors/global-error.handler';
 import { SystemStatusService } from './core/services/system-status.service';
@@ -20,7 +21,7 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withPreloading(PreloadAllModules)),
-    provideHttpClient(withInterceptors([httpToastInterceptor])),
+    provideHttpClient(withInterceptors([authInterceptor, httpToastInterceptor])),
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideAppInitializer(() => inject(SystemStatusService).start()),
   ],

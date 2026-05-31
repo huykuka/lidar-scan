@@ -1,11 +1,18 @@
 import {Routes} from '@angular/router';
 import {MainLayoutComponent} from '@layout/main-layout/main-layout.component';
 import {unsavedChangesGuard} from '@core/guards/unsaved-changes.guard';
+import {authGuard, adminGuard} from '@core/guards/auth.guard';
 
 export const routes: Routes = [
   {
+    path: 'login',
+    loadComponent: () =>
+      import('./features/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
     path: '',
     component: MainLayoutComponent,
+    canActivate: [authGuard],
     children: [
       {
         path: '',
@@ -39,6 +46,12 @@ export const routes: Routes = [
           import('./features/recordings/components/recording-viewer/recording-viewer.component').then(
             (m) => m.RecordingViewerComponent,
           ),
+      },
+      {
+        path: 'node-definitions',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/admin/admin.component').then((m) => m.AdminComponent),
       },
       {
         path: 'logs',

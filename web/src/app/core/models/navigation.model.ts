@@ -4,6 +4,7 @@ export interface NavItem {
   icon: string;
   divider?: boolean;
   footer?: boolean;
+  requiredRole?: 'admin' | 'user';
 }
 
 export const NAVIGATION_CONFIG: NavItem[] = [
@@ -13,5 +14,6 @@ export const NAVIGATION_CONFIG: NavItem[] = [
   { label: 'Calibration', route: '/calibration', icon: 'tune', divider: true },
   { label: 'Recordings', route: '/recordings', icon: 'video_library', divider: true },
   { label: 'Results', route: '/results', icon: 'analytics', divider: true },
+  { label: 'Node Definitions', route: '/node-definitions', icon: 'extension', divider: true, requiredRole: 'admin' },
   { label: 'Logs', route: '/logs', icon: 'description', divider: true },
 ];
