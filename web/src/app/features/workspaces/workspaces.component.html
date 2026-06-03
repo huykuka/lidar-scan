@@ -8,8 +8,8 @@
       size="small"
       variant="text"
     >
-      <syn-icon [name]="showCockpit() ? 'visibility_off' : 'visibility'" slot="prefix"/>
-      {{ showCockpit() ? 'Hide Controls' : 'Show Controls' }}
+      <syn-icon [name]="showCockpit() ? 'visibility_off' : 'settings'" slot="prefix"/>
+      {{ showCockpit() ? 'Hide Settings' : 'Settings' }}
     </syn-button>
   </div>
 
@@ -23,7 +23,7 @@
     </div>
   } @else {
 
-    <!-- Main split-pane area + cockpit -->
+    <!-- Main split-pane area + inline settings panel -->
     <div class="flex flex-row gap-4 flex-1 min-h-0">
       <div class="flex-1 relative overflow-hidden rounded-2xl min-h-0">
         <app-split-pane-container class="w-full h-full"/>
@@ -34,18 +34,14 @@
         }
       </div>
 
+      <!-- Inline settings panel (replaces drawer) -->
+      @if (showCockpit()) {
+        <aside class="workspace-settings-panel shrink-0 overflow-y-auto animate-in slide-in-from-right duration-300">
+          <app-workspace-controls class="block w-full"/>
+        </aside>
+      }
     </div>
 
   }
-
-  <!-- Control Cockpit Drawer -->
-  <syn-drawer
-    (synRequestCloseEvent)="onDrawerRequestClose($event)"
-    [open]="showCockpit()"
-    label="Workspace Controls"
-    placement="end"
-  >
-    <app-workspace-controls class="block w-full h-full bg-white"/>
-  </syn-drawer>
 
 </div>

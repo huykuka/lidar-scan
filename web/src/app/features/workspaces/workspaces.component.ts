@@ -84,15 +84,6 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     this._narrowMql.removeEventListener('change', this._narrowListener);
   }
 
-  /** Only allow closing via the close button — block overlay click and Esc. */
-  protected onDrawerRequestClose(event: CustomEvent) {
-    if (event.detail.source !== 'close-button') {
-      event.preventDefault();
-      return;
-    }
-    this.workspaceStore.set('showCockpit', false);
-  }
-
   protected toggleCockpit() {
     this.workspaceStore.set('showCockpit', !this.showCockpit());
   }
