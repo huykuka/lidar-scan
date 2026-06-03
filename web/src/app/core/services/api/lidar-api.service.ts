@@ -2,6 +2,7 @@ import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {environment} from '../../../../environments/environment';
 import {LidarConfig, LidarListResponse} from '../../models/lidar.model';
+import {ImuCalibrationResponse, ImuStatusResponse} from '../../models/imu.model';
 import {firstValueFrom} from 'rxjs';
 import {LidarStoreService} from '../stores/lidar-store.service';
 import {ZERO_POSE} from '../../models/pose.model';
@@ -46,6 +47,23 @@ export class LidarApiService {
       this.http.put(`${environment.apiUrl}/nodes/${encodeURIComponent(id)}/enabled`, {
         enabled: enabled,
       }),
+    );
+  }
+
+  async calibrateFromImu(nodeId: string): Promise<ImuCalibrationResponse> {
+    return await firstValueFrom(
+      this.http.post<ImuCalibrationResponse>(
+        `${environment.apiUrl}/lidar/${encodeURIComponent(nodeId)}/calibrate-from-imu`,
+        {},
+      ),
+    );
+  }
+
+  async getImuStatus(nodeId: string): Promise<ImuStatusResponse> {
+    return await firstValueFrom(
+      this.http.get<ImuStatusResponse>(
+        `${environment.apiUrl}/lidar/${encodeURIComponent(nodeId)}/imu-status`,
+      ),
     );
   }
 }

@@ -8,6 +8,7 @@ import {NodeEditorFacadeService} from '@features/settings/services/node-editor-f
 
 import {NodeConfig, NodeDefinition} from '@core/models/node.model';
 import {NodeStatusService} from '@core/services/node-status.service';
+import {LidarApiService} from '@core/services/api';
 import {Pose, ZERO_POSE} from '@core/models';
 
 const mockDefinition: NodeDefinition = {
@@ -59,12 +60,17 @@ describe('SensorNodeEditorComponent', () => {
       status: signal(null),
     };
 
+    const mockLidarApi = {
+      calibrateFromImu: vi.fn().mockResolvedValue({ success: true, node_id: 'sensor-001', pose: ZERO_POSE, imu: null }),
+      getImuStatus: vi.fn().mockResolvedValue({ node_id: 'sensor-001', imu_auto_level: false, has_imu_data: false, imu: null }),
+    };
+
     await TestBed.configureTestingModule({
       imports: [SensorNodeEditorComponent, ReactiveFormsModule],
 
       providers: [
         { provide: NodeStoreService, useValue: mockNodeStore },
-
+        { provide: LidarApiService, useValue: mockLidarApi },
         { provide: NodeStatusService, useValue: mockStatusWs },
       ],
     })

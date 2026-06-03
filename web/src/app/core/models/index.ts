@@ -1,4 +1,5 @@
 export * from './config.model'
+export * from './imu.model'
 export * from './lidar.model'
 export * from './fusion.model'
 export * from './navigation.model'

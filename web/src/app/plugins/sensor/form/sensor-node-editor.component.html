@@ -99,5 +99,35 @@
       [pose]="poseValue()"
       (poseChange)="onPoseChange($event)"
     />
+
+    @if (isImuCapable() && isExistingNode()) {
+      <div class="flex flex-col gap-2 rounded border border-syn-color-neutral-200">
+        <div class="flex items-center justify-between px-3 py-1.5 bg-syn-color-neutral-100 rounded-t border-b border-syn-color-neutral-200">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-500">IMU Calibration</span>
+        </div>
+        <div class="flex flex-col gap-2 px-3 pb-3">
+          <p class="text-[11px] text-syn-color-neutral-500">
+            Apply the current IMU orientation to the sensor pose. This reads the real-time roll/pitch from the sensor's IMU and updates the pose accordingly.
+          </p>
+          <syn-button
+            variant="outline"
+            size="small"
+            type="button"
+            [disabled]="isCalibrating()"
+            (click)="onCalibrateFromImu()"
+          >
+            <syn-icon name="tune" slot="prefix"></syn-icon>
+            @if (isCalibrating()) {
+              Calibrating...
+            } @else {
+              Calibrate from IMU
+            }
+          </syn-button>
+          @if (calibrationMessage()) {
+            <p class="text-[10px] text-syn-color-neutral-600 mt-1">{{ calibrationMessage() }}</p>
+          }
+        </div>
+      </div>
+    }
   </form>
 </div>

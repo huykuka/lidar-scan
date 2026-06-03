@@ -11,6 +11,7 @@ import {NodeEditorComponent} from '@core/models/node-plugin.model';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
 import {PoseFormComponent} from './pose-form/pose-form.component';
 import {Pose, ZERO_POSE} from '@core/models/pose.model';
+import {LidarApiService} from '@core/services/api';
 
 @Component({
   selector: 'app-sensor-node-editor',
@@ -28,11 +29,24 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
   protected configForm!: FormGroup;
   protected poseValue = signal<Pose>(ZERO_POSE);
   protected isPoseValid = signal<boolean>(true);
+  protected isCalibrating = signal(false);
+  protected calibrationMessage = signal<string | null>(null);
   protected isSaveDisabled = computed(
     () => this.form?.invalid || this.configForm?.invalid || !this.isPoseValid() || this.isSaving()
   );
+  protected isImuCapable = computed(() => {
+    const vals = this.formValues();
+    const def = this.definition();
+    if (!def) return false;
+    const lidarTypeProp = def.properties.find(p => p.name === 'lidar_type');
+    if (!lidarTypeProp?.options) return false;
+    const selected = lidarTypeProp.options.find(o => o['value'] === vals['lidar_type']);
+    return selected?.['has_imu_udp_port'] === true;
+  });
+  protected isExistingNode = computed(() => !!this.nodeStore.selectedNode().id);
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
+  private lidarApi = inject(LidarApiService);
   protected definition = computed(() => {
     const data = this.nodeStore.selectedNode();
     return this.nodeStore.nodeDefinitions().find((d) => d.type === data.type);
@@ -98,6 +112,29 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
 
   onCancel() {
     this.cancelled.emit();
+  }
+
+  async onCalibrateFromImu() {
+    const nodeId = this.nodeStore.selectedNode().id;
+    if (!nodeId) return;
+
+    this.isCalibrating.set(true);
+    this.calibrationMessage.set(null);
+
+    try {
+      const result = await this.lidarApi.calibrateFromImu(nodeId);
+      if (result.pose) {
+        this.poseValue.set(result.pose);
+      }
+      this.calibrationMessage.set(
+        `Applied: roll=${result.pose.roll.toFixed(2)}, pitch=${result.pose.pitch.toFixed(2)}`
+      );
+    } catch (err: any) {
+      const detail = err?.error?.detail || err?.message || 'Calibration failed';
+      this.calibrationMessage.set(detail);
+    } finally {
+      this.isCalibrating.set(false);
+    }
   }
 
   onSelectChange(propName: string, event: Event) {

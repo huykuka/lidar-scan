@@ -1,6 +1,8 @@
 """
 Transformation and mathematical utilities for lidar point cloud processing.
 """
+import math
+
 import numpy as np
 from typing import Dict
 
@@ -70,6 +72,107 @@ def transform_points(points: np.ndarray, T: np.ndarray) -> np.ndarray:
     result = points.copy()
     result[:, :3] = points[:, :3] @ R.T + t
     return result
+
+
+def quaternion_to_rpy(
+    w: float, x: float, y: float, z: float,
+) -> tuple[float, float, float]:
+    """Convert an orientation quaternion to roll/pitch/yaw (degrees).
+
+    Uses the same ZYX-intrinsic (XYZ-extrinsic) convention as the SICK
+    multiScan SDK and ROS sensor_msgs/Imu.  The quaternion represents the
+    rotation from sensor frame to a gravity-aligned world frame.
+
+    Reference implementation (Lua, from SICK AppSpace demo)::
+
+        roll  = atan2(2*(w*x + y*z), 1 - 2*(x*x + y*y))
+        pitch = asin(2*(w*y - z*x))
+        yaw   = atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
+
+    Args:
+        w, x, y, z: Unit quaternion components (scalar-last layout in the
+            struct, but *w* is passed first here to match the SICK Lua API).
+
+    Returns:
+        (roll_deg, pitch_deg, yaw_deg)
+    """
+    # Roll (X-axis rotation)
+    sinr_cosp = 2.0 * (w * x + y * z)
+    cosr_cosp = 1.0 - 2.0 * (x * x + y * y)
+    roll = math.atan2(sinr_cosp, cosr_cosp)
+
+    # Pitch (Y-axis rotation) — clamp to avoid NaN near ±90°
+    sinp = 2.0 * (w * y - z * x)
+    sinp = max(-1.0, min(1.0, sinp))
+    pitch = math.asin(sinp)
+
+    # Yaw (Z-axis rotation)
+    siny_cosp = 2.0 * (w * z + x * y)
+    cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+    yaw = math.atan2(siny_cosp, cosy_cosp)
+
+    return math.degrees(roll), math.degrees(pitch), math.degrees(yaw)
+
+
+def quaternion_is_valid(w: float, x: float, y: float, z: float) -> bool:
+    """Return True if the quaternion has a reasonable unit norm (not zeros)."""
+    norm_sq = w * w + x * x + y * y + z * z
+    return norm_sq > 0.5
+
+
+def imu_orientation_matrix(
+    w: float, x: float, y: float, z: float,
+) -> np.ndarray:
+    """Build an orientation matrix from the IMU quaternion.
+
+    The quaternion encodes the sensor→world rotation (per ROS sensor_msgs/Imu).
+    Applying the resulting matrix to sensor-frame points produces
+    world-aligned points.  All three axes (roll, pitch, yaw) are applied —
+    this is intended for continuous auto-level on dynamic platforms where the
+    full real-time orientation is needed.
+
+    Args:
+        w, x, y, z: Unit quaternion from SickScanImuMsg.orientation.
+
+    Returns:
+        4×4 rotation-only transformation matrix.
+    """
+    roll, pitch, yaw = quaternion_to_rpy(w, x, y, z)
+    return create_transformation_matrix(0, 0, 0, roll=roll, pitch=pitch, yaw=yaw)
+
+
+def gravity_to_roll_pitch(ax: float, ay: float, az: float) -> tuple[float, float]:
+    """Derive roll and pitch (in degrees) from a raw accelerometer / gravity vector.
+
+    Fallback method when the orientation quaternion is unavailable (all zeros).
+    The sensor's linear_acceleration field contains gravity when stationary.
+
+        roll  = atan2(ay, az)          — tilt around X
+        pitch = atan2(-ax, √(ay² + az²)) — tilt around Y
+
+    Returns:
+        (roll_deg, pitch_deg)
+    """
+    roll = np.degrees(np.arctan2(ay, az))
+    pitch = np.degrees(np.arctan2(-ax, np.sqrt(ay ** 2 + az ** 2)))
+    return float(roll), float(pitch)
+
+
+def imu_gravity_alignment_matrix(ax: float, ay: float, az: float) -> np.ndarray:
+    """Build a leveling matrix from the raw accelerometer gravity vector.
+
+    Fallback for when orientation quaternion is not available.
+    Negates the gravity-derived angles to undo sensor tilt.
+
+    Args:
+        ax, ay, az: Linear acceleration readings (m/s²).
+
+    Returns:
+        4×4 rotation-only transformation matrix.
+    """
+    roll, pitch = gravity_to_roll_pitch(ax, ay, az)
+    # Negate to *undo* the tilt (align gravity back to -Z)
+    return create_transformation_matrix(0, 0, 0, roll=-roll, pitch=-pitch, yaw=0)
 
 
 def pose_to_dict(

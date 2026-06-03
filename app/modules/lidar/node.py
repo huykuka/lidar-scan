@@ -2,6 +2,7 @@
 LiDAR sensor model representing configuration and state.
 """
 from typing import Dict, Optional, Any
+from dataclasses import dataclass, field
 import asyncio
 import multiprocessing as mp
 import time
@@ -9,13 +10,40 @@ import time
 import numpy as np
 
 from app.core.logging import get_logger
-from app.modules.lidar.core import create_transformation_matrix, pose_to_dict
+from app.modules.lidar.core import (
+    create_transformation_matrix,
+    gravity_to_roll_pitch,
+    imu_gravity_alignment_matrix,
+    imu_orientation_matrix,
+    pose_to_dict,
+    quaternion_is_valid,
+    quaternion_to_rpy,
+)
 from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class ImuSnapshot:
+    """Latest IMU reading from the sensor's built-in inertial measurement unit."""
+
+    timestamp: float = 0.0
+    orientation: Dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0})
+    angular_velocity: Dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0, "z": 0.0})
+    linear_acceleration: Dict[str, float] = field(default_factory=lambda: {"x": 0.0, "y": 0.0, "z": 0.0})
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "timestamp": self.timestamp,
+            "orientation": dict(self.orientation),
+            "angular_velocity": dict(self.angular_velocity),
+            "linear_acceleration": dict(self.linear_acceleration),
+        }
+
 
 class LidarSensor(ModuleNode):
     """Represents a single Lidar sensor and its processing pipeline configuration"""
@@ -31,7 +59,8 @@ class LidarSensor(ModuleNode):
         transformation: Optional[np.ndarray] = None,
         name: Optional[str] = None,
         topic_prefix: Optional[str] = None,
-        throttle_ms: float = 0
+        throttle_ms: float = 0,
+        imu_auto_level: bool = False,
     ):
         self.manager = manager
         self.id = sensor_id
@@ -45,6 +74,11 @@ class LidarSensor(ModuleNode):
         
         self.transformation = transformation if transformation is not None else np.eye(4)
         self.pose_params: Pose = Pose.zero()
+
+        # IMU state
+        self.latest_imu: Optional[ImuSnapshot] = None
+        self.imu_auto_level: bool = imu_auto_level
+        self._imu_gravity_matrix: Optional[np.ndarray] = None
         
         self._process = None
         self._stop_event = None
@@ -175,10 +209,38 @@ class LidarSensor(ModuleNode):
                 frame_count = runtime_status[self.id].get("frame_count", 0) + 1
                 runtime_status[self.id]["frame_count"] = frame_count
 
+            # Extract and store IMU data if present
+            imu_raw = payload.get("imu")
+            if imu_raw is not None:
+                orientation = imu_raw.get("orientation", {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0})
+                acc = imu_raw.get("linear_acceleration", {"x": 0.0, "y": 0.0, "z": 0.0})
+                self.latest_imu = ImuSnapshot(
+                    timestamp=imu_raw.get("timestamp", 0.0),
+                    orientation=orientation,
+                    angular_velocity=imu_raw.get("angular_velocity", {"x": 0.0, "y": 0.0, "z": 0.0}),
+                    linear_acceleration=acc,
+                )
+                if self.imu_auto_level:
+                    # Primary: use orientation quaternion (matches SICK SDK convention)
+                    qw, qx, qy, qz = orientation["w"], orientation["x"], orientation["y"], orientation["z"]
+                    if quaternion_is_valid(qw, qx, qy, qz):
+                        self._imu_gravity_matrix = imu_orientation_matrix(qw, qx, qy, qz)
+                    else:
+                        # Fallback: derive leveling from raw accelerometer gravity
+                        self._imu_gravity_matrix = imu_gravity_alignment_matrix(
+                            acc["x"], acc["y"], acc["z"],
+                        )
+
             points = payload.get("points")
             if points is not None:
-                # 1. Transform points to world space off the main thread
-                transformed_points = await asyncio.to_thread(transform_points, points, self.transformation)
+                # 1. Build effective transformation:
+                #    pose_transform @ imu_gravity_correction (when auto-level is on)
+                effective_T = self.transformation
+                if self.imu_auto_level and self._imu_gravity_matrix is not None:
+                    effective_T = self.transformation @ self._imu_gravity_matrix
+
+                # 2. Transform points to world space off the main thread
+                transformed_points = await asyncio.to_thread(transform_points, points, effective_T)
                 # Update payload for downstream
                 payload["points"] = transformed_points
 
@@ -197,6 +259,60 @@ class LidarSensor(ModuleNode):
             logger.error(f"Error handling data for {self.id}: {e}", exc_info=True)
             if self.id in runtime_status:
                 runtime_status[self.id]["last_error"] = str(e)
+
+    def calibrate_from_imu(self) -> Optional[Pose]:
+        """Snapshot current IMU orientation and bake it into the sensor pose.
+
+        Uses the orientation quaternion from the sick_scan_xd IMU callback
+        (sensor→world rotation) to derive roll/pitch.  Falls back to the
+        gravity vector when the quaternion is not available.
+
+        The derived angles are stored directly into the pose — this is
+        equivalent to how SICK's own SDK applies the quaternion RPY to the
+        point cloud transform.
+
+        Returns:
+            The new Pose if successful, None if no IMU data is available.
+        """
+        if self.latest_imu is None:
+            return None
+
+        # Primary: orientation quaternion (per sick_scan_xd convention)
+        quat = self.latest_imu.orientation
+        qw, qx, qy, qz = quat["w"], quat["x"], quat["y"], quat["z"]
+
+        if quaternion_is_valid(qw, qx, qy, qz):
+            roll, pitch, _yaw = quaternion_to_rpy(qw, qx, qy, qz)
+        else:
+            # Fallback: gravity vector (negate to match sensor→world direction)
+            acc = self.latest_imu.linear_acceleration
+            g_roll, g_pitch = gravity_to_roll_pitch(acc["x"], acc["y"], acc["z"])
+            roll, pitch = -g_roll, -g_pitch
+
+        # Clamp to valid Pose range [-180, +180]
+        roll = max(-180.0, min(180.0, roll))
+        pitch = max(-180.0, min(180.0, pitch))
+
+        current = self.pose_params
+        new_pose = Pose(
+            x=current.x,
+            y=current.y,
+            z=current.z,
+            roll=roll,
+            pitch=pitch,
+            yaw=current.yaw,
+        )
+
+        self.set_pose(new_pose)
+
+        # Persist to database
+        from app.repositories.node_orm import NodeRepository
+        NodeRepository().update_node_pose(self.id, new_pose)
+
+        logger.info(
+            f"[{self.id}] IMU calibration applied: roll={roll:.2f}° pitch={pitch:.2f}°"
+        )
+        return new_pose
 
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardized status for this sensor node.
