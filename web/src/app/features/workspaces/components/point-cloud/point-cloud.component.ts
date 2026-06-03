@@ -40,10 +40,7 @@ import { Subscription } from 'rxjs';
    * DO NOT move this back to providedIn: 'root'.
    */
   providers: [ShapeLayerService],
-  template: ` <div
-      #container
-      class="w-full h-full min-h-0 bg-transparent rounded-md overflow-hidden"
-    ></div>
+  template: ` <div #container class="w-full h-full min-h-0 bg-transparent overflow-hidden"></div>
     @if (hasError()) {
       <div
         class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg z-10 p-4 text-center"

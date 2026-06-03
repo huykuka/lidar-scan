@@ -1,36 +1,33 @@
 <div class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500">
   <!-- Action bar: layout presets -->
   <div class="flex items-center mb-2 shrink-0">
-    <app-view-toolbar/>
+    <app-view-toolbar />
   </div>
 
   @if (isNarrowScreen() && !isSinglePane()) {
     <!-- Responsive guard: <1024px in multi-pane mode -->
     <div class="flex flex-col items-center justify-center flex-1 text-center p-8">
-      <syn-icon name="desktop_windows" class="text-4xl text-syn-color-neutral-400 mb-4"/>
+      <syn-icon name="desktop_windows" class="text-4xl text-syn-color-neutral-400 mb-4" />
       <p class="text-syn-color-neutral-600 font-semibold">
         Split-view requires desktop screen (min. 1024px width)
       </p>
     </div>
   } @else {
-
     <!-- Main split-pane area + settings panel -->
     <div class="workspace-layout flex-1 min-h-0">
-      <div class="flex-1 relative overflow-hidden rounded-2xl min-h-0 min-w-0">
-        <app-split-pane-container class="w-full h-full"/>
+      <div class="flex-1 relative overflow-hidden rounded-xs min-h-0 min-w-0">
+        <app-split-pane-container class="w-full h-full" />
 
         <!-- HUD telemetry: only in single-pane mode -->
         @if (isSinglePane() && !isNarrowScreen()) {
-          <app-workspace-telemetry/>
+          <app-workspace-telemetry />
         }
       </div>
 
       <!-- Always-visible settings panel -->
       <aside class="workspace-settings-panel shrink-0 overflow-y-auto">
-        <app-workspace-controls class="block w-full"/>
+        <app-workspace-controls class="block w-full" />
       </aside>
     </div>
-
   }
-
 </div>
