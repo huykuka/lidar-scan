@@ -7,7 +7,7 @@ Endpoints:
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 from app.api.v1.auth.dependencies import roles_required
 
