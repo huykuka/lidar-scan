@@ -1,4 +1,4 @@
-import {Component, computed, effect, HostListener, inject, OnDestroy, OnInit, signal, untracked} from '@angular/core';
+import {Component, computed, effect, HostListener, inject, input, OnDestroy, OnInit, signal, untracked} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 import {NodePlugin} from '@core/models';
@@ -35,6 +35,9 @@ import {OutputViewerComponent} from '@features/settings/components/flow-canvas/o
   styleUrl: './flow-canvas.component.css',
 })
 export class FlowCanvasComponent implements OnInit, OnDestroy {
+  // ------ Inputs ------
+  readonly readOnly = input(false);
+
   // ------ Store ------
   private nodeStore = inject(NodeStoreService);
   protected canvasEditStore = inject(CanvasEditStoreService);

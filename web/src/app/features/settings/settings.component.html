@@ -9,10 +9,11 @@
       <div class="flex items-center gap-2">
         <syn-button
           (click)="onExportConfig()"
-          [disabled]="isExporting()"
+          [disabled]="isExporting() || !canEdit()"
           [loading]="isExporting()"
           size="small"
           variant="outline"
+          [title]="canEdit() ? 'Export configuration' : 'Admin access required'"
         >
           <syn-icon name="download" slot="prefix"/>
           Export
@@ -20,10 +21,11 @@
 
         <syn-button
           (click)="onImportConfigClick()"
-          [disabled]="isImporting()"
+          [disabled]="isImporting() || !canEdit()"
           [loading]="isImporting()"
           size="small"
           variant="outline"
+          [title]="canEdit() ? 'Import configuration' : 'Admin access required'"
         >
           <syn-icon name="upload" slot="prefix"/>
           Import
@@ -32,12 +34,14 @@
         <div class="w-px h-5 bg-syn-color-neutral-200 mx-1"></div>
 
         @if (isSystemRunning()) {
-          <syn-button (click)="onStopSystem()" size="small" variant="filled">
+          <syn-button (click)="onStopSystem()" [disabled]="!canEdit()" size="small" variant="filled"
+            [title]="canEdit() ? 'Stop system' : 'Admin access required'">
             <syn-icon name="stop" slot="prefix"/>
             Stop
           </syn-button>
         } @else {
-          <syn-button (click)="onStartSystem()" size="small" variant="outline">
+          <syn-button (click)="onStartSystem()" [disabled]="!canEdit()" size="small" variant="outline"
+            [title]="canEdit() ? 'Start system' : 'Admin access required'">
             <syn-icon name="play_arrow" slot="prefix"/>
             Start
           </syn-button>
@@ -58,9 +62,9 @@
         <syn-button
           size="small"
           variant="text"
-          [disabled]="canvasEditStore.isReloading()"
+          [disabled]="canvasEditStore.isReloading() || !canEdit()"
           (click)="onReloadRuntime()"
-          title="Restart backend runtime without saving"
+          [title]="canEdit() ? 'Restart backend runtime without saving' : 'Admin access required'"
         >
           @if (canvasEditStore.isReloading()) {
             <syn-spinner slot="prefix"/>
@@ -90,8 +94,9 @@
         <syn-button
           size="small"
           variant="filled"
-          [disabled]="!canvasEditStore.isDirty() || canvasEditStore.isSaving() || !canvasEditStore.isValid() || isNodeReloading()"
+          [disabled]="!canEdit() || !canvasEditStore.isDirty() || canvasEditStore.isSaving() || !canvasEditStore.isValid() || isNodeReloading()"
           (click)="onSaveAndReload()"
+          [title]="canEdit() ? 'Save and apply changes' : 'Admin access required'"
         >
           @if (canvasEditStore.isSaving()) {
             <syn-spinner slot="prefix"/>
@@ -110,6 +115,14 @@
       </div>
     </div>
 
+    <!-- Read-only notice for users without edit permission -->
+    @if (!canEdit()) {
+      <div class="flex items-center gap-2 px-4 py-2 bg-syn-color-neutral-100 border-b text-xs text-syn-color-neutral-600 shrink-0">
+        <syn-icon name="info" style="font-size: 1rem;"></syn-icon>
+        <span>Read-only mode — sign in as admin or service to make changes</span>
+      </div>
+    }
+
     <!-- Canvas -->
     <div class="flex-1 min-h-0 overflow-hidden relative">
       @if (isInitializing()) {
@@ -120,7 +133,7 @@
           </div>
         </div>
       }
-      <app-flow-canvas/>
+      <app-flow-canvas [readOnly]="!canEdit()"/>
     </div>
   </div>
 

@@ -113,7 +113,10 @@ async def nodes_reload_endpoint():
     summary="Selective Node Reload",
     description="Reload a single node's runtime in-place without affecting other nodes or WebSocket connections.",
 )
-async def node_reload_endpoint(node_id: str):
+@roles_required("admin")
+async def node_reload_endpoint(
+    node_id: str,
+):
     return await reload_single_node(node_id)
 
 
