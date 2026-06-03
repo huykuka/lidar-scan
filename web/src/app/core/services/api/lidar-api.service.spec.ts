@@ -71,4 +71,38 @@ describe('LidarApiService', () => {
     req.flush({status: 'success'});
     await p;
   });
+
+  it('calibrateFromImu() calls calibrate endpoint', async () => {
+    const mockResponse = {
+      success: true,
+      node_id: 'sensor-1',
+      pose: { x: 0, y: 0, z: 0, roll: 1.5, pitch: -0.8, yaw: 0 },
+      imu: null,
+    };
+    const p = service.calibrateFromImu('sensor-1');
+    const req = httpMock.expectOne(
+      (r) => r.method === 'POST' && r.url.includes('/lidar/sensor-1/calibrate-from-imu'),
+    );
+    req.flush(mockResponse);
+    const res = await p;
+    expect(res.success).toBe(true);
+    expect(res.pose.roll).toBe(1.5);
+  });
+
+  it('getImuStatus() calls imu-status endpoint', async () => {
+    const mockResponse = {
+      node_id: 'sensor-1',
+      imu_auto_level: false,
+      has_imu_data: true,
+      imu: { timestamp: 123, orientation: { x: 0, y: 0, z: 0, w: 1 }, angular_velocity: { x: 0, y: 0, z: 0 }, linear_acceleration: { x: 0, y: 0, z: -9.81 } },
+    };
+    const p = service.getImuStatus('sensor-1');
+    const req = httpMock.expectOne(
+      (r) => r.method === 'GET' && r.url.includes('/lidar/sensor-1/imu-status'),
+    );
+    req.flush(mockResponse);
+    const res = await p;
+    expect(res.has_imu_data).toBe(true);
+    expect(res.imu_auto_level).toBe(false);
+  });
 });
