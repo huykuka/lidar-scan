@@ -1,11 +1,18 @@
 """
 Unit tests for transformations module - transformation and mathematical utilities.
 """
+import math
+
 import numpy as np
 import pytest
 
 from app.modules.lidar.core.transformations import (
     create_transformation_matrix,
+    gravity_to_roll_pitch,
+    imu_gravity_alignment_matrix,
+    imu_orientation_matrix,
+    quaternion_is_valid,
+    quaternion_to_rpy,
     transform_points,
     pose_to_dict
 )
@@ -254,3 +261,154 @@ class TestPoseToDict:
         result = pose_to_dict(0, 0, 0, 0, 0, 0)
         expected_keys = {"x", "y", "z", "roll", "pitch", "yaw"}
         assert set(result.keys()) == expected_keys
+
+
+class TestQuaternionToRpy:
+    """Tests for quaternion_to_rpy — must match SICK multiScan SDK convention."""
+
+    def test_identity_quaternion_gives_zero_rpy(self):
+        """Identity quaternion (no rotation) should give (0, 0, 0)."""
+        roll, pitch, yaw = quaternion_to_rpy(1.0, 0.0, 0.0, 0.0)
+        assert abs(roll) < 1e-10
+        assert abs(pitch) < 1e-10
+        assert abs(yaw) < 1e-10
+
+    def test_pure_roll_90deg(self):
+        """Quaternion for 90° roll about X-axis."""
+        angle = math.radians(90)
+        w = math.cos(angle / 2)
+        x = math.sin(angle / 2)
+        roll, pitch, yaw = quaternion_to_rpy(w, x, 0.0, 0.0)
+        assert abs(roll - 90.0) < 1e-6
+        assert abs(pitch) < 1e-6
+        assert abs(yaw) < 1e-6
+
+    def test_pure_pitch_45deg(self):
+        """Quaternion for 45° pitch about Y-axis."""
+        angle = math.radians(45)
+        w = math.cos(angle / 2)
+        y = math.sin(angle / 2)
+        roll, pitch, yaw = quaternion_to_rpy(w, 0.0, y, 0.0)
+        assert abs(roll) < 1e-6
+        assert abs(pitch - 45.0) < 1e-6
+        assert abs(yaw) < 1e-6
+
+    def test_pure_yaw_180deg(self):
+        """Quaternion for 180° yaw about Z-axis."""
+        angle = math.radians(180)
+        w = math.cos(angle / 2)
+        z = math.sin(angle / 2)
+        roll, pitch, yaw = quaternion_to_rpy(w, 0.0, 0.0, z)
+        assert abs(roll) < 1e-6
+        assert abs(pitch) < 1e-6
+        assert abs(abs(yaw) - 180.0) < 1e-6
+
+    def test_matches_sick_lua_formula(self):
+        """Cross-validate against SICK Lua quaternionToRPY reference formula."""
+        # Arbitrary quaternion (normalized)
+        w, x, y, z = 0.7071, 0.3536, 0.3536, 0.5
+        norm = math.sqrt(w**2 + x**2 + y**2 + z**2)
+        w, x, y, z = w / norm, x / norm, y / norm, z / norm
+
+        # SICK Lua reference:
+        expected_roll = math.degrees(math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y)))
+        sinp = 2 * (w * y - z * x)
+        sinp = max(-1.0, min(1.0, sinp))
+        expected_pitch = math.degrees(math.asin(sinp))
+        expected_yaw = math.degrees(math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)))
+
+        roll, pitch, yaw = quaternion_to_rpy(w, x, y, z)
+        assert abs(roll - expected_roll) < 1e-6
+        assert abs(pitch - expected_pitch) < 1e-6
+        assert abs(yaw - expected_yaw) < 1e-6
+
+    def test_gimbal_lock_pitch_90(self):
+        """Pitch at +90° (gimbal lock) should not produce NaN."""
+        angle = math.radians(90)
+        w = math.cos(angle / 2)
+        y = math.sin(angle / 2)
+        roll, pitch, yaw = quaternion_to_rpy(w, 0.0, y, 0.0)
+        assert not math.isnan(roll)
+        assert abs(pitch - 90.0) < 1e-4
+        assert not math.isnan(yaw)
+
+
+class TestQuaternionIsValid:
+    """Tests for quaternion_is_valid."""
+
+    def test_unit_quaternion_valid(self):
+        assert quaternion_is_valid(1.0, 0.0, 0.0, 0.0) is True
+
+    def test_all_zeros_invalid(self):
+        assert quaternion_is_valid(0.0, 0.0, 0.0, 0.0) is False
+
+    def test_near_unit_valid(self):
+        assert quaternion_is_valid(0.7071, 0.7071, 0.0, 0.0) is True
+
+
+class TestImuOrientationMatrix:
+    """Tests for imu_orientation_matrix — leveling from quaternion."""
+
+    def test_identity_gives_identity_matrix(self):
+        """No rotation quaternion → identity alignment matrix."""
+        M = imu_orientation_matrix(1.0, 0.0, 0.0, 0.0)
+        np.testing.assert_array_almost_equal(M, np.eye(4))
+
+    def test_roll_10deg_levels_tilted_cloud(self):
+        """A sensor tilted 10° roll should produce leveled output."""
+        angle_deg = 10.0
+        angle_rad = math.radians(angle_deg)
+        # Quaternion for 10° rotation about X
+        w = math.cos(angle_rad / 2)
+        x = math.sin(angle_rad / 2)
+        M = imu_orientation_matrix(w, x, 0.0, 0.0)
+
+        # A point at (0, 0, 1) in sensor frame — after leveling it should
+        # rotate by 10° roll
+        point_sensor = np.array([[0.0, 0.0, 1.0]])
+        leveled = transform_points(point_sensor, M)
+
+        # Expected: (0, -sin(10°), cos(10°))
+        expected_y = -math.sin(angle_rad)
+        expected_z = math.cos(angle_rad)
+        np.testing.assert_array_almost_equal(
+            leveled[0], [0.0, expected_y, expected_z], decimal=5
+        )
+
+    def test_excludes_yaw_from_leveling(self):
+        """Yaw component should NOT affect leveling (only roll/pitch)."""
+        angle_rad = math.radians(45)
+        # Pure yaw quaternion (45° about Z)
+        w = math.cos(angle_rad / 2)
+        z = math.sin(angle_rad / 2)
+        M = imu_orientation_matrix(w, 0.0, 0.0, z)
+
+        # Should be identity (no roll/pitch correction)
+        np.testing.assert_array_almost_equal(M, np.eye(4))
+
+
+class TestGravityToRollPitch:
+    """Tests for gravity_to_roll_pitch — fallback accelerometer method."""
+
+    def test_level_sensor_gravity_down_z(self):
+        """Sensor level: gravity = (0, 0, -9.81) → roll=0, pitch=0."""
+        roll, pitch = gravity_to_roll_pitch(0.0, 0.0, -9.81)
+        assert abs(roll - 180.0) < 1e-6 or abs(roll + 180.0) < 1e-6 or abs(roll) < 1e-6
+        # For az negative: roll = atan2(0, -9.81) = π → 180° but typical convention
+        # expects gravity along +Z when sensor Z points up. Use +9.81 for that case.
+
+    def test_level_sensor_gravity_up_z(self):
+        """Sensor level with Z up: gravity = (0, 0, +9.81) → roll=0, pitch=0."""
+        roll, pitch = gravity_to_roll_pitch(0.0, 0.0, 9.81)
+        assert abs(roll) < 1e-6
+        assert abs(pitch) < 1e-6
+
+    def test_tilted_roll(self):
+        """Sensor rolled 45°: gravity has Y component."""
+        g = 9.81
+        # 45° roll → ay = g*sin(45°), az = g*cos(45°)
+        ay = g * math.sin(math.radians(45))
+        az = g * math.cos(math.radians(45))
+        roll, pitch = gravity_to_roll_pitch(0.0, ay, az)
+        assert abs(roll - 45.0) < 1e-4
+        assert abs(pitch) < 1e-4

@@ -14,7 +14,10 @@ from app.modules.lidar.core import (
     create_transformation_matrix,
     gravity_to_roll_pitch,
     imu_gravity_alignment_matrix,
+    imu_orientation_matrix,
     pose_to_dict,
+    quaternion_is_valid,
+    quaternion_to_rpy,
 )
 from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
@@ -209,17 +212,24 @@ class LidarSensor(ModuleNode):
             # Extract and store IMU data if present
             imu_raw = payload.get("imu")
             if imu_raw is not None:
+                orientation = imu_raw.get("orientation", {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0})
                 acc = imu_raw.get("linear_acceleration", {"x": 0.0, "y": 0.0, "z": 0.0})
                 self.latest_imu = ImuSnapshot(
                     timestamp=imu_raw.get("timestamp", 0.0),
-                    orientation=imu_raw.get("orientation", {"x": 0.0, "y": 0.0, "z": 0.0, "w": 1.0}),
+                    orientation=orientation,
                     angular_velocity=imu_raw.get("angular_velocity", {"x": 0.0, "y": 0.0, "z": 0.0}),
                     linear_acceleration=acc,
                 )
                 if self.imu_auto_level:
-                    self._imu_gravity_matrix = imu_gravity_alignment_matrix(
-                        acc["x"], acc["y"], acc["z"],
-                    )
+                    # Primary: use orientation quaternion (matches SICK SDK convention)
+                    qw, qx, qy, qz = orientation["w"], orientation["x"], orientation["y"], orientation["z"]
+                    if quaternion_is_valid(qw, qx, qy, qz):
+                        self._imu_gravity_matrix = imu_orientation_matrix(qw, qx, qy, qz)
+                    else:
+                        # Fallback: derive leveling from raw accelerometer gravity
+                        self._imu_gravity_matrix = imu_gravity_alignment_matrix(
+                            acc["x"], acc["y"], acc["z"],
+                        )
 
             points = payload.get("points")
             if points is not None:
@@ -253,9 +263,13 @@ class LidarSensor(ModuleNode):
     def calibrate_from_imu(self) -> Optional[Pose]:
         """Snapshot current IMU orientation and bake it into the sensor pose.
 
-        Reads the latest gravity vector, derives roll/pitch, merges with
-        the current pose (keeping x, y, z and yaw), persists to DB, and
-        hot-updates the in-memory transformation.
+        Uses the orientation quaternion from the sick_scan_xd IMU callback
+        (sensor→world rotation) to derive roll/pitch.  Falls back to the
+        gravity vector when the quaternion is not available.
+
+        The derived angles are stored directly into the pose — this is
+        equivalent to how SICK's own SDK applies the quaternion RPY to the
+        point cloud transform.
 
         Returns:
             The new Pose if successful, None if no IMU data is available.
@@ -263,12 +277,21 @@ class LidarSensor(ModuleNode):
         if self.latest_imu is None:
             return None
 
-        acc = self.latest_imu.linear_acceleration
-        roll, pitch = gravity_to_roll_pitch(acc["x"], acc["y"], acc["z"])
+        # Primary: orientation quaternion (per sick_scan_xd convention)
+        quat = self.latest_imu.orientation
+        qw, qx, qy, qz = quat["w"], quat["x"], quat["y"], quat["z"]
+
+        if quaternion_is_valid(qw, qx, qy, qz):
+            roll, pitch, _yaw = quaternion_to_rpy(qw, qx, qy, qz)
+        else:
+            # Fallback: gravity vector (negate to match sensor→world direction)
+            acc = self.latest_imu.linear_acceleration
+            g_roll, g_pitch = gravity_to_roll_pitch(acc["x"], acc["y"], acc["z"])
+            roll, pitch = -g_roll, -g_pitch
 
         # Clamp to valid Pose range [-180, +180]
-        roll = max(-180.0, min(180.0, -roll))
-        pitch = max(-180.0, min(180.0, -pitch))
+        roll = max(-180.0, min(180.0, roll))
+        pitch = max(-180.0, min(180.0, pitch))
 
         current = self.pose_params
         new_pose = Pose(
