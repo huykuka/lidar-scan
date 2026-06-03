@@ -375,16 +375,24 @@ class TestImuOrientationMatrix:
             leveled[0], [0.0, expected_y, expected_z], decimal=5
         )
 
-    def test_excludes_yaw_from_leveling(self):
-        """Yaw component should NOT affect leveling (only roll/pitch)."""
+    def test_includes_yaw_in_orientation(self):
+        """Yaw component SHOULD be applied for continuous auto-level."""
         angle_rad = math.radians(45)
         # Pure yaw quaternion (45° about Z)
         w = math.cos(angle_rad / 2)
         z = math.sin(angle_rad / 2)
         M = imu_orientation_matrix(w, 0.0, 0.0, z)
 
-        # Should be identity (no roll/pitch correction)
-        np.testing.assert_array_almost_equal(M, np.eye(4))
+        # Should NOT be identity — yaw rotates XY plane
+        assert not np.allclose(M, np.eye(4))
+        # A point at (1, 0, 0) should rotate 45° in XY
+        point = np.array([[1.0, 0.0, 0.0]])
+        rotated = transform_points(point, M)
+        expected_x = math.cos(angle_rad)
+        expected_y = math.sin(angle_rad)
+        np.testing.assert_array_almost_equal(
+            rotated[0], [expected_x, expected_y, 0.0], decimal=5
+        )
 
 
 class TestGravityToRollPitch:

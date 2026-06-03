@@ -123,12 +123,13 @@ def quaternion_is_valid(w: float, x: float, y: float, z: float) -> bool:
 def imu_orientation_matrix(
     w: float, x: float, y: float, z: float,
 ) -> np.ndarray:
-    """Build a leveling matrix from the IMU orientation quaternion.
+    """Build an orientation matrix from the IMU quaternion.
 
     The quaternion encodes the sensor→world rotation (per ROS sensor_msgs/Imu).
     Applying the resulting matrix to sensor-frame points produces
-    gravity-aligned (leveled) points.  Only roll and pitch are used — yaw is
-    excluded because it drifts and is irrelevant for mounting adjustment.
+    world-aligned points.  All three axes (roll, pitch, yaw) are applied —
+    this is intended for continuous auto-level on dynamic platforms where the
+    full real-time orientation is needed.
 
     Args:
         w, x, y, z: Unit quaternion from SickScanImuMsg.orientation.
@@ -136,8 +137,8 @@ def imu_orientation_matrix(
     Returns:
         4×4 rotation-only transformation matrix.
     """
-    roll, pitch, _yaw = quaternion_to_rpy(w, x, y, z)
-    return create_transformation_matrix(0, 0, 0, roll=roll, pitch=pitch, yaw=0)
+    roll, pitch, yaw = quaternion_to_rpy(w, x, y, z)
+    return create_transformation_matrix(0, 0, 0, roll=roll, pitch=pitch, yaw=yaw)
 
 
 def gravity_to_roll_pitch(ax: float, ay: float, az: float) -> tuple[float, float]:
