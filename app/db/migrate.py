@@ -86,8 +86,9 @@ def _seed_default_users() -> None:
             return
 
         defaults = [
-            ("admin", "admin", "admin"),
             ("user", "user", "user"),
+            ("admin", "admin", "admin"),
+            ("service", "service", "service"),
         ]
         for username, password, role in defaults:
             pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
