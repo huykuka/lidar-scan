@@ -1,16 +1,7 @@
 <div class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500">
-  <!-- Unified action bar: layout presets (left) + hide controls (right) -->
-  <div class="flex items-center justify-between mb-2 shrink-0">
+  <!-- Action bar: layout presets -->
+  <div class="flex items-center mb-2 shrink-0">
     <app-view-toolbar/>
-    <syn-button
-      (click)="toggleCockpit()"
-      class="text-syn-color-primary-600"
-      size="small"
-      variant="text"
-    >
-      <syn-icon [name]="showCockpit() ? 'visibility_off' : 'settings'" slot="prefix"/>
-      {{ showCockpit() ? 'Hide Settings' : 'Settings' }}
-    </syn-button>
   </div>
 
   @if (isNarrowScreen() && !isSinglePane()) {
@@ -23,9 +14,9 @@
     </div>
   } @else {
 
-    <!-- Main split-pane area + inline settings panel -->
-    <div class="flex flex-row gap-4 flex-1 min-h-0">
-      <div class="flex-1 relative overflow-hidden rounded-2xl min-h-0">
+    <!-- Main split-pane area + settings panel -->
+    <div class="workspace-layout flex-1 min-h-0">
+      <div class="flex-1 relative overflow-hidden rounded-2xl min-h-0 min-w-0">
         <app-split-pane-container class="w-full h-full"/>
 
         <!-- HUD telemetry: only in single-pane mode -->
@@ -34,12 +25,10 @@
         }
       </div>
 
-      <!-- Inline settings panel (replaces drawer) -->
-      @if (showCockpit()) {
-        <aside class="workspace-settings-panel shrink-0 overflow-y-auto animate-in slide-in-from-right duration-300">
-          <app-workspace-controls class="block w-full"/>
-        </aside>
-      }
+      <!-- Always-visible settings panel -->
+      <aside class="workspace-settings-panel shrink-0 overflow-y-auto">
+        <app-workspace-controls class="block w-full"/>
+      </aside>
     </div>
 
   }

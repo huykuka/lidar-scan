@@ -24,11 +24,25 @@
   color: #ffffff;
 }
 
+.workspace-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+
 .workspace-settings-panel {
-  width: 340px;
+  width: 320px;
   max-height: 100%;
-  padding: 16px;
-  background: var(--syn-color-neutral-50, #f8fafc);
-  border: 1px solid var(--syn-color-neutral-200, #e2e8f0);
-  border-radius: 16px;
+}
+
+/* Small screens: stack vertically */
+@media (max-width: 1023px) {
+  .workspace-layout {
+    flex-direction: column;
+  }
+
+  .workspace-settings-panel {
+    width: 100%;
+    max-height: none;
+  }
 }

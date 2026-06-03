@@ -39,8 +39,6 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
   private statusWs = inject(NodeStatusService);
   private splitLayout = inject(SplitLayoutStoreService);
 
-  protected showCockpit = this.workspaceStore.showCockpit;
-
   /** Hide HUD and cockpit controls when more than one pane is active */
   protected isSinglePane = computed(() => this.splitLayout.paneCount() <= 1);
 
@@ -80,12 +78,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    this.workspaceStore.set('showCockpit', false);
     this._narrowMql.removeEventListener('change', this._narrowListener);
-  }
-
-  protected toggleCockpit() {
-    this.workspaceStore.set('showCockpit', !this.showCockpit());
   }
 
   private async refreshTopics() {
