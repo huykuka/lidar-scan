@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from app.api.v1.auth.dependencies import require_admin
-from app.api.v1.auth.service import UserInfo
+from app.api.v1.auth.dependencies import roles_required
+
 from app.api.v1.schemas.dag import (
     DagConfigResponse,
     DagConfigSaveRequest,
@@ -50,8 +50,6 @@ async def dag_config_get_endpoint() -> DagConfigResponse:
     ),
     tags=["DAG"],
 )
-async def dag_config_save_endpoint(
-    req: DagConfigSaveRequest,
-    _admin: UserInfo = Depends(require_admin),
-) -> DagConfigSaveResponse:
+@roles_required("admin")
+async def dag_config_save_endpoint(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
     return await save_dag_config(req)

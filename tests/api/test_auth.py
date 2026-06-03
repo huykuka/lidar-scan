@@ -99,7 +99,7 @@ class TestMe:
 
 
 # ---------------------------------------------------------------------------
-# User management endpoints (admin-only)
+# User management endpoints (admin-only via @roles_required)
 # ---------------------------------------------------------------------------
 
 class TestUserManagement:
@@ -114,6 +114,11 @@ class TestUserManagement:
         users = resp.json()
         usernames = {u["username"] for u in users}
         assert {"user", "admin", "service"} <= usernames
+
+    def test_list_users_as_service(self, auth_client):
+        token = _login(auth_client, "service", "service").json()["access_token"]
+        resp = auth_client.get("/api/v1/auth/users", headers=_auth_header(token))
+        assert resp.status_code == 200
 
     def test_list_users_blocked_for_user_role(self, auth_client):
         token = _login(auth_client, "user", "user").json()["access_token"]

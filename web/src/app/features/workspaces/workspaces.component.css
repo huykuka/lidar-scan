@@ -23,3 +23,26 @@
 .text-white syn-icon {
   color: #ffffff;
 }
+
+.workspace-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+
+.workspace-settings-panel {
+  width: 320px;
+  max-height: 100%;
+}
+
+/* Small screens: stack vertically */
+@media (max-width: 1023px) {
+  .workspace-layout {
+    flex-direction: column;
+  }
+
+  .workspace-settings-panel {
+    width: 100%;
+    max-height: none;
+  }
+}

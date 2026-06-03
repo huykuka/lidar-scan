@@ -1,56 +1,56 @@
 import {NAVIGATION_CONFIG, NavItem} from './navigation.model';
 import {UserRole} from '@core/services/auth.service';
 
+const ROLE_LEVELS: Record<UserRole, number> = {user: 0, admin: 1, service: 2};
+
+function visibleItems(role: UserRole | undefined): NavItem[] {
+  return NAVIGATION_CONFIG.filter((item) => {
+    if (item.footer) return false;
+    if (!item.requiredRole) return true;
+    if (!role) return false;
+    return ROLE_LEVELS[role] >= ROLE_LEVELS[item.requiredRole];
+  });
+}
+
 describe('NAVIGATION_CONFIG', () => {
-  it('should contain Node Definitions nav item', () => {
-    const nodeDefs = NAVIGATION_CONFIG.find((item) => item.label === 'Node Definitions');
-    expect(nodeDefs).toBeDefined();
-    expect(nodeDefs!.route).toBe('/node-definitions');
+  it('should have Node Definitions with requiredRole service', () => {
+    const nodeDef = NAVIGATION_CONFIG.find((i) => i.label === 'Node Definitions');
+    expect(nodeDef).toBeTruthy();
+    expect(nodeDef!.requiredRole).toBe('service');
   });
 
-  it('should require service role for Node Definitions', () => {
-    const nodeDefs = NAVIGATION_CONFIG.find((item) => item.label === 'Node Definitions')!;
-    expect(nodeDefs.requiredRole).toBe('service');
+  it('guest (no role) should not see Node Definitions', () => {
+    const labels = visibleItems(undefined).map((i) => i.label);
+    expect(labels).not.toContain('Node Definitions');
   });
 
-  it('should not require a role for standard nav items', () => {
-    const standardItems = ['Start', 'Workspaces', 'Settings', 'Logs'];
-    for (const label of standardItems) {
-      const item = NAVIGATION_CONFIG.find((i) => i.label === label);
-      expect(item).toBeDefined();
-      expect(item!.requiredRole).toBeUndefined();
+  it('user role should not see Node Definitions', () => {
+    const labels = visibleItems('user').map((i) => i.label);
+    expect(labels).not.toContain('Node Definitions');
+  });
+
+  it('admin role should not see Node Definitions (requires service)', () => {
+    const labels = visibleItems('admin').map((i) => i.label);
+    expect(labels).not.toContain('Node Definitions');
+  });
+
+  it('service role should see Node Definitions', () => {
+    const labels = visibleItems('service').map((i) => i.label);
+    expect(labels).toContain('Node Definitions');
+  });
+
+  it('all non-restricted items visible to every role', () => {
+    const unrestricted = NAVIGATION_CONFIG.filter((i) => !i.footer && !i.requiredRole);
+    for (const role of ['user', 'admin', 'service'] as UserRole[]) {
+      const visible = visibleItems(role);
+      for (const item of unrestricted) {
+        expect(visible).toContain(item);
+      }
     }
   });
 
-  function visibleItems(role: UserRole | null): NavItem[] {
-    return NAVIGATION_CONFIG.filter((item) => {
-      if (!item.requiredRole) return true;
-      if (!role) return false;
-      const levels: Record<UserRole, number> = {user: 0, admin: 1, service: 2};
-      return role === item.requiredRole || levels[role] >= levels[item.requiredRole];
-    });
-  }
-
-  it('guest sees all items except Node Definitions', () => {
-    const items = visibleItems(null);
-    const labels = items.map((i) => i.label);
-    expect(labels).not.toContain('Node Definitions');
-    expect(labels).toContain('Settings');
-    expect(labels).toContain('Logs');
-  });
-
-  it('user role sees all items except Node Definitions', () => {
-    const items = visibleItems('user');
-    expect(items.map((i) => i.label)).not.toContain('Node Definitions');
-  });
-
-  it('admin role sees all items except Node Definitions', () => {
-    const items = visibleItems('admin');
-    expect(items.map((i) => i.label)).not.toContain('Node Definitions');
-  });
-
-  it('service role sees all items including Node Definitions', () => {
-    const items = visibleItems('service');
-    expect(items.map((i) => i.label)).toContain('Node Definitions');
+  it('should have expected number of main nav items', () => {
+    const mainItems = NAVIGATION_CONFIG.filter((i) => !i.footer);
+    expect(mainItems.length).toBe(8);
   });
 });

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from .dependencies import get_current_user, require_admin
+from .dependencies import get_current_user, roles_required
 from .service import (
     LoginRequest,
     LoginResponse,
@@ -54,7 +54,8 @@ async def me(user: UserInfo = Depends(get_current_user)):
     summary="List Users",
     description="List all users. Admin only.",
 )
-async def get_users(admin: UserInfo = Depends(require_admin)):
+@roles_required("admin")
+async def get_users():
     users = list_users()
     return [UserInfo(**u) for u in users]
 
@@ -66,9 +67,8 @@ async def get_users(admin: UserInfo = Depends(require_admin)):
     summary="Create User",
     description="Create a new user account. Admin only.",
 )
-async def create_new_user(
-    req: RegisterRequest, admin: UserInfo = Depends(require_admin)
-):
+@roles_required("admin")
+async def create_new_user(req: RegisterRequest):
     try:
         user = create_user(req.username, req.password, req.role)
         return UserInfo(id=user.id, username=user.username, role=user.role)
@@ -86,8 +86,9 @@ async def create_new_user(
     summary="Delete User",
     description="Delete a user account. Admin only.",
 )
-async def remove_user(user_id: str, admin: UserInfo = Depends(require_admin)):
-    if user_id == admin.id:
+@roles_required("admin")
+async def remove_user(user_id: str, me: UserInfo = Depends(get_current_user)):
+    if user_id == me.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot delete your own account",

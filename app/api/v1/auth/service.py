@@ -41,11 +41,10 @@ class RegisterRequest(BaseModel):
     password: str
     role: str = "user"
 
-    @classmethod
-    def _validate_role(cls, v: str) -> str:
-        if v not in ("user", "admin", "service"):
-            raise ValueError("role must be one of: user, admin, service")
-        return v
+    def model_post_init(self, __context: object) -> None:
+        valid = {"user", "admin", "service"}
+        if self.role not in valid:
+            raise ValueError(f"role must be one of {valid}")
 
 
 def authenticate_user(username: str, password: str) -> Optional[UserModel]:

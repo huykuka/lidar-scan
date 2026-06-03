@@ -25,10 +25,12 @@ export class SideNavComponent {
   readonly onHide = output<void>();
   protected readonly mainNavItems = computed(() => {
     const role = this.auth.user()?.role;
-    const userLevel = role ? ROLE_LEVELS[role] : -1;
-    return NAVIGATION_CONFIG.filter(
-      (item) => !item.footer && (!item.requiredRole || userLevel >= ROLE_LEVELS[item.requiredRole]),
-    );
+    return NAVIGATION_CONFIG.filter((item) => {
+      if (item.footer) return false;
+      if (!item.requiredRole) return true;
+      if (!role) return false;
+      return ROLE_LEVELS[role] >= ROLE_LEVELS[item.requiredRole];
+    });
   });
   protected readonly footerNavItems = NAVIGATION_CONFIG.filter((item) => item.footer);
 

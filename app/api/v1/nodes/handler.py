@@ -5,10 +5,9 @@ All node creation, update, and deletion is now performed atomically via
 PUT /api/v1/dag/config. This router retains read-only and live-action endpoints.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
-from app.api.v1.auth.dependencies import require_admin, require_service
-from app.api.v1.auth.service import UserInfo
+from app.api.v1.auth.dependencies import roles_required
 from app.services.nodes.schema import NodeDefinition
 from app.api.v1.schemas.nodes import (
     NodeRecord,
@@ -59,9 +58,8 @@ async def nodes_definitions_endpoint():
         "Disabled types are hidden from the palette but remain on disk."
     ),
 )
-async def nodes_definitions_registry_endpoint(
-    _service: UserInfo = Depends(require_service),
-):
+@roles_required("service")
+async def nodes_definitions_registry_endpoint():
     return await list_node_type_registry()
 
 
@@ -74,10 +72,10 @@ async def nodes_definitions_registry_endpoint(
     ),
     responses={404: {"description": "Node type not found"}},
 )
+@roles_required("service")
 async def nodes_definition_toggle_endpoint(
     node_type: str,
     req: NodeTypeToggle,
-    _service: UserInfo = Depends(require_service),
 ):
     return await set_node_type_enabled(node_type, req)
 
@@ -99,9 +97,8 @@ async def nodes_reload_status_endpoint():
     summary="Reload Configuration",
     description="Reload all node configurations from database.",
 )
-async def nodes_reload_endpoint(
-    _admin: UserInfo = Depends(require_admin),
-):
+@roles_required("admin")
+async def nodes_reload_endpoint():
     return await reload_all_config()
 
 
@@ -144,11 +141,8 @@ async def node_get_endpoint(node_id: str):
     summary="Set Node Visible",
     description="Toggle node visibility state. Controls whether the node streams data to WebSocket.",
 )
-async def node_visible_endpoint(
-    node_id: str,
-    req: NodeVisibilityToggle,
-    _admin: UserInfo = Depends(require_admin),
-):
+@roles_required("admin")
+async def node_visible_endpoint(node_id: str, req: NodeVisibilityToggle):
     return await set_node_visible(node_id, req)
 
 
@@ -158,11 +152,8 @@ async def node_visible_endpoint(
     summary="Set Node Enabled",
     description="Toggle node enabled state.",
 )
-async def node_enabled_endpoint(
-    node_id: str,
-    req: NodeStatusToggle,
-    _admin: UserInfo = Depends(require_admin),
-):
+@roles_required("admin")
+async def node_enabled_endpoint(node_id: str, req: NodeStatusToggle):
     return await set_node_enabled(node_id, req)
 
 
