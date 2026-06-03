@@ -481,7 +481,21 @@ def build_launch_args(
         port: Optional[int],
         udp_receiver_ip: Optional[str],
         imu_udp_port: Optional[int],
-        add_transform_xyz_rpy: str
+        add_transform_xyz_rpy: str,
+        *,
+        scandataformat: Optional[int] = None,
+        host_FREchoFilter: Optional[int] = None,
+        host_set_LFPangleRangeFilter: Optional[bool] = None,
+        host_LFPangleRangeFilter: Optional[str] = None,
+        host_set_LFPintervalFilter: Optional[bool] = None,
+        host_LFPintervalFilter: Optional[str] = None,
+        host_set_LFPlayerFilter: Optional[bool] = None,
+        host_LFPlayerFilter: Optional[str] = None,
+        laserscan_layer_filter: Optional[str] = None,
+        performanceprofilenumber: Optional[int] = None,
+        all_segments_min_deg: Optional[float] = None,
+        all_segments_max_deg: Optional[float] = None,
+        add_transform_check_dynamic_updates: Optional[bool] = None,
 ) -> str:
     """
     Build launch arguments string for a specific SICK LiDAR model.
@@ -492,6 +506,19 @@ def build_launch_args(
         port: Port number (ignored for models without port_arg)
         udp_receiver_ip: UDP receiver IP (for multiScan and picoScan series)
         imu_udp_port: IMU UDP port (only for multiScan)
+        scandataformat: Scan data format (1=msgpack, 2=compact) for segment scanners
+        host_FREchoFilter: Echo filter (0=first, 1=all, 2=last) for picoScan
+        host_set_LFPangleRangeFilter: Enable angle range filter (segment scanners)
+        host_LFPangleRangeFilter: Angle range filter params string
+        host_set_LFPintervalFilter: Enable interval filter (segment scanners)
+        host_LFPintervalFilter: Interval filter params string
+        host_set_LFPlayerFilter: Enable layer filter (multiScan only)
+        host_LFPlayerFilter: Layer filter params string
+        laserscan_layer_filter: LaserScan layer selection (multiScan only)
+        performanceprofilenumber: Performance profile number (picoScan only)
+        all_segments_min_deg: Min angle for fullscan assembly (picoScan)
+        all_segments_max_deg: Max angle for fullscan assembly (picoScan)
+        add_transform_check_dynamic_updates: Enable dynamic transform updates
     
     Returns:
         Complete launch arguments string
@@ -515,5 +542,42 @@ def build_launch_args(
     # Add IMU UDP port for multiScan only
     if profile.has_imu_udp_port and imu_udp_port is not None:
         args += f" imu_udp_port:={imu_udp_port}"
+
+    # --- Scan configuration (segment-based scanners) ---
+    if profile.has_udp_receiver:
+        if scandataformat is not None:
+            args += f" scandataformat:={scandataformat}"
+        if host_FREchoFilter is not None:
+            args += f" host_FREchoFilter:={host_FREchoFilter}"
+        if host_set_LFPangleRangeFilter is not None:
+            args += f" host_set_LFPangleRangeFilter:={'True' if host_set_LFPangleRangeFilter else 'False'}"
+            if host_set_LFPangleRangeFilter and host_LFPangleRangeFilter:
+                args += f" host_LFPangleRangeFilter:={host_LFPangleRangeFilter}"
+        if host_set_LFPintervalFilter is not None:
+            args += f" host_set_LFPintervalFilter:={'True' if host_set_LFPintervalFilter else 'False'}"
+            if host_set_LFPintervalFilter and host_LFPintervalFilter:
+                args += f" host_LFPintervalFilter:={host_LFPintervalFilter}"
+
+    # --- Layer filter (multiScan only — multi-layer scanners) ---
+    if profile.has_udp_receiver and profile.scan_layers > 1:
+        if host_set_LFPlayerFilter is not None:
+            args += f" host_set_LFPlayerFilter:={'True' if host_set_LFPlayerFilter else 'False'}"
+            if host_set_LFPlayerFilter and host_LFPlayerFilter:
+                args += f" host_LFPlayerFilter:={host_LFPlayerFilter}"
+        if laserscan_layer_filter is not None:
+            args += f" laserscan_layer_filter:={laserscan_layer_filter}"
+
+    # --- picoScan-specific settings ---
+    if profile.model_id in ("picoscan_120", "picoscan_150"):
+        if performanceprofilenumber is not None and performanceprofilenumber >= 0:
+            args += f" performanceprofilenumber:={performanceprofilenumber}"
+        if all_segments_min_deg is not None:
+            args += f" all_segments_min_deg:={all_segments_min_deg}"
+        if all_segments_max_deg is not None:
+            args += f" all_segments_max_deg:={all_segments_max_deg}"
+
+    # --- Dynamic transform updates (all models) ---
+    if add_transform_check_dynamic_updates is not None:
+        args += f" add_transform_check_dynamic_updates:={'true' if add_transform_check_dynamic_updates else 'false'}"
 
     return args
