@@ -157,12 +157,12 @@ class NodeManager:
             self._topic_registry.clear()
             
             logger.info("Waiting for process cleanup and port release...")
-            await asyncio.sleep(2.0)  # replaced time.sleep — must not block the event loop
+            await asyncio.sleep(0.5)  # Process join already handled by stop_all_nodes_async (10 s timeout); this brief pause covers port release only.
             
             # Sweep ALL topics that don't belong to the current configuration
             # This includes both topics that failed cleanup AND phantom topics from previous deployments
             logger.info("Loading new config...")
-            self.load_config()
+            await asyncio.to_thread(self.load_config)
             
             # Collect all valid topics that should exist based on current config
             valid_topics: set[str] = set()

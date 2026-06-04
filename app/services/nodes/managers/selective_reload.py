@@ -144,9 +144,10 @@ class SelectiveReloadManager:
         node_is_enabled: bool = True  # default; resolved from DB in step 9
         try:
             # ------------------------------------------------------------------
-            # Step 9: Load fresh node data from DB
+            # Step 9: Load fresh node data from DB (offloaded to thread to
+            # avoid blocking the event loop on Docker overlay2 I/O)
             # ------------------------------------------------------------------
-            node_data = NodeRepository().get_by_id(node_id)
+            node_data = await asyncio.to_thread(NodeRepository().get_by_id, node_id)
             if node_data is None:
                 raise ValueError(f"Node '{node_id}' not found in database.")
 
@@ -275,7 +276,7 @@ class SelectiveReloadManager:
         node_instance = self.manager.nodes[node_id]
 
         try:
-            node_data = NodeRepository().get_by_id(node_id)
+            node_data = await asyncio.to_thread(NodeRepository().get_by_id, node_id)
             if node_data is None:
                 raise ValueError(f"Node '{node_id}' not found in database.")
 

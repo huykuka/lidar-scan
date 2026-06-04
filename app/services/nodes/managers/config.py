@@ -128,8 +128,6 @@ class ConfigLoader:
         visible = node.get("visible", True)
         enabled = node.get("enabled", True)
 
-        print(f"[DEBUG] Node {node['id']} - websocket_enabled: {websocket_enabled}, visible: {visible}, enabled: {enabled}")
-        
         # Generate topic name
         node_name = getattr(node_instance, "name", node["id"])
         safe_name = slugify_topic_prefix(node_name)

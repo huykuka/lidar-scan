@@ -206,73 +206,81 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
         )
 
     # ── Step 3: Snapshot existing state for diff ────────────────────────────
-    snapshot_node_repo = NodeRepository()
-    snapshot_edge_repo = EdgeRepository()
-    existing_nodes_snapshot = snapshot_node_repo.list()
-    existing_edges_snapshot = snapshot_edge_repo.list()
+    def _snapshot_db():
+        return NodeRepository().list(), EdgeRepository().list()
+
+    existing_nodes_snapshot, existing_edges_snapshot = await asyncio.to_thread(_snapshot_db)
 
     # ── Step 4: Atomic DB transaction ───────────────────────────────────────
+    # Run the entire write transaction in a thread so synchronous SQLite
+    # fsync calls (especially costly on Docker overlay2) never block the
+    # asyncio event loop.
     node_id_map: Dict[str, str] = {}
     new_version: int = current_version + 1
 
-    session = SessionLocal()
+    def _run_transaction() -> Tuple[Dict[str, str], int, List[Dict]]:
+        _id_map: Dict[str, str] = {}
+        session = SessionLocal()
+        try:
+            node_repo = NodeRepository(session=session)
+            edge_repo = EdgeRepository(session=session)
+            meta_repo_tx = DagMetaRepository(session=session)
+
+            # Get existing node IDs from DB (to detect deletions)
+            existing_nodes = node_repo.list()
+            existing_ids = {n["id"] for n in existing_nodes}
+
+            # Determine IDs that will be kept (non-temp) from the request
+            requested_ids = set()
+            for node in req.nodes:
+                if not _is_temp_id(node.id):
+                    requested_ids.add(node.id)
+
+            # Delete nodes that are in DB but NOT in the incoming request
+            ids_to_delete = existing_ids - requested_ids
+            for nid in ids_to_delete:
+                node_repo.delete(nid)  # also cascades edges via NodeRepository.delete
+
+            # Upsert all requested nodes
+            for node in req.nodes:
+                payload = node.model_dump()
+                if _is_temp_id(node.id):
+                    # Assign a new server-generated UUID
+                    new_id = uuid.uuid4().hex
+                    payload["id"] = new_id
+                    _id_map[node.id] = new_id
+                node_repo.upsert(payload)
+
+            # Build remapped edge list
+            remapped_edges: List[Dict] = []
+            for edge in req.edges:
+                e_dict = edge.model_dump()
+                e_dict["source_node"] = _id_map.get(e_dict["source_node"], e_dict["source_node"])
+                e_dict["target_node"] = _id_map.get(e_dict["target_node"], e_dict["target_node"])
+                remapped_edges.append(e_dict)
+
+            # Replace all edges
+            edge_repo.save_all(remapped_edges)
+
+            # Increment version within the same transaction
+            _new_version = meta_repo_tx.increment_version(session)
+
+            session.commit()
+            return _id_map, _new_version, remapped_edges
+
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
     try:
-        node_repo = NodeRepository(session=session)
-        edge_repo = EdgeRepository(session=session)
-        meta_repo_tx = DagMetaRepository(session=session)
-
-        # Get existing node IDs from DB (to detect deletions)
-        existing_nodes = node_repo.list()
-        existing_ids = {n["id"] for n in existing_nodes}
-
-        # Determine IDs that will be kept (non-temp) from the request
-        requested_ids = set()
-        for node in req.nodes:
-            if not _is_temp_id(node.id):
-                requested_ids.add(node.id)
-
-        # Delete nodes that are in DB but NOT in the incoming request
-        ids_to_delete = existing_ids - requested_ids
-        for nid in ids_to_delete:
-            node_repo.delete(nid)  # also cascades edges via NodeRepository.delete
-
-        # Upsert all requested nodes
-        for node in req.nodes:
-            payload = node.model_dump()
-            if _is_temp_id(node.id):
-                # Assign a new server-generated UUID
-                new_id = uuid.uuid4().hex
-                payload["id"] = new_id
-                node_id_map[node.id] = new_id
-            node_repo.upsert(payload)
-
-        # Build remapped edge list
-        remapped_edges = []
-        for edge in req.edges:
-            e_dict = edge.model_dump()
-            e_dict["source_node"] = node_id_map.get(e_dict["source_node"], e_dict["source_node"])
-            e_dict["target_node"] = node_id_map.get(e_dict["target_node"], e_dict["target_node"])
-            remapped_edges.append(e_dict)
-
-        # Replace all edges
-        edge_repo.save_all(remapped_edges)
-
-        # Increment version within the same transaction
-        new_version = meta_repo_tx.increment_version(session)
-
-        session.commit()
-
+        node_id_map, new_version, remapped_edges = await asyncio.to_thread(_run_transaction)
     except HTTPException:
-        session.rollback()
-        session.close()
         raise
     except Exception as exc:
-        session.rollback()
-        session.close()
         logger.error(f"save_dag_config: DB transaction failed: {exc}")
         raise HTTPException(status_code=500, detail=f"Save failed: {str(exc)}")
-    finally:
-        session.close()
 
     # ── Step 5: Classify changes and trigger the appropriate reload ──────────
     # Use the pre-transaction snapshot for diff — new_edges still use original IDs
