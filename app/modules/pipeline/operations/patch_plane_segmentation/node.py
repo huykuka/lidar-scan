@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, List
 
 import numpy as np
 import open3d as o3d
@@ -41,6 +41,8 @@ class PatchPlaneSegmentation(PipelineOperation):
         max_nn: int = 30,
         search_radius: float = 0.1,
         invert: bool = False,
+        min_area: float = 0.0,
+        max_area: float = 0.0,
     ):
         self.normal_variance_threshold_deg = float(normal_variance_threshold_deg)
         self.coplanarity_deg = float(coplanarity_deg)
@@ -50,6 +52,30 @@ class PatchPlaneSegmentation(PipelineOperation):
         self.max_nn = int(max_nn)
         self.search_radius = float(search_radius)
         self.invert = bool(invert)
+        self.min_area = float(min_area)
+        self.max_area = float(max_area)
+
+    @staticmethod
+    def _obox_area(obox: o3d.geometry.OrientedBoundingBox) -> float:
+        """Return the planar area of an OBB (product of its two largest extents)."""
+        extents = sorted(obox.extent, reverse=True)
+        return float(extents[0] * extents[1])
+
+    def _filter_by_area(
+        self, oboxes: list,
+    ) -> tuple[list, List[float]]:
+        """Keep only patches whose OBB area satisfies min/max thresholds."""
+        kept: list = []
+        areas: List[float] = []
+        for obox in oboxes:
+            area = self._obox_area(obox)
+            if self.min_area > 0 and area < self.min_area:
+                continue
+            if self.max_area > 0 and area > self.max_area:
+                continue
+            kept.append(obox)
+            areas.append(area)
+        return kept, areas
 
     def apply(self, pcd: Any):
         is_tensor = isinstance(pcd, o3d.t.geometry.PointCloud)
@@ -85,6 +111,19 @@ class PatchPlaneSegmentation(PipelineOperation):
         if not oboxes:
             return pcd, {"plane_count": 0, "inlier_count": 0, "original_count": count}
 
+        # Filter patches by area when thresholds are set.
+        has_area_filter = self.min_area > 0 or self.max_area > 0
+        patch_areas: List[float] = []
+        if has_area_filter:
+            oboxes, patch_areas = self._filter_by_area(oboxes)
+            if not oboxes:
+                return pcd, {
+                    "plane_count": 0,
+                    "inlier_count": 0,
+                    "original_count": count,
+                    "area_filtered": True,
+                }
+
         # Assign each point to a patch via the oriented bounding boxes.
         # Points may fall in multiple boxes — last patch wins (same as clustering).
         points = np.asarray(legacy_pcd.points)
@@ -115,8 +154,11 @@ class PatchPlaneSegmentation(PipelineOperation):
         if is_tensor:
             result = o3d.t.geometry.PointCloud.from_legacy(result)
 
-        return result, {
+        meta = {
             "plane_count": len(oboxes),
             "inlier_count": int(np.sum(inlier_mask)),
             "original_count": count,
         }
+        if patch_areas:
+            meta["patch_areas"] = patch_areas
+        return result, meta
