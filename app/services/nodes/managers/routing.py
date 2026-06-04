@@ -33,6 +33,9 @@ class DataRouter:
 
         self.manager = manager_ref
         self._shape_tracker = ShapeTracker()
+        # Cached set of node IDs whose instances are ShapeCollectorMixin.
+        # Rebuilt by invalidate_shape_collector_cache() whenever nodes change.
+        self._shape_collector_ids: Optional[frozenset] = None
 
     async def handle_incoming_data(self, payload: Dict[str, Any]):
         """
@@ -275,35 +278,50 @@ class DataRouter:
             return
 
         try:
-            await target_node.on_input({**payload})
+            await target_node.on_input(payload)
         except Exception as e:
             logger.error(f"Error forwarding data from {source_id} to {target_id}: {e}")
+
+    def invalidate_shape_collector_cache(self) -> None:
+        """Force a re-scan on the next publish_shapes() call."""
+        self._shape_collector_ids = None
+
+    def _ensure_shape_collector_cache(self) -> frozenset:
+        """Lazily build the set of ShapeCollectorMixin node IDs."""
+        if self._shape_collector_ids is None:
+            from app.services.nodes.shape_collector import ShapeCollectorMixin
+            self._shape_collector_ids = frozenset(
+                nid for nid, node in self.manager.nodes.items()
+                if isinstance(node, ShapeCollectorMixin)
+            )
+        return self._shape_collector_ids
 
     async def publish_shapes(self) -> None:
         """
         Collect shapes from all ShapeCollectorMixin nodes and broadcast to 'shapes' topic.
 
-        Called after all forward_data calls per frame settle. Assigns stable IDs and
-        node_name to each shape, caps at MAX_SHAPES_PER_FRAME, and broadcasts a
-        ShapeFrame JSON payload to the 'shapes' WebSocket topic.
-
-        Threading note: collect_and_clear_shapes() is called from the asyncio event
-        loop (after asyncio.to_thread returns), so no locking is needed.
+        Uses a cached set of collector node IDs to avoid per-frame isinstance() checks.
         """
-        from app.services.nodes.shape_collector import ShapeCollectorMixin
         from app.services.nodes.shapes import ShapeFrame
+
+        collector_ids = self._ensure_shape_collector_cache()
+        if not collector_ids:
+            # No collectors in the pipeline — skip entirely
+            if manager.has_subscribers("shapes"):
+                frame_dict = {"timestamp": time.time(), "shapes": []}
+                await manager.broadcast("shapes", frame_dict)
+            return
 
         all_shapes: List[dict] = []
 
-        for node in self.manager.nodes.values():
-            if not isinstance(node, ShapeCollectorMixin):
+        for nid in collector_ids:
+            node = self.manager.nodes.get(nid)
+            if node is None:
                 continue
-            node_id: str = getattr(node, "id", "")
-            node_name: str = getattr(node, "name", node_id)
+            node_name: str = getattr(node, "name", nid)
             for shape in node.collect_and_clear_shapes():
                 shape.node_name = node_name
                 raw = shape.model_dump()
-                # id will be assigned by the shape tracker below
                 raw["id"] = ""
                 all_shapes.append(raw)
 

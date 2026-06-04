@@ -33,6 +33,11 @@ def _tensor_map_keys(tensor_map: Any) -> List[str]:
 class PipelineOperation(ABC):
     """Base class for all atomic point cloud operations"""
 
+    # Subclasses that internally need legacy PCD should set this to True.
+    # OperationNode will then skip the expensive Tensor round-trip and
+    # create a legacy PCD directly.
+    PREFERS_LEGACY: bool = False
+
     @abstractmethod
     def apply(self, pcd: Any) -> Any:
         """
@@ -44,7 +49,21 @@ class PipelineOperation(ABC):
 
 class PointConverter:
     """Utility for converting between Numpy arrays and Open3D PointClouds."""
-    
+
+    @staticmethod
+    def to_legacy_pcd(points: np.ndarray) -> o3d.geometry.PointCloud:
+        """Convert numpy points to a legacy PointCloud (XYZ only).
+
+        This is much cheaper than to_pcd() because it avoids creating 14
+        individual Tensor objects and the associated memory allocations.
+        Use when the downstream operation only needs positional data.
+        """
+        pcd = o3d.geometry.PointCloud()
+        if points.size == 0:
+            return pcd
+        pcd.points = o3d.utility.Vector3dVector(points[:, :3])
+        return pcd
+
     @staticmethod
     def to_pcd(points: np.ndarray, device: str = "CPU:0") -> o3d.t.geometry.PointCloud:
         """Converts interleaved numpy points (N, M) to Tensor-based Open3D PointCloud."""

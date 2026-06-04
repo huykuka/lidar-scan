@@ -119,6 +119,7 @@ class NodeManager:
                         compute_node_config_hash_no_pose(node_data),
                     )
             
+            self._data_router.invalidate_shape_collector_cache()
             logger.info(f"Initialized {len(self.nodes)} nodes. Downstream map: {dict(self.downstream_map)}")
         except Exception as e:
             logger.error(f"Error loading graph from DB: {e}", exc_info=True)
@@ -209,6 +210,7 @@ class NodeManager:
             try:
                 await self._broadcast_reload_event(node_id, "reloading", "selective")
                 result = await self._selective_reload_manager.reload_single_node(node_id)
+                self._data_router.invalidate_shape_collector_cache()
                 status = "ready" if result.status == "reloaded" else "error"
                 await self._broadcast_reload_event(
                     node_id, status, "selective", result.error_message
@@ -285,6 +287,7 @@ class NodeManager:
                     if inspect.isawaitable(result):
                         await result
 
+        self._data_router.invalidate_shape_collector_cache()
         await self._broadcast_reload_event(node_id, "ready", "selective")
         logger.info(f"[NodeManager] Node '{node_id}' bootstrapped into running pipeline.")
 
@@ -391,6 +394,7 @@ class NodeManager:
             node_id: The ID of the node to remove
         """
         self._lifecycle_manager.remove_node(node_id)
+        self._data_router.invalidate_shape_collector_cache()
     
     async def remove_node_async(self, node_id: str, *, delete_results: bool = True):
         """
@@ -407,6 +411,7 @@ class NodeManager:
                 removed by the user.
         """
         await self._lifecycle_manager.remove_node_async(node_id)
+        self._data_router.invalidate_shape_collector_cache()
         # Only delete stored results on permanent removal, not during reload cleanup
         if delete_results:
             try:
