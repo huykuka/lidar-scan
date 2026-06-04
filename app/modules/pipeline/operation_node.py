@@ -123,6 +123,18 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
             # Move heavy CPU-bound Point Cloud operations to a background thread
             # so they don't block the main FastAPI/Websocket async event loop.
             def _sync_compute():
+                # Fast path for PREFERS_LEGACY ops that provide apply_filter():
+                # numpy → legacy PCD (XYZ only) → index selection on numpy.
+                # Skips all Tensor allocation/conversion overhead.
+                if getattr(self.op, 'PREFERS_LEGACY', False) and hasattr(self.op, 'apply_filter'):
+                    legacy_pcd = PointConverter.to_legacy_pcd(points)
+                    indices, op_result = self.op.apply_filter(legacy_pcd)
+                    if indices is not None and len(indices) > 0:
+                        return points[indices], op_result
+                    n_cols = points.shape[1] if points.ndim > 1 else 3
+                    return np.zeros((0, n_cols), dtype=np.float32), op_result
+
+                # Standard path: numpy → Tensor PCD → op → numpy
                 # 1. Convert numpy -> Open3D t.PointCloud
                 pcd_in = PointConverter.to_pcd(points)
                 # 2. Apply the atomic operation

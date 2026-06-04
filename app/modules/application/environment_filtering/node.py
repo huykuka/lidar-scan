@@ -313,17 +313,21 @@ class EnvironmentFilteringNode(ModuleNode):
     # ── Core filtering (CPU-bound, runs in threadpool) ────────────────────────
 
     def _sync_filter(
-        self, pcd_in: o3d.t.geometry.PointCloud
-    ) -> Tuple[o3d.t.geometry.PointCloud, Dict[str, Any]]:
+        self, points: np.ndarray
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
         """
         Remove floor and ceiling points using a perpendicular plane sweep.
+
+        Accepts and returns raw numpy arrays (N, M) to avoid expensive
+        Tensor ↔ Legacy conversions.  Only a lightweight legacy PCD
+        (XYZ columns) is created for the Open3D detection calls.
 
         Fast path (cache hit): apply cached plane normal + centroid directly —
         pure numpy, no Open3D cost.
         Slow path (cache miss / refresh): run detect_planar_patches, pick
         extremes, update cache.
         """
-        n_orig = len(pcd_in.point["positions"])
+        n_orig = len(points)
 
         _empty_meta: Dict[str, Any] = {
             "downsampling_enabled": False,
@@ -334,7 +338,7 @@ class EnvironmentFilteringNode(ModuleNode):
 
         if n_orig == 0:
             logger.warning(f"[{self.id}] Received empty point cloud, skipping filtering")
-            return pcd_in, {
+            return points, {
                 **_empty_meta,
                 "input_point_count": 0,
                 "output_point_count": 0,
@@ -345,8 +349,10 @@ class EnvironmentFilteringNode(ModuleNode):
                 "status": "warning_pass_through",
             }
 
-        pcd_legacy = pcd_in.to_legacy()
-        pts_orig_np = np.asarray(pcd_legacy.points, dtype=np.float32)
+        # Build a lightweight legacy PCD (XYZ only) — skip Tensor entirely
+        pcd_legacy = o3d.geometry.PointCloud()
+        pcd_legacy.points = o3d.utility.Vector3dVector(points[:, :3])
+        pts_orig_np = points[:, :3].astype(np.float32)
 
         cache_hit = (
             self._cached_floor is not None
@@ -367,14 +373,13 @@ class EnvironmentFilteringNode(ModuleNode):
                 )
 
             keep_indices = np.where(~removal_mask)[0]
-            pcd_out = pcd_in.select_by_index(keep_indices)
             n_removed = int(np.sum(removal_mask))
 
             cached_planes = [self._cached_floor]
             if self._cached_ceiling is not None:
                 cached_planes.append(self._cached_ceiling)
 
-            return pcd_out, {
+            return points[keep_indices], {
                 **_empty_meta,
                 "input_point_count": n_orig,
                 "output_point_count": n_orig - n_removed,
@@ -393,7 +398,7 @@ class EnvironmentFilteringNode(ModuleNode):
             planes = self._detect_horizontal_planes(pcd_ds_legacy)
         except Exception as exc:
             logger.warning(f"[{self.id}] Plane detection failed: {exc}")
-            return pcd_in, {
+            return points, {
                 **ds_meta,
                 "input_point_count": n_orig,
                 "output_point_count": n_orig,
@@ -424,12 +429,11 @@ class EnvironmentFilteringNode(ModuleNode):
                             pts_orig_np, self._cached_ceiling, self._effective_thickness(self._cached_ceiling)
                         )
                     keep_indices = np.where(~removal_mask)[0]
-                    pcd_out = pcd_in.select_by_index(keep_indices)
                     n_removed = int(np.sum(removal_mask))
                     cached_planes = [self._cached_floor]
                     if self._cached_ceiling is not None:
                         cached_planes.append(self._cached_ceiling)
-                    return pcd_out, {
+                    return points[keep_indices], {
                         **ds_meta,
                         "input_point_count": n_orig,
                         "output_point_count": n_orig - n_removed,
@@ -450,7 +454,7 @@ class EnvironmentFilteringNode(ModuleNode):
                 self._frames_since_detection = 0
                 self._consecutive_misses = 0
 
-            return pcd_in, {
+            return points, {
                 **ds_meta,
                 "input_point_count": n_orig,
                 "output_point_count": n_orig,
@@ -500,10 +504,9 @@ class EnvironmentFilteringNode(ModuleNode):
             )
 
         keep_indices = np.where(~removal_mask)[0]
-        pcd_out = pcd_in.select_by_index(keep_indices)
         n_removed = int(np.sum(removal_mask))
 
-        return pcd_out, {
+        return points[keep_indices], {
             **ds_meta,
             "input_point_count": n_orig,
             "output_point_count": n_orig - n_removed,
@@ -519,8 +522,6 @@ class EnvironmentFilteringNode(ModuleNode):
 
     async def on_input(self, payload: Dict[str, Any]) -> None:
         """Receive point cloud payload, filter floor/ceiling, and forward downstream."""
-        from app.modules.pipeline.base import PointConverter  # noqa: PLC0415
-
         self.last_input_at = time.time()
         start_t = self.last_input_at
         self.input_count += 1
@@ -536,15 +537,19 @@ class EnvironmentFilteringNode(ModuleNode):
 
         self._processing = True
         try:
-            pcd_in = PointConverter.to_pcd(points)
-            pcd_out, metadata = await asyncio.to_thread(self._sync_filter, pcd_in)
+            # Pass numpy directly — _sync_filter works on raw arrays and
+            # creates only a lightweight legacy PCD internally (XYZ only),
+            # completely bypassing the expensive Tensor round-trip.
+            filtered_points, metadata = await asyncio.to_thread(
+                self._sync_filter, points
+            )
 
             self.last_metadata = metadata
             self.processing_time_ms = (time.time() - start_t) * 1000
             self.last_error = None
 
             new_payload = payload.copy()
-            new_payload["points"] = PointConverter.to_points(pcd_out)
+            new_payload["points"] = filtered_points
             new_payload["node_id"] = self.id
             new_payload["processed_by"] = self.id
             new_payload["metadata"] = metadata
