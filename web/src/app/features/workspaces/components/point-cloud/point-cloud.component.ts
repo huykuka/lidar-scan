@@ -295,6 +295,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       // Update existing cloud color
       const cloud = this.pointClouds.get(topic)!;
       cloud.material.color.set(color);
+      this.requestRender();
       return;
     }
 
