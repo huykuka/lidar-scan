@@ -26,6 +26,8 @@ node_schema_registry.register(NodeDefinition(
         PropertySchema(name="threshold", label="Edge-Index Threshold", type="number", default=0.15, step=0.01,
                        min=0.0, max=1.0,
                        help_text="Edge-index threshold (0-1). Higher = fewer, sharper edges"),
+        PropertySchema(name="invert", label="Invert (output inliers)", type="boolean", default=False,
+                       help_text="When enabled, output the non-edge (inlier) points instead of edges"),
         PropertySchema(name="nms", label="Non-Maximum Suppression", type="boolean", default=True,
                        help_text="Enable gradient-guided NMS to thin edges"),
         PropertySchema(name="nms_cos_threshold", label="NMS Cosine Threshold", type="number",

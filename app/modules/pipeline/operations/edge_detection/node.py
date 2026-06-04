@@ -25,6 +25,8 @@ class EdgeDetection(PipelineOperation):
         max_nn: Maximum neighbours per point.
         threshold: Edge-index threshold (0-1).  Higher values yield
             fewer, more prominent edges.
+        invert: When False (default) output edge points; when True
+            output the inlier (non-edge) points instead.
         nms: Enable gradient-guided non-maximum suppression.
         nms_cos_threshold: Cosine similarity threshold for the NMS
             gradient direction test (0-1).
@@ -35,12 +37,14 @@ class EdgeDetection(PipelineOperation):
         radius: float = 0.12,
         max_nn: int = 200,
         threshold: float = 0.15,
+        invert: bool = False,
         nms: bool = True,
         nms_cos_threshold: float = 0.95,
     ) -> None:
         self.radius = float(radius)
         self.max_nn = int(max_nn)
         self.threshold = float(threshold)
+        self.invert = bool(invert)
         self.nms = bool(nms)
         self.nms_cos_threshold = float(nms_cos_threshold)
 
@@ -131,11 +135,12 @@ class EdgeDetection(PipelineOperation):
             edge_mask = suppressed >= self.threshold
 
         edge_indices = np.where(edge_mask)[0]
-        edge_pcd = pcd.select_by_index(edge_indices.tolist())
+        result_pcd = pcd.select_by_index(edge_indices.tolist(), invert=self.invert)
 
-        return edge_pcd, {
+        return result_pcd, {
             "edge_count": int(len(edge_indices)),
             "original_count": int(n_points),
+            "inverted": self.invert,
         }
 
     # ------------------------------------------------------------------
