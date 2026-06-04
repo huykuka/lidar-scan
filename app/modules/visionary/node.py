@@ -170,7 +170,10 @@ class VisionarySensor(ModuleNode):
 
         if self._process and self._process.is_alive():
             logger.info(f"[{self.id}] Stopping worker (PID: {self._process.pid})...")
-            self._process.join(timeout=2.0)
+            # Visionary workers block on 5 s socket/fetch timeouts
+            # (Stream.py:86, harvester.py:85), so the process cannot
+            # check stop_event until the current I/O call returns.
+            self._process.join(timeout=6.0)
 
             if self._process.is_alive():
                 logger.warning(f"[{self.id}] Worker didn't stop gracefully, terminating...")

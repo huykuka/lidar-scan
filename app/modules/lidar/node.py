@@ -154,8 +154,9 @@ class LidarSensor(ModuleNode):
         if self._process and self._process.is_alive():
             logger.info(f"[{self.id}] Stopping worker process (PID: {self._process.pid})...")
             
-            # Give the process time to finish gracefully
-            self._process.join(timeout=2.0)
+            # Give the process time to finish gracefully.
+            # Worker loop checks stop_event every 0.1 s; 0.5 s is ample.
+            self._process.join(timeout=0.5)
             
             if self._process.is_alive():
                 logger.warning(f"[{self.id}] Worker didn't stop gracefully, terminating...")

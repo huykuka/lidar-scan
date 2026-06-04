@@ -144,9 +144,15 @@ class NodeManager:
             was_running = self.is_running
             
             logger.info("Starting config reload...")
-            self.stop()
+            # Only set flags and cancel the listener synchronously.
+            # Actual node stops are handled by stop_all_nodes_async() below
+            # to avoid blocking the event loop on sensor process.join().
+            self.is_running = False
+            if self._listener_task:
+                self._listener_task.cancel()
 
-            # Stop all PlaybackNode tasks properly (async, to prevent zombie tasks)
+            # Stop all nodes properly via async path (runs sensor stop() in
+            # threads so the event loop stays responsive).
             await self._lifecycle_manager.stop_all_nodes_async()
             
             # Snapshot all topics registered BEFORE cleanup
