@@ -61,10 +61,22 @@ class LifecycleManager:
         cancels the asyncio.Task and awaits its completion.  Calling it without
         ``await`` (as the sync version does) schedules a coroutine that is never
         collected, leaving the task running until the GC eventually cleans it up.
+
+        Sensor nodes are stopped concurrently via ``asyncio.gather`` so their
+        blocking ``process.join()`` calls (each up to ~1.5 s) overlap instead
+        of stacking.
         """
-        for node_id, node_instance in list(self.manager.nodes.items()):
+        import asyncio
+
+        items = list(self.manager.nodes.items())
+        if not items:
+            return
+
+        async def _stop(node_id: str, node_instance):
             logger.info(f"[LifecycleManager] Stopping node {node_id} (async)")
             await self._stop_node_async(node_instance)
+
+        await asyncio.gather(*[_stop(nid, ni) for nid, ni in items])
     
     def remove_node(self, node_id: str):
         """
@@ -139,7 +151,7 @@ class LifecycleManager:
         """Async stop a single node instance, awaiting coroutine stop() if present.
 
         For sensor nodes with sync stop() (which calls process.join() and can
-        block for up to 3.5s), runs stop() in a thread to avoid blocking the
+        block for up to ~1.5 s), runs stop() in a thread to avoid blocking the
         asyncio event loop. For async-stop nodes (PlaybackNode), awaits normally.
         """
         if hasattr(node_instance, "stop"):

@@ -170,7 +170,7 @@ class VisionarySensor(ModuleNode):
 
         if self._process and self._process.is_alive():
             logger.info(f"[{self.id}] Stopping worker (PID: {self._process.pid})...")
-            self._process.join(timeout=2.0)
+            self._process.join(timeout=0.5)
 
             if self._process.is_alive():
                 logger.warning(f"[{self.id}] Worker didn't stop gracefully, terminating...")
