@@ -278,7 +278,7 @@ class DataRouter:
             return
 
         try:
-            await target_node.on_input(payload)
+            await target_node.on_input({**payload})
         except Exception as e:
             logger.error(f"Error forwarding data from {source_id} to {target_id}: {e}")
 
