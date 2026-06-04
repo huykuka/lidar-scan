@@ -12,6 +12,7 @@ from app.modules.pipeline.operations import (
     BoundaryDetection, DebugSave,
     GeneratePlane, Densify, SurfaceReconstruction,
     CentroidCalculation, CoordinateTransform,
+    EdgeDetection,
 )
 
 _OP_MAP = {
@@ -33,13 +34,14 @@ _OP_MAP = {
     "surface_reconstruction": SurfaceReconstruction,
     "centroid_calculation": CentroidCalculation,
     "coordinate_transform": CoordinateTransform,
+    "edge_detection": EdgeDetection,
 }
 
 # Op types that are CPU-heavy and benefit from an isolated single-thread executor.
 # A dedicated max_workers=1 executor:
 #   (a) prevents these ops from starving the shared default ThreadPoolExecutor, and
 #   (b) makes the skip-if-busy logic below equivalent to a natural single-slot queue.
-_HEAVY_OP_TYPES = frozenset({"clustering", "patch_plane_segmentation", "plane_segmentation", "surface_reconstruction"})
+_HEAVY_OP_TYPES = frozenset({"clustering", "patch_plane_segmentation", "plane_segmentation", "surface_reconstruction", "edge_detection"})
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
 from app.services.nodes.shape_collector import ShapeCollectorMixin
