@@ -18,6 +18,7 @@ from .operations.density import registry as density_registry
 from .operations.patch_plane_segmentation import registry as patch_plane_segmentation_registry
 from .operations.surface_reconstruction import registry as surface_reconstruction_registry
 from .operations.coordinate_transform import registry as coordinate_transform_registry
+from .operations.edge_detection import registry as edge_detection_registry
 
 __all__ = [
     "crop_registry",
@@ -33,4 +34,5 @@ __all__ = [
     "patch_plane_segmentation_registry",
     "surface_reconstruction_registry",
     "coordinate_transform_registry",
+    "edge_detection_registry",
 ]
