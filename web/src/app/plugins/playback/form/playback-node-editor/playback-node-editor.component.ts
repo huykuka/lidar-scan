@@ -50,6 +50,7 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
   protected throttleMs = signal<number>(0);
   protected isSaving = signal<boolean>(false);
   protected isLoadingRecordings = signal<boolean>(false);
+  protected nodeName = signal<string>('Playback');
   protected poseValue = signal<Pose>(ZERO_POSE);
   protected isPoseValid = signal<boolean>(true);
 
@@ -80,6 +81,7 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
         this.loopable.set(cfg?.loopable ?? false);
         this.throttleMs.set(cfg?.throttle_ms ?? 0);
         this.poseValue.set(node?.pose ?? ZERO_POSE);
+        this.nodeName.set(node?.name ?? 'Playback');
       });
     });
 
@@ -92,6 +94,10 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
   }
 
   // ── Public methods (called from template + spec) ────────────────────────────
+
+  protected onNameChange(event: Event): void {
+    this.nodeName.set((event.target as HTMLInputElement).value);
+  }
 
   protected onRecordingSelect(id: string): void {
     this.recordingId.set(id);
@@ -145,7 +151,7 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
 
     const node = this.nodeStore.selectedNode();
     const success = await this.facade.saveNode({
-      name: node?.name ?? 'Playback',
+      name: this.nodeName() || 'Playback',
       config,
       pose: this.poseValue(),
       definition: {

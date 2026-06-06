@@ -10,6 +10,16 @@
 
 <div class="flex flex-col gap-4">
 
+  <!-- Display Name -->
+  <syn-input
+    label="Display Name"
+    placeholder="e.g. Side Playback"
+    size="small"
+    [value]="nodeName()"
+    (synInputEvent)="onNameChange($event)"
+    data-testid="name-input"
+  />
+
   <!-- Recording Selector -->
   <div>
     <syn-select
