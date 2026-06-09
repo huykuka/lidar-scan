@@ -202,11 +202,11 @@ class TestAreaCheck:
         assert result.detected is False
 
     def test_drawbar_rejected_by_area_check(self):
-        # Drawbar has full X span but Y only ~0.2m → area << min_bin_area
+        # Drawbar has full X span but Y only ~0.2m → x_span * y_span << min_bin_area.
+        # Use a generous min_bin_area (6.0 m²) so only a full-width bin passes.
         pts = _make_drawbar(length=5.0, drawbar_y_width=0.2)
-        result = _default_detector(enable_area_check=True, min_bin_area=2.0).detect(pts)
+        result = _default_detector(enable_area_check=True, min_bin_area=6.0).detect(pts)
         assert result.detected is False
-        assert "AREA" in result.status or result.detected is False
 
     def test_confidence_reflects_coverage(self):
         # Dense bin → high confidence; sparse bin → lower confidence

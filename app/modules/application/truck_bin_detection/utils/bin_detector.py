@@ -119,7 +119,7 @@ class BinDetector:
         height_profile = np.zeros(num_bins)
         for i in range(num_bins):
             if len(bin_points_collect[i]) > 0:
-                height_profile[i] = np.percentile(bin_points_collect[i], 90)
+                height_profile[i] = np.percentile(bin_points_collect[i], 95)
             else:
                 height_profile[i] = 0.0
 
@@ -135,7 +135,7 @@ class BinDetector:
                 last_valid = filled_profile[i]
             elif last_valid > 0.0:
                 filled_profile[i] = last_valid
-        # Backward fill: propagate the first non-zero value leftward for any leading zeros
+        # # Backward fill: propagate the first non-zero value leftward for any leading zeros
         last_valid = 0.0
         for i in range(num_bins - 1, -1, -1):
             if filled_profile[i] > 0.0:
@@ -143,22 +143,13 @@ class BinDetector:
             elif last_valid > 0.0:
                 filled_profile[i] = last_valid
 
-        # Step 4b: Apply 5-cell median filter to bridge 16-beam vertical scan gaps
-        smoothed_profile = np.copy(filled_profile)
-        # for i in range(2, num_bins - 2):
-        #     smoothed_profile[i] = np.median(filled_profile[i - 2 : i + 3])
-
         # Step 5: Detect Dual Internal Edges using a two-phase approach.
         #
         # The gradient is computed on the smoothed (and interpolated) profile.
         # np.gradient uses central differences, so each value is inherently averaged
         # with its two immediate neighbours — resilient to single-cell noise.
         #
-        # Minimum gradient magnitude that qualifies as a real structural edge:
-        # half the total wall-to-cavity height difference per cell width.
-        _min_edge_drop = (self._z_wall_threshold - self._z_cavity_max) / 2.0 / 1000
-
-        profile_gradient = np.gradient(smoothed_profile)
+        profile_gradient = np.gradient(filled_profile)
 
         x_rear_internal = None
         x_front_internal = None
@@ -174,9 +165,9 @@ class BinDetector:
         rear_peak_idx = None
         for i in range(1, num_bins - 1):
             if (
-                smoothed_profile[i] >= self._z_wall_threshold
-                and profile_gradient[i - 1] > 0
-                and profile_gradient[i] <= 0
+                filled_profile[i] >= self._z_wall_threshold
+                and profile_gradient[i] > 0
+                and filled_profile[i-1] < filled_profile[i]
             ):
                 rear_peak_idx = i
                 break
@@ -191,12 +182,13 @@ class BinDetector:
         # Physical meaning: the inner face of the rear wall is where the profile
         # drops steeply from the peak height down into the open cavity.
         # We look for the first cell after the peak where the gradient is a
-        # significant negative value (steeper than _min_edge_drop).
         for i in range(rear_peak_idx + 1, num_bins - 1):
-            if profile_gradient[i] < -_min_edge_drop:
-                rear_bin_idx = i
-                x_rear_internal = x_min + i * self._cellsize
-                break
+            if profile_gradient[i] < 0:
+                end_idx = min(i + 30, len(filled_profile))
+                if filled_profile[i] >= np.max(filled_profile[i + 1:end_idx]):
+                    rear_bin_idx = i
+                    x_rear_internal = x_min + i * self._cellsize
+                    break
 
         if x_rear_internal is None or rear_bin_idx is None:
             logger.debug("Failed to detect rear internal edge (drop into cavity)")
@@ -206,12 +198,12 @@ class BinDetector:
 
         # 5c. Front edge: first significant positive gradient after the deadband
         start_front_search = rear_bin_idx + int(
-            0.5 / self._cellsize
+            1 / self._cellsize
         )  # Skip at least 0.5m after rear edge
         for i in range(start_front_search, num_bins - 1):
             if (
                 profile_gradient[i] > 0.4
-                and smoothed_profile[i] >= self._z_wall_threshold
+                and filled_profile[i] >= self._z_wall_threshold
             ):
                 front_bin_idx = i
                 x_front_internal = x_min + i * self._cellsize
@@ -245,7 +237,7 @@ class BinDetector:
         # False positives are rejected because:
         #   - Inter-truck gap: near-zero points inside → area ~ 0
         #   - Drawbar / coupling: points clustered in a narrow band → small Y-span → small area
-        _edge_half = self._cellsize * 1.5
+        _edge_half = self._cellsize 
         interior_mask = (pts[:, 0] > x_rear_internal + _edge_half) & (
             pts[:, 0] < x_front_internal - _edge_half
         )
