@@ -51,11 +51,6 @@ class TruckBinDetectionNode(ModuleNode):
         self._ws_topic: Optional[str] = None
         self._results_service = results_service
 
-        # Read configurations
-        self._target_x = float(config.get("target_x", 0.0))
-        self._tolerance = float(config.get("tolerance", 0.20))
-        self._stable_duration = float(config.get("stable_duration", 1.0))
-
         # Build detector
         self._detector = BinDetector(
             lane_width=float(config.get("lane_width", 1.4)),
@@ -66,8 +61,6 @@ class TruckBinDetectionNode(ModuleNode):
             z_cavity_max=float(config.get("z_cavity_max", 1.8)),
             min_bin_length=float(config.get("min_bin_length", 3.0)),
             max_bin_length=float(config.get("max_bin_length", 8.5)),
-            target_x=self._target_x,
-            tolerance=self._tolerance,
         )
 
         # State machine and status
@@ -75,9 +68,8 @@ class TruckBinDetectionNode(ModuleNode):
         self._detection_count: int = 0
         self._last_result: Optional[BinDetectionResult] = None
 
-        # Temporal filter and stable-check state
+        # Temporal filter state
         self._filtered_center: Optional[float] = None
-        self._stable_start_time: Optional[float] = None
 
         # Node statistics
         self.last_input_at: Optional[float] = None
@@ -108,7 +100,7 @@ class TruckBinDetectionNode(ModuleNode):
             result = await asyncio.to_thread(self._detector.detect, points)
 
             if result.detected:
-                # Apply 1D Temporal smoothing to prevent jitter
+                # Apply 1D temporal smoothing to prevent jitter
                 if self._filtered_center is None:
                     self._filtered_center = result.x_center
                 else:
@@ -117,40 +109,12 @@ class TruckBinDetectionNode(ModuleNode):
                     )
 
                 result.x_center = self._filtered_center
-                result.error_x = result.x_center - self._target_x
-
-                # Determine Stable Alignment duration
-                if abs(result.error_x) <= self._tolerance:
-                    if self._stable_start_time is None:
-                        self._stable_start_time = time.time()
-
-                    elapsed = time.time() - self._stable_start_time
-                    if elapsed >= self._stable_duration:
-                        result.status = (
-                            f"OK / STABLE — READY TO DISCHARGE ({elapsed:.1f}s)"
-                        )
-                    else:
-                        result.status = f"STOP / ALIGNED — HOLDING ({elapsed:.1f}s)"
-                else:
-                    self._stable_start_time = None
-                    if result.error_x > self._tolerance:
-                        result.status = "REVERSE / BACK"
-                    else:
-                        result.status = "DRIVE FORWARD"
 
                 self._detection_count += 1
                 self.last_output_at = time.time()
                 self._last_result = result
 
-                logger.info(
-                    "[%s] Bin center located: X=%.2f, error=%.2f m, status=%s",
-                    self.id,
-                    result.x_center,
-                    result.error_x,
-                    result.status,
-                )
-
-                # Forward detection results downstream
+                # Forward raw detection results downstream — positioning logic is external
                 out_payload: Dict[str, Any] = {
                     "node_id": self.id,
                     "points": result.bin_points,
@@ -166,10 +130,9 @@ class TruckBinDetectionNode(ModuleNode):
                 asyncio.create_task(self.manager.forward_data(self.id, out_payload))
 
                 # Persistence
-                if self._results_service is not None:
-                    asyncio.create_task(self._persist_bin_result(result, out_payload))
+                # if self._results_service is not None:
+                #     asyncio.create_task(self._persist_bin_result(result, out_payload))
             else:
-                self._stable_start_time = None
                 self._filtered_center = None
                 self._last_result = result
                 logger.debug(
@@ -203,6 +166,7 @@ class TruckBinDetectionNode(ModuleNode):
         if self._state == _State.DETECTING:
             return NodeStatusUpdate(
                 node_id=self.id,
+                error_message=None,
                 operational_state=OperationalState.RUNNING,
                 application_state=ApplicationState(
                     label="state",
@@ -213,14 +177,9 @@ class TruckBinDetectionNode(ModuleNode):
 
         if self._last_result and self._last_result.detected:
             value = (
-                f"{self._last_result.status} (Ex: {self._last_result.error_x:+.2f}m)"
+                f"{self._last_result.status} (X: {self._last_result.x_center:+.2f}m)"
             )
-            if "STABLE" in self._last_result.status or "OK" in self._last_result.status:
-                color = "green"
-            elif "STOP" in self._last_result.status:
-                color = "green"
-            else:
-                color = "orange"
+            color = "green"
         elif self._last_result:
             value = self._last_result.status
             color = "gray"
@@ -231,6 +190,7 @@ class TruckBinDetectionNode(ModuleNode):
         return NodeStatusUpdate(
             node_id=self.id,
             operational_state=OperationalState.RUNNING,
+            error_message=None,
             application_state=ApplicationState(
                 label="state",
                 value=value,
@@ -240,13 +200,11 @@ class TruckBinDetectionNode(ModuleNode):
 
     def start(self, data_queue: Any = None, runtime_status: Any = None) -> None:
         self._filtered_center = None
-        self._stable_start_time = None
         notify_status_change(self.id)
 
     def stop(self) -> None:
         self._state = _State.IDLE
         self._filtered_center = None
-        self._stable_start_time = None
         self.last_error = None
         notify_status_change(self.id)
 

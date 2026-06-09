@@ -21,10 +21,9 @@ class BinDetectionResult:
     x_front_internal: float = 0.0
     x_center: float = 0.0
     length: float = 0.0
-    error_x: float = 0.0
     confidence: float = 0.0
     status: str = "SEARCH"
-    bin_points: Optional[np.ndarray] = None
+    bin_points: Optional[np.ndarray] = None  # rear + front edge point clouds
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -33,7 +32,6 @@ class BinDetectionResult:
             "x_front_internal": round(self.x_front_internal, 3),
             "x_center": round(self.x_center, 3),
             "length": round(self.length, 3),
-            "error_x": round(self.error_x, 3),
             "confidence": round(self.confidence, 2),
             "status": self.status,
         }
@@ -56,8 +54,6 @@ class BinDetector:
         z_cavity_max: float = 1.8,
         min_bin_length: float = 3.0,
         max_bin_length: float = 8.5,
-        target_x: float = 0.0,
-        tolerance: float = 0.20,
     ) -> None:
         self._lane_width = lane_width
         self._z_min = z_min
@@ -67,8 +63,6 @@ class BinDetector:
         self._z_cavity_max = z_cavity_max
         self._min_bin_length = min_bin_length
         self._max_bin_length = max_bin_length
-        self._target_x = target_x
-        self._tolerance = tolerance
 
     def detect(self, points: np.ndarray) -> BinDetectionResult:
         """Run 1D slope-based internal edge detection on a fused point cloud.
@@ -191,7 +185,6 @@ class BinDetector:
             if profile_gradient[i] < -_min_edge_drop:
                 rear_bin_idx = i
                 x_rear_internal = x_min + i * self._cellsize
-                print("find rear internal edge at bin", i, "x =", x_rear_internal)
                 break
 
         if x_rear_internal is None or rear_bin_idx is None:
@@ -206,8 +199,7 @@ class BinDetector:
         )  # Skip at least 0.5m after rear edge
         for i in range(start_front_search, num_bins - 1):
             if (
-                profile_gradient[i] > _min_edge_drop
-                and smoothed_profile[i - 1] < self._z_wall_threshold
+                profile_gradient[i] > 0.4
                 and smoothed_profile[i] >= self._z_wall_threshold
             ):
                 front_bin_idx = i
@@ -245,21 +237,20 @@ class BinDetector:
         else:
             confidence = 0.6  # Valley is filled or partially occluded (dust, debris, or cross-beam)
 
-        # Step 7: Positioning & Driver instruction feedback
+        # Step 7: Compute bin geometry — positioning and status are handled externally
         x_center = (x_rear_internal + x_front_internal) / 2.0
-        error_x = x_center - self._target_x
 
-        # Guidance status for driver display
-        if abs(error_x) <= self._tolerance:
-            status = "STOP / OK"
-        elif error_x > self._tolerance:
-            status = "REVERSE / BACK"
-        else:
-            status = "DRIVE FORWARD"
-
-        # Segmented bin points for UI rendering (points strictly between cavity borders)
-        bin_mask = (pts[:, 0] >= x_rear_internal) & (pts[:, 0] <= x_front_internal)
-        bin_pts = pts[bin_mask]
+        # Edge point clouds: retain only the points that form each detected wall face.
+        # A 3-cell window (1.5× cell_size on each side) captures the wall slab without
+        # pulling in interior cavity or exterior truck-floor returns.
+        _edge_half = self._cellsize
+        rear_mask = (pts[:, 0] >= x_rear_internal - _edge_half) & (
+            pts[:, 0] <= x_rear_internal + _edge_half
+        )
+        front_mask = (pts[:, 0] >= x_front_internal - _edge_half) & (
+            pts[:, 0] <= x_front_internal + _edge_half
+        )
+        edge_pts = np.concatenate([pts[rear_mask], pts[front_mask]], axis=0)
 
         return BinDetectionResult(
             detected=True,
@@ -267,8 +258,7 @@ class BinDetector:
             x_front_internal=x_front_internal,
             x_center=x_center,
             length=length,
-            error_x=error_x,
             confidence=confidence,
-            status=status,
-            bin_points=bin_pts if len(bin_pts) > 0 else pts,
+            status="DETECTED",
+            bin_points=edge_pts if len(edge_pts) > 0 else pts,
         )

@@ -121,42 +121,6 @@ node_schema_registry.register(
                     "Maximum accepted internal cavity length. Prevents merging edges across separate trailers."
                 ),
             ),
-            PropertySchema(
-                name="target_x",
-                label="Hopper Target X (m)",
-                type="number",
-                default=0.0,
-                min=-10.0,
-                max=10.0,
-                step=0.01,
-                help_text=(
-                    "Longitudinal X coordinate of the discharge nozzle in the hopper reference frame."
-                ),
-            ),
-            PropertySchema(
-                name="tolerance",
-                label="Target Tolerance (m)",
-                type="number",
-                default=0.20,
-                min=0.01,
-                max=1.0,
-                step=0.01,
-                help_text=(
-                    "Maximum allowed longitudinal alignment error before discharge is permitted."
-                ),
-            ),
-            PropertySchema(
-                name="stable_duration",
-                label="Stable Duration (s)",
-                type="number",
-                default=1.0,
-                min=0.1,
-                max=5.0,
-                step=0.1,
-                help_text=(
-                    "Duration the alignment error must remain within tolerance to confirm the vehicle is correctly positioned."
-                ),
-            ),
         ],
         inputs=[
             PortSchema(
@@ -166,7 +130,7 @@ node_schema_registry.register(
             ),
         ],
         outputs=[
-            PortSchema(id="bin_cloud", label="Bin Point Cloud"),
+            PortSchema(id="bin_cloud", label="Bin Edge Points"),
         ],
     )
 )
