@@ -96,6 +96,76 @@ node_schema_registry.register(
                     "Maximum height that characterises the interior cavity floor of the bin."
                 ),
             ),
+            PropertySchema(
+                name="z_cavity_min",
+                label="Cavity Min Height (m)",
+                type="number",
+                default=0.5,
+                min=0.0,
+                max=3.0,
+                step=0.1,
+                help_text=(
+                    "Minimum height for a valid cavity floor return. "
+                    "Rejects ground-level returns from open gaps between separate trucks."
+                ),
+            ),
+            PropertySchema(
+                name="enable_area_check",
+                label="Enable Interior Area Check",
+                type="boolean",
+                default=True,
+                help_text=(
+                    "When enabled, confirms the bin by measuring the 3D XY area of points "
+                    "inside the cavity. Rejects inter-truck gaps and drawbars. "
+                    "Disable for single-sensor setups where Y-spread is not available — "
+                    "wall line coherence checks are used instead."
+                ),
+            ),
+            PropertySchema(
+                name="min_bin_area",
+                label="Min Interior Area (m²)",
+                type="number",
+                default=2.0,
+                min=0.1,
+                max=20.0,
+                step=0.1,
+                depends_on={"enable_area_check": [True]},
+                help_text=(
+                    "Minimum XY bounding-box area of the 3D points found between the two "
+                    "detected walls. A real open-top bin covers length × lane width. "
+                    "Rejects inter-truck gaps (near-zero points) and drawbars (narrow Y-span)."
+                ),
+            ),
+            PropertySchema(
+                name="min_wall_points",
+                label="Min Wall Points",
+                type="number",
+                default=3,
+                min=1,
+                max=50,
+                step=1,
+                depends_on={"enable_area_check": [False]},
+                help_text=(
+                    "Minimum number of raw LiDAR points that must be present in each "
+                    "wall slab window to accept it as a real wall. "
+                    "Handles partially hidden or segmented walls."
+                ),
+            ),
+            PropertySchema(
+                name="max_wall_x_std",
+                label="Max Wall X Std Dev (m)",
+                type="number",
+                default=0.15,
+                min=0.01,
+                max=1.0,
+                step=0.01,
+                depends_on={"enable_area_check": [False]},
+                help_text=(
+                    "Maximum allowed standard deviation of X-coordinates within each "
+                    "wall slab. A real vertical wall face has very low X-spread. "
+                    "High spread indicates scattered noise or an angled structure."
+                ),
+            ),
             # ── Geometric Verification ──────────────────────────────────────
             PropertySchema(
                 name="min_bin_length",

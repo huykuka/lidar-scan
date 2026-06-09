@@ -52,6 +52,11 @@ class BinDetector:
         cell_size: float = 0.07,
         z_wall_threshold: float = 2.2,
         z_cavity_max: float = 1.8,
+        z_cavity_min: float = 0.5,
+        min_bin_area: float = 2.0,
+        enable_area_check: bool = True,
+        min_wall_points: int = 3,
+        max_wall_x_std: float = 0.15,
         min_bin_length: float = 3.0,
         max_bin_length: float = 8.5,
     ) -> None:
@@ -61,6 +66,11 @@ class BinDetector:
         self._cellsize = cell_size
         self._z_wall_threshold = z_wall_threshold
         self._z_cavity_max = z_cavity_max
+        self._z_cavity_min = z_cavity_min
+        self._min_bin_area = min_bin_area
+        self._enable_area_check = enable_area_check
+        self._min_wall_points = min_wall_points
+        self._max_wall_x_std = max_wall_x_std
         self._min_bin_length = min_bin_length
         self._max_bin_length = max_bin_length
 
@@ -182,7 +192,7 @@ class BinDetector:
         # We look for the first cell after the peak where the gradient is a
         # significant negative value (steeper than _min_edge_drop).
         for i in range(rear_peak_idx + 1, num_bins - 1):
-            if profile_gradient[i] < -_min_edge_drop:
+            if profile_gradient[i] < -0.10:
                 rear_bin_idx = i
                 x_rear_internal = x_min + i * self._cellsize
                 break
@@ -225,17 +235,96 @@ class BinDetector:
                 detected=False, status=f"SEARCH / INVALID LENGTH ({length:.1f}m)"
             )
 
-        # Calculate cavity floor consistency
-        valley_profile = filled_profile[rear_bin_idx:front_bin_idx]
-        mean_flat_height = (
-            float(np.mean(valley_profile)) if len(valley_profile) > 0 else 0.0
+        # Step 6b: 3D cavity area confirmation (skipped if enable_area_check is False).
+        # Collect the raw points that sit strictly inside the cavity — beyond the wall
+        # slabs on both sides. Using _edge_half as the inset ensures wall-face points
+        # do not inflate the Y-span of the interior cloud.
+        # A real open-top bin has points spread across the full lane width and cavity
+        # length — its XY bounding box area is large.
+        # False positives are rejected because:
+        #   - Inter-truck gap: near-zero points inside → area ~ 0
+        #   - Drawbar / coupling: points clustered in a narrow band → small Y-span → small area
+        _edge_half = self._cellsize * 1.5
+        interior_mask = (pts[:, 0] > x_rear_internal + _edge_half) & (
+            pts[:, 0] < x_front_internal - _edge_half
         )
+        interior_pts = pts[interior_mask]
 
-        # Determine confidence score based on valley completeness and length consistency
-        if mean_flat_height < self._z_wall_threshold:
-            confidence = 1.0
+        if self._enable_area_check:
+            if len(interior_pts) < 3:
+                logger.debug("Rejected: fewer than 3 points inside cavity")
+                return BinDetectionResult(
+                    detected=False, status="SEARCH / NO INTERIOR POINTS"
+                )
+
+            x_span = float(interior_pts[:, 0].max() - interior_pts[:, 0].min())
+            y_span = float(interior_pts[:, 1].max() - interior_pts[:, 1].min())
+            interior_area = x_span * y_span
+
+            if interior_area < self._min_bin_area:
+                logger.debug(
+                    "Rejected: interior XY area %.2f m² < min %.2f m² "
+                    "(x_span=%.2f, y_span=%.2f)",
+                    interior_area,
+                    self._min_bin_area,
+                    x_span,
+                    y_span,
+                )
+                return BinDetectionResult(
+                    detected=False,
+                    status=f"SEARCH / SMALL INTERIOR AREA ({interior_area:.1f} m²)",
+                )
+
+            # Confidence: ratio of observed area to expected bin opening (length × lane_width).
+            # Capped at 1.0 — a perfectly captured bin reads close to 1.0.
+            expected_area = length * self._lane_width
+            confidence = round(min(interior_area / expected_area, 1.0), 2)
         else:
-            confidence = 0.6  # Valley is filled or partially occluded (dust, debris, or cross-beam)
+            # Area check is disabled — fall back to wall line coherence check.
+            # Each detected wall slab should form a tight vertical line in the XZ
+            # plane: real wall faces have all their points at nearly the same X
+            # (low X standard deviation). Scattered noise or a drawbar coupling
+            # hit at an angle produces high X spread.
+            # Segmented / partially hidden walls still pass — we only need the
+            # points that are present to be vertically aligned, regardless of
+            # how many Z levels they span.
+            _edge_half = self._cellsize * 1.5
+            rear_slab = pts[
+                (pts[:, 0] >= x_rear_internal - _edge_half)
+                & (pts[:, 0] <= x_rear_internal + _edge_half)
+            ]
+            front_slab = pts[
+                (pts[:, 0] >= x_front_internal - _edge_half)
+                & (pts[:, 0] <= x_front_internal + _edge_half)
+            ]
+
+            for slab, label in ((rear_slab, "rear"), (front_slab, "front")):
+                if len(slab) < self._min_wall_points:
+                    logger.debug(
+                        "Rejected: %s wall has only %d points (min %d)",
+                        label,
+                        len(slab),
+                        self._min_wall_points,
+                    )
+                    return BinDetectionResult(
+                        detected=False,
+                        status=f"SEARCH / WEAK {label.upper()} WALL ({len(slab)} pts)",
+                    )
+                x_std = float(np.std(slab[:, 0]))
+                if x_std > self._max_wall_x_std:
+                    logger.debug(
+                        "Rejected: %s wall X std=%.3f > max %.3f "
+                        "(not a coherent vertical line)",
+                        label,
+                        x_std,
+                        self._max_wall_x_std,
+                    )
+                    return BinDetectionResult(
+                        detected=False,
+                        status=f"SEARCH / SCATTERED {label.upper()} WALL (std={x_std:.2f}m)",
+                    )
+
+            confidence = 1.0
 
         # Step 7: Compute bin geometry — positioning and status are handled externally
         x_center = (x_rear_internal + x_front_internal) / 2.0
@@ -243,13 +332,8 @@ class BinDetector:
         # Edge point clouds: retain only the points that form each detected wall face.
         # A 3-cell window (1.5× cell_size on each side) captures the wall slab without
         # pulling in interior cavity or exterior truck-floor returns.
-        _edge_half = self._cellsize
-        rear_mask = (pts[:, 0] >= x_rear_internal - _edge_half) & (
-            pts[:, 0] <= x_rear_internal + _edge_half
-        )
-        front_mask = (pts[:, 0] >= x_front_internal - _edge_half) & (
-            pts[:, 0] <= x_front_internal + _edge_half
-        )
+        rear_mask = (pts[:, 0] >= x_rear_internal) & (pts[:, 0] <= x_rear_internal)
+        front_mask = (pts[:, 0] >= x_front_internal) & (pts[:, 0] <= x_front_internal)
         edge_pts = np.concatenate([pts[rear_mask], pts[front_mask]], axis=0)
 
         return BinDetectionResult(

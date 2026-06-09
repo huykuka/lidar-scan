@@ -59,6 +59,11 @@ class TruckBinDetectionNode(ModuleNode):
             cell_size=float(config.get("cell_size", 0.07)),
             z_wall_threshold=float(config.get("z_wall_threshold", 2.2)),
             z_cavity_max=float(config.get("z_cavity_max", 1.8)),
+            z_cavity_min=float(config.get("z_cavity_min", 0.5)),
+            min_bin_area=float(config.get("min_bin_area", 2.0)),
+            enable_area_check=bool(config.get("enable_area_check", True)),
+            min_wall_points=int(config.get("min_wall_points", 3)),
+            max_wall_x_std=float(config.get("max_wall_x_std", 0.15)),
             min_bin_length=float(config.get("min_bin_length", 3.0)),
             max_bin_length=float(config.get("max_bin_length", 8.5)),
         )
