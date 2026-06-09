@@ -23,13 +23,13 @@ services:
     # GPU access — requires nvidia-container-toolkit on the host.
     # Docker Compose silently ignores this block when no GPU is present,
     # so the file works on CPU-only machines too.
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     volumes:
       - app_data:/app/data
 

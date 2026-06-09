@@ -3,6 +3,7 @@ Robust 1D Longitudinal Profile Bin Detector for 2 Fused 16-Layer LiDARs.
 Optimized for Hopper Discharge Station.
 """
 
+from app import repositories
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
@@ -192,7 +193,7 @@ class BinDetector:
         # We look for the first cell after the peak where the gradient is a
         # significant negative value (steeper than _min_edge_drop).
         for i in range(rear_peak_idx + 1, num_bins - 1):
-            if profile_gradient[i] < -0.10:
+            if profile_gradient[i] < -_min_edge_drop:
                 rear_bin_idx = i
                 x_rear_internal = x_min + i * self._cellsize
                 break
@@ -332,8 +333,15 @@ class BinDetector:
         # Edge point clouds: retain only the points that form each detected wall face.
         # A 3-cell window (1.5× cell_size on each side) captures the wall slab without
         # pulling in interior cavity or exterior truck-floor returns.
-        rear_mask = (pts[:, 0] >= x_rear_internal) & (pts[:, 0] <= x_rear_internal)
-        front_mask = (pts[:, 0] >= x_front_internal) & (pts[:, 0] <= x_front_internal)
+
+        _edge_half = self._cellsize
+        rear_mask = (pts[:, 0] >= x_rear_internal - _edge_half) & (
+            pts[:, 0] <= x_rear_internal + _edge_half
+        )
+        front_mask = (pts[:, 0] >= x_front_internal - _edge_half) & (
+            pts[:, 0] <= x_front_internal + _edge_half
+        )
+
         edge_pts = np.concatenate([pts[rear_mask], pts[front_mask]], axis=0)
 
         return BinDetectionResult(
