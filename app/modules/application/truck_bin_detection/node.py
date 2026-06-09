@@ -1,22 +1,11 @@
 """
-TruckBinDetectionNode — Application-level DAG node for detecting and measuring
-the cargo bin of open-top dump trucks from 3D point cloud data.
+TruckBinDetectionNode — Real-time DAG node for open-top truck bin alignment.
 
-DAG wiring:
-    [Vehicle Profiler] ──► [Truck Bin Detection] ──► bin cloud + metadata
-    [LiDAR Sensor]     ──► [Truck Bin Detection] ──► bin cloud + metadata
-
-State machine:
-    IDLE ──(cloud received)──► DETECTING ──(analysis done)──► IDLE
-
-Architecture:
-    - ``on_input`` receives a point cloud payload (from Vehicle Profiler or
-      any upstream sensor/pipeline node).
-    - Heavy Open3D processing runs in ``asyncio.to_thread()`` to avoid
-      blocking the FastAPI event loop.
-    - Results are forwarded via ``manager.forward_data`` and broadcast
-      via WebSocket for real-time visualization.
+Tracks the longitudinal alignment of cargo bins under a discharging nozzle
+by analyzing unified 3D scans in real-time, executing robust 1D profile
+peak and slope extraction, and tracking target stable thresholds.
 """
+
 import asyncio
 import enum
 import time
@@ -27,7 +16,7 @@ from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalSt
 from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 
-from .utils.bin_detector import BinDetector, BinDetectionResult
+from .utils.bin_detector import BinDetectionResult, BinDetector
 
 logger = get_logger(__name__)
 
@@ -38,13 +27,14 @@ class _State(enum.Enum):
 
 
 class TruckBinDetectionNode(ModuleNode):
-    """Detects and measures open-top dump truck cargo bins from point clouds.
+    """Real-time open-top bin edge tracking and positioning DAG node.
 
     Args:
-        manager:   NodeManager reference.
-        node_id:   Unique node ID.
-        name:      Display name.
-        config:    Node configuration dict (from registry properties).
+        manager:          NodeManager reference.
+        node_id:          Unique node ID.
+        name:             Display name.
+        config:           Node configuration properties.
+        results_service:  Optional results persistence service.
     """
 
     def __init__(
@@ -61,33 +51,38 @@ class TruckBinDetectionNode(ModuleNode):
         self._ws_topic: Optional[str] = None
         self._results_service = results_service
 
-        # Build detector from config
+        # Read configurations
+        self._target_x = float(config.get("target_x", 0.0))
+        self._tolerance = float(config.get("tolerance", 0.20))
+        self._stable_duration = float(config.get("stable_duration", 1.0))
+
+        # Build detector
         self._detector = BinDetector(
-            min_bin_length=float(config.get("min_bin_length", 2.0)),
-            min_bin_width=float(config.get("min_bin_width", 1.5)),
-            min_bin_height=float(config.get("min_bin_height", 0.5)),
-            floor_distance_threshold=float(config.get("floor_distance_threshold", 0.05)),
-            wall_distance_threshold=float(config.get("wall_distance_threshold", 0.05)),
-            floor_ransac_n=int(config.get("floor_ransac_n", 3)),
-            floor_ransac_iterations=int(config.get("floor_ransac_iterations", 1000)),
-            wall_min_points=int(config.get("wall_min_points", 50)),
-            voxel_size=float(config.get("voxel_size", 0.02)),
-            vertical_tolerance_deg=float(config.get("vertical_tolerance_deg", 30.0)),
-            horizontal_tolerance_deg=float(config.get("horizontal_tolerance_deg", 15.0)),
-            intersection_tolerance=float(config.get("intersection_tolerance", 0.5)),
+            lane_width=float(config.get("lane_width", 1.4)),
+            z_min=float(config.get("z_min", 2.0)),
+            z_max=float(config.get("z_max", 3.8)),
+            cell_size=float(config.get("cell_size", 0.07)),
+            z_wall_threshold=float(config.get("z_wall_threshold", 2.2)),
+            z_cavity_max=float(config.get("z_cavity_max", 1.8)),
+            min_bin_length=float(config.get("min_bin_length", 3.0)),
+            max_bin_length=float(config.get("max_bin_length", 8.5)),
+            target_x=self._target_x,
+            tolerance=self._tolerance,
         )
 
-        # State machine
+        # State machine and status
         self._state = _State.IDLE
         self._detection_count: int = 0
         self._last_result: Optional[BinDetectionResult] = None
 
-        # Runtime stats
+        # Temporal filter and stable-check state
+        self._filtered_center: Optional[float] = None
+        self._stable_start_time: Optional[float] = None
+
+        # Node statistics
         self.last_input_at: Optional[float] = None
         self.last_output_at: Optional[float] = None
         self.last_error: Optional[str] = None
-
-        # Processing guard
         self._processing: bool = False
 
     # ── ModuleNode interface ──────────────────────────────────────────────
@@ -97,7 +92,7 @@ class TruckBinDetectionNode(ModuleNode):
         if points is None or len(points) == 0:
             return
 
-        # Skip if already processing (non-blocking guard)
+        # Processing guard
         if self._processing:
             return
 
@@ -108,26 +103,61 @@ class TruckBinDetectionNode(ModuleNode):
 
         try:
             timestamp = payload.get("timestamp", time.time())
+
+            # Execute heavy 1D geometry profile extraction in threadpool
             result = await asyncio.to_thread(self._detector.detect, points)
-            self._last_result = result
 
             if result.detected:
+                # Apply 1D Temporal smoothing to prevent jitter
+                if self._filtered_center is None:
+                    self._filtered_center = result.x_center
+                else:
+                    self._filtered_center = (
+                        0.7 * self._filtered_center + 0.3 * result.x_center
+                    )
+
+                result.x_center = self._filtered_center
+                result.error_x = result.x_center - self._target_x
+
+                # Determine Stable Alignment duration
+                if abs(result.error_x) <= self._tolerance:
+                    if self._stable_start_time is None:
+                        self._stable_start_time = time.time()
+
+                    elapsed = time.time() - self._stable_start_time
+                    if elapsed >= self._stable_duration:
+                        result.status = (
+                            f"OK / STABLE — READY TO DISCHARGE ({elapsed:.1f}s)"
+                        )
+                    else:
+                        result.status = f"STOP / ALIGNED — HOLDING ({elapsed:.1f}s)"
+                else:
+                    self._stable_start_time = None
+                    if result.error_x > self._tolerance:
+                        result.status = "REVERSE / BACK"
+                    else:
+                        result.status = "DRIVE FORWARD"
+
                 self._detection_count += 1
                 self.last_output_at = time.time()
+                self._last_result = result
 
                 logger.info(
-                    "[%s] Bin detected #%d: L=%.2f W=%.2f H=%.2f vol=%.2f m³",
-                    self.id, self._detection_count,
-                    result.length, result.width, result.height, result.volume,
+                    "[%s] Bin center located: X=%.2f, error=%.2f m, status=%s",
+                    self.id,
+                    result.x_center,
+                    result.error_x,
+                    result.status,
                 )
 
-                # Forward segmented bin cloud + metadata downstream
-                # (the routing manager handles WS broadcasting internally)
+                # Forward detection results downstream
                 out_payload: Dict[str, Any] = {
                     "node_id": self.id,
                     "points": result.bin_points,
                     "timestamp": timestamp,
-                    "count": len(result.bin_points) if result.bin_points is not None else 0,
+                    "count": len(result.bin_points)
+                    if result.bin_points is not None
+                    else 0,
                     "metadata": {
                         "detection_number": self._detection_count,
                         "bin": result.to_dict(),
@@ -135,11 +165,16 @@ class TruckBinDetectionNode(ModuleNode):
                 }
                 asyncio.create_task(self.manager.forward_data(self.id, out_payload))
 
-                # Persist result if storage service is available
+                # Persistence
                 if self._results_service is not None:
                     asyncio.create_task(self._persist_bin_result(result, out_payload))
             else:
-                logger.debug("[%s] No bin detected in input cloud", self.id)
+                self._stable_start_time = None
+                self._filtered_center = None
+                self._last_result = result
+                logger.debug(
+                    "[%s] No valid bin cavity captured: %s", self.id, result.status
+                )
 
             self.last_error = None
         except Exception as e:
@@ -176,18 +211,19 @@ class TruckBinDetectionNode(ModuleNode):
                 ),
             )
 
-        # IDLE state — show last detection result
         if self._last_result and self._last_result.detected:
             value = (
-                f"detected (#{self._detection_count}: "
-                f"{self._last_result.length:.1f}×"
-                f"{self._last_result.width:.1f}×"
-                f"{self._last_result.height:.1f}m)"
+                f"{self._last_result.status} (Ex: {self._last_result.error_x:+.2f}m)"
             )
-            color = "green"
-        elif self._last_result and not self._last_result.detected:
-            value = "no bin"
-            color = "orange"
+            if "STABLE" in self._last_result.status or "OK" in self._last_result.status:
+                color = "green"
+            elif "STOP" in self._last_result.status:
+                color = "green"
+            else:
+                color = "orange"
+        elif self._last_result:
+            value = self._last_result.status
+            color = "gray"
         else:
             value = "idle"
             color = "gray"
@@ -203,41 +239,52 @@ class TruckBinDetectionNode(ModuleNode):
         )
 
     def start(self, data_queue: Any = None, runtime_status: Any = None) -> None:
+        self._filtered_center = None
+        self._stable_start_time = None
         notify_status_change(self.id)
 
     def stop(self) -> None:
         self._state = _State.IDLE
+        self._filtered_center = None
+        self._stable_start_time = None
         self.last_error = None
         notify_status_change(self.id)
 
-    async def _persist_bin_result(self, result: Any, out_payload: Dict[str, Any]) -> None:
-        """Persist bin detection PCD + metadata via ResultsStorageService."""
+    async def _persist_bin_result(
+        self, result: Any, out_payload: Dict[str, Any]
+    ) -> None:
+        """Persist bin detection result cloud + stats via ResultsStorageService."""
         try:
-            import open3d as o3d
             import numpy as np
+            import open3d as o3d
 
             def _build_pcd():
                 pcd = o3d.geometry.PointCloud()
                 pts = np.asarray(result.bin_points, dtype=np.float64)
                 pcd.points = o3d.utility.Vector3dVector(pts)
                 n = len(pts)
-                # Bin cloud: orange (0.9, 0.5, 0.1)
-                pcd.colors = o3d.utility.Vector3dVector(
-                    np.tile([0.9, 0.5, 0.1], (n, 1))
+                # Assign distinct green/orange colors to target relative to status
+                color = (
+                    [0.1, 0.9, 0.1]
+                    if "OK" in result.status or "STOP" in result.status
+                    else [0.9, 0.5, 0.1]
                 )
+                pcd.colors = o3d.utility.Vector3dVector(np.tile(color, (n, 1)))
                 return pcd
 
             bin_pcd = await asyncio.to_thread(_build_pcd)
             metadata = dict(out_payload.get("metadata", {}).get("bin", {}))
-            metadata["detection_number"] = out_payload.get("metadata", {}).get("detection_number")
+            metadata["detection_number"] = out_payload.get("metadata", {}).get(
+                "detection_number"
+            )
             result_id = await self._results_service.save_result(
                 node_id=self.id,
                 pcds=[("bin", bin_pcd)],
                 metadata=metadata,
                 status="success",
             )
-            logger.info("[%s] Saved bin detection result %s", self.id, result_id)
+            logger.info("[%s] Saved bin alignment result: %s", self.id, result_id)
         except Exception as exc:
-            logger.error("[%s] Failed to persist bin result: %s", self.id, exc, exc_info=True)
-
-
+            logger.error(
+                "[%s] Failed to persist result: %s", self.id, exc, exc_info=True
+            )
