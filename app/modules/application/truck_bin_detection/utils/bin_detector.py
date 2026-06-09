@@ -109,19 +109,35 @@ class BinDetector:
                 detected=False, status="SEARCH / INSUFFICIENT CELL COUNT"
             )
 
-        bin_points_collect = [[] for _ in range(num_bins)]
-        for p in pts:
-            bin_idx = int((p[0] - x_min) / self._cellsize)
-            bin_idx = min(max(bin_idx, 0), num_bins - 1)
-            bin_points_collect[bin_idx].append(p[2])
+        # Step 2 (vectorized): assign each point to its bin in one shot
+        bin_indices = np.clip(
+            ((pts[:, 0] - x_min) / self._cellsize).astype(np.intp),
+            0,
+            num_bins - 1,
+        )
 
-        # Step 3: Extract 90th percentile height per bin (Prevent rain/dust spikes)
+        # Step 3: Extract 90th-percentile height per bin (suppress rain/dust spikes).
+        # Strategy: sort points by bin index, split into contiguous groups, then use
+        # np.partition (O(n) per group) so the total cost is O(N log N) for the sort
+        # plus O(N) for all partitions — no Python-level per-bin loop.
         height_profile = np.zeros(num_bins)
-        for i in range(num_bins):
-            if len(bin_points_collect[i]) > 0:
-                height_profile[i] = np.percentile(bin_points_collect[i], 95)
+        sort_order = np.argsort(bin_indices, kind="stable")
+        sorted_bins = bin_indices[sort_order]
+        sorted_z = pts[sort_order, 2]
+
+        # np.unique gives the first occurrence index of each bin — use those as
+        # split boundaries so np.split produces one z-array per occupied bin.
+        unique_bins, first_occurrence = np.unique(sorted_bins, return_index=True)
+        groups = np.split(sorted_z, first_occurrence[1:])  # list of per-bin z arrays
+
+        for bin_id, z_vals in zip(unique_bins, groups):
+            n = len(z_vals)
+            if n == 1:
+                height_profile[bin_id] = z_vals[0]
             else:
-                height_profile[i] = 0.0
+                # np.partition is O(n) — far cheaper than np.sort for a single quantile
+                k = max(0, int(np.ceil(0.90 * n)) - 1)
+                height_profile[bin_id] = np.partition(z_vals, k)[k]
 
         # Step 4a: Interpolate empty cells (forward + backward fill) before smoothing.
         # An empty cell is one where no LiDAR point landed (value == 0.0).
@@ -198,7 +214,7 @@ class BinDetector:
 
         # 5c. Front edge: first significant positive gradient after the deadband
         start_front_search = rear_bin_idx + int(
-            1 / self._cellsize
+            1.5 / self._cellsize
         )  # Skip at least 0.5m after rear edge
         for i in range(start_front_search, num_bins - 1):
             if (
