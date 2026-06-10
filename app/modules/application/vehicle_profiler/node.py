@@ -65,13 +65,11 @@ class VehicleProfilerNode(ModuleNode):
         name: str,
         velocity_sensor_id: str,
         config: Dict[str, Any],
-        results_service: Any = None,
     ) -> None:
         self.manager = manager
         self.id = node_id
         self.name = name
         self._ws_topic: Optional[str] = None  # set by orchestrator on registration
-        self._results_service = results_service
 
         self._velocity_sensor_id = velocity_sensor_id
 
@@ -293,6 +291,9 @@ class VehicleProfilerNode(ModuleNode):
                 "points": profile.points,
                 "timestamp": profile.end_time,
                 "count": len(profile.points),
+                "pcds": {
+                    "profile": profile.points,
+                },
                 "metadata": {
                     "vehicle_number": self._vehicles_counted,
                     "scan_count": profile.scan_count,
@@ -302,43 +303,10 @@ class VehicleProfilerNode(ModuleNode):
                 },
             }
             asyncio.create_task(self.manager.forward_data(self.id, out_payload))
-
-            # Persist result if storage service is available
-            if self._results_service is not None:
-                asyncio.create_task(self._persist_profile_result(profile, out_payload))
         else:
             logger.debug(f"[{self.id}] Vehicle left but profile had too few scan lines — discarded")
 
         self._transition_to_idle()
-
-    async def _persist_profile_result(self, profile: Any, out_payload: Dict[str, Any]) -> None:
-        """Persist vehicle profile PCD + metadata via ResultsStorageService."""
-        try:
-            import open3d as o3d
-            import numpy as np
-
-            def _build_pcd():
-                pcd = o3d.geometry.PointCloud()
-                pts = np.asarray(profile.points, dtype=np.float64)
-                pcd.points = o3d.utility.Vector3dVector(pts)
-                n = len(pts)
-                # Profile slice: green (0.2, 0.9, 0.3)
-                pcd.colors = o3d.utility.Vector3dVector(
-                    np.tile([0.2, 0.9, 0.3], (n, 1))
-                )
-                return pcd
-
-            profile_pcd = await asyncio.to_thread(_build_pcd)
-            metadata = dict(out_payload.get("metadata", {}))
-            result_id = await self._results_service.save_result(
-                node_id=self.id,
-                pcds=[("profile", profile_pcd)],
-                metadata=metadata,
-                status="success",
-            )
-            logger.info("[%s] Saved vehicle profile result %s", self.id, result_id)
-        except Exception as exc:
-            logger.error("[%s] Failed to persist profile result: %s", self.id, exc, exc_info=True)
 
     def _transition_to_idle(self) -> None:
         self._state = _State.IDLE

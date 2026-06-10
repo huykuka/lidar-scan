@@ -27,6 +27,7 @@ class PortSchema(BaseModel):
     label: str
     data_type: str = "pointcloud"
     multiple: bool = False
+    allowed_source_categories: Optional[List[str]] = None  # When set, only nodes of these categories can connect
 
 class NodeDefinition(BaseModel):
     type: str

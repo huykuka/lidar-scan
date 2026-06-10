@@ -239,6 +239,33 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Validate allowed_source_categories on the target node's input ports
+    const targetNode = this.canvasEditStore.localNodes().find((n) => n.id === targetId);
+    const targetDef = targetNode
+      ? this.nodeStore.nodeDefinitions().find((d) => d.type === targetNode.type)
+      : null;
+    if (targetDef) {
+      const restrictedInputs = targetDef.inputs.filter(
+        (p) => p.allowed_source_categories && p.allowed_source_categories.length > 0,
+      );
+      if (restrictedInputs.length > 0) {
+        const sourceNode = this.canvasEditStore.localNodes().find((n) => n.id === sourceId);
+        const sourceCategory = sourceNode?.category?.toLowerCase() ?? '';
+        const allowed = restrictedInputs.some((p) =>
+          p.allowed_source_categories!.map((c) => c.toLowerCase()).includes(sourceCategory),
+        );
+        if (!allowed) {
+          const categories = restrictedInputs
+            .flatMap((p) => p.allowed_source_categories ?? [])
+            .join(', ');
+          this.toast.danger(`This node only accepts connections from ${categories} nodes.`);
+          this.pendingConnection.set(null);
+          this.pendingPath.set(null);
+          return;
+        }
+      }
+    }
+
     this.canvasEditStore.addEdge({
       source_node: sourceId,
       source_port: pending.fromPortId,

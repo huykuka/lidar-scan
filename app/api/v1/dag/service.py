@@ -29,6 +29,7 @@ from app.repositories import EdgeRepository, NodeRepository
 from app.repositories.dag_meta_orm import DagMetaRepository
 from app.services.nodes.config_hasher import compute_node_config_hash, compute_node_config_hash_no_pose
 from app.services.nodes.instance import node_manager
+from app.services.nodes.schema import node_schema_registry
 
 logger = get_logger(__name__)
 
@@ -124,6 +125,55 @@ def _classify_dag_changes(
     return "no_change", []
 
 
+def _validate_edge_source_categories(
+    nodes: List[NodeRecord],
+    edges: List[EdgeRecord],
+) -> None:
+    """Reject edges where the target node's input port restricts source categories.
+
+    Uses OR semantics: the source is accepted if ANY restricted port allows
+    its category.  This matches the frontend ``onPortDrop`` validation which
+    uses ``.some()``.
+
+    Raises:
+        HTTPException(422): When an edge violates allowed_source_categories.
+    """
+    node_map = {n.id: n for n in nodes}
+
+    for edge in edges:
+        target = node_map.get(edge.target_node)
+        if target is None:
+            continue
+        target_def = node_schema_registry.get(target.type)
+        if target_def is None:
+            continue
+
+        restricted_ports = [
+            p for p in target_def.inputs if p.allowed_source_categories
+        ]
+        if not restricted_ports:
+            continue
+
+        source = node_map.get(edge.source_node)
+        if source is None:
+            continue
+
+        all_allowed = {
+            c.lower()
+            for p in restricted_ports
+            for c in p.allowed_source_categories  # type: ignore[union-attr]
+        }
+        if source.category.lower() not in all_allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Node '{target.name}' (type={target.type}) only accepts "
+                    f"connections from {', '.join(sorted(all_allowed))} "
+                    f"nodes, but '{source.name}' has category '{source.category}'."
+                ),
+            )
+
+
 async def get_dag_config() -> DagConfigResponse:
     """Read all nodes, edges and the current config_version from the DB.
 
@@ -204,6 +254,9 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
                 "Please reload and reapply your changes."
             ),
         )
+
+    # ── Step 2b: Validate edge source category constraints ────────────────
+    _validate_edge_source_categories(req.nodes, req.edges)
 
     # ── Step 3: Snapshot existing state for diff ────────────────────────────
     def _snapshot_db():
