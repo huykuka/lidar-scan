@@ -7,10 +7,19 @@ import { ToastService } from '@core/services/toast.service';
 import { NodeEditorHeaderComponent } from '@plugins/shared/node-editor-header/node-editor-header.component';
 import { NodeEditorFacadeService } from '@features/settings/services/node-editor-facade.service';
 
-/**
- * Editor component for configuring Result Storage nodes.
- * Exposes the two backend properties: default_status (select) and status_key (string).
- */
+/** Default PCD label colors matching the backend PCD_LABEL_COLORS. */
+const DEFAULT_COLORS: Record<string, string> = {
+  empty: '#2196F3',
+  loaded: '#F44336',
+  merged: '#4CAF50',
+};
+const DEFAULT_COLOR = '#9E9E9E';
+
+interface ColorEntry {
+  label: FormControl<string>;
+  color: FormControl<string>;
+}
+
 @Component({
   selector: 'app-result-storage-editor',
   standalone: true,
@@ -34,6 +43,7 @@ export class ResultStorageEditorComponent implements NodeEditorComponent {
 
   form!: FormGroup;
   protected isSaving = signal(false);
+  protected colorEntries = signal<FormGroup<ColorEntry>[]>([]);
 
   protected definition = computed(() =>
     this.nodeStore.nodeDefinitions().find((d) => d.type === 'result_storage')
@@ -41,25 +51,37 @@ export class ResultStorageEditorComponent implements NodeEditorComponent {
 
   protected isEditMode = computed(() => this.nodeStore.select('editMode')());
 
-  protected statusOptions = [
-    { label: 'Success', value: 'success' },
-    { label: 'Warning', value: 'warning' },
-    { label: 'Error', value: 'error' },
-  ];
-
   constructor() {
     const node = this.nodeStore.selectedNode();
+    const colorMap: Record<string, string> = node?.config?.['color_map'] ?? {};
 
     this.form = new FormGroup({
       name: new FormControl(node?.name || 'Result Storage', [Validators.required]),
-      default_status: new FormControl(
-        node?.config?.['default_status'] ?? 'success',
-        [Validators.required]
-      ),
-      status_key: new FormControl(
-        node?.config?.['status_key'] ?? ''
-      ),
     });
+
+    // Initialize color entries from saved config
+    const entries: FormGroup<ColorEntry>[] = [];
+    for (const [label, color] of Object.entries(colorMap)) {
+      entries.push(this._createColorEntry(label, color));
+    }
+    this.colorEntries.set(entries);
+  }
+
+  addColorEntry(): void {
+    const entries = [...this.colorEntries()];
+    entries.push(this._createColorEntry('', DEFAULT_COLOR));
+    this.colorEntries.set(entries);
+  }
+
+  removeColorEntry(index: number): void {
+    const entries = [...this.colorEntries()];
+    entries.splice(index, 1);
+    this.colorEntries.set(entries);
+  }
+
+  /** Returns the default color for a well-known label, or the generic default. */
+  getDefaultColor(label: string): string {
+    return DEFAULT_COLORS[label.toLowerCase()] ?? DEFAULT_COLOR;
   }
 
   async onSave(): Promise<void> {
@@ -74,13 +96,22 @@ export class ResultStorageEditorComponent implements NodeEditorComponent {
       return;
     }
 
+    // Build color_map from entries
+    const colorMap: Record<string, string> = {};
+    for (const entry of this.colorEntries()) {
+      const label = entry.controls.label.value.trim();
+      const color = entry.controls.color.value;
+      if (label) {
+        colorMap[label] = color;
+      }
+    }
+
     this.isSaving.set(true);
 
     const success = await this.facade.saveNode({
       name: this.form.value.name,
       config: {
-        default_status: this.form.value.default_status ?? 'success',
-        status_key: this.form.value.status_key ?? '',
+        color_map: colorMap,
       },
       definition: def,
       existingNode: this.nodeStore.selectedNode(),
@@ -95,5 +126,12 @@ export class ResultStorageEditorComponent implements NodeEditorComponent {
 
   onCancel(): void {
     this.cancelled.emit();
+  }
+
+  private _createColorEntry(label: string, color: string): FormGroup<ColorEntry> {
+    return new FormGroup<ColorEntry>({
+      label: new FormControl(label, { nonNullable: true, validators: [Validators.required] }),
+      color: new FormControl(color, { nonNullable: true }),
+    });
   }
 }

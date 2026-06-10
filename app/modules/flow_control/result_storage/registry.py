@@ -33,30 +33,15 @@ node_schema_registry.register(
         websocket_enabled=False,
         properties=[
             PropertySchema(
-                name="default_status",
-                label="Default Result Status",
-                type="select",
-                default="success",
-                options=[
-                    {"label": "Success", "value": "success"},
-                    {"label": "Warning", "value": "warning"},
-                    {"label": "Error", "value": "error"},
-                ],
+                name="color_map",
+                label="Point Cloud Colors",
+                type="json",
+                default={},
                 help_text=(
-                    "Default status assigned to persisted results when the "
-                    "upstream payload does not include an explicit status field."
-                ),
-            ),
-            PropertySchema(
-                name="status_key",
-                label="Status Metadata Key",
-                type="string",
-                default="",
-                help_text=(
-                    "Optional metadata key to derive the result status from. "
-                    "When set, the node reads this key from the payload metadata "
-                    "and maps truthy values to 'success' and falsy to 'warning'. "
-                    "Leave empty to always use the default status above."
+                    "JSON mapping of PCD label to hex color, e.g. "
+                    '{"empty": "#2196F3", "loaded": "#F44336"}. '
+                    "Labels not listed here use the built-in defaults "
+                    "(empty=blue, loaded=red, merged=green, other=grey)."
                 ),
             ),
         ],

@@ -3,5 +3,7 @@
     <syn-icon name="save" style="font-size: 0.9rem;"></syn-icon>
     <span>Result Storage</span>
   </div>
-  <syn-badge [attr.variant]="statusVariant()" size="small">{{ statusLabel() }}</syn-badge>
+  @if (colorCount() > 0) {
+    <syn-badge variant="neutral" size="small">{{ colorCount() }} color(s)</syn-badge>
+  }
 </div>
