@@ -14,8 +14,7 @@ export class ResultStorageCardComponent implements NodeCardComponent {
   node = input.required<CanvasNode>();
   status = input<NodeStatusUpdate | null>(null);
 
-  protected colorCount = computed(() => {
-    const map = this.node().data.config?.['color_map'];
-    return map && typeof map === 'object' ? Object.keys(map).length : 0;
+  protected pcdColor = computed(() => {
+    return this.node().data.config?.['pcd_color'] ?? '#9E9E9E';
   });
 }

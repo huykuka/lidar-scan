@@ -17,9 +17,9 @@ Payload conventions:
 
     All metadata from the payload is stored as-is.
 
-    Point cloud colors are configurable via the ``color_map`` config
-    property (label → hex color).  Unknown labels fall back to
-    ``pcd_color_for_label()``.
+    Point cloud color is configurable via the ``pcd_color`` config
+    property (single hex color applied uniformly to all labels).
+    When not set, falls back to ``pcd_color_for_label()``.
 """
 import asyncio
 import time
@@ -61,10 +61,10 @@ class ResultStorageNode(ModuleNode):
         self.name = name
         self._results_service = results_service
 
-        # label → hex color overrides (e.g. {"empty": "#FF0000"})
-        raw_map = config.get("color_map")
-        self._color_map: Dict[str, str] = (
-            raw_map if isinstance(raw_map, dict) else {}
+        # Single hex color applied to all PCD labels (e.g. "#FF0000")
+        raw_color = config.get("pcd_color")
+        self._pcd_color: Optional[str] = (
+            raw_color if isinstance(raw_color, str) and raw_color.startswith("#") else None
         )
 
         # Runtime stats
@@ -93,7 +93,7 @@ class ResultStorageNode(ModuleNode):
             metadata = self._extract_metadata(payload)
 
             o3d_pcds = await asyncio.to_thread(
-                self._build_o3d_pcds, pcds, self._color_map
+                self._build_o3d_pcds, pcds, self._pcd_color
             )
 
             result_id = await self._results_service.save_result(
@@ -188,15 +188,14 @@ class ResultStorageNode(ModuleNode):
     @staticmethod
     def _build_o3d_pcds(
         pcds: Dict[str, np.ndarray],
-        color_map: Optional[Dict[str, str]] = None,
+        pcd_color: Optional[str] = None,
     ) -> List[Tuple[str, o3d.geometry.PointCloud]]:
         """Convert raw numpy arrays to coloured Open3D PointCloud objects.
 
         Colors are resolved in order:
-        1. ``color_map[label]`` (user-configured hex override)
-        2. ``pcd_color_for_label(label)`` (canonical default)
+        1. ``pcd_color`` (single user-configured hex, applied to all labels)
+        2. ``pcd_color_for_label(label)`` (canonical default per label)
         """
-        cmap = color_map or {}
         result: List[Tuple[str, o3d.geometry.PointCloud]] = []
         for label, pts in pcds.items():
             pcd = o3d.geometry.PointCloud()
@@ -208,7 +207,7 @@ class ResultStorageNode(ModuleNode):
 
             n = len(pcd.points)
             if n > 0:
-                hex_color = cmap.get(label) or pcd_color_for_label(label)
+                hex_color = pcd_color or pcd_color_for_label(label)
                 r = int(hex_color[1:3], 16) / 255.0
                 g = int(hex_color[3:5], 16) / 255.0
                 b = int(hex_color[5:7], 16) / 255.0

@@ -3,7 +3,11 @@
     <syn-icon name="save" style="font-size: 0.9rem;"></syn-icon>
     <span>Result Storage</span>
   </div>
-  @if (colorCount() > 0) {
-    <syn-badge variant="neutral" size="small">{{ colorCount() }} color(s)</syn-badge>
-  }
+  <div class="flex items-center gap-1">
+    <span
+      class="inline-block w-3 h-3 rounded-full border border-syn-color-neutral-300"
+      [style.background-color]="pcdColor()"
+    ></span>
+    <span class="text-xs text-syn-color-neutral-500">{{ pcdColor() }}</span>
+  </div>
 </div>

@@ -18,41 +18,21 @@
     required
   />
 
-  <!-- Point Cloud Colors -->
+  <!-- Point Cloud Color -->
   <div class="flex flex-col gap-2">
-    <label class="text-sm font-semibold text-syn-color-neutral-700">Point Cloud Colors</label>
+    <label class="text-sm font-semibold text-syn-color-neutral-700">Point Cloud Color</label>
     <p class="text-xs text-syn-color-neutral-500">
-      Map PCD labels to custom colors. Labels not listed use built-in defaults
-      (empty=blue, loaded=red, merged=green, other=grey).
+      Single color applied to all point cloud labels.
     </p>
-
-    @for (entry of colorEntries(); track $index) {
-      <div class="flex items-center gap-2">
-        <syn-input
-          [formControl]="entry.controls.label"
-          size="small"
-          placeholder="e.g. empty, loaded"
-          class="flex-1"
-        />
-        <input
-          [formControl]="entry.controls.color"
-          type="color"
-          class="w-8 h-8 rounded cursor-pointer border-0"
-          title="Click to change color"
-        />
-        <syn-icon-button
-          name="x-lg"
-          size="small"
-          (click)="removeColorEntry($index)"
-          title="Remove"
-        />
-      </div>
-    }
-
-    <syn-button size="small" variant="outline" (click)="addColorEntry()">
-      <syn-icon name="plus-lg" slot="prefix"></syn-icon>
-      Add Color
-    </syn-button>
+    <div class="flex items-center gap-2">
+      <input
+        [formControl]="colorControl"
+        type="color"
+        class="w-8 h-8 rounded cursor-pointer border-0"
+        title="Pick point cloud color"
+      />
+      <span class="text-xs text-syn-color-neutral-600">{{ colorControl.value }}</span>
+    </div>
   </div>
 
   <!-- Info panel -->

@@ -33,15 +33,13 @@ node_schema_registry.register(
         websocket_enabled=False,
         properties=[
             PropertySchema(
-                name="color_map",
-                label="Point Cloud Colors",
-                type="json",
-                default={},
+                name="pcd_color",
+                label="Point Cloud Color",
+                type="string",
+                default="#9E9E9E",
                 help_text=(
-                    "JSON mapping of PCD label to hex color, e.g. "
-                    '{"empty": "#2196F3", "loaded": "#F44336"}. '
-                    "Labels not listed here use the built-in defaults "
-                    "(empty=blue, loaded=red, merged=green, other=grey)."
+                    "Single hex color applied to all point cloud labels, "
+                    'e.g. "#FF0000". Defaults to grey (#9E9E9E).'
                 ),
             ),
         ],
