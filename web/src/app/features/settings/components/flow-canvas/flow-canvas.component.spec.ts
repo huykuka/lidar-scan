@@ -11,6 +11,7 @@ import {ToastService} from '@core/services/toast.service';
 import {DialogService} from '@core/services/dialog.service';
 import {NodeDefinition} from '@core/models/node.model';
 import {NodePlugin} from '@core/models';
+import {SystemStatusService} from '@core/services/system-status.service';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -61,8 +62,11 @@ function createCanvasEditStoreMock() {
   return {
     localNodes: signal([]),
     localEdges: signal([]),
+    canvasNodes: signal([]),
+    connections: signal([]),
     isDirty: signal(false),
     isValid: signal(true),
+    isInitialized: signal(false),
     validationErrors: signal([]),
     isSaving: signal(false),
     isSyncing: signal(false),
@@ -70,8 +74,12 @@ function createCanvasEditStoreMock() {
     addEdge: vi.fn(),
     deleteEdge: vi.fn(),
     deleteNode: vi.fn(),
+    deleteNodes: vi.fn(),
     moveNode: vi.fn(),
+    moveNodes: vi.fn(),
     updateNode: vi.fn(),
+    updateCanvasNodePosition: vi.fn(),
+    updateCanvasNodesPositions: vi.fn(),
     addNode: vi.fn(),
   };
 }
@@ -90,6 +98,12 @@ function createStatusWsMock() {
     connected: signal(false),
     connect: vi.fn(),
     disconnect: vi.fn(),
+  };
+}
+
+function createSystemStatusMock() {
+  return {
+    reloadingNodeIds: signal(new Set<string>()),
   };
 }
 
@@ -122,6 +136,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
+        {provide: SystemStatusService, useValue: createSystemStatusMock()},
       ],
     }).compileComponents();
 
@@ -146,6 +161,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
+        {provide: SystemStatusService, useValue: createSystemStatusMock()},
       ],
     }).compileComponents();
 
@@ -172,6 +188,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
+        {provide: SystemStatusService, useValue: createSystemStatusMock()},
       ],
     }).compileComponents();
 
@@ -201,6 +218,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
+        {provide: SystemStatusService, useValue: createSystemStatusMock()},
       ],
     }).compileComponents();
 
@@ -238,6 +256,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
+        {provide: SystemStatusService, useValue: createSystemStatusMock()},
       ],
     }).compileComponents();
 
@@ -271,6 +290,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
+        {provide: SystemStatusService, useValue: createSystemStatusMock()},
       ],
     }).compileComponents();
 
@@ -296,6 +316,7 @@ describe('FlowCanvasComponent — initialization', () => {
         {provide: NodesApiService, useValue: {setNodeEnabled: vi.fn(), setNodeVisible: vi.fn()}},
         {provide: ToastService, useValue: {success: vi.fn(), danger: vi.fn(), warning: vi.fn()}},
         {provide: DialogService, useValue: {confirm: vi.fn().mockResolvedValue(true)}},
+        {provide: SystemStatusService, useValue: createSystemStatusMock()},
       ],
     }).compileComponents();
 

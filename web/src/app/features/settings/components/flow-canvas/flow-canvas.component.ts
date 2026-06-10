@@ -2,6 +2,7 @@ import {Component, computed, effect, HostListener, inject, input, OnDestroy, OnI
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 import {NodePlugin} from '@core/models';
+import {Edge} from '@core/models/node.model';
 import {NodeStoreService} from '@core/services/stores';
 import {NodesApiService} from '@core/services/api';
 import {DialogService, ToastService} from '@core/services';
@@ -47,7 +48,6 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected availablePlugins = signal<NodePlugin[]>([]);
   protected panOffset = signal({ x: 0, y: 0 });
   protected zoom = signal(1);
-  protected selectedCanvasNode = signal<CanvasNode | null>(null);
   /** Raw (unsnapped) drag accumulator — tracks continuous mouse movement so the
    *  node follows the cursor smoothly; snapping is applied only on drop. */
   private rawDragPos = signal<{ x: number; y: number } | null>(null);
@@ -57,6 +57,12 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected isPaletteLoading = signal(true);
   protected isCanvasLoading = signal(true);
   protected nodeLoadingStates = signal<Record<string, boolean>>({});
+
+  // ------ Multi-selection state ------
+  protected selectedNodeIds = signal<Set<string>>(new Set());
+  private marqueeStart = signal<{ x: number; y: number } | null>(null);
+  protected marqueeRect = signal<{ x: number; y: number; w: number; h: number } | null>(null);
+  private clipboard = signal<{ nodes: CanvasNode[]; edges: Edge[] } | null>(null);
 
   // ------ Inline drag state (replaces FlowCanvasDragService) ------
   protected draggingNode = signal<CanvasNode | null>(null);
@@ -126,10 +132,18 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   onCanvasMouseDown(event: MouseEvent) {
-    this.selectedCanvasNode.set(null);
     if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
       this.isPanning.set(true);
       event.preventDefault();
+      return;
+    }
+
+    if (event.button === 0) {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      this.marqueeStart.set({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
     }
   }
 
@@ -140,17 +154,38 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
         y: offset.y + event.movementY,
       }));
     } else if (this.draggingNode()) {
+      const deltaX = event.movementX / this.zoom();
+      const deltaY = event.movementY / this.zoom();
+
       const node = this.draggingNode()!;
-      // Accumulate raw (unsnapped) delta so the node follows the cursor exactly.
       const prev = this.rawDragPos() ?? node.position;
-      const raw = {
-        x: prev.x + event.movementX / this.zoom(),
-        y: prev.y + event.movementY / this.zoom(),
-      };
+      const raw = { x: prev.x + deltaX, y: prev.y + deltaY };
       this.rawDragPos.set(raw);
-      // Update the view-model position directly in the store for smooth rendering.
-      this.canvasEditStore.updateCanvasNodePosition(node.id, raw);
+
+      const selected = this.selectedNodeIds();
+      if (selected.size > 1) {
+        const updates = new Map<string, { x: number; y: number }>();
+        for (const cn of this.canvasNodes()) {
+          if (selected.has(cn.id)) {
+            updates.set(cn.id, { x: cn.position.x + deltaX, y: cn.position.y + deltaY });
+          }
+        }
+        this.canvasEditStore.updateCanvasNodesPositions(updates);
+      } else {
+        this.canvasEditStore.updateCanvasNodePosition(node.id, raw);
+      }
+
       this.draggingNode.set({ ...node, position: raw });
+    } else if (this.marqueeStart() && !this.pendingConnection()) {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      const current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      const start = this.marqueeStart()!;
+      this.marqueeRect.set({
+        x: Math.min(start.x, current.x),
+        y: Math.min(start.y, current.y),
+        w: Math.abs(current.x - start.x),
+        h: Math.abs(current.y - start.y),
+      });
     } else if (this.pendingConnection()) {
       const pending = this.pendingConnection()!;
       const canvasEl = event.currentTarget as HTMLElement;
@@ -181,12 +216,34 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
     const node = this.draggingNode();
     if (node) {
-      // Snap the final position before persisting to the store.
-      const snapped = this._snapPos(node.position);
-      this.canvasEditStore.moveNode(node.id, snapped.x, snapped.y);
+      const selected = this.selectedNodeIds();
+      if (selected.size > 1) {
+        const updates = new Map<string, { x: number; y: number }>();
+        for (const cn of this.canvasNodes()) {
+          if (selected.has(cn.id)) {
+            updates.set(cn.id, this._snapPos(cn.position));
+          }
+        }
+        this.canvasEditStore.moveNodes(updates);
+      } else {
+        const snapped = this._snapPos(node.position);
+        this.canvasEditStore.moveNode(node.id, snapped.x, snapped.y);
+      }
       this.draggingNode.set(null);
       this.rawDragPos.set(null);
     }
+
+    const marquee = this.marqueeRect();
+    const wasMarquee = marquee && (marquee.w > 5 || marquee.h > 5);
+    if (wasMarquee) {
+      this._applyMarqueeSelection(marquee!, event.ctrlKey || event.metaKey);
+    } else if (this.marqueeStart() && !node) {
+      if (!event.ctrlKey && !event.metaKey) {
+        this.selectedNodeIds.set(new Set());
+      }
+    }
+    this.marqueeStart.set(null);
+    this.marqueeRect.set(null);
 
     if (this.pendingConnection()) {
       this.pendingConnection.set(null);
@@ -239,6 +296,33 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Validate allowed_source_categories on the target node's input ports
+    const targetNode = this.canvasEditStore.localNodes().find((n) => n.id === targetId);
+    const targetDef = targetNode
+      ? this.nodeStore.nodeDefinitions().find((d) => d.type === targetNode.type)
+      : null;
+    if (targetDef) {
+      const restrictedInputs = targetDef.inputs.filter(
+        (p) => p.allowed_source_categories && p.allowed_source_categories.length > 0,
+      );
+      if (restrictedInputs.length > 0) {
+        const sourceNode = this.canvasEditStore.localNodes().find((n) => n.id === sourceId);
+        const sourceCategory = sourceNode?.category?.toLowerCase() ?? '';
+        const allowed = restrictedInputs.some((p) =>
+          p.allowed_source_categories!.map((c) => c.toLowerCase()).includes(sourceCategory),
+        );
+        if (!allowed) {
+          const categories = restrictedInputs
+            .flatMap((p) => p.allowed_source_categories ?? [])
+            .join(', ');
+          this.toast.danger(`This node only accepts connections from ${categories} nodes.`);
+          this.pendingConnection.set(null);
+          this.pendingPath.set(null);
+          return;
+        }
+      }
+    }
+
     this.canvasEditStore.addEdge({
       source_node: sourceId,
       source_port: pending.fromPortId,
@@ -257,7 +341,25 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   onNodeMouseDown(event: MouseEvent, node: CanvasNode) {
     event.stopPropagation();
-    this.selectedCanvasNode.set(node);
+    this.marqueeStart.set(null);
+
+    if (event.ctrlKey || event.metaKey) {
+      this.selectedNodeIds.update((ids) => {
+        const next = new Set(ids);
+        if (next.has(node.id)) {
+          next.delete(node.id);
+        } else {
+          next.add(node.id);
+        }
+        return next;
+      });
+      return;
+    }
+
+    if (!this.selectedNodeIds().has(node.id)) {
+      this.selectedNodeIds.set(new Set([node.id]));
+    }
+
     this.rawDragPos.set({ x: node.position.x, y: node.position.y });
     this.draggingNode.set(node);
     this.dragOffset.set({ x: event.offsetX, y: event.offsetY });
@@ -272,7 +374,7 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   onPaletteDragEnd() {
-    this.selectedCanvasNode.set(null);
+    this.selectedNodeIds.set(new Set());
     this.paletteDragType.set(null);
   }
 
@@ -361,17 +463,36 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown', ['$event'])
   onKeyDown(event: KeyboardEvent) {
-    if (event.key !== 'Delete' && event.key !== 'Backspace') return;
     if (this.drawerOpen()) return;
-
     const tag = (event.target as HTMLElement)?.tagName?.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
-    const selected = this.selectedCanvasNode();
-    if (!selected) return;
+    const ctrl = event.ctrlKey || event.metaKey;
 
-    event.preventDefault();
-    this.onDeleteNode(selected);
+    if (ctrl && event.key === 'a') {
+      event.preventDefault();
+      this.selectedNodeIds.set(new Set(this.canvasNodes().map((n) => n.id)));
+      return;
+    }
+
+    if (ctrl && event.key === 'c') {
+      event.preventDefault();
+      this._copySelectedNodes();
+      return;
+    }
+
+    if (ctrl && event.key === 'v') {
+      event.preventDefault();
+      this._pasteNodes();
+      return;
+    }
+
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      const selected = this.selectedNodeIds();
+      if (selected.size === 0) return;
+      event.preventDefault();
+      this._deleteSelectedNodes();
+    }
   }
 
   resetView() {
@@ -407,6 +528,123 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.nodeStore.set('selectedNode', { ...defaultData, x: position.x, y: position.y });
     this.nodeStore.set('editMode', false);
     this.drawerOpen.set(true);
+  }
+
+  // ------ Multi-selection helpers ------
+
+  private _applyMarqueeSelection(
+    marquee: { x: number; y: number; w: number; h: number },
+    additive: boolean,
+  ): void {
+    const panX = this.panOffset().x;
+    const panY = this.panOffset().y;
+    const z = this.zoom();
+    const canvasLeft = (marquee.x - panX) / z;
+    const canvasTop = (marquee.y - panY) / z;
+    const canvasRight = (marquee.x + marquee.w - panX) / z;
+    const canvasBottom = (marquee.y + marquee.h - panY) / z;
+
+    const nodeWidth = 192;
+    const nodeHeight = 80;
+    const hit = new Set<string>();
+    for (const node of this.canvasNodes()) {
+      if (
+        node.position.x < canvasRight &&
+        node.position.x + nodeWidth > canvasLeft &&
+        node.position.y < canvasBottom &&
+        node.position.y + nodeHeight > canvasTop
+      ) {
+        hit.add(node.id);
+      }
+    }
+
+    if (additive) {
+      this.selectedNodeIds.update((ids) => {
+        const next = new Set(ids);
+        for (const id of hit) next.add(id);
+        return next;
+      });
+    } else {
+      this.selectedNodeIds.set(hit);
+    }
+  }
+
+  private _copySelectedNodes(): void {
+    const selected = this.selectedNodeIds();
+    if (selected.size === 0) return;
+    const nodes = this.canvasNodes().filter((n) => selected.has(n.id));
+    const edges = this.canvasEditStore.localEdges().filter(
+      (e) => selected.has(e.source_node) && selected.has(e.target_node),
+    );
+    this.clipboard.set({ nodes: structuredClone(nodes), edges: structuredClone(edges) });
+    this.toast.success(`Copied ${nodes.length} node(s).`);
+  }
+
+  private _pasteNodes(): void {
+    const clip = this.clipboard();
+    if (!clip || clip.nodes.length === 0) return;
+
+    const offset = 40;
+    const idMap = new Map<string, string>();
+
+    for (const node of clip.nodes) {
+      const newId = `__new__${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      idMap.set(node.id, newId);
+      this.canvasEditStore.addNode({
+        id: newId,
+        name: `${node.data.name} (copy)`,
+        type: node.data.type,
+        category: node.data.category,
+        enabled: node.data.enabled,
+        visible: node.data.visible,
+        config: structuredClone(node.data.config),
+        pose: node.data.pose ? structuredClone(node.data.pose) : undefined,
+        x: node.position.x + offset,
+        y: node.position.y + offset,
+      });
+    }
+
+    for (const edge of clip.edges) {
+      const src = idMap.get(edge.source_node);
+      const tgt = idMap.get(edge.target_node);
+      if (src && tgt) {
+        this.canvasEditStore.addEdge({
+          source_node: src,
+          source_port: edge.source_port,
+          target_node: tgt,
+          target_port: edge.target_port,
+        });
+      }
+    }
+
+    this.selectedNodeIds.set(new Set(idMap.values()));
+
+    this.clipboard.update((c) => {
+      if (!c) return c;
+      return {
+        ...c,
+        nodes: c.nodes.map((n) => ({
+          ...n,
+          position: { x: n.position.x + offset, y: n.position.y + offset },
+        })),
+      };
+    });
+
+    this.toast.success(`Pasted ${clip.nodes.length} node(s).`);
+  }
+
+  private async _deleteSelectedNodes(): Promise<void> {
+    const selected = this.selectedNodeIds();
+    if (selected.size === 0) return;
+    const count = selected.size;
+    const msg =
+      count === 1
+        ? 'Are you sure you want to delete this node?'
+        : `Are you sure you want to delete ${count} nodes?`;
+    if (!(await this.dialog.confirm(msg))) return;
+    this.canvasEditStore.deleteNodes(selected);
+    this.selectedNodeIds.set(new Set());
+    this.toast.success(`${count} node(s) deleted.`);
   }
 
   /** Y offset of a port within its node (must match store's _portY). */
