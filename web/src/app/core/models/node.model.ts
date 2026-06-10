@@ -42,6 +42,7 @@ export interface PortSchema {
   label: string;
   data_type: string;
   multiple: boolean;
+  allowed_source_categories?: string[];  // When set, only nodes of these categories can connect
 }
 
 export interface NodeDefinition {
