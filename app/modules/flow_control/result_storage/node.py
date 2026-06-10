@@ -15,10 +15,11 @@ Payload conventions:
        mapping label names to point arrays.  Each entry becomes a separate
        PCD file in the result directory.
 
-    Metadata is read from ``payload.get("metadata", {})``.
+    All metadata from the payload is stored as-is.
 
-    Result status is derived from the configurable ``status_key`` metadata
-    field, or falls back to ``default_status``.
+    Point cloud color is configurable via the ``pcd_color`` config
+    property (single hex color applied uniformly to all labels).
+    When not set, falls back to ``pcd_color_for_label()``.
 """
 import asyncio
 import time
@@ -60,8 +61,11 @@ class ResultStorageNode(ModuleNode):
         self.name = name
         self._results_service = results_service
 
-        self._default_status: str = config.get("default_status", "success")
-        self._status_key: str = config.get("status_key", "") or ""
+        # Single hex color applied to all PCD labels (e.g. "#FF0000")
+        raw_color = config.get("pcd_color")
+        self._pcd_color: Optional[str] = (
+            raw_color if isinstance(raw_color, str) and raw_color.startswith("#") else None
+        )
 
         # Runtime stats
         self.last_input_at: Optional[float] = None
@@ -87,23 +91,24 @@ class ResultStorageNode(ModuleNode):
                 return
 
             metadata = self._extract_metadata(payload)
-            status = self._derive_status(metadata)
 
-            o3d_pcds = await asyncio.to_thread(self._build_o3d_pcds, pcds)
+            o3d_pcds = await asyncio.to_thread(
+                self._build_o3d_pcds, pcds, self._pcd_color
+            )
 
             result_id = await self._results_service.save_result(
                 node_id=self.id,
                 pcds=o3d_pcds,
                 metadata=metadata,
-                status=status,
+                status="success",
             )
 
             self._save_count += 1
             self.last_save_at = time.time()
             self.last_error = None
             logger.info(
-                "[%s] Saved result %s (%d PCDs, status=%s)",
-                self.id, result_id, len(o3d_pcds), status,
+                "[%s] Saved result %s (%d PCDs)",
+                self.id, result_id, len(o3d_pcds),
             )
             notify_status_change(self.id)
 
@@ -180,17 +185,17 @@ class ResultStorageNode(ModuleNode):
             if k not in skip_keys and isinstance(v, (str, int, float, bool))
         }
 
-    def _derive_status(self, metadata: Dict[str, Any]) -> str:
-        """Derive result status from metadata or fall back to default."""
-        if self._status_key and self._status_key in metadata:
-            return "success" if metadata[self._status_key] else "warning"
-        return self._default_status
-
     @staticmethod
     def _build_o3d_pcds(
         pcds: Dict[str, np.ndarray],
+        pcd_color: Optional[str] = None,
     ) -> List[Tuple[str, o3d.geometry.PointCloud]]:
-        """Convert raw numpy arrays to coloured Open3D PointCloud objects."""
+        """Convert raw numpy arrays to coloured Open3D PointCloud objects.
+
+        Colors are resolved in order:
+        1. ``pcd_color`` (single user-configured hex, applied to all labels)
+        2. ``pcd_color_for_label(label)`` (canonical default per label)
+        """
         result: List[Tuple[str, o3d.geometry.PointCloud]] = []
         for label, pts in pcds.items():
             pcd = o3d.geometry.PointCloud()
@@ -200,10 +205,9 @@ class ResultStorageNode(ModuleNode):
             else:
                 pcd.points = o3d.utility.Vector3dVector(pts_arr)
 
-            # Apply canonical color for the label
             n = len(pcd.points)
             if n > 0:
-                hex_color = pcd_color_for_label(label)
+                hex_color = pcd_color or pcd_color_for_label(label)
                 r = int(hex_color[1:3], 16) / 255.0
                 g = int(hex_color[3:5], 16) / 255.0
                 b = int(hex_color[5:7], 16) / 255.0
