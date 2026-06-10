@@ -22,6 +22,8 @@ import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-
 import {PcdInjectionCardComponent} from '@plugins/pcd-injection/node/pcd-injection-card.component';
 import {PcdInjectionEditorComponent} from '@plugins/pcd-injection/form/pcd-injection-editor.component';
 import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
+import {ResultStorageCardComponent} from '@plugins/flow-control/result-storage/node/result-storage-card.component';
+import {ResultStorageEditorComponent} from '@plugins/flow-control/result-storage/form/result-storage-editor.component';
 
 const NODE_COLOR = 'var(--syn-color-primary-600)';
 
@@ -150,6 +152,12 @@ export class NodePluginRegistry {
             ...plugin,
             cardComponent: SnapshotNodeCardComponent,
             editorComponent: SnapshotNodeEditorComponent,
+          });
+        } else if (type === 'result_storage') {
+          this.plugins.set(type, {
+            ...plugin,
+            cardComponent: ResultStorageCardComponent,
+            editorComponent: ResultStorageEditorComponent,
           });
         } else {
           this.plugins.set(type, {

@@ -9,9 +9,8 @@ Covers:
   - on_input when results_service is None (error)
   - _extract_pcds: multi-PCD, single-PCD, empty
   - _extract_metadata: dict metadata, scalar fallback
-  - _derive_status: status_key present/missing, default fallback
   - emit_status: idle, after save, after error
-  - _build_o3d_pcds: labels → coloured PointCloud objects
+  - _build_o3d_pcds: labels → coloured PointCloud objects, pcd_color override
 """
 import time
 from typing import Any, Dict
@@ -28,10 +27,7 @@ from app.schemas.status import OperationalState
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-DEFAULT_CONFIG: Dict[str, Any] = {
-    "default_status": "success",
-    "status_key": "",
-}
+DEFAULT_CONFIG: Dict[str, Any] = {}
 
 
 def _make_node(
@@ -65,21 +61,25 @@ class TestResultStorageNodeInit:
         node, _ = _make_node(node_id="my-rs")
         assert node.id == "my-rs"
 
-    def test_default_status(self):
+    def test_no_pcd_color_default(self):
         node, _ = _make_node()
-        assert node._default_status == "success"
+        assert node._pcd_color is None
 
-    def test_custom_default_status(self):
-        node, _ = _make_node(config={"default_status": "warning", "status_key": ""})
-        assert node._default_status == "warning"
+    def test_custom_pcd_color(self):
+        node, _ = _make_node(config={"pcd_color": "#FF0000"})
+        assert node._pcd_color == "#FF0000"
 
-    def test_status_key_empty(self):
-        node, _ = _make_node()
-        assert node._status_key == ""
+    def test_pcd_color_non_hex_defaults_none(self):
+        node, _ = _make_node(config={"pcd_color": "not-a-color"})
+        assert node._pcd_color is None
 
-    def test_status_key_set(self):
-        node, _ = _make_node(config={"default_status": "success", "status_key": "icp_valid"})
-        assert node._status_key == "icp_valid"
+    def test_pcd_color_non_string_defaults_none(self):
+        node, _ = _make_node(config={"pcd_color": 123})
+        assert node._pcd_color is None
+
+    def test_pcd_color_missing_defaults_none(self):
+        node, _ = _make_node(config={})
+        assert node._pcd_color is None
 
     def test_initial_stats(self):
         node, _ = _make_node()
@@ -177,32 +177,6 @@ class TestExtractMetadata:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TestDeriveStatus
-# ─────────────────────────────────────────────────────────────────────────────
-
-class TestDeriveStatus:
-    def test_default_fallback(self):
-        node, _ = _make_node()
-        assert node._derive_status({}) == "success"
-
-    def test_custom_default(self):
-        node, _ = _make_node(config={"default_status": "error", "status_key": ""})
-        assert node._derive_status({}) == "error"
-
-    def test_status_key_truthy(self):
-        node, _ = _make_node(config={"default_status": "error", "status_key": "icp_valid"})
-        assert node._derive_status({"icp_valid": True}) == "success"
-
-    def test_status_key_falsy(self):
-        node, _ = _make_node(config={"default_status": "success", "status_key": "icp_valid"})
-        assert node._derive_status({"icp_valid": False}) == "warning"
-
-    def test_status_key_missing_uses_default(self):
-        node, _ = _make_node(config={"default_status": "success", "status_key": "icp_valid"})
-        assert node._derive_status({"other_key": 42}) == "success"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # TestBuildO3dPcds
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -223,14 +197,48 @@ class TestBuildO3dPcds:
         labels = {r[0] for r in result}
         assert labels == {"empty", "loaded"}
 
-    def test_colors_applied(self):
+    def test_default_colors_applied_per_label(self):
         pcds = {"empty": _random_pts(3)}
         result = ResultStorageNode._build_o3d_pcds(pcds)
         _, pcd = result[0]
         colors = np.asarray(pcd.colors)
         assert colors.shape == (3, 3)
-        # "empty" should get blue (#2196F3)
+        # "empty" should get blue (#2196F3) from pcd_color_for_label
         expected_r = 0x21 / 255.0
+        assert abs(colors[0, 0] - expected_r) < 0.01
+
+    def test_pcd_color_overrides_all_labels(self):
+        pcds = {"empty": _random_pts(3), "loaded": _random_pts(3)}
+        result = ResultStorageNode._build_o3d_pcds(pcds, pcd_color="#FF0000")
+        for label, pcd in result:
+            colors = np.asarray(pcd.colors)
+            # All labels should be red
+            assert abs(colors[0, 0] - 1.0) < 0.01
+            assert abs(colors[0, 1] - 0.0) < 0.01
+            assert abs(colors[0, 2] - 0.0) < 0.01
+
+    def test_no_pcd_color_uses_per_label_defaults(self):
+        pcds = {"empty": _random_pts(3), "loaded": _random_pts(3)}
+        result = ResultStorageNode._build_o3d_pcds(pcds, pcd_color=None)
+        result_dict = {r[0]: r[1] for r in result}
+
+        # "empty" uses default blue (#2196F3)
+        empty_colors = np.asarray(result_dict["empty"].colors)
+        expected_r = 0x21 / 255.0
+        assert abs(empty_colors[0, 0] - expected_r) < 0.01
+
+        # "loaded" uses default red (#F44336)
+        loaded_colors = np.asarray(result_dict["loaded"].colors)
+        expected_r = 0xF4 / 255.0
+        assert abs(loaded_colors[0, 0] - expected_r) < 0.01
+
+    def test_unknown_label_uses_grey_default(self):
+        pcds = {"mystery": _random_pts(3)}
+        result = ResultStorageNode._build_o3d_pcds(pcds)
+        _, pcd = result[0]
+        colors = np.asarray(pcd.colors)
+        # Unknown label gets grey (#9E9E9E)
+        expected_r = 0x9E / 255.0
         assert abs(colors[0, 0] - expected_r) < 0.01
 
 
@@ -299,21 +307,48 @@ class TestOnInput:
         assert node._save_count == 0
 
     @pytest.mark.asyncio
-    async def test_status_key_derived(self):
+    async def test_always_saves_with_success_status(self):
         svc = AsyncMock()
         svc.save_result = AsyncMock(return_value="r-003")
-        node, _ = _make_node(
-            config={"default_status": "error", "status_key": "icp_valid"},
-            results_service=svc,
-        )
+        node, _ = _make_node(results_service=svc)
 
         await node.on_input({
             "points": _random_pts(5),
-            "metadata": {"icp_valid": True},
+            "metadata": {"icp_valid": False},
         })
 
         call_kwargs = svc.save_result.call_args[1]
         assert call_kwargs["status"] == "success"
+
+    @pytest.mark.asyncio
+    async def test_pcd_color_applied_to_all_labels(self):
+        svc = AsyncMock()
+        svc.save_result = AsyncMock(return_value="r-004")
+        node, _ = _make_node(config={"pcd_color": "#FF0000"}, results_service=svc)
+
+        await node.on_input({
+            "pcds": {"empty": _random_pts(5), "loaded": _random_pts(5)},
+        })
+
+        svc.save_result.assert_called_once()
+        call_kwargs = svc.save_result.call_args[1]
+        for label, pcd in call_kwargs["pcds"]:
+            colors = np.asarray(pcd.colors)
+            # All should be red
+            assert abs(colors[0, 0] - 1.0) < 0.01
+            assert abs(colors[0, 1] - 0.0) < 0.01
+
+    @pytest.mark.asyncio
+    async def test_all_metadata_stored(self):
+        svc = AsyncMock()
+        svc.save_result = AsyncMock(return_value="r-005")
+        node, _ = _make_node(results_service=svc)
+
+        meta = {"volume_m3": 1.5, "icp_valid": True, "confidence": 0.95}
+        await node.on_input({"points": _random_pts(5), "metadata": meta})
+
+        call_kwargs = svc.save_result.call_args[1]
+        assert call_kwargs["metadata"] == meta
 
 
 # ─────────────────────────────────────────────────────────────────────────────

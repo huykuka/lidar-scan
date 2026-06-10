@@ -1,0 +1,54 @@
+<app-node-editor-header
+  icon="save"
+  iconColor="text-syn-color-primary-500"
+  title="Result Storage"
+  description="Persists point-cloud results and all metadata from application nodes."
+  [saveDisabled]="!form.valid || isSaving()"
+  (save)="onSave()"
+  (cancel)="onCancel()"
+/>
+
+<form [formGroup]="form" class="flex flex-col gap-4">
+  <!-- Node Name -->
+  <syn-input
+    label="Node Name"
+    formControlName="name"
+    size="small"
+    placeholder="Result Storage"
+    required
+  />
+
+  <!-- Point Cloud Color -->
+  <div class="flex flex-col gap-2">
+    <label class="text-sm font-semibold text-syn-color-neutral-700">Point Cloud Color</label>
+    <p class="text-xs text-syn-color-neutral-500">
+      Single color applied to all point cloud labels.
+    </p>
+    <div class="flex items-center gap-2">
+      <input
+        [formControl]="colorControl"
+        type="color"
+        class="w-8 h-8 rounded cursor-pointer border-0"
+        title="Pick point cloud color"
+      />
+      <span class="text-xs text-syn-color-neutral-600">{{ colorControl.value }}</span>
+    </div>
+  </div>
+
+  <!-- Info panel -->
+  <div class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
+    <span class="text-xs font-semibold text-syn-color-neutral-700">Connection Restriction</span>
+    <p class="text-xs text-syn-color-neutral-500">
+      This node only accepts connections from <strong>application</strong> nodes
+      (Vehicle Profiler, Volume Calculation, Truck Bin Detection, etc.).
+    </p>
+  </div>
+
+  <div class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
+    <span class="text-xs font-semibold text-syn-color-neutral-700">Metadata</span>
+    <p class="text-xs text-syn-color-neutral-500">
+      All metadata from the upstream application node is stored automatically.
+      No configuration needed.
+    </p>
+  </div>
+</form>
