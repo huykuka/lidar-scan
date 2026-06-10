@@ -62,7 +62,7 @@ node_schema_registry.register(
         ],
         inputs=[
             PortSchema(
-                id="result_input",
+                id="in",
                 label="Application Result",
                 data_type="any",
                 allowed_source_categories=["application"],

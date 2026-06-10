@@ -131,6 +131,10 @@ def _validate_edge_source_categories(
 ) -> None:
     """Reject edges where the target node's input port restricts source categories.
 
+    Uses OR semantics: the source is accepted if ANY restricted port allows
+    its category.  This matches the frontend ``onPortDrop`` validation which
+    uses ``.some()``.
+
     Raises:
         HTTPException(422): When an edge violates allowed_source_categories.
     """
@@ -143,22 +147,31 @@ def _validate_edge_source_categories(
         target_def = node_schema_registry.get(target.type)
         if target_def is None:
             continue
-        for port in target_def.inputs:
-            if port.allowed_source_categories is None:
-                continue
-            source = node_map.get(edge.source_node)
-            if source is None:
-                continue
-            allowed = [c.lower() for c in port.allowed_source_categories]
-            if source.category.lower() not in allowed:
-                raise HTTPException(
-                    status_code=422,
-                    detail=(
-                        f"Node '{target.name}' (type={target.type}) only accepts "
-                        f"connections from {', '.join(port.allowed_source_categories)} "
-                        f"nodes, but '{source.name}' has category '{source.category}'."
-                    ),
-                )
+
+        restricted_ports = [
+            p for p in target_def.inputs if p.allowed_source_categories
+        ]
+        if not restricted_ports:
+            continue
+
+        source = node_map.get(edge.source_node)
+        if source is None:
+            continue
+
+        all_allowed = {
+            c.lower()
+            for p in restricted_ports
+            for c in p.allowed_source_categories  # type: ignore[union-attr]
+        }
+        if source.category.lower() not in all_allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Node '{target.name}' (type={target.type}) only accepts "
+                    f"connections from {', '.join(sorted(all_allowed))} "
+                    f"nodes, but '{source.name}' has category '{source.category}'."
+                ),
+            )
 
 
 async def get_dag_config() -> DagConfigResponse:
