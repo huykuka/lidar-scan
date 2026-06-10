@@ -212,6 +212,36 @@ export class CanvasEditStoreService {
     );
   }
 
+  /** Batch-update canvas node positions (for multi-node drag). */
+  updateCanvasNodesPositions(updates: Map<string, { x: number; y: number }>): void {
+    this._canvasNodes.update((nodes) =>
+      nodes.map((n) => {
+        const pos = updates.get(n.id);
+        return pos ? { ...n, position: pos } : n;
+      }),
+    );
+  }
+
+  /** Batch-delete multiple nodes and their connected edges. */
+  deleteNodes(ids: Set<string>): void {
+    this._localNodes.update((nodes) => nodes.filter((n) => !ids.has(n.id)));
+    this._localEdges.update((edges) =>
+      edges.filter((e) => !ids.has(e.source_node) && !ids.has(e.target_node)),
+    );
+    this._mergeCanvasNodes(this._localNodes());
+  }
+
+  /** Batch-move multiple nodes (persists to localNodes). */
+  moveNodes(updates: Map<string, { x: number; y: number }>): void {
+    this._localNodes.update((nodes) =>
+      nodes.map((n) => {
+        const pos = updates.get(n.id);
+        return pos ? { ...n, x: pos.x, y: pos.y } : n;
+      }),
+    );
+    this._mergeCanvasNodes(this._localNodes());
+  }
+
   // ---------------------------------------------------------------------------
   // saveAndReload (with 150ms debounce)
   // ---------------------------------------------------------------------------

@@ -46,7 +46,9 @@
                 ? 'grabbing'
                 : paletteDragType()
                   ? 'copy'
-                  : 'default'
+                  : marqueeRect()
+                    ? 'crosshair'
+                    : 'default'
           "
           [style.min-height]="canvasHeight()"
           [style.min-width]="canvasWidth()"
@@ -94,13 +96,13 @@
               <div
                 (dblclick)="readOnly() ? null : onEditNode(node)"
                 (mousedown)="readOnly() ? null : onNodeMouseDown($event, node)"
-                [class.ring-2]="selectedCanvasNode()?.id === node.id"
-                [class.ring-syn-color-primary-500]="selectedCanvasNode()?.id === node.id"
-                [class.shadow-xl]="selectedCanvasNode()?.id === node.id"
-                [class.z-10]="selectedCanvasNode()?.id === node.id"
+                [class.ring-2]="selectedNodeIds().has(node.id)"
+                [class.ring-syn-color-primary-500]="selectedNodeIds().has(node.id)"
+                [class.shadow-xl]="selectedNodeIds().has(node.id)"
+                [class.z-10]="selectedNodeIds().has(node.id)"
                 [class.select-none]="!!draggingNode() || !!pendingConnection()"
                 [style.cursor]="
-                  draggingNode()?.id === node.id ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
+                  draggingNode() && selectedNodeIds().has(node.id) ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
                 "
                 [style.left.px]="node.position.x"
                 [style.top.px]="node.position.y"
@@ -126,6 +128,17 @@
           <!-- Empty State -->
           @if (canvasNodes().length === 0) {
             <app-flow-canvas-empty-state/>
+          }
+
+          <!-- Marquee Selection Overlay -->
+          @if (marqueeRect()) {
+            <div
+              class="absolute border border-syn-color-primary-500 bg-syn-color-primary-100/25 pointer-events-none z-50 rounded-sm"
+              [style.left.px]="marqueeRect()!.x"
+              [style.top.px]="marqueeRect()!.y"
+              [style.width.px]="marqueeRect()!.w"
+              [style.height.px]="marqueeRect()!.h"
+            ></div>
           }
         </div>
       </div>
