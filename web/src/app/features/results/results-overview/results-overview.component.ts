@@ -25,7 +25,7 @@ export class ResultsOverviewComponent implements OnInit {
   ngOnInit(): void {
     this.navService.setPageConfig({
       title: 'Results',
-      subtitle: 'Browse stored results from application nodes',
+      subtitle: 'Browse stored results from Result Storage nodes',
     });
     void this.loadNodes();
   }
@@ -65,6 +65,7 @@ export class ResultsOverviewComponent implements OnInit {
 
   protected nodeTypeIcon(nodeType: string): string {
     const iconMap: Record<string, string> = {
+      result_storage: 'save',
       volume_calculation: 'view_in_ar',
       vehicle_profiler: 'directions_car',
       surface_inspection: 'grid_on',

@@ -2,7 +2,7 @@
   <!-- Header actions -->
   <div class="flex items-center justify-between shrink-0">
     <p class="text-sm text-syn-color-neutral-600">
-      {{ nodes().length }} application node(s) found
+      {{ nodes().length }} node(s) found
     </p>
     <syn-button
       (click)="loadNodes()"
@@ -22,8 +22,8 @@
   } @else if (nodes().length === 0) {
     <div class="flex flex-col items-center justify-center py-16 text-center">
       <syn-icon name="analytics" class="text-5xl text-syn-color-neutral-400 mb-3"></syn-icon>
-      <p class="text-syn-color-neutral-600 font-medium">No application nodes with results available</p>
-      <p class="text-sm text-syn-color-neutral-400 mt-1">Run an application node to see results here.</p>
+      <p class="text-syn-color-neutral-600 font-medium">No nodes with results available</p>
+      <p class="text-sm text-syn-color-neutral-400 mt-1">Add a Result Storage node to the pipeline to collect results.</p>
     </div>
   } @else {
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -271,7 +271,7 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
     node_id_map: Dict[str, str] = {}
     new_version: int = current_version + 1
 
-    def _run_transaction() -> Tuple[Dict[str, str], int, List[Dict]]:
+    def _run_transaction() -> Tuple[Dict[str, str], int, List[Dict], set]:
         _id_map: Dict[str, str] = {}
         session = SessionLocal()
         try:
@@ -319,7 +319,7 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
             _new_version = meta_repo_tx.increment_version(session)
 
             session.commit()
-            return _id_map, _new_version, remapped_edges
+            return _id_map, _new_version, remapped_edges, ids_to_delete
 
         except Exception:
             session.rollback()
@@ -328,7 +328,7 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
             session.close()
 
     try:
-        node_id_map, new_version, remapped_edges = await asyncio.to_thread(_run_transaction)
+        node_id_map, new_version, remapped_edges, deleted_node_ids = await asyncio.to_thread(_run_transaction)
     except HTTPException:
         raise
     except Exception as exc:
@@ -387,6 +387,21 @@ async def save_dag_config(req: DagConfigSaveRequest) -> DagConfigSaveResponse:
         raise HTTPException(
             status_code=500, detail=f"Save succeeded but reload failed: {str(exc)}"
         )
+
+    # ── Step 5b: Delete stored results for permanently-removed nodes ────────
+    if deleted_node_ids:
+        try:
+            from app.api.v1.results.router import _results_service
+            if _results_service is not None:
+                for nid in deleted_node_ids:
+                    deleted = await _results_service.delete_results_by_node(nid)
+                    if deleted > 0:
+                        logger.info(
+                            "save_dag_config: deleted %d stored result(s) for removed node '%s'",
+                            deleted, nid,
+                        )
+        except Exception as exc:
+            logger.warning("save_dag_config: failed to delete results for removed nodes: %s", exc)
 
     # ── Step 6: Return ───────────────────────────────────────────────────────
     return DagConfigSaveResponse(
