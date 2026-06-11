@@ -110,6 +110,15 @@ export class FlowCanvasNodeComponent {
   });
 
   /**
+   * Compute PCD color from node config (for Result Storage nodes)
+   */
+  protected pcdColor = computed<string | null>(() => {
+    const config = this.node().data.config;
+    const color = config?.['pcd_color'];
+    return typeof color === 'string' && color.startsWith('#') ? color : null;
+  });
+
+  /**
    * Compute error message (only when operational_state is ERROR)
    */
   protected errorText = computed<string | null>(() => {

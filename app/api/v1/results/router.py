@@ -37,22 +37,23 @@ router = APIRouter(tags=["Results"])
 
 
 # ---------------------------------------------------------------------------
-# GET /results — node index (all application nodes merged with DAG state)
+# GET /results — node index (result_storage nodes merged with DB state)
 # ---------------------------------------------------------------------------
 
 
 @router.get(
     "/results",
     response_model=List[NodeResultSummary],
-    summary="List application nodes with results",
+    summary="List nodes with stored results",
     description=(
-        "Returns all application nodes that have ≥1 stored result, merged with "
-        "active DAG nodes of category 'application'. Nodes with zero results are "
-        "included if they are currently active in the DAG."
+        "Returns all Result Storage nodes (active in the DAG) merged with any "
+        "node that has ≥1 stored result in the database.  Active Result Storage "
+        "nodes are always listed (even with 0 results).  Node names are resolved "
+        "from the DAG runtime, then the nodes DB table, falling back to the node ID."
     ),
 )
 async def list_node_results_index() -> List[NodeResultSummary]:
-    """Merge DB result counts with live DAG application node metadata."""
+    """Merge DB result counts with live DAG Result Storage node metadata."""
     svc = _get_service()
     try:
         db_summaries = await svc.get_node_index()
@@ -62,30 +63,21 @@ async def list_node_results_index() -> List[NodeResultSummary]:
     # Build a map from DB data
     db_map: dict[str, NodeResultSummary] = {s.node_id: s for s in db_summaries}
 
-    # Merge with active DAG application nodes
+    # Merge with active DAG result_storage nodes
     try:
         from app.services.nodes.instance import node_manager
-        from app.modules.application.registry import (  # noqa: F401 — ensure registries loaded
-            environment_filtering_registry,
-            vehicle_profiler_registry,
-            volume_calculation_registry,
-        )
-
-        # Application node types (all nodes registered under the application category)
-        _APPLICATION_CATEGORIES = {"application"}
 
         merged: List[NodeResultSummary] = []
         seen_node_ids: set[str] = set()
 
         for node_id, node_instance in node_manager.nodes.items():
-            # Find the node_data for category lookup
             node_data = next(
                 (n for n in node_manager.nodes_data if n.get("id") == node_id), None
             )
             if node_data is None:
                 continue
-            category = node_data.get("category", "")
-            if category != "application":
+            # Only list result_storage nodes as primary entries
+            if node_data.get("type") != "result_storage":
                 continue
 
             seen_node_ids.add(node_id)
@@ -100,33 +92,49 @@ async def list_node_results_index() -> List[NodeResultSummary]:
                 )
             )
 
-        # Also include nodes that have results in DB but are no longer in DAG
+        # Include DB entries for nodes not already listed, resolving names
+        from app.repositories.node_orm import NodeRepository
+        node_repo = NodeRepository()
+
         for node_id, db_entry in db_map.items():
-            if node_id not in seen_node_ids:
-                merged.append(
-                    NodeResultSummary(
-                        node_id=node_id,
-                        node_name=node_id,
-                        node_type="unknown",
-                        result_count=db_entry.result_count,
-                        latest_timestamp=db_entry.latest_timestamp,
-                    )
+            if node_id in seen_node_ids:
+                continue
+            # Resolve name/type from the nodes table (works for deleted or
+            # non-result_storage nodes that still have historical results)
+            node_record = node_repo.get_by_id(node_id)
+            node_name = node_record.get("name", node_id) if node_record else node_id
+            node_type = node_record.get("type", "unknown") if node_record else "unknown"
+            merged.append(
+                NodeResultSummary(
+                    node_id=node_id,
+                    node_name=node_name,
+                    node_type=node_type,
+                    result_count=db_entry.result_count,
+                    latest_timestamp=db_entry.latest_timestamp,
                 )
+            )
 
         return merged
 
     except Exception as exc:
         # DAG not available (e.g. tests); fall back to DB-only data
-        return [
-            NodeResultSummary(
-                node_id=s.node_id,
-                node_name=s.node_id,
-                node_type="unknown",
-                result_count=s.result_count,
-                latest_timestamp=s.latest_timestamp,
+        from app.repositories.node_orm import NodeRepository
+        node_repo = NodeRepository()
+        result = []
+        for s in db_summaries:
+            node_record = node_repo.get_by_id(s.node_id)
+            node_name = node_record.get("name", s.node_id) if node_record else s.node_id
+            node_type = node_record.get("type", "unknown") if node_record else "unknown"
+            result.append(
+                NodeResultSummary(
+                    node_id=s.node_id,
+                    node_name=node_name,
+                    node_type=node_type,
+                    result_count=s.result_count,
+                    latest_timestamp=s.latest_timestamp,
+                )
             )
-            for s in db_summaries
-        ]
+        return result
 
 
 # ---------------------------------------------------------------------------
