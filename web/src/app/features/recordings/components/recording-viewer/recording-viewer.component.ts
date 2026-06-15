@@ -8,17 +8,17 @@ import {
   OnDestroy,
   OnInit,
   signal,
-  viewChild
+  viewChild,
 } from '@angular/core';
-import {NgClass, DecimalPipe} from '@angular/common';
-import {ActivatedRoute, Router} from '@angular/router';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {RecordingApiService} from '@core/services/api/recording-api.service';
-import {NavigationService} from '@core/services';
-import {RecordingViewerInfo} from '@core/models';
+import { NgClass, DecimalPipe } from '@angular/common';
+import { ActivatedRoute, Router } from '@angular/router';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { RecordingApiService } from '@core/services/api/recording-api.service';
+import { NavigationService } from '@core/services';
+import { RecordingViewerInfo } from '@core/models';
 import * as THREE from 'three';
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
-import {FormsModule} from '@angular/forms';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { FormsModule } from '@angular/forms';
 import JSZip from 'jszip';
 
 interface PCDData {
@@ -182,14 +182,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     this.currentFrame.set(parseInt(e.target.value, 10));
   }
 
-  onSpeedChange(s: number) {
-    this.playbackSpeed.set(s);
-    if (this.isPlaying()) {
-      this.stopPlayback();
-      this.startPlayback();
-    }
-  }
-
   goBack() {
     this.router.navigate(['/recordings']);
   }
@@ -234,7 +226,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     this.camera.position.set(20, 20, 20);
     this.camera.lookAt(0, 0, 0);
 
-    this.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(this.renderer.domElement);
@@ -365,7 +357,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
         }
       };
       this.decodingWorker?.addEventListener('message', onMessage);
-      this.decodingWorker?.postMessage({action: 'decode', payload: {buffer, frameIndex}}, [
+      this.decodingWorker?.postMessage({ action: 'decode', payload: { buffer, frameIndex } }, [
         buffer.buffer,
       ]);
     });

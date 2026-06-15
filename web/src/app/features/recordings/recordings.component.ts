@@ -1,14 +1,14 @@
-import {Component, computed, ElementRef, inject, OnInit, signal, ViewChild} from '@angular/core';
+import { Component, computed, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {RecordingStoreService} from '@core/services/stores/recording-store.service';
-import {RecordingApiService} from '@core/services/api/recording-api.service';
-import {NavigationService} from '@core/services';
-import {Router} from '@angular/router';
-import {Recording} from '@core/models';
-import {RecordingCardComponent} from './components/recording-card/recording-card.component';
-import {DialogService} from '@core/services/dialog.service';
-import {firstValueFrom} from 'rxjs';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { RecordingStoreService } from '@core/services/stores/recording-store.service';
+import { RecordingApiService } from '@core/services/api/recording-api.service';
+import { NavigationService } from '@core/services';
+import { Router } from '@angular/router';
+import { Recording } from '@core/models';
+import { RecordingCardComponent } from './components/recording-card/recording-card.component';
+import { DialogService } from '@core/services/dialog.service';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-recordings',
@@ -55,8 +55,7 @@ export class RecordingsComponent implements OnInit {
   private router = inject(Router);
   private dialogService = inject(DialogService);
 
-  constructor() {
-  }
+  constructor() {}
 
   async ngOnInit() {
     this.navService.setPageConfig({
@@ -109,7 +108,6 @@ export class RecordingsComponent implements OnInit {
     }
     this.selectedRecording.set(recording);
   }
-
 
   // --- Bulk Selection & Deletion Methods ---
 
@@ -182,8 +180,12 @@ export class RecordingsComponent implements OnInit {
 
   protected triggerUpload(): void {
     this.uploadError.set(null);
-    this.fileInputRef.nativeElement.value = '';
-    this.fileInputRef.nativeElement.click();
+
+    const input = this.fileInputRef.nativeElement;
+
+    input.value = '';
+    input.accept = '.lidr'; // restrict file picker
+    input.click();
   }
 
   protected async onFileSelected(event: Event): Promise<void> {
@@ -205,4 +207,3 @@ export class RecordingsComponent implements OnInit {
     }
   }
 }
-

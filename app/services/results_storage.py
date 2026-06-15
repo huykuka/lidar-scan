@@ -13,7 +13,7 @@ No separate SQLite DB is created by this service.
 Spec: .opencode/plans/application-results-storage/technical.md
 """
 
-from __future__ import annotations
+from app.schemas.results import pcd_color_for_label
 
 import asyncio
 import json
@@ -34,12 +34,12 @@ from typing import cast as _cast
 
 from app.db.models import ApplicationResultModel
 from app.db.session import SessionLocal
+from app.repositories.node_orm import NodeRepository
 from app.schemas.results import (
     NodeResultSummary,
     PcdFileEntry,
     ResultDetail,
     ResultSummary,
-    pcd_color_for_label,
 )
 
 logger = logging.getLogger(__name__)
@@ -352,8 +352,8 @@ class ResultsStorageService:
             PcdFileEntry(
                 label=entry["label"],
                 path=self._pcd_path(node_id, result_id, entry["label"]),
-                # Prefer stored color; fall back to label mapping for legacy records.
-                color=entry.get("color") or pcd_color_for_label(entry["label"]),
+                # Color comes only from the persisted node config.
+                color=self._color_from_node_config(node_id),
             )
             for entry in pcd_entries
         ]
@@ -365,6 +365,18 @@ class ResultsStorageService:
             metadata=metadata,
             pcd_files=pcd_files,
         )
+
+    @staticmethod
+    def _color_from_node_config(node_id: str) -> Optional[str]:
+        """Read the configured PCD color from the persisted node definition."""
+        node = NodeRepository().get_by_id(node_id)
+        if not node:
+            return None
+        config = node.get("config") or {}
+        color = config.get("pcd_color")
+        if isinstance(color, str) and color.startswith("#"):
+            return color
+        return None
 
     def _query_result_detail(
         self, node_id: str, result_id: str

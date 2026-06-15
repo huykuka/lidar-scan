@@ -6,9 +6,6 @@ Mounted at: /api/v1/results
 """
 
 from __future__ import annotations
-
-import os
-from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
