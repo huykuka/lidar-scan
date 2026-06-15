@@ -512,6 +512,11 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     this.drawerOpen.set(false);
   }
 
+  onEditorSave() {
+    this.drawerOpen.set(false);
+    this.canvasEditStore.saveAndReload();
+  }
+
   onDrawerRequestClose(event: Event) {
     if ((event as CustomEvent).detail?.source === 'overlay') {
       event.preventDefault();

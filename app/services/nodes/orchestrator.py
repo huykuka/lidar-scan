@@ -325,8 +325,21 @@ class NodeManager:
             await websocket_manager.broadcast("system_status", broadcast.model_dump())
         except Exception as exc:
             logger.warning(
-                f"[NodeManager] _broadcast_reload_event failed: {exc!r}"
+                f"[NodeManager] _broadcast_reload_event failed (status={status!r}): {exc!r}"
             )
+            # For terminal events ("ready"/"error"), retry once after a short
+            # delay so the frontend loading state does not get stuck permanently.
+            if status in ("ready", "error"):
+                import asyncio
+                await asyncio.sleep(0.5)
+                try:
+                    await websocket_manager.broadcast("system_status", broadcast.model_dump())
+                except Exception as retry_exc:
+                    logger.error(
+                        f"[NodeManager] _broadcast_reload_event retry also failed "
+                        f"(status={status!r}): {retry_exc!r}. "
+                        "Frontend loading indicator may be stuck until next reconnect."
+                    )
 
     def _cleanup_all_nodes(self):
         """

@@ -167,7 +167,7 @@
       @if (drawerOpen()) {
         <app-dynamic-node-editor
           (cancel)="onDrawerClose()"
-          (save)="onDrawerClose()"
+          (save)="onEditorSave()"
         />
       }
     </syn-drawer>

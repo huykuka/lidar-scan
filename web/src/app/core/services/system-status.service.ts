@@ -148,6 +148,18 @@ export class SystemStatusService {
       this._reloadingNodeIds.set(new Set());
     } else if (event.status === 'reloading') {
       this._reloadingNodeIds.update((ids) => new Set([...ids, event.node_id!]));
+      // Safety: if the backend never delivers the matching "ready"/"error" event
+      // (e.g. silent WS broadcast failure), clear this node after 10 s so the
+      // Apply button does not stay permanently disabled.
+      const nodeId = event.node_id!;
+      setTimeout(() => {
+        this._reloadingNodeIds.update((ids) => {
+          if (!ids.has(nodeId)) return ids;
+          const next = new Set(ids);
+          next.delete(nodeId);
+          return next;
+        });
+      }, 10_000);
     } else if (event.status === 'ready' || event.status === 'error') {
       this._reloadingNodeIds.update((ids) => {
         const next = new Set(ids);
