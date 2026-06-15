@@ -17,9 +17,7 @@ Payload conventions:
 
     All metadata from the payload is stored as-is.
 
-    Point cloud color is configurable via the ``pcd_color`` config
-    property (single hex color applied uniformly to all labels).
-    When not set, falls back to ``pcd_color_for_label()``.
+    Point clouds are converted to Open3D objects without color handling.
 """
 import asyncio
 import time
@@ -29,7 +27,6 @@ import numpy as np
 import open3d as o3d
 
 from app.core.logging import get_logger
-from app.schemas.results import pcd_color_for_label
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
@@ -61,12 +58,6 @@ class ResultStorageNode(ModuleNode):
         self.name = name
         self._results_service = results_service
 
-        # Single hex color applied to all PCD labels (e.g. "#FF0000")
-        raw_color = config.get("pcd_color")
-        self._pcd_color: Optional[str] = (
-            raw_color if isinstance(raw_color, str) and raw_color.startswith("#") else None
-        )
-
         # Runtime stats
         self.last_input_at: Optional[float] = None
         self.last_save_at: Optional[float] = None
@@ -92,9 +83,7 @@ class ResultStorageNode(ModuleNode):
 
             metadata = self._extract_metadata(payload)
 
-            o3d_pcds = await asyncio.to_thread(
-                self._build_o3d_pcds, pcds, self._pcd_color
-            )
+            o3d_pcds = await asyncio.to_thread(self._build_o3d_pcds, pcds)
 
             result_id = await self._results_service.save_result(
                 node_id=self.id,
@@ -188,14 +177,8 @@ class ResultStorageNode(ModuleNode):
     @staticmethod
     def _build_o3d_pcds(
         pcds: Dict[str, np.ndarray],
-        pcd_color: Optional[str] = None,
     ) -> List[Tuple[str, o3d.geometry.PointCloud]]:
-        """Convert raw numpy arrays to coloured Open3D PointCloud objects.
-
-        Colors are resolved in order:
-        1. ``pcd_color`` (single user-configured hex, applied to all labels)
-        2. ``pcd_color_for_label(label)`` (canonical default per label)
-        """
+        """Convert raw numpy arrays to Open3D PointCloud objects."""
         result: List[Tuple[str, o3d.geometry.PointCloud]] = []
         for label, pts in pcds.items():
             pcd = o3d.geometry.PointCloud()
@@ -204,15 +187,5 @@ class ResultStorageNode(ModuleNode):
                 pcd.points = o3d.utility.Vector3dVector(pts_arr[:, :3])
             else:
                 pcd.points = o3d.utility.Vector3dVector(pts_arr)
-
-            n = len(pcd.points)
-            if n > 0:
-                hex_color = pcd_color or pcd_color_for_label(label)
-                r = int(hex_color[1:3], 16) / 255.0
-                g = int(hex_color[3:5], 16) / 255.0
-                b = int(hex_color[5:7], 16) / 255.0
-                pcd.colors = o3d.utility.Vector3dVector(
-                    np.tile([r, g, b], (n, 1))
-                )
             result.append((label, pcd))
         return result
