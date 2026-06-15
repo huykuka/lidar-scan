@@ -1,6 +1,7 @@
 import {Injectable, signal, computed} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {firstValueFrom} from 'rxjs';
+import {catchError, of} from 'rxjs';
 import {environment} from '@env/environment';
 
 export type UserRole = 'user' | 'admin' | 'service';
@@ -40,6 +41,24 @@ export class AuthService {
 
   getToken(): string | null {
     return this.token();
+  }
+
+  /** Called at app boot. Validates the stored token against the backend.
+   *  Clears auth state if no token is present or the server rejects it. */
+  async verifyToken(): Promise<void> {
+    if (!this.token()) return;
+    const user = await firstValueFrom(
+      this.http.get<UserInfo>(`${environment.apiUrl}/auth/me`).pipe(
+        catchError(() => {
+          this.logout();
+          return of(null);
+        }),
+      ),
+    );
+    if (user) {
+      this.currentUser.set(user);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    }
   }
 
   async login(username: string, password: string): Promise<UserInfo> {
