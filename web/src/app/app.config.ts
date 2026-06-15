@@ -12,8 +12,7 @@ import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { httpToastInterceptor } from './core/interceptors/http-toast.interceptor';
 import { GlobalErrorHandler } from './core/errors/global-error.handler';
-import { SystemStatusService } from './core/services/system-status.service';
-import { AuthService } from './core/services/auth.service';
+import { AppInitService } from './core/services/app-init.service';
 
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 
@@ -24,9 +23,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideHttpClient(withInterceptors([authInterceptor, httpToastInterceptor])),
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
-    provideAppInitializer(async () => {
-      await inject(AuthService).verifyToken();
-      inject(SystemStatusService).start();
-    }),
+    provideAppInitializer(() => inject(AppInitService).init()),
   ],
 };
