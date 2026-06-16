@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Plane Segmentation",
     category="operation",
     description="Segments a plane from the point cloud using RANSAC",
+    use_case="Isolate or remove the dominant flat surface in a scene — e.g. extract a conveyor belt, detect the ground plane before vehicle profiling, or remove a factory floor before object detection.",
     icon="layers",
     websocket_enabled=True,
     properties=[

@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="DBSCAN Clustering",
     category="operation",
     description="Clusters points using the DBSCAN algorithm",
+    use_case="Separate individual objects from a scene — e.g. detect and count boxes on a conveyor, isolate each vehicle in a parking lot, or identify separate bin loads after floor removal.",
     icon="scatter_plot",
     websocket_enabled=True,
     properties=[

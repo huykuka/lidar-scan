@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Point Cloud Densify",
     category="operation",
     description="Increases point cloud density by interpolating synthetic points",
+    use_case="Fill sparse scan areas before surface reconstruction or volume calculation — e.g. thicken a coarse long-range scan of a bin so that volume algorithms produce accurate fill estimates.",
     icon="blur_circular",
     websocket_enabled=True,
     properties=[

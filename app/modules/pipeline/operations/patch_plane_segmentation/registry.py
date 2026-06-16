@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Planar Patch Detection",
     category="operation",
     description="Detects multiple planar patches using robust statistics-based approach",
+    use_case="Map all flat structural surfaces simultaneously — e.g. detect walls, floor, and ceiling of a room in one pass, or identify all pallet faces in a warehouse without running RANSAC repeatedly.",
     icon="layers",
     websocket_enabled=True,
     properties=[

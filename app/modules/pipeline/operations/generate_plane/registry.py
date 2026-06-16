@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Generate Plane Mesh",
     category="operation",
     description="Generates a planar triangle mesh from segmented point cloud",
+    use_case="Produce a solid reference surface from a segmented plane — e.g. build a mesh of a conveyor belt or factory floor for collision checks, volume calculations, or AR overlay rendering.",
     icon="grid_on",
     websocket_enabled=True,
     properties=[

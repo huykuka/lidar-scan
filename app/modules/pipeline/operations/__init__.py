@@ -13,3 +13,5 @@ from .surface_reconstruction import SurfaceReconstruction
 from .centroid_calculation import CentroidCalculation
 from .coordinate_transform import CoordinateTransform
 from .edge_detection import EdgeDetection
+from .plane_projection import PlaneProjection
+from .range_image import RangeImage

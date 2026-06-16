@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Centroid Calculation",
     category="operation",
     description="Computes the geometric centroid (mean XYZ) of the point cloud and optionally centres it at the origin",
+    use_case="Find the centre of mass of a detected object — e.g. locate the midpoint of a cluster to anchor a pick-and-place coordinate, or normalise a segmented pallet to origin before pose estimation.",
     icon="adjust",
     websocket_enabled=True,
     properties=[

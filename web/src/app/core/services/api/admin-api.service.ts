@@ -8,6 +8,7 @@ export interface NodeTypeRecord {
   display_name: string;
   category: string;
   description: string;
+  use_case?: string;
   icon: string;
   enabled: boolean;
 }

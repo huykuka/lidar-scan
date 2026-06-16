@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Save PCD",
     category="operation",
     description="Saves point cloud to PCD files",
+    use_case="Capture frames for offline analysis or ground-truth collection — e.g. record a sequence of scans during a test run for later replay, or export individual frames to validate algorithm behaviour in a notebook.",
     icon="save",
     websocket_enabled=False,
     properties=[

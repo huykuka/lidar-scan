@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Edge Detection",
     category="operation",
     description="Centroid-gradient edge detection (Xia & Wang 2017) with optional NMS",
+    use_case="Highlight sharp geometric transitions in a scan — e.g. find the edges of a step, doorframe, or shelf bracket; detect vehicle wheel arches; or locate seams on a welded structure.",
     icon="border_style",
     websocket_enabled=True,
     properties=[

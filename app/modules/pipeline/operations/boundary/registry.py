@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Boundary Detection",
     category="operation",
     description="Detects boundary points based on angle criteria",
+    use_case="Extract the outline of objects or surfaces — e.g. trace the perimeter of a pallet, detect the open edges of a truck loading bay, or find the rim of a container bin.",
     icon="timeline",
     websocket_enabled=True,
     properties=[

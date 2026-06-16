@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Surface Reconstruction",
     category="operation",
     description="Reconstructs a triangle mesh from a point cloud and samples it back to points",
+    use_case="Turn a raw point cloud into a watertight surface for downstream analysis — e.g. generate a solid truck-bin mesh for volume integration, or create a smooth hull of a scanned part for dimensional inspection.",
     icon="view_in_ar",
     websocket_enabled=True,
     properties=[

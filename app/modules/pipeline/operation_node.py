@@ -12,7 +12,7 @@ from app.modules.pipeline.operations import (
     BoundaryDetection, DebugSave,
     GeneratePlane, Densify, SurfaceReconstruction,
     CentroidCalculation, CoordinateTransform,
-    EdgeDetection,
+    EdgeDetection, PlaneProjection, RangeImage,
 )
 
 _OP_MAP = {
@@ -35,6 +35,8 @@ _OP_MAP = {
     "centroid_calculation": CentroidCalculation,
     "coordinate_transform": CoordinateTransform,
     "edge_detection": EdgeDetection,
+    "plane_projection": PlaneProjection,
+    "range_image": RangeImage,
 }
 
 # Op types that are CPU-heavy and benefit from an isolated single-thread executor.
@@ -120,6 +122,12 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
         start_time = time.time()
         first_frame = self.input_count == 0
         self.input_count = len(points)
+
+        # Propagate the orchestrator-assigned WebSocket topic into the inner op
+        # so ops like RangeImage can broadcast side-channel data (e.g. PNG images)
+        # independently from the standard point-cloud WebSocket path.
+        if hasattr(self.op, "_ws_topic"):
+            self.op._ws_topic = getattr(self, "_ws_topic", None)
 
         try:
             # Move heavy CPU-bound Point Cloud operations to a background thread

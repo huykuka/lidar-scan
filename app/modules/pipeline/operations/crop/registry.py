@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Crop Filter",
     category="operation",
     description="Filter points within/outside bounding box",
+    use_case="Restrict the scan to a region of interest — e.g. keep only points inside a truck loading bay or remove the floor and ceiling of a warehouse scan.",
     icon="crop",
     websocket_enabled=True,
     properties=[

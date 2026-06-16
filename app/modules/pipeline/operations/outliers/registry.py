@@ -15,6 +15,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Stat. Outlier Removal",
     category="operation",
     description="Removes noise from the point cloud using statistical analysis",
+    use_case="Clean LiDAR sensor noise before segmentation — e.g. strip stray reflections from rain, glass, or multi-path returns that would distort plane fitting.",
     icon="auto_fix_normal",
     websocket_enabled=True,
     properties=[
@@ -34,6 +35,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Radius Outlier Removal",
     category="operation",
     description="Removes points with too few neighbors in a sphere",
+    use_case="Remove isolated floating points that statistical removal misses — e.g. eliminate single-echo artefacts from highly reflective surfaces or dusty environments.",
     icon="blur_on",
     websocket_enabled=True,
     properties=[

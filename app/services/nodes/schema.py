@@ -34,6 +34,7 @@ class NodeDefinition(BaseModel):
     display_name: str
     category: str  # "sensor", "fusion", "operation"
     description: Optional[str] = None
+    use_case: Optional[str] = None
     icon: str = "settings_input_component"
     websocket_enabled: bool = True  # When False, node does not stream data; hides visibility & recording controls in UI
     properties: List[PropertySchema] = []

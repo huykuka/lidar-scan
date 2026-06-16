@@ -60,6 +60,8 @@ class BinDetector:
         max_wall_x_std: float = 0.15,
         min_bin_length: float = 3.0,
         max_bin_length: float = 8.5,
+        bed_normal_z_min: float = 0.8,
+        min_bed_inliers: int = 5,
     ) -> None:
         self._lane_width = lane_width
         self._z_min = z_min
@@ -74,6 +76,8 @@ class BinDetector:
         self._max_wall_x_std = max_wall_x_std
         self._min_bin_length = min_bin_length
         self._max_bin_length = max_bin_length
+        self._bed_normal_z_min = bed_normal_z_min
+        self._min_bed_inliers = min_bed_inliers
 
     def detect(self, points: np.ndarray) -> BinDetectionResult:
         """Run 1D slope-based internal edge detection on a fused point cloud.
@@ -88,7 +92,14 @@ class BinDetector:
             return BinDetectionResult(detected=False, status="SEARCH / NO VEHICLE")
 
         # Convert to Nx3 float64
-        pts = np.asarray(points[:, :3], dtype=np.float64)
+        pts_3d = np.asarray(points[:, :3], dtype=np.float64)
+
+        # Project onto the XZ plane — set Y to zero so the 1D height-profile
+        # algorithm and wall-slab coherence checks operate purely in the
+        # longitudinal-elevation plane.  pts_3d (original) is kept for the
+        # bed plane-fitting step that needs real 3D geometry.
+        pts = pts_3d.copy()
+        pts[:, 1] = 0.0
 
         # Step 1: Spatial ROI Crop (Corridor + Height envelope)
         # Keeps only lane center Y-width and heights corresponding to box rims
@@ -244,50 +255,73 @@ class BinDetector:
                 detected=False, status=f"SEARCH / INVALID LENGTH ({length:.1f}m)"
             )
 
-        # Step 6b: 3D cavity area confirmation (skipped if enable_area_check is False).
-        # Collect the raw points that sit strictly inside the cavity — beyond the wall
-        # slabs on both sides. Using _edge_half as the inset ensures wall-face points
-        # do not inflate the Y-span of the interior cloud.
-        # A real open-top bin has points spread across the full lane width and cavity
-        # length — its XY bounding box area is large.
-        # False positives are rejected because:
-        #   - Inter-truck gap: near-zero points inside → area ~ 0
-        #   - Drawbar / coupling: points clustered in a narrow band → small Y-span → small area
-        _edge_half = self._cellsize 
-        interior_mask = (pts[:, 0] > x_rear_internal + _edge_half) & (
-            pts[:, 0] < x_front_internal - _edge_half
+        # Step 6b: Bed plane confirmation (skipped if enable_area_check is False).
+        #
+        # Use the original 3D points (pts_3d) cropped to the cavity X range to
+        # verify that a horizontal plane — the bin floor / cargo bed — actually
+        # exists between the two detected walls.
+        #
+        # Algorithm:
+        #   1. Crop pts_3d to the interior cavity window (same X inset as before).
+        #   2. Fit a plane via SVD (zero-mean, smallest singular vector = normal).
+        #   3. Check |n_z| >= bed_normal_z_min (default 0.8) to confirm the
+        #      fitted surface is near-horizontal — a true flat bed, not a wall
+        #      or coupling structure at an angle.
+        #   4. Count inliers (points within a cell-sized distance of the plane)
+        #      and require at least min_bed_inliers.
+        #
+        # Confidence is set to the inlier fraction relative to all interior points,
+        # capped at 1.0.
+        _edge_half = self._cellsize
+        interior_mask = (pts_3d[:, 0] > x_rear_internal + _edge_half) & (
+            pts_3d[:, 0] < x_front_internal - _edge_half
         )
+        interior_pts_3d = pts_3d[interior_mask]
+        # Also needed later by the projected-pts path for wall-slab coherence
         interior_pts = pts[interior_mask]
 
         if self._enable_area_check:
-            if len(interior_pts) < 3:
+            if len(interior_pts_3d) < 3:
                 logger.debug("Rejected: fewer than 3 points inside cavity")
                 return BinDetectionResult(
                     detected=False, status="SEARCH / NO INTERIOR POINTS"
                 )
 
-            x_span = float(interior_pts[:, 0].max() - interior_pts[:, 0].min())
-            y_span = float(interior_pts[:, 1].max() - interior_pts[:, 1].min())
-            interior_area = x_span * y_span
+            # SVD plane fit on the 3D interior cloud
+            centroid = interior_pts_3d.mean(axis=0)
+            _, _, Vt = np.linalg.svd(interior_pts_3d - centroid, full_matrices=False)
+            normal = Vt[-1]  # smallest singular value → plane normal
+            normal = normal / np.linalg.norm(normal)
+            n_z = abs(float(normal[2]))
 
-            if interior_area < self._min_bin_area:
+            if n_z < self._bed_normal_z_min:
                 logger.debug(
-                    "Rejected: interior XY area %.2f m² < min %.2f m² "
-                    "(x_span=%.2f, y_span=%.2f)",
-                    interior_area,
-                    self._min_bin_area,
-                    x_span,
-                    y_span,
+                    "Rejected: bed plane normal Z component %.3f < min %.3f "
+                    "(fitted surface is not horizontal)",
+                    n_z,
+                    self._bed_normal_z_min,
                 )
                 return BinDetectionResult(
                     detected=False,
-                    status=f"SEARCH / SMALL INTERIOR AREA ({interior_area:.1f} m²)",
+                    status=f"SEARCH / NON-HORIZONTAL BED (|n_z|={n_z:.2f})",
                 )
 
-            # Confidence: ratio of observed area to expected bin opening (length × lane_width).
-            # Capped at 1.0 — a perfectly captured bin reads close to 1.0.
-            expected_area = length * self._lane_width
-            confidence = round(min(interior_area / expected_area, 1.0), 2)
+            # Count inliers: signed distance to plane |( p - centroid ) · n| <= cell_size
+            dists = np.abs((interior_pts_3d - centroid) @ normal)
+            inlier_count = int((dists <= self._cellsize).sum())
+
+            if inlier_count < self._min_bed_inliers:
+                logger.debug(
+                    "Rejected: only %d bed inliers (min %d)",
+                    inlier_count,
+                    self._min_bed_inliers,
+                )
+                return BinDetectionResult(
+                    detected=False,
+                    status=f"SEARCH / SPARSE BED ({inlier_count} inliers)",
+                )
+
+            confidence = round(min(inlier_count / len(interior_pts_3d), 1.0), 2)
         else:
             # Area check is disabled — fall back to wall line coherence check.
             # Each detected wall slab should form a tight vertical line in the XZ

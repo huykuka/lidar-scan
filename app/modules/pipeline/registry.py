@@ -19,6 +19,8 @@ from .operations.patch_plane_segmentation import registry as patch_plane_segment
 from .operations.surface_reconstruction import registry as surface_reconstruction_registry
 from .operations.coordinate_transform import registry as coordinate_transform_registry
 from .operations.edge_detection import registry as edge_detection_registry
+from .operations.plane_projection import registry as plane_projection_registry
+from .operations.range_image import registry as range_image_registry
 
 __all__ = [
     "crop_registry",
@@ -35,4 +37,6 @@ __all__ = [
     "surface_reconstruction_registry",
     "coordinate_transform_registry",
     "edge_detection_registry",
+    "plane_projection_registry",
+    "range_image_registry",
 ]

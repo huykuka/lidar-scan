@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Voxel Downsample",
     category="operation",
     description="Subsamples points using a grid of voxels",
+    use_case="Reduce point count before heavy operations like clustering or surface reconstruction — e.g. cut a 500 k-point outdoor scan to ~50 k points for real-time processing.",
     icon="grid_view",
     websocket_enabled=True,
     properties=[

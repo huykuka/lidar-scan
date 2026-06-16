@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Coordinate Transform",
     category="operation",
     description="Applies translation, rotation, and scaling to the point cloud",
+    use_case="Align a sensor frame to a world or robot coordinate system — e.g. rotate a roof-mounted LiDAR into the vehicle frame, shift a scan to match a known origin, or mirror a point cloud for symmetric inspection.",
     icon="transform",
     websocket_enabled=True,
     properties=[

@@ -14,6 +14,7 @@ node_schema_registry.register(NodeDefinition(
     display_name="Attribute Filter",
     category="operation",
     description="Filter points based on attribute values",
+    use_case="Keep only points that meet a signal condition — e.g. discard low-intensity returns to remove glass and vegetation, or keep only first-echo points for precise distance measurements.",
     icon="filter_alt",
     websocket_enabled=True,
     properties=[
