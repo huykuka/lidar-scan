@@ -35,3 +35,10 @@ sick-scan-api/
 .vscode/settings.json
 data/recordings/*
 
+
+# Harness durable layer
+harness.db
+harness.db-wal
+harness.db-shm
+scripts/bin/harness-cli
+scripts/bin/harness-cli.exe
