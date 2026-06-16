@@ -4,7 +4,7 @@ LiDAR device profiles for multi-model support.
 This is a pure data module containing SICK LiDAR device definitions and configuration.
 No FastAPI, I/O, or Open3D dependencies - stdlib only.
 """
-from sqlalchemy import true
+
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -62,7 +62,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/tim240.png",
         icon_name="sensors",
         icon_color="#FF6B35",
-        disabled=true
+        disabled=True
     ),
     "tim_5xx": SickLidarProfile(
         model_id="tim_5xx",
@@ -77,7 +77,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/tim5xx.png",
         icon_name="sensors",
         icon_color="#FF6B35",
-        disabled=true
+        disabled=True
     ),
     "tim_7xx": SickLidarProfile(
         model_id="tim_7xx",
@@ -92,7 +92,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/tim7xx.png",
         icon_name="sensors",
         icon_color="#FF6B35",
-        disabled=true
+        disabled=True
     ),
     "tim_7xxs": SickLidarProfile(
         model_id="tim_7xxs",
@@ -107,7 +107,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/tim7xxs.png",
         icon_name="verified_user",
         icon_color="#FF4444",
-        disabled=true
+        disabled=True
     ),
 
     # --- LMS Series (2D Laser Measurement) ---
@@ -124,7 +124,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lms1xx.png",
         icon_name="track_changes",
         icon_color="#00AA44",
-        disabled=true
+        disabled=True
     ),
     "lms_1xxx": SickLidarProfile(
         model_id="lms_1xxx",
@@ -139,7 +139,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lms1xxx.png",
         icon_name="track_changes",
         icon_color="#00AA44",
-        disabled=true
+        disabled=True
     ),
     "lms_1xxx_v2": SickLidarProfile(
         model_id="lms_1xxx_v2",
@@ -154,7 +154,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lms1xxx_v2.png",
         icon_name="track_changes",
         icon_color="#00AA44",
-        disabled=true
+        disabled=True
     ),
     "lms_5xx": SickLidarProfile(
         model_id="lms_5xx",
@@ -169,7 +169,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lms5xx.png",
         icon_name="track_changes",
         icon_color="#00AA44",
-        disabled=true
+        disabled=True
     ),
     "lms_4xxx": SickLidarProfile(
         model_id="lms_4xxx",
@@ -184,7 +184,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lms4xxx.png",
         icon_name="track_changes",
         icon_color="#00AA44",
-        disabled=true
+        disabled=True
     ),
 
     # --- MRS Series (3D Multi-Layer) ---
@@ -201,7 +201,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/mrs1xxx.png",
         icon_name="3d_rotation",
         icon_color="#9C27B0",
-        disabled=true
+        disabled=True
     ),
     "mrs_6xxx": SickLidarProfile(
         model_id="mrs_6xxx",
@@ -216,7 +216,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/mrs6xxx.png",
         icon_name="360",
         icon_color="#8A2BE2",
-        disabled=true
+        disabled=True
     ),
 
     # --- LRS Series (3D Radar) ---
@@ -233,7 +233,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lrs4xxx.png",
         icon_name="radar",
         icon_color="#FF9800",
-        disabled=true
+        disabled=True
     ),
     "lrs_36x0": SickLidarProfile(
         model_id="lrs_36x0",
@@ -248,7 +248,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lrs36x0.png",
         icon_name="radar",
         icon_color="#FF9800",
-        disabled=true
+        disabled=True
     ),
     "lrs_36x0_upside_down": SickLidarProfile(
         model_id="lrs_36x0_upside_down",
@@ -263,7 +263,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lrs36x0.png",
         icon_name="flip",
         icon_color="#FF9800",
-        disabled=true
+        disabled=True
     ),
     "lrs_36x1": SickLidarProfile(
         model_id="lrs_36x1",
@@ -278,7 +278,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lrs36x1.png",
         icon_name="radar",
         icon_color="#FF9800",
-        disabled=true
+        disabled=True
     ),
     "lrs_36x1_upside_down": SickLidarProfile(
         model_id="lrs_36x1_upside_down",
@@ -293,7 +293,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/lrs36x1.png",
         icon_name="flip",
         icon_color="#FF9800",
-        disabled=true
+        disabled=True
     ),
 
     # --- LD-MRS Series (Legacy Multi-Layer) ---
@@ -344,7 +344,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/nav2xx.png",
         icon_name="navigation",
         icon_color="#2196F3",
-        disabled=true
+        disabled=True
     ),
     "nav_31x": SickLidarProfile(
         model_id="nav_31x",
@@ -359,7 +359,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/nav31x.png",
         icon_name="navigation",
         icon_color="#2196F3",
-        disabled=true
+        disabled=True
     ),
     "nav_350": SickLidarProfile(
         model_id="nav_350",
@@ -374,7 +374,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/nav350.png",
         icon_name="navigation",
         icon_color="#2196F3",
-        disabled=true
+        disabled=True
     ),
 
     # --- RMS Series (Radar Multi-Sensor) ---
@@ -391,7 +391,7 @@ _PROFILES = {
         thumbnail_url="/api/v1/assets/lidar/rms.png",
         icon_name="settings_input_antenna",
         icon_color="#E91E63",
-        disabled=true
+        disabled=True
     ),
 
     # --- picoScan Series (Compact 3D) ---
