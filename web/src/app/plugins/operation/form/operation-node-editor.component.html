@@ -13,16 +13,17 @@
   <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-3 text-sm">
     <div class="grid grid-cols-2 gap-3">
       <div class="col-span-2">
-        <syn-input formControlName="name"
-                   label="Display Name"
-                   ngDefaultControl
-                   placeholder="e.g. Downsample Filter"
-                   size="small"
+        <syn-input
+          formControlName="name"
+          label="Display Name"
+          ngDefaultControl
+          placeholder="e.g. Downsample Filter"
+          size="small"
         />
       </div>
     </div>
 
-    <syn-divider class="my-0"/>
+    <syn-divider class="my-0" />
 
     <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-2">
       @for (prop of visibleProperties(); track prop.name) {
@@ -31,24 +32,26 @@
           class="flex flex-col"
         >
           @if (prop.type === 'string') {
-            <syn-input [formControlName]="prop.name"
-                       [helpText]="prop.help_text || ''"
-                       [label]="prop.label"
-                       ngDefaultControl
-                       size="small"
+            <syn-input
+              [formControlName]="prop.name"
+              [helpText]="prop.help_text || ''"
+              [label]="prop.label"
+              ngDefaultControl
+              size="small"
             />
           }
 
           @if (prop.type === 'number') {
-            <syn-input [attr.max]="prop.max"
-                       [attr.min]="prop.min"
-                       [formControlName]="prop.name"
-                       [helpText]="prop.help_text || ''"
-                       [label]="prop.label"
-                       [step]="prop.step || 1"
-                       ngDefaultControl
-                       size="small"
-                       type="number"
+            <syn-input
+              [attr.max]="prop.max"
+              [attr.min]="prop.min"
+              [formControlName]="prop.name"
+              [helpText]="prop.help_text || ''"
+              [label]="prop.label"
+              [step]="prop.step || 1"
+              ngDefaultControl
+              size="small"
+              type="number"
             />
           }
 
@@ -58,7 +61,7 @@
               [checked]="configForm.get(prop.name)?.value"
               class="mt-4"
             >
-              <span class="text-xs font-medium ">{{ prop.label }}</span>
+              <span class="text-xs font-medium">{{ prop.label }}</span>
             </syn-checkbox>
             @if (prop.help_text) {
               <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
@@ -80,22 +83,20 @@
           }
 
           @if (prop.type === 'vec3') {
-            <div
-              class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border "
-            >
+            <div class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border">
               <div class="flex flex-col">
                 <label class="text-[11px] font-bold text-syn-color-neutral-900">{{
-                    prop.label
-                  }}</label>
+                  prop.label
+                }}</label>
                 @if (prop.help_text) {
                   <span class="text-[10px] text-syn-color-neutral-500 mt-0.5">{{
-                      prop.help_text
-                    }}</span>
+                    prop.help_text
+                  }}</span>
                 }
               </div>
               <div [formGroupName]="prop.name" class="grid grid-cols-3 gap-1.5">
                 <syn-input
-                  [step]="0.1"
+                  [step]="0.0001"
                   formControlName="0"
                   ngDefaultControl
                   placeholder="X"
@@ -105,7 +106,7 @@
                 >
                 </syn-input>
                 <syn-input
-                  [step]="0.1"
+                  [step]="0.0001"
                   formControlName="1"
                   ngDefaultControl
                   placeholder="Y"
@@ -115,7 +116,7 @@
                 >
                 </syn-input>
                 <syn-input
-                  [step]="0.1"
+                  [step]="0.0001"
                   formControlName="2"
                   ngDefaultControl
                   placeholder="Z"
@@ -123,7 +124,6 @@
                   label="Z"
                   type="number"
                 >
-
                 </syn-input>
               </div>
             </div>
