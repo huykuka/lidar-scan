@@ -52,9 +52,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libegl1 \
   libgl1 \
   libgomp1 \
-  vim \
-  && rm -rf /var/lib/apt/lists/*
-# ↑ Removed `vim` — has no place in a production image
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /usr/lib/x86_64-linux-gnu/dri/*
 
 # ✅ uv binary — separate layer, changes rarely
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -62,17 +61,24 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # ✅ Dependencies before app code — maximizes cache reuse on rebuilds
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --compile-bytecode \
-  && find /app/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-# ↑ --compile-bytecode pre-compiles .pyc files so PYTHONDONTWRITEBYTECODE doesn't
-#   silently skip them at runtime
+  && uv cache clean \
+  && rm -rf /root/.cache \
+  && find /app/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/resources \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/examples \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/labextension \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/nbextension \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/_ml3d \
+  && find /app/.venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true \
+  && find /app/.venv -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
 
 # ✅ C++ artifacts grouped — they change together
 COPY --from=backend-builder \
   /workspace/build/libsick_scan_xd_shared_lib.so \
   /workspace/build/sick_generic_caller \
-  /workspace/build/sick_scan_xd_api_test \
   ./build/
 COPY --from=backend-builder /workspace/sick_scan_xd/launch/ ./launch/
+RUN rm -f ./launch/test_*
 
 # ✅ Compiled app: .so extensions + __init__.py stubs + non-Python assets
 COPY main.py .
