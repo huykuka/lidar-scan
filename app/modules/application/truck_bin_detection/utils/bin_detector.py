@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+import open3d as o3d
 
 logger = logging.getLogger(__name__)
 
@@ -185,16 +186,16 @@ class BinDetector:
 
         # 5a. Locate the EXTERNAL rear wall peak.
         # Physical meaning: the outer face of the rear wall is the highest Z region
-        # encountered first when scanning from the back of the truck.  We look for
-        # the first local maximum whose height is at or above z_wall_threshold —
-        # i.e. gradient crosses zero from positive to negative (peak) at a point
-        # that is above the wall threshold.
+        # encountered first when scanning from the back of the truck.  We scan from
+        # the front and look for the first bin above threshold that is higher than
+        # everything in a window ahead — i.e. the point where the profile stops
+        # rising and the cavity drop begins.
         rear_peak_idx = None
-        for i in range(1, num_bins - 1):
+        for i in range(num_bins - 1):
+            end_idx = min(i + 100, num_bins)
             if (
                 filled_profile[i] >= self._z_wall_threshold
-                and profile_gradient[i] > 0
-                and filled_profile[i-1] < filled_profile[i]
+                and filled_profile[i] >= np.max(filled_profile[i + 1:end_idx])
             ):
                 rear_peak_idx = i
                 break
@@ -229,6 +230,7 @@ class BinDetector:
         )  # Skip at least 0.5m after rear edge
         for i in range(start_front_search, num_bins - 1):
             if (
+                #0.4m is should be the minimum height of the wall 
                 profile_gradient[i] > 0.4
                 and filled_profile[i] >= self._z_wall_threshold
             ):
@@ -277,8 +279,6 @@ class BinDetector:
             pts_3d[:, 0] < x_front_internal - _edge_half
         )
         interior_pts_3d = pts_3d[interior_mask]
-        # Also needed later by the projected-pts path for wall-slab coherence
-        interior_pts = pts[interior_mask]
 
         if self._enable_area_check:
             if len(interior_pts_3d) < 3:
@@ -287,10 +287,18 @@ class BinDetector:
                     detected=False, status="SEARCH / NO INTERIOR POINTS"
                 )
 
-            # SVD plane fit on the 3D interior cloud
-            centroid = interior_pts_3d.mean(axis=0)
-            _, _, Vt = np.linalg.svd(interior_pts_3d - centroid, full_matrices=False)
-            normal = Vt[-1]  # smallest singular value → plane normal
+            # RANSAC plane fit on the 3D interior cloud.
+            # Handles outliers (wall remnants, material, rain) far better than SVD —
+            # as long as the bed plane makes up >50% of points, RANSAC finds it.
+            interior_pcd = o3d.geometry.PointCloud()
+            interior_pcd.points = o3d.utility.Vector3dVector(interior_pts_3d)
+            plane_model, inliers = interior_pcd.segment_plane(
+                distance_threshold=self._cellsize,
+                ransac_n=3,
+                num_iterations=200,
+            )
+            a, b, c, d = plane_model
+            normal = np.array([a, b, c], dtype=np.float64)
             normal = normal / np.linalg.norm(normal)
             n_z = abs(float(normal[2]))
 
@@ -306,10 +314,7 @@ class BinDetector:
                     status=f"SEARCH / NON-HORIZONTAL BED (|n_z|={n_z:.2f})",
                 )
 
-            # Count inliers: signed distance to plane |( p - centroid ) · n| <= cell_size
-            dists = np.abs((interior_pts_3d - centroid) @ normal)
-            inlier_count = int((dists <= self._cellsize).sum())
-
+            inlier_count = len(inliers)
             if inlier_count < self._min_bed_inliers:
                 logger.debug(
                     "Rejected: only %d bed inliers (min %d)",
@@ -323,49 +328,31 @@ class BinDetector:
 
             confidence = round(min(inlier_count / len(interior_pts_3d), 1.0), 2)
         else:
-            # Area check is disabled — fall back to wall line coherence check.
-            # Each detected wall slab should form a tight vertical line in the XZ
-            # plane: real wall faces have all their points at nearly the same X
-            # (low X standard deviation). Scattered noise or a drawbar coupling
-            # hit at an angle produces high X spread.
-            # Segmented / partially hidden walls still pass — we only need the
-            # points that are present to be vertically aligned, regardless of
-            # how many Z levels they span.
-            _edge_half = self._cellsize * 1.5
-            rear_slab = pts[
-                (pts[:, 0] >= x_rear_internal - _edge_half)
-                & (pts[:, 0] <= x_rear_internal + _edge_half)
-            ]
-            front_slab = pts[
-                (pts[:, 0] >= x_front_internal - _edge_half)
-                & (pts[:, 0] <= x_front_internal + _edge_half)
-            ]
+            # Area check is disabled — check the cavity profile between walls.
+            # Uses np.min instead of percentile/mean because:
+            #   - Sparse cavity returns: min is reliable with even 1-2 points
+            #   - Inclined walls: min finds the true bed (deepest point),
+            #     ignoring the higher points near the wall slope
+            cavity_slice = height_profile[rear_bin_idx + 1:front_bin_idx]
+            if len(cavity_slice) == 0:
+                logger.debug("Rejected: no cavity cells between detected walls")
+                return BinDetectionResult(
+                    detected=False, status="SEARCH / NO CAVITY"
+                )
 
-            for slab, label in ((rear_slab, "rear"), (front_slab, "front")):
-                if len(slab) < self._min_wall_points:
-                    logger.debug(
-                        "Rejected: %s wall has only %d points (min %d)",
-                        label,
-                        len(slab),
-                        self._min_wall_points,
-                    )
-                    return BinDetectionResult(
-                        detected=False,
-                        status=f"SEARCH / WEAK {label.upper()} WALL ({len(slab)} pts)",
-                    )
-                x_std = float(np.std(slab[:, 0]))
-                if x_std > self._max_wall_x_std:
-                    logger.debug(
-                        "Rejected: %s wall X std=%.3f > max %.3f "
-                        "(not a coherent vertical line)",
-                        label,
-                        x_std,
-                        self._max_wall_x_std,
-                    )
-                    return BinDetectionResult(
-                        detected=False,
-                        status=f"SEARCH / SCATTERED {label.upper()} WALL (std={x_std:.2f}m)",
-                    )
+            non_zero = cavity_slice[cavity_slice > 0]
+            cavity_z = float(np.min(non_zero)) if len(non_zero) > 0 else 0.0
+            if cavity_z > self._z_cavity_max:
+                logger.debug(
+                    "Rejected: cavity bed height %.3f > max %.3f "
+                    "(no clear drop between walls)",
+                    cavity_z,
+                    self._z_cavity_max,
+                )
+                return BinDetectionResult(
+                    detected=False,
+                    status=f"SEARCH / SHALLOW CAVITY ({cavity_z:.2f}m)",
+                )
 
             confidence = 1.0
 
