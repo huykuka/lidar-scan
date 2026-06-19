@@ -192,7 +192,7 @@ class BinDetector:
         # rising and the cavity drop begins.
         rear_peak_idx = None
         for i in range(num_bins - 1):
-            end_idx = min(i + 100, num_bins)
+            end_idx = min(i + 30, num_bins)
             if (
                 filled_profile[i] >= self._z_wall_threshold
                 and filled_profile[i] >= np.max(filled_profile[i + 1:end_idx])
