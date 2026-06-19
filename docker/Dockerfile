@@ -68,7 +68,6 @@ RUN uv sync --frozen --no-dev --compile-bytecode \
   && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/examples \
   && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/labextension \
   && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/nbextension \
-  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/_ml3d \
   && find /app/.venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true \
   && find /app/.venv -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
 
