@@ -23,7 +23,7 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
           (clicked)="toggleHud()"
         />
 
-        <div class="h-px w-6 bg-white/15 my-1 hidden sm:block"></div>
+        <div class="h-px w-6 bg-syn-page-background-color/15 my-1 hidden sm:block"></div>
 
         <!-- Camera View Presets -->
         <app-workspace-view-controls-button
@@ -56,7 +56,7 @@ import { WorkspaceViewControlsButtonComponent } from './workspace-view-controls-
           (clicked)="onFitToPoints.emit()"
         />
 
-        <div class="h-px w-6 bg-white/15 my-1 hidden sm:block"></div>
+        <div class="h-px w-6 bg-syn-page-background-color/15 my-1 hidden sm:block"></div>
 
         <app-workspace-view-controls-button
           label="Reset View"

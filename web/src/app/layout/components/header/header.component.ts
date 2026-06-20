@@ -6,6 +6,7 @@ import {ConnectionStatusComponent} from './connection-status/connection-status.c
 import {SensorStatusComponent} from './sensor-status/sensor-status.component';
 import {NoticesStatusComponent} from './notices-status/notices-status.component';
 import {UserInfoComponent} from './user-info/user-info.component';
+import {ThemeSwitchComponent} from './theme-switch/theme-switch.component';
 
 @Component({
   selector: 'app-header',
@@ -16,6 +17,7 @@ import {UserInfoComponent} from './user-info/user-info.component';
     SensorStatusComponent,
     NoticesStatusComponent,
     UserInfoComponent,
+    ThemeSwitchComponent,
   ],
   templateUrl: './header.component.html',
   styleUrl: './header.component.css',

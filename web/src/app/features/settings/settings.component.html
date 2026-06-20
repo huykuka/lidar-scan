@@ -1,10 +1,12 @@
 <div class="h-full flex flex-col animate-in fade-in duration-500">
   <!-- Flow Canvas Panel: fills the remaining space given by the router-outlet container -->
-  <div class="bg-white rounded-xl shadow-sm border overflow-hidden flex flex-col flex-1 min-h-0">
-
+  <div
+    class="bg-syn-page-background-color rounded-xl shadow-sm border-syn overflow-hidden flex flex-col flex-1 min-h-0"
+  >
     <!-- Single unified toolbar -->
-    <div class="flex items-center justify-between gap-3 px-4 py-2.5 border-b shrink-0">
-
+    <div
+      class="flex items-center justify-between bg-syn-page-background-color gap-3 px-4 py-2.5 border-b-syn shrink-0"
+    >
       <!-- Left: file actions + system control -->
       <div class="flex items-center gap-2">
         <syn-button
@@ -15,7 +17,7 @@
           variant="outline"
           [title]="canEdit() ? 'Export configuration' : 'Admin access required'"
         >
-          <syn-icon name="download" slot="prefix"/>
+          <syn-icon name="download" slot="prefix" />
           Export
         </syn-button>
 
@@ -27,22 +29,32 @@
           variant="outline"
           [title]="canEdit() ? 'Import configuration' : 'Admin access required'"
         >
-          <syn-icon name="upload" slot="prefix"/>
+          <syn-icon name="upload" slot="prefix" />
           Import
         </syn-button>
 
         <div class="w-px h-5 bg-syn-color-neutral-200 mx-1"></div>
 
         @if (isSystemRunning()) {
-          <syn-button (click)="onStopSystem()" [disabled]="!canEdit()" size="small" variant="filled"
-            [title]="canEdit() ? 'Stop system' : 'Admin access required'">
-            <syn-icon name="stop" slot="prefix"/>
+          <syn-button
+            (click)="onStopSystem()"
+            [disabled]="!canEdit()"
+            size="small"
+            variant="filled"
+            [title]="canEdit() ? 'Stop system' : 'Admin access required'"
+          >
+            <syn-icon name="stop" slot="prefix" />
             Stop
           </syn-button>
         } @else {
-          <syn-button (click)="onStartSystem()" [disabled]="!canEdit()" size="small" variant="outline"
-            [title]="canEdit() ? 'Start system' : 'Admin access required'">
-            <syn-icon name="play_arrow" slot="prefix"/>
+          <syn-button
+            (click)="onStartSystem()"
+            [disabled]="!canEdit()"
+            size="small"
+            variant="outline"
+            [title]="canEdit() ? 'Start system' : 'Admin access required'"
+          >
+            <syn-icon name="play_arrow" slot="prefix" />
             Start
           </syn-button>
         }
@@ -51,9 +63,9 @@
       <!-- Right: dirty badge + canvas actions -->
       <div class="flex items-center gap-2">
         @if (canvasEditStore.isDirty()) {
-          <span class="flex items-center gap-1 px-2 py-0.5 rounded border
-                       border-syn-color-warning-300 bg-syn-color-warning-50
-                       text-xs font-semibold text-syn-color-warning-700">
+          <span
+            class="flex items-center gap-1 px-2 py-0.5 rounded border border-syn-color-warning-300 bg-syn-color-warning-50 text-xs font-semibold text-syn-color-warning-700"
+          >
             <span class="text-syn-color-warning-500 text-[10px] leading-none">●</span>
             Unsaved
           </span>
@@ -67,10 +79,10 @@
           [title]="canEdit() ? 'Restart backend runtime without saving' : 'Admin access required'"
         >
           @if (canvasEditStore.isReloading()) {
-            <syn-spinner slot="prefix"/>
+            <syn-spinner slot="prefix" />
             Reloading…
           } @else {
-            <syn-icon name="refresh" slot="prefix"/>
+            <syn-icon name="refresh" slot="prefix" />
             Reload
           }
         </syn-button>
@@ -83,10 +95,10 @@
           title="Pull latest config from backend"
         >
           @if (canvasEditStore.isSyncing()) {
-            <syn-spinner slot="prefix"/>
+            <syn-spinner slot="prefix" />
             Syncing…
           } @else {
-            <syn-icon name="sync" slot="prefix"/>
+            <syn-icon name="sync" slot="prefix" />
             Sync
           }
         </syn-button>
@@ -94,21 +106,30 @@
         <syn-button
           size="small"
           variant="filled"
-          [disabled]="!canEdit() || !canvasEditStore.isDirty() || canvasEditStore.isSaving() || !canvasEditStore.isValid() || isNodeReloading()"
+          [disabled]="
+            !canEdit() ||
+            !canvasEditStore.isDirty() ||
+            canvasEditStore.isSaving() ||
+            !canvasEditStore.isValid() ||
+            isNodeReloading()
+          "
           (click)="onSaveAndReload()"
           [title]="canEdit() ? 'Save and apply changes' : 'Admin access required'"
         >
           @if (canvasEditStore.isSaving()) {
-            <syn-spinner slot="prefix"/>
+            <syn-spinner slot="prefix" />
             Saving…
           } @else {
-            <syn-icon name="save" slot="prefix"/>
+            <syn-icon name="save" slot="prefix" />
             Apply
           }
         </syn-button>
 
         @if (reloadStatusText()) {
-          <span class="text-xs text-syn-color-neutral-500 animate-pulse" data-testid="reload-status-text">
+          <span
+            class="text-xs text-syn-color-neutral-500 animate-pulse"
+            data-testid="reload-status-text"
+          >
             {{ reloadStatusText() }}
           </span>
         }
@@ -117,8 +138,10 @@
 
     <!-- Read-only notice for users without edit permission -->
     @if (!canEdit()) {
-      <div class="flex items-center gap-2 px-4 py-2 bg-syn-color-neutral-100 border-b text-xs text-syn-color-neutral-600 shrink-0">
-        <syn-icon name="info" style="font-size: 1rem;"></syn-icon>
+      <div
+        class="flex items-center gap-2 px-4 py-2 bg-syn-color-neutral-100 border-b-syn-subtle text-xs text-syn-color-neutral-600 shrink-0"
+      >
+        <syn-icon name="info" style="font-size: 1rem"></syn-icon>
         <span>Read-only mode — sign in as admin or service to make changes</span>
       </div>
     }
@@ -126,14 +149,16 @@
     <!-- Canvas -->
     <div class="flex-1 min-h-0 overflow-hidden relative">
       @if (isInitializing()) {
-        <div class="absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+        <div
+          class="absolute inset-0 z-10 flex items-center justify-center bg-syn-page-background-color/80 backdrop-blur-sm"
+        >
           <div class="flex flex-col items-center gap-3 text-syn-color-neutral-600">
-            <syn-spinner style="font-size: 2rem;"></syn-spinner>
+            <syn-spinner style="font-size: 2rem"></syn-spinner>
             <span class="text-sm font-medium">Loading canvas…</span>
           </div>
         </div>
       }
-      <app-flow-canvas [readOnly]="!canEdit()"/>
+      <app-flow-canvas [readOnly]="!canEdit()" />
     </div>
   </div>
 

@@ -6,4 +6,5 @@ export * from './api/lidar-api.service';
 export * from './api/topic-api.service';
 export * from './stores/lidar-store.service';
 export * from './stores/workspace-store.service';
-export * from './lidar-images.service'
+export * from './lidar-images.service';
+export * from './theme.service';

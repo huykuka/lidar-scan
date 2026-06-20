@@ -3,7 +3,7 @@
   <input #fileInput (change)="onFileSelected($event)" accept=".zip" class="hidden" type="file" />
 
   <!-- Toolbar -->
-  <div class="rounded-lg border mb-6 shadow-sm">
+  <div class="rounded-lg border-syn mb-6 shadow-sm bg-syn-page-background-color">
     <div class="p-4">
       <div class="flex items-center justify-between gap-6">
         <!-- Search Bar -->
@@ -100,7 +100,7 @@
   </div>
 
   <!-- Content Area -->
-  <div class="flex-1 min-h-0 bg-white rounded-lg overflow-auto border p-6">
+  <div class="flex-1 min-h-0 bg-syn-page-background-color rounded-lg overflow-auto border-syn p-6">
     @if (isLoading()) {
       <div class="flex items-center justify-center h-64">
         <syn-spinner />

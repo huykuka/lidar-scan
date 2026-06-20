@@ -43,9 +43,8 @@
 }
 
 .tab-panel::part(base) {
-  background-color: #222;
-
-  color: white;
+  background-color: var(--syn-color-neutral-900);
+  color: var(--syn-color-neutral-0);
 }
 
 .tab-panel--active {

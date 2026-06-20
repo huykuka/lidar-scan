@@ -1,1 +1,5 @@
-<router-outlet />
+@if (isReady()) {
+  <router-outlet />
+} @else {
+  <app-loading-screen />
+}

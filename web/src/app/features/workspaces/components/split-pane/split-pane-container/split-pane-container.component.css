@@ -2,8 +2,17 @@
   display: block;
   width: 100%;
   height: 100%;
-  background: white;
+  background: var(--syn-page-background-color-muted, var(--syn-color-neutral-100, white));
   box-sizing: border-box;
+}
+
+/* ── Viewport pane cell ─────────────────────────────────────────────────────
+   Every <div> that wraps an <app-point-cloud> gets this class.
+   The border visually lifts the canvas off the dark background so pane
+   edges are always legible regardless of point-cloud background color.    */
+.viewport-pane {
+  border: 1px solid var(--syn-color-neutral-300);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
 
 /* Fade-in + subtle scale applied to the layout wrapper on mode switch */
@@ -37,7 +46,7 @@
   position: absolute;
   inset: 0;
   margin: auto;
-  background: #d1d5db;
+  background: var(--syn-color-neutral-300);
   border-radius: 9999px;
   transition: background 150ms ease, transform 150ms ease;
 }

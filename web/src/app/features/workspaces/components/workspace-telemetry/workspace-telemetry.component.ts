@@ -25,7 +25,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
                 {{ pointCount() | number }}
               </span>
             </div>
-            <div class="h-px bg-white/10 w-full"></div>
+            <div class="h-px bg-syn-page-background-color/10 w-full"></div>
             <div class="flex flex-col">
               <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
                 >Data Framing</span
@@ -34,7 +34,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
                 {{ fps() }} <span class="text-xs">Hz</span>
               </span>
             </div>
-            <div class="h-px bg-white/10 w-full"></div>
+            <div class="h-px bg-syn-page-background-color/10 w-full"></div>
             <div class="flex flex-col">
               <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
                 >Lidar Time</span
@@ -43,7 +43,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
                 {{ lidarTime() }}
               </span>
             </div>
-            <div class="h-px bg-white/10 w-full"></div>
+            <div class="h-px bg-syn-page-background-color/10 w-full"></div>
             <div class="flex flex-col">
               <span class="text-[10px] font-black uppercase tracking-widest text-white/50"
                 >Active Topics ({{ enabledTopicsCount() }})</span

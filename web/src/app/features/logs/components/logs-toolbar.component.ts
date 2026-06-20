@@ -1,13 +1,15 @@
-import {Component, input, output} from '@angular/core';
+import { Component, input, output } from '@angular/core';
 
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs-toolbar',
   standalone: true,
   imports: [SynergyComponentsModule],
   template: `
-    <div class="bg-white p-3 flex items-center justify-between gap-4 transition-all duration-300">
+    <div
+      class="bg-syn-page-background-color p-3 flex items-center justify-between gap-4 transition-all duration-300"
+    >
       <!-- Left: Search & Filter Group -->
       <div class="flex items-center gap-4 flex-1 min-w-0">
         <div class="relative flex-1 max-w-lg group">
@@ -59,11 +61,12 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           (click)="streamingToggled.emit(!isStreaming())"
           class="min-w-[120px]"
         >
-          <syn-icon slot="prefix"
+          <syn-icon
+            slot="prefix"
             [name]="isStreaming() ? 'stop_circle' : 'play_circle'"
             [class.animate-pulse]="isStreaming()"
             [class.text-syn-color-red-500]="isStreaming()"
-           />
+          />
           {{ isStreaming() ? 'Stop Live' : 'Go Live' }}
         </syn-button>
 

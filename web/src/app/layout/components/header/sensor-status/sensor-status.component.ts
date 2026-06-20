@@ -6,7 +6,7 @@ import {NodeStoreService} from '@core/services/stores';
  * Sensor-node health indicator.
  * Icons: sick2025 iconset — `sensors` (outline, all OK) / `sensors_off` (errors present).
  * Size: large — syn-icon-button size="large".
- * Count badge uses Synergy success/danger color tokens.
+ * Icon AND badge color both reflect health state via --status-color CSS variable.
  */
 @Component({
   selector: 'app-sensor-status',
@@ -14,7 +14,14 @@ import {NodeStoreService} from '@core/services/stores';
   imports: [SynergyComponentsModule],
   templateUrl: './sensor-status.component.html',
   styles: `
-  
+    :host {
+      display: inline-flex;
+      position: relative;
+      align-items: center;
+    }
+    syn-icon-button {
+      color: var(--status-color);
+    }
   `,
 })
 export class SensorStatusComponent {
@@ -54,10 +61,13 @@ export class SensorStatusComponent {
     return `${total} sensor${total > 1 ? 's' : ''} — ${errors} in ERROR`;
   });
 
-  /** Synergy CSS token for badge background */
-  protected readonly badgeColor = computed(() => {
+  /** Synergy CSS token for icon + badge color, reflecting health state */
+  protected readonly statusColor = computed(() => {
     const h = this.health();
     if (h === null) return 'var(--syn-color-neutral-500)';
     return h ? 'var(--syn-color-success-600)' : 'var(--syn-color-danger-600)';
   });
+
+  /** Synergy CSS token for badge background — same as statusColor */
+  protected readonly badgeColor = computed(() => this.statusColor());
 }

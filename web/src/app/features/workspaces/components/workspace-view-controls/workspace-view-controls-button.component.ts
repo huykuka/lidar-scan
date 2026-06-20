@@ -1,6 +1,6 @@
-import {Component, input, output} from '@angular/core';
+import { Component, input, output } from '@angular/core';
 
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-workspace-view-controls-button',
@@ -8,20 +8,20 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   template: `
     <div
       class="rounded-xl transition-colors"
-      [class.bg-white/10]="active()"
-    [class.hover:bg-white/10]="!active()"
-    [class.hover:bg-red-500/20]="danger()"
-    [style.color]="danger() ? 'var(--syn-color-danger-600)' : 'white'"
+      [class.bg-syn-page-background-color/10]="active()"
+      [class.hover:bg-syn-page-background-color/10]="!active()"
+      [class.hover:bg-red-500/20]="danger()"
+      [style.color]="danger() ? 'var(--syn-color-danger-600)' : 'white'"
     >
-    <syn-button
-      variant="text"
-      size="small"
-      class="wv-btn"
-      (click)="clicked.emit()"
-      [attr.title]="label()"
-    >
-      <syn-icon [attr.name]="icon()" />
-    </syn-button>
+      <syn-button
+        variant="text"
+        size="small"
+        class="wv-btn"
+        (click)="clicked.emit()"
+        [attr.title]="label()"
+      >
+        <syn-icon [attr.name]="icon()" />
+      </syn-button>
     </div>
   `,
   styles: [

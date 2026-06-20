@@ -1,4 +1,8 @@
-<div class="relative inline-flex items-center" [title]="label()">
+<div
+  class="relative inline-flex items-center"
+  [title]="label()"
+  [style.--status-color]="statusColor()"
+>
   <syn-icon-button [name]="icon()" [label]="label()" size="large"></syn-icon-button>
 
   @if (count() > 0) {

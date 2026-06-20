@@ -2,6 +2,14 @@
 
 @import "tailwindcss";
 
+/* Synergy dark tokens scoped to .syn-theme-dark only.
+   This overrides the light.css :root defaults when dark mode is active.
+   File generated from @synergy-design-system/tokens/themes/dark.css */
+@import "./syn-dark-theme.css";
+
+/* Use class-based dark mode keyed to Synergy's dark theme class */
+@custom-variant dark (&:where(.syn-theme-dark, .syn-theme-dark *));
+
 @theme {
   /* Bridge Synergy font tokens to Tailwind v4 utilities */
   --font-sans: var(--syn-font-sans);
@@ -49,6 +57,13 @@
   --color-syn-color-warning-200: var(--syn-color-warning-200);
   --color-syn-color-warning-600: var(--syn-color-warning-600);
   --color-syn-color-warning-700: var(--syn-color-warning-700);
+
+  /* Semantic page and typography tokens — these change between light and dark */
+  --color-syn-page-background-color: var(--syn-page-background-color);
+  --color-syn-page-background-color-muted: var(--syn-page-background-color-muted);
+  --color-syn-typography-color-text: var(--syn-typography-color-text);
+  --color-syn-typography-color-text-inverted: var(--syn-typography-color-text-inverted);
+  --color-syn-panel-background-color: var(--syn-panel-background-color);
 }
 
 /*
@@ -101,4 +116,40 @@ router-outlet + * {
 
 *:hover {
   scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+
+/* Dark mode scrollbar overrides */
+.syn-theme-dark *:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.syn-theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+
+.syn-theme-dark *:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* ── Synergy-token border utilities ─────────────────────────────────────────
+   Use these classes instead of Tailwind's bare `border` or `border-neutral-*`
+   so borders adapt correctly to both light and dark Synergy themes.          */
+
+/* Standard card/panel border */
+.border-syn {
+  border: 1px solid var(--syn-color-neutral-300);
+}
+
+/* Subtle divider border (toolbar separators, section dividers) */
+.border-syn-subtle {
+  border: 1px solid var(--syn-color-neutral-200);
+}
+
+/* Bottom-only separator */
+.border-b-syn {
+  border-bottom: 1px solid var(--syn-color-neutral-300);
+}
+
+.border-b-syn-subtle {
+  border-bottom: 1px solid var(--syn-color-neutral-200);
 }

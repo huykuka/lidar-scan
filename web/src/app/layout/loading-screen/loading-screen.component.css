@@ -1,0 +1,22 @@
+:host {
+  display: contents;
+}
+
+.loading-screen {
+  align-items: center;
+  background: var(--syn-color-neutral-0, #fff);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  will-change: transform;
+  z-index: 9999;
+}
+
+.circles {
+  fill: var(--syn-color-primary-600, #005aff);
+}
+
+.logo {
+  fill: var(--syn-color-primary-600, #005aff);
+}

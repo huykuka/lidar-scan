@@ -3,18 +3,16 @@
   [class.border-none]="isCollapsed()"
   [class.w-0]="isCollapsed()"
   [class.w-60]="!isCollapsed()"
-  class="bg-white border-r h-full flex flex-col relative transition-all duration-300 z-10"
+  class="bg-syn-page-background-color border-r h-full flex flex-col relative transition-all duration-300 z-10"
 >
   <!-- Toggle button -->
   <button
     (click)="isCollapsed.set(!isCollapsed())"
     [class.-right-10]="isCollapsed()"
     [class.-right-3]="!isCollapsed()"
-    class="absolute top-4 z-20 w-6 h-6 bg-white border rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
+    class="absolute top-4 z-20 w-6 h-6 bg-syn-page-background-color border rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
   >
-    <syn-icon [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'"
-              class="text-sm"
-    />
+    <syn-icon [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'" class="text-sm" />
   </button>
 
   <div
@@ -24,8 +22,8 @@
     class="flex-1 flex flex-col overflow-hidden w-60 transition-opacity duration-300 bg-[#f3f3f3]"
   >
     <!-- Simple Search Bar -->
-    <div class="px-3 py-2 border-r border-b bg-white flex items-center gap-2 ">
-      <syn-icon name="search" class="text-xs text-neutral-400"/>
+    <div class="px-3 py-2 border-r border-b bg-syn-page-background-color flex items-center gap-2">
+      <syn-icon name="search" class="text-xs text-neutral-400" />
       <input
         [value]="searchQuery()"
         (input)="onSearch($event)"
@@ -35,18 +33,20 @@
     </div>
 
     <!-- Custom Accordion Content -->
-    <div class="flex-1 overflow-y-auto syn-scrollbar border-r ">
+    <div class="flex-1 overflow-y-auto syn-scrollbar border-r">
       @if (isLoading()) {
         <div class="p-8 flex justify-center opacity-20">
-          <syn-spinner/>
+          <syn-spinner />
         </div>
       }
 
       @if (!isLoading()) {
         @if (groupedPlugins().length === 0 && searchQuery()) {
           <div class="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <syn-icon name="search_off" class="text-3xl text-neutral-300 mb-2"/>
-            <p class="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">No nodes found</p>
+            <syn-icon name="search_off" class="text-3xl text-neutral-300 mb-2" />
+            <p class="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">
+              No nodes found
+            </p>
           </div>
         }
 
@@ -54,7 +54,7 @@
           <!-- Category Header -->
           <div
             (click)="toggleCategory(group.category)"
-            class="flex items-center gap-2 px-3 py-1.5 border-b  bg-[#e7e7e7] hover:bg-[#dfdfdf] cursor-pointer select-none transition-colors"
+            class="flex items-center gap-2 px-3 py-1.5 border-b bg-[#e7e7e7] hover:bg-[#dfdfdf] cursor-pointer select-none transition-colors"
           >
             <syn-icon
               [name]="isExpanded(group.category) ? 'expand_more' : 'chevron_right'"
@@ -67,7 +67,7 @@
 
           <!-- Nodes Container -->
           @if (isExpanded(group.category)) {
-            <div class="p-3 grid grid-cols-1 gap-2.5 bg-white ">
+            <div class="p-3 grid grid-cols-1 gap-2.5 bg-syn-page-background-color">
               @for (plugin of group.plugins; track plugin.type) {
                 <syn-tooltip [content]="plugin.description" placement="right">
                   <div
@@ -78,22 +78,31 @@
                   >
                     <!-- Port Decorators (Visual only, to match screenshot) -->
                     <div
-                      class="absolute left-0 top-1/2 -translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
+                      class="absolute left-0 top-1/2 -translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"
+                    ></div>
                     <div
-                      class="absolute right-0 top-1/2 translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"></div>
+                      class="absolute right-0 top-1/2 translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"
+                    ></div>
 
                     <div
-                      class="flex items-stretch h-8 rounded border border-black/20 shadow-sm overflow-hidden bg-white"
+                      class="flex items-stretch h-8 rounded border border-black/20 shadow-sm overflow-hidden bg-syn-page-background-color"
                     >
                       <!-- Left Icon Section -->
-                      <div class="w-8 flex items-center justify-center shrink-0 border-r border-black/10"
-                           [style.background-color]="plugin.style.color">
-                        <syn-icon [name]="plugin.icon || 'extension'" class="text-lg text-white/90 drop-shadow-sm"/>
+                      <div
+                        class="w-8 flex items-center justify-center shrink-0 border-r border-black/10"
+                        [style.background-color]="plugin.style.color"
+                      >
+                        <syn-icon
+                          [name]="plugin.icon || 'extension'"
+                          class="text-lg text-white/90 drop-shadow-sm"
+                        />
                       </div>
 
                       <!-- Label Section -->
                       <div class="flex-1 flex items-center justify-center px-2 min-w-0">
-                        <span class="text-[11px] font-bold text-neutral-700 truncate leading-none text-center px-1">
+                        <span
+                          class="text-[11px] font-bold text-neutral-700 truncate leading-none text-center px-1"
+                        >
                           {{ plugin.displayName }}
                         </span>
                       </div>
@@ -106,6 +115,5 @@
         }
       }
     </div>
-
   </div>
 </div>

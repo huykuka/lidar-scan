@@ -1,7 +1,7 @@
-import {Component, input, output} from '@angular/core';
+import { Component, input, output } from '@angular/core';
 
-import {LogEntry} from '@core/models';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import { LogEntry } from '@core/models';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs-table',
@@ -26,7 +26,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
       } @else {
         @if (isLoading()) {
           <div
-            class="absolute inset-0 flex items-center justify-center bg-white/40 z-30 backdrop-blur-[1px]"
+            class="absolute inset-0 flex items-center justify-center bg-syn-page-background-color/40 z-30 backdrop-blur-[1px]"
           >
             <syn-spinner size="large" />
           </div>
@@ -36,22 +36,22 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           <thead>
             <tr>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold   uppercase tracking-widest w-45 border-b "
+                class="sticky top-0 z-20 px-4 py-3 bg-syn-page-background-color text-left text-[10px] font-bold   uppercase tracking-widest w-45 border-b "
               >
                 Timestamp
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold   uppercase tracking-widest w-27.5 border-b "
+                class="sticky top-0 z-20 px-4 py-3 bg-syn-page-background-color text-left text-[10px] font-bold   uppercase tracking-widest w-27.5 border-b "
               >
                 Level
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold   uppercase tracking-widest w-50 border-b "
+                class="sticky top-0 z-20 px-4 py-3 bg-syn-page-background-color text-left text-[10px] font-bold   uppercase tracking-widest w-50 border-b "
               >
                 Module
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-white text-left text-[10px] font-bold   uppercase tracking-widest border-b "
+                class="sticky top-0 z-20 px-4 py-3 bg-syn-page-background-color text-left text-[10px] font-bold   uppercase tracking-widest border-b "
               >
                 Message
               </th>

@@ -1,15 +1,8 @@
 <div class="flex flex-col gap-4 h-full overflow-auto">
   <!-- Header actions -->
   <div class="flex items-center justify-between shrink-0">
-    <p class="text-sm text-syn-color-neutral-600">
-      {{ nodes().length }} node(s) found
-    </p>
-    <syn-button
-      (click)="loadNodes()"
-      [disabled]="isLoading()"
-      size="small"
-      variant="outline"
-    >
+    <p class="text-sm text-syn-color-neutral-600">{{ nodes().length }} node(s) found</p>
+    <syn-button (click)="loadNodes()" [disabled]="isLoading()" size="small" variant="outline">
       <syn-icon name="refresh" slot="prefix"></syn-icon>
       Refresh
     </syn-button>
@@ -23,31 +16,49 @@
     <div class="flex flex-col items-center justify-center py-16 text-center">
       <syn-icon name="analytics" class="text-5xl text-syn-color-neutral-400 mb-3"></syn-icon>
       <p class="text-syn-color-neutral-600 font-medium">No nodes with results available</p>
-      <p class="text-sm text-syn-color-neutral-400 mt-1">Add a Result Storage node to the pipeline to collect results.</p>
+      <p class="text-sm text-syn-color-neutral-400 mt-1">
+        Add a Result Storage node to the pipeline to collect results.
+      </p>
     </div>
   } @else {
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       @for (node of nodes(); track node.node_id) {
         <button
           (click)="goToNode(node)"
-          class="text-left p-4 rounded-lg border border-syn-color-neutral-200 bg-white hover:border-syn-color-primary-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-syn-color-primary-300"
+          class="text-left p-4 rounded-lg border border-syn-color-neutral-200 bg-syn-page-background-color hover:border-syn-color-primary-400 hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-syn-color-primary-300"
           type="button"
         >
           <div class="flex items-start gap-3">
-            <div class="w-10 h-10 rounded-lg bg-syn-color-primary-50 flex items-center justify-center shrink-0">
-              <syn-icon [name]="nodeTypeIcon(node.node_type)" class="text-syn-color-primary-600"></syn-icon>
+            <div
+              class="w-10 h-10 rounded-lg bg-syn-color-primary-50 flex items-center justify-center shrink-0"
+            >
+              <syn-icon
+                [name]="nodeTypeIcon(node.node_type)"
+                class="text-syn-color-primary-600"
+              ></syn-icon>
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
-                <h3 class="font-semibold text-syn-typography-color-text truncate">{{ node.node_name }}</h3>
-                <span class="text-xs px-2 py-0.5 rounded-full bg-syn-color-neutral-100 text-syn-color-neutral-600 shrink-0">
+                <h3 class="font-semibold text-syn-typography-color-text truncate">
+                  {{ node.node_name }}
+                </h3>
+                <span
+                  class="text-xs px-2 py-0.5 rounded-full bg-syn-color-neutral-100 text-syn-color-neutral-600 shrink-0"
+                >
                   {{ node.result_count }}
                 </span>
               </div>
-              <p class="text-xs text-syn-color-neutral-500 mt-0.5 truncate">{{ formatNodeType(node.node_type) }}</p>
-              <p class="text-xs text-syn-color-neutral-400 mt-1">{{ formatTimestamp(node.latest_timestamp) }}</p>
+              <p class="text-xs text-syn-color-neutral-500 mt-0.5 truncate">
+                {{ formatNodeType(node.node_type) }}
+              </p>
+              <p class="text-xs text-syn-color-neutral-400 mt-1">
+                {{ formatTimestamp(node.latest_timestamp) }}
+              </p>
             </div>
-            <syn-icon name="chevron_right" class="text-syn-color-neutral-400 shrink-0 mt-1"></syn-icon>
+            <syn-icon
+              name="chevron_right"
+              class="text-syn-color-neutral-400 shrink-0 mt-1"
+            ></syn-icon>
           </div>
         </button>
       }

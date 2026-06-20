@@ -1,13 +1,14 @@
 <!-- Compact horizontal toolbar: [reset] | − | zoom% | [snap] | + -->
-<div class="flex items-center gap-px bg-white border border-neutral-200 rounded-lg shadow-md overflow-hidden h-7">
-
+<div
+  class="flex items-center gap-px bg-syn-page-background-color border border-neutral-200 rounded-lg shadow-md overflow-hidden h-7"
+>
   <!-- Reset View -->
   <button
     (click)="onResetView.emit()"
     title="Reset view"
     class="flex items-center justify-center w-7 h-7 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border-r border-neutral-200"
   >
-    <syn-icon name="map" style="font-size:14px" />
+    <syn-icon name="map" style="font-size: 14px" />
   </button>
 
   <!-- Zoom out -->
@@ -15,7 +16,9 @@
     (click)="onZoomOut.emit()"
     title="Zoom out"
     class="flex items-center justify-center w-6 h-7 text-neutral-500 hover:bg-neutral-100 transition-colors text-sm font-bold select-none"
-  >−</button>
+  >
+    −
+  </button>
 
   <!-- Zoom level -->
   <span class="text-[11px] font-mono font-semibold text-neutral-600 w-8 text-center select-none">
@@ -30,7 +33,7 @@
     [title]="snapToGrid() ? 'Snap to grid: on' : 'Snap to grid: off'"
     class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors"
   >
-    <syn-icon name="grid_4x4" style="font-size:14px" />
+    <syn-icon name="grid_4x4" style="font-size: 14px" />
   </button>
 
   <!-- Zoom in -->
@@ -38,6 +41,7 @@
     (click)="onZoomIn.emit()"
     title="Zoom in"
     class="flex items-center justify-center w-6 h-7 text-neutral-500 hover:bg-neutral-100 transition-colors text-sm font-bold select-none border-l border-neutral-200"
-  >+</button>
-
+  >
+    +
+  </button>
 </div>
