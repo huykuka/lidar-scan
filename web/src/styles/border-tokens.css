@@ -1,0 +1,58 @@
+/* ── Synergy border utilities ─────────────────────────────────────────────────
+   Semantic helper classes backed by Synergy tokens.
+   Use these instead of bare Tailwind `border` or `border-neutral-*` so borders
+   respond correctly to light/dark theme switching.
+
+   Canonical token: --syn-color-neutral-300 (standard card/panel border)
+   Subtle token:    --syn-color-neutral-200 (dividers, inner separators)       */
+
+/* All-sides borders */
+.border-syn        { border: 1px solid var(--syn-color-neutral-300); }
+.border-syn-subtle { border: 1px solid var(--syn-color-neutral-200); }
+
+/* Side-specific */
+.border-b-syn        { border-bottom: 1px solid var(--syn-color-neutral-300); }
+.border-b-syn-subtle { border-bottom: 1px solid var(--syn-color-neutral-200); }
+
+/* ── Global Tailwind border-neutral-* normalization ──────────────────────────
+   Remaps every hardcoded Tailwind border-neutral-* class to the single
+   canonical Synergy token so all component borders share one source of truth. */
+
+.border-neutral-100,
+.border-neutral-200,
+.border-neutral-300 {
+  border-color: var(--syn-color-neutral-300) !important;
+}
+
+/* Bare `border` — force to canonical token instead of currentColor default */
+.border {
+  border-color: var(--syn-color-neutral-300) !important;
+}
+
+/* Synergy explicit neutral tokens — collapse to the canonical value */
+.border-syn-color-neutral-50,
+.border-syn-color-neutral-100,
+.border-syn-color-neutral-200 {
+  border-color: var(--syn-color-neutral-300) !important;
+}
+
+/* Side-specific Tailwind neutral variants */
+.border-t-neutral-100, .border-t-neutral-200, .border-t-neutral-300 {
+  border-top-color: var(--syn-color-neutral-300) !important;
+}
+.border-b-neutral-100, .border-b-neutral-200, .border-b-neutral-300 {
+  border-bottom-color: var(--syn-color-neutral-300) !important;
+}
+.border-l-neutral-100, .border-l-neutral-200, .border-l-neutral-300 {
+  border-left-color: var(--syn-color-neutral-300) !important;
+}
+.border-r-neutral-100, .border-r-neutral-200, .border-r-neutral-300 {
+  border-right-color: var(--syn-color-neutral-300) !important;
+}
+
+/* Divide utilities (table tbody row separators) */
+.divide-neutral-100 > * + *,
+.divide-neutral-200 > * + *,
+.divide-neutral-300 > * + * {
+  border-color: var(--syn-color-neutral-300) !important;
+}

@@ -14,6 +14,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-controls.component.html',
+  styleUrl: './flow-canvas-controls.component.css',
 })
 export class FlowCanvasControlsComponent {
   zoom = input<number>(1);

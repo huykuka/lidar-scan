@@ -1,0 +1,26 @@
+/* Map hardcoded Tailwind neutral text utilities to Synergy tokens — scoped. */
+
+:host .text-neutral-900,
+:host .text-neutral-800 {
+  color: var(--syn-typography-color-text) !important;
+}
+
+:host .text-neutral-700 {
+  color: var(--syn-typography-color-heading) !important;
+}
+
+:host .text-neutral-600 {
+  color: var(--syn-color-neutral-600) !important;
+}
+
+:host .text-neutral-500 {
+  color: var(--syn-color-neutral-500) !important;
+}
+
+:host .text-neutral-400 {
+  color: var(--syn-color-neutral-400) !important;
+}
+
+:host .text-primary-600 {
+  color: var(--syn-color-primary-600) !important;
+}

@@ -21,6 +21,7 @@ import {NodeConfig} from '@core/models/node.model';
     KeyValuePipe,
   ],
   templateUrl: './calibration-viewer.component.html',
+  styleUrl: './calibration-viewer.component.css',
 })
 export class CalibrationViewerComponent implements OnDestroy {
   // ── Dependencies ─────────────────────────────────────────────────────────

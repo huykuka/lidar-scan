@@ -24,6 +24,10 @@ export interface PendingConnection {
 export class FlowCanvasConnectionsComponent {
   connections = input.required<Connection[]>();
   pendingPath = input<string | null>(null);
+  /** Default stroke color for edges with no explicit color (overrides hardcoded hex) */
+  defaultColor = input<string>('#005aff');
+  /** Default flow overlay color */
+  defaultFlowColor = input<string>('#80adff');
 
   onDelete = output<string>();
 }

@@ -69,7 +69,7 @@
                 <circle
                   [attr.cx]="zoom()"
                   [attr.cy]="zoom()"
-                  [attr.fill]="snapToGrid() ? '#d1d5db' : '#e5e7eb'"
+                  [attr.fill]="snapToGrid() ? gridDotColorActive() : gridDotColor()"
                   [attr.r]="zoom() < 0.5 ? 0.5 : zoom()"
                 />
               </pattern>
@@ -88,6 +88,8 @@
             <!-- Connection Lines Layer (below nodes) -->
             <app-flow-canvas-connections (onDelete)="onDeleteEdge($event)"
                                          [connections]="connections()"
+                                         [defaultColor]="edgeColor()"
+                                         [defaultFlowColor]="edgeFlowColor()"
                                          [pendingPath]="pendingPath()"
             />
 

@@ -1,16 +1,17 @@
-<script src="flow-canvas-palette.component.ts"></script>
 <div
   [class.border-none]="isCollapsed()"
   [class.w-0]="isCollapsed()"
   [class.w-60]="!isCollapsed()"
-  class="bg-syn-page-background-color border-r h-full flex flex-col relative transition-all duration-300 z-10"
+  class="bg-syn-page-background-color h-full flex flex-col relative transition-all duration-300 z-10"
+  style="background: var(--syn-color-neutral-0)"
 >
-  <!-- Toggle button -->
+  <!-- Collapse toggle -->
   <button
     (click)="isCollapsed.set(!isCollapsed())"
     [class.-right-10]="isCollapsed()"
     [class.-right-3]="!isCollapsed()"
-    class="absolute top-4 z-20 w-6 h-6 bg-syn-page-background-color border rounded-full flex items-center justify-center hover:bg-neutral-50 shadow-md transition-all duration-300"
+    style="background: var(--syn-color-neutral-0)"
+    class="absolute top-4 z-20 w-6 h-6 border rounded-full flex items-center justify-center shadow-md transition-all duration-300"
   >
     <syn-icon [name]="isCollapsed() ? 'chevron_right' : 'chevron_left'" class="text-sm" />
   </button>
@@ -19,21 +20,22 @@
     [class.opacity-0]="isCollapsed()"
     [class.opacity-100]="!isCollapsed()"
     [class.pointer-events-none]="isCollapsed()"
-    class="flex-1 flex flex-col overflow-hidden w-60 transition-opacity duration-300 bg-[#f3f3f3]"
+    class="flex-1 flex flex-col overflow-hidden w-60 transition-opacity duration-300 palette-body"
+    style="border-right: 1px solid var(--syn-color-neutral-300)"
   >
-    <!-- Simple Search Bar -->
-    <div class="px-3 py-2 border-r border-b bg-syn-page-background-color flex items-center gap-2">
-      <syn-icon name="search" class="text-xs text-neutral-400" />
+    <!-- Search bar -->
+    <div class="palette-search px-3 py-2 flex items-center gap-2">
+      <syn-icon name="search" class="text-xs" style="color: var(--syn-color-neutral-400)" />
       <input
         [value]="searchQuery()"
         (input)="onSearch($event)"
-        placeholder="filter nodes"
-        class="text-[12px] flex-1 outline-none bg-transparent placeholder:text-neutral-300 font-medium"
+        placeholder="Filter nodes"
+        class="text-[12px] flex-1 outline-none font-medium"
       />
     </div>
 
-    <!-- Custom Accordion Content -->
-    <div class="flex-1 overflow-y-auto syn-scrollbar border-r">
+    <!-- Accordion content -->
+    <div class="flex-1 overflow-y-auto syn-scrollbar">
       @if (isLoading()) {
         <div class="p-8 flex justify-center opacity-20">
           <syn-spinner />
@@ -43,54 +45,46 @@
       @if (!isLoading()) {
         @if (groupedPlugins().length === 0 && searchQuery()) {
           <div class="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <syn-icon name="search_off" class="text-3xl text-neutral-300 mb-2" />
-            <p class="text-[11px] font-bold text-neutral-400 uppercase tracking-widest">
-              No nodes found
-            </p>
+            <syn-icon name="search_off" class="text-3xl mb-2 empty-icon" />
+            <p class="empty-label m-0">No nodes found</p>
           </div>
         }
 
         @for (group of groupedPlugins(); track group.category) {
-          <!-- Category Header -->
+          <!-- Category header — primary-tinted surface -->
           <div
             (click)="toggleCategory(group.category)"
-            class="flex items-center gap-2 px-3 py-1.5 border-b bg-[#e7e7e7] hover:bg-[#dfdfdf] cursor-pointer select-none transition-colors"
+            class="category-header flex items-center gap-2 px-3 py-1.5 cursor-pointer select-none transition-colors"
           >
             <syn-icon
               [name]="isExpanded(group.category) ? 'expand_more' : 'chevron_right'"
-              class="text-[10px] text-neutral-600"
+              class="category-chevron text-[10px]"
             />
-            <span class="text-[11px] font-bold text-neutral-700 capitalize tracking-tight">
-              {{ group.category }}
-            </span>
+            <span class="category-label">{{ group.category }}</span>
           </div>
 
-          <!-- Nodes Container -->
+          <!-- Nodes list -->
           @if (isExpanded(group.category)) {
-            <div class="p-3 grid grid-cols-1 gap-2.5 bg-syn-page-background-color">
+            <div class="nodes-container p-3 grid grid-cols-1 gap-2">
               @for (plugin of group.plugins; track plugin.type) {
                 <syn-tooltip [content]="plugin.description" placement="right">
                   <div
                     (dragend)="onPluginDragEnd.emit()"
                     (dragstart)="onPluginDragStart.emit({ plugin: plugin.type, event: $event })"
-                    class="relative group cursor-grab active:cursor-grabbing transition-all hover:-translate-y-[1px]"
+                    class="relative group cursor-grab active:cursor-grabbing"
                     draggable="true"
                   >
-                    <!-- Port Decorators (Visual only, to match screenshot) -->
-                    <div
-                      class="absolute left-0 top-1/2 -translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"
-                    ></div>
-                    <div
-                      class="absolute right-0 top-1/2 translate-x-[4px] -translate-y-1/2 w-[8.5px] h-[8.5px] rounded-sm border border-black/20 bg-[#eee] z-10 shadow-sm"
-                    ></div>
+                    <!-- Port decorators -->
+                    <div class="port-dot port-dot--left"></div>
+                    <div class="port-dot port-dot--right"></div>
 
-                    <div
-                      class="flex items-stretch h-8 rounded border border-black/20 shadow-sm overflow-hidden bg-syn-page-background-color"
-                    >
-                      <!-- Left Icon Section -->
+                    <!-- Node row -->
+                    <div class="node-row flex items-stretch h-8 overflow-hidden">
+                      <!-- Icon -->
                       <div
-                        class="w-8 flex items-center justify-center shrink-0 border-r border-black/10"
+                        class="w-8 flex items-center justify-center shrink-0"
                         [style.background-color]="plugin.style.color"
+                        style="border-right: 1px solid rgba(0, 0, 0, 0.12)"
                       >
                         <syn-icon
                           [name]="plugin.icon || 'extension'"
@@ -98,11 +92,9 @@
                         />
                       </div>
 
-                      <!-- Label Section -->
+                      <!-- Label -->
                       <div class="flex-1 flex items-center justify-center px-2 min-w-0">
-                        <span
-                          class="text-[11px] font-bold text-neutral-700 truncate leading-none text-center px-1"
-                        >
+                        <span class="node-label truncate leading-none text-center px-1">
                           {{ plugin.displayName }}
                         </span>
                       </div>

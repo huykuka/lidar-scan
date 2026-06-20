@@ -1,0 +1,41 @@
+/* Map hardcoded Tailwind neutral text utilities to Synergy tokens.
+   Scoped to this component — all text-neutral-* classes in the template
+   automatically adapt to light/dark theme without template changes.    */
+
+:host .text-neutral-900,
+:host .text-neutral-800 {
+  color: var(--syn-typography-color-text) !important;
+}
+
+:host .text-neutral-700 {
+  color: var(--syn-typography-color-heading) !important;
+}
+
+:host .text-neutral-600 {
+  color: var(--syn-color-neutral-600) !important;
+}
+
+:host .text-neutral-500 {
+  color: var(--syn-color-neutral-500) !important;
+}
+
+:host .text-neutral-400 {
+  color: var(--syn-color-neutral-400) !important;
+}
+
+:host .text-neutral-300 {
+  color: var(--syn-color-neutral-300) !important;
+}
+
+:host .text-primary-600 {
+  color: var(--syn-color-primary-600) !important;
+}
+
+/* Table header row / sensor sub-card backgrounds */
+:host .bg-neutral-100 {
+  background: var(--syn-color-neutral-100) !important;
+}
+
+:host .bg-neutral-50 {
+  background: var(--syn-color-neutral-50) !important;
+}

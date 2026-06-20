@@ -1,0 +1,10 @@
+/* ── Tailwind v4 entry point ─────────────────────────────────────────────────
+   Injects Tailwind's preflight reset, utility classes, and variant machinery.
+   Must be first so subsequent files can override defaults.                    */
+@import "tailwindcss";
+
+/* ── Synergy dark-mode variant ───────────────────────────────────────────────
+   Maps Tailwind's `dark:` variant to Synergy's class-based dark mode.
+   Synergy applies .syn-theme-dark to <html>, not a data-attribute, so we
+   redefine @custom-variant here rather than using Tailwind's media-query default. */
+@custom-variant dark (&:where(.syn-theme-dark, .syn-theme-dark *));

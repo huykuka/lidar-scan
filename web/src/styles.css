@@ -1,155 +1,19 @@
-/* You can add global styles to this file, and also import other style files */
+/* ── Global stylesheet entry point ───────────────────────────────────────────
+   This file is the single entry declared in angular.json `styles[]`.
+   It only imports — all rules live in focused single-responsibility files
+   under src/styles/.
 
-@import "tailwindcss";
+   Load order matters:
+     1. base          — Tailwind reset + dark variant definition (must be first)
+     2. syn-dark-theme — Synergy dark tokens (overrides light.css :root defaults)
+     3. theme         — @theme token bridge: Synergy → Tailwind utilities
+     4. layout        — Angular router-outlet stretch rule
+     5. scrollbar     — Custom thin scrollbar (light + dark)
+     6. border-tokens — .border-syn utilities + global neutral normalization    */
 
-/* Synergy dark tokens scoped to .syn-theme-dark only.
-   This overrides the light.css :root defaults when dark mode is active.
-   File generated from @synergy-design-system/tokens/themes/dark.css */
-@import "./syn-dark-theme.css";
-
-/* Use class-based dark mode keyed to Synergy's dark theme class */
-@custom-variant dark (&:where(.syn-theme-dark, .syn-theme-dark *));
-
-@theme {
-  /* Bridge Synergy font tokens to Tailwind v4 utilities */
-  --font-sans: var(--syn-font-sans);
-  --font-mono: var(--syn-font-mono);
-
-  /* Mapping Synergy CSS Variables to Tailwind v4 Theme Colors */
-  --color-syn-color-primary-50: var(--syn-color-primary-50);
-  --color-syn-color-primary-100: var(--syn-color-primary-100);
-  --color-syn-color-primary-200: var(--syn-color-primary-200);
-  --color-syn-color-primary-300: var(--syn-color-primary-300);
-  --color-syn-color-primary-400: var(--syn-color-primary-400);
-  --color-syn-color-primary-500: var(--syn-color-primary-500);
-  --color-syn-color-primary-600: var(--syn-color-primary-600);
-  --color-syn-color-primary-700: var(--syn-color-primary-700);
-  --color-syn-color-primary-800: var(--syn-color-primary-800);
-  --color-syn-color-primary-900: var(--syn-color-primary-900);
-  --color-syn-color-primary-950: var(--syn-color-primary-950);
-
-  --color-syn-color-neutral-50: var(--syn-color-neutral-50);
-  --color-syn-color-neutral-100: var(--syn-color-neutral-100);
-  --color-syn-color-neutral-200: var(--syn-color-neutral-200);
-  --color-syn-color-neutral-300: var(--syn-color-neutral-300);
-  --color-syn-color-neutral-400: var(--syn-color-neutral-400);
-  --color-syn-color-neutral-500: var(--syn-color-neutral-500);
-  --color-syn-color-neutral-600: var(--syn-color-neutral-600);
-  --color-syn-color-neutral-700: var(--syn-color-neutral-700);
-  --color-syn-color-neutral-800: var(--syn-color-neutral-800);
-  --color-syn-color-neutral-900: var(--syn-color-neutral-900);
-  --color-syn-color-neutral-950: var(--syn-color-neutral-950);
-
-  --color-syn-color-success-50: var(--syn-color-success-50);
-  --color-syn-color-success-100: var(--syn-color-success-100);
-  --color-syn-color-success-200: var(--syn-color-success-200);
-  --color-syn-color-success-600: var(--syn-color-success-600);
-  --color-syn-color-success-700: var(--syn-color-success-700);
-
-  --color-syn-color-danger-50: var(--syn-color-error-50);
-  --color-syn-color-danger-100: var(--syn-color-error-100);
-  --color-syn-color-danger-200: var(--syn-color-error-200);
-  --color-syn-color-danger-600: var(--syn-color-error-600);
-  --color-syn-color-danger-700: var(--syn-color-error-700);
-
-  --color-syn-color-warning-50: var(--syn-color-warning-50);
-  --color-syn-color-warning-100: var(--syn-color-warning-100);
-  --color-syn-color-warning-200: var(--syn-color-warning-200);
-  --color-syn-color-warning-600: var(--syn-color-warning-600);
-  --color-syn-color-warning-700: var(--syn-color-warning-700);
-
-  /* Semantic page and typography tokens — these change between light and dark */
-  --color-syn-page-background-color: var(--syn-page-background-color);
-  --color-syn-page-background-color-muted: var(--syn-page-background-color-muted);
-  --color-syn-typography-color-text: var(--syn-typography-color-text);
-  --color-syn-typography-color-text-inverted: var(--syn-typography-color-text-inverted);
-  --color-syn-panel-background-color: var(--syn-panel-background-color);
-}
-
-/*
-  Routed page components must stretch inside the fixed-height main layout.
-  Without this, some pages (e.g. Logs) expand to full content height and
-  their inner overflow containers never get a scrollable height.
-*/
-router-outlet + * {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-  width: 100%;
-}
-
-/* 1. Setup the scrollbar dimensions */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* 2. Style the thumb but make it transparent by default */
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0); /* Fully transparent */
-  border-radius: 6px;
-  transition: background 0.2s ease;
-}
-
-/* 3. Show the thumb when the CONTAINER is hovered */
-/* This is the magic part: targeting the thumb when the element itself is hovered */
-*:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.25);
-}
-
-/* 4. Darken the thumb when the user actually hovers over the scrollbar itself */
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.45) !important;
-}
-
-/* Firefox Support */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent; /* Thumb and Track transparent */
-  transition: scrollbar-color 0.1s ease;
-}
-
-*:hover {
-  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
-}
-
-/* Dark mode scrollbar overrides */
-.syn-theme-dark *:hover::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.syn-theme-dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.4) !important;
-}
-
-.syn-theme-dark *:hover {
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-/* ── Synergy-token border utilities ─────────────────────────────────────────
-   Use these classes instead of Tailwind's bare `border` or `border-neutral-*`
-   so borders adapt correctly to both light and dark Synergy themes.          */
-
-/* Standard card/panel border */
-.border-syn {
-  border: 1px solid var(--syn-color-neutral-300);
-}
-
-/* Subtle divider border (toolbar separators, section dividers) */
-.border-syn-subtle {
-  border: 1px solid var(--syn-color-neutral-200);
-}
-
-/* Bottom-only separator */
-.border-b-syn {
-  border-bottom: 1px solid var(--syn-color-neutral-300);
-}
-
-.border-b-syn-subtle {
-  border-bottom: 1px solid var(--syn-color-neutral-200);
-}
+@import "./styles/base.css";
+@import "./styles/syn-dark-theme.css";
+@import "./styles/theme.css";
+@import "./styles/layout.css";
+@import "./styles/scrollbar.css";
+@import "./styles/border-tokens.css";

@@ -1,11 +1,9 @@
 <div class="h-full flex flex-col animate-in fade-in duration-500">
   <!-- Flow Canvas Panel: fills the remaining space given by the router-outlet container -->
-  <div
-    class="bg-syn-page-background-color rounded-xl shadow-sm border-syn overflow-hidden flex flex-col flex-1 min-h-0"
-  >
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
     <!-- Single unified toolbar -->
     <div
-      class="flex items-center justify-between bg-syn-page-background-color gap-3 px-4 py-2.5 border-b-syn shrink-0"
+      class="flex items-center justify-between bg-syn-page-background-color gap-3 px-4 py-2.5 shrink-0 border-b-syn"
     >
       <!-- Left: file actions + system control -->
       <div class="flex items-center gap-2">
@@ -139,7 +137,7 @@
     <!-- Read-only notice for users without edit permission -->
     @if (!canEdit()) {
       <div
-        class="flex items-center gap-2 px-4 py-2 bg-syn-color-neutral-100 border-b-syn-subtle text-xs text-syn-color-neutral-600 shrink-0"
+        class="flex items-center gap-2 px-4 py-2 bg-syn-color-neutral-100 border-b text-xs text-syn-color-neutral-600 shrink-0"
       >
         <syn-icon name="info" style="font-size: 1rem"></syn-icon>
         <span>Read-only mode — sign in as admin or service to make changes</span>

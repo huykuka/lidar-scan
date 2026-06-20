@@ -1,1 +1,129 @@
-/* Palette component styles can be added here if needed */
+/* ── Palette outer shell ─────────────────────────────────────────────────── */
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+/* The inner scrollable content area — uses a distinct surface color
+   (neutral-50 in light / dark equivalent via token) so the palette
+   reads as a separate panel from the canvas background.              */
+.palette-body {
+  background: var(--syn-color-neutral-50);
+}
+
+/* Search bar row — sits on the page background, slightly lighter than
+   the accordion body so there's a clear entry point.                 */
+.palette-search {
+  background: var(--syn-page-background-color);
+  border-bottom: 1px solid var(--syn-color-neutral-200);
+}
+
+.palette-search input {
+  color: var(--syn-typography-color-text);
+}
+
+.palette-search input::placeholder {
+  color: var(--syn-color-neutral-400);
+}
+
+/* ── Category header row ─────────────────────────────────────────────────── */
+
+/* Uses a primary-tinted surface so categories stand out from the
+   neutral-50 nodes section. Matches Synergy's primary-50 token which
+   is a very light blue in light mode and adapts in dark mode.        */
+.category-header {
+  background: var(--syn-color-primary-50);
+  border-bottom: 1px solid var(--syn-color-primary-100);
+}
+
+.category-header:hover {
+  background: var(--syn-color-primary-100);
+}
+
+.category-label {
+  color: var(--syn-color-primary-700);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: capitalize;
+}
+
+.category-chevron {
+  color: var(--syn-color-primary-500);
+}
+
+/* ── Nodes container ─────────────────────────────────────────────────────── */
+
+.nodes-container {
+  background: var(--syn-color-neutral-50);
+  border-bottom: 1px solid var(--syn-color-neutral-100);
+}
+
+/* ── Node card row ───────────────────────────────────────────────────────── */
+
+.node-row {
+  background: var(--syn-page-background-color);
+  border: 1px solid var(--syn-color-neutral-200);
+  border-radius: var(--syn-border-radius-medium, 4px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 120ms ease, transform 120ms ease, border-color 120ms ease;
+}
+
+.node-row:hover {
+  border-color: var(--syn-color-primary-300);
+  box-shadow: 0 2px 6px rgba(0, 90, 255, 0.12);
+}
+
+.node-label {
+  color: var(--syn-typography-color-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── Port decorators ─────────────────────────────────────────────────────── */
+
+/* Replaces hardcoded bg-[#eee] — uses neutral-200 so they adapt in dark mode */
+.port-dot {
+  background: var(--syn-color-neutral-200);
+  border: 1px solid var(--syn-color-neutral-400);
+  border-radius: 2px;
+  width: 8.5px;
+  height: 8.5px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.port-dot--left  { left: 0;   transform: translate(-4px, -50%); }
+.port-dot--right { right: 0;  transform: translate(4px, -50%); }
+
+/* ── Toggle collapse button ──────────────────────────────────────────────── */
+
+.palette-toggle {
+  background: var(--syn-page-background-color);
+  border: 1px solid var(--syn-color-neutral-300);
+  color: var(--syn-color-neutral-600);
+}
+
+.palette-toggle:hover {
+  background: var(--syn-color-neutral-100);
+  border-color: var(--syn-color-primary-400);
+  color: var(--syn-color-primary-600);
+}
+
+/* ── Empty / loading states ──────────────────────────────────────────────── */
+
+.empty-icon {
+  color: var(--syn-color-neutral-300);
+}
+
+.empty-label {
+  color: var(--syn-color-neutral-400);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}

@@ -1,0 +1,11 @@
+/* ── Angular router-outlet stretch ───────────────────────────────────────────
+   Routed page components must fill the fixed-height main layout shell.
+   Without this, pages like Logs expand to full content height and their inner
+   overflow containers never receive a bounded height for scrolling.           */
+router-outlet + * {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}

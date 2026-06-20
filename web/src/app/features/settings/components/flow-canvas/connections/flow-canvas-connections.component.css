@@ -30,3 +30,17 @@
   animation: edge-flow 0.9s linear infinite;
 }
 
+/* ── Arrowhead polygon colors — Synergy tokens, adapt in dark mode ────────── */
+
+.arrowhead-default {
+  fill: var(--syn-color-primary-600, #005aff);
+}
+
+.arrowhead-pending {
+  fill: var(--syn-color-neutral-400, #94a3b8);
+}
+
+/* Pending edge stroke */
+.pending-edge {
+  stroke: var(--syn-color-neutral-400, #94a3b8);
+}

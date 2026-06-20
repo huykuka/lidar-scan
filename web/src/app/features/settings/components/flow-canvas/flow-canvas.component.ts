@@ -10,6 +10,7 @@ import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
 import {NodeStatusService} from '@core/services/node-status.service';
 import {SystemStatusService} from '@core/services/system-status.service';
 import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
+import {ThemeService} from '@core/services/theme.service';
 
 import {CanvasNode, FlowCanvasNodeComponent} from './node/flow-canvas-node.component';
 import {FlowCanvasPaletteComponent} from './palette/flow-canvas-palette.component';
@@ -42,6 +43,37 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   // ------ Store ------
   private nodeStore = inject(NodeStoreService);
   protected canvasEditStore = inject(CanvasEditStoreService);
+  private readonly themeService = inject(ThemeService);
+
+  // ------ Theme-reactive canvas colors ------
+  /** Grid dot color — reads Synergy token at runtime so it adapts in dark mode. */
+  protected readonly gridDotColor = computed(() => {
+    // Depend on theme signal so computed re-runs on theme change
+    const _theme = this.themeService.theme();
+    return getComputedStyle(document.documentElement)
+      .getPropertyValue('--syn-color-neutral-300').trim() || '#d1d5db';
+  });
+
+  /** Active grid dot color (snap enabled) — slightly more visible */
+  protected readonly gridDotColorActive = computed(() => {
+    const _theme = this.themeService.theme();
+    return getComputedStyle(document.documentElement)
+      .getPropertyValue('--syn-color-neutral-400').trim() || '#9ca3af';
+  });
+
+  /** Primary edge color for connections — Synergy primary-600 */
+  protected readonly edgeColor = computed(() => {
+    const _theme = this.themeService.theme();
+    return getComputedStyle(document.documentElement)
+      .getPropertyValue('--syn-color-primary-600').trim() || '#005aff';
+  });
+
+  /** Faded overlay color for animated flow dash */
+  protected readonly edgeFlowColor = computed(() => {
+    const _theme = this.themeService.theme();
+    return getComputedStyle(document.documentElement)
+      .getPropertyValue('--syn-color-primary-300').trim() || '#80adff';
+  });
 
   // ------ View state owned by the component ------
   protected drawerOpen = signal(false);

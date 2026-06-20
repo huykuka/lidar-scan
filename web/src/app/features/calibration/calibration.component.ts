@@ -17,6 +17,7 @@ const ICP_MIN_SOURCE_SENSORS = 1;
   standalone: true,
   imports: [SynergyComponentsModule, KeyValuePipe],
   templateUrl: './calibration.component.html',
+  styleUrl: './calibration.component.css',
 })
 export class CalibrationComponent implements OnDestroy {
   protected readonly calibrationStore = inject(CalibrationStoreService);

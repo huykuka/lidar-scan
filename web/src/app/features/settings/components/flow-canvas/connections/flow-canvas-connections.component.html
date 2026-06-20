@@ -1,8 +1,8 @@
 <svg class="absolute inset-0 w-full h-full pointer-events-none" style="overflow: visible">
   <defs>
-    <!-- Default blue arrowhead -->
+    <!-- Default primary arrowhead — color set via CSS fill on the polygon -->
     <marker id="arrowhead" markerHeight="10" markerWidth="10" orient="auto" refX="9" refY="3">
-      <polygon fill="#6366f1" points="0 0, 10 3, 0 6"/>
+      <polygon class="arrowhead-default" points="0 0, 10 3, 0 6"/>
     </marker>
     <!-- Green arrowhead for 'true' port -->
     <marker id="arrowhead-green" markerHeight="10" markerWidth="10" orient="auto" refX="9" refY="3">
@@ -21,7 +21,7 @@
       refX="9"
       refY="3"
     >
-      <polygon fill="#94a3b8" points="0 0, 10 3, 0 6"/>
+      <polygon class="arrowhead-pending" points="0 0, 10 3, 0 6"/>
     </marker>
   </defs>
 
@@ -31,9 +31,10 @@
       class="cursor-pointer group"
       title="Click to delete connection"
     >
+      <!-- Main edge stroke -->
       <path
         [attr.d]="connection.path"
-        [attr.stroke]="connection.color || '#6366f1'"
+        [attr.stroke]="connection.color || defaultColor()"
         [attr.marker-end]="connection.color === '#16a34a' ? 'url(#arrowhead-green)' : connection.color === '#f97316' ? 'url(#arrowhead-orange)' : 'url(#arrowhead)'"
         class="edge-path group-hover:stroke-red-500 transition-colors pointer-events-none"
         fill="none"
@@ -41,15 +42,17 @@
         stroke-linecap="round"
         stroke-width="1.5"
       />
+      <!-- Animated flow overlay -->
       <path
         [attr.d]="connection.path"
-        [attr.stroke]="connection.color ? connection.color + '66' : '#a5b4fc'"
+        [attr.stroke]="connection.color ? connection.color + '66' : defaultFlowColor()"
         class="edge-flow-overlay pointer-events-none"
         fill="none"
         pathLength="1"
         stroke-linecap="round"
         stroke-width="1.5"
       />
+      <!-- Wide transparent hit area for click-to-delete -->
       <path
         [attr.d]="connection.path"
         class="pointer-events-auto"
@@ -65,7 +68,7 @@
       [attr.d]="pendingPath()"
       fill="none"
       marker-end="url(#arrowhead-pending)"
-      stroke="#94a3b8"
+      class="pending-edge"
       stroke-dasharray="6 3"
       stroke-linecap="round"
       stroke-width="1.5"
@@ -80,4 +83,3 @@
     </path>
   }
 </svg>
-

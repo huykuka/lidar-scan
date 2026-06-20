@@ -1,0 +1,55 @@
+/* ── Custom thin scrollbar ────────────────────────────────────────────────────
+   Scrollbar is invisible by default and fades in only when the user hovers
+   the scrollable container. Adapts for both light and dark Synergy themes.    */
+
+/* Dimensions */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Thumb — transparent until hover */
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0);
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+/* Show on container hover */
+*:hover::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Darken on direct thumb hover */
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.1s ease;
+}
+
+*:hover {
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+
+/* ── Dark mode overrides ─────────────────────────────────────────────────────
+   Light-colored thumb on dark backgrounds.                                    */
+.syn-theme-dark *:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.syn-theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+
+.syn-theme-dark *:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}

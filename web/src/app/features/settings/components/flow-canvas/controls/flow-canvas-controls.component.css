@@ -1,0 +1,22 @@
+:host {
+  display: inline-flex;
+}
+
+/* Button icon / text colors — adapt to theme */
+:host .text-neutral-500,
+:host .text-neutral-600 {
+  color: var(--syn-color-neutral-600) !important;
+}
+
+:host .text-neutral-400 {
+  color: var(--syn-color-neutral-400) !important;
+}
+
+/* Hover background — use Synergy neutral surface */
+:host .hover\:bg-neutral-100:hover {
+  background: var(--syn-color-neutral-100) !important;
+}
+
+:host .hover\:text-neutral-800:hover {
+  color: var(--syn-typography-color-text) !important;
+}

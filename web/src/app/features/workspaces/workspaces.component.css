@@ -32,13 +32,6 @@
 
 .workspace-settings-panel {
   width: 320px;
-  max-height: 100%;
-  border: 1px solid var(--syn-color-neutral-300);
-  border-radius: 12px;
-  background: var(--syn-page-background-color, var(--syn-color-neutral-0, #fff));
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-  padding: 4px;
-  box-sizing: border-box;
 }
 
 /* Small screens: stack vertically */
