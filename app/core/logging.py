@@ -1,9 +1,10 @@
 import os
 import logging
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"../", "logs")
-LOG_FILE = os.path.join(LOG_DIR, "app.log")
+LOG_DIR = Path("data/logs")
+LOG_FILE = LOG_DIR / "app.log"
 
 os.makedirs(LOG_DIR, exist_ok=True)
 
