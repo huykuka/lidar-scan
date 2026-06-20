@@ -3,6 +3,10 @@
 @import "tailwindcss";
 
 @theme {
+  /* Bridge Synergy font tokens to Tailwind v4 utilities */
+  --font-sans: var(--syn-font-sans);
+  --font-mono: var(--syn-font-mono);
+
   /* Mapping Synergy CSS Variables to Tailwind v4 Theme Colors */
   --color-syn-color-primary-50: var(--syn-color-primary-50);
   --color-syn-color-primary-100: var(--syn-color-primary-100);

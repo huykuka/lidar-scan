@@ -4,6 +4,7 @@ html, body {
   padding: 0;
   height: 100%;
   overflow: hidden;
+  font-family: var(--syn-font-sans);
 }
 
 /* Routed page sizing is handled globally in src/styles.css */

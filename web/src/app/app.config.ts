@@ -14,11 +14,8 @@ import { httpToastInterceptor } from './core/interceptors/http-toast.interceptor
 import { GlobalErrorHandler } from './core/errors/global-error.handler';
 import { AppInitService } from './core/services/app-init.service';
 
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideAnimationsAsync(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideHttpClient(withInterceptors([authInterceptor, httpToastInterceptor])),
