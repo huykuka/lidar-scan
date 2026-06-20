@@ -1,0 +1,96 @@
+.account-panel {
+  min-width: 320px;
+  max-width: 360px;
+  padding: var(--syn-spacing-large);
+  background:
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--syn-color-primary-100) 32%, white),
+      var(--syn-color-neutral-0) 38%
+    ),
+    var(--syn-color-neutral-0);
+  border: 1px solid color-mix(in srgb, var(--syn-color-primary-200) 60%, white);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--syn-color-neutral-1000) 14%, transparent);
+}
+
+.account-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--syn-spacing-medium);
+}
+
+.account-info {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--syn-spacing-medium);
+}
+
+.account-avatar {
+  font-size: 2.2rem;
+  color: var(--syn-color-primary-700);
+}
+
+.account-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-name {
+  font-size: var(--syn-font-size-large);
+  font-weight: 700;
+  color: var(--syn-color-neutral-1000);
+}
+
+.account-role {
+  font-size: var(--syn-font-size-small);
+  color: var(--syn-color-neutral-700);
+  text-transform: capitalize;
+}
+
+.account-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--syn-border-radius-pill);
+  padding: 2px 10px;
+  font-size: var(--syn-font-size-x-small);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--syn-color-success-600) 16%, white);
+  color: var(--syn-color-success-700);
+}
+
+.account-badge.is-offline {
+  background: color-mix(in srgb, var(--syn-color-neutral-600) 14%, white);
+  color: var(--syn-color-neutral-800);
+}
+
+.account-subtitle {
+  margin: var(--syn-spacing-small) 0 var(--syn-spacing-medium);
+  color: var(--syn-color-neutral-700);
+  font-size: var(--syn-font-size-small);
+  line-height: 1.4;
+}
+
+.account-action {
+  width: 100%;
+  margin-top: var(--syn-spacing-medium);
+}
+
+.login-inline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-small);
+}
+
+@media (max-width: 640px) {
+  .account-panel {
+    min-width: 280px;
+    max-width: min(92vw, 340px);
+    padding: var(--syn-spacing-medium);
+  }
+
+  .account-name {
+    font-size: var(--syn-font-size-medium);
+  }
+}

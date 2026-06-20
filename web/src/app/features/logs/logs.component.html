@@ -1,19 +1,18 @@
-<div class="flex flex-col gap-3 p-2 bg-syn-color-neutral-50/30 min-h-0 flex-1">
+<div class="flex flex-col gap-3 p-2 min-h-0 flex-1">
   <!-- Unified Command Header -->
-  <div
-    class="flex flex-col shadow-md rounded-xl overflow-hidden border "
-  >
-    <app-logs-toolbar (clearClicked)="clearAllLogs()"
-                      (downloadClicked)="downloadLogs()"
-                      (levelChanged)="selectedLevel.set($event); onFilterChange()"
-                      (refreshClicked)="refreshLogs()"
-                      (searchChanged)="searchText.set($event); onFilterChange()"
-                      (streamingToggled)="$event ? startStreaming() : stopStreaming()"
-                      [errorCount]="levelCounts()['ERROR'] || 0"
-                      [isStreaming]="isStreaming()"
-                      [searchText]="searchText()"
-                      [selectedLevel]="selectedLevel()"
-                      [totalCount]="entries().length"
+  <div class="flex flex-col shadow-md rounded-xl overflow-hidden border">
+    <app-logs-toolbar
+      (clearClicked)="clearAllLogs()"
+      (downloadClicked)="downloadLogs()"
+      (levelChanged)="selectedLevel.set($event); onFilterChange()"
+      (refreshClicked)="refreshLogs()"
+      (searchChanged)="searchText.set($event); onFilterChange()"
+      (streamingToggled)="$event ? startStreaming() : stopStreaming()"
+      [errorCount]="levelCounts()['ERROR'] || 0"
+      [isStreaming]="isStreaming()"
+      [searchText]="searchText()"
+      [selectedLevel]="selectedLevel()"
+      [totalCount]="entries().length"
     />
 
     <!-- Integrated Status Bar -->
@@ -40,7 +39,7 @@
           <div
             class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-syn-color-red-700"
           >
-            <syn-icon class="text-syn-color-red-600" name="error_outline" size="small"/>
+            <syn-icon class="text-syn-color-red-600" name="error_outline" size="small" />
             {{ streamError() }}
           </div>
         }
@@ -49,16 +48,17 @@
   </div>
 
   <!-- Main Content Area -->
-  <div class="flex-1 min-h-0 bg-white rounded-xl border overflow-auto syn-scrollbar flex flex-col relative shadow-sm">
+  <div
+    class="flex-1 min-h-0 bg-white rounded-xl border overflow-auto syn-scrollbar flex flex-col relative shadow-sm"
+  >
     <!-- Sub-component: Table with Load More -->
-    <app-logs-table (entrySelected)="onSelectEntry($event)"
-                    (loadMoreClicked)="loadMoreLogs()"
-                    [entries]="displayEntries()"
-                    [isLoadingMore]="isLoadingMore()"
-                    [isLoading]="isLoading()"
-                    [selectedEntry]="selectedEntry()"
+    <app-logs-table
+      (entrySelected)="onSelectEntry($event)"
+      (loadMoreClicked)="loadMoreLogs()"
+      [entries]="displayEntries()"
+      [isLoadingMore]="isLoadingMore()"
+      [isLoading]="isLoading()"
+      [selectedEntry]="selectedEntry()"
     />
-
   </div>
-
 </div>

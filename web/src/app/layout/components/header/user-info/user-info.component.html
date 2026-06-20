@@ -1,0 +1,80 @@
+<syn-dropdown
+  placement="bottom-end"
+  [distance]="8"
+  [open]="dropdownOpen()"
+  (synAfterShowEvent)="onDropdownShow()"
+  (synAfterHideEvent)="onDropdownHide()"
+>
+  <syn-icon-button
+    slot="trigger"
+    name="person"
+    label="Account"
+    size="large"
+    [style.color]="auth.isAuthenticated() ? 'var(--syn-color-primary-600)' : 'inherit'"
+  ></syn-icon-button>
+
+  <div class="account-panel rounded-xl">
+    @if (auth.isAuthenticated()) {
+      <div class="account-topbar">
+        <div class="account-info">
+          <syn-icon name="account_circle" class="account-avatar"></syn-icon>
+          <div class="account-details">
+            <span class="account-name">{{ auth.user()?.username }}</span>
+            <span class="account-role">{{ auth.user()?.role }}</span>
+          </div>
+        </div>
+        <span class="account-badge">Online</span>
+      </div>
+
+      <p class="account-subtitle">You are signed in and can control workspace resources.</p>
+
+      <syn-button variant="outline" size="small" class="account-action" (click)="onLogout()">
+        <syn-icon name="logout" slot="prefix"></syn-icon>
+        Sign Out
+      </syn-button>
+    } @else {
+      <div class="account-topbar">
+        <div class="account-info">
+          <syn-icon name="account_circle" class="account-avatar"></syn-icon>
+          <div class="account-details">
+            <span class="account-name">Guest</span>
+            <span class="account-role">Authentication required</span>
+          </div>
+        </div>
+      </div>
+
+      <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="login-inline">
+        @if (loginError()) {
+          <syn-alert variant="danger" open size="small">{{ loginError() }}</syn-alert>
+        }
+        <syn-input
+          label="Username"
+          size="small"
+          formControlName="username"
+          required
+          autocomplete="username"
+        ></syn-input>
+        <syn-input
+          label="Password"
+          type="password"
+          size="small"
+          formControlName="password"
+          required
+          password-toggle
+          autocomplete="current-password"
+        ></syn-input>
+        <syn-button
+          type="submit"
+          variant="filled"
+          size="small"
+          class="account-action"
+          [loading]="loginLoading()"
+          [disabled]="loginLoading() || loginForm.invalid"
+        >
+          <syn-icon name="login" slot="prefix"></syn-icon>
+          Sign In
+        </syn-button>
+      </form>
+    }
+  </div>
+</syn-dropdown>
