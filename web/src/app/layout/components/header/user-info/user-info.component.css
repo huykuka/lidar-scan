@@ -2,15 +2,8 @@
   min-width: 320px;
   max-width: 360px;
   padding: var(--syn-spacing-large);
-  background:
-    linear-gradient(
-      155deg,
-      color-mix(in srgb, var(--syn-color-primary-100) 32%, white),
-      var(--syn-color-neutral-0) 38%
-    ),
-    var(--syn-color-neutral-0);
+  background: var(--syn-color-neutral-0);
   border: 1px solid color-mix(in srgb, var(--syn-color-primary-200) 60%, white);
-  box-shadow: 0 12px 28px color-mix(in srgb, var(--syn-color-neutral-1000) 14%, transparent);
 }
 
 .account-topbar {
