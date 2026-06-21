@@ -40,12 +40,21 @@
                 "glob": "**/*",
                 "input": "./node_modules/@synergy-design-system/assets/src/sick2025/icons/fill",
                 "output": "/assets/icons"
+              },
+              {
+                "glob": "light.css",
+                "input": "./node_modules/@synergy-design-system/tokens/dist/themes",
+                "output": "/assets/themes"
+              },
+              {
+                "glob": "dark.css",
+                "input": "./node_modules/@synergy-design-system/tokens/dist/themes",
+                "output": "/assets/themes"
               }
             ],
             "styles": [
               "src/styles.css",
               "@synergy-design-system/fonts/src/sick-intl/font.css",
-              "@synergy-design-system/tokens/themes/light.css",
               "@synergy-design-system/components/index.css",
               "@synergy-design-system/styles/index.css"
             ]

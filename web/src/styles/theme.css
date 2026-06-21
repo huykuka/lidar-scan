@@ -1,66 +1,38 @@
-/* ── Synergy → Tailwind v4 token bridge ──────────────────────────────────────
-   Exposes Synergy CSS custom properties as Tailwind design tokens so utility
-   classes (e.g. text-syn-color-primary-600, bg-syn-page-background-color) are
-   available throughout the application.
+/* ── Synergy → Tailwind token bridge ────────────────────────────────────────
+   Maps --syn-* CSS custom properties to Tailwind v4 @theme tokens so that
+   utility classes like bg-neutral-100, text-neutral-700, etc. automatically
+   adapt when ThemeService swaps light.css / dark.css.
 
-   Font tokens are bridged so `font-sans` / `font-mono` utilities resolve to
-   SICK Intl and Roboto Mono respectively instead of Tailwind system defaults.  */
+   Rules:
+   - Use var(--syn-*) only — never hardcode hex or named colors
+   - Synergy token file (light.css / dark.css) must already be loaded
+   - This file must be imported AFTER base.css in styles.css              */
 
 @theme {
-  /* ── Typography ─────────────────────────────────────────────────────────── */
-  --font-sans: var(--syn-font-sans);
-  --font-mono: var(--syn-font-mono);
+  /* Neutral scale */
+  --color-neutral-0:   var(--syn-color-neutral-0);
+  --color-neutral-50:  var(--syn-color-neutral-50);
+  --color-neutral-100: var(--syn-color-neutral-100);
+  --color-neutral-200: var(--syn-color-neutral-200);
+  --color-neutral-300: var(--syn-color-neutral-300);
+  --color-neutral-400: var(--syn-color-neutral-400);
+  --color-neutral-500: var(--syn-color-neutral-500);
+  --color-neutral-600: var(--syn-color-neutral-600);
+  --color-neutral-700: var(--syn-color-neutral-700);
+  --color-neutral-800: var(--syn-color-neutral-800);
+  --color-neutral-900: var(--syn-color-neutral-900);
+  --color-neutral-950: var(--syn-color-neutral-950);
 
-  /* ── Primary palette ─────────────────────────────────────────────────────── */
-  --color-syn-color-primary-50:  var(--syn-color-primary-50);
-  --color-syn-color-primary-100: var(--syn-color-primary-100);
-  --color-syn-color-primary-200: var(--syn-color-primary-200);
-  --color-syn-color-primary-300: var(--syn-color-primary-300);
-  --color-syn-color-primary-400: var(--syn-color-primary-400);
-  --color-syn-color-primary-500: var(--syn-color-primary-500);
-  --color-syn-color-primary-600: var(--syn-color-primary-600);
-  --color-syn-color-primary-700: var(--syn-color-primary-700);
-  --color-syn-color-primary-800: var(--syn-color-primary-800);
-  --color-syn-color-primary-900: var(--syn-color-primary-900);
-  --color-syn-color-primary-950: var(--syn-color-primary-950);
+  /* Primary scale */
+  --color-primary-500: var(--syn-color-primary-500);
+  --color-primary-600: var(--syn-color-primary-600);
+  --color-primary-700: var(--syn-color-primary-700);
 
-  /* ── Neutral palette ─────────────────────────────────────────────────────── */
-  --color-syn-color-neutral-50:  var(--syn-color-neutral-50);
-  --color-syn-color-neutral-100: var(--syn-color-neutral-100);
-  --color-syn-color-neutral-200: var(--syn-color-neutral-200);
-  --color-syn-color-neutral-300: var(--syn-color-neutral-300);
-  --color-syn-color-neutral-400: var(--syn-color-neutral-400);
-  --color-syn-color-neutral-500: var(--syn-color-neutral-500);
-  --color-syn-color-neutral-600: var(--syn-color-neutral-600);
-  --color-syn-color-neutral-700: var(--syn-color-neutral-700);
-  --color-syn-color-neutral-800: var(--syn-color-neutral-800);
-  --color-syn-color-neutral-900: var(--syn-color-neutral-900);
-  --color-syn-color-neutral-950: var(--syn-color-neutral-950);
+  /* Semantic surface helpers */
+  --color-syn-surface: var(--syn-panel-background-color);
+  --color-syn-page:    var(--syn-page-background-color);
+  --color-syn-text:    var(--syn-typography-color-text);
 
-  /* ── Semantic status palettes ────────────────────────────────────────────── */
-  --color-syn-color-success-50:  var(--syn-color-success-50);
-  --color-syn-color-success-100: var(--syn-color-success-100);
-  --color-syn-color-success-200: var(--syn-color-success-200);
-  --color-syn-color-success-600: var(--syn-color-success-600);
-  --color-syn-color-success-700: var(--syn-color-success-700);
-
-  /* Danger maps to Synergy's "error" token family */
-  --color-syn-color-danger-50:  var(--syn-color-error-50);
-  --color-syn-color-danger-100: var(--syn-color-error-100);
-  --color-syn-color-danger-200: var(--syn-color-error-200);
-  --color-syn-color-danger-600: var(--syn-color-error-600);
-  --color-syn-color-danger-700: var(--syn-color-error-700);
-
-  --color-syn-color-warning-50:  var(--syn-color-warning-50);
-  --color-syn-color-warning-100: var(--syn-color-warning-100);
-  --color-syn-color-warning-200: var(--syn-color-warning-200);
-  --color-syn-color-warning-600: var(--syn-color-warning-600);
-  --color-syn-color-warning-700: var(--syn-color-warning-700);
-
-  /* ── Semantic surface and typography tokens ──────────────────────────────── */
-  --color-syn-page-background-color:        var(--syn-page-background-color);
-  --color-syn-page-background-color-muted:  var(--syn-page-background-color-muted);
-  --color-syn-typography-color-text:        var(--syn-typography-color-text);
-  --color-syn-typography-color-text-inverted: var(--syn-typography-color-text-inverted);
-  --color-syn-panel-background-color:       var(--syn-panel-background-color);
+  /* Typography */
+  --font-sans: var(--syn-font-sans), "SICK Intl", sans-serif;
 }

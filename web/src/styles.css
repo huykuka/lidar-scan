@@ -11,9 +11,8 @@
      5. scrollbar     — Custom thin scrollbar (light + dark)
      6. border-tokens — .border-syn utilities + global neutral normalization    */
 
-@import "./styles/base.css";
-@import "./styles/syn-dark-theme.css";
-@import "./styles/theme.css";
-@import "./styles/layout.css";
-@import "./styles/scrollbar.css";
-@import "./styles/border-tokens.css";
+@import './styles/base.css';
+@import './styles/theme.css';
+@import './styles/layout.css';
+@import './styles/scrollbar.css';
+@import './styles/border-tokens.css';
