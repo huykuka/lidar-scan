@@ -1,6 +1,6 @@
-import {Component, computed, inject} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {ThemeService} from '@core/services/theme.service';
+import { Component, computed, inject } from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { ThemeService } from '@core/services/theme.service';
 
 /**
  * Self-contained theme toggle button for the app header.
@@ -19,14 +19,19 @@ import {ThemeService} from '@core/services/theme.service';
       (click)="toggle()"
     ></syn-icon-button>
   `,
-  styles: `:host { display: inline-flex; align-items: center; }`,
+  styles: `
+    :host {
+      display: inline-flex;
+      align-items: center;
+    }
+  `,
 })
 export class ThemeSwitchComponent {
   private readonly themeService = inject(ThemeService);
 
   protected readonly isDark = computed(() => this.themeService.theme() === 'dark');
 
-  protected readonly icon = computed(() => (this.isDark() ? 'light_mode' : 'dark_mode'));
+  protected readonly icon = computed(() => (this.isDark() ? 'light_mode_fill' : 'dark_mode'));
 
   protected readonly label = computed(() =>
     this.isDark() ? 'Switch to light mode' : 'Switch to dark mode',

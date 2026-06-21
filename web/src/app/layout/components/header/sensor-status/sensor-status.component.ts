@@ -1,6 +1,6 @@
-import {Component, computed, inject} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeStoreService} from '@core/services/stores';
+import { Component, computed, inject } from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { NodeStoreService } from '@core/services/stores';
 
 /**
  * Sensor-node health indicator.
@@ -28,7 +28,7 @@ export class SensorStatusComponent {
   private readonly store = inject(NodeStoreService);
 
   private readonly sensorNodes = computed(() =>
-    this.store.nodes().filter(n => n.category === 'sensor'),
+    this.store.nodes().filter((n) => n.category === 'sensor'),
   );
 
   private readonly statusMap = this.store.nodeStatusMap;
@@ -37,7 +37,7 @@ export class SensorStatusComponent {
 
   protected readonly errorCount = computed(() => {
     const map = this.statusMap();
-    return this.sensorNodes().filter(n => map.get(n.id)?.operational_state === 'ERROR').length;
+    return this.sensorNodes().filter((n) => map.get(n.id)?.operational_state === 'ERROR').length;
   });
 
   /** true = all OK, false = some errors, null = no sensors configured */
@@ -65,7 +65,7 @@ export class SensorStatusComponent {
   protected readonly statusColor = computed(() => {
     const h = this.health();
     if (h === null) return 'var(--syn-color-neutral-500)';
-    return h ? 'var(--syn-color-success-600)' : 'var(--syn-color-danger-600)';
+    return h ? 'var(--syn-color-success-600)' : 'var(--syn-color-error-600)';
   });
 
   /** Synergy CSS token for badge background — same as statusColor */

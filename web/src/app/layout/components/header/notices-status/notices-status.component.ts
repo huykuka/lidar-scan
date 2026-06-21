@@ -1,6 +1,6 @@
-import {Component, computed, inject, output} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {SystemStatusService} from '@core/services/system-status.service';
+import { Component, computed, inject, output } from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { SystemStatusService } from '@core/services/system-status.service';
 
 /**
  * System notices / error badge.
@@ -66,7 +66,7 @@ export class NoticesStatusComponent {
   protected readonly statusColor = computed(() => {
     const notice = this.lastNotice();
     if (!notice || this.unreadCount() === 0) return 'var(--syn-color-neutral-500)';
-    if (notice.level === 'error') return 'var(--syn-color-danger-600)';
+    if (notice.level === 'error') return 'var(--syn-color-error-600)';
     if (notice.level === 'warning') return 'var(--syn-color-warning-600)';
     return 'var(--syn-color-neutral-500)';
   });

@@ -1,24 +1,21 @@
 @if (isRecording()) {
   <button
     (click)="toggleRecording(); $event.stopPropagation()"
-    class="flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-full bg-syn-color-danger-50 text-syn-color-danger-700 hover:bg-syn-color-danger-100 transition-all border border-syn-color-danger-200 h-[26px] shadow-sm ml-auto"
+    class="flex items-center justify-center gap-1.5 px-2 py-0.5 rounded-full bg-syn-color-error-50 text-syn-color-error-700 hover:bg-syn-color-error-100 transition-all border border-syn-color-error-200 h-[26px] ml-auto"
   >
     <syn-icon class="animate-pulse text-[14px]" name="stop" />
-    <span class="font-mono text-[11px] font-black tracking-tighter leading-none pt-[1px]">{{ formatDuration(recordingDuration()) }}</span>
+    <span class="font-mono text-[11px] font-black tracking-tighter leading-none pt-[1px]">{{
+      formatDuration(recordingDuration())
+    }}</span>
   </button>
 } @else {
-  <button
+  <syn-icon-button
+    variant="text"
+    style="color: var(--syn-color-error-600)"
+    name="radio_button_checked"
     (click)="toggleRecording(); $event.stopPropagation()"
     [disabled]="hasError()"
-    [title]="hasError() ? 'Cannot record: node is in error state' : 'Start Recording'"
-    class="w-[28px] h-[28px] flex items-center justify-center rounded-full transition-all group"
-    [class]="hasError()
-      ? 'text-syn-color-neutral-400 cursor-not-allowed opacity-50'
-      : 'hover:bg-syn-color-danger-50 text-syn-color-danger-600 hover:text-syn-color-danger-700'"
+    [label]="hasError() ? 'Cannot record: node is in error state' : 'Start Recording'"
   >
-    <syn-icon
-      name="radio_button_checked"
-      class="text-[18px] group-hover:scale-110 transition-transform"
-    />
-  </button>
+  </syn-icon-button>
 }

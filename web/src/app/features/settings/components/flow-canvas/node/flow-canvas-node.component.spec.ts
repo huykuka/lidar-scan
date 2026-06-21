@@ -22,15 +22,15 @@ describe('FlowCanvasNodeComponent', () => {
       visible: true,
       config: {},
       x: 0,
-      y: 0
+      y: 0,
     },
-    position: { x: 100, y: 100 }
+    position: { x: 100, y: 100 },
   };
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [FlowCanvasNodeComponent],
-      providers: [NodeStoreService]
+      providers: [NodeStoreService],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FlowCanvasNodeComponent);
@@ -52,7 +52,7 @@ describe('FlowCanvasNodeComponent', () => {
       const status: NodeStatusUpdate = {
         node_id: 'test-node-id',
         operational_state: 'INITIALIZE',
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -68,7 +68,7 @@ describe('FlowCanvasNodeComponent', () => {
       const status: NodeStatusUpdate = {
         node_id: 'test-node-id',
         operational_state: 'RUNNING',
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -83,7 +83,7 @@ describe('FlowCanvasNodeComponent', () => {
       const status: NodeStatusUpdate = {
         node_id: 'test-node-id',
         operational_state: 'STOPPED',
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -99,7 +99,7 @@ describe('FlowCanvasNodeComponent', () => {
         node_id: 'test-node-id',
         operational_state: 'ERROR',
         error_message: 'Test error',
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -107,7 +107,7 @@ describe('FlowCanvasNodeComponent', () => {
 
       const icon = component['operationalIcon']();
       expect(icon.icon).toBe('error');
-      expect(icon.css).toBe('text-syn-color-danger-600');
+      expect(icon.css).toBe('text-syn-color-error-600');
     });
   });
 
@@ -119,9 +119,9 @@ describe('FlowCanvasNodeComponent', () => {
         application_state: {
           label: 'processing',
           value: true,
-          color: 'blue'
+          color: 'blue',
         },
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -137,7 +137,7 @@ describe('FlowCanvasNodeComponent', () => {
       const status: NodeStatusUpdate = {
         node_id: 'test-node-id',
         operational_state: 'RUNNING',
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -153,7 +153,7 @@ describe('FlowCanvasNodeComponent', () => {
         { name: 'blue', hex: '#2563eb' },
         { name: 'orange', hex: '#d97706' },
         { name: 'red', hex: '#dc2626' },
-        { name: 'gray', hex: '#6b7280' }
+        { name: 'gray', hex: '#6b7280' },
       ];
 
       colors.forEach(({ name, hex }) => {
@@ -163,9 +163,9 @@ describe('FlowCanvasNodeComponent', () => {
           application_state: {
             label: 'test',
             value: 'test',
-            color: name
+            color: name,
           },
-          timestamp: Date.now() / 1000
+          timestamp: Date.now() / 1000,
         };
 
         fixture.componentRef.setInput('status', status);
@@ -182,10 +182,10 @@ describe('FlowCanvasNodeComponent', () => {
         operational_state: 'RUNNING',
         application_state: {
           label: 'test',
-          value: 'test'
+          value: 'test',
           // color is undefined
         },
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -232,9 +232,9 @@ describe('FlowCanvasNodeComponent', () => {
         application_state: {
           label: 'processing',
           value: true,
-          color: 'blue'
+          color: 'blue',
         },
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', trueStatus);
@@ -248,8 +248,8 @@ describe('FlowCanvasNodeComponent', () => {
         application_state: {
           label: 'processing',
           value: false,
-          color: 'gray'
-        }
+          color: 'gray',
+        },
       };
 
       fixture.componentRef.setInput('status', falseStatus);
@@ -266,7 +266,7 @@ describe('FlowCanvasNodeComponent', () => {
         node_id: 'test-node-id',
         operational_state: 'ERROR',
         error_message: 'Test error message',
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -280,7 +280,7 @@ describe('FlowCanvasNodeComponent', () => {
       const status: NodeStatusUpdate = {
         node_id: 'test-node-id',
         operational_state: 'RUNNING',
-        timestamp: Date.now() / 1000
+        timestamp: Date.now() / 1000,
       };
 
       fixture.componentRef.setInput('status', status);
@@ -302,7 +302,7 @@ describe('FlowCanvasNodeComponent', () => {
         websocket_enabled: false,
         properties: [],
         inputs: [],
-        outputs: []
+        outputs: [],
       };
       nodeStore.set('nodeDefinitions', [mockDefinition]);
 
@@ -318,17 +318,15 @@ describe('FlowCanvasNodeComponent', () => {
           enabled: true,
           config: {},
           x: 0,
-          y: 0
+          y: 0,
         },
-        position: { x: 0, y: 0 }
+        position: { x: 0, y: 0 },
       };
       fixture.componentRef.setInput('node', node);
       fixture.detectChanges();
 
       // Assert: Visibility toggle should not be rendered
-      const visibilityToggle = fixture.debugElement.query(
-        By.css('app-node-visibility-toggle')
-      );
+      const visibilityToggle = fixture.debugElement.query(By.css('app-node-visibility-toggle'));
       expect(visibilityToggle).toBeNull();
     });
 
@@ -342,7 +340,7 @@ describe('FlowCanvasNodeComponent', () => {
         websocket_enabled: false,
         properties: [],
         inputs: [{ id: 'in', label: 'Input', data_type: 'pointcloud', multiple: false }],
-        outputs: [{ id: 'out', label: 'Output', data_type: 'pointcloud', multiple: false }]
+        outputs: [{ id: 'out', label: 'Output', data_type: 'pointcloud', multiple: false }],
       };
       nodeStore.set('nodeDefinitions', [mockDefinition]);
 
@@ -357,17 +355,15 @@ describe('FlowCanvasNodeComponent', () => {
           enabled: true,
           config: {},
           x: 0,
-          y: 0
+          y: 0,
         },
-        position: { x: 0, y: 0 }
+        position: { x: 0, y: 0 },
       };
       fixture.componentRef.setInput('node', node);
       fixture.detectChanges();
 
       // Assert: Recording controls should not be rendered
-      const recordingControls = fixture.debugElement.query(
-        By.css('app-node-recording-controls')
-      );
+      const recordingControls = fixture.debugElement.query(By.css('app-node-recording-controls'));
       expect(recordingControls).toBeNull();
     });
 
@@ -381,7 +377,7 @@ describe('FlowCanvasNodeComponent', () => {
         websocket_enabled: true,
         properties: [],
         inputs: [],
-        outputs: [{ id: 'out', label: 'Output', data_type: 'pointcloud', multiple: false }]
+        outputs: [{ id: 'out', label: 'Output', data_type: 'pointcloud', multiple: false }],
       };
       nodeStore.set('nodeDefinitions', [mockDefinition]);
 
@@ -396,17 +392,15 @@ describe('FlowCanvasNodeComponent', () => {
           enabled: true,
           config: {},
           x: 0,
-          y: 0
+          y: 0,
         },
-        position: { x: 0, y: 0 }
+        position: { x: 0, y: 0 },
       };
       fixture.componentRef.setInput('node', node);
       fixture.detectChanges();
 
       // Assert: Visibility toggle SHOULD be rendered
-      const visibilityToggle = fixture.debugElement.query(
-        By.css('app-node-visibility-toggle')
-      );
+      const visibilityToggle = fixture.debugElement.query(By.css('app-node-visibility-toggle'));
       expect(visibilityToggle).not.toBeNull();
     });
 
@@ -420,7 +414,7 @@ describe('FlowCanvasNodeComponent', () => {
         websocket_enabled: true,
         properties: [],
         inputs: [],
-        outputs: [{ id: 'out', label: 'Output', data_type: 'pointcloud', multiple: false }]
+        outputs: [{ id: 'out', label: 'Output', data_type: 'pointcloud', multiple: false }],
       };
       nodeStore.set('nodeDefinitions', [mockDefinition]);
 
@@ -435,17 +429,15 @@ describe('FlowCanvasNodeComponent', () => {
           enabled: true,
           config: {},
           x: 0,
-          y: 0
+          y: 0,
         },
-        position: { x: 0, y: 0 }
+        position: { x: 0, y: 0 },
       };
       fixture.componentRef.setInput('node', node);
       fixture.detectChanges();
 
       // Assert: Recording controls SHOULD be rendered
-      const recordingControls = fixture.debugElement.query(
-        By.css('app-node-recording-controls')
-      );
+      const recordingControls = fixture.debugElement.query(By.css('app-node-recording-controls'));
       expect(recordingControls).not.toBeNull();
     });
 
@@ -464,17 +456,15 @@ describe('FlowCanvasNodeComponent', () => {
           enabled: true,
           config: {},
           x: 0,
-          y: 0
+          y: 0,
         },
-        position: { x: 0, y: 0 }
+        position: { x: 0, y: 0 },
       };
       fixture.componentRef.setInput('node', node);
       fixture.detectChanges();
 
       // Assert: Controls should be shown (safe default)
-      const visibilityToggle = fixture.debugElement.query(
-        By.css('app-node-visibility-toggle')
-      );
+      const visibilityToggle = fixture.debugElement.query(By.css('app-node-visibility-toggle'));
       expect(visibilityToggle).not.toBeNull();
     });
 
@@ -488,7 +478,7 @@ describe('FlowCanvasNodeComponent', () => {
         websocket_enabled: true,
         properties: [],
         inputs: [],
-        outputs: []
+        outputs: [],
       };
       nodeStore.set('nodeDefinitions', [enabledDef]);
 
@@ -503,9 +493,9 @@ describe('FlowCanvasNodeComponent', () => {
           enabled: true,
           config: {},
           x: 0,
-          y: 0
+          y: 0,
         },
-        position: { x: 0, y: 0 }
+        position: { x: 0, y: 0 },
       };
       fixture.componentRef.setInput('node', sensorNode);
       fixture.detectChanges();
@@ -521,7 +511,7 @@ describe('FlowCanvasNodeComponent', () => {
         websocket_enabled: false,
         properties: [],
         inputs: [],
-        outputs: []
+        outputs: [],
       };
       nodeStore.set('nodeDefinitions', [disabledDef]);
 
@@ -536,9 +526,9 @@ describe('FlowCanvasNodeComponent', () => {
           enabled: true,
           config: {},
           x: 0,
-          y: 0
+          y: 0,
         },
-        position: { x: 0, y: 0 }
+        position: { x: 0, y: 0 },
       };
       fixture.componentRef.setInput('node', calibrationNode);
       fixture.detectChanges();
@@ -559,9 +549,9 @@ describe('FlowCanvasNodeComponent', () => {
           enabled: true,
           config: {},
           x: 0,
-          y: 0
+          y: 0,
         },
-        position: { x: 0, y: 0 }
+        position: { x: 0, y: 0 },
       };
       fixture.componentRef.setInput('node', unknownNode);
       fixture.detectChanges();

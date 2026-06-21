@@ -11,7 +11,6 @@
           (click)="onExportConfig()"
           [disabled]="isExporting() || !canEdit()"
           [loading]="isExporting()"
-          size="small"
           variant="outline"
           [title]="canEdit() ? 'Export configuration' : 'Admin access required'"
         >
@@ -23,7 +22,6 @@
           (click)="onImportConfigClick()"
           [disabled]="isImporting() || !canEdit()"
           [loading]="isImporting()"
-          size="small"
           variant="outline"
           [title]="canEdit() ? 'Import configuration' : 'Admin access required'"
         >
@@ -37,7 +35,6 @@
           <syn-button
             (click)="onStopSystem()"
             [disabled]="!canEdit()"
-            size="small"
             variant="filled"
             [title]="canEdit() ? 'Stop system' : 'Admin access required'"
           >
@@ -48,7 +45,6 @@
           <syn-button
             (click)="onStartSystem()"
             [disabled]="!canEdit()"
-            size="small"
             variant="outline"
             [title]="canEdit() ? 'Start system' : 'Admin access required'"
           >
@@ -70,7 +66,6 @@
         }
 
         <syn-button
-          size="small"
           variant="text"
           [disabled]="canvasEditStore.isReloading() || !canEdit()"
           (click)="onReloadRuntime()"
@@ -86,7 +81,6 @@
         </syn-button>
 
         <syn-button
-          size="small"
           variant="outline"
           [disabled]="canvasEditStore.isSyncing()"
           (click)="onSync()"
@@ -102,7 +96,6 @@
         </syn-button>
 
         <syn-button
-          size="small"
           variant="filled"
           [disabled]="
             !canEdit() ||

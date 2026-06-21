@@ -3,9 +3,13 @@
   @if (canvasEditStore.isDirty() && !canvasEditStore.isValid()) {
     <div class="shrink-0 mx-3 mt-2 mb-0">
       <div
-        class="flex items-start gap-2 px-3 py-2 rounded-md border border-syn-color-danger-300 bg-syn-color-danger-50 text-syn-color-danger-800">
-        <syn-icon name="error_outline" class="mt-0.5 shrink-0 text-syn-color-danger-600"
-                  style="font-size: 1rem;"></syn-icon>
+        class="flex items-start gap-2 px-3 py-2 rounded-md border border-syn-color-error-300 bg-syn-color-error-50 text-syn-color-error-800"
+      >
+        <syn-icon
+          name="error_outline"
+          class="mt-0.5 shrink-0 text-syn-color-error-600"
+          style="font-size: 1rem"
+        ></syn-icon>
         <div class="flex-1 min-w-0">
           <p class="text-xs font-semibold mb-1">Fix validation errors before saving:</p>
           <ul class="text-xs space-y-0.5 list-disc list-inside">
@@ -21,10 +25,11 @@
   <div class="flex flex-1 min-h-0 relative">
     <!-- Left Palette Sidebar (hidden in read-only mode) -->
     @if (!readOnly()) {
-      <app-flow-canvas-palette (onPluginDragEnd)="onPaletteDragEnd()"
-                               (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
-                               [isLoading]="isPaletteLoading()"
-                               [plugins]="availablePlugins()"
+      <app-flow-canvas-palette
+        (onPluginDragEnd)="onPaletteDragEnd()"
+        (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
+        [isLoading]="isPaletteLoading()"
+        [plugins]="availablePlugins()"
       />
     }
 
@@ -55,7 +60,10 @@
           class="relative"
         >
           <!-- Grid Background: dots scale with zoom and track pan offset -->
-          <svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+          <svg
+            class="absolute inset-0 w-full h-full pointer-events-none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
             <defs>
               <!-- Minor cell: one dot per snap unit, scaled by zoom -->
               <pattern
@@ -74,7 +82,7 @@
                 />
               </pattern>
             </defs>
-            <rect fill="url(#grid-minor)" height="100%" width="100%"/>
+            <rect fill="url(#grid-minor)" height="100%" width="100%" />
           </svg>
 
           <!-- Nodes Container -->
@@ -86,11 +94,12 @@
             class="absolute inset-0"
           >
             <!-- Connection Lines Layer (below nodes) -->
-            <app-flow-canvas-connections (onDelete)="onDeleteEdge($event)"
-                                         [connections]="connections()"
-                                         [defaultColor]="edgeColor()"
-                                         [defaultFlowColor]="edgeFlowColor()"
-                                         [pendingPath]="pendingPath()"
+            <app-flow-canvas-connections
+              (onDelete)="onDeleteEdge($event)"
+              [connections]="connections()"
+              [defaultColor]="edgeColor()"
+              [defaultFlowColor]="edgeFlowColor()"
+              [pendingPath]="pendingPath()"
             />
 
             <!-- Nodes Layer -->
@@ -104,24 +113,29 @@
                 [class.z-10]="selectedNodeIds().has(node.id)"
                 [class.select-none]="!!draggingNode() || !!pendingConnection()"
                 [style.cursor]="
-                  draggingNode() && selectedNodeIds().has(node.id) ? 'grabbing' : pendingConnection() ? 'default' : 'grab'
+                  draggingNode() && selectedNodeIds().has(node.id)
+                    ? 'grabbing'
+                    : pendingConnection()
+                      ? 'default'
+                      : 'grab'
                 "
                 [style.left.px]="node.position.x"
                 [style.top.px]="node.position.y"
                 class="absolute transition-shadow rounded-lg"
                 title="Double-click to edit"
               >
-                <app-flow-canvas-node (onEdit)="readOnly() ? null : onEditNode(node)"
-                                      (onToggleEnabled)="readOnly() ? null : onToggleNodeEnabled(node, $event)"
-                                      (onToggleVisibility)="readOnly() ? null : onToggleNodeVisibility(node, $event)"
-                                      (portDragStart)="readOnly() ? null : onPortDragStart($event)"
-                                      (portDrop)="readOnly() ? null : onPortDrop($event)"
-                                      [isDragging]="draggingNode()?.id === node.id"
-                                      [isLoading]="isNodeLoading(node.id)"
-                                      [isReloading]="reloadingNodeIds().has(node.data.id)"
-                                      [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
-                                      [node]="node"
-                                      [status]="getNodeStatus(node)"
+                <app-flow-canvas-node
+                  (onEdit)="readOnly() ? null : onEditNode(node)"
+                  (onToggleEnabled)="readOnly() ? null : onToggleNodeEnabled(node, $event)"
+                  (onToggleVisibility)="readOnly() ? null : onToggleNodeVisibility(node, $event)"
+                  (portDragStart)="readOnly() ? null : onPortDragStart($event)"
+                  (portDrop)="readOnly() ? null : onPortDrop($event)"
+                  [isDragging]="draggingNode()?.id === node.id"
+                  [isLoading]="isNodeLoading(node.id)"
+                  [isReloading]="reloadingNodeIds().has(node.data.id)"
+                  [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
+                  [node]="node"
+                  [status]="getNodeStatus(node)"
                 />
               </div>
             }
@@ -129,7 +143,7 @@
 
           <!-- Empty State -->
           @if (canvasNodes().length === 0) {
-            <app-flow-canvas-empty-state/>
+            <app-flow-canvas-empty-state />
           }
 
           <!-- Marquee Selection Overlay -->
@@ -167,10 +181,7 @@
       style="--size: 480px"
     >
       @if (drawerOpen()) {
-        <app-dynamic-node-editor
-          (cancel)="onDrawerClose()"
-          (save)="onEditorSave()"
-        />
+        <app-dynamic-node-editor (cancel)="onDrawerClose()" (save)="onEditorSave()" />
       }
     </syn-drawer>
     <app-output-viewer></app-output-viewer>

@@ -1,11 +1,11 @@
-import {Component, computed, inject, input, output} from '@angular/core';
+import { Component, computed, inject, input, output } from '@angular/core';
 
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeConfig, PortSchema} from '@core/models/node.model';
-import {NodeStatusUpdate} from '@core/models/node-status.model';
-import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
-import {NodeVisibilityToggleComponent} from '../../node-visibility-toggle/node-visibility-toggle.component';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { NodeConfig, PortSchema } from '@core/models/node.model';
+import { NodeStatusUpdate } from '@core/models/node-status.model';
+import { NodeStoreService } from '@core/services/stores/node-store.service';
+import { NodeRecordingControls } from './node-recording-controls/node-recording-controls';
+import { NodeVisibilityToggleComponent } from '../../node-visibility-toggle/node-visibility-toggle.component';
 
 export interface CanvasNode {
   id: string;
@@ -30,7 +30,13 @@ export class FlowCanvasNodeComponent {
   onEdit = output<void>();
   onToggleEnabled = output<boolean>();
   onToggleVisibility = output<boolean>();
-  portDragStart = output<{ nodeId: string; portType: 'input' | 'output'; portId: string; portIndex: number; event: MouseEvent }>();
+  portDragStart = output<{
+    nodeId: string;
+    portType: 'input' | 'output';
+    portId: string;
+    portIndex: number;
+    event: MouseEvent;
+  }>();
   portDrop = output<{ nodeId: string; portType: 'input' | 'output' }>();
   protected hasInputPort = computed(() => {
     const def = this.nodeDefinition();
@@ -82,7 +88,7 @@ export class FlowCanvasNodeComponent {
       case 'STOPPED':
         return { icon: 'pause_circle', css: 'text-syn-color-neutral-400' };
       case 'ERROR':
-        return { icon: 'error', css: 'text-syn-color-danger-600' };
+        return { icon: 'error', css: 'text-syn-color-error-600' };
       default:
         return { icon: 'radio_button_unchecked', css: 'text-syn-color-neutral-300' };
     }
@@ -138,11 +144,9 @@ export class FlowCanvasNodeComponent {
     return this.nodeStore.nodeDefinitions().find((d) => d.type === this.node().data.type);
   });
 
-
   getNodeName(): string {
     return this.node().data.name || this.node().id;
   }
-
 
   isNodeEnabled(): boolean {
     return this.node().data.enabled || false;
@@ -166,6 +170,4 @@ export class FlowCanvasNodeComponent {
     const spacing = nodeHeight / (totalPorts + 1);
     return spacing * (portIndex + 1);
   }
-
-
 }

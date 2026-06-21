@@ -1,17 +1,20 @@
 /* ── Synergy → Tailwind token bridge ────────────────────────────────────────
-   Maps --syn-* CSS custom properties to Tailwind v4 @theme tokens so that
-   utility classes like bg-neutral-100, text-neutral-700, etc. automatically
-   adapt when ThemeService swaps light.css / dark.css.
+   Two responsibilities:
+   1. @theme  — registers Tailwind v4 color tokens so bg-neutral-*, text-neutral-*
+                utility classes map to Synergy CSS custom properties.
+   2. @utility — generates every bg-syn-*, text-syn-*, border-syn-color-*,
+                 ring-syn-* class used in templates, backed by the corresponding
+                 --syn-* token so they auto-adapt when ThemeService swaps the
+                 light.css / dark.css <link>.
 
-   Rules:
-   - Use var(--syn-*) only — never hardcode hex or named colors
-   - Synergy token file (light.css / dark.css) must already be loaded
-   - This file must be imported AFTER base.css in styles.css              */
+   Import order: must come AFTER base.css (which imports tailwindcss).       */
 
+/* ── 1. @theme — standard Tailwind color utilities ─────────────────────────
+   Enables: bg-neutral-100, text-neutral-700, etc.                           */
 @theme {
   /* Neutral scale */
-  --color-neutral-0:   var(--syn-color-neutral-0);
-  --color-neutral-50:  var(--syn-color-neutral-50);
+  --color-neutral-0: var(--syn-color-neutral-0);
+  --color-neutral-50: var(--syn-color-neutral-50);
   --color-neutral-100: var(--syn-color-neutral-100);
   --color-neutral-200: var(--syn-color-neutral-200);
   --color-neutral-300: var(--syn-color-neutral-300);
@@ -28,11 +31,254 @@
   --color-primary-600: var(--syn-color-primary-600);
   --color-primary-700: var(--syn-color-primary-700);
 
-  /* Semantic surface helpers */
-  --color-syn-surface: var(--syn-panel-background-color);
-  --color-syn-page:    var(--syn-page-background-color);
-  --color-syn-text:    var(--syn-typography-color-text);
-
   /* Typography */
-  --font-sans: var(--syn-font-sans), "SICK Intl", sans-serif;
+  --font-sans: var(--syn-font-sans), 'SICK Intl', sans-serif;
+}
+
+/* ── 2. @utility — bg-syn-* classes ─────────────────────────────────────── */
+
+/* Page / panel backgrounds */
+@utility bg-syn-page-background-color {
+  background-color: var(--syn-page-background-color);
+}
+@utility bg-syn-page-background-color-muted {
+  background-color: color-mix(in srgb, var(--syn-page-background-color) 80%, transparent);
+}
+@utility bg-syn-panel-background-color {
+  background-color: var(--syn-panel-background-color);
+}
+
+/* Neutral */
+@utility bg-syn-color-neutral-50 {
+  background-color: var(--syn-color-neutral-50);
+}
+@utility bg-syn-color-neutral-100 {
+  background-color: var(--syn-color-neutral-100);
+}
+@utility bg-syn-color-neutral-200 {
+  background-color: var(--syn-color-neutral-200);
+}
+@utility bg-syn-color-neutral-300 {
+  background-color: var(--syn-color-neutral-300);
+}
+
+/* Primary */
+@utility bg-syn-color-primary-50 {
+  background-color: var(--syn-color-primary-50);
+}
+@utility bg-syn-color-primary-100 {
+  background-color: var(--syn-color-primary-100);
+}
+@utility bg-syn-color-primary-600 {
+  background-color: var(--syn-color-primary-600);
+}
+
+/* Danger */
+@utility bg-syn-color-error-50 {
+  background-color: var(--syn-color-error-50);
+}
+@utility bg-syn-color-error-100 {
+  background-color: var(--syn-color-error-100);
+}
+
+/* Success */
+@utility bg-syn-color-success-50 {
+  background-color: var(--syn-color-success-50);
+}
+@utility bg-syn-color-success-100 {
+  background-color: var(--syn-color-success-100);
+}
+@utility bg-syn-color-success-600 {
+  background-color: var(--syn-color-success-600);
+}
+
+/* Warning */
+@utility bg-syn-color-warning-50 {
+  background-color: var(--syn-color-warning-50);
+}
+
+/* Semantic greens / blues / reds (used in badge maps) */
+@utility bg-syn-color-green-50 {
+  background-color: var(--syn-color-success-50);
+}
+@utility bg-syn-color-green-400 {
+  background-color: var(--syn-color-success-400);
+}
+@utility bg-syn-color-green-600 {
+  background-color: var(--syn-color-success-600);
+}
+@utility bg-syn-color-blue-50 {
+  background-color: var(--syn-color-primary-50);
+}
+@utility bg-syn-color-red-50 {
+  background-color: var(--syn-color-error-50);
+}
+
+/* ── text-syn-* classes ──────────────────────────────────────────────────── */
+
+@utility text-syn-typography-color-text {
+  color: var(--syn-typography-color-text);
+}
+
+/* Neutral */
+@utility text-syn-color-neutral {
+  color: var(--syn-typography-color-text);
+}
+@utility text-syn-color-neutral-300 {
+  color: var(--syn-color-neutral-300);
+}
+@utility text-syn-color-neutral-400 {
+  color: var(--syn-color-neutral-400);
+}
+@utility text-syn-color-neutral-500 {
+  color: var(--syn-color-neutral-500);
+}
+@utility text-syn-color-neutral-600 {
+  color: var(--syn-color-neutral-600);
+}
+@utility text-syn-color-neutral-700 {
+  color: var(--syn-color-neutral-700);
+}
+@utility text-syn-color-neutral-800 {
+  color: var(--syn-color-neutral-800);
+}
+@utility text-syn-color-neutral-900 {
+  color: var(--syn-color-neutral-900);
+}
+
+/* Primary */
+@utility text-syn-color-primary-500 {
+  color: var(--syn-color-primary-500);
+}
+@utility text-syn-color-primary-600 {
+  color: var(--syn-color-primary-600);
+}
+@utility text-syn-color-primary-700 {
+  color: var(--syn-color-primary-700);
+}
+@utility text-syn-color-primary-800 {
+  color: var(--syn-color-primary-800);
+}
+@utility text-syn-color-primary-900 {
+  color: var(--syn-color-primary-900);
+}
+
+/* Danger */
+@utility text-syn-color-error {
+  color: var(--syn-color-error-600);
+}
+@utility text-syn-color-error-600 {
+  color: var(--syn-color-error-600);
+}
+@utility text-syn-color-error-700 {
+  color: var(--syn-color-error-700);
+}
+@utility text-syn-color-error-800 {
+  color: var(--syn-color-error-800);
+}
+
+/* Success */
+@utility text-syn-color-success {
+  color: var(--syn-color-success-600);
+}
+@utility text-syn-color-success-600 {
+  color: var(--syn-color-success-600);
+}
+@utility text-syn-color-success-700 {
+  color: var(--syn-color-success-700);
+}
+@utility text-syn-color-success-800 {
+  color: var(--syn-color-success-800);
+}
+
+/* Warning */
+@utility text-syn-color-warning-500 {
+  color: var(--syn-color-warning-500);
+}
+@utility text-syn-color-warning-600 {
+  color: var(--syn-color-warning-600);
+}
+@utility text-syn-color-warning-700 {
+  color: var(--syn-color-warning-700);
+}
+@utility text-syn-color-warning-800 {
+  color: var(--syn-color-warning-800);
+}
+
+/* Semantic aliases */
+@utility text-syn-color-green-800 {
+  color: var(--syn-color-success-800);
+}
+@utility text-syn-color-blue-700 {
+  color: var(--syn-color-primary-700);
+}
+@utility text-syn-color-red-500 {
+  color: var(--syn-color-error-500);
+}
+@utility text-syn-color-red-600 {
+  color: var(--syn-color-error-600);
+}
+@utility text-syn-color-red-700 {
+  color: var(--syn-color-error-700);
+}
+
+/* ── border-syn-color-* classes ──────────────────────────────────────────── */
+
+@utility border-syn-color-neutral-50 {
+  border-color: var(--syn-color-neutral-50);
+}
+@utility border-syn-color-neutral-100 {
+  border-color: var(--syn-color-neutral-100);
+}
+@utility border-syn-color-neutral-200 {
+  border-color: var(--syn-color-neutral-200);
+}
+@utility border-syn-color-neutral-300 {
+  border-color: var(--syn-color-neutral-300);
+}
+
+@utility border-syn-color-primary-200 {
+  border-color: var(--syn-color-primary-200);
+}
+@utility border-syn-color-primary-400 {
+  border-color: var(--syn-color-primary-400);
+}
+@utility border-syn-color-primary-500 {
+  border-color: var(--syn-color-primary-500);
+}
+@utility border-syn-color-primary-600 {
+  border-color: var(--syn-color-primary-600);
+}
+
+@utility border-syn-color-error-100 {
+  border-color: var(--syn-color-error-100);
+}
+@utility border-syn-color-error-200 {
+  border-color: var(--syn-color-error-200);
+}
+@utility border-syn-color-error-300 {
+  border-color: var(--syn-color-error-300);
+}
+
+@utility border-syn-color-success-200 {
+  border-color: var(--syn-color-success-200);
+}
+@utility border-syn-color-success-400 {
+  border-color: var(--syn-color-success-400);
+}
+
+@utility border-syn-color-warning-200 {
+  border-color: var(--syn-color-warning-200);
+}
+@utility border-syn-color-warning-300 {
+  border-color: var(--syn-color-warning-300);
+}
+
+/* ── ring-syn-* classes ──────────────────────────────────────────────────── */
+
+@utility ring-syn-color-primary-300 {
+  --tw-ring-color: var(--syn-color-primary-300);
+}
+@utility ring-syn-color-primary-500 {
+  --tw-ring-color: var(--syn-color-primary-500);
 }

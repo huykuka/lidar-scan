@@ -21,9 +21,13 @@ export class PlaybackNodeCardComponent implements NodeCardComponent {
   status = input<NodeStatusUpdate | null>(null);
 
   // ── Config accessors ────────────────────────────────────────────────────────
-  protected recordingId = computed(() => this.node().data.config?.['recording_id'] as string ?? '');
-  protected playbackSpeed = computed(() => this.node().data.config?.['playback_speed'] as number ?? 1.0);
-  protected loopable = computed(() => this.node().data.config?.['loopable'] as boolean ?? false);
+  protected recordingId = computed(
+    () => (this.node().data.config?.['recording_id'] as string) ?? '',
+  );
+  protected playbackSpeed = computed(
+    () => (this.node().data.config?.['playback_speed'] as number) ?? 1.0,
+  );
+  protected loopable = computed(() => (this.node().data.config?.['loopable'] as boolean) ?? false);
 
   /**
    * Playback-specific status badge.
@@ -56,7 +60,7 @@ export class PlaybackNodeCardComponent implements NodeCardComponent {
       case 'ERROR':
         return {
           text: '✕ ERROR',
-          cssClass: 'text-syn-color-danger-600',
+          cssClass: 'text-syn-color-error-600',
         };
       default:
         return null;

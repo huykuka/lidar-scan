@@ -97,7 +97,7 @@ describe('PlaybackNodeCardComponent', () => {
       } as NodeStatusUpdate);
       const badge = component['playbackBadge']();
       expect(badge!.text).toContain('ERROR');
-      expect(badge!.cssClass).toContain('text-syn-color-danger');
+      expect(badge!.cssClass).toContain('text-syn-color-error');
     });
 
     it('should return null when status is null', async () => {

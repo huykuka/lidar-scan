@@ -11,7 +11,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
       [class.bg-syn-page-background-color/10]="active()"
       [class.hover:bg-syn-page-background-color/10]="!active()"
       [class.hover:bg-red-500/20]="danger()"
-      [style.color]="danger() ? 'var(--syn-color-danger-600)' : 'white'"
+      [style.color]="danger() ? 'var(--syn-color-error-600)' : 'white'"
     >
       <syn-button
         variant="text"

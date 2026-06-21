@@ -18,13 +18,8 @@
   <!-- External Control Toggle -->
   <div class="flex flex-col gap-2">
     <div class="flex items-center justify-between">
-      <label class="text-sm font-medium text-syn-color-neutral-700">
-        Control Mode
-      </label>
-      <syn-switch
-        formControlName="use_external_control"
-        size="small"
-      >
+      <label class="text-sm font-medium text-syn-color-neutral-700"> Control Mode </label>
+      <syn-switch formControlName="use_external_control" size="small">
         External Control
       </syn-switch>
     </div>
@@ -53,33 +48,30 @@
       >
         <div slot="help-text" class="flex flex-col gap-1">
           @if (validationError()) {
-            <span class="text-syn-color-danger-600 text-xs">
+            <span class="text-syn-color-error-600 text-xs">
               {{ validationError() }}
             </span>
           } @else {
             <span class="text-syn-color-neutral-500 text-xs">
-              Variables: <code class="syntax-variable">point_count</code>, 
-              <code class="syntax-variable">intensity</code>, 
-              <code class="syntax-variable">x</code>, 
-              <code class="syntax-variable">y</code>, 
+              Variables: <code class="syntax-variable">point_count</code>,
+              <code class="syntax-variable">intensity</code>,
+              <code class="syntax-variable">x</code>, <code class="syntax-variable">y</code>,
               <code class="syntax-variable">z</code>
-              <br>
-              Operators: <code class="syntax-operator">&gt;</code>, 
-              <code class="syntax-operator">&lt;</code>, 
-              <code class="syntax-operator">==</code>, 
-              <code class="syntax-keyword">AND</code>, 
-              <code class="syntax-keyword">OR</code>, 
+              <br />
+              Operators: <code class="syntax-operator">&gt;</code>,
+              <code class="syntax-operator">&lt;</code>, <code class="syntax-operator">==</code>,
+              <code class="syntax-keyword">AND</code>, <code class="syntax-keyword">OR</code>,
               <code class="syntax-keyword">NOT</code>
             </span>
           }
         </div>
       </syn-textarea>
-      
+
       <!-- Autocomplete Dropdown -->
       @if (showAutocomplete()) {
         <div class="autocomplete-dropdown">
           @for (suggestion of autocompleteSuggestions(); track suggestion.label; let idx = $index) {
-            <div 
+            <div
               class="autocomplete-item"
               [class.selected]="idx === selectedSuggestionIndex()"
               (click)="onSuggestionClick(suggestion, $event)"
@@ -99,7 +91,7 @@
           }
         </div>
       }
-      
+
       <!-- Example Expressions -->
       <div class="mt-2 p-2 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
         <span class="text-xs font-semibold text-syn-color-neutral-700">Examples:</span>
@@ -112,17 +104,17 @@
       </div>
     </div>
   }
-  
+
   <!-- External Control URLs - Only show when external control is enabled -->
   @if (form.get('use_external_control')?.value) {
-    <div class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200">
+    <div
+      class="flex flex-col gap-2 p-3 bg-syn-color-neutral-50 rounded border border-syn-color-neutral-200"
+    >
       <span class="text-xs font-semibold text-syn-color-neutral-700">External Control URLs</span>
 
       @if (!isEditMode()) {
         <!-- Pre-save placeholder -->
-        <p class="text-xs text-syn-color-neutral-400 italic">
-          Available after saving the node.
-        </p>
+        <p class="text-xs text-syn-color-neutral-400 italic">Available after saving the node.</p>
       } @else {
         <!-- Set URL -->
         <div class="flex items-center gap-2">
@@ -169,8 +161,8 @@
         </div>
 
         <p class="text-xs text-syn-color-neutral-400">
-          Call these endpoints from any external system to control routing.
-          POST body for set: <code class="bg-syn-color-neutral-100 px-1 rounded">&#123;"value": true&#125;</code>
+          Call these endpoints from any external system to control routing. POST body for set:
+          <code class="bg-syn-color-neutral-100 px-1 rounded">&#123;"value": true&#125;</code>
         </p>
       }
     </div>

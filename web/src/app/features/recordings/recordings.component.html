@@ -12,7 +12,6 @@
           [value]="searchQuery()"
           class="flex-1 max-w-lg"
           placeholder="Search recordings by name, topic, or sensor..."
-          size="medium"
           type="search"
         >
           <syn-icon name="search" slot="prefix" class="pl-3" />
@@ -24,7 +23,6 @@
             <syn-button
               (click)="selectAllFiltered()"
               [disabled]="isLoading() || filteredRecordings().length === 0"
-              size="medium"
               variant="outline"
             >
               <syn-icon name="done_all" slot="prefix" />
@@ -33,23 +31,15 @@
             <syn-button
               (click)="confirmBulkDelete()"
               [disabled]="selectedRecordingIds().size === 0"
-              size="medium"
               style="color: var(--syn-color-error-700); border-color: var(--syn-color-error-700)"
               variant="outline"
             >
               <syn-icon name="delete" slot="prefix" />
               Delete ({{ selectedRecordingIds().size }})
             </syn-button>
-            <syn-button (click)="toggleSelectionMode()" size="medium" variant="text">
-              Cancel
-            </syn-button>
+            <syn-button (click)="toggleSelectionMode()" variant="text"> Cancel </syn-button>
           } @else {
-            <syn-button
-              (click)="triggerUpload()"
-              [disabled]="isUploading()"
-              size="medium"
-              variant="outline"
-            >
+            <syn-button (click)="triggerUpload()" [disabled]="isUploading()" variant="outline">
               @if (isUploading()) {
                 <syn-spinner slot="prefix" size="small" />
                 Uploading...
@@ -61,18 +51,12 @@
             <syn-button
               (click)="toggleSelectionMode()"
               [disabled]="isLoading() || filteredRecordings().length === 0"
-              size="medium"
               variant="outline"
             >
               <syn-icon name="checklist" slot="prefix" />
               Select
             </syn-button>
-            <syn-button
-              (click)="refreshRecordings()"
-              [disabled]="isLoading()"
-              size="medium"
-              variant="outline"
-            >
+            <syn-button (click)="refreshRecordings()" [disabled]="isLoading()" variant="outline">
               <syn-icon name="refresh" slot="prefix" />
               Refresh
             </syn-button>

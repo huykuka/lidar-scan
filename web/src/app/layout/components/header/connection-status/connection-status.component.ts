@@ -1,6 +1,6 @@
-import {Component, computed, inject, output} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {SystemStatusService} from '@core/services/system-status.service';
+import { Component, computed, inject, output } from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { SystemStatusService } from '@core/services/system-status.service';
 
 /**
  * Backend connectivity indicator.
@@ -56,7 +56,7 @@ export class ConnectionStatusComponent {
   protected readonly statusColor = computed(() => {
     const o = this.online();
     if (o === null) return 'var(--syn-color-neutral-500)';
-    return o ? 'var(--syn-color-success-600)' : 'var(--syn-color-danger-600)';
+    return o ? 'var(--syn-color-success-600)' : 'var(--syn-color-error-600)';
   });
 
   protected onRefresh(): void {

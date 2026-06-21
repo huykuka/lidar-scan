@@ -1,16 +1,17 @@
 <div
   (click)="selectable() ? toggleSelection.emit(!selected()) : select.emit(recording)"
-  class="rounded-xl border-syn hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex flex-row relative bg-syn-page-background-color"
-  style="border-color: var(--syn-color-neutral-300);"
+  class="flex items-stretch rounded-xl border-syn hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex-row relative"
+  style="border-color: var(--syn-color-neutral-300)"
 >
   @if (selectable()) {
     <div
       (click)="$event.stopPropagation()"
-      class="h-full flex items-center justify-center bg-syn-color-neutral-50 border-r border-syn-subtle px-3 z-10"
+      class="flex self-center items-center justify-center px-3 z-10 py-4"
     >
-      <syn-checkbox (syn-change)="toggleSelection.emit($any($event.target).checked)"
+      <syn-checkbox
+        (syn-change)="toggleSelection.emit($any($event.target).checked)"
         [checked]="selected()"
-       />
+      />
     </div>
   }
   <div class="flex-shrink-0 h-full bg-slate-900 flex items-center justify-center relative">
@@ -43,12 +44,14 @@
         <h3
           [title]="recording.name"
           class="font-semibold text-sm sm:text-base truncate"
-          style="color: var(--syn-typography-color-text);"
+          style="color: var(--syn-typography-color-text)"
         >
           {{ recording.name }}
         </h3>
-        <span class="text-[10px] sm:text-xs flex items-center gap-1 flex-shrink-0"
-          style="color: var(--syn-color-neutral-500)">
+        <span
+          class="text-[10px] sm:text-xs flex items-center gap-1 flex-shrink-0"
+          style="color: var(--syn-color-neutral-500)"
+        >
           <syn-icon class="text-[10px] sm:text-xs" name="calendar_today" />
           {{ recording.created_at | date: 'yyyy-MM-dd HH:mm:ss' }}
         </span>
@@ -56,8 +59,10 @@
     </div>
 
     <!-- Badges / Metadata -->
-    <div class="flex items-center gap-3 sm:gap-6 text-[11px] sm:text-xs mt-auto"
-      style="color: var(--syn-color-neutral-600)">
+    <div
+      class="flex items-center gap-3 sm:gap-6 text-[11px] sm:text-xs mt-auto"
+      style="color: var(--syn-color-neutral-600)"
+    >
       <div class="flex items-center gap-1.5" title="Frames">
         <syn-icon class="text-neutral-400" name="layers" />
         <span class="font-medium">{{ recording.frame_count }}</span>
@@ -74,35 +79,31 @@
   </div>
 
   <!-- Quick Actions Column -->
-  <div
-    class="flex flex-col justify-center gap-2 px-3 py-2 bg-syn-color-neutral-50 border-l border-syn-subtle flex-shrink-0"
-  >
-    <syn-button
+  <div class="flex flex-col justify-center gap-2 px-3 py-2 bg-syn-color-neutral-50 flex-shrink-0">
+    <syn-icon-button
+      variant="text"
+      name="play_arrow"
+      color="primary"
       (click)="play.emit(recording); $event.stopPropagation()"
-      size="small"
-      title="Play Recording"
-      variant="filled"
+      label="Delete"
     >
-      <syn-icon name="play_arrow" />
-    </syn-button>
+    </syn-icon-button>
 
-    <syn-button
+    <syn-icon-button
+      variant="text"
+      name="download"
       (click)="download.emit(recording); $event.stopPropagation()"
-      size="small"
-      title="Download ZIP"
-      variant="outline"
+      label="Delete"
     >
-      <syn-icon name="download" />
-    </syn-button>
+    </syn-icon-button>
 
-    <syn-button
+    <syn-icon-button
+      variant="text"
+      style="color: var(--syn-color-error-600)"
+      name="delete"
       (click)="delete.emit(recording); $event.stopPropagation()"
-      size="small"
-      style="color: var(--syn-color-error-700); border-color: var(--syn-color-error-700)"
-      title="Delete"
-      variant="outline"
+      label="Delete"
     >
-      <syn-icon name="delete" />
-    </syn-button>
+    </syn-icon-button>
   </div>
 </div>
