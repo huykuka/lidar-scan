@@ -122,18 +122,6 @@ OPENAPI_TAGS: list[dict] = [
 ]
 
 
-def get_static_path():
-    """Get the correct static files path for both development and PyInstaller builds."""
-    if getattr(sys, "frozen", False):
-        # Running in PyInstaller bundle
-        base_path = Path(sys._MEIPASS)
-    else:
-        # Running in development
-        base_path = Path(__file__).parent.parent
-
-    static_path = base_path / "app" / "static"
-    return str(static_path)
-
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
@@ -227,35 +215,5 @@ data_dir = Path("data")
 data_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/data", StaticFiles(directory=str(data_dir)), name="data")
 
-# Serve Angular SPA (and assets) from app/static at root.
-# Keep this mount LAST so API routes (e.g. /lidars, /ws/*, /status) take precedence.
-static_dir = get_static_path()
-if os.path.exists(static_dir):
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="spa")
-
-    # Protected prefixes that should not fall through to SPA
-    PROTECTED_PREFIXES = (
-        "/api/",
-        "/recordings/",
-        "/data/",
-        "/docs",
-        "/redoc",
-        "/openapi.json",
-    )
-
-    @app.exception_handler(StarletteHTTPException)
-    async def custom_http_exception_handler(
-        request: Request, exc: StarletteHTTPException
-    ):
-        if exc.status_code == 404:
-            # If the request is not for protected paths, return the SPA index.html
-            if not any(request.url.path.startswith(p) for p in PROTECTED_PREFIXES):
-                index_path = Path(static_dir) / "index.html"
-                if index_path.exists():
-                    return FileResponse(index_path)
-
-        # Otherwise, fall back to standard JSON response
-        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
-
-else:
-    logger.warning(f"Static directory not found at {static_dir}")
+#Serve frontend app
+app.frontend('/', directory="app/static",fallback="index.html")
