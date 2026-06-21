@@ -46,7 +46,8 @@
               "src/styles.css",
               "@synergy-design-system/fonts/src/sick-intl/font.css",
               "@synergy-design-system/tokens/themes/light.css",
-              "@synergy-design-system/components/index.css"
+              "@synergy-design-system/components/index.css",
+              "@synergy-design-system/styles/index.css"
             ]
           },
           "configurations": {
