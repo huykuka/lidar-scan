@@ -1,24 +1,36 @@
-import {Component, computed, effect, HostListener, inject, input, OnDestroy, OnInit, signal, untracked} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {
+  Component,
+  computed,
+  effect,
+  HostListener,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+  signal,
+  untracked,
+} from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
-import {NodePlugin} from '@core/models';
-import {Edge} from '@core/models/node.model';
-import {NodeStoreService} from '@core/services/stores';
-import {NodesApiService} from '@core/services/api';
-import {DialogService, ToastService} from '@core/services';
-import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
-import {NodeStatusService} from '@core/services/node-status.service';
-import {SystemStatusService} from '@core/services/system-status.service';
-import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
-import {ThemeService} from '@core/services/theme.service';
+import { NodePlugin } from '@core/models';
+import { Edge } from '@core/models/node.model';
+import { NodeStoreService } from '@core/services/stores';
+import { NodesApiService } from '@core/services/api';
+import { DialogService, ToastService } from '@core/services';
+import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
+import { NodeStatusService } from '@core/services/node-status.service';
+import { SystemStatusService } from '@core/services/system-status.service';
+import { CanvasEditStoreService } from '@features/settings/services/canvas-edit-store.service';
+import { ThemeService } from '@core/services/theme.service';
 
-import {CanvasNode, FlowCanvasNodeComponent} from './node/flow-canvas-node.component';
-import {FlowCanvasPaletteComponent} from './palette/flow-canvas-palette.component';
-import {FlowCanvasControlsComponent} from './controls/flow-canvas-controls.component';
-import {FlowCanvasConnectionsComponent} from './connections/flow-canvas-connections.component';
-import {FlowCanvasEmptyStateComponent} from './empty-state/flow-canvas-empty-state.component';
-import {DynamicNodeEditorComponent} from '../dynamic-node-editor/dynamic-node-editor.component';
-import {OutputViewerComponent} from '@features/settings/components/flow-canvas/output-viewer/output-viewer.component';
+import { CanvasNode, FlowCanvasNodeComponent } from './node/flow-canvas-node.component';
+import { FlowCanvasPaletteComponent } from './palette/flow-canvas-palette.component';
+import { FlowCanvasControlsComponent } from './controls/flow-canvas-controls.component';
+import { FlowCanvasConnectionsComponent } from './connections/flow-canvas-connections.component';
+import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-state.component';
+import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
+import { OutputViewerComponent } from '@features/settings/components/flow-canvas/output-viewer/output-viewer.component';
+import { AuthService } from '@app/core/services/auth.service';
 
 @Component({
   selector: 'app-flow-canvas',
@@ -39,7 +51,7 @@ import {OutputViewerComponent} from '@features/settings/components/flow-canvas/o
 export class FlowCanvasComponent implements OnInit, OnDestroy {
   // ------ Inputs ------
   readonly readOnly = input(false);
-
+  readonly auth = inject(AuthService);
   // ------ Store ------
   private nodeStore = inject(NodeStoreService);
   protected canvasEditStore = inject(CanvasEditStoreService);
@@ -50,29 +62,41 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   protected readonly gridDotColor = computed(() => {
     // Depend on theme signal so computed re-runs on theme change
     const _theme = this.themeService.theme();
-    return getComputedStyle(document.documentElement)
-      .getPropertyValue('--syn-color-neutral-300').trim() || '#d1d5db';
+    return (
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--syn-color-neutral-300')
+        .trim() || '#d1d5db'
+    );
   });
-
+  protected canEdit = this.auth.canEdit;
   /** Active grid dot color (snap enabled) — slightly more visible */
   protected readonly gridDotColorActive = computed(() => {
     const _theme = this.themeService.theme();
-    return getComputedStyle(document.documentElement)
-      .getPropertyValue('--syn-color-neutral-400').trim() || '#9ca3af';
+    return (
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--syn-color-neutral-400')
+        .trim() || '#9ca3af'
+    );
   });
 
   /** Primary edge color for connections — Synergy primary-600 */
   protected readonly edgeColor = computed(() => {
     const _theme = this.themeService.theme();
-    return getComputedStyle(document.documentElement)
-      .getPropertyValue('--syn-color-primary-600').trim() || '#005aff';
+    return (
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--syn-color-primary-600')
+        .trim() || '#005aff'
+    );
   });
 
   /** Faded overlay color for animated flow dash */
   protected readonly edgeFlowColor = computed(() => {
     const _theme = this.themeService.theme();
-    return getComputedStyle(document.documentElement)
-      .getPropertyValue('--syn-color-primary-300').trim() || '#80adff';
+    return (
+      getComputedStyle(document.documentElement)
+        .getPropertyValue('--syn-color-primary-300')
+        .trim() || '#80adff'
+    );
   });
 
   // ------ View state owned by the component ------
@@ -291,7 +315,13 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     }
   }
 
-  onPortDragStart(event: { nodeId: string; portType: 'input' | 'output'; portId: string; portIndex: number; event: MouseEvent }) {
+  onPortDragStart(event: {
+    nodeId: string;
+    portType: 'input' | 'output';
+    portId: string;
+    portIndex: number;
+    event: MouseEvent;
+  }) {
     if (event.portType !== 'output') return;
     event.event.preventDefault();
     this.pendingConnection.set({
@@ -318,9 +348,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const exists = this.canvasEditStore.localEdges().some(
-      (e) => e.source_node === sourceId && e.target_node === targetId && e.source_port === pending.fromPortId,
-    );
+    const exists = this.canvasEditStore
+      .localEdges()
+      .some(
+        (e) =>
+          e.source_node === sourceId &&
+          e.target_node === targetId &&
+          e.source_port === pending.fromPortId,
+      );
     if (exists) {
       this.toast.danger('Connection already exists.');
       this.pendingConnection.set(null);
@@ -500,23 +535,24 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
     const ctrl = event.ctrlKey || event.metaKey;
+    if (this.canEdit()) {
+      if (ctrl && event.key === 'a') {
+        event.preventDefault();
+        this.selectedNodeIds.set(new Set(this.canvasNodes().map((n) => n.id)));
+        return;
+      }
 
-    if (ctrl && event.key === 'a') {
-      event.preventDefault();
-      this.selectedNodeIds.set(new Set(this.canvasNodes().map((n) => n.id)));
-      return;
-    }
+      if (ctrl && event.key === 'c') {
+        event.preventDefault();
+        this._copySelectedNodes();
+        return;
+      }
 
-    if (ctrl && event.key === 'c') {
-      event.preventDefault();
-      this._copySelectedNodes();
-      return;
-    }
-
-    if (ctrl && event.key === 'v') {
-      event.preventDefault();
-      this._pasteNodes();
-      return;
+      if (ctrl && event.key === 'v') {
+        event.preventDefault();
+        this._pasteNodes();
+        return;
+      }
     }
 
     if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -610,9 +646,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
     const selected = this.selectedNodeIds();
     if (selected.size === 0) return;
     const nodes = this.canvasNodes().filter((n) => selected.has(n.id));
-    const edges = this.canvasEditStore.localEdges().filter(
-      (e) => selected.has(e.source_node) && selected.has(e.target_node),
-    );
+    const edges = this.canvasEditStore
+      .localEdges()
+      .filter((e) => selected.has(e.source_node) && selected.has(e.target_node));
     this.clipboard.set({ nodes: structuredClone(nodes), edges: structuredClone(edges) });
     this.toast.success(`Copied ${nodes.length} node(s).`);
   }
