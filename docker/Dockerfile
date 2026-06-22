@@ -30,7 +30,7 @@ FROM --platform=$BUILDPLATFORM node:24-slim AS frontend-builder
 WORKDIR /web
 # Copy package manifests first for caching
 COPY web/package*.json ./
-RUN npm ci
+RUN npm ci --force
 # Copy rest of frontend source and build
 COPY web/ ./
 RUN npm run build -- --configuration production
