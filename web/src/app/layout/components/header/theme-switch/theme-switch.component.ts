@@ -15,7 +15,7 @@ import { ThemeService } from '@core/services/theme.service';
     <syn-icon-button
       [name]="icon()"
       [label]="label()"
-      size="large"
+      size="medium"
       (click)="toggle()"
     ></syn-icon-button>
   `,

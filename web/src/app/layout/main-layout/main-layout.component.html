@@ -15,28 +15,6 @@
     <!-- Content Area -->
     <div class="flex-1 flex flex-col overflow-hidden bg-syn-page-background-color-muted min-h-0">
       <main class="flex-1 flex flex-col px-4 py-3 overflow-auto lg:overflow-hidden min-h-0">
-        <header class="mb-2 px-2 shrink-0 flex justify-between items-end">
-          <div class="flex flex-col">
-            <h1 class="text-2xl font-black tracking-tight text-syn-typography-color-text">
-              {{ headline() }}
-            </h1>
-            @if (subtitle()) {
-              <p class="mt-1 text-sm">
-                {{ subtitle() }}
-              </p>
-            } @else {
-              <p
-                class="mt-0 text-[10px] font-bold text-syn-color-neutral-500 uppercase tracking-widest"
-              >
-                LiDAR Control Surface
-              </p>
-            }
-          </div>
-          @if (showActionsSlot()) {
-            <div class="flex items-center gap-2 mb-1" id="page-actions-container"></div>
-          }
-        </header>
-
         <!-- Main Content Slot -->
         <div class="flex-1 flex flex-col lg:min-h-0 relative lg:overflow-hidden pb-1 pr-1">
           <router-outlet />

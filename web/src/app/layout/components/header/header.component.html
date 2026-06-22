@@ -1,28 +1,27 @@
-<syn-header #header [label]="label()">
+<syn-header #header>
   <nav slot="meta-navigation" class="flex items-center">
-    <!-- Backend connectivity -->
     <app-connection-status (refresh)="onRefresh()" />
 
-    <syn-divider [vertical]="true"></syn-divider>
-
-    <!-- Sensor nodes health -->
     <app-sensor-status />
 
-    <syn-divider [vertical]="true"></syn-divider>
-
-    <!-- System errors / notices -->
     <app-notices-status (acknowledge)="onAcknowledge()" />
 
-    <!-- Per-page actions injected by child routes -->
-    <ng-content select="[meta-nav]" />
-
-    <syn-divider [vertical]="true"></syn-divider>
-
-    <!-- Theme toggle -->
     <app-theme-switch />
-
-    <syn-divider [vertical]="true"></syn-divider>
 
     <app-user-info />
   </nav>
+
+  <div slot="label" class="flex items-center gap-2 h-full">
+    <span class="font-semibold text-lg whitespace-nowrap">
+      {{ label() }}
+    </span>
+
+    @if (headline()) {
+      <syn-icon name="chevron_right" class="text-neutral-500 flex-shrink-0"></syn-icon>
+
+      <span class="text-base self-center" style="color: var(--syn-color-neutral-700)">
+        {{ headline() }}
+      </span>
+    }
+  </div>
 </syn-header>

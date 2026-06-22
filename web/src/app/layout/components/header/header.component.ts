@@ -1,12 +1,12 @@
-import {Component, inject, input, viewChild} from '@angular/core';
-import {SynergyComponentsModule, SynHeaderComponent} from '@synergy-design-system/angular';
-import {SystemStatusService} from '../../../core/services/system-status.service';
-import {NavigationService} from '../../../core/services/navigation.service';
-import {ConnectionStatusComponent} from './connection-status/connection-status.component';
-import {SensorStatusComponent} from './sensor-status/sensor-status.component';
-import {NoticesStatusComponent} from './notices-status/notices-status.component';
-import {UserInfoComponent} from './user-info/user-info.component';
-import {ThemeSwitchComponent} from './theme-switch/theme-switch.component';
+import { Component, inject, input, viewChild } from '@angular/core';
+import { SynergyComponentsModule, SynHeaderComponent } from '@synergy-design-system/angular';
+import { SystemStatusService } from '../../../core/services/system-status.service';
+import { NavigationService } from '../../../core/services/navigation.service';
+import { ConnectionStatusComponent } from './connection-status/connection-status.component';
+import { SensorStatusComponent } from './sensor-status/sensor-status.component';
+import { NoticesStatusComponent } from './notices-status/notices-status.component';
+import { UserInfoComponent } from './user-info/user-info.component';
+import { ThemeSwitchComponent } from './theme-switch/theme-switch.component';
 
 @Component({
   selector: 'app-header',
@@ -24,10 +24,14 @@ import {ThemeSwitchComponent} from './theme-switch/theme-switch.component';
 })
 export class HeaderComponent {
   label = input<string>('Lidar 3D Control Cockpit');
+
   readonly synHeader = viewChild.required<SynHeaderComponent>('header');
 
   private readonly systemStatus = inject(SystemStatusService);
   private readonly navService = inject(NavigationService);
+
+  protected readonly headline = this.navService.headline;
+  protected readonly subtitle = this.navService.subtitle;
 
   protected readonly currentPage = this.navService.headline;
 

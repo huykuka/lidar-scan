@@ -1,13 +1,21 @@
-import {AfterViewInit, Component, HostListener, inject, OnInit, signal, viewChild} from '@angular/core';
-import {ChildrenOutletContexts, RouterOutlet} from '@angular/router';
+import {
+  AfterViewInit,
+  Component,
+  HostListener,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { ChildrenOutletContexts, RouterOutlet } from '@angular/router';
 
-import {NavigationService} from '@core/services';
-import {NodeStatusService} from '@core/services/node-status.service';
-import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {HeaderComponent} from '../components/header/header.component';
-import {SideNavComponent} from '../components/side-nav/side-nav.component';
-import {FooterComponent} from '../components/footer/footer.component';
-import {pageTransition} from '@core/animations/page-transitions';
+import { NavigationService } from '@core/services';
+import { NodeStatusService } from '@core/services/node-status.service';
+import { NodeStoreService } from '@core/services/stores/node-store.service';
+import { HeaderComponent } from '../components/header/header.component';
+import { SideNavComponent } from '../components/side-nav/side-nav.component';
+import { FooterComponent } from '../components/footer/footer.component';
+import { pageTransition } from '@core/animations/page-transitions';
 
 @Component({
   selector: 'app-main-layout',
@@ -24,8 +32,6 @@ export class MainLayoutComponent implements OnInit, AfterViewInit {
   private navService = inject(NavigationService);
   private nodeStore = inject(NodeStoreService);
   private nodeStatus = inject(NodeStatusService);
-  protected readonly headline = this.navService.headline;
-  protected readonly subtitle = this.navService.subtitle;
   protected readonly showActionsSlot = this.navService.showActionsSlot;
   private contexts = inject(ChildrenOutletContexts);
   private readonly desktopBreakpoint = 1024;
