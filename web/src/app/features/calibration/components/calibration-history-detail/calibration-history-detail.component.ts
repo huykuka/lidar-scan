@@ -1,4 +1,4 @@
-import {Component, computed, inject, input, output} from '@angular/core';
+import {Component, computed, inject, input, output, ChangeDetectionStrategy} from '@angular/core';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CalibrationHistoryRecord} from '@core/models';
@@ -13,6 +13,7 @@ import {NodeConfig} from '../../../../core/models/node.model';
   selector: 'app-calibration-history-detail',
   standalone: true,
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './calibration-history-detail.component.html',
 })
 export class CalibrationHistoryDetailComponent {

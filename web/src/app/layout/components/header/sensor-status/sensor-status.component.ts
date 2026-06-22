@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeStoreService } from '@core/services/stores';
 
@@ -13,6 +13,7 @@ import { NodeStoreService } from '@core/services/stores';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './sensor-status.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     :host {
       display: inline-flex;

@@ -1,4 +1,4 @@
-import { Component, computed, effect, HostListener, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, effect, HostListener, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { NavigationService, ToastService } from '@core/services';
@@ -23,6 +23,7 @@ import { HasUnsavedChanges } from '@core/guards/unsaved-changes.guard';
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
   providers: [CanvasEditStoreService],
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [FormsModule, SynergyComponentsModule, ConfigImportDialogComponent, FlowCanvasComponent],
 })
 export class SettingsComponent implements OnInit, HasUnsavedChanges {

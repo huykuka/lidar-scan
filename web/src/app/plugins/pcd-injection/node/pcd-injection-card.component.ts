@@ -1,4 +1,4 @@
-import {Component, computed, input} from '@angular/core';
+import {Component, computed, input, ChangeDetectionStrategy} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
@@ -13,6 +13,7 @@ import {NodeCardComponent} from '@core/models/node-plugin.model';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './pcd-injection-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './pcd-injection-card.component.css',
 })
 export class PcdInjectionCardComponent implements NodeCardComponent {

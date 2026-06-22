@@ -1,4 +1,4 @@
-import { Component, effect, inject, OnInit, signal } from '@angular/core';
+import { Component, effect, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import {
@@ -15,6 +15,7 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   imports: [SynergyComponentsModule, RouterModule],
   templateUrl: './node-results-list.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './node-results-list.component.css',
 })
 export class NodeResultsListComponent implements OnInit {

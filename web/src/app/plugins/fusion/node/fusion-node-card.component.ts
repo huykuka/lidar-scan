@@ -1,4 +1,4 @@
-import {Component, computed, inject, input} from '@angular/core';
+import {Component, computed, inject, input, ChangeDetectionStrategy} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
@@ -11,6 +11,7 @@ import {NodeStoreService} from '@core/services/stores/node-store.service';
 
   imports: [SynergyComponentsModule],
   templateUrl: './fusion-node-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './fusion-node-card.component.css',
 })
 export class FusionNodeCardComponent implements NodeCardComponent {

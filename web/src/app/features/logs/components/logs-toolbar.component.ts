@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, ChangeDetectionStrategy } from '@angular/core';
 
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
@@ -6,6 +6,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
   selector: 'app-logs-toolbar',
   standalone: true,
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div
       class="bg-syn-page-background-color p-3 flex items-center justify-between gap-4 transition-all duration-300"

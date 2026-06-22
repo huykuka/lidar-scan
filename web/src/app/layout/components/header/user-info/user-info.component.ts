@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
 import { AuthService } from '@core/services/auth.service';
@@ -8,6 +8,7 @@ import { AuthService } from '@core/services/auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, SynergyFormsModule],
   templateUrl: './user-info.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './user-info.component.css',
 })
 export class UserInfoComponent {

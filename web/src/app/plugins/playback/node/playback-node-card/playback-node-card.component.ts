@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, ChangeDetectionStrategy } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { CanvasNode } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
 import { NodeStatusUpdate } from '@core/models/node-status.model';
@@ -14,6 +14,7 @@ interface PlaybackBadge {
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './playback-node-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './playback-node-card.component.css',
 })
 export class PlaybackNodeCardComponent implements NodeCardComponent {

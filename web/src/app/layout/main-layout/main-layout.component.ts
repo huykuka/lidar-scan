@@ -6,6 +6,7 @@ import {
   OnInit,
   signal,
   viewChild,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { ChildrenOutletContexts, RouterOutlet } from '@angular/router';
 
@@ -23,6 +24,7 @@ import { pageTransition } from '@core/animations/page-transitions';
   imports: [RouterOutlet, HeaderComponent, SideNavComponent, FooterComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.css',
+  changeDetection: ChangeDetectionStrategy.Eager,
   animations: [pageTransition],
 })
 export class MainLayoutComponent implements OnInit, AfterViewInit {

@@ -1,4 +1,4 @@
-import {Component, computed, inject, OnDestroy, OnInit, signal} from '@angular/core';
+import {Component, computed, inject, OnDestroy, OnInit, signal, ChangeDetectionStrategy} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
 import {LogsStoreService} from '@core/services/stores';
@@ -21,6 +21,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
     LogsTableComponent,
     SynergyComponentsModule
   ],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './logs.component.html',
 })
 export class LogsComponent implements OnInit, OnDestroy {

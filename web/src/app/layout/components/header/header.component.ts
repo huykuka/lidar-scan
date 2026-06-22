@@ -1,4 +1,4 @@
-import { Component, inject, input, viewChild } from '@angular/core';
+import { Component, inject, input, viewChild, ChangeDetectionStrategy } from '@angular/core';
 import { SynergyComponentsModule, SynHeaderComponent } from '@synergy-design-system/angular';
 import { SystemStatusService } from '../../../core/services/system-status.service';
 import { NavigationService } from '../../../core/services/navigation.service';
@@ -20,6 +20,7 @@ import { ThemeSwitchComponent } from './theme-switch/theme-switch.component';
     ThemeSwitchComponent,
   ],
   templateUrl: './header.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './header.component.css',
 })
 export class HeaderComponent {

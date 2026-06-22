@@ -1,4 +1,4 @@
-import {Component, computed, inject, OnDestroy, OnInit, output, signal} from '@angular/core';
+import {Component, computed, inject, OnDestroy, OnInit, output, signal, ChangeDetectionStrategy} from '@angular/core';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
@@ -31,6 +31,7 @@ interface AutocompleteSuggestion {
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent, SynergyFormsModule, CommonModule],
   providers: [NodeEditorFacadeService],
   templateUrl: './if-condition-editor.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './if-condition-editor.component.css',
 })
 export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditorComponent {

@@ -1,4 +1,4 @@
-import {Component, computed, effect, inject, OnDestroy, signal} from '@angular/core';
+import {Component, computed, effect, inject, OnDestroy, signal, ChangeDetectionStrategy} from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
 import {KeyValuePipe} from '@angular/common';
 import {ActivatedRoute, Router} from '@angular/router';
@@ -21,6 +21,7 @@ import {NodeConfig} from '@core/models/node.model';
     KeyValuePipe,
   ],
   templateUrl: './calibration-viewer.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './calibration-viewer.component.css',
 })
 export class CalibrationViewerComponent implements OnDestroy {

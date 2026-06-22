@@ -1,4 +1,4 @@
-import {Component, computed, inject, input, OnDestroy, signal} from '@angular/core';
+import {Component, computed, inject, input, OnDestroy, signal, ChangeDetectionStrategy} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '../flow-canvas-node.component';
 import {RecordingStoreService} from '@core/services/stores';
@@ -8,6 +8,7 @@ import {NodeStatusUpdate} from '@core/models';
 @Component({
   selector: 'app-node-recording-controls',
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './node-recording-controls.html',
 })
 export class NodeRecordingControls implements OnDestroy {

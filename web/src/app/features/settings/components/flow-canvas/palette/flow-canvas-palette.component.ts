@@ -1,4 +1,4 @@
-import {Component, computed, effect, input, output, signal, untracked} from '@angular/core';
+import {Component, computed, effect, input, output, signal, untracked, ChangeDetectionStrategy} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodePlugin} from '@core/models';
@@ -7,6 +7,7 @@ import {NodePlugin} from '@core/models';
   selector: 'app-flow-canvas-palette',
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-palette.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './flow-canvas-palette.component.css',
 })
 export class FlowCanvasPaletteComponent {

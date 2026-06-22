@@ -1,4 +1,4 @@
-import {Component, input, output} from '@angular/core';
+import {Component, input, output, ChangeDetectionStrategy} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodeConfig} from '@core/models/node.model';
 
@@ -6,6 +6,7 @@ import {NodeConfig} from '@core/models/node.model';
   selector: 'app-node-visibility-toggle',
   imports: [SynergyComponentsModule],
   templateUrl: './node-visibility-toggle.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './node-visibility-toggle.component.css',
 })
 export class NodeVisibilityToggleComponent {

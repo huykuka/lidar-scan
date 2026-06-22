@@ -1,4 +1,4 @@
-import {Component, input, output} from '@angular/core';
+import {Component, input, output, ChangeDetectionStrategy} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
@@ -14,6 +14,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-controls.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './flow-canvas-controls.component.css',
 })
 export class FlowCanvasControlsComponent {

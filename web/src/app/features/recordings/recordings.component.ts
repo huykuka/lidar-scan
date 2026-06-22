@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, computed, ElementRef, inject, OnInit, signal, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { RecordingStoreService } from '@core/services/stores/recording-store.service';
@@ -15,6 +15,7 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   imports: [SynergyComponentsModule, RecordingCardComponent],
   templateUrl: './recordings.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './recordings.component.css',
 })
 export class RecordingsComponent implements OnInit {

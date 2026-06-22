@@ -9,6 +9,7 @@ import {
   OnInit,
   signal,
   untracked,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
@@ -46,6 +47,7 @@ import { AuthService } from '@app/core/services/auth.service';
     OutputViewerComponent,
   ],
   templateUrl: './flow-canvas.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './flow-canvas.component.css',
 })
 export class FlowCanvasComponent implements OnInit, OnDestroy {

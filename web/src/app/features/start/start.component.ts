@@ -1,4 +1,4 @@
-import {Component, inject, OnInit} from '@angular/core';
+import {Component, inject, OnInit, ChangeDetectionStrategy} from '@angular/core';
 import {Router} from '@angular/router';
 import {NavigationService} from '@core/services';
 import {SynIconComponent} from '@synergy-design-system/angular';
@@ -8,6 +8,7 @@ import {SynIconComponent} from '@synergy-design-system/angular';
   standalone: true,
   templateUrl: './start.component.html',
   styleUrl: './start.component.css',
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [SynIconComponent],
 })
 export class StartComponent implements OnInit {

@@ -1,4 +1,4 @@
-import {Component, computed, inject, input, output, viewChild} from '@angular/core';
+import {Component, computed, inject, input, output, viewChild, ChangeDetectionStrategy} from '@angular/core';
 
 import {NavigationEnd, Router, RouterModule} from '@angular/router';
 import {filter} from 'rxjs/operators';
@@ -13,6 +13,7 @@ const ROLE_LEVELS: Record<UserRole, number> = {user: 0, admin: 1, service: 2};
   standalone: true,
   imports: [RouterModule, SynergyComponentsModule],
   templateUrl: './side-nav.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './side-nav.component.css',
 })
 export class SideNavComponent {

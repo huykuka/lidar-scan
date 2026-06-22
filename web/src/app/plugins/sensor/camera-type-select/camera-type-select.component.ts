@@ -1,4 +1,4 @@
-import {Component, computed, inject, input, output} from '@angular/core';
+import {Component, computed, inject, input, output, ChangeDetectionStrategy} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {VisionaryProfilesApiService} from '@core/services/api/visionary-profiles-api.service';
@@ -6,6 +6,7 @@ import {VisionaryProfilesApiService} from '@core/services/api/visionary-profiles
 @Component({
   selector: 'app-camera-type-select',
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './camera-type-select.component.html',
 })
 export class CameraTypeSelectComponent {

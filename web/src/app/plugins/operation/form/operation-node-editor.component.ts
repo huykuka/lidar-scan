@@ -1,4 +1,4 @@
-import {Component, computed, effect, inject, OnDestroy, output, signal} from '@angular/core';
+import {Component, computed, effect, inject, OnDestroy, output, signal, ChangeDetectionStrategy} from '@angular/core';
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -14,6 +14,7 @@ import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './operation-node-editor.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './operation-node-editor.component.css',
 })
 export class OperationNodeEditorComponent implements NodeEditorComponent, OnDestroy {

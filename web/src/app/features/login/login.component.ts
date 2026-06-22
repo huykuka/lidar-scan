@@ -1,4 +1,4 @@
-import {Component, inject, signal} from '@angular/core';
+import {Component, inject, signal, ChangeDetectionStrategy} from '@angular/core';
 import {Router} from '@angular/router';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
@@ -9,6 +9,7 @@ import {AuthService} from '@core/services/auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, SynergyFormsModule],
   templateUrl: './login.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './login.component.css',
 })
 export class LoginComponent {

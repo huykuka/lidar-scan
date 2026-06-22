@@ -1,4 +1,4 @@
-import {Component, computed, effect, inject, OnDestroy} from '@angular/core';
+import {Component, computed, effect, inject, OnDestroy, ChangeDetectionStrategy} from '@angular/core';
 import {KeyValuePipe} from '@angular/common';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -17,6 +17,7 @@ const ICP_MIN_SOURCE_SENSORS = 1;
   standalone: true,
   imports: [SynergyComponentsModule, KeyValuePipe],
   templateUrl: './calibration.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './calibration.component.css',
 })
 export class CalibrationComponent implements OnDestroy {

@@ -1,4 +1,4 @@
-import {Component, computed, input, output, signal} from '@angular/core';
+import {Component, computed, input, output, signal, ChangeDetectionStrategy} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CalibrationHistoryRecord} from '@core/models';
 
@@ -11,6 +11,7 @@ import {CalibrationHistoryRecord} from '@core/models';
   selector: 'app-calibration-history-table',
   standalone: true,
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './calibration-history-table.component.html',
 })
 export class CalibrationHistoryTableComponent {

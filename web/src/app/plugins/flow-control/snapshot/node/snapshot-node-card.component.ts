@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, ChangeDetectionStrategy } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeCardComponent } from '@core/models/node-plugin.model';
 import { CanvasNode } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
@@ -13,6 +13,7 @@ import { NodeStatusUpdate } from '@core/models/node-status.model';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './snapshot-node-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './snapshot-node-card.component.css',
 })
 export class SnapshotNodeCardComponent implements NodeCardComponent {

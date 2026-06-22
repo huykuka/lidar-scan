@@ -1,4 +1,4 @@
-import {Component, computed, inject, input, output,} from '@angular/core';
+import {Component, computed, inject, input, output, ChangeDetectionStrategy} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.service';
@@ -6,6 +6,7 @@ import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.ser
 @Component({
   selector: 'app-lidar-type-select',
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './lidar-type-select.component.html',
 })
 export class LidarTypeSelectComponent {

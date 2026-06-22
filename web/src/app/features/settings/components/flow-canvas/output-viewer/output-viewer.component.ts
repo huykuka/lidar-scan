@@ -1,4 +1,4 @@
-import {Component, computed, effect, ElementRef, inject, OnDestroy, signal, viewChild} from '@angular/core';
+import {Component, computed, effect, ElementRef, inject, OnDestroy, signal, viewChild, ChangeDetectionStrategy} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -25,6 +25,7 @@ const RENDER_WINDOW = 100;
   selector: 'app-output-viewer',
   imports: [SynergyComponentsModule, DatePipe],
   templateUrl: './output-viewer.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './output-viewer.component.css',
 })
 export class OutputViewerComponent implements OnDestroy {

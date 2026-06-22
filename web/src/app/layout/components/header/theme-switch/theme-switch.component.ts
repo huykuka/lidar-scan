@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { ThemeService } from '@core/services/theme.service';
 
@@ -19,6 +19,7 @@ import { ThemeService } from '@core/services/theme.service';
       (click)="toggle()"
     ></syn-icon-button>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     :host {
       display: inline-flex;

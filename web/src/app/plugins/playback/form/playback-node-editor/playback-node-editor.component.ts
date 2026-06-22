@@ -7,6 +7,7 @@ import {
   output,
   signal,
   untracked,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { DatePipe, DecimalPipe } from '@angular/common';
@@ -32,6 +33,7 @@ import {
   imports: [SynergyComponentsModule, NodeEditorHeaderComponent, PoseFormComponent, DatePipe, DecimalPipe],
   providers: [NodeEditorFacadeService],
   templateUrl: './playback-node-editor.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './playback-node-editor.component.css',
 })
 export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestroy {

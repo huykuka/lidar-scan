@@ -1,4 +1,4 @@
-import {Component, computed, inject, input} from '@angular/core';
+import {Component, computed, inject, input, ChangeDetectionStrategy} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CanvasNode} from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
@@ -12,6 +12,7 @@ import {ZERO_POSE} from '@core/models/pose.model';
 
   imports: [SynergyComponentsModule],
   templateUrl: './sensor-node-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './sensor-node-card.component.css',
 })
 export class SensorNodeCardComponent implements NodeCardComponent {

@@ -1,4 +1,4 @@
-import {Component, inject} from '@angular/core';
+import {Component, inject, ChangeDetectionStrategy} from '@angular/core';
 import {RouterOutlet} from '@angular/router';
 import {AppInitService} from './core/services/app-init.service';
 import {LoadingScreenComponent} from './layout/loading-screen/loading-screen.component';
@@ -8,6 +8,7 @@ import {LoadingScreenComponent} from './layout/loading-screen/loading-screen.com
   standalone: true,
   imports: [RouterOutlet, LoadingScreenComponent],
   templateUrl: './app.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './app.css',
 })
 export class App {

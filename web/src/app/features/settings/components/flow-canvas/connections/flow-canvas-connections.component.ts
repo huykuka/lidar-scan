@@ -1,4 +1,4 @@
-import {Component, input, output} from '@angular/core';
+import {Component, input, output, ChangeDetectionStrategy} from '@angular/core';
 
 
 export interface Connection {
@@ -19,6 +19,7 @@ export interface PendingConnection {
   standalone: true,
   imports: [],
   templateUrl: './flow-canvas-connections.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './flow-canvas-connections.component.css',
 })
 export class FlowCanvasConnectionsComponent {

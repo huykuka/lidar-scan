@@ -1,4 +1,4 @@
-import {Component, Input, signal, input, output} from '@angular/core';
+import {Component, Input, signal, input, output, ChangeDetectionStrategy} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {Recording} from '@core/models';
@@ -9,6 +9,7 @@ import {environment} from '@env/environment';
   standalone: true,
   imports: [SynergyComponentsModule, DatePipe],
   templateUrl: './recording-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './recording-card.component.css',
 })
 export class RecordingCardComponent {

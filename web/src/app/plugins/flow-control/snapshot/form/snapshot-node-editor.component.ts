@@ -1,4 +1,4 @@
-import { Component, computed, inject, output, signal } from '@angular/core';
+import { Component, computed, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
@@ -27,6 +27,7 @@ import { environment } from '@env/environment';
   ],
   providers: [NodeEditorFacadeService],
   templateUrl: './snapshot-node-editor.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './snapshot-node-editor.component.css',
 })
 export class SnapshotNodeEditorComponent implements NodeEditorComponent {

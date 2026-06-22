@@ -68,7 +68,7 @@
             [min]="-180"
             [max]="180"
             [step]="0.1"
-            [value]="poseFormGroup.get(axis.key)?.value?.toString()"
+            [value]="$safeNavigationMigration(poseFormGroup.get(axis.key)?.value?.toString())"
             [tooltipFormatter]="angleLabelFn"
             size="small"
             (synInputEvent)="onAngleInput($any(axis.key), $event)"

@@ -1,4 +1,4 @@
-import { Component, computed, inject, output } from '@angular/core';
+import { Component, computed, inject, output, ChangeDetectionStrategy } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { SystemStatusService } from '@core/services/system-status.service';
 
@@ -15,6 +15,7 @@ import { SystemStatusService } from '@core/services/system-status.service';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './connection-status.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: `
     :host {
       display: inline-flex;

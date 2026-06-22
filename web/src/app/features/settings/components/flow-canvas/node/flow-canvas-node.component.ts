@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output } from '@angular/core';
+import { Component, computed, inject, input, output, ChangeDetectionStrategy } from '@angular/core';
 
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeConfig, PortSchema } from '@core/models/node.model';
@@ -18,6 +18,7 @@ export interface CanvasNode {
   selector: 'app-flow-canvas-node',
   imports: [SynergyComponentsModule, NodeRecordingControls, NodeVisibilityToggleComponent],
   templateUrl: './flow-canvas-node.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './flow-canvas-node.component.css',
 })
 export class FlowCanvasNodeComponent {

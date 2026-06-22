@@ -9,6 +9,7 @@ import {
   untracked,
   viewChild,
   ViewContainerRef,
+  ChangeDetectionStrategy
 } from '@angular/core';
 
 import {NodeStoreService} from '@core/services/stores/node-store.service';
@@ -19,6 +20,7 @@ import {NodeEditorComponent} from '@core/models/node-plugin.model';
   selector: 'app-dynamic-node-editor',
   imports: [],
   templateUrl: './dynamic-node-editor.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './dynamic-node-editor.component.css',
 })
 export class DynamicNodeEditorComponent implements OnDestroy {

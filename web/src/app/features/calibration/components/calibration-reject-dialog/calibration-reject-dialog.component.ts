@@ -1,4 +1,4 @@
-import {Component, computed, input, output} from '@angular/core';
+import {Component, computed, input, output, ChangeDetectionStrategy} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CalibrationNodeStatus} from '@core/models';
 
@@ -10,6 +10,7 @@ import {CalibrationNodeStatus} from '@core/models';
   selector: 'app-calibration-reject-dialog',
   standalone: true,
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './calibration-reject-dialog.component.html',
 })
 export class CalibrationRejectDialogComponent {

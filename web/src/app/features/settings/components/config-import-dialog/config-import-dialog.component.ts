@@ -1,4 +1,4 @@
-import {Component, input, model, output} from '@angular/core';
+import {Component, input, model, output, ChangeDetectionStrategy} from '@angular/core';
 import {NgClass} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {ConfigValidationResponse} from '@core/models/config.model';
@@ -6,6 +6,7 @@ import {ConfigValidationResponse} from '@core/models/config.model';
 @Component({
   selector: 'app-config-import-dialog',
   imports: [SynergyComponentsModule, NgClass],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './config-import-dialog.component.html',
 })
 export class ConfigImportDialogComponent {

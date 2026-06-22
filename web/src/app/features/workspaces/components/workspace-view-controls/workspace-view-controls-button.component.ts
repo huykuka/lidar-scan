@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, ChangeDetectionStrategy } from '@angular/core';
 
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
@@ -24,6 +24,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
       </syn-button>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [
     `
       .wv-btn {

@@ -1,4 +1,4 @@
-import {Component, input, output} from '@angular/core';
+import {Component, input, output, ChangeDetectionStrategy} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
@@ -6,6 +6,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   selector: 'app-toolbox-header',
   standalone: true,
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './toolbox-header.component.html',
 })
 export class ToolboxHeaderComponent {

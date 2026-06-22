@@ -1,4 +1,4 @@
-import {Component} from '@angular/core';
+import {Component, ChangeDetectionStrategy} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
@@ -7,6 +7,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-empty-state.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './flow-canvas-empty-state.component.css',
 })
 export class FlowCanvasEmptyStateComponent {

@@ -1,4 +1,4 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, input, ChangeDetectionStrategy } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { NodeCardComponent } from '@core/models/node-plugin.model';
 import { CanvasNode } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
@@ -14,6 +14,7 @@ import { IfNodeStatus } from '@core/models/flow-control.model';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './if-condition-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './if-condition-card.component.css',
 })
 export class IfConditionCardComponent implements NodeCardComponent {

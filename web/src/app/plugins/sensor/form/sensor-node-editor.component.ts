@@ -1,4 +1,4 @@
-import {Component, computed, effect, inject, OnDestroy, output, signal} from '@angular/core';
+import {Component, computed, effect, inject, OnDestroy, output, signal, ChangeDetectionStrategy} from '@angular/core';
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
@@ -19,6 +19,7 @@ import {LidarApiService} from '@core/services/api';
   imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent, CameraTypeSelectComponent, NodeEditorHeaderComponent, PoseFormComponent, SynergyFormsModule],
   providers: [NodeEditorFacadeService],
   templateUrl: './sensor-node-editor.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './sensor-node-editor.component.css',
 })
 export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy {

@@ -3,7 +3,7 @@
     [icon]="definition()?.icon || 'tune'"
     iconColor="text-syn-color-warning-600"
     [title]="definition()?.display_name || ''"
-    [description]="definition()?.description"
+    [description]="$safeNavigationMigration(definition()?.description)"
     [saveDisabled]="form.invalid || configForm.invalid || isSaving()"
     (save)="onSave()"
     (cancel)="onCancel()"
@@ -74,7 +74,7 @@
               @if (prop.type === 'boolean') {
                 <syn-checkbox
                   (synChangeEvent)="onCheckboxChange(prop.name, $event)"
-                  [checked]="configForm.get(prop.name)?.value"
+                  [checked]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
                 >
                   <span class="text-xs font-medium ">{{ prop.label }}</span>
                 </syn-checkbox>
@@ -87,7 +87,7 @@
                   (synChangeEvent)="onSelectChange(prop.name, $event)"
                   [helpText]="prop.help_text || ''"
                   [label]="prop.label"
-                  [value]="configForm.get(prop.name)?.value"
+                  [value]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
                   size="small"
                 >
                   @for (opt of prop.options; track opt.value) {
@@ -123,7 +123,7 @@
               @if (prop.type === 'boolean') {
                 <syn-checkbox
                   (synChangeEvent)="onCheckboxChange(prop.name, $event)"
-                  [checked]="configForm.get(prop.name)?.value"
+                  [checked]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
                 >
                   <span class="text-xs font-medium ">{{ prop.label }}</span>
                 </syn-checkbox>
@@ -181,7 +181,7 @@
                 <div class="flex flex-col">
                   <syn-checkbox
                     (synChangeEvent)="onCheckboxChange(prop.name, $event)"
-                    [checked]="configForm.get(prop.name)?.value"
+                    [checked]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
                   >
                     <span class="text-xs font-medium ">{{ prop.label }}</span>
                   </syn-checkbox>

@@ -1,4 +1,4 @@
-import { Component, computed, inject, output, signal } from '@angular/core';
+import { Component, computed, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
 import { NodeEditorComponent } from '@core/models/node-plugin.model';
@@ -20,6 +20,7 @@ const DEFAULT_COLOR = '#9E9E9E';
   ],
   providers: [NodeEditorFacadeService],
   templateUrl: './result-storage-editor.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './result-storage-editor.component.css',
 })
 export class ResultStorageEditorComponent implements NodeEditorComponent {

@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { ResultsApiService, MOCK_NODE_INDEX } from '@core/services/api/results-api.service';
@@ -11,6 +11,7 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './results-overview.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './results-overview.component.css',
 })
 export class ResultsOverviewComponent implements OnInit {

@@ -1,4 +1,4 @@
-import {Component, computed, inject, OnInit, output, signal} from '@angular/core';
+import {Component, computed, inject, OnInit, output, signal, ChangeDetectionStrategy} from '@angular/core';
 import {Router} from '@angular/router';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
@@ -23,6 +23,7 @@ import {NodeEditorFacadeService} from '@features/settings/services/node-editor-f
   ],
   providers: [NodeEditorFacadeService],
   templateUrl: './output-node-editor.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './output-node-editor.component.css',
 })
 export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {

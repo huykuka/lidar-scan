@@ -9,6 +9,7 @@ import {
   OnInit,
   signal,
   viewChild,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { NgClass, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -32,6 +33,7 @@ interface PCDData {
   standalone: true,
   imports: [SynergyComponentsModule, FormsModule, DecimalPipe, NgClass],
   templateUrl: './recording-viewer.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './recording-viewer.component.css',
 })
 export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestroy {

@@ -1,4 +1,4 @@
-import {Component, input, output} from '@angular/core';
+import {Component, input, output, ChangeDetectionStrategy} from '@angular/core';
 import {NgClass} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
@@ -7,6 +7,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   standalone: true,
 
   imports: [SynergyComponentsModule, NgClass],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './node-editor-header.component.html',
 })
 export class NodeEditorHeaderComponent {

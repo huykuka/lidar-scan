@@ -12,7 +12,7 @@
   <!-- Node Name -->
   <syn-input
     label="Node Name"
-    [value]="form.get('name')?.value"
+    [value]="$safeNavigationMigration(form.get('name')?.value)"
     (synInputEvent)="form.get('name')?.setValue($any($event).target.value)"
     required
   ></syn-input>

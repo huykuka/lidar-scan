@@ -1,4 +1,4 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, ChangeDetectionStrategy } from '@angular/core';
 
 import { LogEntry } from '@core/models';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
@@ -7,6 +7,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
   selector: 'app-logs-table',
   standalone: true,
   imports: [SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <div class="flex-1 relative">
       @if (isLoading() && entries().length === 0) {

@@ -6,7 +6,7 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import {Component, effect, inject, input, OnInit, output,} from '@angular/core';
+import {Component, effect, inject, input, OnInit, output, ChangeDetectionStrategy} from '@angular/core';
 import {UpperCasePipe} from '@angular/common';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
 import {Pose, ZERO_POSE} from '@core/models/pose.model';
@@ -33,6 +33,7 @@ export function angleRangeValidator(control: AbstractControl): ValidationErrors 
   selector: 'app-pose-form',
   standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, UpperCasePipe, SynergyFormsModule],
+  changeDetection: ChangeDetectionStrategy.Eager,
   templateUrl: './pose-form.component.html',
 })
 export class PoseFormComponent implements OnInit {

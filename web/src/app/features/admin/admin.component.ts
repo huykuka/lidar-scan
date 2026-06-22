@@ -1,4 +1,4 @@
-import {Component, computed, inject, OnInit, signal} from '@angular/core';
+import {Component, computed, inject, OnInit, signal, ChangeDetectionStrategy} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NavigationService, ToastService} from '@core/services';
 import {AdminApiService, NodeTypeRecord} from '@core/services/api/admin-api.service';
@@ -8,6 +8,7 @@ import {AdminApiService, NodeTypeRecord} from '@core/services/api/admin-api.serv
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './admin.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './admin.component.css',
 })
 export class AdminComponent implements OnInit {
