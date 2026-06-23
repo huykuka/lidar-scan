@@ -10,35 +10,38 @@
 
 <div class="flex flex-col gap-4">
   <syn-validate on="live" [eager]="false">
-
-  <!-- Display Name -->
-  <syn-input required
-    label="Display Name"
-    placeholder="e.g. Side Playback"
-    size="small"
-    [value]="nodeName()"
-    (synInputEvent)="onNameChange($event)"
-    data-testid="name-input"
-  />
+    <!-- Display Name -->
+    <syn-input
+      required
+      label="Display Name"
+      placeholder="e.g. Side Playback"
+      size="small"
+      [value]="nodeName()"
+      (synInputEvent)="onNameChange($event)"
+      data-testid="name-input"
+    />
+  </syn-validate>
 
   <!-- Recording Selector -->
   <div>
-    <syn-select required
-      label="Recording"
-      placeholder="Select a recording…"
-      size="small"
-      [value]="recordingId()"
-      (synChangeEvent)="onRecordingSelect($any($event.target).value)"
-      data-testid="recording-select"
-    >
-      @if (recordings().length === 0 && !isLoadingRecordings()) {
-        <syn-option value="" disabled>No recordings available</syn-option>
-      }
-      @for (rec of recordings(); track rec.id) {
-        <syn-option [value]="rec.id">{{ rec.name }}</syn-option>
-      }
-    </syn-select>
-
+    <syn-validate on="live" [eager]="false">
+      <syn-select
+        required
+        label="Recording"
+        placeholder="Select a recording…"
+        size="small"
+        [value]="recordingId()"
+        (synChangeEvent)="onRecordingSelect($any($event.target).value)"
+        data-testid="recording-select"
+      >
+        @if (recordings().length === 0 && !isLoadingRecordings()) {
+          <syn-option value="" disabled>No recordings available</syn-option>
+        }
+        @for (rec of recordings(); track rec.id) {
+          <syn-option [value]="rec.id">{{ rec.name }}</syn-option>
+        }
+      </syn-select>
+    </syn-validate>
     <!-- Loading indicator -->
     @if (isLoadingRecordings()) {
       <p class="text-xs text-syn-color-neutral-500 mt-1 flex items-center gap-1">
@@ -60,26 +63,32 @@
       </div>
       <div class="flex gap-4 mt-1">
         <span><span class="text-syn-color-neutral-500">Frames:</span> {{ rec.frame_count }}</span>
-        <span><span class="text-syn-color-neutral-500">Duration:</span> {{ rec.duration_seconds | number:'1.1-1' }}s</span>
+        <span
+          ><span class="text-syn-color-neutral-500">Duration:</span>
+          {{ rec.duration_seconds | number: '1.1-1' }}s</span
+        >
       </div>
       <div class="text-syn-color-neutral-500 text-[10px]">
-        Recorded: {{ rec.recording_timestamp | date:'medium' }}
+        Recorded: {{ rec.recording_timestamp | date: 'medium' }}
       </div>
     </div>
   }
 
   <!-- Playback Speed Selector -->
-  <syn-select required
-    label="Playback Speed"
-    size="small"
-    [value]="playbackSpeed().toString()"
-    (synChangeEvent)="onSpeedChange($event)"
-    data-testid="speed-select"
-  >
-    @for (opt of speedOptions; track opt.value) {
-      <syn-option [value]="opt.value.toString()">{{ opt.label }}</syn-option>
-    }
-  </syn-select>
+  <syn-validate on="live" [eager]="false">
+    <syn-select
+      required
+      label="Playback Speed"
+      size="small"
+      [value]="playbackSpeed().toString()"
+      (synChangeEvent)="onSpeedChange($event)"
+      data-testid="speed-select"
+    >
+      @for (opt of speedOptions; track opt.value) {
+        <syn-option [value]="opt.value.toString()">{{ opt.label }}</syn-option>
+      }
+    </syn-select>
+  </syn-validate>
 
   <!-- Loop Playback Toggle -->
   <div class="flex items-center">
@@ -94,11 +103,5 @@
   </div>
 
   <!-- 6-DOF Pose -->
-  <app-pose-form
-    [pose]="poseValue()"
-    (poseChange)="onPoseChange($event)"
-  />
-
-  </syn-validate>
-
+  <app-pose-form [pose]="poseValue()" (poseChange)="onPoseChange($event)" />
 </div>

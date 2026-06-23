@@ -19,11 +19,13 @@
       placeholder="e.g. Ground Calibration"
       size="small"
     />
+    </syn-validate>
 
     <syn-divider class="my-0"/>
 
     <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-3">
       <div class="col-span-2">
+        <syn-validate on="live" [eager]="false">
         <syn-select required
           (synChangeEvent)="onReferenceSensorChange($event)"
           [value]="selectedReferenceSensor() ?? ''"
@@ -36,9 +38,11 @@
             <syn-option [value]="sensor.id">{{ sensor.name }}</syn-option>
           }
         </syn-select>
+        </syn-validate>
       </div>
 
       <div>
+        <syn-validate on="live" [eager]="false">
         <syn-input required
           [attr.min]="5"
           [attr.max]="100"
@@ -50,6 +54,7 @@
           size="small"
           type="number"
         />
+        </syn-validate>
       </div>
     </div>
 
@@ -60,6 +65,7 @@
           @if (prop.name === 'icp_method' || prop.name === 'icp_threshold' || prop.name === 'icp_iterations' || prop.name === 'translation_only' || prop.name === 'normal_search_radius' || prop.name === 'normal_max_nn') {
             <div [class.col-span-2]="prop.type === 'boolean'" class="flex flex-col">
               @if (prop.type === 'number') {
+                <syn-validate on="live" [eager]="false">
                 <syn-input required
                   [attr.max]="prop.max"
                   [attr.min]="prop.min"
@@ -71,19 +77,23 @@
                   size="small"
                   type="number"
                 />
+                </syn-validate>
               }
               @if (prop.type === 'boolean') {
+                <syn-validate on="live" [eager]="false">
                 <syn-checkbox
                   (synChangeEvent)="onCheckboxChange(prop.name, $event)"
                   [checked]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
                 >
                   <span class="text-xs font-medium ">{{ prop.label }}</span>
                 </syn-checkbox>
+                </syn-validate>
                 @if (prop.help_text) {
                   <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
                 }
               }
               @if (prop.type === 'select') {
+                <syn-validate on="live" [eager]="false">
                 <syn-select required
                   (synChangeEvent)="onSelectChange(prop.name, $event)"
                   [helpText]="prop.help_text || ''"
@@ -95,6 +105,7 @@
                     <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
                   }
                 </syn-select>
+                </syn-validate>
               }
             </div>
           }
@@ -109,6 +120,7 @@
           @if (prop.name === 'enable_global_registration' || prop.name === 'use_fast_global_registration' || prop.name === 'global_voxel_size' || prop.name === 'ransac_threshold' || prop.name === 'ransac_iterations') {
             <div [class.col-span-2]="prop.type === 'boolean'" class="flex flex-col">
               @if (prop.type === 'number') {
+                <syn-validate on="live" [eager]="false">
                 <syn-input required
                   [attr.max]="prop.max"
                   [attr.min]="prop.min"
@@ -120,14 +132,18 @@
                   size="small"
                   type="number"
                 />
+                </syn-validate>
               }
               @if (prop.type === 'boolean') {
+                <syn-validate on="live" [eager]="false">
                 <syn-checkbox
                   (synChangeEvent)="onCheckboxChange(prop.name, $event)"
                   [checked]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
                 >
                   <span class="text-xs font-medium ">{{ prop.label }}</span>
+                  
                 </syn-checkbox>
+                </syn-validate>
                 @if (prop.help_text) {
                   <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
                 }
@@ -197,6 +213,5 @@
       </div>
     </div>
 
-    </syn-validate>
   </form>
 </div>

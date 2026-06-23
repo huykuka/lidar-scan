@@ -8,27 +8,25 @@
   (cancel)="onCancel()"
 />
 
-<div class=" space-y-4">
+<div class="space-y-4">
   <syn-validate on="live" [eager]="false">
-  <!-- Node Name -->
-  <syn-input
-    label="Node Name"
-    [value]="$safeNavigationMigration(form.get('name')?.value)"
-    (synInputEvent)="form.get('name')?.setValue($any($event).target.value)"
-    required
-  ></syn-input>
+    <!-- Node Name -->
+    <syn-input
+      label="Node Name"
+      [value]="$safeNavigationMigration(form.get('name')?.value)"
+      (synInputEvent)="form.get('name')?.setValue($any($event).target.value)"
+      required
+    ></syn-input>
+  </syn-validate>
 
   <!-- View Live Data Link (only when editing existing node) -->
   @if (isEditMode()) {
     <!--    <div class="flex items-center gap-2 p-3 rounded-md bg-syn-color-neutral-100 border border-syn-color-neutral-200">-->
-      <!--      <syn-icon name="open_in_new" class="text-syn-color-primary-600"></syn-icon>-->
-      <!--      <span class="text-sm text-syn-color-neutral-700 flex-1">View live metadata stream</span>-->
-      <!--      <syn-button variant="text" size="small" (click)="navigateToLiveData()">-->
-      <!--        View Live Data →-->
-      <!--      </syn-button>-->
-      <!--    </div>-->
+    <!--      <syn-icon name="open_in_new" class="text-syn-color-primary-600"></syn-icon>-->
+    <!--      <span class="text-sm text-syn-color-neutral-700 flex-1">View live metadata stream</span>-->
+    <!--      <syn-button variant="text" size="small" (click)="navigateToLiveData()">-->
+    <!--        View Live Data →-->
+    <!--      </syn-button>-->
+    <!--    </div>-->
   }
-
-
-  </syn-validate>
 </div>

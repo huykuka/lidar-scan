@@ -9,22 +9,25 @@
     (cancel)="onCancel()"
   />
   <form [formGroup]="form" class="flex flex-col gap-3 text-sm">
-    <syn-validate on="live" [eager]="false">
     <div class="grid grid-cols-2 gap-3">
       <div class="col-span-2">
-        <syn-input required formControlName="name"
-                   label="Display Name"
-                   ngDefaultControl
-                   placeholder="e.g. Global Fusion"
-                   size="small"
-        />
+        <syn-validate on="live" [eager]="false">
+          <syn-input
+            required
+            formControlName="name"
+            label="Display Name"
+            ngDefaultControl
+            placeholder="e.g. Global Fusion"
+            size="small"
+          />
+        </syn-validate>
       </div>
     </div>
 
-    <syn-divider class="my-0"/>
+    <syn-divider class="my-0" />
 
     @if (sensorNames().length > 0) {
-      <div class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border ">
+      <div class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border">
         <label class="text-[11px] font-bold text-syn-color-neutral-900">Input Sensors</label>
         <div class="flex flex-wrap gap-1">
           @for (name of sensorNames(); track name) {
@@ -41,25 +44,33 @@
           class="flex flex-col"
         >
           @if (prop.type === 'string') {
-            <syn-input required [formControlName]="prop.name"
-                       [helpText]="prop.help_text || ''"
-                       [label]="prop.label"
-                       ngDefaultControl
-                       size="small"
-            />
+            <syn-validate on="live" [eager]="false">
+              <syn-input
+                required
+                [formControlName]="prop.name"
+                [helpText]="prop.help_text || ''"
+                [label]="prop.label"
+                ngDefaultControl
+                size="small"
+              />
+            </syn-validate>
           }
 
           @if (prop.type === 'number') {
-            <syn-input required [attr.max]="prop.max"
-                       [attr.min]="prop.min"
-                       [formControlName]="prop.name"
-                       [helpText]="prop.help_text || ''"
-                       [label]="prop.label"
-                       [step]="prop.step || 1"
-                       ngDefaultControl
-                       size="small"
-                       type="number"
-            />
+            <syn-validate on="live" [eager]="false">
+              <syn-input
+                required
+                [attr.max]="prop.max"
+                [attr.min]="prop.min"
+                [formControlName]="prop.name"
+                [helpText]="prop.help_text || ''"
+                [label]="prop.label"
+                [step]="prop.step || 1"
+                ngDefaultControl
+                size="small"
+                type="number"
+              />
+            </syn-validate>
           }
 
           @if (prop.type === 'boolean') {
@@ -68,7 +79,7 @@
               [checked]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
               class="mt-4"
             >
-              <span class="text-xs font-medium ">{{ prop.label }}</span>
+              <span class="text-xs font-medium">{{ prop.label }}</span>
             </syn-checkbox>
             @if (prop.help_text) {
               <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
@@ -76,76 +87,85 @@
           }
 
           @if (prop.type === 'select') {
-            <syn-select required
-              (synChangeEvent)="onSelectChange(prop.name, $event)"
-              [helpText]="prop.help_text || ''"
-              [label]="prop.label"
-              [value]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
-              size="small"
-            >
-              @for (opt of prop.options; track opt.value) {
-                <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
-              }
-            </syn-select>
+            <syn-validate on="live" [eager]="false">
+              <syn-select
+                required
+                (synChangeEvent)="onSelectChange(prop.name, $event)"
+                [helpText]="prop.help_text || ''"
+                [label]="prop.label"
+                [value]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
+                size="small"
+              >
+                @for (opt of prop.options; track opt.value) {
+                  <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
+                }
+              </syn-select>
+            </syn-validate>
           }
 
           @if (prop.type === 'vec3') {
-            <div
-              class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border "
-            >
+            <div class="flex flex-col gap-1.5 p-2 bg-syn-color-neutral-50/50 rounded border">
               <div class="flex flex-col">
                 <label class="text-[11px] font-bold text-syn-color-neutral-900">{{
-                    prop.label
-                  }}</label>
+                  prop.label
+                }}</label>
                 @if (prop.help_text) {
                   <span class="text-[10px] text-syn-color-neutral-500 mt-0.5">{{
-                      prop.help_text
-                    }}</span>
+                    prop.help_text
+                  }}</span>
                 }
               </div>
               <div [formGroupName]="prop.name" class="grid grid-cols-3 gap-1.5">
-                <syn-input required
-                  [step]="0.1"
-                  formControlName="0"
-                  ngDefaultControl
-                  placeholder="X"
-                  size="small"
-                  type="number"
-                >
-                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
-                  >X</span
+                <syn-validate on="live" [eager]="false">
+                  <syn-input
+                    required
+                    [step]="0.1"
+                    formControlName="0"
+                    ngDefaultControl
+                    placeholder="X"
+                    size="small"
+                    type="number"
                   >
-                </syn-input>
-                <syn-input required
-                  [step]="0.1"
-                  formControlName="1"
-                  ngDefaultControl
-                  placeholder="Y"
-                  size="small"
-                  type="number"
-                >
-                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
-                  >Y</span
+                    <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
+                      >X</span
+                    >
+                  </syn-input>
+                </syn-validate>
+                <syn-validate on="live" [eager]="false">
+                  <syn-input
+                    required
+                    [step]="0.1"
+                    formControlName="1"
+                    ngDefaultControl
+                    placeholder="Y"
+                    size="small"
+                    type="number"
                   >
-                </syn-input>
-                <syn-input required
-                  [step]="0.1"
-                  formControlName="2"
-                  ngDefaultControl
-                  placeholder="Z"
-                  size="small"
-                  type="number"
-                >
-                  <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
-                  >Z</span
+                    <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
+                      >Y</span
+                    >
+                  </syn-input>
+                </syn-validate>
+                <syn-validate on="live" [eager]="false">
+                  <syn-input
+                    required
+                    [step]="0.1"
+                    formControlName="2"
+                    ngDefaultControl
+                    placeholder="Z"
+                    size="small"
+                    type="number"
                   >
-                </syn-input>
+                    <span class="text-xs font-bold text-syn-color-neutral-400 pl-2" slot="prefix"
+                      >Z</span
+                    >
+                  </syn-input>
+                </syn-validate>
               </div>
             </div>
           }
         </div>
       }
     </div>
-    </syn-validate>
   </form>
 </div>

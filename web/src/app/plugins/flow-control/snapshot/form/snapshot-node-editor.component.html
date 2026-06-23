@@ -8,36 +8,42 @@
 
 <form [formGroup]="form" class="flex flex-col gap-4">
   <syn-validate on="live" [eager]="false">
-  <!-- Node Name -->
-  <syn-input
-    label="Node Name"
-    formControlName="name"
-    size="small"
-    placeholder="Snapshot Node"
-    required
-  />
+    <!-- Node Name -->
+    <syn-input
+      label="Node Name"
+      formControlName="name"
+      size="small"
+      placeholder="Snapshot Node"
+      required
+    />
+  </syn-validate>
 
   <!-- Throttle Interval (editable) -->
-  <syn-input required
-    label="Throttle Interval (ms)"
-    formControlName="throttle_ms"
-    type="number"
-    size="small"
-    placeholder="0"
-    [attr.min]="0"
-    [attr.step]="50"
-  >
-    <div slot="help-text">
-      @if (form.get('throttle_ms')?.invalid && form.get('throttle_ms')?.touched) {
-        <span class="text-syn-color-error-600 text-xs"> Must be a non-negative number (≥ 0). </span>
-      } @else {
-        <span class="text-xs text-syn-color-neutral-500">
-          Minimum interval between snapshot triggers in milliseconds. Use
-          <code class="bg-syn-color-neutral-100 px-1 rounded">0</code> to disable throttling.
-        </span>
-      }
-    </div>
-  </syn-input>
+  <syn-validate on="live" [eager]="false">
+    <syn-input
+      required
+      label="Throttle Interval (ms)"
+      formControlName="throttle_ms"
+      type="number"
+      size="small"
+      placeholder="0"
+      [attr.min]="0"
+      [attr.step]="50"
+    >
+      <div slot="help-text">
+        @if (form.get('throttle_ms')?.invalid && form.get('throttle_ms')?.touched) {
+          <span class="text-syn-color-error-600 text-xs">
+            Must be a non-negative number (≥ 0).
+          </span>
+        } @else {
+          <span class="text-xs text-syn-color-neutral-500">
+            Minimum interval between snapshot triggers in milliseconds. Use
+            <code class="bg-syn-color-neutral-100 px-1 rounded">0</code> to disable throttling.
+          </span>
+        }
+      </div>
+    </syn-input>
+  </syn-validate>
 
   <!-- Trigger API Endpoint -->
   <div
@@ -52,7 +58,8 @@
       <!-- Trigger URL -->
       <div class="flex items-center gap-2">
         <div class="flex-1">
-          <syn-input required
+          <syn-input
+            required
             label="POST Endpoint"
             [value]="triggerUrl() || ''"
             readonly
@@ -77,5 +84,4 @@
       </p>
     }
   </div>
-  </syn-validate>
 </form>

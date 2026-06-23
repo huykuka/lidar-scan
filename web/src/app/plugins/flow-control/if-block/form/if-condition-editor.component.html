@@ -8,21 +8,24 @@
 
 <form [formGroup]="form" class="flex flex-col gap-4">
   <syn-validate on="live" [eager]="false">
-  <syn-input
-    label="Node Name"
-    formControlName="name"
-    size="small"
-    placeholder="If Condition"
-    required
-  />
+    <syn-input
+      label="Node Name"
+      formControlName="name"
+      size="small"
+      placeholder="If Condition"
+      required
+    />
+  </syn-validate>
 
   <!-- External Control Toggle -->
   <div class="flex flex-col gap-2">
     <div class="flex items-center justify-between">
       <label class="text-sm font-medium text-syn-color-neutral-700"> Control Mode </label>
-      <syn-switch formControlName="use_external_control" size="small">
-        External Control
-      </syn-switch>
+      <syn-validate on="live" [eager]="false">
+        <syn-switch formControlName="use_external_control" size="small">
+          External Control
+        </syn-switch>
+      </syn-validate>
     </div>
     <p class="text-xs text-syn-color-neutral-500">
       @if (form.get('use_external_control')?.value) {
@@ -36,38 +39,39 @@
   <!-- Condition Expression - Only show when external control is disabled -->
   @if (!form.get('use_external_control')?.value) {
     <div class="expression-container">
-      <syn-textarea
-        #expressionInput
-        label="Condition Expression"
-        formControlName="expression"
-        size="small"
-        [rows]="4"
-        placeholder="Start typing to see suggestions..."
-        (input)="onExpressionInput($event)"
-        (keydown)="onExpressionKeydown($event)"
-        class="expression-input"
-      >
-        <div slot="help-text" class="flex flex-col gap-1">
-          @if (validationError()) {
-            <span class="text-syn-color-error-600 text-xs">
-              {{ validationError() }}
-            </span>
-          } @else {
-            <span class="text-syn-color-neutral-500 text-xs">
-              Variables: <code class="syntax-variable">point_count</code>,
-              <code class="syntax-variable">intensity</code>,
-              <code class="syntax-variable">x</code>, <code class="syntax-variable">y</code>,
-              <code class="syntax-variable">z</code>
-              <br />
-              Operators: <code class="syntax-operator">&gt;</code>,
-              <code class="syntax-operator">&lt;</code>, <code class="syntax-operator">==</code>,
-              <code class="syntax-keyword">AND</code>, <code class="syntax-keyword">OR</code>,
-              <code class="syntax-keyword">NOT</code>
-            </span>
-          }
-        </div>
-      </syn-textarea>
-
+      <syn-validate on="live" [eager]="false">
+        <syn-textarea
+          #expressionInput
+          label="Condition Expression"
+          formControlName="expression"
+          size="small"
+          [rows]="4"
+          placeholder="Start typing to see suggestions..."
+          (input)="onExpressionInput($event)"
+          (keydown)="onExpressionKeydown($event)"
+          class="expression-input"
+        >
+          <div slot="help-text" class="flex flex-col gap-1">
+            @if (validationError()) {
+              <span class="text-syn-color-error-600 text-xs">
+                {{ validationError() }}
+              </span>
+            } @else {
+              <span class="text-syn-color-neutral-500 text-xs">
+                Variables: <code class="syntax-variable">point_count</code>,
+                <code class="syntax-variable">intensity</code>,
+                <code class="syntax-variable">x</code>, <code class="syntax-variable">y</code>,
+                <code class="syntax-variable">z</code>
+                <br />
+                Operators: <code class="syntax-operator">&gt;</code>,
+                <code class="syntax-operator">&lt;</code>, <code class="syntax-operator">==</code>,
+                <code class="syntax-keyword">AND</code>, <code class="syntax-keyword">OR</code>,
+                <code class="syntax-keyword">NOT</code>
+              </span>
+            }
+          </div>
+        </syn-textarea>
+      </syn-validate>
       <!-- Autocomplete Dropdown -->
       @if (showAutocomplete()) {
         <div class="autocomplete-dropdown">
@@ -120,13 +124,16 @@
         <!-- Set URL -->
         <div class="flex items-center gap-2">
           <div class="flex-1">
-            <syn-input required
-              label="Set (POST)"
-              [value]="setUrl() || ''"
-              readonly
-              size="small"
-              class="font-mono text-xs url-input"
-            />
+            <syn-validate on="live" [eager]="false">
+              <syn-input
+                required
+                label="Set (POST)"
+                [value]="setUrl() || ''"
+                readonly
+                size="small"
+                class="font-mono text-xs url-input"
+              />
+            </syn-validate>
           </div>
           <syn-button
             variant="text"
@@ -142,13 +149,16 @@
         <!-- Reset URL -->
         <div class="flex items-center gap-2">
           <div class="flex-1">
-            <syn-input required
-              label="Reset (POST)"
-              [value]="resetUrl() || ''"
-              readonly
-              size="small"
-              class="font-mono text-xs url-input"
-            />
+            <syn-validate on="live" [eager]="false">
+              <syn-input
+                required
+                label="Reset (POST)"
+                [value]="resetUrl() || ''"
+                readonly
+                size="small"
+                class="font-mono text-xs url-input"
+              />
+            </syn-validate>
           </div>
           <syn-button
             variant="text"
@@ -168,5 +178,4 @@
       }
     </div>
   }
-  </syn-validate>
 </form>

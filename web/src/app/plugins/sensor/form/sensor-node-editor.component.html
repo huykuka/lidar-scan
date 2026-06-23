@@ -10,17 +10,19 @@
   />
 
   <form [formGroup]="form" class="flex flex-col gap-3 text-sm">
-    <syn-validate on="live" [eager]="false">
     <div class="grid grid-cols-2 gap-3">
       <div class="col-span-2">
-        <syn-input required formControlName="name"
-                   label="Display Name"
-                   placeholder="e.g. Front Sensor"
-                   size="small"
-        />
+        <syn-validate on="live" [eager]="false">
+          <syn-input
+            required
+            formControlName="name"
+            label="Display Name"
+            placeholder="e.g. Front Sensor"
+            size="small"
+          />
+        </syn-validate>
       </div>
     </div>
-
 
     <div [formGroup]="configForm" class="grid grid-cols-2 gap-x-3 gap-y-2">
       @for (prop of visibleProperties(); track prop.name) {
@@ -29,33 +31,43 @@
           class="flex flex-col"
         >
           @if (prop.type === 'string') {
-            <syn-input required [formControlName]="prop.name"
-                       [helpText]="prop.help_text || ''"
-                       [label]="prop.label"
-                       size="small"
-            />
+            <syn-validate on="live" [eager]="false">
+              <syn-input
+                required
+                [formControlName]="prop.name"
+                [helpText]="prop.help_text || ''"
+                [label]="prop.label"
+                size="small"
+              />
+            </syn-validate>
           }
 
           @if (prop.type === 'number') {
-            <syn-input required [attr.max]="prop.max"
-                       [attr.min]="prop.min"
-                       [formControlName]="prop.name"
-                       [helpText]="prop.help_text || ''"
-                       [label]="prop.label"
-                       [step]="prop.step || 1"
-                       size="small"
-                       type="number"
-            />
+            <syn-validate on="live" [eager]="false">
+              <syn-input
+                required
+                [attr.max]="prop.max"
+                [attr.min]="prop.min"
+                [formControlName]="prop.name"
+                [helpText]="prop.help_text || ''"
+                [label]="prop.label"
+                [step]="prop.step || 1"
+                size="small"
+                type="number"
+              />
+            </syn-validate>
           }
 
           @if (prop.type === 'boolean') {
-            <syn-checkbox
-              (synChangeEvent)="onCheckboxChange(prop.name, $event)"
-              [checked]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
-              class="mt-4"
-            >
-              <span class="text-xs font-medium ">{{ prop.label }}</span>
-            </syn-checkbox>
+            <syn-validate on="live" [eager]="false">
+              <syn-checkbox
+                (synChangeEvent)="onCheckboxChange(prop.name, $event)"
+                [checked]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
+                class="mt-4"
+              >
+                <span class="text-xs font-medium">{{ prop.label }}</span>
+              </syn-checkbox>
+            </syn-validate>
             @if (prop.help_text) {
               <p class="text-[10px] text-syn-color-neutral-500 ml-6 mt-0.5">{{ prop.help_text }}</p>
             }
@@ -77,38 +89,41 @@
                 [value]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
               />
             } @else {
-              <syn-select required
-                (synChangeEvent)="onSelectChange(prop.name, $event)"
-                [helpText]="prop.help_text || ''"
-                [label]="prop.label"
-                [value]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
-                size="small"
-              >
-                @for (opt of prop.options; track opt.value) {
-                  <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
-                }
-              </syn-select>
+              <syn-validate on="live" [eager]="false">
+                <syn-select
+                  required
+                  (synChangeEvent)="onSelectChange(prop.name, $event)"
+                  [helpText]="prop.help_text || ''"
+                  [label]="prop.label"
+                  [value]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
+                  size="small"
+                >
+                  @for (opt of prop.options; track opt.value) {
+                    <syn-option [value]="opt.value">{{ opt.label }}</syn-option>
+                  }
+                </syn-select>
+              </syn-validate>
             }
           }
-
         </div>
       }
     </div>
 
-
-    <app-pose-form
-      [pose]="poseValue()"
-      (poseChange)="onPoseChange($event)"
-    />
+    <app-pose-form [pose]="poseValue()" (poseChange)="onPoseChange($event)" />
 
     @if (isImuCapable() && isExistingNode()) {
       <div class="flex flex-col gap-2 rounded border border-syn-color-neutral-200">
-        <div class="flex items-center justify-between px-3 py-1.5 bg-syn-color-neutral-100 rounded-t border-b border-syn-color-neutral-200">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-500">IMU Calibration</span>
+        <div
+          class="flex items-center justify-between px-3 py-1.5 bg-syn-color-neutral-100 rounded-t border-b border-syn-color-neutral-200"
+        >
+          <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-500"
+            >IMU Calibration</span
+          >
         </div>
         <div class="flex flex-col gap-2 px-3 pb-3">
           <p class="text-[11px] text-syn-color-neutral-500">
-            Apply the current IMU orientation to the sensor pose. This reads the real-time roll/pitch from the sensor's IMU and updates the pose accordingly.
+            Apply the current IMU orientation to the sensor pose. This reads the real-time
+            roll/pitch from the sensor's IMU and updates the pose accordingly.
           </p>
           <syn-button
             variant="outline"
@@ -130,6 +145,5 @@
         </div>
       </div>
     }
-    </syn-validate>
   </form>
 </div>

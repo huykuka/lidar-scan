@@ -63,26 +63,28 @@
       <div class="flex flex-col gap-1">
         <span class="text-[11px] font-semibold text-syn-color-neutral-600">{{ axis.label }}</span>
         <div class="flex items-center gap-3">
-          <syn-range
-            class="flex-1"
-            [min]="-180"
-            [max]="180"
-            [step]="0.1"
-            [value]="$safeNavigationMigration(poseFormGroup.get(axis.key)?.value?.toString())"
-            [tooltipFormatter]="angleLabelFn"
-            size="small"
-            (synInputEvent)="onAngleInput($any(axis.key), $event)"
-            (synChangeEvent)="onAngleChange($any(axis.key), $event)"
-          />
-          <syn-input
-            [formControlName]="axis.key"
-            type="number"
-            size="small"
-            [step]="0.01"
-            class="w-32 shrink-0"
-            (synInputEvent)="onAngleInput($any(axis.key), $event)"
-          >
-          </syn-input>
+            <syn-range
+              class="flex-1"
+              [min]="-180"
+              [max]="180"
+              [step]="0.1"
+              [value]="$safeNavigationMigration(poseFormGroup.get(axis.key)?.value?.toString())"
+              [tooltipFormatter]="angleLabelFn"
+              size="small"
+              (synInputEvent)="onAngleInput($any(axis.key), $event)"
+              (synChangeEvent)="onAngleChange($any(axis.key), $event)"
+            />
+          <syn-validate on="live" [eager]="false">
+            <syn-input
+              [formControlName]="axis.key"
+              type="number"
+              size="small"
+              [step]="0.01"
+              class="w-32 shrink-0"
+              (synInputEvent)="onAngleInput($any(axis.key), $event)"
+            >
+            </syn-input>
+          </syn-validate>
         </div>
         @if (poseFormGroup.get(axis.key)?.dirty && poseFormGroup.get(axis.key)?.invalid) {
           <span class="text-[10px] text-syn-color-error-600 mt-0.5"

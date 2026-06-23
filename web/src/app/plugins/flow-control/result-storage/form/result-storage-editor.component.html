@@ -10,14 +10,15 @@
 
 <form [formGroup]="form" class="flex flex-col gap-4">
   <syn-validate on="live" [eager]="false">
-  <!-- Node Name -->
-  <syn-input
-    label="Node Name"
-    formControlName="name"
-    size="small"
-    placeholder="Result Storage"
-    required
-  />
+    <!-- Node Name -->
+    <syn-input
+      label="Node Name"
+      formControlName="name"
+      size="small"
+      placeholder="Result Storage"
+      required
+    />
+  </syn-validate>
 
   <!-- Point Cloud Color -->
   <div class="flex flex-col gap-2">
@@ -35,5 +36,4 @@
       <span class="text-xs text-syn-color-neutral-600">{{ colorControl.value }}</span>
     </div>
   </div>
-  </syn-validate>
 </form>
