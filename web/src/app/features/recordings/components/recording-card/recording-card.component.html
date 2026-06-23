@@ -1,5 +1,5 @@
 <div
-  (click)="selectable() ? toggleSelection.emit(!selected()) : select.emit(recording)"
+  (click)="selectable() ? toggleSelection.emit(!selected()) : select.emit(recording())"
   class="flex items-stretch rounded-xl border-syn hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex-row relative"
   style="border-color: var(--syn-color-neutral-300)"
 >
@@ -15,15 +15,15 @@
     </div>
   }
   <div class="flex-shrink-0 h-full bg-slate-900 flex items-center justify-center relative">
-    @if (recording.thumbnail_path && !thumbnailLoadFailed(recording.id)) {
+    @if (recording().thumbnail_path && !thumbnailLoadFailed(recording().id)) {
       <img
-        (error)="onThumbnailError(recording.id)"
-        (load)="onThumbnailLoad(recording.id)"
-        [alt]="recording.name + ' thumbnail'"
-        [src]="getThumbnailUrl(recording)"
+        (error)="onThumbnailError(recording().id)"
+        (load)="onThumbnailLoad(recording().id)"
+        [alt]="recording().name + ' thumbnail'"
+        [src]="getThumbnailUrl(recording())"
         [width]="140"
       />
-      @if (isLoadingThumbnail(recording.id)) {
+      @if (isLoadingThumbnail(recording().id)) {
         <div class="absolute inset-0 flex items-center justify-center bg-slate-900/50">
           <syn-spinner size="small" />
         </div>
@@ -42,18 +42,18 @@
     <div class="flex flex-col min-w-0">
       <div class="flex items-center justify-between gap-2 mb-0.5">
         <h3
-          [title]="recording.name"
+          [title]="recording().name"
           class="font-semibold text-sm sm:text-base truncate"
           style="color: var(--syn-typography-color-text)"
         >
-          {{ recording.name }}
+          {{ recording().name }}
         </h3>
         <span
           class="text-[10px] sm:text-xs flex items-center gap-1 flex-shrink-0"
           style="color: var(--syn-color-neutral-500)"
         >
           <syn-icon class="text-[10px] sm:text-xs" name="calendar_today" />
-          {{ recording.created_at | date: 'yyyy-MM-dd HH:mm:ss' }}
+          {{ recording().created_at | date: 'yyyy-MM-dd HH:mm:ss' }}
         </span>
       </div>
     </div>
@@ -65,45 +65,39 @@
     >
       <div class="flex items-center gap-1.5" title="Frames">
         <syn-icon class="text-neutral-400" name="layers" />
-        <span class="font-medium">{{ recording.frame_count }}</span>
+        <span class="font-medium">{{ recording().frame_count }}</span>
       </div>
       <div class="flex items-center gap-1.5" title="Duration">
         <syn-icon class="text-neutral-400" name="timer" />
-        <span class="font-medium">{{ formatDuration(recording.duration_seconds) }}</span>
+        <span class="font-medium">{{ formatDuration(recording().duration_seconds) }}</span>
       </div>
       <div class="flex items-center gap-1.5" title="File Size">
         <syn-icon class="text-neutral-400" name="sd" />
-        <span class="font-medium">{{ formatFileSize(recording.file_size_bytes) }}</span>
+        <span class="font-medium">{{ formatFileSize(recording().file_size_bytes) }}</span>
       </div>
     </div>
   </div>
 
   <!-- Quick Actions Column -->
   <div class="flex flex-col justify-center gap-2 px-3 py-2 bg-syn-color-neutral-50 flex-shrink-0">
-    <syn-icon-button
-      variant="text"
+    <syn-icon-button variant="text"
       name="play_arrow"
       color="primary"
-      (click)="play.emit(recording); $event.stopPropagation()"
+      (click)="play.emit(recording()); $event.stopPropagation()"
       label="Delete"
-    >
-    </syn-icon-button>
+     />
 
-    <syn-icon-button
-      variant="text"
+    <syn-icon-button variant="text"
       name="download"
-      (click)="download.emit(recording); $event.stopPropagation()"
+      (click)="download.emit(recording()); $event.stopPropagation()"
       label="Delete"
-    >
-    </syn-icon-button>
+     />
 
-    <syn-icon-button
-      variant="text"
+    <syn-icon-button variant="text"
       style="color: var(--syn-color-error-600)"
       name="delete"
-      (click)="delete.emit(recording); $event.stopPropagation()"
+      (click)="delete.emit(recording()); $event.stopPropagation()"
       label="Delete"
-    >
-    </syn-icon-button>
+     />
   </div>
 </div>

@@ -5,11 +5,10 @@
       <div
         class="flex items-start gap-2 px-3 py-2 rounded-md border border-syn-color-error-300 bg-syn-color-error-50 text-syn-color-error-800"
       >
-        <syn-icon
-          name="error_outline"
+        <syn-icon name="error_outline"
           class="mt-0.5 shrink-0 text-syn-color-error-600"
           style="font-size: 1rem"
-        ></syn-icon>
+         />
         <div class="flex-1 min-w-0">
           <p class="text-xs font-semibold mb-1">Fix validation errors before saving:</p>
           <ul class="text-xs space-y-0.5 list-disc list-inside">
@@ -184,6 +183,6 @@
         <app-dynamic-node-editor (cancel)="onDrawerClose()" (save)="onEditorSave()" />
       }
     </syn-drawer>
-    <app-output-viewer></app-output-viewer>
+    <app-output-viewer />
   </div>
 </div>

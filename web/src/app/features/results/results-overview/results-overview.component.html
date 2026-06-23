@@ -3,18 +3,18 @@
   <div class="flex items-center justify-between shrink-0">
     <p class="text-sm text-syn-color-neutral-600">{{ nodes().length }} node(s) found</p>
     <syn-button (click)="loadNodes()" [disabled]="isLoading()" size="small" variant="outline">
-      <syn-icon name="refresh" slot="prefix"></syn-icon>
+      <syn-icon name="refresh" slot="prefix" />
       Refresh
     </syn-button>
   </div>
 
   @if (isLoading()) {
     <div class="flex items-center justify-center py-16">
-      <syn-spinner></syn-spinner>
+      <syn-spinner />
     </div>
   } @else if (nodes().length === 0) {
     <div class="flex flex-col items-center justify-center py-16 text-center">
-      <syn-icon name="analytics" class="text-5xl text-syn-color-neutral-400 mb-3"></syn-icon>
+      <syn-icon name="analytics" class="text-5xl text-syn-color-neutral-400 mb-3" />
       <p class="text-syn-color-neutral-600 font-medium">No nodes with results available</p>
       <p class="text-sm text-syn-color-neutral-400 mt-1">
         Add a Result Storage node to the pipeline to collect results.
@@ -32,10 +32,9 @@
             <div
               class="w-10 h-10 rounded-lg bg-syn-color-primary-50 flex items-center justify-center shrink-0"
             >
-              <syn-icon
-                [name]="nodeTypeIcon(node.node_type)"
+              <syn-icon [name]="nodeTypeIcon(node.node_type)"
                 class="text-syn-color-primary-600"
-              ></syn-icon>
+               />
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
@@ -55,10 +54,9 @@
                 {{ formatTimestamp(node.latest_timestamp) }}
               </p>
             </div>
-            <syn-icon
-              name="chevron_right"
+            <syn-icon name="chevron_right"
               class="text-syn-color-neutral-400 shrink-0 mt-1"
-            ></syn-icon>
+             />
           </div>
         </button>
       }

@@ -1,14 +1,12 @@
 <div class="flex flex-col w-full min-w-105 mb-4">
-  <app-node-editor-header
-    [icon]="definition()?.icon || 'settings_input_component'"
+  <app-node-editor-header [icon]="definition()?.icon || 'settings_input_component'"
     iconColor="text-syn-color-warning-600"
     [title]="definition()?.display_name || ''"
     [description]="$safeNavigationMigration(definition()?.description)"
     [saveDisabled]="form.invalid || configForm.invalid || isSaving()"
     (save)="onSave()"
     (cancel)="onCancel()"
-  >
-  </app-node-editor-header>
+   />
 
   <form [formGroup]="form" class="flex flex-col gap-3 text-sm">
     <div class="grid grid-cols-2 gap-3">
@@ -110,8 +108,7 @@
               </div>
               <div [formGroupName]="prop.name" class="grid grid-cols-3 gap-1.5">
                 <syn-validate on="live" [eager]="false">
-                  <syn-input
-                    required
+                  <syn-input required
                     [step]="0.0001"
                     formControlName="0"
                     ngDefaultControl
@@ -119,12 +116,10 @@
                     size="small"
                     label="X"
                     type="number"
-                  >
-                  </syn-input>
+                   />
                 </syn-validate>
                 <syn-validate on="live" [eager]="false">
-                  <syn-input
-                    required
+                  <syn-input required
                     [step]="0.0001"
                     formControlName="1"
                     ngDefaultControl
@@ -132,12 +127,10 @@
                     size="small"
                     label="Y"
                     type="number"
-                  >
-                  </syn-input>
+                   />
                 </syn-validate>
                 <syn-validate on="live" [eager]="false">
-                  <syn-input
-                    required
+                  <syn-input required
                     [step]="0.0001"
                     formControlName="2"
                     ngDefaultControl
@@ -145,8 +138,7 @@
                     size="small"
                     label="Z"
                     type="number"
-                  >
-                  </syn-input>
+                   />
                 </syn-validate>
               </div>
             </div>

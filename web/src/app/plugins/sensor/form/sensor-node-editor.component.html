@@ -132,7 +132,7 @@
             [disabled]="isCalibrating()"
             (click)="onCalibrateFromImu()"
           >
-            <syn-icon name="tune" slot="prefix"></syn-icon>
+            <syn-icon name="tune" slot="prefix" />
             @if (isCalibrating()) {
               Calibrating...
             } @else {

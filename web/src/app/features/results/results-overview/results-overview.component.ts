@@ -39,8 +39,6 @@ export class ResultsOverviewComponent implements OnInit {
       this.nodes.set(nodes);
     } catch (err) {
       console.error('[ResultsOverview] Failed to load node index:', err);
-      // Fall back to mock data while backend is in progress
-      this.nodes.set(MOCK_NODE_INDEX);
     } finally {
       this.isLoading.set(false);
     }

@@ -1,4 +1,4 @@
-import {Injectable, signal, computed} from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {firstValueFrom} from 'rxjs';
 import {catchError, of} from 'rxjs';
@@ -23,6 +23,8 @@ const USER_KEY = 'auth_user';
 
 @Injectable({providedIn: 'root'})
 export class AuthService {
+  private http = inject(HttpClient);
+
   private readonly currentUser = signal<UserInfo | null>(this.loadUserFromStorage());
   private readonly token = signal<string | null>(this.loadTokenFromStorage());
 
@@ -36,8 +38,6 @@ export class AuthService {
   });
   readonly isService = computed(() => this.currentUser()?.role === 'service');
   readonly canEdit = this.isAdmin;
-
-  constructor(private http: HttpClient) {}
 
   getToken(): string | null {
     return this.token();

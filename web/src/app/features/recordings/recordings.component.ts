@@ -1,4 +1,4 @@
-import { Component, computed, ElementRef, inject, OnInit, signal, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, ElementRef, inject, OnInit, signal, ChangeDetectionStrategy, viewChild } from '@angular/core';
 
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { RecordingStoreService } from '@core/services/stores/recording-store.service';
@@ -19,7 +19,7 @@ import { firstValueFrom } from 'rxjs';
   styleUrl: './recordings.component.css',
 })
 export class RecordingsComponent implements OnInit {
-  @ViewChild('fileInput') private fileInputRef!: ElementRef<HTMLInputElement>;
+  private readonly fileInputRef = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
 
   protected searchQuery = signal<string>('');
   protected selectedRecording = signal<Recording | null>(null);
@@ -182,7 +182,7 @@ export class RecordingsComponent implements OnInit {
   protected triggerUpload(): void {
     this.uploadError.set(null);
 
-    const input = this.fileInputRef.nativeElement;
+    const input = this.fileInputRef().nativeElement;
 
     input.value = '';
     input.accept = '.lidr'; // restrict file picker

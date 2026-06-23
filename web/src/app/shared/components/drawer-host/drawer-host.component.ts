@@ -3,11 +3,11 @@ import {
   inject,
   computed,
   ViewContainerRef,
-  ViewChild,
   effect,
   ChangeDetectionStrategy,
   signal,
   DestroyRef,
+  viewChild
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl } from '@angular/forms';
@@ -49,17 +49,17 @@ import { DrawerService } from '@core/services/drawer.service';
       <div class="drawer-header">
         <h2 class="drawer-title">{{ svc.title() }}</h2>
       </div>
-      <syn-divider style="margin: var(--syn-spacing-small) 0 0;"></syn-divider>
+      <syn-divider style="margin: var(--syn-spacing-small) 0 0;" />
 
       <!-- Dynamic content -->
       <div class="drawer-body">
-        <ng-container #outlet></ng-container>
+        <ng-container #outlet />
       </div>
 
       <!-- Footer: Cancel + Save -->
       <div slot="footer" class="flex justify-end gap-2 w-full">
-        <syn-button variant="outline" (click)="svc.close()"><syn-icon slot="prefix" name="close" aria-hidden="true"></syn-icon>Cancel</syn-button>
-        <syn-button variant="filled" [disabled]="formInvalid()" (click)="submitForm()"><syn-icon slot="prefix" name="save" aria-hidden="true"></syn-icon>Save</syn-button>
+        <syn-button variant="outline" (click)="svc.close()"><syn-icon slot="prefix" name="close" aria-hidden="true" />Cancel</syn-button>
+        <syn-button variant="filled" [disabled]="formInvalid()" (click)="submitForm()"><syn-icon slot="prefix" name="save" aria-hidden="true" />Save</syn-button>
       </div>
     </syn-drawer>
   `,
@@ -68,8 +68,7 @@ export class DrawerHostComponent {
   protected readonly svc = inject(DrawerService);
   private readonly destroyRef = inject(DestroyRef);
 
-  @ViewChild('outlet', { read: ViewContainerRef, static: true })
-  private outlet!: ViewContainerRef;
+  private readonly outlet = viewChild.required('outlet', { read: ViewContainerRef });
 
   private formInstance: Record<string, unknown> | null = null;
 
@@ -86,7 +85,7 @@ export class DrawerHostComponent {
   }
 
   protected submitForm(): void {
-    const form = this.outlet.element.nativeElement?.parentElement?.querySelector('form') as HTMLFormElement | null;
+    const form = this.outlet().element.nativeElement?.parentElement?.querySelector('form') as HTMLFormElement | null;
     if (form) {
       form.requestSubmit();
     } else if (this.formInstance && typeof this.formInstance['onSubmit'] === 'function') {
@@ -99,13 +98,13 @@ export class DrawerHostComponent {
       const component = this.svc.component();
       const inputs = this.svc.inputs();
 
-      this.outlet.clear();
+      this.outlet().clear();
       this.formInstance = null;
       this.formInvalid.set(false); // reset on each open
 
       if (!component) return;
 
-      const ref = this.outlet.createComponent(component);
+      const ref = this.outlet().createComponent(component);
       Object.entries(inputs).forEach(([key, value]) => {
         ref.setInput(key, value);
       });

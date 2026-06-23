@@ -11,12 +11,11 @@
 <div class="space-y-4">
   <syn-validate on="live" [eager]="false">
     <!-- Node Name -->
-    <syn-input
-      label="Node Name"
+    <syn-input label="Node Name"
       [value]="$safeNavigationMigration(form.get('name')?.value)"
       (synInputEvent)="form.get('name')?.setValue($any($event).target.value)"
       required
-    ></syn-input>
+     />
   </syn-validate>
 
   <!-- View Live Data Link (only when editing existing node) -->

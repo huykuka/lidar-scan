@@ -45,7 +45,7 @@ import { Subscription } from 'rxjs';
       <div
         class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg z-10 p-4 text-center"
       >
-        <syn-icon name="error" class="text-4xl text-red-400 mb-2"></syn-icon>
+        <syn-icon name="error" class="text-4xl text-red-400 mb-2" />
         <p class="text-white font-semibold text-sm">Rendering Error</p>
         <p class="text-syn-color-neutral-300 text-xs mt-1 break-all">{{ errorMessage() }}</p>
       </div>

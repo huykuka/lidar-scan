@@ -2,7 +2,7 @@
   <!-- Breadcrumb + Back button row -->
   <div class="flex items-center gap-2 shrink-0 mb-4">
     <syn-button variant="text" size="small" [routerLink]="['/results', nodeId()]">
-      <syn-icon slot="prefix" name="chevron_left"></syn-icon>
+      <syn-icon slot="prefix" name="chevron_left" />
       Back to results
     </syn-button>
 
@@ -10,14 +10,14 @@
       <a [routerLink]="['/results']" class="hover:text-syn-color-primary-600 cursor-pointer"
         >Results</a
       >
-      <syn-icon name="chevron_right" class="text-xs"></syn-icon>
+      <syn-icon name="chevron_right" class="text-xs" />
       <a
         [routerLink]="['/results', nodeId()]"
         class="hover:text-syn-color-primary-600 cursor-pointer"
         >{{ nodeName() }}</a
       >
       @if (result()) {
-        <syn-icon name="chevron_right" class="text-xs"></syn-icon>
+        <syn-icon name="chevron_right" class="text-xs" />
         <span class="text-syn-typography-color-text font-medium">{{
           formatTimestamp(result()!.timestamp)
         }}</span>
@@ -27,11 +27,11 @@
 
   @if (isLoading()) {
     <div class="flex items-center justify-center py-16">
-      <syn-spinner></syn-spinner>
+      <syn-spinner />
     </div>
   } @else if (notFound()) {
     <div class="flex flex-col items-center justify-center py-16 text-center">
-      <syn-icon name="search_off" class="text-5xl text-syn-color-neutral-400 mb-3"></syn-icon>
+      <syn-icon name="search_off" class="text-5xl text-syn-color-neutral-400 mb-3" />
       <p class="text-syn-color-neutral-600 font-semibold text-lg">Result not found</p>
       <a
         [routerLink]="['/results', nodeId()]"
@@ -73,12 +73,11 @@
               @for (pcd of result()!.pcd_files; track pcd.label) {
                 <syn-tab-panel [name]="pcd.label" class="w-full">
                   <div class="viewer-canvas-area w-full">
-                    <app-pcd-viewer
-                      [pcdUrl]="pcdFileMap().get(pcd.label)?.url ?? ''"
+                    <app-pcd-viewer [pcdUrl]="pcdFileMap().get(pcd.label)?.url ?? ''"
                       [color]="pcdFileMap().get(pcd.label)?.color ?? ''"
                       [onDownload]="activeTab()?.label === pcd.label ? getDownloadFn(pcd) : null"
                       class="w-full h-full"
-                    ></app-pcd-viewer>
+                     />
                   </div>
                 </syn-tab-panel>
               }
@@ -103,12 +102,12 @@
             <h3
               class="text-sm font-semibold text-syn-typography-color-text flex items-center gap-2"
             >
-              <syn-icon name="info" class="text-syn-color-primary-600 text-base"></syn-icon>
+              <syn-icon name="info" class="text-syn-color-primary-600 text-base" />
               Metadata
             </h3>
           </div>
 
-          <app-metadata-table [metadata]="result()!.metadata"></app-metadata-table>
+          <app-metadata-table [metadata]="result()!.metadata" />
         </div>
       </div>
     </div>

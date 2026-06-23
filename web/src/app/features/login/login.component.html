@@ -1,7 +1,7 @@
 <div class="login-page">
   <div class="login-container">
     <div class="login-branding">
-      <syn-icon name="sensors" class="login-logo"></syn-icon>
+      <syn-icon name="sensors" class="login-logo" />
       <h1 class="login-title">3D LiDAR Control Cockpit</h1>
       <p class="login-subtitle">Sign in to continue</p>
     </div>
@@ -15,7 +15,7 @@
           required
           autocomplete="username"
         >
-          <syn-icon name="person" slot="prefix"></syn-icon>
+          <syn-icon name="person" slot="prefix" />
         </syn-input>
 
         <syn-input
@@ -27,7 +27,7 @@
           password-toggle
           autocomplete="current-password"
         >
-          <syn-icon name="lock" slot="prefix"></syn-icon>
+          <syn-icon name="lock" slot="prefix" />
         </syn-input>
 
         <syn-button
@@ -37,7 +37,7 @@
           [loading]="isLoading()"
           [disabled]="isLoading() || form.invalid"
         >
-          <syn-icon name="login" slot="prefix"></syn-icon>
+          <syn-icon name="login" slot="prefix" />
           Sign In
         </syn-button>
       </form>

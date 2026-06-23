@@ -12,12 +12,11 @@ import { ThemeService } from '@core/services/theme.service';
   standalone: true,
   imports: [SynergyComponentsModule],
   template: `
-    <syn-icon-button
-      [name]="icon()"
+    <syn-icon-button [name]="icon()"
       [label]="label()"
       size="medium"
       (click)="toggle()"
-    ></syn-icon-button>
+     />
   `,
   changeDetection: ChangeDetectionStrategy.Eager,
   styles: `

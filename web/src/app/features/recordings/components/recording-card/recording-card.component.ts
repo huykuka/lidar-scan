@@ -1,4 +1,4 @@
-import {Component, Input, signal, input, output, ChangeDetectionStrategy} from '@angular/core';
+import {Component, signal, input, output, ChangeDetectionStrategy} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {Recording} from '@core/models';
@@ -13,7 +13,7 @@ import {environment} from '@env/environment';
   styleUrl: './recording-card.component.css',
 })
 export class RecordingCardComponent {
-  @Input({required: true}) recording!: Recording;
+  readonly recording = input.required<Recording>();
   readonly selectable = input(false);
   readonly selected = input(false);
   readonly priority = input(false);

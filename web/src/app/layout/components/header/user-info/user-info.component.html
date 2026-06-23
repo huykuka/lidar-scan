@@ -5,19 +5,18 @@
   (synAfterShowEvent)="onDropdownShow()"
   (synAfterHideEvent)="onDropdownHide()"
 >
-  <syn-icon-button
-    slot="trigger"
+  <syn-icon-button slot="trigger"
     name="person"
     label="Account"
     size="medium"
     [style.color]="auth.isAuthenticated() ? 'var(--syn-color-primary-600)' : 'inherit'"
-  ></syn-icon-button>
+   />
 
   <div class="account-panel rounded-xl">
     @if (auth.isAuthenticated()) {
       <div class="account-topbar">
         <div class="account-info">
-          <syn-icon name="account_circle" class="account-avatar"></syn-icon>
+          <syn-icon name="account_circle" class="account-avatar" />
           <div class="account-details">
             <span class="account-name">{{ auth.user()?.username }}</span>
             <span class="account-role">{{ auth.user()?.role }}</span>
@@ -28,13 +27,13 @@
       <p class="account-subtitle">You are signed in and can control workspace resources.</p>
 
       <syn-button variant="outline" size="small" class="account-action" (click)="onLogout()">
-        <syn-icon name="logout" slot="prefix"></syn-icon>
+        <syn-icon name="logout" slot="prefix" />
         Sign Out
       </syn-button>
     } @else {
       <div class="account-topbar">
         <div class="account-info">
-          <syn-icon name="account_circle" class="account-avatar"></syn-icon>
+          <syn-icon name="account_circle" class="account-avatar" />
           <div class="account-details">
             <span class="account-name">Guest</span>
             <span class="account-role">Authentication required</span>
@@ -44,24 +43,22 @@
 
       <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="login-inline">
         <syn-validate on="live" [eager]="false">
-          <syn-input
-            label="Username"
+          <syn-input label="Username"
             size="small"
             formControlName="username"
             required
             autocomplete="username"
-          ></syn-input>
+           />
         </syn-validate>
         <syn-validate on="live">
-          <syn-input
-            label="Password"
+          <syn-input label="Password"
             type="password"
             size="small"
             formControlName="password"
             required
             password-toggle
             autocomplete="current-password"
-          ></syn-input>
+           />
         </syn-validate>
         <syn-button
           type="submit"
@@ -71,7 +68,7 @@
           [loading]="loginLoading()"
           [disabled]="loginLoading() || loginForm.invalid"
         >
-          <syn-icon name="login" slot="prefix"></syn-icon>
+          <syn-icon name="login" slot="prefix" />
           Sign In
         </syn-button>
       </form>

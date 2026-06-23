@@ -1,12 +1,12 @@
 import {Routes} from '@angular/router';
-import {MainLayoutComponent} from '@layout/main-layout/main-layout.component';
+
 import {unsavedChangesGuard} from '@core/guards/unsaved-changes.guard';
 import {serviceGuard} from '@core/guards/auth.guard';
 
 export const routes: Routes = [
   {
     path: '',
-    component: MainLayoutComponent,
+    loadComponent: () => import('@layout/main-layout/main-layout.component').then(m => m.MainLayoutComponent),
     children: [
       {
         path: '',

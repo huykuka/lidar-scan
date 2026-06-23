@@ -174,30 +174,4 @@ export class SystemStatusService {
     this._reloadingNodeIds.set(new Set());
     this._lastReloadEvent.set(null);
   }
-
-  /**
-   * Dev/test helper — simulates a selective reload sequence for a given node.
-   * Guarded by !environment.production so it never ships to prod.
-   */
-  triggerMockReloadSequence(nodeId: string): void {
-    if ((environment as any).production) return;
-
-    this.applyReloadEvent({
-      node_id: nodeId,
-      status: 'reloading',
-      error_message: null,
-      reload_mode: 'selective',
-      timestamp: Date.now() / 1000,
-    });
-
-    setTimeout(() => {
-      this.applyReloadEvent({
-        node_id: nodeId,
-        status: 'ready',
-        error_message: null,
-        reload_mode: 'selective',
-        timestamp: Date.now() / 1000,
-      });
-    }, 800);
-  }
 }

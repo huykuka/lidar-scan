@@ -17,7 +17,7 @@
       class="text-syn-color-primary-600"
       (click)="resetPose()"
     >
-      <syn-icon name="restart_alt" slot="prefix"></syn-icon>
+      <syn-icon name="restart_alt" slot="prefix" />
       <strong>Reset</strong>
     </syn-button>
   </div>
@@ -33,14 +33,12 @@
           <span class="text-[11px] font-bold uppercase tracking-wide text-syn-color-neutral-700">{{
             axis | uppercase
           }}</span>
-          <syn-input
-            [formControlName]="axis"
+          <syn-input [formControlName]="axis"
             type="number"
             size="small"
             [step]="0.1"
             (synInputEvent)="onXyzInput($any(axis), $event)"
-          >
-          </syn-input>
+           />
         </div>
       }
     </div>
@@ -75,15 +73,13 @@
               (synChangeEvent)="onAngleChange($any(axis.key), $event)"
             />
           <syn-validate on="live" [eager]="false">
-            <syn-input
-              [formControlName]="axis.key"
+            <syn-input [formControlName]="axis.key"
               type="number"
               size="small"
               [step]="0.01"
               class="w-32 shrink-0"
               (synInputEvent)="onAngleInput($any(axis.key), $event)"
-            >
-            </syn-input>
+             />
           </syn-validate>
         </div>
         @if (poseFormGroup.get(axis.key)?.dirty && poseFormGroup.get(axis.key)?.invalid) {

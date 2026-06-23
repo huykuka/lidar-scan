@@ -8,7 +8,7 @@ import {ToastService} from '@core/services/toast.service';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
 import {environment} from '@env/environment';
-import {CommonModule} from '@angular/common';
+
 
 /**
  * Autocomplete suggestion item
@@ -28,7 +28,7 @@ interface AutocompleteSuggestion {
   selector: 'app-if-condition-editor',
   standalone: true,
 
-  imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent, SynergyFormsModule, CommonModule],
+  imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent, SynergyFormsModule],
   providers: [NodeEditorFacadeService],
   templateUrl: './if-condition-editor.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,

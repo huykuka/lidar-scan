@@ -2,7 +2,7 @@
   <!-- Breadcrumb -->
   <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 shrink-0">
     <a [routerLink]="['/results']" class="hover:text-syn-color-primary-600 cursor-pointer">Results</a>
-    <syn-icon name="chevron_right" class="text-xs"></syn-icon>
+    <syn-icon name="chevron_right" class="text-xs" />
     <span class="text-syn-typography-color-text font-medium">{{ nodeName() }}</span>
   </nav>
 
@@ -15,18 +15,18 @@
       size="small"
       variant="outline"
     >
-      <syn-icon name="refresh" slot="prefix"></syn-icon>
+      <syn-icon name="refresh" slot="prefix" />
       Refresh
     </syn-button>
   </div>
 
   @if (isLoading()) {
     <div class="flex items-center justify-center py-16">
-      <syn-spinner></syn-spinner>
+      <syn-spinner />
     </div>
   } @else if (results().length === 0) {
     <div class="flex flex-col items-center justify-center py-16 text-center">
-      <syn-icon name="inbox" class="text-5xl text-syn-color-neutral-400 mb-3"></syn-icon>
+      <syn-icon name="inbox" class="text-5xl text-syn-color-neutral-400 mb-3" />
       <p class="text-syn-color-neutral-600 font-medium">No results for this node</p>
     </div>
   } @else {
@@ -60,7 +60,7 @@
                 <syn-badge [variant]="statusVariant(result.status)">{{ result.status }}</syn-badge>
               </td>
               <td class="px-4 py-3 text-right">
-                <syn-icon name="chevron_right" class="text-syn-color-neutral-400"></syn-icon>
+                <syn-icon name="chevron_right" class="text-syn-color-neutral-400" />
               </td>
             </tr>
           }

@@ -9,13 +9,11 @@
     }}</span>
   </button>
 } @else {
-  <syn-icon-button
-    variant="text"
+  <syn-icon-button variant="text"
     style="color: var(--syn-color-error-600)"
     name="radio_button_checked"
     (click)="toggleRecording(); $event.stopPropagation()"
     [disabled]="hasError()"
     [label]="hasError() ? 'Cannot record: node is in error state' : 'Start Recording'"
-  >
-  </syn-icon-button>
+   />
 }

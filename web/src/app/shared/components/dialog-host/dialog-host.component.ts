@@ -41,8 +41,8 @@ const SEVERITY_STYLES: Record<DialogSeverity, string> = {
       <p>{{ svc.message() }}</p>
 
       <div slot="footer" class="flex justify-end gap-2">
-        <syn-button variant="outline" (click)="svc.cancel()"><syn-icon slot="prefix" name="close" aria-hidden="true"></syn-icon>{{ svc.cancelLabel() }}</syn-button>
-        <syn-button variant="filled" [style]="confirmStyle()" (click)="svc.accept()"><syn-icon slot="prefix" [name]="svc.confirmIcon()"  aria-hidden="true"></syn-icon>{{ svc.confirmLabel() || 'Delete' }}</syn-button>
+        <syn-button variant="outline" (click)="svc.cancel()"><syn-icon slot="prefix" name="close" aria-hidden="true" />{{ svc.cancelLabel() }}</syn-button>
+        <syn-button variant="filled" [style]="confirmStyle()" (click)="svc.accept()"><syn-icon slot="prefix" [name]="svc.confirmIcon()"  aria-hidden="true" />{{ svc.confirmLabel() || 'Delete' }}</syn-button>
       </div>
     </syn-dialog>
   `,

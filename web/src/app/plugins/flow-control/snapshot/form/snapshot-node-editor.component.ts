@@ -1,6 +1,6 @@
 import { Component, computed, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CommonModule } from '@angular/common';
+
 import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
 import { NodeEditorComponent } from '@core/models/node-plugin.model';
 import { NodeStoreService } from '@core/services/stores/node-store.service';
@@ -20,11 +20,10 @@ import { environment } from '@env/environment';
   standalone: true,
   imports: [
     ReactiveFormsModule,
-    CommonModule,
     SynergyComponentsModule,
     SynergyFormsModule,
-    NodeEditorHeaderComponent,
-  ],
+    NodeEditorHeaderComponent
+],
   providers: [NodeEditorFacadeService],
   templateUrl: './snapshot-node-editor.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
