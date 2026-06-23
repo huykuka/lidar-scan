@@ -3,26 +3,16 @@ import {NodeData, NodePlugin} from '@core/models';
 import {NodesApiService} from '@core/services/api';
 import {NodeStoreService} from '@core/services/stores';
 import {NodeDefinition} from '../models/node.model';
-import {SensorNodeCardComponent} from '@plugins/sensor/node/sensor-node-card.component';
 import {SensorNodeEditorComponent} from '@plugins/sensor/form/sensor-node-editor.component';
-import {FusionNodeCardComponent} from '@plugins/fusion/node/fusion-node-card.component';
 import {FusionNodeEditorComponent} from '@plugins/fusion/form/fusion-node-editor.component';
-import {OperationNodeCardComponent} from '@plugins/operation/node/operation-node-card.component';
 import {OperationNodeEditorComponent} from '@plugins/operation/form/operation-node-editor.component';
-import {CalibrationNodeCardComponent} from '@plugins/calibration/node/calibration-node-card.component';
 import {CalibrationNodeEditorComponent} from '@plugins/calibration/form/calibration-node-editor.component';
-import {IfConditionCardComponent} from '@plugins/flow-control/if-block/node/if-condition-card.component';
 import {IfConditionEditorComponent} from '@plugins/flow-control/if-block/form/if-condition-editor.component';
-import {OutputNodeCardComponent} from '@plugins/flow-control/output/node/output-node-card/output-node-card.component';
 import {OutputNodeEditorComponent} from '@plugins/flow-control/output/form/output-node-editor/output-node-editor.component';
-import {SnapshotNodeCardComponent} from '@plugins/flow-control/snapshot/node/snapshot-node-card.component';
 import {SnapshotNodeEditorComponent} from '@plugins/flow-control/snapshot/form/snapshot-node-editor.component';
-import {PlaybackNodeCardComponent} from '@plugins/playback/node/playback-node-card/playback-node-card.component';
 import {PlaybackNodeEditorComponent} from '@plugins/playback/form/playback-node-editor/playback-node-editor.component';
-import {PcdInjectionCardComponent} from '@plugins/pcd-injection/node/pcd-injection-card.component';
 import {PcdInjectionEditorComponent} from '@plugins/pcd-injection/form/pcd-injection-editor.component';
 import {ApplicationNodeEditorComponent} from '@plugins/application/form/application-node-editor.component';
-import {ResultStorageCardComponent} from '@plugins/flow-control/result-storage/node/result-storage-card.component';
 import {ResultStorageEditorComponent} from '@plugins/flow-control/result-storage/form/result-storage-editor.component';
 
 const NODE_COLOR = 'var(--syn-color-primary-600)';
@@ -95,48 +85,38 @@ export class NodePluginRegistry {
 
   private registerPluginComponents(): void {
     this.plugins.forEach((plugin, type) => {
-      // output_node gets its own dedicated card + editor (must be checked BEFORE flow_control)
       if (type === 'output_node') {
         this.plugins.set(type, {
           ...plugin,
-          cardComponent: OutputNodeCardComponent,
           editorComponent: OutputNodeEditorComponent,
         });
         return;
       }
       if (plugin.category === 'sensor') {
-        const cardMap: Record<string, any> = {
-          playback: PlaybackNodeCardComponent,
-          pcd_injection: PcdInjectionCardComponent,
-        };
         const editorMap: Record<string, any> = {
           playback: PlaybackNodeEditorComponent,
           pcd_injection: PcdInjectionEditorComponent,
         };
         this.plugins.set(type, {
           ...plugin,
-          cardComponent: cardMap[type] ?? SensorNodeCardComponent,
           editorComponent: editorMap[type] ?? SensorNodeEditorComponent,
         });
       }
       if (plugin.category === 'fusion') {
         this.plugins.set(type, {
           ...plugin,
-          cardComponent: FusionNodeCardComponent,
           editorComponent: FusionNodeEditorComponent,
         });
       }
       if (plugin.category === 'operation') {
         this.plugins.set(type, {
           ...plugin,
-          cardComponent: OperationNodeCardComponent,
           editorComponent: OperationNodeEditorComponent,
         });
       }
       if (plugin.category === 'calibration') {
         this.plugins.set(type, {
           ...plugin,
-          cardComponent: CalibrationNodeCardComponent,
           editorComponent: CalibrationNodeEditorComponent,
         });
       }
@@ -150,19 +130,16 @@ export class NodePluginRegistry {
         if (type === 'snapshot') {
           this.plugins.set(type, {
             ...plugin,
-            cardComponent: SnapshotNodeCardComponent,
             editorComponent: SnapshotNodeEditorComponent,
           });
         } else if (type === 'result_storage') {
           this.plugins.set(type, {
             ...plugin,
-            cardComponent: ResultStorageCardComponent,
             editorComponent: ResultStorageEditorComponent,
           });
         } else {
           this.plugins.set(type, {
             ...plugin,
-            cardComponent: IfConditionCardComponent,
             editorComponent: IfConditionEditorComponent,
           });
         }
