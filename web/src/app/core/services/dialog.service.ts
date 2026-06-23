@@ -14,38 +14,67 @@ export interface DialogConfig {
   onConfirm?: () => void;
   onCancel?: () => void;
 }
+
+interface PendingDialogRequest {
+  config: DialogConfig;
+  resolve: (result: boolean) => void;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class DialogService {
-  private dialogState = signal<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmLabel: string;
-    confirmIcon: string;
-    confirmSeverity: DialogSeverity;
-  } | null>(null);
-
   readonly isOpen = signal(false);
   readonly title = signal('');
   readonly message = signal('');
   readonly confirmLabel = signal('');
+  readonly cancelLabel = signal('Cancel');
   readonly confirmIcon = signal('check');
   readonly confirmSeverity = signal<DialogSeverity>('danger');
 
   private onConfirmCallback: (() => void) | undefined;
   private onCancelCallback: (() => void) | undefined;
+  private resolver: ((result: boolean) => void) | undefined;
+  private pendingQueue: PendingDialogRequest[] = [];
 
   confirm(config: DialogConfig | string): Promise<boolean> {
     const finalConfig: DialogConfig =
       typeof config === 'string' ? { message: config } : config;
 
+    return new Promise<boolean>((resolve) => {
+      const request: PendingDialogRequest = { config: finalConfig, resolve };
+
+      if (this.isOpen()) {
+        this.pendingQueue.push(request);
+        return;
+      }
+
+      this.openDialog(request);
+    });
+  }
+
+  accept(): void {
+    this.onConfirmCallback?.();
+    this.resolver?.(true);
+    this.close();
+    this.openNextIfAny();
+  }
+
+  cancel(): void {
+    this.onCancelCallback?.();
+    this.resolver?.(false);
+    this.close();
+    this.openNextIfAny();
+  }
+
+  private openDialog(request: PendingDialogRequest): void {
+    const finalConfig = request.config;
+
     const {
       title = 'Confirm',
       message,
       confirmLabel = 'Confirm',
-      cancelLabel,
+      cancelLabel = 'Cancel',
       confirmIcon = 'check',
       confirmSeverity,
       variant,
@@ -61,45 +90,16 @@ export class DialogService {
       severity = 'primary';
     }
 
-    void cancelLabel;
-
     this.title.set(title);
     this.message.set(message);
     this.confirmLabel.set(confirmLabel);
+    this.cancelLabel.set(cancelLabel);
     this.confirmIcon.set(confirmIcon);
     this.confirmSeverity.set(severity);
     this.onConfirmCallback = onConfirm;
     this.onCancelCallback = onCancel;
-
-    return new Promise<boolean>((resolve) => {
-      this.isOpen.set(true);
-
-      // Override callbacks to include resolution
-      const originalConfirm = this.onConfirmCallback;
-      const originalCancel = this.onCancelCallback;
-
-      this.onConfirmCallback = () => {
-        originalConfirm?.();
-        this.accept();
-        resolve(true);
-      };
-
-      this.onCancelCallback = () => {
-        originalCancel?.();
-        this.cancel();
-        resolve(false);
-      };
-    });
-  }
-
-  accept(): void {
-    this.onConfirmCallback?.();
-    this.close();
-  }
-
-  cancel(): void {
-    this.onCancelCallback?.();
-    this.close();
+    this.resolver = request.resolve;
+    this.isOpen.set(true);
   }
 
   private close(): void {
@@ -107,7 +107,17 @@ export class DialogService {
     this.title.set('');
     this.message.set('');
     this.confirmLabel.set('');
+    this.cancelLabel.set('Cancel');
     this.confirmIcon.set('check');
     this.confirmSeverity.set('danger');
+    this.onConfirmCallback = undefined;
+    this.onCancelCallback = undefined;
+    this.resolver = undefined;
+  }
+
+  private openNextIfAny(): void {
+    const next = this.pendingQueue.shift();
+    if (!next) return;
+    this.openDialog(next);
   }
 }

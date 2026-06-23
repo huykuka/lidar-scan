@@ -475,13 +475,27 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
 
   async onDeleteNode(node: CanvasNode) {
     const name = node.data.name || node.id;
-    if (!(await this.dialog.confirm(`Are you sure you want to delete ${name}?`))) return;
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete Node',
+      message: `Are you sure you want to delete ${name}?`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     this.canvasEditStore.deleteNode(node.id);
     this.toast.success(`${name} deleted.`);
   }
 
   async onDeleteEdge(edgeId: string) {
-    if (!(await this.dialog.confirm('Are you sure you want to delete this connection?'))) return;
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete Connection',
+      message: 'Are you sure you want to delete this connection?',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     this.canvasEditStore.deleteEdge(edgeId);
     this.toast.success('Connection removed.');
   }
@@ -717,7 +731,14 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
       count === 1
         ? 'Are you sure you want to delete this node?'
         : `Are you sure you want to delete ${count} nodes?`;
-    if (!(await this.dialog.confirm(msg))) return;
+    const confirmed = await this.dialog.confirm({
+      title: 'Delete Selected Nodes',
+      message: msg,
+      confirmLabel: count === 1 ? 'Delete Node' : `Delete ${count} Nodes`,
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
     this.canvasEditStore.deleteNodes(selected);
     this.selectedNodeIds.set(new Set());
     this.toast.success(`${count} node(s) deleted.`);

@@ -83,7 +83,7 @@ export class RecordingsComponent implements OnInit {
   protected async confirmDelete(recording: Recording): Promise<void> {
     const confirmed = await this.dialogService.confirm({
       title: 'Delete Recording',
-      message: `Are you sure you want to delete <strong>${recording.name}</strong>? This action cannot be undone.`,
+      message: `Are you sure you want to delete ${recording.name}? This action cannot be undone.`,
       confirmLabel: 'Delete',
       cancelLabel: 'Cancel',
       variant: 'danger',
@@ -152,7 +152,7 @@ export class RecordingsComponent implements OnInit {
     const count = this.selectedRecordingIds().size;
     const confirmed = await this.dialogService.confirm({
       title: 'Delete Multiple Recordings',
-      message: `Are you sure you want to delete <strong>${count}</strong> recordings? This action cannot be undone.`,
+      message: `Are you sure you want to delete ${count} recordings? This action cannot be undone.`,
       confirmLabel: 'Delete All',
       cancelLabel: 'Cancel',
       variant: 'danger',

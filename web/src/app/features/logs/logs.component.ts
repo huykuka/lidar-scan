@@ -128,7 +128,13 @@ export class LogsComponent implements OnInit, OnDestroy {
   }
 
   async clearAllLogs() {
-    if (await this.dialog.confirm({title: 'Clear Logs', message: 'Clear all logs?', confirmLabel: 'Clear all'})) {
+    if (await this.dialog.confirm({
+      title: 'Clear Logs',
+      message: 'Clear all logs?',
+      confirmLabel: 'Clear All',
+      cancelLabel: 'Cancel',
+      variant: 'danger',
+    })) {
       this.store.clearEntries();
     }
   }
