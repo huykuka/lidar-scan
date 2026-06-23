@@ -104,8 +104,8 @@
             !canvasEditStore.isValid() ||
             isNodeReloading()
           "
-          (click)="onSaveAndReload()"
-          [title]="canEdit() ? 'Save and apply changes' : 'Admin access required'"
+          (click)="onApply()"
+          [title]="canEdit() ? 'Apply changes to backend' : 'Admin access required'"
         >
           @if (canvasEditStore.isSaving()) {
             <syn-spinner slot="prefix" />

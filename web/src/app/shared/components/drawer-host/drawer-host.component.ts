@@ -1,0 +1,143 @@
+import {
+  Component,
+  inject,
+  computed,
+  ViewContainerRef,
+  ViewChild,
+  effect,
+  ChangeDetectionStrategy,
+  signal,
+  DestroyRef,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AbstractControl } from '@angular/forms';
+import { SynDrawerComponent, SynButtonComponent, SynDividerComponent, SynIconComponent } from '@synergy-design-system/angular';
+import { DrawerService } from '@core/services/drawer.service';
+
+@Component({
+  selector: 'app-drawer-host',
+  standalone: true,
+  imports: [SynDrawerComponent, SynButtonComponent, SynDividerComponent, SynIconComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: [`
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--syn-spacing-medium) var(--syn-spacing-large) 0;
+    }
+    .drawer-title {
+      font-size: var(--syn-font-size-x-large);
+      font-weight: var(--syn-font-weight-bold);
+      color: var(--syn-typography-color-text);
+      margin: 0;
+    }
+    .drawer-body {
+      padding: var(--syn-spacing-medium) var(--syn-spacing-large);
+    }
+  `],
+  template: `
+    <syn-drawer
+      label=" "
+      no-header
+      [open]="svc.isOpen()"
+      [placement]="svc.placement()"
+      [style]="sizeStyle()"
+      (syn-request-close)="onRequestClose($event)"
+    >
+      <!-- Custom header -->
+      <div class="drawer-header">
+        <h2 class="drawer-title">{{ svc.title() }}</h2>
+      </div>
+      <syn-divider style="margin: var(--syn-spacing-small) 0 0;"></syn-divider>
+
+      <!-- Dynamic content -->
+      <div class="drawer-body">
+        <ng-container #outlet></ng-container>
+      </div>
+
+      <!-- Footer: Cancel + Save -->
+      <div slot="footer" class="flex justify-end gap-2 w-full">
+        <syn-button variant="outline" (click)="svc.close()"><syn-icon slot="prefix" name="close" aria-hidden="true"></syn-icon>Cancel</syn-button>
+        <syn-button variant="filled" [disabled]="formInvalid()" (click)="submitForm()"><syn-icon slot="prefix" name="save" aria-hidden="true"></syn-icon>Save</syn-button>
+      </div>
+    </syn-drawer>
+  `,
+})
+export class DrawerHostComponent {
+  protected readonly svc = inject(DrawerService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  @ViewChild('outlet', { read: ViewContainerRef, static: true })
+  private outlet!: ViewContainerRef;
+
+  private formInstance: Record<string, unknown> | null = null;
+
+  /** true = save button disabled. Starts false (enabled) until a form with a FormGroup loads */
+  protected readonly formInvalid = signal(false);
+
+  protected readonly sizeStyle = computed(() => {
+    const s = this.svc.size();
+    return s ? `--size: ${s}` : '';
+  });
+
+  protected onRequestClose(event: Event): void {
+    event.preventDefault();
+  }
+
+  protected submitForm(): void {
+    const form = this.outlet.element.nativeElement?.parentElement?.querySelector('form') as HTMLFormElement | null;
+    if (form) {
+      form.requestSubmit();
+    } else if (this.formInstance && typeof this.formInstance['onSubmit'] === 'function') {
+      (this.formInstance['onSubmit'] as () => void)();
+    }
+  }
+
+  constructor() {
+    effect(() => {
+      const component = this.svc.component();
+      const inputs = this.svc.inputs();
+
+      this.outlet.clear();
+      this.formInstance = null;
+      this.formInvalid.set(false); // reset on each open
+
+      if (!component) return;
+
+      const ref = this.outlet.createComponent(component);
+      Object.entries(inputs).forEach(([key, value]) => {
+        ref.setInput(key, value);
+      });
+      ref.changeDetectorRef.detectChanges();
+
+      this.formInstance = ref.instance as Record<string, unknown>;
+
+      // Find the first AbstractControl (FormGroup) on the component instance
+      const formGroup = this.findFormGroup(this.formInstance);
+      if (formGroup) {
+        // Set initial state
+        this.formInvalid.set(formGroup.invalid);
+
+        // Track validity changes reactively
+        formGroup.statusChanges
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe(() => this.formInvalid.set(formGroup.invalid));
+      }
+    });
+  }
+
+  /**
+   * Walk the component instance's own properties looking for an AbstractControl.
+   * Covers itemForm, userForm, roleForm, gmailForm, sesForm, etc.
+   */
+  private findFormGroup(instance: Record<string, unknown>): AbstractControl | null {
+    for (const key of Object.keys(instance)) {
+      const val = instance[key];
+      if (val instanceof AbstractControl) {
+        return val;
+      }
+    }
+    return null;
+  }
+}

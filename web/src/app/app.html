@@ -1,4 +1,8 @@
 @if (isReady()) {
+  <!-- Global overlay components: drawer, toast, dialog -->
+  <app-drawer-host></app-drawer-host>
+  <app-dialog-host></app-dialog-host>
+
   <router-outlet />
 } @else {
   <app-loading-screen />

@@ -243,25 +243,30 @@ export class CanvasEditStoreService {
   }
 
   // ---------------------------------------------------------------------------
-  // saveAndReload (with 150ms debounce)
+  // applyChanges (sync to backend with 150ms debounce)
   // ---------------------------------------------------------------------------
 
-  private _saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _applyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  async saveAndReload(): Promise<void> {
-    if (this._saveDebounceTimer) {
-      clearTimeout(this._saveDebounceTimer);
+  /**
+   * Syncs local changes to the backend.
+   * Local edits are already in _localNodes and _localEdges.
+   * Call this when user hits "Apply" to persist to backend.
+   */
+  async applyChanges(): Promise<void> {
+    if (this._applyDebounceTimer) {
+      clearTimeout(this._applyDebounceTimer);
     }
     return new Promise((resolve) => {
-      this._saveDebounceTimer = setTimeout(async () => {
-        this._saveDebounceTimer = null;
-        await this._executeSaveAndReload();
+      this._applyDebounceTimer = setTimeout(async () => {
+        this._applyDebounceTimer = null;
+        await this._executeApplyChanges();
         resolve();
       }, 150);
     });
   }
 
-  private async _executeSaveAndReload(): Promise<void> {
+  private async _executeApplyChanges(): Promise<void> {
     if (!this.isDirty()) return;
 
     if (!this.isValid()) {

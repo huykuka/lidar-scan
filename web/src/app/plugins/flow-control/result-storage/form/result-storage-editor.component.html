@@ -9,6 +9,7 @@
 />
 
 <form [formGroup]="form" class="flex flex-col gap-4">
+  <syn-validate on="live" [eager]="false">
   <!-- Node Name -->
   <syn-input
     label="Node Name"
@@ -34,4 +35,5 @@
       <span class="text-xs text-syn-color-neutral-600">{{ colorControl.value }}</span>
     </div>
   </div>
+  </syn-validate>
 </form>

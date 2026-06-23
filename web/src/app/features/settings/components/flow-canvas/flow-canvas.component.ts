@@ -583,8 +583,9 @@ export class FlowCanvasComponent implements OnInit, OnDestroy {
   }
 
   onEditorSave() {
+    // Just close drawer — local edits already in _localNodes/_localEdges
+    // User must hit Apply button in settings panel to sync with backend
     this.drawerOpen.set(false);
-    this.canvasEditStore.saveAndReload();
   }
 
   onDrawerRequestClose(event: Event) {

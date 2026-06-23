@@ -129,8 +129,8 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
   }
 
   // Phase 4.3: action handlers
-  onSaveAndReload() {
-    this.canvasEditStore.saveAndReload();
+  onApply() {
+    this.canvasEditStore.applyChanges();
   }
 
   onSync() {

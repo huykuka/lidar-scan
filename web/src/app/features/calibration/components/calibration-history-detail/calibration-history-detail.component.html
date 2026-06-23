@@ -14,16 +14,6 @@
     </syn-button>
   </div>
 
-  <!-- Legacy badge -->
-  @if (isLegacyRecord()) {
-    <syn-alert open variant="neutral">
-      <syn-icon name="info" slot="icon"/>
-      <strong>Legacy Record</strong>
-      <div>This record was created before provenance tracking was introduced. Source sensor, processing chain, and run
-        ID are not available.
-      </div>
-    </syn-alert>
-  }
 
   <!-- Provenance Section (NEW) -->
   <syn-card>

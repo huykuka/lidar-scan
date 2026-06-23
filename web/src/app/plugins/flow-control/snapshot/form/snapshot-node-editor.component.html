@@ -7,6 +7,7 @@
 />
 
 <form [formGroup]="form" class="flex flex-col gap-4">
+  <syn-validate on="live" [eager]="false">
   <!-- Node Name -->
   <syn-input
     label="Node Name"
@@ -17,7 +18,7 @@
   />
 
   <!-- Throttle Interval (editable) -->
-  <syn-input
+  <syn-input required
     label="Throttle Interval (ms)"
     formControlName="throttle_ms"
     type="number"
@@ -51,7 +52,7 @@
       <!-- Trigger URL -->
       <div class="flex items-center gap-2">
         <div class="flex-1">
-          <syn-input
+          <syn-input required
             label="POST Endpoint"
             [value]="triggerUrl() || ''"
             readonly
@@ -76,4 +77,5 @@
       </p>
     }
   </div>
+  </syn-validate>
 </form>

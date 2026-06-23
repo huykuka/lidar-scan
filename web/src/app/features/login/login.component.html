@@ -8,13 +8,6 @@
 
     <syn-card class="login-card">
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form">
-        @if (errorMessage()) {
-          <syn-alert variant="danger" open>
-            <syn-icon name="error" slot="icon"></syn-icon>
-            {{ errorMessage() }}
-          </syn-alert>
-        }
-
         <syn-input
           label="Username"
           placeholder="Enter your username"

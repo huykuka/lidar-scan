@@ -10,9 +10,10 @@
   />
 
   <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-3 text-sm">
+    <syn-validate on="live" [eager]="false">
     <div class="grid grid-cols-2 gap-3">
       <div class="col-span-2">
-        <syn-input formControlName="name"
+        <syn-input required formControlName="name"
                    label="Display Name"
                    placeholder="e.g. Front Sensor"
                    size="small"
@@ -28,7 +29,7 @@
           class="flex flex-col"
         >
           @if (prop.type === 'string') {
-            <syn-input [formControlName]="prop.name"
+            <syn-input required [formControlName]="prop.name"
                        [helpText]="prop.help_text || ''"
                        [label]="prop.label"
                        size="small"
@@ -36,7 +37,7 @@
           }
 
           @if (prop.type === 'number') {
-            <syn-input [attr.max]="prop.max"
+            <syn-input required [attr.max]="prop.max"
                        [attr.min]="prop.min"
                        [formControlName]="prop.name"
                        [helpText]="prop.help_text || ''"
@@ -76,7 +77,7 @@
                 [value]="$safeNavigationMigration(configForm.get(prop.name)?.value)"
               />
             } @else {
-              <syn-select
+              <syn-select required
                 (synChangeEvent)="onSelectChange(prop.name, $event)"
                 [helpText]="prop.help_text || ''"
                 [label]="prop.label"
@@ -129,5 +130,6 @@
         </div>
       </div>
     }
+    </syn-validate>
   </form>
 </div>

@@ -43,25 +43,26 @@
       </div>
 
       <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="login-inline">
-        @if (loginError()) {
-          <syn-alert variant="danger" open size="small">{{ loginError() }}</syn-alert>
-        }
-        <syn-input
-          label="Username"
-          size="small"
-          formControlName="username"
-          required
-          autocomplete="username"
-        ></syn-input>
-        <syn-input
-          label="Password"
-          type="password"
-          size="small"
-          formControlName="password"
-          required
-          password-toggle
-          autocomplete="current-password"
-        ></syn-input>
+        <syn-validate on="live" [eager]="false">
+          <syn-input
+            label="Username"
+            size="small"
+            formControlName="username"
+            required
+            autocomplete="username"
+          ></syn-input>
+        </syn-validate>
+        <syn-validate on="live">
+          <syn-input
+            label="Password"
+            type="password"
+            size="small"
+            formControlName="password"
+            required
+            password-toggle
+            autocomplete="current-password"
+          ></syn-input>
+        </syn-validate>
         <syn-button
           type="submit"
           variant="filled"

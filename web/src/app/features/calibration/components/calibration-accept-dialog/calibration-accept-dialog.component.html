@@ -162,17 +162,6 @@
           }
         </div>
 
-        <!-- Warning: source sensor will be patched -->
-        <syn-alert open variant="warning">
-          <syn-icon name="warning" slot="icon" />
-          <strong>Confirm sensor transformation</strong>
-          <div>
-            Accepting will write the transformation patch to the source sensor's pose configuration.
-            @if (selectedSensors().size > 0) {
-              <strong>{{ selectedSensors().size }}</strong> sensor(s) will be updated.
-            }
-          </div>
-        </syn-alert>
       </div>
 
       <!-- Dialog Footer -->

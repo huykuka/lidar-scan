@@ -10,14 +10,17 @@
   />
 
   <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-3 text-sm">
+    <syn-validate on="live" [eager]="false">
     <div class="grid grid-cols-2 gap-3">
       <div class="col-span-2">
-        <syn-input formControlName="name"
-                   label="Display Name"
-                   ngDefaultControl
-                   placeholder="e.g. Environment Filter"
-                   size="small"
-        />
+        <syn-validate on="live" [eager]="false">
+          <syn-input required formControlName="name"
+                     label="Display Name"
+                     ngDefaultControl
+                     placeholder="e.g. Environment Filter"
+                     size="small"
+          />
+        </syn-validate>
       </div>
     </div>
 
@@ -30,7 +33,8 @@
           class="flex flex-col"
         >
           @if (prop.type === 'string') {
-            <syn-input [formControlName]="prop.name"
+            
+            <syn-input required [formControlName]="prop.name"
                        [helpText]="prop.help_text || ''"
                        [label]="prop.label"
                        ngDefaultControl
@@ -39,7 +43,7 @@
           }
 
           @if (prop.type === 'number') {
-            <syn-input [attr.max]="prop.max"
+            <syn-input required [attr.max]="prop.max"
                        [attr.min]="prop.min"
                        [formControlName]="prop.name"
                        [helpText]="prop.help_text || ''"
@@ -65,7 +69,7 @@
           }
 
           @if (prop.type === 'select') {
-            <syn-select
+            <syn-select required
               (synChangeEvent)="onSelectChange(prop.name, $event)"
               [helpText]="prop.help_text || ''"
               [label]="prop.label"
@@ -90,7 +94,7 @@
                 }
               </div>
               <div [formGroupName]="prop.name" class="grid grid-cols-3 gap-1.5">
-                <syn-input
+                <syn-input required
                   [step]="0.1"
                   formControlName="0"
                   ngDefaultControl
@@ -99,7 +103,7 @@
                   label="X"
                   type="number"
                 />
-                <syn-input
+                <syn-input required
                   [step]="0.1"
                   formControlName="1"
                   ngDefaultControl
@@ -108,7 +112,7 @@
                   label="Y"
                   type="number"
                 />
-                <syn-input
+                <syn-input required
                   [step]="0.1"
                   formControlName="2"
                   ngDefaultControl
@@ -123,5 +127,6 @@
         </div>
       }
     </div>
+    </syn-validate>
   </form>
 </div>

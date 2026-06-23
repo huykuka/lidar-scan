@@ -7,6 +7,7 @@
 />
 
 <form [formGroup]="form" class="flex flex-col gap-4">
+  <syn-validate on="live" [eager]="false">
   <syn-input
     label="Node Name"
     formControlName="name"
@@ -119,7 +120,7 @@
         <!-- Set URL -->
         <div class="flex items-center gap-2">
           <div class="flex-1">
-            <syn-input
+            <syn-input required
               label="Set (POST)"
               [value]="setUrl() || ''"
               readonly
@@ -141,7 +142,7 @@
         <!-- Reset URL -->
         <div class="flex items-center gap-2">
           <div class="flex-1">
-            <syn-input
+            <syn-input required
               label="Reset (POST)"
               [value]="resetUrl() || ''"
               readonly
@@ -167,4 +168,5 @@
       }
     </div>
   }
+  </syn-validate>
 </form>

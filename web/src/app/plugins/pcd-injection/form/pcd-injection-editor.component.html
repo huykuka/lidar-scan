@@ -7,6 +7,7 @@
 />
 
 <form [formGroup]="form" class="flex flex-col gap-4">
+  <syn-validate on="live" [eager]="false">
   <!-- Node Name -->
   <syn-input
     label="Node Name"
@@ -29,7 +30,7 @@
       <!-- Upload URL -->
       <div class="flex items-center gap-2">
         <div class="flex-1">
-          <syn-input
+          <syn-input required
             label="POST Endpoint"
             [value]="uploadUrl() || ''"
             readonly
@@ -85,4 +86,5 @@
     [pose]="poseValue()"
     (poseChange)="onPoseChange($event)"
   />
+  </syn-validate>
 </form>
