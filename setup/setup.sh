@@ -89,9 +89,9 @@ if [ "$DO_FRONTEND" = true ]; then
 
 
           if [ -f package-lock.json ]; then
-              npm ci
+              npm ci --force
           else
-              npm install
+              npm install --force
           fi
 
           # Build production assets
