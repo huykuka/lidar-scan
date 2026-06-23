@@ -9,7 +9,7 @@
     (cancel)="onCancel()"
   />
 
-  <form (ngSubmit)="onSave()" [formGroup]="form" class="flex flex-col gap-4 text-sm">
+  <form [formGroup]="form" class="flex flex-col gap-4 text-sm">
     <syn-validate on="live" [eager]="false">
 
     <syn-input required
