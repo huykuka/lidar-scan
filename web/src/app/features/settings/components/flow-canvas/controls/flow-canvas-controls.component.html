@@ -6,7 +6,7 @@
   <button
     (click)="onResetView.emit()"
     title="Reset view"
-    class="flex items-center justify-center w-7 h-7 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border-r border-neutral-200"
+    class="flex items-center justify-center w-7 h-7 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border-r border-neutral-200"
   >
     <syn-icon name="map" style="font-size: 14px" />
   </button>
@@ -15,13 +15,13 @@
   <button
     (click)="onZoomOut.emit()"
     title="Zoom out"
-    class="flex items-center justify-center w-6 h-7 text-neutral-500 hover:bg-neutral-100 transition-colors text-sm font-bold select-none"
+    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none"
   >
     −
   </button>
 
   <!-- Zoom level -->
-  <span class="text-[11px] font-mono font-semibold text-neutral-600 w-8 text-center select-none">
+  <span class="text-[11px] font-mono font-semibold  w-8 text-center select-none">
     {{ (zoom() * 100).toFixed(0) }}%
   </span>
 
@@ -40,7 +40,7 @@
   <button
     (click)="onZoomIn.emit()"
     title="Zoom in"
-    class="flex items-center justify-center w-6 h-7 text-neutral-500 hover:bg-neutral-100 transition-colors text-sm font-bold select-none border-l border-neutral-200"
+    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none border-l border-neutral-200"
   >
     +
   </button>

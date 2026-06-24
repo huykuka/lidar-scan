@@ -66,33 +66,25 @@
         }
 
         <syn-button
-          variant="text"
+          variant="outline"
+          [loading]="canvasEditStore.isReloading()"
           [disabled]="canvasEditStore.isReloading() || !canEdit()"
           (click)="onReloadRuntime()"
           [title]="canEdit() ? 'Restart backend runtime without saving' : 'Admin access required'"
         >
-          @if (canvasEditStore.isReloading()) {
-            <syn-spinner slot="prefix" />
-            Reloading…
-          } @else {
-            <syn-icon name="refresh" slot="prefix" />
-            Reload
-          }
+          <syn-icon name="refresh" slot="prefix" />
+          <span> Reload </span>
         </syn-button>
 
         <syn-button
           variant="outline"
           [disabled]="canvasEditStore.isSyncing()"
           (click)="onSync()"
+          [loading]="canvasEditStore.isSyncing()"
           title="Pull latest config from backend"
         >
-          @if (canvasEditStore.isSyncing()) {
-            <syn-spinner slot="prefix" />
-            Syncing…
-          } @else {
             <syn-icon name="sync" slot="prefix" />
-            Sync
-          }
+            <span> Sync </span>
         </syn-button>
 
         <syn-button
@@ -105,15 +97,11 @@
             isNodeReloading()
           "
           (click)="onApply()"
+          [loading]="canvasEditStore.isSaving()"
           [title]="canEdit() ? 'Apply changes to backend' : 'Admin access required'"
         >
-          @if (canvasEditStore.isSaving()) {
-            <syn-spinner slot="prefix" />
-            Saving…
-          } @else {
-            <syn-icon name="save" slot="prefix" />
-            Apply
-          }
+          <syn-icon name="save" slot="prefix" />
+          <span> Apply </span>
         </syn-button>
 
         @if (reloadStatusText()) {
@@ -145,7 +133,6 @@
         >
           <div class="flex flex-col items-center gap-3 text-syn-color-neutral-600">
             <syn-spinner style="font-size: 2rem" />
-            <span class="text-sm font-medium">Loading canvas…</span>
           </div>
         </div>
       }

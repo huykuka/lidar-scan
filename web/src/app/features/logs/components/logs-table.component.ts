@@ -33,27 +33,19 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
           </div>
         }
 
-        <table class="syn-table--default w-full">
+        <table class="syn-table--default" style="width: 100%">
           <thead>
             <tr>
-              <th
-                class="text-left text-[10px] font-bold   uppercase tracking-widest w-45 border-b "
-              >
+              <th class="text-left text-[10px] font-bold  tracking-widest w-45 border-b ">
                 Timestamp
               </th>
-              <th
-                class="text-left text-[10px] font-bold   uppercase tracking-widest w-27.5 border-b "
-              >
+              <th class="text-left text-[10px] font-bold  tracking-widest w-27.5 border-b ">
                 Level
               </th>
-              <th
-                class="text-left text-[10px] font-bold   uppercase tracking-widest w-50 border-b "
-              >
+              <th class="text-left text-[10px] font-bold  tracking-widest w-50 border-b ">
                 Module
               </th>
-              <th class="text-left text-[10px] font-bold   uppercase tracking-widest border-b ">
-                Message
-              </th>
+              <th class="text-left text-[10px] font-bold  tracking-widest border-b ">Message</th>
             </tr>
           </thead>
           <tbody>

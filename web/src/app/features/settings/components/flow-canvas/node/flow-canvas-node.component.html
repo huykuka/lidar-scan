@@ -3,10 +3,10 @@
   draggable="false"
   (click)="$event.stopPropagation()"
   [class.grayscale]="!isNodeEnabled()"
-  [class.opacity-40]="!isNodeEnabled()"
+  [class.opacity-70]="!isNodeEnabled()"
   [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
   [class.animate-pulse]="isReloading()"
-  [class.opacity-70]="isReloading()"
+  [class.opacity-8]="isReloading()"
   class="bg-syn-page-background-color rounded-lg shadow border w-48 hover:shadow-md transition-shadow transition-opacity duration-200 relative flex flex-col"
 >
   <!-- Input Port -->
@@ -90,11 +90,13 @@
         {{ getNodeName() }}
       </span>
     </div>
-    <syn-icon
-      [name]="operationalIcon().icon"
-      [class]="operationalIcon().css + ' text-[20px] shrink-0'"
-      [title]="status()?.operational_state ?? 'Unknown'"
-    />
+    @if (isNodeEnabled()) {
+      <syn-icon
+        [name]="operationalIcon().icon"
+        [class]="operationalIcon().css + ' text-[20px] shrink-0'"
+        [title]="status()?.operational_state ?? 'Unknown'"
+      />
+    }
   </div>
 
   <!-- Runtime Error Section -->
@@ -148,7 +150,7 @@
     <div class="absolute -bottom-5 left-0 flex items-center gap-1.5 z-10">
       <div class="w-2.5 h-2.5 shrink-0" [style.background-color]="appBadge()!.color"></div>
       <span
-        class="text-[10px] text-gray-500 bg-syn-page-background-color px-1 py-0.5 font-normal leading-none"
+        class="text-[10px] bg-syn-page-background-color px-1 py-0.5 font-normal leading-none"
         >{{ appBadge()!.text }}</span
       >
     </div>

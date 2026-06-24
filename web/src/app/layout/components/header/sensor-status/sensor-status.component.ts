@@ -50,8 +50,8 @@ export class SensorStatusComponent {
   /** sick2025 icons confirmed via Synergy MCP — sensors (outline) / sensors_off */
   protected readonly icon = computed(() => {
     const h = this.health();
-    if (h === false) return 'sensors_off';
-    return 'sensors';
+    if (h === false) return 'sensors_off_fill';
+    return 'sensors_fill';
   });
 
   protected readonly label = computed(() => {

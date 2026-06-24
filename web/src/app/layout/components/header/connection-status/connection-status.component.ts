@@ -41,8 +41,8 @@ export class ConnectionStatusComponent {
   /** sick2025 wifi icons — outline variants */
   protected readonly icon = computed(() => {
     const o = this.online();
-    if (o === null) return 'signal_wifi_0_bar'; // checking/unknown
-    return o ? 'leak_add' : 'leak_remove';
+    if (o === null) return 'signal_wifi_0_bar_fill'; // checking/unknown
+    return o ? 'leak_add_fill' : 'leak_remove_fill';
   });
 
   protected readonly label = computed(() => {
