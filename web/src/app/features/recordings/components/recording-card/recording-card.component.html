@@ -1,6 +1,6 @@
 <div
   (click)="selectable() ? toggleSelection.emit(!selected()) : select.emit(recording())"
-  class="flex items-stretch rounded-xl border-syn hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex-row relative"
+  class="flex items-stretch rounded-xl border-syn h-30 hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex-row relative"
   style="border-color: var(--syn-color-neutral-300)"
 >
   @if (selectable()) {
@@ -14,7 +14,7 @@
       />
     </div>
   }
-  <div class="flex-shrink-0 h-full bg-slate-900 flex items-center justify-center relative">
+  <div class="flex-shrink-0 h-full w-35 bg-slate-900 flex items-center justify-center relative">
     @if (recording().thumbnail_path && !thumbnailLoadFailed(recording().id)) {
       <img
         (error)="onThumbnailError(recording().id)"
@@ -84,18 +84,22 @@
       name="play_arrow"
       color="primary"
       (click)="play.emit(recording()); $event.stopPropagation()"
-      label="Delete"
+      label="Play"
+      title="Play"
      />
 
     <syn-icon-button variant="text"
       name="download"
+      title="Download"
+      style="color: var(--syn-color-primary-600)"
       (click)="download.emit(recording()); $event.stopPropagation()"
-      label="Delete"
+      label="Download"
      />
 
     <syn-icon-button variant="text"
       style="color: var(--syn-color-error-600)"
       name="delete"
+      title="Delete"
       (click)="delete.emit(recording()); $event.stopPropagation()"
       label="Delete"
      />

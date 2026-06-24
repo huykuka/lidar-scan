@@ -1,10 +1,13 @@
 <div class="flex items-center gap-0.5">
   @for (preset of presets; track preset.id) {
-    <syn-icon-button [name]="preset.icon"
-      (click)="applyPreset(preset.id)"
-      [label]="preset.title"
-      size="medium"
-      [color]="activeMode() === preset.id ? 'primary' : 'neutral'"
-     />
+    <syn-tooltip [content]="preset.title" [distance]="13">
+      <syn-icon-button
+        [name]="preset.icon"
+        (click)="applyPreset(preset.id)"
+        [label]="preset.title"
+        size="medium"
+        [color]="activeMode() === preset.id ? 'primary' : 'neutral'"
+      />
+    </syn-tooltip>
   }
 </div>

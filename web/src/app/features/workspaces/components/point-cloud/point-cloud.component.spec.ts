@@ -60,6 +60,8 @@ function createSut() {
   const proto = (PointCloudComponent as any).prototype;
 
   initThreeSpy = vi.spyOn(proto, 'initThree').mockImplementation(function (this: any) {
+    const removeEventListener = vi.fn();
+    const dispose = vi.fn();
     this.perspCamera = makeCameraStub();
     this.orthoCamera = makeCameraStub();
     this.controls = {
@@ -68,6 +70,9 @@ function createSut() {
       object: null,
       target: { set: vi.fn(), copy: vi.fn() },
       update: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener,
+      dispose,
     };
     this.renderer = { dispose: vi.fn(), domElement: document.createElement('canvas') };
     this.scene = { background: null, add: vi.fn(), remove: vi.fn() };
@@ -183,7 +188,12 @@ describe('PointCloudComponent — FE-04 Extensions', () => {
         dispose: vi.fn(),
       };
       const fakeMaterial = { color: { set: vi.fn() }, dispose: vi.fn(), size: 0.1 };
-      cmp.pointClouds.set('topic1', { pointsObj: {}, geometry: fakeGeometry, material: fakeMaterial, lastCount: 0 });
+      cmp.pointClouds.set('topic1', {
+        pointsObj: {},
+        geometry: fakeGeometry,
+        material: fakeMaterial,
+        lastCount: 0,
+      });
 
       vi.spyOn(cmp, 'getEffectiveMaxPoints').mockReturnValue(125_000);
 
@@ -204,13 +214,83 @@ describe('PointCloudComponent — FE-04 Extensions', () => {
         dispose: vi.fn(),
       };
       const fakeMaterial = { color: { set: vi.fn() }, dispose: vi.fn(), size: 0.1 };
-      cmp.pointClouds.set('topic2', { pointsObj: {}, geometry: fakeGeometry, material: fakeMaterial, lastCount: 0 });
+      cmp.pointClouds.set('topic2', {
+        pointsObj: {},
+        geometry: fakeGeometry,
+        material: fakeMaterial,
+        lastCount: 0,
+      });
 
       vi.spyOn(cmp, 'getEffectiveMaxPoints').mockReturnValue(250_000);
 
       cmp.updatePointsForTopic('topic2', new Float32Array(200_000 * 3), 200_000);
 
       expect(fakeGeometry.setDrawRange).toHaveBeenCalledWith(0, 200_000);
+    });
+
+    it('should skip unchanged topic frames when another topic updates', () => {
+      const cmp = createSut().componentInstance as any;
+      const frameA1 = { points: new Float32Array(3), count: 1, timestamp: 1 };
+      const frameB1 = { points: new Float32Array(6), count: 2, timestamp: 1 };
+      const frameA2 = { points: new Float32Array(9), count: 3, timestamp: 2 };
+
+      cmp.pointClouds.set('topicA', { pointsObj: {}, geometry: {}, material: {}, lastCount: 0 });
+      cmp.pointClouds.set('topicB', { pointsObj: {}, geometry: {}, material: {}, lastCount: 0 });
+
+      const updateSpy = vi.spyOn(cmp, 'updatePointsForTopic').mockImplementation(() => {});
+
+      cmp['syncFrameBuffers'](
+        new Map([
+          ['topicA', frameA1],
+          ['topicB', frameB1],
+        ]),
+      );
+
+      cmp['syncFrameBuffers'](
+        new Map([
+          ['topicA', frameA2],
+          ['topicB', frameB1],
+        ]),
+      );
+
+      expect(updateSpy).toHaveBeenCalledTimes(3);
+      expect(updateSpy).toHaveBeenNthCalledWith(1, 'topicA', frameA1.points, frameA1.count);
+      expect(updateSpy).toHaveBeenNthCalledWith(2, 'topicB', frameB1.points, frameB1.count);
+      expect(updateSpy).toHaveBeenNthCalledWith(3, 'topicA', frameA2.points, frameA2.count);
+    });
+  });
+
+  describe('teardown', () => {
+    it('should dispose controls and sprite/helper resources on destroy', () => {
+      const fixture = createSut();
+      const cmp = fixture.componentInstance as any;
+
+      const gridMapDispose = vi.fn();
+      const gridMaterialDispose = vi.fn();
+      const axesMapDispose = vi.fn();
+      const axesMaterialDispose = vi.fn();
+      const gridHelperDispose = vi.fn();
+      const axesHelperDispose = vi.fn();
+
+      cmp.gridLabels = [
+        { material: { map: { dispose: gridMapDispose }, dispose: gridMaterialDispose } },
+      ];
+      cmp.axesLabels = [
+        { material: { map: { dispose: axesMapDispose }, dispose: axesMaterialDispose } },
+      ];
+      cmp.gridHelper = { dispose: gridHelperDispose };
+      cmp.axesHelper = { dispose: axesHelperDispose };
+
+      fixture.destroy();
+
+      expect(cmp.controls.removeEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+      expect(cmp.controls.dispose).toHaveBeenCalled();
+      expect(gridMapDispose).toHaveBeenCalled();
+      expect(gridMaterialDispose).toHaveBeenCalled();
+      expect(axesMapDispose).toHaveBeenCalled();
+      expect(axesMaterialDispose).toHaveBeenCalled();
+      expect(gridHelperDispose).toHaveBeenCalled();
+      expect(axesHelperDispose).toHaveBeenCalled();
     });
   });
 

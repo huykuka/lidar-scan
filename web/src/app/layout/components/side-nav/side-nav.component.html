@@ -7,16 +7,16 @@
   variant="sticky"
 >
   @for (item of mainNavItems(); track item) {
-    <syn-nav-item
-      #rla="routerLinkActive"
-      [attr.divider]="item.divider ? '' : null"
-      [current]="rla.isActive"
-      [routerLink]="[item.route]"
-      routerLinkActive="current"
-    >
-      <syn-icon [name]="item.icon" slot="prefix"/>
-      {{ item.label }}
-    </syn-nav-item>
+      <syn-nav-item
+        #rla="routerLinkActive"
+        [attr.divider]="item.divider ? '' : null"
+        [current]="rla.isActive"
+        [routerLink]="[item.route]"
+        routerLinkActive="current"
+      >
+        <syn-icon [name]="item.icon" slot="prefix" />
+        {{ item.label }}
+      </syn-nav-item>
   }
 
   @for (item of footerNavItems; track item) {
@@ -28,7 +28,7 @@
       routerLinkActive="current"
       slot="footer"
     >
-      <syn-icon [name]="item.icon" slot="prefix"/>
+      <syn-icon [name]="item.icon" slot="prefix" />
       {{ item.label }}
     </syn-nav-item>
   }

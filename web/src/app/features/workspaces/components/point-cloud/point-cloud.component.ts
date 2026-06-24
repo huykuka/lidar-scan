@@ -14,7 +14,7 @@ import {
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { PointCloudDataService } from '@core/services/point-cloud-data.service';
+import { PointCloudDataService, type FramePayload } from '@core/services/point-cloud-data.service';
 import { ViewOrientation } from '@core/services/split-layout-store.service';
 import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
 import { ShapeLayerService } from '@core/services/shape-layer.service';
@@ -92,6 +92,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   private orthoCamera!: THREE.OrthographicCamera;
   private renderer!: THREE.WebGLRenderer;
   private controls!: OrbitControls;
+  private readonly controlsChangeHandler = () => this.requestRender();
 
   /** ResizeObserver — keeps canvas size in sync when pane dimensions change */
   private resizeObserver?: ResizeObserver;
@@ -121,6 +122,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       lastCount: number;
     }
   > = new Map();
+  private readonly lastAppliedFrames = new Map<string, FramePayload>();
 
   private gridHelper?: THREE.GridHelper;
   private axesHelper?: THREE.AxesHelper;
@@ -223,11 +225,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     effect(() => {
       const frames = this.dataService.frames();
       if (!frames.size) return;
-      frames.forEach((frame, topic) => {
-        if (this.pointClouds.has(topic)) {
-          this.updatePointsForTopic(topic, frame.points, frame.count);
-        }
-      });
+      this.syncFrameBuffers(frames);
     });
   }
 
@@ -272,12 +270,30 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       cancelAnimationFrame(this.animationId);
     }
     this.resizeObserver?.disconnect();
+    this.controls?.removeEventListener('change', this.controlsChangeHandler);
+    this.controls?.dispose();
+    this.disposeSpriteGroup(this.gridLabels);
+    this.gridLabels = [];
+    this.disposeSpriteGroup(this.axesLabels);
+    this.axesLabels = [];
+    if (this.gridHelper) {
+      this.scene?.remove(this.gridHelper);
+      this.gridHelper.dispose();
+      this.gridHelper = undefined;
+    }
+    if (this.axesHelper) {
+      this.scene?.remove(this.axesHelper);
+      this.axesHelper.dispose();
+      this.axesHelper = undefined;
+    }
     // Dispose all point clouds
-    this.pointClouds.forEach(({ geometry, material }) => {
+    this.pointClouds.forEach(({ pointsObj, geometry, material }) => {
+      this.scene?.remove(pointsObj);
       geometry.dispose();
       material.dispose();
     });
     this.pointClouds.clear();
+    this.lastAppliedFrames.clear();
     // Dispose renderer if it was ever initialized
     this.renderer?.dispose();
     // Null cameras for GC (Three.js cameras have no .dispose())
@@ -343,7 +359,18 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     cloud.geometry.dispose();
     cloud.material.dispose();
     this.pointClouds.delete(topic);
+    this.lastAppliedFrames.delete(topic);
     this.requestRender();
+  }
+
+  private syncFrameBuffers(frames: Map<string, FramePayload>): void {
+    frames.forEach((frame, topic) => {
+      if (!this.pointClouds.has(topic)) return;
+      if (this.lastAppliedFrames.get(topic) === frame) return;
+
+      this.lastAppliedFrames.set(topic, frame);
+      this.updatePointsForTopic(topic, frame.points, frame.count);
+    });
   }
 
   /**
@@ -465,7 +492,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     this.controls.target.set(0, 0, 0);
 
     // Mark frame dirty whenever OrbitControls moves the camera (includes damping ticks)
-    this.controls.addEventListener('change', () => this.requestRender());
+    this.controls.addEventListener('change', this.controlsChangeHandler);
 
     // Apply initial camera preset from viewType input
     this.initCamera(this.viewType());
@@ -608,6 +635,14 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       this.scene.add(spriteZ);
     }
     this.requestRender();
+  }
+
+  private disposeSpriteGroup(sprites: THREE.Sprite[]): void {
+    sprites.forEach((sprite) => {
+      this.scene?.remove(sprite);
+      sprite.material.map?.dispose();
+      sprite.material.dispose();
+    });
   }
 
   private createTextSprite(message: string, color: string = '#888888'): THREE.Sprite {
