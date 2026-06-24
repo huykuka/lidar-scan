@@ -28,10 +28,15 @@ interface AutocompleteSuggestion {
   selector: 'app-if-condition-editor',
   standalone: true,
 
-  imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent, SynergyFormsModule],
+  imports: [
+    ReactiveFormsModule,
+    SynergyComponentsModule,
+    NodeEditorHeaderComponent,
+    SynergyFormsModule,
+  ],
   providers: [NodeEditorFacadeService],
   templateUrl: './if-condition-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './if-condition-editor.component.css',
 })
 export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditorComponent {
@@ -59,7 +64,11 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
   private readonly VARIABLES: AutocompleteSuggestion[] = [
     { label: 'point_count', type: 'variable', description: 'Number of points in the point cloud' },
     { label: 'intensity', type: 'variable', description: 'Intensity value (sensor-specific)' },
-    { label: 'external_state', type: 'variable', description: 'External override state (boolean or null)' },
+    {
+      label: 'external_state',
+      type: 'variable',
+      description: 'External override state (boolean or null)',
+    },
     { label: 'x', type: 'variable', description: 'X coordinate (Cartesian)' },
     { label: 'y', type: 'variable', description: 'Y coordinate (Cartesian)' },
     { label: 'z', type: 'variable', description: 'Z coordinate (Cartesian)' },
@@ -97,11 +106,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
   /**
    * All available suggestions combined
    */
-  private readonly ALL_SUGGESTIONS = [
-    ...this.VARIABLES,
-    ...this.OPERATORS,
-    ...this.KEYWORDS,
-  ];
+  private readonly ALL_SUGGESTIONS = [...this.VARIABLES, ...this.OPERATORS, ...this.KEYWORDS];
 
   /**
    * Get node definition for the IF condition type
@@ -124,18 +129,14 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
    * Computed URL for setting external state
    */
   protected setUrl = computed(() =>
-    this.nodeId()
-      ? `${environment.apiUrl}/nodes/${this.nodeId()}/flow-control/set`
-      : null
+    this.nodeId() ? `${environment.apiUrl}/nodes/${this.nodeId()}/flow-control/set` : null,
   );
 
   /**
    * Computed URL for resetting external state
    */
   protected resetUrl = computed(() =>
-    this.nodeId()
-      ? `${environment.apiUrl}/nodes/${this.nodeId()}/flow-control/reset`
-      : null
+    this.nodeId() ? `${environment.apiUrl}/nodes/${this.nodeId()}/flow-control/reset` : null,
   );
 
   constructor() {
@@ -144,17 +145,14 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
 
     this.form = new FormGroup({
       name: new FormControl(node?.name || 'If Condition', [Validators.required]),
-      expression: new FormControl(
-        node?.config?.['expression'] || 'true',
-        [Validators.required]
-      ),
-      use_external_control: new FormControl(node?.config?.['use_external_control'] || false)
+      expression: new FormControl(node?.config?.['expression'] || 'true', [Validators.required]),
+      use_external_control: new FormControl(node?.config?.['use_external_control'] || false),
     });
 
     // Subscribe to expression changes for real-time validation
     const expressionControl = this.form.get('expression');
     if (expressionControl) {
-      this.expressionSub = expressionControl.valueChanges.subscribe(expr => {
+      this.expressionSub = expressionControl.valueChanges.subscribe((expr) => {
         this.validateExpression(expr);
       });
       // Validate initial value
@@ -202,14 +200,12 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
     switch (event.key) {
       case 'ArrowDown':
         event.preventDefault();
-        this.selectedSuggestionIndex.update(idx =>
-          Math.min(idx + 1, suggestions.length - 1)
-        );
+        this.selectedSuggestionIndex.update((idx) => Math.min(idx + 1, suggestions.length - 1));
         break;
 
       case 'ArrowUp':
         event.preventDefault();
-        this.selectedSuggestionIndex.update(idx => Math.max(idx - 1, 0));
+        this.selectedSuggestionIndex.update((idx) => Math.max(idx - 1, 0));
         break;
 
       case 'Enter':
@@ -240,9 +236,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
   private updateAutocomplete(partial: string): void {
     const lower = partial.toLowerCase();
 
-    const filtered = this.ALL_SUGGESTIONS.filter(s =>
-      s.label.toLowerCase().startsWith(lower)
-    );
+    const filtered = this.ALL_SUGGESTIONS.filter((s) => s.label.toLowerCase().startsWith(lower));
 
     if (filtered.length > 0) {
       this.autocompleteSuggestions.set(filtered);
@@ -361,7 +355,7 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
       config: {
         expression: this.form.value.expression,
         throttle_ms: 0, // Always 0, no throttling for IF logic
-        use_external_control: this.form.value.use_external_control
+        use_external_control: this.form.value.use_external_control,
       },
       definition: def,
       existingNode: this.nodeStore.selectedNode(),
@@ -385,11 +379,14 @@ export class IfConditionEditorComponent implements OnInit, OnDestroy, NodeEditor
    * Copy text to clipboard and show toast
    */
   protected copyToClipboard(text: string): Promise<void> {
-    return navigator.clipboard.writeText(text).then(() => {
-      this.toast.success('URL copied to clipboard');
-    }).catch((err) => {
-      console.error('Failed to copy to clipboard:', err);
-      this.toast.danger('Failed to copy to clipboard');
-    });
+    return navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        this.toast.success('URL copied to clipboard');
+      })
+      .catch((err) => {
+        console.error('Failed to copy to clipboard:', err);
+        this.toast.danger('Failed to copy to clipboard');
+      });
   }
 }

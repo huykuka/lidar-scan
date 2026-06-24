@@ -7,7 +7,7 @@
 />
 
 <form [formGroup]="form" class="flex flex-col gap-4">
-  <syn-validate on="live" [eager]="false">
+  <syn-validate on="live" >
     <syn-input
       label="Node Name"
       formControlName="name"
@@ -21,7 +21,7 @@
   <div class="flex flex-col gap-2">
     <div class="flex items-center justify-between">
       <label class="text-sm font-medium text-syn-color-neutral-700"> Control Mode </label>
-      <syn-validate on="live" [eager]="false">
+      <syn-validate on="live" >
         <syn-switch formControlName="use_external_control" size="small">
           External Control
         </syn-switch>
@@ -39,7 +39,7 @@
   <!-- Condition Expression - Only show when external control is disabled -->
   @if (!form.get('use_external_control')?.value) {
     <div class="expression-container">
-      <syn-validate on="live" [eager]="false">
+      <syn-validate on="live" >
         <syn-textarea
           #expressionInput
           label="Condition Expression"
@@ -124,7 +124,7 @@
         <!-- Set URL -->
         <div class="flex items-center gap-2">
           <div class="flex-1">
-            <syn-validate on="live" [eager]="false">
+            <syn-validate on="live" >
               <syn-input
                 required
                 label="Set (POST)"
@@ -149,7 +149,7 @@
         <!-- Reset URL -->
         <div class="flex items-center gap-2">
           <div class="flex-1">
-            <syn-validate on="live" [eager]="false">
+            <syn-validate on="live" >
               <syn-input
                 required
                 label="Reset (POST)"

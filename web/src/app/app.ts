@@ -10,7 +10,7 @@ import {DialogHostComponent} from './shared/components/dialog-host/dialog-host.c
   standalone: true,
   imports: [RouterOutlet, LoadingScreenComponent, DrawerHostComponent, DialogHostComponent],
   templateUrl: './app.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './app.css',
 })
 export class App {

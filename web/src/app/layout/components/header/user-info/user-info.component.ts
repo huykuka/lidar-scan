@@ -8,7 +8,7 @@ import { AuthService } from '@core/services/auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, SynergyFormsModule],
   templateUrl: './user-info.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './user-info.component.css',
 })
 export class UserInfoComponent {

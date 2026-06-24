@@ -7,8 +7,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-empty-state.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './flow-canvas-empty-state.component.css',
 })
-export class FlowCanvasEmptyStateComponent {
-}
+export class FlowCanvasEmptyStateComponent {}

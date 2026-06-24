@@ -13,7 +13,7 @@ import {NodeConfig} from '../../../../core/models/node.model';
   selector: 'app-calibration-history-detail',
   standalone: true,
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './calibration-history-detail.component.html',
 })
 export class CalibrationHistoryDetailComponent {
@@ -48,12 +48,18 @@ export class CalibrationHistoryDetailComponent {
 
   processingChain = computed(() => this.record().processing_chain ?? []);
 
-  getQualityVariant(quality: string | null | undefined): 'success' | 'warning' | 'danger' | 'neutral' {
+  getQualityVariant(
+    quality: string | null | undefined,
+  ): 'success' | 'warning' | 'danger' | 'neutral' {
     switch (quality) {
-      case 'excellent': return 'success';
-      case 'good': return 'warning';
-      case 'poor': return 'danger';
-      default: return 'neutral';
+      case 'excellent':
+        return 'success';
+      case 'good':
+        return 'warning';
+      case 'poor':
+        return 'danger';
+      default:
+        return 'neutral';
     }
   }
 

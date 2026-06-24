@@ -15,13 +15,8 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 @Component({
   selector: 'app-logs',
   standalone: true,
-  imports: [
-    FormsModule,
-    LogsToolbarComponent,
-    LogsTableComponent,
-    SynergyComponentsModule
-  ],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [FormsModule, LogsToolbarComponent, LogsTableComponent, SynergyComponentsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './logs.component.html',
 })
 export class LogsComponent implements OnInit, OnDestroy {
@@ -128,13 +123,15 @@ export class LogsComponent implements OnInit, OnDestroy {
   }
 
   async clearAllLogs() {
-    if (await this.dialog.confirm({
-      title: 'Clear Logs',
-      message: 'Clear all logs?',
-      confirmLabel: 'Clear All',
-      cancelLabel: 'Cancel',
-      variant: 'danger',
-    })) {
+    if (
+      await this.dialog.confirm({
+        title: 'Clear Logs',
+        message: 'Clear all logs?',
+        confirmLabel: 'Clear All',
+        cancelLabel: 'Cancel',
+        variant: 'danger',
+      })
+    ) {
       this.store.clearEntries();
     }
   }
@@ -206,7 +203,7 @@ export class LogsComponent implements OnInit, OnDestroy {
   private async loadInitialLogs() {
     try {
       this.store.setLoading(true);
-      const logs = await this.api.getLogs({limit: 200});
+      const logs = await this.api.getLogs({ limit: 200 });
       this.store.setEntries(logs);
     } catch (error) {
       this.store.setStreamError('Failed to load logs');

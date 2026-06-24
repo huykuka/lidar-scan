@@ -18,7 +18,7 @@ export interface CanvasNode {
   selector: 'app-flow-canvas-node',
   imports: [SynergyComponentsModule, NodeRecordingControls, NodeVisibilityToggleComponent],
   templateUrl: './flow-canvas-node.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './flow-canvas-node.component.css',
 })
 export class FlowCanvasNodeComponent {

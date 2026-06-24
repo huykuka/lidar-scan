@@ -16,10 +16,18 @@ import {LidarApiService} from '@core/services/api';
 @Component({
   selector: 'app-sensor-node-editor',
   standalone: true,
-  imports: [ReactiveFormsModule, SynergyComponentsModule, LidarTypeSelectComponent, CameraTypeSelectComponent, NodeEditorHeaderComponent, PoseFormComponent, SynergyFormsModule],
+  imports: [
+    ReactiveFormsModule,
+    SynergyComponentsModule,
+    LidarTypeSelectComponent,
+    CameraTypeSelectComponent,
+    NodeEditorHeaderComponent,
+    PoseFormComponent,
+    SynergyFormsModule,
+  ],
   providers: [NodeEditorFacadeService],
   templateUrl: './sensor-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './sensor-node-editor.component.css',
 })
 export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy {
@@ -33,15 +41,15 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
   protected isCalibrating = signal(false);
   protected calibrationMessage = signal<string | null>(null);
   protected isSaveDisabled = computed(
-    () => this.form?.invalid || this.configForm?.invalid || !this.isPoseValid() || this.isSaving()
+    () => this.form?.invalid || this.configForm?.invalid || !this.isPoseValid() || this.isSaving(),
   );
   protected isImuCapable = computed(() => {
     const vals = this.formValues();
     const def = this.definition();
     if (!def) return false;
-    const lidarTypeProp = def.properties.find(p => p.name === 'lidar_type');
+    const lidarTypeProp = def.properties.find((p) => p.name === 'lidar_type');
     if (!lidarTypeProp?.options) return false;
-    const selected = lidarTypeProp.options.find(o => o['value'] === vals['lidar_type']);
+    const selected = lidarTypeProp.options.find((o) => o['value'] === vals['lidar_type']);
     return selected?.['has_imu_udp_port'] === true;
   });
   protected isExistingNode = computed(() => !!this.nodeStore.selectedNode().id);
@@ -128,7 +136,7 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
         this.poseValue.set(result.pose);
       }
       this.calibrationMessage.set(
-        `Applied: roll=${result.pose.roll.toFixed(2)}, pitch=${result.pose.pitch.toFixed(2)}`
+        `Applied: roll=${result.pose.roll.toFixed(2)}, pitch=${result.pose.pitch.toFixed(2)}`,
       );
     } catch (err: any) {
       const detail = err?.error?.detail || err?.message || 'Calibration failed';

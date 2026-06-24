@@ -42,7 +42,7 @@
       </div>
 
       <form [formGroup]="loginForm" (ngSubmit)="onLogin()" class="login-inline">
-        <syn-validate on="live" [eager]="false">
+        <syn-validate on="live" >
           <syn-input label="Username"
             size="small"
             formControlName="username"

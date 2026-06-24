@@ -7,7 +7,7 @@ import {NodePlugin} from '@core/models';
   selector: 'app-flow-canvas-palette',
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-palette.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './flow-canvas-palette.component.css',
 })
 export class FlowCanvasPaletteComponent {
@@ -21,7 +21,7 @@ export class FlowCanvasPaletteComponent {
       const allPlugs = this.plugins();
       untracked(() => {
         const cats = new Set(this.expandedCategories());
-        allPlugs.forEach(p => {
+        allPlugs.forEach((p) => {
           const cat = p.category || 'other';
           if (!cats.has(cat)) {
             cats.add(cat);
@@ -36,10 +36,11 @@ export class FlowCanvasPaletteComponent {
     const query = this.searchQuery().toLowerCase().trim();
     if (!query) return this.plugins();
 
-    return this.plugins().filter(p =>
-      p.displayName.toLowerCase().includes(query) ||
-      p.type.toLowerCase().includes(query) ||
-      p.category?.toLowerCase().includes(query)
+    return this.plugins().filter(
+      (p) =>
+        p.displayName.toLowerCase().includes(query) ||
+        p.type.toLowerCase().includes(query) ||
+        p.category?.toLowerCase().includes(query),
     );
   });
 
@@ -48,7 +49,7 @@ export class FlowCanvasPaletteComponent {
   groupedPlugins = computed(() => {
     const groups: { [key: string]: NodePlugin[] } = {};
     const currentPlugins = this.filteredPlugins();
-    
+
     for (const plugin of currentPlugins) {
       const cat = plugin.category || 'other';
       if (!groups[cat]) groups[cat] = [];
@@ -57,7 +58,7 @@ export class FlowCanvasPaletteComponent {
 
     return Object.keys(groups)
       .sort()
-      .map(key => ({ category: key, plugins: groups[key] }));
+      .map((key) => ({ category: key, plugins: groups[key] }));
   });
 
   onPluginDragStart = output<{ plugin: string; event: DragEvent }>();
@@ -68,7 +69,7 @@ export class FlowCanvasPaletteComponent {
   }
 
   toggleCategory(cat: string) {
-    this.expandedCategories.update(set => {
+    this.expandedCategories.update((set) => {
       const newSet = new Set(set);
       if (newSet.has(cat)) newSet.delete(cat);
       else newSet.add(cat);

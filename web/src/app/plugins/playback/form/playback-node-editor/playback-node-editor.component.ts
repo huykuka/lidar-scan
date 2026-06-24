@@ -30,10 +30,16 @@ import {
 @Component({
   selector: 'app-playback-node-editor',
   standalone: true,
-  imports: [SynergyComponentsModule, NodeEditorHeaderComponent, PoseFormComponent, DatePipe, DecimalPipe],
+  imports: [
+    SynergyComponentsModule,
+    NodeEditorHeaderComponent,
+    PoseFormComponent,
+    DatePipe,
+    DecimalPipe,
+  ],
   providers: [NodeEditorFacadeService],
   templateUrl: './playback-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './playback-node-editor.component.css',
 })
 export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestroy {
@@ -56,9 +62,7 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
   protected poseValue = signal<Pose>(ZERO_POSE);
   protected isPoseValid = signal<boolean>(true);
 
-  protected isSaveDisabled = computed(
-    () => !this.recordingId() || this.isSaving(),
-  );
+  protected isSaveDisabled = computed(() => !this.recordingId() || this.isSaving());
 
   // ── Services ─────────────────────────────────────────────────────────────────
   private nodeStore = inject(NodeStoreService);

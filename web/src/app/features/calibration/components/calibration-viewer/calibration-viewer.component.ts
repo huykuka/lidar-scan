@@ -16,12 +16,9 @@ import {NodeConfig} from '@core/models/node.model';
 @Component({
   selector: 'app-calibration-viewer',
   standalone: true,
-  imports: [
-    SynergyComponentsModule,
-    KeyValuePipe,
-  ],
+  imports: [SynergyComponentsModule, KeyValuePipe],
   templateUrl: './calibration-viewer.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './calibration-viewer.component.css',
 })
 export class CalibrationViewerComponent implements OnDestroy {
@@ -58,9 +55,7 @@ export class CalibrationViewerComponent implements OnDestroy {
     return Object.entries(node.pending_results);
   });
 
-  historyForNode = computed(() =>
-    this.calibrationStore.getHistoryForNode()(this.nodeId() ?? ''),
-  );
+  historyForNode = computed(() => this.calibrationStore.getHistoryForNode()(this.nodeId() ?? ''));
 
   /**
    * True when "Run Calibration" should be disabled.
@@ -98,7 +93,7 @@ export class CalibrationViewerComponent implements OnDestroy {
           });
         }
       },
-      {allowSignalWrites: true},
+      { allowSignalWrites: true },
     );
 
     // Load history once node status resolves and source_sensor_ids are known.
@@ -146,7 +141,6 @@ export class CalibrationViewerComponent implements OnDestroy {
     };
   }
 
-
   getSensorName(sensorId: string): string {
     const nodes = this.nodeStore.nodes();
     const sensor = nodes.find((n: NodeConfig) => n.id === sensorId);
@@ -164,10 +158,14 @@ export class CalibrationViewerComponent implements OnDestroy {
 
   getQualityVariant(quality: string): 'success' | 'warning' | 'danger' | 'neutral' {
     switch (quality) {
-      case 'excellent': return 'success';
-      case 'good': return 'warning';
-      case 'poor': return 'danger';
-      default: return 'neutral';
+      case 'excellent':
+        return 'success';
+      case 'good':
+        return 'warning';
+      case 'poor':
+        return 'danger';
+      default:
+        return 'neutral';
     }
   }
 
@@ -182,7 +180,7 @@ export class CalibrationViewerComponent implements OnDestroy {
   async acceptCalibration(): Promise<void> {
     const nodeId = this.nodeId();
     if (!nodeId) return;
-    await this.calibrationStore.acceptCalibration(nodeId, {sensor_ids: undefined});
+    await this.calibrationStore.acceptCalibration(nodeId, { sensor_ids: undefined });
     void this.calibrationStore.loadHistoryForNode(nodeId);
   }
 

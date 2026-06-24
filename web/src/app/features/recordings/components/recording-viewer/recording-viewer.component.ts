@@ -33,7 +33,7 @@ interface PCDData {
   standalone: true,
   imports: [SynergyComponentsModule, FormsModule, DecimalPipe, NgClass],
   templateUrl: './recording-viewer.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './recording-viewer.component.css',
 })
 export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestroy {

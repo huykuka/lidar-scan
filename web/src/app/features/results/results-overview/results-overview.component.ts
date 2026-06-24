@@ -11,7 +11,7 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './results-overview.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './results-overview.component.css',
 })
 export class ResultsOverviewComponent implements OnInit {

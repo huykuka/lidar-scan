@@ -20,7 +20,7 @@ import { ThemeSwitchComponent } from './theme-switch/theme-switch.component';
     ThemeSwitchComponent,
   ],
   templateUrl: './header.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './header.component.css',
 })
 export class HeaderComponent {

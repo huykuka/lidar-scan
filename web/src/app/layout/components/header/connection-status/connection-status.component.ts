@@ -15,7 +15,7 @@ import { SystemStatusService } from '@core/services/system-status.service';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './connection-status.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host {
       display: inline-flex;

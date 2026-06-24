@@ -17,7 +17,7 @@ const ICP_MIN_SOURCE_SENSORS = 1;
   standalone: true,
   imports: [SynergyComponentsModule, KeyValuePipe],
   templateUrl: './calibration.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './calibration.component.css',
 })
 export class CalibrationComponent implements OnDestroy {
@@ -52,8 +52,7 @@ export class CalibrationComponent implements OnDestroy {
   });
 
   /** Tooltip message shown when "Run Calibration" is disabled due to insufficient sensors. */
-  readonly calibrationDisabledTooltip =
-    'At least 1 source sensor is required for calibration.';
+  readonly calibrationDisabledTooltip = 'At least 1 source sensor is required for calibration.';
 
   /**
    * Returns true when "View History" should be shown for the given node.

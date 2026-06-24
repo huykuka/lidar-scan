@@ -7,7 +7,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
   selector: 'app-logs-table',
   standalone: true,
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex-1 relative">
       @if (isLoading() && entries().length === 0) {
@@ -37,23 +37,21 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
           <thead>
             <tr>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-page-background-color text-left text-[10px] font-bold   uppercase tracking-widest w-45 border-b "
+                class="text-left text-[10px] font-bold   uppercase tracking-widest w-45 border-b "
               >
                 Timestamp
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-page-background-color text-left text-[10px] font-bold   uppercase tracking-widest w-27.5 border-b "
+                class="text-left text-[10px] font-bold   uppercase tracking-widest w-27.5 border-b "
               >
                 Level
               </th>
               <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-page-background-color text-left text-[10px] font-bold   uppercase tracking-widest w-50 border-b "
+                class="text-left text-[10px] font-bold   uppercase tracking-widest w-50 border-b "
               >
                 Module
               </th>
-              <th
-                class="sticky top-0 z-20 px-4 py-3 bg-syn-page-background-color text-left text-[10px] font-bold   uppercase tracking-widest border-b "
-              >
+              <th class="text-left text-[10px] font-bold   uppercase tracking-widest border-b ">
                 Message
               </th>
             </tr>

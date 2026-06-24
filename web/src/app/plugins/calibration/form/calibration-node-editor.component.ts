@@ -14,7 +14,7 @@ import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './calibration-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './calibration-node-editor.component.css',
 })
 export class CalibrationNodeEditorComponent implements NodeEditorComponent, OnDestroy {
@@ -81,16 +81,16 @@ export class CalibrationNodeEditorComponent implements NodeEditorComponent, OnDe
 
     const configGroup: any = {
       reference_sensor_id: [config['reference_sensor_id'] || null],
-      sample_frames: [config['sample_frames'] || 10, [Validators.required, Validators.min(5), Validators.max(100)]],
+      sample_frames: [
+        config['sample_frames'] || 10,
+        [Validators.required, Validators.min(5), Validators.max(100)],
+      ],
     };
 
     if (def) {
       def.properties.forEach((prop) => {
         const val = config[prop.name];
-        configGroup[prop.name] = [
-          val ?? prop.default,
-          prop.required ? [Validators.required] : [],
-        ];
+        configGroup[prop.name] = [val ?? prop.default, prop.required ? [Validators.required] : []];
       });
     }
 
@@ -129,7 +129,7 @@ export class CalibrationNodeEditorComponent implements NodeEditorComponent, OnDe
 
   onReferenceSensorChange(event: any): void {
     const value = event.target.value;
-    this.configForm.patchValue({reference_sensor_id: value || null});
+    this.configForm.patchValue({ reference_sensor_id: value || null });
     this.selectedReferenceSensor.set(value || null);
   }
 

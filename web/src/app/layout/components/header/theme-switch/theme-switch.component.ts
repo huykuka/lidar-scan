@@ -12,13 +12,9 @@ import { ThemeService } from '@core/services/theme.service';
   standalone: true,
   imports: [SynergyComponentsModule],
   template: `
-    <syn-icon-button [name]="icon()"
-      [label]="label()"
-      size="medium"
-      (click)="toggle()"
-     />
+    <syn-icon-button [name]="icon()" [label]="label()" size="medium" (click)="toggle()" />
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host {
       display: inline-flex;

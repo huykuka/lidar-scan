@@ -7,7 +7,7 @@
 />
 
 <form [formGroup]="form" class="flex flex-col gap-4">
-  <syn-validate on="live" [eager]="false">
+  <syn-validate on="live" >
     <!-- Node Name -->
     <syn-input
       label="Node Name"
@@ -19,7 +19,7 @@
   </syn-validate>
 
   <!-- Throttle Interval (editable) -->
-  <syn-validate on="live" [eager]="false">
+  <syn-validate on="live" >
     <syn-input
       required
       label="Throttle Interval (ms)"

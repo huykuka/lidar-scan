@@ -8,7 +8,7 @@ import {NodeStatusUpdate} from '@core/models';
 @Component({
   selector: 'app-node-recording-controls',
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './node-recording-controls.html',
 })
 export class NodeRecordingControls implements OnDestroy {

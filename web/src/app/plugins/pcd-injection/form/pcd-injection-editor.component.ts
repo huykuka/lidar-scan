@@ -25,11 +25,11 @@ import {environment} from '@env/environment';
     SynergyComponentsModule,
     SynergyFormsModule,
     NodeEditorHeaderComponent,
-    PoseFormComponent
-],
+    PoseFormComponent,
+  ],
   providers: [NodeEditorFacadeService],
   templateUrl: './pcd-injection-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './pcd-injection-editor.component.css',
 })
 export class PcdInjectionEditorComponent implements NodeEditorComponent {
@@ -57,9 +57,7 @@ export class PcdInjectionEditorComponent implements NodeEditorComponent {
    * Full dynamic HTTP POST upload endpoint using environment.apiUrl.
    */
   protected uploadUrl = computed(() =>
-    this.nodeId()
-      ? `${environment.apiUrl}/pcd-injection/${this.nodeId()}/upload`
-      : null,
+    this.nodeId() ? `${environment.apiUrl}/pcd-injection/${this.nodeId()}/upload` : null,
   );
 
   /**
@@ -67,9 +65,7 @@ export class PcdInjectionEditorComponent implements NodeEditorComponent {
    */
   protected curlExample = computed(() => {
     const url = this.uploadUrl();
-    return url
-      ? `curl -X POST ${url} \\\n  -F "file=@your_cloud.pcd"`
-      : null;
+    return url ? `curl -X POST ${url} \\\n  -F "file=@your_cloud.pcd"` : null;
   });
 
   constructor() {

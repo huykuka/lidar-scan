@@ -7,7 +7,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   standalone: true,
 
   imports: [SynergyComponentsModule, NgClass],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './node-editor-header.component.html',
 })
 export class NodeEditorHeaderComponent {

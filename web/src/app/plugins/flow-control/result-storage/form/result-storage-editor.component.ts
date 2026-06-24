@@ -20,7 +20,7 @@ const DEFAULT_COLOR = '#9E9E9E';
   ],
   providers: [NodeEditorFacadeService],
   templateUrl: './result-storage-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './result-storage-editor.component.css',
 })
 export class ResultStorageEditorComponent implements NodeEditorComponent {
@@ -36,7 +36,7 @@ export class ResultStorageEditorComponent implements NodeEditorComponent {
   protected colorControl = new FormControl(DEFAULT_COLOR, { nonNullable: true });
 
   protected definition = computed(() =>
-    this.nodeStore.nodeDefinitions().find((d) => d.type === 'result_storage')
+    this.nodeStore.nodeDefinitions().find((d) => d.type === 'result_storage'),
   );
 
   protected isEditMode = computed(() => this.nodeStore.select('editMode')());

@@ -15,7 +15,7 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   imports: [SynergyComponentsModule, RecordingCardComponent],
   templateUrl: './recordings.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './recordings.component.css',
 })
 export class RecordingsComponent implements OnInit {

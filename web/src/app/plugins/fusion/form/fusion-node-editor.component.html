@@ -11,7 +11,7 @@
   <form [formGroup]="form" class="flex flex-col gap-3 text-sm">
     <div class="grid grid-cols-2 gap-3">
       <div class="col-span-2">
-        <syn-validate on="live" [eager]="false">
+        <syn-validate on="live" >
           <syn-input
             required
             formControlName="name"
@@ -44,7 +44,7 @@
           class="flex flex-col"
         >
           @if (prop.type === 'string') {
-            <syn-validate on="live" [eager]="false">
+            <syn-validate on="live" >
               <syn-input
                 required
                 [formControlName]="prop.name"
@@ -57,7 +57,7 @@
           }
 
           @if (prop.type === 'number') {
-            <syn-validate on="live" [eager]="false">
+            <syn-validate on="live" >
               <syn-input
                 required
                 [attr.max]="prop.max"
@@ -87,7 +87,7 @@
           }
 
           @if (prop.type === 'select') {
-            <syn-validate on="live" [eager]="false">
+            <syn-validate on="live" >
               <syn-select
                 required
                 (synChangeEvent)="onSelectChange(prop.name, $event)"
@@ -116,7 +116,7 @@
                 }
               </div>
               <div [formGroupName]="prop.name" class="grid grid-cols-3 gap-1.5">
-                <syn-validate on="live" [eager]="false">
+                <syn-validate on="live" >
                   <syn-input
                     required
                     [step]="0.1"
@@ -131,7 +131,7 @@
                     >
                   </syn-input>
                 </syn-validate>
-                <syn-validate on="live" [eager]="false">
+                <syn-validate on="live" >
                   <syn-input
                     required
                     [step]="0.1"
@@ -146,7 +146,7 @@
                     >
                   </syn-input>
                 </syn-validate>
-                <syn-validate on="live" [eager]="false">
+                <syn-validate on="live" >
                   <syn-input
                     required
                     [step]="0.1"

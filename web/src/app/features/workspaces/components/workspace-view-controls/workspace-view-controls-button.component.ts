@@ -24,7 +24,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
       </syn-button>
     </div>
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [
     `
       .wv-btn {

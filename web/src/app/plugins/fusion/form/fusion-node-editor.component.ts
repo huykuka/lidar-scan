@@ -14,7 +14,7 @@ import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './fusion-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './fusion-node-editor.component.css',
 })
 export class FusionNodeEditorComponent implements NodeEditorComponent, OnDestroy {

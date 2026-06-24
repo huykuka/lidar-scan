@@ -47,7 +47,7 @@ import { AuthService } from '@app/core/services/auth.service';
     OutputViewerComponent,
   ],
   templateUrl: './flow-canvas.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './flow-canvas.component.css',
 })
 export class FlowCanvasComponent implements OnInit, OnDestroy {

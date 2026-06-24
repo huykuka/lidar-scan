@@ -23,7 +23,7 @@ import {NodeEditorFacadeService} from '@features/settings/services/node-editor-f
   ],
   providers: [NodeEditorFacadeService],
   templateUrl: './output-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './output-node-editor.component.css',
 })
 export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {

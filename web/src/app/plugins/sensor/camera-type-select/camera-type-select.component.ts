@@ -6,7 +6,7 @@ import {VisionaryProfilesApiService} from '@core/services/api/visionary-profiles
 @Component({
   selector: 'app-camera-type-select',
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './camera-type-select.component.html',
 })
 export class CameraTypeSelectComponent {

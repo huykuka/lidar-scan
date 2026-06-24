@@ -8,7 +8,7 @@ import {AdminApiService, NodeTypeRecord} from '@core/services/api/admin-api.serv
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './admin.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './admin.component.css',
 })
 export class AdminComponent implements OnInit {
@@ -56,7 +56,7 @@ export class AdminComponent implements OnInit {
     }
     return Object.keys(groups)
       .sort()
-      .map((key) => ({category: key, types: groups[key]}));
+      .map((key) => ({ category: key, types: groups[key] }));
   });
 
   protected enabledCount = computed(() => this.nodeTypes().filter((n) => n.enabled).length);
@@ -89,7 +89,7 @@ export class AdminComponent implements OnInit {
     try {
       const result = await this.adminApi.setNodeTypeEnabled(nodeType.type, newEnabled);
       this.nodeTypes.update((types) =>
-        types.map((t) => (t.type === nodeType.type ? {...t, enabled: newEnabled} : t)),
+        types.map((t) => (t.type === nodeType.type ? { ...t, enabled: newEnabled } : t)),
       );
 
       if (newEnabled) {

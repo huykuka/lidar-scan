@@ -6,7 +6,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   selector: 'app-toolbox-header',
   standalone: true,
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toolbox-header.component.html',
 })
 export class ToolboxHeaderComponent {
@@ -27,6 +27,6 @@ export class ToolboxHeaderComponent {
       event.dataTransfer.setData('componentType', type);
       event.dataTransfer.effectAllowed = 'copy';
     }
-    this.dragStart.emit({event, type});
+    this.dragStart.emit({ event, type });
   }
 }

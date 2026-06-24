@@ -11,7 +11,7 @@ import {CalibrationHistoryRecord} from '@core/models';
   selector: 'app-calibration-history-table',
   standalone: true,
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './calibration-history-table.component.html',
 })
 export class CalibrationHistoryTableComponent {
@@ -43,16 +43,12 @@ export class CalibrationHistoryTableComponent {
 
     const sensorFilter = this.filterSourceSensor().trim();
     if (sensorFilter) {
-      result = result.filter(
-        (r) => r.source_sensor_id === sensorFilter,
-      );
+      result = result.filter((r) => r.source_sensor_id === sensorFilter);
     }
 
     const runIdFilter = this.filterRunId().trim();
     if (runIdFilter) {
-      result = result.filter(
-        (r) => r.run_id === runIdFilter,
-      );
+      result = result.filter((r) => r.run_id === runIdFilter);
     }
 
     // Sort newest first
@@ -62,9 +58,7 @@ export class CalibrationHistoryTableComponent {
   });
 
   /** Whether any filter is active */
-  hasActiveFilters = computed(() =>
-    !!this.filterSourceSensor() || !!this.filterRunId(),
-  );
+  hasActiveFilters = computed(() => !!this.filterSourceSensor() || !!this.filterRunId());
 
   onSourceSensorFilterChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
@@ -94,12 +88,18 @@ export class CalibrationHistoryTableComponent {
     return !record.run_id && !record.source_sensor_id;
   }
 
-  getQualityVariant(quality: string | null | undefined): 'success' | 'warning' | 'danger' | 'neutral' {
+  getQualityVariant(
+    quality: string | null | undefined,
+  ): 'success' | 'warning' | 'danger' | 'neutral' {
     switch (quality) {
-      case 'excellent': return 'success';
-      case 'good': return 'warning';
-      case 'poor': return 'danger';
-      default: return 'neutral';
+      case 'excellent':
+        return 'success';
+      case 'good':
+        return 'warning';
+      case 'poor':
+        return 'danger';
+      default:
+        return 'neutral';
     }
   }
 

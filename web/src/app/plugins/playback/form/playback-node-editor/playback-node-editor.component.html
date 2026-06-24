@@ -9,7 +9,7 @@
 />
 
 <div class="flex flex-col gap-4">
-  <syn-validate on="live" [eager]="false">
+  <syn-validate on="live" >
     <!-- Display Name -->
     <syn-input
       required
@@ -24,7 +24,7 @@
 
   <!-- Recording Selector -->
   <div>
-    <syn-validate on="live" [eager]="false">
+    <syn-validate on="live" >
       <syn-select
         required
         label="Recording"
@@ -75,7 +75,7 @@
   }
 
   <!-- Playback Speed Selector -->
-  <syn-validate on="live" [eager]="false">
+  <syn-validate on="live" >
     <syn-select
       required
       label="Playback Speed"

@@ -13,7 +13,7 @@ const ROLE_LEVELS: Record<UserRole, number> = {user: 0, admin: 1, service: 2};
   standalone: true,
   imports: [RouterModule, SynergyComponentsModule],
   templateUrl: './side-nav.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './side-nav.component.css',
 })
 export class SideNavComponent {

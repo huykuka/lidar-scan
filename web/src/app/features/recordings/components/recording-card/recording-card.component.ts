@@ -9,7 +9,7 @@ import {environment} from '@env/environment';
   standalone: true,
   imports: [SynergyComponentsModule, DatePipe],
   templateUrl: './recording-card.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './recording-card.component.css',
 })
 export class RecordingCardComponent {

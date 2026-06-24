@@ -13,7 +13,7 @@ import { NodeStoreService } from '@core/services/stores';
   standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './sensor-status.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host {
       display: inline-flex;

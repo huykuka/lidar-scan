@@ -6,7 +6,7 @@ import {NodeConfig} from '@core/models/node.model';
   selector: 'app-node-visibility-toggle',
   imports: [SynergyComponentsModule],
   templateUrl: './node-visibility-toggle.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './node-visibility-toggle.component.css',
 })
 export class NodeVisibilityToggleComponent {
@@ -27,6 +27,8 @@ export class NodeVisibilityToggleComponent {
 
   protected getAriaLabel(): string {
     const nodeName = this.node().name || 'Node';
-    return this.node().visible ? `Hide node ${nodeName} from 3D view` : `Show node ${nodeName} in 3D view`;
+    return this.node().visible
+      ? `Hide node ${nodeName} from 3D view`
+      : `Show node ${nodeName} in 3D view`;
   }
 }

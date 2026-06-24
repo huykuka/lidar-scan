@@ -23,7 +23,7 @@ import { HasUnsavedChanges } from '@core/guards/unsaved-changes.guard';
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
   providers: [CanvasEditStoreService],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, SynergyComponentsModule, ConfigImportDialogComponent, FlowCanvasComponent],
 })
 export class SettingsComponent implements OnInit, HasUnsavedChanges {

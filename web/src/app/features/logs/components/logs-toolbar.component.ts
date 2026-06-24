@@ -6,11 +6,9 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
   selector: 'app-logs-toolbar',
   standalone: true,
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div
-      class="bg-syn-page-background-color p-3 flex items-center justify-between gap-4 transition-all duration-300"
-    >
+    <div class="p-3 flex items-center justify-between gap-4 transition-all duration-300">
       <!-- Left: Search & Filter Group -->
       <div class="flex items-center gap-4 flex-1 min-w-0">
         <div class="relative flex-1 max-w-lg group">

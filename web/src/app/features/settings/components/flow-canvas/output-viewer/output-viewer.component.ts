@@ -25,7 +25,7 @@ const RENDER_WINDOW = 100;
   selector: 'app-output-viewer',
   imports: [SynergyComponentsModule, DatePipe],
   templateUrl: './output-viewer.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './output-viewer.component.css',
 })
 export class OutputViewerComponent implements OnDestroy {
@@ -53,8 +53,8 @@ export class OutputViewerComponent implements OnDestroy {
 
   /** node_id → human-readable name derived from the global node store. */
   private readonly nodeStore = inject(NodeStoreService);
-  protected readonly nodeName = computed<Map<string, string>>(() =>
-    new Map(this.nodeStore.nodes().map((n) => [n.id, n.name])),
+  protected readonly nodeName = computed<Map<string, string>>(
+    () => new Map(this.nodeStore.nodes().map((n) => [n.id, n.name])),
   );
 
   private readonly wsService = inject(MultiWebsocketService);
@@ -77,7 +77,9 @@ export class OutputViewerComponent implements OnDestroy {
       if (msgs.length === 0 || this.isCollapsed() || this.isFrozen()) return;
       const el = this.logRef()?.nativeElement;
       if (el) {
-        queueMicrotask(() => { el.scrollTop = el.scrollHeight; });
+        queueMicrotask(() => {
+          el.scrollTop = el.scrollHeight;
+        });
       }
     });
   }
@@ -89,7 +91,7 @@ export class OutputViewerComponent implements OnDestroy {
   toggleCollapse(): void {
     // Unfreeze whenever collapsing so state is clean on next open.
     if (!this.isCollapsed()) this.isFrozen.set(false);
-    this.isCollapsed.update(v => !v);
+    this.isCollapsed.update((v) => !v);
   }
 
   toggleFreeze(): void {
@@ -166,8 +168,7 @@ export class OutputViewerComponent implements OnDestroy {
         const next = [...prev, msg];
         return next.length > MAX_MESSAGES ? next.slice(next.length - MAX_MESSAGES) : next;
       });
-    } catch {
-    }
+    } catch {}
   }
 }
 

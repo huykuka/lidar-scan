@@ -8,11 +8,7 @@ const SICK_LOGO_PATH =
   standalone: true,
   template: `
     <!-- Begin of loading screen (Synergy template) -->
-    <div
-      aria-busy="true"
-      role="status"
-      class="loading-screen"
-    >
+    <div aria-busy="true" role="status" class="loading-screen">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 360 360"
@@ -25,49 +21,154 @@ const SICK_LOGO_PATH =
         <g transform="translate(180 180)" class="circles">
           <circle cx="0" cy="-171" r="5" opacity="1" />
           <circle cx="65" cy="-158" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.09375s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.09375s"
+            />
           </circle>
           <circle cx="121" cy="-121" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.140625s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.140625s"
+            />
           </circle>
           <circle cx="158" cy="-65" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.1875s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.1875s"
+            />
           </circle>
           <circle cx="171" cy="0" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.234375s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.234375s"
+            />
           </circle>
           <circle cx="158" cy="65" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.28125s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.28125s"
+            />
           </circle>
           <circle cx="121" cy="121" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.328125s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.328125s"
+            />
           </circle>
           <circle cx="65" cy="158" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.375s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.375s"
+            />
           </circle>
           <circle cx="0" cy="171" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.421875s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.421875s"
+            />
           </circle>
           <circle cx="-65" cy="158" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.46875s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.46875s"
+            />
           </circle>
           <circle cx="-121" cy="121" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.515625s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.515625s"
+            />
           </circle>
           <circle cx="-158" cy="65" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.5625s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.5625s"
+            />
           </circle>
           <circle cx="-171" cy="0" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.609375s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.609375s"
+            />
           </circle>
           <circle cx="-158" cy="-65" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.65625s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.65625s"
+            />
           </circle>
           <circle cx="-121" cy="-121" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.703125s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.703125s"
+            />
           </circle>
           <circle cx="-65" cy="-158" r="5" opacity="0">
-            <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="1.5s" repeatCount="indefinite" begin="0.75s" />
+            <animate
+              attributeName="opacity"
+              values="1;1;0;0"
+              keyTimes="0;0.5;0.5;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+              begin="0.75s"
+            />
           </circle>
         </g>
         <g transform="translate(180 180) scale(0.58) translate(-147.5 -74)">
@@ -77,7 +178,7 @@ const SICK_LOGO_PATH =
     </div>
     <!-- End of loading screen -->
   `,
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './loading-screen.component.css',
 })
 export class LoadingScreenComponent {

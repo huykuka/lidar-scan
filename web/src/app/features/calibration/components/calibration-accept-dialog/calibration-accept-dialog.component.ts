@@ -21,7 +21,7 @@ export interface PendingResultEntry {
   selector: 'app-calibration-accept-dialog',
   standalone: true,
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './calibration-accept-dialog.component.html',
 })
 export class CalibrationAcceptDialogComponent {
@@ -116,12 +116,18 @@ export class CalibrationAcceptDialogComponent {
     this.closed.emit();
   }
 
-  getQualityVariant(quality: string | null | undefined): 'success' | 'warning' | 'danger' | 'neutral' {
+  getQualityVariant(
+    quality: string | null | undefined,
+  ): 'success' | 'warning' | 'danger' | 'neutral' {
     switch (quality) {
-      case 'excellent': return 'success';
-      case 'good': return 'warning';
-      case 'poor': return 'danger';
-      default: return 'neutral';
+      case 'excellent':
+        return 'success';
+      case 'good':
+        return 'warning';
+      case 'poor':
+        return 'danger';
+      default:
+        return 'neutral';
     }
   }
 

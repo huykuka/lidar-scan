@@ -8,7 +8,7 @@ import {SynIconComponent} from '@synergy-design-system/angular';
   standalone: true,
   templateUrl: './start.component.html',
   styleUrl: './start.component.css',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SynIconComponent],
 })
 export class StartComponent implements OnInit {

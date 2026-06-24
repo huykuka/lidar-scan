@@ -15,7 +15,7 @@ import {PropertySchema} from '@core/models/node.model';
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './application-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './application-node-editor.component.css',
 })
 export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDestroy {
@@ -51,7 +51,7 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
     const nodes = this.canvasEditStore.localNodes();
     return nodes
       .filter((n) => n.category === 'sensor')
-      .map((n) => ({label: n.name || n.id, value: n.id}));
+      .map((n) => ({ label: n.name || n.id, value: n.id }));
   });
   private formValuesSub?: Subscription;
 
@@ -104,7 +104,7 @@ export class ApplicationNodeEditorComponent implements NodeEditorComponent, OnDe
     this.configForm.get(propName)?.setValue(checked);
   }
 
-  getSelectOptions(prop: PropertySchema): {label: string; value: any}[] {
+  getSelectOptions(prop: PropertySchema): { label: string; value: any }[] {
     if (prop.options_source === 'sensor_nodes') {
       return this.sensorNodeOptions();
     }

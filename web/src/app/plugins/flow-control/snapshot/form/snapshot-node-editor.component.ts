@@ -22,11 +22,11 @@ import { environment } from '@env/environment';
     ReactiveFormsModule,
     SynergyComponentsModule,
     SynergyFormsModule,
-    NodeEditorHeaderComponent
-],
+    NodeEditorHeaderComponent,
+  ],
   providers: [NodeEditorFacadeService],
   templateUrl: './snapshot-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './snapshot-node-editor.component.css',
 })
 export class SnapshotNodeEditorComponent implements NodeEditorComponent {
@@ -44,7 +44,7 @@ export class SnapshotNodeEditorComponent implements NodeEditorComponent {
    * Node definition for the 'snapshot' type
    */
   protected definition = computed(() =>
-    this.nodeStore.nodeDefinitions().find((d) => d.type === 'snapshot')
+    this.nodeStore.nodeDefinitions().find((d) => d.type === 'snapshot'),
   );
 
   /**
@@ -62,9 +62,7 @@ export class SnapshotNodeEditorComponent implements NodeEditorComponent {
    * Matches the construction pattern used in IfConditionEditorComponent.
    */
   protected triggerUrl = computed(() =>
-    this.nodeId()
-      ? `${environment.apiUrl}/nodes/${this.nodeId()}/trigger`
-      : null
+    this.nodeId() ? `${environment.apiUrl}/nodes/${this.nodeId()}/trigger` : null,
   );
 
   constructor() {
@@ -72,10 +70,10 @@ export class SnapshotNodeEditorComponent implements NodeEditorComponent {
 
     this.form = new FormGroup({
       name: new FormControl(node?.name || 'Snapshot Node', [Validators.required]),
-      throttle_ms: new FormControl(
-        node?.config?.['throttle_ms'] ?? 0,
-        [Validators.required, Validators.min(0)]
-      ),
+      throttle_ms: new FormControl(node?.config?.['throttle_ms'] ?? 0, [
+        Validators.required,
+        Validators.min(0),
+      ]),
     });
   }
 

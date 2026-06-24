@@ -6,7 +6,7 @@ import {LidarProfilesApiService} from '@core/services/api/lidar-profiles-api.ser
 @Component({
   selector: 'app-lidar-type-select',
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './lidar-type-select.component.html',
 })
 export class LidarTypeSelectComponent {

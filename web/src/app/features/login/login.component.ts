@@ -10,7 +10,7 @@ import {ToastService} from '@core/services';
   standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, SynergyFormsModule],
   templateUrl: './login.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './login.component.css',
 })
 export class LoginComponent {
@@ -26,9 +26,7 @@ export class LoginComponent {
   protected isLoading = signal(false);
 
   protected async onSubmit() {
-
-
-    const {username, password} = this.form.getRawValue();
+    const { username, password } = this.form.getRawValue();
     this.isLoading.set(true);
 
     try {

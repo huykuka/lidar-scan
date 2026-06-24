@@ -72,7 +72,7 @@
               (synInputEvent)="onAngleInput($any(axis.key), $event)"
               (synChangeEvent)="onAngleChange($any(axis.key), $event)"
             />
-          <syn-validate on="live" [eager]="false">
+          <syn-validate on="live" >
             <syn-input [formControlName]="axis.key"
               type="number"
               size="small"

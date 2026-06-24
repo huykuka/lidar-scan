@@ -15,7 +15,7 @@ import { firstValueFrom } from 'rxjs';
   standalone: true,
   imports: [SynergyComponentsModule, RouterModule],
   templateUrl: './node-results-list.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './node-results-list.component.css',
 })
 export class NodeResultsListComponent implements OnInit {

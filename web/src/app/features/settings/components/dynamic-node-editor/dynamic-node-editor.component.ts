@@ -20,7 +20,7 @@ import {NodeEditorComponent} from '@core/models/node-plugin.model';
   selector: 'app-dynamic-node-editor',
   imports: [],
   templateUrl: './dynamic-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './dynamic-node-editor.component.css',
 })
 export class DynamicNodeEditorComponent implements OnDestroy {
@@ -28,7 +28,7 @@ export class DynamicNodeEditorComponent implements OnDestroy {
   cancel = output<void>();
   private nodeStore = inject(NodeStoreService);
   private pluginRegistry = inject(NodePluginRegistry);
-  editorHost = viewChild('editorHost', {read: ViewContainerRef});
+  editorHost = viewChild('editorHost', { read: ViewContainerRef });
   private pluginEditorRef = signal<ComponentRef<NodeEditorComponent> | null>(null);
 
   constructor() {

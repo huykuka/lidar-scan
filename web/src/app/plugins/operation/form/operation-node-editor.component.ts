@@ -14,7 +14,7 @@ import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './operation-node-editor.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './operation-node-editor.component.css',
 })
 export class OperationNodeEditorComponent implements NodeEditorComponent, OnDestroy {

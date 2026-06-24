@@ -24,7 +24,7 @@ import { pageTransition } from '@core/animations/page-transitions';
   imports: [RouterOutlet, HeaderComponent, SideNavComponent, FooterComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.css',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [pageTransition],
 })
 export class MainLayoutComponent implements OnInit, AfterViewInit {

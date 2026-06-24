@@ -10,7 +10,7 @@ import {CalibrationNodeStatus} from '@core/models';
   selector: 'app-calibration-reject-dialog',
   standalone: true,
   imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './calibration-reject-dialog.component.html',
 })
 export class CalibrationRejectDialogComponent {

@@ -19,7 +19,7 @@ export interface PendingConnection {
   standalone: true,
   imports: [],
   templateUrl: './flow-canvas-connections.component.html',
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './flow-canvas-connections.component.css',
 })
 export class FlowCanvasConnectionsComponent {

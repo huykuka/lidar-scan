@@ -6,7 +6,7 @@ import {ConfigValidationResponse} from '@core/models/config.model';
 @Component({
   selector: 'app-config-import-dialog',
   imports: [SynergyComponentsModule, NgClass],
-  changeDetection: ChangeDetectionStrategy.Eager,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './config-import-dialog.component.html',
 })
 export class ConfigImportDialogComponent {
