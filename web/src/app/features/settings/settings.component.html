@@ -9,7 +9,7 @@
       <div class="flex items-center gap-2">
         <syn-button
           (click)="onExportConfig()"
-          [disabled]="isExporting() || !canEdit()"
+          [disabled]="isExporting()"
           [loading]="isExporting()"
           variant="outline"
           [title]="canEdit() ? 'Export configuration' : 'Admin access required'"
