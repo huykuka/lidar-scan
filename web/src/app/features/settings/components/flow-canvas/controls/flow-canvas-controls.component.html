@@ -24,24 +24,25 @@
   <span class="text-[11px] font-mono font-semibold  w-8 text-center select-none">
     {{ (zoom() * 100).toFixed(0) }}%
   </span>
-
+  
+  <!-- Zoom in -->
+  <button
+    (click)="onZoomIn.emit()"
+    title="Zoom in"
+    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none "
+  >
+    +
+  </button>
   <!-- Snap to Grid toggle -->
   <button
     (click)="onSnapToggle.emit()"
     [class.text-blue-600]="snapToGrid()"
     [class.text-neutral-400]="!snapToGrid()"
     [title]="snapToGrid() ? 'Snap to grid: on' : 'Snap to grid: off'"
-    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors"
+    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors border-l border-neutral-200"
   >
     <syn-icon name="grid_4x4" style="font-size: 14px" />
   </button>
 
-  <!-- Zoom in -->
-  <button
-    (click)="onZoomIn.emit()"
-    title="Zoom in"
-    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none border-l border-neutral-200"
-  >
-    +
-  </button>
+
 </div>
