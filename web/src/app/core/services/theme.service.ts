@@ -25,12 +25,10 @@ export class ThemeService {
   /** Convenience computed signal — true when dark mode is active */
   readonly isDark = computed(() => this.theme() === 'dark');
 
-  /** @deprecated Use theme signal instead */
-  get isDarkTheme(): boolean { return this.theme() === 'dark'; }
-  set isDarkTheme(v: boolean) { this.apply(v ? 'dark' : 'light'); }
-
   constructor() {
-    // Keep DOM in sync whenever theme signal changes
+    // Apply immediately so the DOM is in sync before first render
+    this.applyToDom(this.theme());
+    // Keep DOM in sync whenever theme signal changes afterward
     effect(() => {
       this.applyToDom(this.theme());
     });
