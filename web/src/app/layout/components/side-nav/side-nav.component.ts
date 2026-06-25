@@ -33,7 +33,15 @@ export class SideNavComponent {
       return ROLE_LEVELS[role] >= ROLE_LEVELS[item.requiredRole];
     });
   });
-  protected readonly footerNavItems = NAVIGATION_CONFIG.filter((item) => item.footer);
+  protected readonly footerNavItems = computed(() => {
+    const role = this.auth.user()?.role;
+    return NAVIGATION_CONFIG.filter((item) => {
+      if (!item.footer) return false;
+      if (!item.requiredRole) return true;
+      if (!role) return false;
+      return ROLE_LEVELS[role] >= ROLE_LEVELS[item.requiredRole];
+    });
+  });
 
   constructor() {
     this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {

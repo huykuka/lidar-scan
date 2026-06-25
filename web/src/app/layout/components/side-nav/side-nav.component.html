@@ -19,7 +19,7 @@
       </syn-nav-item>
   }
 
-  @for (item of footerNavItems; track item) {
+  @for (item of footerNavItems(); track item) {
     <syn-nav-item
       #rlaFooter="routerLinkActive"
       [attr.divider]="item.divider ? '' : null"
