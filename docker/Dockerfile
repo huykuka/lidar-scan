@@ -29,11 +29,11 @@ RUN git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /workspace/sic
 FROM --platform=$BUILDPLATFORM node:24-slim AS frontend-builder
 WORKDIR /web
 # Copy package manifests first for caching
-COPY web/package*.json ./
-RUN npm ci --force
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+RUN corepack enable && corepack pnpm install --frozen-lockfile
 # Copy rest of frontend source and build
 COPY web/ ./
-RUN npm run build -- --configuration production
+RUN corepack pnpm run build --configuration production
 
 # ----------------------------------------
 # Stage 3: Final Python Application

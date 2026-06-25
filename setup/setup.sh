@@ -74,8 +74,8 @@ if [ "$DO_FRONTEND" = true ]; then
     if [ ! -d "$PROJECT_ROOT/web" ]; then
         echo "Frontend directory not found at $PROJECT_ROOT/web. Skipping frontend build."
     else
-        if ! command -v npm >/dev/null 2>&1; then
-            echo "npm not found. Install Node.js/npm or rerun with --skip-frontend."
+        if ! command -v corepack >/dev/null 2>&1; then
+            echo "corepack not found. Install Node.js (with Corepack) or rerun with --skip-frontend."
             exit 1
         fi
 
@@ -87,15 +87,11 @@ if [ "$DO_FRONTEND" = true ]; then
         ( 
           cd "$WEB_DIR"
 
-
-          if [ -f package-lock.json ]; then
-              npm ci --force
-          else
-              npm install --force
-          fi
+                    corepack enable
+                    corepack pnpm install --frozen-lockfile
 
           # Build production assets
-          npm run build -- --configuration production
+                    corepack pnpm run build --configuration production
         )
 
         # Deploy build artifacts into the backend static directory

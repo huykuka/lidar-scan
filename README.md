@@ -65,8 +65,8 @@ cd setup && ./setup.sh && cd ..
 
 ```bash
 cd web
-npm install
-npm start          # Dev server at http://localhost:4200
+corepack pnpm install
+corepack pnpm start          # Dev server at http://localhost:4200
 ```
 
 ### 4. Run the backend
