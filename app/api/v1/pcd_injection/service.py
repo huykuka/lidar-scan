@@ -44,9 +44,9 @@ async def parse_pcd_upload(file: UploadFile) -> np.ndarray:
         HTTPException: On file-size violations, parse errors, or empty clouds.
     """
     if file.content_type and file.content_type not in (
-        "application/octet-stream",
-        "application/x-pcd",
-        "text/plain",
+            "application/octet-stream",
+            "application/x-pcd",
+            "text/plain",
     ):
         logger.warning("Unexpected content-type for PCD upload: %s", file.content_type)
 

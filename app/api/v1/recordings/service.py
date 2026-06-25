@@ -1,10 +1,10 @@
 """Recordings business logic services - Pure business logic without routing configuration."""
 
+import asyncio
 import logging
 import os
 import shutil
 import tempfile
-import asyncio
 import uuid
 import zipfile
 from datetime import datetime, timezone
@@ -14,15 +14,13 @@ from fastapi import BackgroundTasks, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.db.models import get_db
-from app.repositories.recordings_orm import RecordingRepository
-from app.services.shared.recorder import get_recorder
-from app.services.nodes.instance import node_manager
-from app.services.shared.recording import get_recording_info, RecordingReader
 from app.modules.lidar.io.pcd import save_to_pcd
+from app.repositories.recordings_orm import RecordingRepository
+from app.services.nodes.instance import node_manager
+from app.services.shared.recorder import get_recorder
+from app.services.shared.recording import RecordingReader
 from .dto import (
-    StartRecordingRequest, RecordingResponse, ActiveRecordingResponse, 
-    ListRecordingsResponse
+    StartRecordingRequest
 )
 
 logger = logging.getLogger(__name__)
@@ -43,22 +41,22 @@ async def start_recording(request: StartRecordingRequest, db: Session):
         HTTPException: If topic is already being recorded or not found
     """
     recorder = get_recorder()
-    
+
     found_node = node_manager.nodes.get(request.node_id)
-    
+
     if not found_node:
         raise HTTPException(status_code=404, detail=f"Node {request.node_id} not found in active graph")
-        
+
     # Prepare metadata - merge with user-provided metadata
     metadata = {
         "node_id": request.node_id,
         "name": request.name or request.node_id,
     }
-    
+
     # Merge user-provided metadata if present
     if request.metadata:
         metadata.update(request.metadata)
-    
+
     # Add node metadata if found (and not already in user metadata)
     if found_node:
         if hasattr(found_node, "mode") and "mode" not in metadata:
@@ -67,22 +65,22 @@ async def start_recording(request: StartRecordingRequest, db: Session):
             metadata["pipeline_name"] = getattr(found_node, "pipeline_name", None)
         if hasattr(found_node, "pose_params") and "pose" not in metadata:
             metadata["pose"] = getattr(found_node, "pose_params", None)
-    
+
     try:
         recording_id, file_path = await recorder.start_recording(
             node_id=request.node_id,
             name=request.name,
             metadata=metadata
         )
-        
+
         logger.info(f"Started recording {recording_id} for node {request.node_id}")
-        
+
         return {
             "recording_id": recording_id,
             "file_path": file_path,
             "started_at": datetime.now(timezone.utc).isoformat()
         }
-    
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -108,17 +106,17 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
     """
     recorder = get_recorder()
     repo = RecordingRepository(db)
-    
+
     try:
         # Mark recording as stopping (returns immediately)
         info = await recorder.stop_recording(recording_id)
-        
+
         # Schedule finalization in background
         async def finalize_and_save():
             try:
                 # Finalize the recording (flush, compress, thumbnail)
                 final_info = await recorder.finalize_recording(recording_id)
-                
+
                 # Save to database
                 recording_data = {
                     "id": final_info["recording_id"],
@@ -129,14 +127,15 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
                     "file_size_bytes": final_info["file_size_bytes"],
                     "frame_count": final_info["frame_count"],
                     "duration_seconds": final_info["duration_seconds"],
-                    "recording_timestamp": final_info["metadata"].get("recording_timestamp", datetime.now(timezone.utc).isoformat()),
+                    "recording_timestamp": final_info["metadata"].get("recording_timestamp",
+                                                                      datetime.now(timezone.utc).isoformat()),
                     "metadata": final_info["metadata"],
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
-                
+
                 if final_info.get("thumbnail_path"):
                     recording_data["thumbnail_path"] = final_info["thumbnail_path"]
-                
+
                 # Need a new DB session for background task
                 from app.db.models import get_db
                 db_gen = get_db()
@@ -147,14 +146,14 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
                     logger.info(f"Background: Saved recording {recording_id} to database")
                 finally:
                     bg_db.close()
-                    
+
             except Exception as e:
                 logger.error(f"Background: Error finalizing recording {recording_id}: {e}", exc_info=True)
-        
+
         background_tasks.add_task(finalize_and_save)
-        
+
         logger.info(f"Stopping recording {recording_id} (finalization in background)")
-        
+
         # Return immediate response with stopping status
         return {
             "recording_id": info["recording_id"],
@@ -164,7 +163,7 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
             "duration_seconds": info["duration_seconds"],
             "message": "Recording is stopping, finalization in progress..."
         }
-    
+
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
     except Exception as e:
@@ -185,17 +184,17 @@ async def list_recordings(node_id: str | None, db: Session):
     """
     recorder = get_recorder()
     repo = RecordingRepository(db)
-    
+
     # Get saved recordings
     recordings = repo.list(node_id=node_id)
-    
+
     # Get active recordings
     active = recorder.get_active_recordings()
-    
+
     # Filter active recordings by node_id if specified
     if node_id:
         active = [r for r in active if r.get("node_id") == node_id]
-    
+
     return {
         "recordings": recordings,
         "active_recordings": active
@@ -218,10 +217,10 @@ async def get_recording(recording_id: str, db: Session):
     """
     repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
-    
+
     if not recording:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
-    
+
     return recording
 
 
@@ -242,16 +241,16 @@ async def delete_recording(recording_id: str, background_tasks: BackgroundTasks,
     """
     repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
-    
+
     if not recording:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
-    
+
     file_path = recording["file_path"]
     thumbnail_path = recording.get("thumbnail_path")
-    
+
     # Delete from database
     repo.delete(recording_id)
-    
+
     # Schedule file deletion in background
     def delete_file():
         try:
@@ -263,9 +262,9 @@ async def delete_recording(recording_id: str, background_tasks: BackgroundTasks,
                 logger.info(f"Deleted thumbnail file: {thumbnail_path}")
         except Exception as e:
             logger.error(f"Error deleting file {file_path}: {e}")
-    
+
     background_tasks.add_task(delete_file)
-    
+
     return {"message": f"Recording {recording_id} deleted successfully"}
 
 
@@ -285,20 +284,20 @@ async def download_recording(recording_id: str, db: Session):
     """
     repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
-    
+
     if not recording:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
-    
+
     file_path = recording["file_path"]
-    
+
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Recording file not found: {file_path}")
-    
+
     # Generate a nice filename
     filename = f"{recording['name']}_{recording['created_at'][:10]}.lidr"
     # Sanitize filename
     filename = "".join(c for c in filename if c.isalnum() or c in ('_', '-', '.')).rstrip()
-    
+
     return FileResponse(
         path=file_path,
         filename=filename,
@@ -322,15 +321,15 @@ async def get_recording_viewer_info(recording_id: str, db: Session):
     """
     repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
-    
+
     if not recording:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
-    
+
     file_path = recording["file_path"]
-    
+
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Recording file not found: {file_path}")
-    
+
     return {
         "id": recording["id"],
         "name": recording["name"],
@@ -342,7 +341,8 @@ async def get_recording_viewer_info(recording_id: str, db: Session):
     }
 
 
-async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, background_tasks: BackgroundTasks, db: Session):
+async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, background_tasks: BackgroundTasks,
+                                     db: Session):
     """
     Get a specific frame from a recording as PCD file.
     
@@ -360,32 +360,32 @@ async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, backgr
     """
     repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
-    
+
     if not recording:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
-    
+
     file_path = recording["file_path"]
-    
+
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Recording file not found: {file_path}")
-    
+
     # Open recording and read frame
     try:
         reader = RecordingReader(file_path)
-        
+
         if frame_index < 0 or frame_index >= reader.frame_count:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail=f"Invalid frame index {frame_index}. Recording has {reader.frame_count} frames."
             )
-        
+
         points, timestamp = reader.get_frame(frame_index)
-        
+
         # Convert to PCD and save to temp file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.pcd', delete=False) as tmp_file:
             temp_path = tmp_file.name
             save_to_pcd(points, temp_path)
-        
+
         def cleanup():
             try:
                 os.unlink(temp_path)
@@ -394,14 +394,14 @@ async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, backgr
 
         # Schedule cleanup
         background_tasks.add_task(cleanup)
-        
+
         return FileResponse(
             path=temp_path,
             filename=f"frame_{frame_index}.pcd",
             media_type="application/octet-stream",
             background=background_tasks
         )
-    
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -442,7 +442,7 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
     try:
         # Stream upload to a temporary file first so we can validate before committing
         with tempfile.NamedTemporaryFile(
-            dir=str(recordings_dir), suffix=".zip.tmp", delete=False
+                dir=str(recordings_dir), suffix=".zip.tmp", delete=False
         ) as tmp_f:
             tmp_path = Path(tmp_f.name)
             content = await file.read()
@@ -555,10 +555,10 @@ async def get_recording_thumbnail(recording_id: str, db: Session):
     """
     repo = RecordingRepository(db)
     recording = repo.get_by_id(recording_id)
-    
+
     if not recording:
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
-    
+
     # Check if thumbnail exists
     if recording.get("thumbnail_path") and os.path.exists(recording["thumbnail_path"]):
         return FileResponse(
@@ -566,24 +566,24 @@ async def get_recording_thumbnail(recording_id: str, db: Session):
             media_type="image/png",
             headers={"Cache-Control": "public, max-age=86400"}  # Cache for 24 hours
         )
-    
+
     # Try to generate thumbnail if missing
     file_path = Path(recording["file_path"])
     if file_path.exists():
         try:
             from app.services.shared.thumbnail import generate_thumbnail_from_file
-            
+
             thumbnail_path = file_path.with_suffix(".png")
             success = await asyncio.to_thread(
                 generate_thumbnail_from_file,
                 file_path,
                 output_path=thumbnail_path
             )
-            
+
             if success:
                 # Update database with thumbnail path
                 repo.update(recording_id, {"thumbnail_path": str(thumbnail_path)})
-                
+
                 return FileResponse(
                     path=str(thumbnail_path),
                     media_type="image/png",
@@ -591,6 +591,6 @@ async def get_recording_thumbnail(recording_id: str, db: Session):
                 )
         except Exception as e:
             logger.warning(f"Failed to generate thumbnail on-demand: {e}")
-    
+
     # Return 404 if no thumbnail available
     raise HTTPException(status_code=404, detail="Thumbnail not available")

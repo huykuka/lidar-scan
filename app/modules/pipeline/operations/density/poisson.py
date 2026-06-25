@@ -33,15 +33,15 @@ class PoissonDensify(DensityAlgorithmBase):
     """
 
     def __init__(
-        self,
-        params: DensifyPoissonParams | None = None,
+            self,
+            params: DensifyPoissonParams | None = None,
     ) -> None:
         self.params: DensifyPoissonParams = params if params is not None else DensifyPoissonParams()
 
     def apply(
-        self,
-        pcd: o3d.t.geometry.PointCloud,
-        n_new: int,
+            self,
+            pcd: o3d.t.geometry.PointCloud,
+            n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
         Preserve all original points and augment with n_new uniformly-sampled

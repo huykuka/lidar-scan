@@ -4,17 +4,17 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.db.models import get_db
+
 from app.api.v1.schemas.calibration import (
-    CalibrationTriggerResponse, 
-    AcceptResponse, 
+    CalibrationTriggerResponse,
+    AcceptResponse,
     RejectResponse,
-    RollbackResponse, 
-    CalibrationHistoryResponse, 
+    RollbackResponse,
+    CalibrationHistoryResponse,
     CalibrationStatsResponse,
     CalibrationNodeStatusResponse,
 )
-from app.api.v1.schemas.common import StatusResponse
+from app.db.models import get_db
 from .service import (
     trigger_calibration, accept_calibration, reject_calibration,
     get_calibration_history, rollback_calibration, get_calibration_statistics,
@@ -22,9 +22,9 @@ from .service import (
     TriggerCalibrationRequest, AcceptCalibrationRequest, RollbackRequest
 )
 
-
 # Router configuration
 router = APIRouter(tags=["Calibration"])
+
 
 # Endpoint configurations
 @router.get(
@@ -45,8 +45,8 @@ async def calibration_status_endpoint(node_id: str):
     "/calibration/{node_id}/trigger",
     response_model=CalibrationTriggerResponse,
     responses={
-        400: {"description": "Invalid parameters or insufficient data"}, 
-        404: {"description": "Node not found"}, 
+        400: {"description": "Invalid parameters or insufficient data"},
+        404: {"description": "Node not found"},
         500: {"description": "Calibration algorithm error"}
     },
     summary="Trigger Calibration",
@@ -60,16 +60,16 @@ async def calibration_trigger_endpoint(node_id: str, request: TriggerCalibration
     "/calibration/{node_id}/accept",
     response_model=AcceptResponse,
     responses={
-        400: {"description": "Invalid request or no pending calibration"}, 
+        400: {"description": "Invalid request or no pending calibration"},
         404: {"description": "Node not found"}
     },
     summary="Accept Calibration",
     description="Accept pending calibration and apply to sensors.",
 )
 async def calibration_accept_endpoint(
-    node_id: str, 
-    request: AcceptCalibrationRequest,
-    db: Session = Depends(get_db)
+        node_id: str,
+        request: AcceptCalibrationRequest,
+        db: Session = Depends(get_db)
 ):
     return await accept_calibration(node_id, request, db)
 
@@ -93,10 +93,10 @@ async def calibration_reject_endpoint(node_id: str):
     description="Retrieve calibration history for a sensor. Optionally filter by source_sensor_id (leaf sensor ID).",
 )
 async def calibration_history_endpoint(
-    sensor_id: str,
-    limit: int = 10,
-    source_sensor_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+        sensor_id: str,
+        limit: int = 10,
+        source_sensor_id: Optional[str] = None,
+        db: Session = Depends(get_db)
 ):
     return await get_calibration_history(sensor_id, limit, db, source_sensor_id)
 
@@ -105,17 +105,17 @@ async def calibration_history_endpoint(
     "/calibration/rollback/{sensor_id}",
     response_model=RollbackResponse,
     responses={
-        400: {"description": "Invalid rollback request or non-accepted calibration"}, 
-        404: {"description": "Sensor or calibration record not found"}, 
+        400: {"description": "Invalid rollback request or non-accepted calibration"},
+        404: {"description": "Sensor or calibration record not found"},
         500: {"description": "Rollback operation failed"}
     },
     summary="Rollback Calibration",
     description="Rollback sensor to a previous calibration state.",
 )
 async def calibration_rollback_endpoint(
-    sensor_id: str,
-    request: RollbackRequest,
-    db: Session = Depends(get_db)
+        sensor_id: str,
+        request: RollbackRequest,
+        db: Session = Depends(get_db)
 ):
     return await rollback_calibration(sensor_id, request, db)
 
@@ -128,7 +128,7 @@ async def calibration_rollback_endpoint(
     description="Get statistical summary of calibration attempts for a sensor.",
 )
 async def calibration_statistics_endpoint(
-    sensor_id: str,
-    db: Session = Depends(get_db)
+        sensor_id: str,
+        db: Session = Depends(get_db)
 ):
     return await get_calibration_statistics(sensor_id, db)

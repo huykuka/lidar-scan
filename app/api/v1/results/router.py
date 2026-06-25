@@ -6,6 +6,7 @@ Mounted at: /api/v1/results
 """
 
 from __future__ import annotations
+
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -43,10 +44,10 @@ router = APIRouter(tags=["Results"])
     response_model=List[NodeResultSummary],
     summary="List nodes with stored results",
     description=(
-        "Returns all Result Storage nodes (active in the DAG) merged with any "
-        "node that has ≥1 stored result in the database.  Active Result Storage "
-        "nodes are always listed (even with 0 results).  Node names are resolved "
-        "from the DAG runtime, then the nodes DB table, falling back to the node ID."
+            "Returns all Result Storage nodes (active in the DAG) merged with any "
+            "node that has ≥1 stored result in the database.  Active Result Storage "
+            "nodes are always listed (even with 0 results).  Node names are resolved "
+            "from the DAG runtime, then the nodes DB table, falling back to the node ID."
     ),
 )
 async def list_node_results_index() -> List[NodeResultSummary]:
@@ -147,9 +148,9 @@ async def list_node_results_index() -> List[NodeResultSummary]:
     description="Returns all results for the given node, newest first.",
 )
 async def list_results_by_node(
-    node_id: str,
-    limit: int = Query(default=100, ge=1, le=1000, description="Max results to return"),
-    offset: int = Query(default=0, ge=0, description="Pagination offset"),
+        node_id: str,
+        limit: int = Query(default=100, ge=1, le=1000, description="Max results to return"),
+        offset: int = Query(default=0, ge=0, description="Pagination offset"),
 ) -> List[ResultSummary]:
     svc = _get_service()
     try:

@@ -1,12 +1,13 @@
 """Logs endpoint handlers - Pure business logic without routing configuration."""
 
+import asyncio
+import json
+import os
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+
 from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
-from typing import Optional, List, Dict, Any
-from datetime import datetime
-import os
-import json
-import asyncio
 
 from app.core.logging import LOG_FILE
 
@@ -35,7 +36,7 @@ def get_logs(level: Optional[str], search: Optional[str], offset: int, limit: in
     with open(LOG_FILE, 'r', encoding='utf-8', errors='ignore') as f:
         lines = f.readlines()
     entries = (parse_log_line(l) for l in reversed(lines))
-    
+
     for entry in entries:
         if not entry:
             continue
@@ -91,15 +92,15 @@ async def logs_websocket_endpoint(websocket: WebSocket, level: Optional[str] = N
         # Seek to end initially if position is 0 to avoid streaming history
         if os.path.exists(LOG_FILE):
             position = os.path.getsize(LOG_FILE)
-            
+
         while True:
             if not os.path.exists(LOG_FILE):
                 await asyncio.sleep(1)
                 continue
-                
+
             stat = os.stat(LOG_FILE)
             inode = stat.st_ino
-            
+
             if logf is None or inode != last_inode:
                 if logf:
                     logf.close()
@@ -109,11 +110,11 @@ async def logs_websocket_endpoint(websocket: WebSocket, level: Optional[str] = N
                     position = 0
                 logf.seek(position)
                 last_inode = inode
-            
+
             # Read new lines
             lines = logf.readlines()
             position = logf.tell()
-            
+
             for line in lines:
                 entry = parse_log_line(line)
                 if not entry:
@@ -123,7 +124,7 @@ async def logs_websocket_endpoint(websocket: WebSocket, level: Optional[str] = N
                 if search and search.lower() not in entry["message"].lower():
                     continue
                 await websocket.send_text(json.dumps(entry))
-                
+
             await asyncio.sleep(0.5)
     except (WebSocketDisconnect, RuntimeError):
         pass

@@ -74,8 +74,8 @@ node_schema_registry.register(NodeDefinition(
             type="select",
             default="height",
             options=[
-                {"value": "height",    "label": "Height (max Z per cell)"},
-                {"value": "density",   "label": "Density (point count per cell)"},
+                {"value": "height", "label": "Height (max Z per cell)"},
+                {"value": "density", "label": "Density (point count per cell)"},
                 {"value": "intensity", "label": "Intensity (mean per cell)"},
             ],
             help_text="Which signal to encode as brightness in the output image",

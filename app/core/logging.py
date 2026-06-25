@@ -1,7 +1,7 @@
-import os
 import logging
-from pathlib import Path
+import os
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 LOG_DIR = Path("data/logs")
 LOG_FILE = LOG_DIR / "app.log"
@@ -20,12 +20,13 @@ logging.basicConfig(
         logging.StreamHandler(),
         RotatingFileHandler(
             LOG_FILE,
-            maxBytes=(10 * 1024 * 1024),   # 10MB per file
-            backupCount=7,                 # Last 7 rotated logs kept
+            maxBytes=(10 * 1024 * 1024),  # 10MB per file
+            backupCount=7,  # Last 7 rotated logs kept
             encoding="utf-8"
         )
     ]
 )
+
 
 def get_logger(name: str) -> logging.Logger:
     """Return a configured logger with the given module name."""

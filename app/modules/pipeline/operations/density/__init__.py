@@ -22,22 +22,11 @@ the DAG factory — ``Densify`` dispatches internally.
 
 # Main dispatcher (PipelineOperation subclass)
 from .densify import Densify
-
-# Algorithm implementations
-from .nearest_neighbor import NearestNeighborDensify
-from .mls import MLSDensify
-from .poisson import PoissonDensify
-from .statistical import StatisticalDensify
-
-# Base class
-from .density_base import DensityAlgorithmBase
-
 # Enums
 from .density_base import (
     DensifyAlgorithm,
     DensifyStatus,
 )
-
 # Pydantic config / param models
 from .density_base import (
     DensifyConfig,
@@ -47,13 +36,19 @@ from .density_base import (
     DensifyPoissonParams,
     DensifyStatisticalParams,
 )
-
+# Base class
+from .density_base import DensityAlgorithmBase
 # Constants
 from .density_base import (
     MAX_MULTIPLIER,
     MIN_MULTIPLIER,
     MIN_INPUT_POINTS,
 )
+from .mls import MLSDensify
+# Algorithm implementations
+from .nearest_neighbor import NearestNeighborDensify
+from .poisson import PoissonDensify
+from .statistical import StatisticalDensify
 
 __all__ = [
     # Dispatcher

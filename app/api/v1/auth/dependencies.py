@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import inspect
 from functools import wraps
-from typing import Sequence
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -40,7 +39,7 @@ ROLE_LEVELS: dict[str, int] = {"user": 0, "admin": 1, "service": 2}
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
 ) -> UserInfo:
     """Extract and validate the JWT from the Authorization header."""
     if credentials is None:
@@ -77,7 +76,7 @@ def _make_role_guard(min_role: str) -> object:
     label = f"{min_role.capitalize()} access required"
 
     async def _guard(
-        credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
+            credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     ) -> UserInfo:
         user = await get_current_user(credentials)
         if ROLE_LEVELS.get(user.role, 0) < required_level:

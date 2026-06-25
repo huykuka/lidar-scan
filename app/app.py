@@ -1,18 +1,14 @@
 import asyncio
-import sys
-import os
-from pathlib import Path
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from app.core.logging import get_logger
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import router as api_router
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.db.migrate import ensure_schema
 from app.db.session import init_engine
 from app.services.nodes.instance import node_manager
@@ -122,7 +118,6 @@ OPENAPI_TAGS: list[dict] = [
 ]
 
 
-
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # Startup
@@ -215,5 +210,5 @@ data_dir = Path("data")
 data_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/data", StaticFiles(directory=str(data_dir)), name="data")
 
-#Serve frontend app
-app.frontend('/', directory="app/static",fallback="index.html")
+# Serve frontend app
+app.frontend('/', directory="app/static", fallback="index.html")

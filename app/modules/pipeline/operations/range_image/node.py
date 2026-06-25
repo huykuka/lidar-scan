@@ -46,6 +46,7 @@ import open3d as o3d
 
 try:
     from PIL import Image as _PIL_Image
+
     _HAS_PIL = True
 except ImportError:
     _HAS_PIL = False
@@ -105,13 +106,13 @@ class RangeImage(PipelineOperation):
     """
 
     def __init__(
-        self,
-        resolution: float = 0.1,
-        x_min: float = -25.0,
-        x_max: float = 25.0,
-        y_min: float = -25.0,
-        y_max: float = 25.0,
-        channel: str = "height",
+            self,
+            resolution: float = 0.1,
+            x_min: float = -25.0,
+            x_max: float = 25.0,
+            y_min: float = -25.0,
+            y_max: float = 25.0,
+            channel: str = "height",
     ) -> None:
         if float(resolution) <= 0:
             raise ValueError("resolution must be > 0")
@@ -158,8 +159,8 @@ class RangeImage(PipelineOperation):
 
         # --- filter to ROI ---
         mask = (
-            (points[:, _COL_X] >= self.x_min) & (points[:, _COL_X] < self.x_max) &
-            (points[:, _COL_Y] >= self.y_min) & (points[:, _COL_Y] < self.y_max)
+                (points[:, _COL_X] >= self.x_min) & (points[:, _COL_X] < self.x_max) &
+                (points[:, _COL_Y] >= self.y_min) & (points[:, _COL_Y] < self.y_max)
         )
         pts = points[mask]
 
@@ -292,10 +293,10 @@ class RangeImage(PipelineOperation):
         }
         header_bytes = json.dumps(header_dict).encode("utf-8")
         frame = (
-            b"BEVI"
-            + struct.pack("<I", len(header_bytes))
-            + header_bytes
-            + png_bytes
+                b"BEVI"
+                + struct.pack("<I", len(header_bytes))
+                + header_bytes
+                + png_bytes
         )
 
         topic = self._ws_topic

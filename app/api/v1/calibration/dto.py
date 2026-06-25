@@ -1,6 +1,7 @@
 """Calibration DTOs - Data Transfer Objects for request/response serialization."""
 
 from typing import List, Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -11,13 +12,13 @@ class TriggerCalibrationRequest(BaseModel):
             "examples": [
                 {
                     "reference_sensor_id": "sensor-uuid-ref",
-                    "source_sensor_ids": ["sensor-uuid-a", "sensor-uuid-b"], 
+                    "source_sensor_ids": ["sensor-uuid-a", "sensor-uuid-b"],
                     "sample_frames": 5
                 }
             ]
         }
     )
-    
+
     reference_sensor_id: Optional[str] = None
     source_sensor_ids: Optional[List[str]] = None
     sample_frames: int = 5

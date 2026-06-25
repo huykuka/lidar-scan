@@ -16,4 +16,3 @@ class ExternalStateResponse(BaseModel):
 class SnapshotTriggerResponse(BaseModel):
     """Response for a successful snapshot trigger."""
     status: Literal["ok"]
-

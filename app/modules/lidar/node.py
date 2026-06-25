@@ -1,11 +1,11 @@
 """
 LiDAR sensor model representing configuration and state.
 """
-from typing import Dict, Optional, Any
-from dataclasses import dataclass, field
 import asyncio
 import multiprocessing as mp
 import time
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Any
 
 import numpy as np
 
@@ -15,13 +15,12 @@ from app.modules.lidar.core import (
     gravity_to_roll_pitch,
     imu_gravity_alignment_matrix,
     imu_orientation_matrix,
-    pose_to_dict,
     quaternion_is_valid,
     quaternion_to_rpy,
 )
 from app.schemas.pose import Pose
-from app.services.nodes.base_module import ModuleNode
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
+from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
@@ -52,26 +51,26 @@ class LidarSensor(ModuleNode):
     topic_prefix: str
 
     def __init__(
-        self,
-        manager: Any,
-        sensor_id: str,
-        launch_args: str,
-        transformation: Optional[np.ndarray] = None,
-        name: Optional[str] = None,
-        topic_prefix: Optional[str] = None,
-        throttle_ms: float = 0,
-        imu_auto_level: bool = False,
+            self,
+            manager: Any,
+            sensor_id: str,
+            launch_args: str,
+            transformation: Optional[np.ndarray] = None,
+            name: Optional[str] = None,
+            topic_prefix: Optional[str] = None,
+            throttle_ms: float = 0,
+            imu_auto_level: bool = False,
     ):
         self.manager = manager
         self.id = sensor_id
         self.name = name or sensor_id
         self.topic_prefix = topic_prefix or self.name
         self.launch_args = launch_args
-        
+
         # LiDAR model information (set externally by build_sensor after instantiation)
         self.lidar_type: str = "multiscan"
         self.lidar_display_name: str = "SICK multiScan"
-        
+
         self.transformation = transformation if transformation is not None else np.eye(4)
         self.pose_params: Pose = Pose.zero()
 
@@ -79,7 +78,7 @@ class LidarSensor(ModuleNode):
         self.latest_imu: Optional[ImuSnapshot] = None
         self.imu_auto_level: bool = imu_auto_level
         self._imu_gravity_matrix: Optional[np.ndarray] = None
-        
+
         self._process = None
         self._stop_event = None
 
@@ -110,21 +109,21 @@ class LidarSensor(ModuleNode):
         """Starts the worker process for this sensor"""
         if data_queue is None or runtime_status is None:
             raise ValueError("LidarSensor requires data_queue and runtime_status")
-        
+
         # Check if process is already running
         if self._process and self._process.is_alive():
             logger.warning(f"[{self.id}] Worker process already running (PID: {self._process.pid}), skipping start")
             return
-        
+
         self._stop_event = mp.Event()
-        
+
         runtime_status[self.id] = {
             "last_frame_at": None,
             "last_error": None,
             "process_alive": False,
             "connection_status": "starting",
         }
-        
+
         try:
             from app.modules.lidar.workers.real import lidar_worker_process
             self._process = mp.Process(
@@ -133,11 +132,11 @@ class LidarSensor(ModuleNode):
                 name=f"LidarWorker-{self.id}",
                 daemon=True
             )
-            
+
             self._process.start()
             runtime_status[self.id]["process_alive"] = True
             logger.info(f"Spawned worker for {self.id} (PID: {self._process.pid})")
-            
+
             # Notify status change after starting
             notify_status_change(self.id)
         except Exception as e:
@@ -150,39 +149,39 @@ class LidarSensor(ModuleNode):
         """Stops the worker process for this sensor"""
         if self._stop_event:
             self._stop_event.set()
-        
+
         if self._process and self._process.is_alive():
             logger.info(f"[{self.id}] Stopping worker process (PID: {self._process.pid})...")
-            
+
             # Give the process time to finish gracefully.
             # Worker loop checks stop_event every 0.1 s; 0.5 s is ample.
             self._process.join(timeout=0.5)
-            
+
             if self._process.is_alive():
                 logger.warning(f"[{self.id}] Worker didn't stop gracefully, terminating...")
                 self._process.terminate()
                 self._process.join(timeout=1.0)
-                
+
                 if self._process.is_alive():
                     logger.error(f"[{self.id}] Worker still alive after terminate, killing...")
                     self._process.kill()
                     self._process.join(timeout=0.5)
-        
+
         self._process = None
         self._stop_event = None
         logger.info(f"[{self.id}] Worker process stopped.")
-        
+
         # Notify status change after stopping
         notify_status_change(self.id)
 
     async def handle_data(self, payload: Dict[str, Any], runtime_status: Dict[str, Any]):
         """Handles incoming data explicitly for this Lidar node"""
         from .core.transformations import transform_points
-        
+
         try:
             timestamp = payload["timestamp"]
             event_type = payload.get("event_type")
-            
+
             if event_type:
                 if self.id in runtime_status:
                     if event_type == "connected":
@@ -191,7 +190,8 @@ class LidarSensor(ModuleNode):
                         logger.info(f"[{self.id}] Connected: {payload.get('message', '')}")
                         notify_status_change(self.id)
                     elif event_type == "disconnected":
-                        runtime_status[self.id]["last_error"] = f"Disconnected: {payload.get('message', 'Connection lost')}"
+                        runtime_status[self.id][
+                            "last_error"] = f"Disconnected: {payload.get('message', 'Connection lost')}"
                         runtime_status[self.id]["connection_status"] = "disconnected"
                         logger.warning(f"[{self.id}] Disconnected: {payload.get('message', '')}")
                         notify_status_change(self.id)
@@ -330,11 +330,11 @@ class LidarSensor(ModuleNode):
         # Read runtime status from manager
         runtime_status = getattr(self.manager, 'node_runtime_status', {})
         runtime = runtime_status.get(self.id, {})
-        
+
         connection_status = runtime.get("connection_status", "disconnected")
         last_error = runtime.get("last_error")
         process_alive = self._process.is_alive() if self._process else False
-        
+
         # Determine operational state
         if not process_alive:
             operational_state = OperationalState.STOPPED
@@ -358,7 +358,7 @@ class LidarSensor(ModuleNode):
             operational_state = OperationalState.STOPPED
             app_value = "disconnected"
             app_color = "red"
-        
+
         return NodeStatusUpdate(
             node_id=self.id,
             operational_state=operational_state,

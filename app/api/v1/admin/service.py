@@ -58,7 +58,7 @@ async def list_node_types() -> List[NodeTypeRecord]:
 
 
 async def set_node_type_enabled(
-    node_type: str, req: NodeTypeToggle
+        node_type: str, req: NodeTypeToggle
 ) -> Dict[str, Any]:
     """Enable or disable a node type.
 

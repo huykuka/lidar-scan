@@ -1,6 +1,7 @@
 """Assets DTOs - Data Transfer Objects for request/response serialization."""
 
 from typing import List
+
 from pydantic import BaseModel
 
 

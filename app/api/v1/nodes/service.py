@@ -9,6 +9,7 @@ per-node calls.
 
 import time
 from typing import Optional
+
 from fastapi import HTTPException
 from pydantic import BaseModel
 
@@ -263,7 +264,7 @@ async def get_reload_status():
     if not locked:
         estimated_completion_ms = None
     elif active_id is not None:
-        estimated_completion_ms = 150   # selective reload estimate
+        estimated_completion_ms = 150  # selective reload estimate
     else:
         estimated_completion_ms = 3000  # full reload estimate
 
@@ -322,4 +323,3 @@ async def get_nodes_status():
         status_updates.append(entry)
 
     return {"nodes": status_updates}
-

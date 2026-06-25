@@ -34,17 +34,17 @@ class StatisticalDensify(DensityAlgorithmBase):
     """
 
     def __init__(
-        self,
-        params: DensifyStatisticalParams | None = None,
+            self,
+            params: DensifyStatisticalParams | None = None,
     ) -> None:
         self.params: DensifyStatisticalParams = (
             params if params is not None else DensifyStatisticalParams()
         )
 
     def apply(
-        self,
-        pcd: o3d.t.geometry.PointCloud,
-        n_new: int,
+            self,
+            pcd: o3d.t.geometry.PointCloud,
+            n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
         Generate n_new synthetic points by statistical sparse-region interpolation.
@@ -70,8 +70,8 @@ class StatisticalDensify(DensityAlgorithmBase):
         dists, idxs = kd_tree.query(pts, k=k_total)
 
         # Exclude self (col 0)
-        dists = dists[:, 1:]    # (N, k_neighbors)
-        idxs = idxs[:, 1:]      # (N, k_neighbors)
+        dists = dists[:, 1:]  # (N, k_neighbors)
+        idxs = idxs[:, 1:]  # (N, k_neighbors)
 
         # Local density: k / volume_of_sphere(radius = max_dist)
         max_dist = dists[:, -1]

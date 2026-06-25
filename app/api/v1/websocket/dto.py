@@ -1,6 +1,7 @@
 """WebSocket DTOs - Data Transfer Objects for request/response serialization."""
 
 from typing import List, Dict
+
 from pydantic import BaseModel
 
 

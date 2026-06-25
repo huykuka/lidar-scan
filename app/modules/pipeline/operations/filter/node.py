@@ -1,10 +1,10 @@
-from typing import List, Any, Callable
-import time
-import json
-import os
-import open3d as o3d
+from typing import Any, Callable
+
 import numpy as np
-from ...base import PipelineOperation, _tensor_map_keys
+import open3d as o3d
+
+from ...base import PipelineOperation
+
 
 class Filter(PipelineOperation):
     """
@@ -47,6 +47,7 @@ class Filter(PipelineOperation):
 
         return pcd, {"filtered_count": final_count}
 
+
 class FilterByKey(PipelineOperation):
     """
     Filters the point cloud based on a specific attribute key.
@@ -63,7 +64,7 @@ class FilterByKey(PipelineOperation):
         or a condition function (e.g., lambda x: x > 0.5).
         """
         self.key = key
-        
+
         if isinstance(value, str):
             try:
                 value = float(value) if '.' in value else int(value)
@@ -82,14 +83,14 @@ class FilterByKey(PipelineOperation):
                 result = self.value(data)
             elif isinstance(self.value, (tuple, list)) and len(self.value) == 2:
                 op, val = self.value
-                
+
                 # Cast string numerics to float, otherwise O3D tensor comparison throws TypeError
                 if isinstance(val, str):
                     try:
                         val = float(val) if '.' in val else int(val)
                     except ValueError:
                         pass
-                        
+
                 if op == '>':
                     result = (data > val)
                 elif op == '>=':
@@ -114,7 +115,7 @@ class FilterByKey(PipelineOperation):
                 pcd = pcd.select_by_mask(result)
             else:
                 pcd = pcd.select_by_index(result)
-            
+
             if 'positions' in pcd.point:
                 final_count = pcd.point.positions.shape[0]
             else:
@@ -129,13 +130,13 @@ class FilterByKey(PipelineOperation):
                     mask = self.value(data)
                 elif isinstance(self.value, (tuple, list)) and len(self.value) == 2:
                     op, val = self.value
-                    
+
                     if isinstance(val, str):
                         try:
                             val = float(val) if '.' in val else int(val)
                         except ValueError:
                             pass
-                            
+
                     if op == '>':
                         mask = (data > val)
                     elif op == '>=':
@@ -165,4 +166,3 @@ class FilterByKey(PipelineOperation):
                              "warning": f"Attribute '{self.key}' not found on legacy PointCloud"}
 
         return pcd, {"filtered_count": final_count, "filter_key": self.key}
-

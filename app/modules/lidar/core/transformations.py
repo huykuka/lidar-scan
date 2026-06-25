@@ -2,14 +2,14 @@
 Transformation and mathematical utilities for lidar point cloud processing.
 """
 import math
+from typing import Dict
 
 import numpy as np
-from typing import Dict
 
 
 def create_transformation_matrix(
-    x: float, y: float, z: float,
-    roll: float = 0, pitch: float = 0, yaw: float = 0
+        x: float, y: float, z: float,
+        roll: float = 0, pitch: float = 0, yaw: float = 0
 ) -> np.ndarray:
     """
     Creates a 4x4 transformation matrix from translation and rotation parameters.
@@ -75,7 +75,7 @@ def transform_points(points: np.ndarray, T: np.ndarray) -> np.ndarray:
 
 
 def quaternion_to_rpy(
-    w: float, x: float, y: float, z: float,
+        w: float, x: float, y: float, z: float,
 ) -> tuple[float, float, float]:
     """Convert an orientation quaternion to roll/pitch/yaw (degrees).
 
@@ -121,7 +121,7 @@ def quaternion_is_valid(w: float, x: float, y: float, z: float) -> bool:
 
 
 def imu_orientation_matrix(
-    w: float, x: float, y: float, z: float,
+        w: float, x: float, y: float, z: float,
 ) -> np.ndarray:
     """Build an orientation matrix from the IMU quaternion.
 
@@ -176,8 +176,8 @@ def imu_gravity_alignment_matrix(ax: float, ay: float, az: float) -> np.ndarray:
 
 
 def pose_to_dict(
-    x: float, y: float, z: float,
-    roll: float, pitch: float, yaw: float
+        x: float, y: float, z: float,
+        roll: float, pitch: float, yaw: float
 ) -> Dict[str, float]:
     """
     Converts pose parameters to a dictionary.

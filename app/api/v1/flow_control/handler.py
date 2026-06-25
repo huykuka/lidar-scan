@@ -6,7 +6,6 @@ from fastapi import APIRouter
 from .dto import ExternalStateResponse, SnapshotTriggerResponse
 from .service import set_external_state, reset_external_state, trigger_snapshot
 
-
 # Router configuration
 router = APIRouter(tags=["Flow Control"])
 
@@ -72,4 +71,3 @@ async def trigger_snapshot_endpoint(node_id: str):
     FastAPI default ``{"detail": "…"}`` shape.
     """
     return await trigger_snapshot(node_id)
-

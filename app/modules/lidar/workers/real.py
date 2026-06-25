@@ -1,4 +1,3 @@
-
 import logging
 import time
 from pathlib import Path
@@ -8,6 +7,7 @@ from app.modules.lidar.workers.api.sick_scan_api import *
 
 # Configure logging for multiprocessing worker
 logger = logging.getLogger(__name__)
+
 
 def parse_sick_scan_pointcloud(msg_contents):
     """
@@ -100,8 +100,8 @@ def _parse_imu_msg(msg_contents) -> dict:
     (no ctypes pointers — only Python floats).
     """
     timestamp = (
-        msg_contents.header.timestamp_sec
-        + msg_contents.header.timestamp_nsec / 1e9
+            msg_contents.header.timestamp_sec
+            + msg_contents.header.timestamp_nsec / 1e9
     )
     return {
         "timestamp": timestamp,
@@ -143,12 +143,12 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
 
     # Add sick_scan-api search paths outside app/
     search_paths = (
-        search_paths
-        + [
-            str(sick_scan_api_root / "build"),
-            str(sick_scan_api_root / "build/Debug"),
-            str(sick_scan_api_root),
-        ]
+            search_paths
+            + [
+                str(sick_scan_api_root / "build"),
+                str(sick_scan_api_root / "build/Debug"),
+                str(sick_scan_api_root),
+            ]
     )
 
     sick_scan_library = SickScanApiLoadLibrary(search_paths, lib_name)
@@ -157,7 +157,7 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
         return
 
     api_handle = SickScanApiCreate(sick_scan_library)
-    SickScanApiSetVerboseLevel(sick_scan_library, api_handle,5)
+    SickScanApiSetVerboseLevel(sick_scan_library, api_handle, 5)
 
     # `launch_args` is typically: "<launchfile> key:=value ...".
     # The sick_scan_api parser expects the launchfile to be readable from the
@@ -167,7 +167,8 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
         parts = (launch_args or "").strip().split()
         if parts:
             launch_file = parts[0]
-            if (launch_file.endswith(".launch") or launch_file.endswith(".launch.py")) and not os.path.isabs(launch_file):
+            if (launch_file.endswith(".launch") or launch_file.endswith(".launch.py")) and not os.path.isabs(
+                    launch_file):
                 repo_root = Path(__file__).resolve().parents[4]
                 candidate = (repo_root / launch_file).resolve()
                 if not candidate.exists() and launch_file.startswith("./"):
@@ -241,15 +242,16 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
             msg_contents = msg.contents
             status_code = msg_contents.status_code
             status_message = msg_contents.status_message
-            
+
             if status_message:
                 try:
-                    message_str = status_message.decode('utf-8') if isinstance(status_message, bytes) else str(status_message)
+                    message_str = status_message.decode('utf-8') if isinstance(status_message, bytes) else str(
+                        status_message)
                 except:
                     message_str = str(status_message)
             else:
                 message_str = "Unknown status"
-            
+
             # status_code: OK=0, WARN=1, ERROR=2, INIT=3, EXIT=4
             if status_code == 2:  # ERROR
                 logger.error(f"[{lidar_id}] SICK_SCAN ERROR: {message_str}")
@@ -287,10 +289,10 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
                     data_queue.put(payload, block=False)
                 except:
                     pass
-                    
+
         except Exception as e:
             logger.error(f"[{lidar_id}] Diagnostic callback error: {e}")
-    
+
     diagnostic_callback = SickScanDiagnosticMsgCallback(_py_diagnostic_cb)
     SickScanApiRegisterDiagnosticMsg(sick_scan_library, api_handle, diagnostic_callback)
 

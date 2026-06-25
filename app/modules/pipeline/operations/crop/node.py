@@ -19,7 +19,7 @@ class Crop(PipelineOperation):
         # Convert to numpy arrays first
         self.min_bound_np = np.asarray(min_bound, dtype=np.float64)
         self.max_bound_np = np.asarray(max_bound, dtype=np.float64)
-        
+
         # Validate and fix: ensure max_bound >= min_bound for each axis
         for i, axis in enumerate(['X', 'Y', 'Z']):
             if self.max_bound_np[i] < self.min_bound_np[i]:

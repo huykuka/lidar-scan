@@ -3,11 +3,9 @@
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
-from app.api.v1.schemas.common import StatusResponse
 from .dto import (
     StartRecordingRequest, RecordingResponse, ListRecordingsResponse
 )
@@ -17,9 +15,9 @@ from .service import (
     get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording
 )
 
-
 # Router configuration
 router = APIRouter(tags=["Recordings"])
+
 
 # Endpoint configurations
 @router.post(
@@ -31,16 +29,16 @@ router = APIRouter(tags=["Recordings"])
     },
     summary="Upload Recording",
     description=(
-        "Upload a recording ZIP archive to import it into the library. "
-        "The file must be a valid ZIP produced by the recorder (contains metadata.json and frame PCD files). "
-        "An optional `name` field overrides the display name."
+            "Upload a recording ZIP archive to import it into the library. "
+            "The file must be a valid ZIP produced by the recorder (contains metadata.json and frame PCD files). "
+            "An optional `name` field overrides the display name."
     ),
 )
 async def recordings_upload_endpoint(
-    background_tasks: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db)],
-    file: UploadFile = File(..., description="Recording ZIP archive"),
-    name: str | None = Form(None, description="Optional display name for the recording"),
+        background_tasks: BackgroundTasks,
+        db: Annotated[Session, Depends(get_db)],
+        file: UploadFile = File(..., description="Recording ZIP archive"),
+        name: str | None = Form(None, description="Optional display name for the recording"),
 ):
     return await upload_recording(file, name, background_tasks, db)
 
@@ -56,8 +54,8 @@ async def recordings_upload_endpoint(
     description="Start recording a topic.",
 )
 async def recordings_start_endpoint(
-    request: StartRecordingRequest,
-    db: Annotated[Session, Depends(get_db)]
+        request: StartRecordingRequest,
+        db: Annotated[Session, Depends(get_db)]
 ):
     return await start_recording(request, db)
 
@@ -73,9 +71,9 @@ async def recordings_start_endpoint(
     description="Stop an active recording.",
 )
 async def recordings_stop_endpoint(
-    recording_id: str,
-    background_tasks: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db)]
+        recording_id: str,
+        background_tasks: BackgroundTasks,
+        db: Annotated[Session, Depends(get_db)]
 ):
     return await stop_recording(recording_id, background_tasks, db)
 
@@ -87,8 +85,8 @@ async def recordings_stop_endpoint(
     description="List all recordings with optional node filtering.",
 )
 async def recordings_list_endpoint(
-    node_id: Annotated[str | None, Query(description="Filter by node ID")] = None,
-    db: Session = Depends(get_db)
+        node_id: Annotated[str | None, Query(description="Filter by node ID")] = None,
+        db: Session = Depends(get_db)
 ):
     return await list_recordings(node_id, db)
 
@@ -103,8 +101,8 @@ async def recordings_list_endpoint(
     description="Get detailed information about a specific recording.",
 )
 async def recordings_get_endpoint(
-    recording_id: str,
-    db: Annotated[Session, Depends(get_db)]
+        recording_id: str,
+        db: Annotated[Session, Depends(get_db)]
 ):
     return await get_recording(recording_id, db)
 
@@ -119,9 +117,9 @@ async def recordings_get_endpoint(
     description="Delete a recording and its associated files.",
 )
 async def recordings_delete_endpoint(
-    recording_id: str,
-    background_tasks: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db)]
+        recording_id: str,
+        background_tasks: BackgroundTasks,
+        db: Annotated[Session, Depends(get_db)]
 ):
     return await delete_recording(recording_id, background_tasks, db)
 
@@ -136,8 +134,8 @@ async def recordings_delete_endpoint(
     description="Download the raw recording file.",
 )
 async def recordings_download_endpoint(
-    recording_id: str,
-    db: Annotated[Session, Depends(get_db)]
+        recording_id: str,
+        db: Annotated[Session, Depends(get_db)]
 ):
     return await download_recording(recording_id, db)
 
@@ -148,8 +146,8 @@ async def recordings_download_endpoint(
     description="Get recording information for the viewer.",
 )
 async def recordings_info_endpoint(
-    recording_id: str,
-    db: Annotated[Session, Depends(get_db)]
+        recording_id: str,
+        db: Annotated[Session, Depends(get_db)]
 ):
     return await get_recording_viewer_info(recording_id, db)
 
@@ -164,10 +162,10 @@ async def recordings_info_endpoint(
     description="Get a specific frame from a recording as PCD file.",
 )
 async def recordings_frame_endpoint(
-    recording_id: str,
-    frame_index: int,
-    background_tasks: BackgroundTasks,
-    db: Annotated[Session, Depends(get_db)]
+        recording_id: str,
+        frame_index: int,
+        background_tasks: BackgroundTasks,
+        db: Annotated[Session, Depends(get_db)]
 ):
     return await get_recording_frame_as_pcd(recording_id, frame_index, background_tasks, db)
 
@@ -182,7 +180,7 @@ async def recordings_frame_endpoint(
     description="Get the thumbnail image for a recording.",
 )
 async def recordings_thumbnail_endpoint(
-    recording_id: str,
-    db: Annotated[Session, Depends(get_db)]
+        recording_id: str,
+        db: Annotated[Session, Depends(get_db)]
 ):
     return await get_recording_thumbnail(recording_id, db)

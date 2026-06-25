@@ -1,11 +1,11 @@
-from typing import List, Any, Callable, Optional
-import time
-import json
-import os
 import ftplib
+import os
+import time
+from typing import Any
+
 import open3d as o3d
-import numpy as np
-from ...base import PipelineOperation, _tensor_map_keys
+
+from ...base import PipelineOperation
 
 BASE_OUTPUT_DIR = "data/pcd"
 
@@ -29,16 +29,16 @@ class DebugSave(PipelineOperation):
     """
 
     def __init__(
-        self,
-        folder: str = "debug",
-        prefix: str = "pcd",
-        max_keeps: int = 10,
-        ftp_enabled: bool = False,
-        ftp_host: str = "",
-        ftp_port: int = 21,
-        ftp_user: str = "",
-        ftp_password: str = "",
-        ftp_remote_dir: str = "/",
+            self,
+            folder: str = "debug",
+            prefix: str = "pcd",
+            max_keeps: int = 10,
+            ftp_enabled: bool = False,
+            ftp_host: str = "",
+            ftp_port: int = 21,
+            ftp_user: str = "",
+            ftp_password: str = "",
+            ftp_remote_dir: str = "/",
     ):
         self.output_dir = os.path.join(BASE_OUTPUT_DIR, folder)
         self.prefix = prefix

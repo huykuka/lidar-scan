@@ -15,11 +15,10 @@ Usage in app.py:
     
     # WebSocket topic is auto-generated as: {node_name}_{node_id[:8]}
 """
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Set
-import time
+from typing import Any, Dict, List, Optional, Set
+
 import numpy as np
 
-from app.modules.lidar.core import transform_points
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
@@ -38,11 +37,11 @@ class FusionService(ModuleNode):
     """
 
     def __init__(
-        self,
-        node_manager,
-        sensor_ids: Optional[List[str]] = None,
-        fusion_id: Optional[str] = None,
-        throttle_ms: float = 0
+            self,
+            node_manager,
+            sensor_ids: Optional[List[str]] = None,
+            fusion_id: Optional[str] = None,
+            throttle_ms: float = 0
     ):
         self._service = node_manager
         self.manager = node_manager
@@ -78,7 +77,7 @@ class FusionService(ModuleNode):
         # Accept either lidar_id (from workers) or node_id (from other nodes)
         source_id = payload.get("lidar_id") or payload.get("node_id")
         timestamp = payload.get("timestamp", 0.0)
-        
+
         if not source_id:
             return
 
@@ -128,7 +127,7 @@ class FusionService(ModuleNode):
         import asyncio
         def _concat():
             return np.concatenate(frames, axis=0)
-            
+
         fused = await asyncio.to_thread(_concat)
 
         # Forward output to downstream nodes via NodeManager (fire-and-forget)
@@ -140,9 +139,9 @@ class FusionService(ModuleNode):
             "timestamp": timestamp,
             "count": len(fused)
         }
-        
+
         asyncio.create_task(self._service.forward_data(self.id, fused_payload))
-        
+
         import time
         self.last_broadcast_at = time.time()
         self.last_broadcast_ts = timestamp

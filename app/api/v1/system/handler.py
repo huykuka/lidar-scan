@@ -1,12 +1,13 @@
 """System HTTP handlers - FastAPI routing configuration and endpoint metadata."""
 
 from fastapi import APIRouter
+
 from app.api.v1.schemas.system import SystemStatusResponse, SystemControlResponse
 from .service import get_status, start_system, stop_system
 
-
 # Router configuration
 router = APIRouter(tags=["System"])
+
 
 # Endpoint configurations
 @router.get(
@@ -32,7 +33,7 @@ async def start_endpoint():
 @router.post(
     "/stop",
     response_model=SystemControlResponse,
-    summary="Stop System", 
+    summary="Stop System",
     description="Stop the pipeline engine and halt processing.",
 )
 async def stop_endpoint():

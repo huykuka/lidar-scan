@@ -14,7 +14,6 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-
 DB_PATH = Path("data/config/data.db")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False)
@@ -27,9 +26,9 @@ _engine: Optional[Engine] = None
 _SQLITE_PRAGMAS = [
     ("journal_mode", "WAL"),
     ("synchronous", "NORMAL"),
-    ("cache_size", -64000),       # 64 MB page cache (negative = KiB)
-    ("mmap_size", 268435456),     # 256 MB memory-mapped I/O
-    ("busy_timeout", 5000),       # wait up to 5 s instead of immediate SQLITE_BUSY
+    ("cache_size", -64000),  # 64 MB page cache (negative = KiB)
+    ("mmap_size", 268435456),  # 256 MB memory-mapped I/O
+    ("busy_timeout", 5000),  # wait up to 5 s instead of immediate SQLITE_BUSY
     ("journal_size_limit", 67108864),  # cap WAL file at 64 MB
     ("temp_store", "MEMORY"),
 ]

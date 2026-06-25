@@ -1,7 +1,9 @@
 import struct
+from typing import Tuple
+
 import numpy as np
 import open3d as o3d
-from typing import Tuple
+
 
 def unpack_lidr_binary(data: bytes) -> Tuple[np.ndarray, float]:
     """
@@ -15,13 +17,14 @@ def unpack_lidr_binary(data: bytes) -> Tuple[np.ndarray, float]:
     header_size = 4 + 4 + 8 + 4
     if len(data) < header_size:
         raise ValueError("Data too short to contain LIDR header")
-        
+
     magic, version, timestamp, count = struct.unpack('<4sIdI', data[:header_size])
     if magic != b'LIDR':
         raise ValueError(f"Invalid magic: {magic}")
-        
+
     points = np.frombuffer(data[header_size:], dtype=np.float32).reshape(count, 3)
     return points, timestamp
+
 
 def save_to_pcd(points: np.ndarray, output_path: str, binary: bool = False):
     """Saves a (N, 3) numpy array to a PCD file."""

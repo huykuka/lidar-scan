@@ -1,15 +1,16 @@
 """Assets router configuration and endpoint metadata."""
 
 from fastapi import APIRouter
+
 from .service import (
     get_lidar_thumbnail, list_lidar_thumbnails,
     get_visionary_thumbnail, list_visionary_thumbnails,
     ThumbnailListResponse,
 )
 
-
 # Router configuration
 router = APIRouter(prefix="/assets", tags=["Assets"])
+
 
 # --- LiDAR endpoints ---
 

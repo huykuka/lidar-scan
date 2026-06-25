@@ -1,12 +1,13 @@
 """Configuration router configuration and endpoint metadata."""
 
 from fastapi import APIRouter
+
 from app.api.v1.schemas.config import ImportResponse, ValidationResponse
 from .service import export_configuration, import_configuration, validate_configuration, ConfigurationImport
 
-
 # Router configuration
 router = APIRouter(tags=["Configuration"])
+
 
 # Endpoint configurations
 @router.get(
@@ -23,7 +24,7 @@ def config_export_endpoint():
     "/config/import",
     response_model=ImportResponse,
     responses={400: {"description": "Invalid configuration"}},
-    summary="Import Configuration", 
+    summary="Import Configuration",
     description="Import node and edge configurations from JSON.",
 )
 async def config_import_endpoint(config: ConfigurationImport):

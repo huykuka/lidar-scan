@@ -37,15 +37,15 @@ class NearestNeighborDensify(DensityAlgorithmBase):
     """
 
     def __init__(
-        self,
-        params: DensifyNNParams | None = None,
+            self,
+            params: DensifyNNParams | None = None,
     ) -> None:
         self.params: DensifyNNParams = params if params is not None else DensifyNNParams()
 
     def apply(
-        self,
-        pcd: o3d.t.geometry.PointCloud,
-        n_new: int,
+            self,
+            pcd: o3d.t.geometry.PointCloud,
+            n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
         Generate n_new synthetic points by 3-D jittered displacement from source

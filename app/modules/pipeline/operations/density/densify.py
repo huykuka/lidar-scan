@@ -31,7 +31,6 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import open3d as o3d
 
-from ...base import PipelineOperation, _tensor_map_keys
 from .density_base import (
     MIN_INPUT_POINTS,
     MIN_MULTIPLIER,
@@ -43,10 +42,11 @@ from .density_base import (
     DensifyPoissonParams,
     DensifyStatisticalParams,
 )
-from .nearest_neighbor import NearestNeighborDensify
 from .mls import MLSDensify
+from .nearest_neighbor import NearestNeighborDensify
 from .poisson import PoissonDensify
 from .statistical import StatisticalDensify
+from ...base import PipelineOperation, _tensor_map_keys
 
 logger = logging.getLogger(__name__)
 
@@ -70,16 +70,16 @@ class Densify(PipelineOperation):
     """
 
     def __init__(
-        self,
-        enabled: bool = True,
-        algorithm: str = "nearest_neighbor",
-        density_multiplier: float = 2.0,
-        preserve_normals: bool = True,
-        nn_params: Optional[Any] = None,
-        mls_params: Optional[Any] = None,
-        statistical_params: Optional[Any] = None,
-        poisson_params: Optional[Any] = None,
-        **kwargs: Any,
+            self,
+            enabled: bool = True,
+            algorithm: str = "nearest_neighbor",
+            density_multiplier: float = 2.0,
+            preserve_normals: bool = True,
+            nn_params: Optional[Any] = None,
+            mls_params: Optional[Any] = None,
+            statistical_params: Optional[Any] = None,
+            poisson_params: Optional[Any] = None,
+            **kwargs: Any,
     ) -> None:
         # Validate algorithm
         if algorithm not in _VALID_ALGORITHMS:
@@ -256,7 +256,7 @@ class Densify(PipelineOperation):
         return value
 
     def _validate_input(
-        self, pcd: Any
+            self, pcd: Any
     ) -> Tuple[o3d.t.geometry.PointCloud, int, Any]:
         """Normalise the input pcd to a tensor PointCloud."""
         if pcd is None:
@@ -289,10 +289,10 @@ class Densify(PipelineOperation):
         return int(original_count * effective_multiplier)
 
     def _run_algorithm(
-        self,
-        pcd: o3d.t.geometry.PointCloud,
-        target_count: int,
-        algorithm: str,
+            self,
+            pcd: o3d.t.geometry.PointCloud,
+            target_count: int,
+            algorithm: str,
     ) -> o3d.t.geometry.PointCloud:
         """Dispatch to the appropriate algorithm class."""
         n_new = target_count - self._get_count(pcd)
@@ -319,10 +319,10 @@ class Densify(PipelineOperation):
     # ── Normal estimation ─────────────────────────────────────────────────────
 
     def _estimate_normals(
-        self,
-        result_pcd: o3d.t.geometry.PointCloud,
-        original_pcd: o3d.t.geometry.PointCloud,
-        n_original: int,
+            self,
+            result_pcd: o3d.t.geometry.PointCloud,
+            original_pcd: o3d.t.geometry.PointCloud,
+            n_original: int,
     ) -> o3d.t.geometry.PointCloud:
         """Estimate normals for synthetic points (indices n_original onward)."""
         orig_keys = _tensor_map_keys(original_pcd.point)
@@ -384,9 +384,9 @@ class Densify(PipelineOperation):
 
     @staticmethod
     def _make_skip_meta(
-        original_count: int,
-        reason: str,
-        elapsed_ms: float,
+            original_count: int,
+            reason: str,
+            elapsed_ms: float,
     ) -> Dict[str, Any]:
         """Build a metadata dict for skip outcomes."""
         return {

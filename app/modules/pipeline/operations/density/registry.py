@@ -24,10 +24,10 @@ node_schema_registry.register(NodeDefinition(
             name="algorithm", label="Algorithm", type="select",
             default="nearest_neighbor",
             options=[
-                {"label": "Nearest Neighbor (Fast)",        "value": "nearest_neighbor"},
-                {"label": "Statistical (Balanced)",         "value": "statistical"},
-                {"label": "Moving Least Squares (Smooth)",  "value": "mls"},
-                {"label": "Poisson (Best, Slow)",           "value": "poisson"},
+                {"label": "Nearest Neighbor (Fast)", "value": "nearest_neighbor"},
+                {"label": "Statistical (Balanced)", "value": "statistical"},
+                {"label": "Moving Least Squares (Smooth)", "value": "mls"},
+                {"label": "Poisson (Best, Slow)", "value": "poisson"},
             ],
             help_text="Pick how new points are created. Top options are faster, bottom ones look better."
         ),

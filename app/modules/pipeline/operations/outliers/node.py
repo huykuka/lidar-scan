@@ -1,7 +1,10 @@
 from typing import Any, Optional, Tuple
-import open3d as o3d
+
 import numpy as np
-from ...base import PipelineOperation, _tensor_map_keys
+import open3d as o3d
+
+from ...base import PipelineOperation
+
 
 class StatisticalOutlierRemoval(PipelineOperation):
     """
@@ -39,7 +42,7 @@ class StatisticalOutlierRemoval(PipelineOperation):
             count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
         else:
             count = len(pcd.points)
-            
+
         if count > 0:
             if isinstance(pcd, o3d.t.geometry.PointCloud):
                 pcd_legacy = pcd.to_legacy()
@@ -59,6 +62,7 @@ class StatisticalOutlierRemoval(PipelineOperation):
         else:
             final_count = len(pcd.points)
         return pcd, {"filtered_count": final_count}
+
 
 class RadiusOutlierRemoval(PipelineOperation):
     """
@@ -91,7 +95,7 @@ class RadiusOutlierRemoval(PipelineOperation):
             count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
         else:
             count = len(pcd.points)
-            
+
         if count > 0:
             if isinstance(pcd, o3d.t.geometry.PointCloud):
                 pcd_legacy = pcd.to_legacy()
@@ -110,6 +114,7 @@ class RadiusOutlierRemoval(PipelineOperation):
         else:
             final_count = len(pcd.points)
         return pcd, {"filtered_count": final_count}
+
 
 class OutlierRemoval(StatisticalOutlierRemoval):
     """Legacy wrapper for StatisticalOutlierRemoval"""

@@ -1,13 +1,13 @@
 """LiDAR router configuration and endpoint metadata."""
 
 from fastapi import APIRouter
+
 from .service import (
     calibrate_from_imu,
     get_imu_status,
     validate_lidar_config,
     LidarConfigValidationRequest, LidarConfigValidationResponse
 )
-
 
 # Router configuration
 router = APIRouter(prefix="/lidar", tags=["LiDAR"])

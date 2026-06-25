@@ -5,12 +5,11 @@ Engine/session initialization lives in `app.db.session`.
 
 from __future__ import annotations
 
-from typing import cast, Optional
-
+import datetime
+from typing import Optional
 
 from sqlalchemy import Boolean, Float, Index, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-import datetime
 
 
 class Base(DeclarativeBase):

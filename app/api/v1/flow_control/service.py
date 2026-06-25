@@ -5,10 +5,11 @@ Business logic for external state control of IF condition nodes
 and snapshot trigger operations.
 """
 import time
+
 from fastapi import HTTPException
 
-from app.services.nodes.instance import node_manager
 from app.modules.flow_control.if_condition.node import IfConditionNode
+from app.services.nodes.instance import node_manager
 from .dto import ExternalStateResponse, SnapshotTriggerResponse
 
 

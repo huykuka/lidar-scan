@@ -1,9 +1,9 @@
 """LiDAR endpoint handlers - Pure business logic without routing configuration."""
 
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field, ConfigDict
 
 from fastapi import HTTPException
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.modules.lidar.profiles import get_profile
 from app.services.nodes.instance import node_manager
@@ -29,7 +29,7 @@ class LidarConfigValidationRequest(BaseModel):
             ]
         }
     )
-    
+
     lidar_type: str
     hostname: str
     udp_receiver_ip: Optional[str] = None
@@ -56,7 +56,7 @@ async def validate_lidar_config(request: LidarConfigValidationRequest) -> LidarC
     errors: List[str] = []
     warnings: List[str] = []
     resolved_launch_file: Optional[str] = None
-    
+
     # Validate lidar_type
     try:
         profile = get_profile(request.lidar_type)
@@ -71,29 +71,29 @@ async def validate_lidar_config(request: LidarConfigValidationRequest) -> LidarC
             errors=errors,
             warnings=warnings
         )
-    
+
     # Validate hostname
     if not request.hostname or not request.hostname.strip():
         errors.append("Hostname is required and cannot be empty")
-    
+
     # Validate UDP receiver IP for multiScan
     if profile.has_udp_receiver:
         if not request.udp_receiver_ip or not request.udp_receiver_ip.strip():
             errors.append("UDP receiver IP is required for multiScan devices")
-    
+
     # Check port requirements and provide warnings
     if profile.port_arg:  # Device supports port configuration
         if request.port is None:
             warnings.append(f"No port specified; default port {profile.default_port} will be used")
-    
+
     # Check IMU UDP port for multiScan
     if profile.has_imu_udp_port:
         if request.imu_udp_port is None:
             warnings.append("IMU UDP port not specified; IMU data will be disabled")
-    
+
     # Return validation result
     is_valid = len(errors) == 0
-    
+
     return LidarConfigValidationResponse(
         valid=is_valid,
         lidar_type=request.lidar_type,

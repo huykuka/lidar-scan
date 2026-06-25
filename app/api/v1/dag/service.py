@@ -43,10 +43,10 @@ def _is_temp_id(node_id: str) -> bool:
 
 
 def _classify_dag_changes(
-    new_nodes: List[NodeRecord],
-    new_edges: List[Dict],
-    existing_nodes: List[Dict],
-    existing_edges: List[Dict],
+        new_nodes: List[NodeRecord],
+        new_edges: List[Dict],
+        existing_nodes: List[Dict],
+        existing_edges: List[Dict],
 ) -> Tuple[str, List[str]]:
     """Classify the type of changes between the existing and incoming DAG snapshot.
 
@@ -126,8 +126,8 @@ def _classify_dag_changes(
 
 
 def _validate_edge_source_categories(
-    nodes: List[NodeRecord],
-    edges: List[EdgeRecord],
+        nodes: List[NodeRecord],
+        edges: List[EdgeRecord],
 ) -> None:
     """Reject edges where the target node's input port restricts source categories.
 
@@ -183,6 +183,7 @@ async def get_dag_config() -> DagConfigResponse:
     Returns:
         ``DagConfigResponse`` with current snapshot.
     """
+
     def _read_from_db():
         node_repo = NodeRepository()
         edge_repo = EdgeRepository()

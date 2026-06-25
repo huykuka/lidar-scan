@@ -23,12 +23,12 @@ class Clustering(PipelineOperation):
     """
 
     def __init__(
-        self,
-        eps: float = 0.2,
-        min_points: int = 10,
-        emit_shapes: bool = False,
-        min_cluster_points: int = 10,
-        invert: bool = False,
+            self,
+            eps: float = 0.2,
+            min_points: int = 10,
+            emit_shapes: bool = False,
+            min_cluster_points: int = 10,
+            invert: bool = False,
     ):
         self.eps = float(eps)
         self.min_points = int(min_points)
@@ -57,7 +57,7 @@ class Clustering(PipelineOperation):
         return center, size, int(mask.sum())
 
     def _build_cluster_shapes(
-        self, positions_np: np.ndarray, labels_np: np.ndarray, cluster_count: int
+            self, positions_np: np.ndarray, labels_np: np.ndarray, cluster_count: int
     ) -> List[Any]:
         """Build CubeShape for each detected cluster using pre-extracted numpy arrays."""
         from app.services.nodes.shapes import CubeShape

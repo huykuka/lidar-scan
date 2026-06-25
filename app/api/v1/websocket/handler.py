@@ -1,11 +1,12 @@
 """WebSocket router configuration and endpoint metadata."""
 
 from fastapi import APIRouter, WebSocket
-from .service import list_topics, capture_frame, websocket_endpoint, TopicsResponse
 
+from .service import list_topics, capture_frame, websocket_endpoint, TopicsResponse
 
 # Router configuration
 router = APIRouter(tags=["Topics"])
+
 
 # Endpoint configurations
 @router.get(

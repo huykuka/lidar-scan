@@ -17,8 +17,8 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
     response_model=list[NodeTypeRecord],
     summary="List All Node Types",
     description=(
-        "Returns every scanned node definition with its enabled/disabled state. "
-        "Disabled types are hidden from the palette but remain on disk."
+            "Returns every scanned node definition with its enabled/disabled state. "
+            "Disabled types are hidden from the palette but remain on disk."
     ),
 )
 async def admin_list_node_types():
@@ -29,8 +29,8 @@ async def admin_list_node_types():
     "/node-types/{node_type}/enabled",
     summary="Enable / Disable a Node Type",
     description=(
-        "Toggle a node type on or off. Disabling a type hides it from the "
-        "palette and disables all existing DAG instances of that type."
+            "Toggle a node type on or off. Disabling a type hides it from the "
+            "palette and disables all existing DAG instances of that type."
     ),
     responses={404: {"description": "Node type not found"}},
 )

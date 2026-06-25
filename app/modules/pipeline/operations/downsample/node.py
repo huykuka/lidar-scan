@@ -1,10 +1,9 @@
-from typing import List, Any, Callable
-import time
-import json
-import os
+from typing import Any
+
 import open3d as o3d
-import numpy as np
-from ...base import PipelineOperation, _tensor_map_keys
+
+from ...base import PipelineOperation
+
 
 class Downsample(PipelineOperation):
     """
@@ -27,6 +26,7 @@ class Downsample(PipelineOperation):
             count = len(pcd.points)
         return pcd, {"downsampled_count": count}
 
+
 class UniformDownsample(PipelineOperation):
     """
     Downsamples the point cloud by collecting every n-th point.
@@ -46,4 +46,3 @@ class UniformDownsample(PipelineOperation):
         else:
             count = len(pcd.points)
         return pcd, {"downsampled_count": count}
-

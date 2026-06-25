@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Any
 
 import numpy as np
 import open3d as o3d
@@ -20,6 +20,7 @@ FIELD_MAP = {
     "intensity": {"idx": 13, "dtype": np.float32},
 }
 
+
 def _tensor_map_keys(tensor_map: Any) -> List[str]:
     """Return TensorMap keys across Open3D versions without triggering key lookups."""
     try:
@@ -29,6 +30,7 @@ def _tensor_map_keys(tensor_map: Any) -> List[str]:
             return list(tensor_map)
         except Exception:
             return []
+
 
 class PipelineOperation(ABC):
     """Base class for all atomic point cloud operations"""
@@ -46,6 +48,7 @@ class PipelineOperation(ABC):
         return pcd, {"some": "info"}
         """
         pass
+
 
 class PointConverter:
     """Utility for converting between Numpy arrays and Open3D PointClouds."""
@@ -69,12 +72,12 @@ class PointConverter:
         """Converts interleaved numpy points (N, M) to Tensor-based Open3D PointCloud."""
         o3d_device = o3d.core.Device(device)
         pcd = o3d.t.geometry.PointCloud(o3d_device)
-        
+
         if points.size == 0:
             return pcd
 
         num_cols = points.shape[1]
-        
+
         # Always set positions
         pos = points[:, 0:3].astype(np.float32)
         pcd.point.positions = o3d.core.Tensor(pos, device=o3d_device)
@@ -87,7 +90,7 @@ class PointConverter:
             if idx < num_cols:
                 data = points[:, idx].reshape(-1, 1).astype(info["dtype"])
                 pcd.point[attr] = o3d.core.Tensor(data, device=o3d_device)
-            
+
         return pcd
 
     @staticmethod
@@ -95,7 +98,7 @@ class PointConverter:
         """Converts Open3D PointCloud back to structured interleaved numpy points (N, 14)."""
         if not hasattr(pcd, 'point') or 'positions' not in pcd.point:
             return np.zeros((0, 3), dtype=np.float32)
-            
+
         try:
             # Get base positions and determine N
             pos_tensor = pcd.point.positions
@@ -109,14 +112,14 @@ class PointConverter:
 
             # Fill in other channels if they exist in the TensorMap
             available_keys = _tensor_map_keys(pcd.point)
-            
+
             for attr, info in FIELD_MAP.items():
                 if attr == "positions":
                     continue
                 if attr in available_keys:
                     idx = info["idx"]
                     data = pcd.point[attr].cpu().numpy().flatten()
-                    out[:, idx] = data.astype(np.float32) # Standardize to float32 for downstream
+                    out[:, idx] = data.astype(np.float32)  # Standardize to float32 for downstream
 
             return out
         except Exception as e:

@@ -1,17 +1,17 @@
 """Calibration endpoint handlers - Pure business logic without routing configuration."""
 
-from typing import Any, Dict, List, Optional
 import json
 import uuid
 from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.modules.calibration.calibration_node import CalibrationNode
 from app.repositories import calibration_orm
 from app.repositories.node_orm import NodeRepository
 from app.services.nodes.instance import node_manager
-from app.modules.calibration.calibration_node import CalibrationNode
 from .dto import TriggerCalibrationRequest, AcceptCalibrationRequest, RollbackRequest
 
 
@@ -150,11 +150,11 @@ async def get_calibration_status(node_id: str) -> Dict[str, Any]:
 
 
 async def get_calibration_history(
-    sensor_id: str,
-    limit: int,
-    db: Session,
-    source_sensor_id: Optional[str] = None,
-    run_id: Optional[str] = None,
+        sensor_id: str,
+        limit: int,
+        db: Session,
+        source_sensor_id: Optional[str] = None,
+        run_id: Optional[str] = None,
 ):
     """
     Retrieve calibration history for a sensor.

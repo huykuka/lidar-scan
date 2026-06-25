@@ -7,9 +7,9 @@ the read-only GET /edges endpoint used for status inspection.
 """
 
 from fastapi import APIRouter
+
 from app.api.v1.schemas.edges import EdgeRecord
 from .service import list_edges
-
 
 # Router configuration
 router = APIRouter(tags=["Edges"])

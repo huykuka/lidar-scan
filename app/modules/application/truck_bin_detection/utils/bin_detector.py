@@ -2,11 +2,9 @@
 Robust 1D Longitudinal Profile Bin Detector for 2 Fused 16-Layer LiDARs.
 Optimized for Hopper Discharge Station.
 """
-
-from app import repositories
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
 
 import numpy as np
 import open3d as o3d
@@ -47,22 +45,22 @@ class BinDetector:
     """
 
     def __init__(
-        self,
-        lane_width: float = 1.4,
-        z_min: float = 2.0,
-        z_max: float = 3.8,
-        cell_size: float = 0.07,
-        z_wall_threshold: float = 2.2,
-        z_cavity_max: float = 1.8,
-        z_cavity_min: float = 0.5,
-        min_bin_area: float = 2.0,
-        enable_area_check: bool = True,
-        min_wall_points: int = 3,
-        max_wall_x_std: float = 0.15,
-        min_bin_length: float = 3.0,
-        max_bin_length: float = 8.5,
-        bed_normal_z_min: float = 0.8,
-        min_bed_inliers: int = 5,
+            self,
+            lane_width: float = 1.4,
+            z_min: float = 2.0,
+            z_max: float = 3.8,
+            cell_size: float = 0.07,
+            z_wall_threshold: float = 2.2,
+            z_cavity_max: float = 1.8,
+            z_cavity_min: float = 0.5,
+            min_bin_area: float = 2.0,
+            enable_area_check: bool = True,
+            min_wall_points: int = 3,
+            max_wall_x_std: float = 0.15,
+            min_bin_length: float = 3.0,
+            max_bin_length: float = 8.5,
+            bed_normal_z_min: float = 0.8,
+            min_bed_inliers: int = 5,
     ) -> None:
         self._lane_width = lane_width
         self._z_min = z_min
@@ -194,8 +192,8 @@ class BinDetector:
         for i in range(num_bins - 1):
             end_idx = min(i + 30, num_bins)
             if (
-                filled_profile[i] >= self._z_wall_threshold
-                and filled_profile[i] >= np.max(filled_profile[i + 1:end_idx])
+                    filled_profile[i] >= self._z_wall_threshold
+                    and filled_profile[i] >= np.max(filled_profile[i + 1:end_idx])
             ):
                 rear_peak_idx = i
                 break
@@ -230,9 +228,9 @@ class BinDetector:
         )  # Skip at least 0.5m after rear edge
         for i in range(start_front_search, num_bins - 1):
             if (
-                #0.4m is should be the minimum height of the wall 
-                profile_gradient[i] > 0.4
-                and filled_profile[i] >= self._z_wall_threshold
+                    # 0.4m is should be the minimum height of the wall
+                    profile_gradient[i] > 0.4
+                    and filled_profile[i] >= self._z_wall_threshold
             ):
                 front_bin_idx = i
                 x_front_internal = x_min + i * self._cellsize
@@ -276,7 +274,7 @@ class BinDetector:
         # capped at 1.0.
         _edge_half = self._cellsize
         interior_mask = (pts_3d[:, 0] > x_rear_internal + _edge_half) & (
-            pts_3d[:, 0] < x_front_internal - _edge_half
+                pts_3d[:, 0] < x_front_internal - _edge_half
         )
         interior_pts_3d = pts_3d[interior_mask]
 
@@ -365,10 +363,10 @@ class BinDetector:
 
         _edge_half = self._cellsize
         rear_mask = (pts[:, 0] >= x_rear_internal - _edge_half) & (
-            pts[:, 0] <= x_rear_internal + _edge_half
+                pts[:, 0] <= x_rear_internal + _edge_half
         )
         front_mask = (pts[:, 0] >= x_front_internal - _edge_half) & (
-            pts[:, 0] <= x_front_internal + _edge_half
+                pts[:, 0] <= x_front_internal + _edge_half
         )
 
         edge_pts = np.concatenate([pts[rear_mask], pts[front_mask]], axis=0)

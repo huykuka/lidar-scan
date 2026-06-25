@@ -1,6 +1,7 @@
 """Calibration-related schema models for ICP multi-sensor calibration."""
 
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
 
 
@@ -59,8 +60,8 @@ class CalibrationNodeStatusResponse(BaseModel):
     node_id: str
     node_name: str
     enabled: bool
-    calibration_state: str          # "idle" | "pending"
-    quality_good: Optional[bool]    # None if no pending; True if all results above threshold
+    calibration_state: str  # "idle" | "pending"
+    quality_good: Optional[bool]  # None if no pending; True if all results above threshold
     reference_sensor_id: Optional[str]
     source_sensor_ids: List[str]
     buffered_frames: Dict[str, int]  # {sensor_id: frame_count}

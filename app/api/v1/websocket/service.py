@@ -1,8 +1,9 @@
 """WebSocket endpoint handlers - Pure business logic without routing configuration."""
 
 import asyncio
-from fastapi import WebSocket, WebSocketDisconnect, Response, HTTPException
 from typing import List, Dict
+
+from fastapi import WebSocket, WebSocketDisconnect, Response, HTTPException
 from pydantic import BaseModel
 
 from app.services.websocket.manager import manager

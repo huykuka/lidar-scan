@@ -35,15 +35,15 @@ class MLSDensify(DensityAlgorithmBase):
     """
 
     def __init__(
-        self,
-        params: DensifyMLSParams | None = None,
+            self,
+            params: DensifyMLSParams | None = None,
     ) -> None:
         self.params: DensifyMLSParams = params if params is not None else DensifyMLSParams()
 
     def apply(
-        self,
-        pcd: o3d.t.geometry.PointCloud,
-        n_new: int,
+            self,
+            pcd: o3d.t.geometry.PointCloud,
+            n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
         Generate n_new synthetic points via tangent-plane projection on the

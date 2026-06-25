@@ -1,6 +1,7 @@
 """Node-related schema models for DAG processing nodes."""
 
 from typing import Dict, Any, List, Literal, Optional
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.pose import Pose
@@ -13,12 +14,12 @@ class NodeRecord(BaseModel):
             "examples": [
                 {
                     "id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
-                     "name": "MultiScan Left",
-                     "type": "sensor",
-                     "category": "sensor",
-                     "enabled": True,
-                     "visible": True,
-                     "config": {
+                    "name": "MultiScan Left",
+                    "type": "sensor",
+                    "category": "sensor",
+                    "enabled": True,
+                    "visible": True,
+                    "config": {
                         "lidar_type": "multiscan",
                         "hostname": "192.168.1.10",
                         "udp_receiver_ip": "192.168.1.100",
@@ -31,10 +32,10 @@ class NodeRecord(BaseModel):
                     "id": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
                     "name": "Point Cloud Fusion",
                     "type": "fusion",
-                     "category": "fusion", 
-                     "enabled": True,
-                     "visible": True,
-                     "config": {
+                    "category": "fusion",
+                    "enabled": True,
+                    "visible": True,
+                    "config": {
                         "fusion_method": "icp_registration",
                         "distance_threshold": 0.05,
                         "max_iterations": 100
@@ -45,7 +46,7 @@ class NodeRecord(BaseModel):
             ]
         }
     )
-    
+
     id: str
     name: str
     type: str

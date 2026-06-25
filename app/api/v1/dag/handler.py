@@ -10,7 +10,6 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.v1.auth.dependencies import roles_required
-
 from app.api.v1.schemas.dag import (
     DagConfigResponse,
     DagConfigSaveRequest,
@@ -26,8 +25,8 @@ router = APIRouter(tags=["DAG"])
     response_model=DagConfigResponse,
     summary="Get DAG Configuration",
     description=(
-        "Returns all nodes, edges, and current config_version for optimistic locking. "
-        "Used by the frontend on initial load and after a Sync action."
+            "Returns all nodes, edges, and current config_version for optimistic locking. "
+            "Used by the frontend on initial load and after a Sync action."
     ),
     tags=["DAG"],
 )
@@ -45,8 +44,8 @@ async def dag_config_get_endpoint() -> DagConfigResponse:
     },
     summary="Save DAG Configuration",
     description=(
-        "Atomically replaces all nodes and edges, increments config_version, "
-        "and triggers a DAG reload. Rejects with 409 if base_version is stale."
+            "Atomically replaces all nodes and edges, increments config_version, "
+            "and triggers a DAG reload. Rejects with 409 if base_version is stale."
     ),
     tags=["DAG"],
 )

@@ -18,9 +18,9 @@ router = APIRouter(prefix="/pcd-injection", tags=["PCD Injection"])
     },
     summary="Inject PCD File",
     description=(
-        "Upload a PCD file via multipart/form-data and inject the parsed "
-        "point cloud into the DAG through a PCD Injection node. "
-        "The node must already exist in the running pipeline."
+            "Upload a PCD file via multipart/form-data and inject the parsed "
+            "point cloud into the DAG through a PCD Injection node. "
+            "The node must already exist in the running pipeline."
     ),
 )
 async def pcd_injection_upload(node_id: str, file: UploadFile = File(...)):

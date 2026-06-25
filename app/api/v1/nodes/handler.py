@@ -8,14 +8,14 @@ PUT /api/v1/dag/config. This router retains read-only and live-action endpoints.
 from fastapi import APIRouter
 
 from app.api.v1.auth.dependencies import roles_required
-from app.services.nodes.schema import NodeDefinition
+from app.api.v1.schemas.common import StatusResponse
 from app.api.v1.schemas.nodes import (
     NodeRecord,
     NodesStatusResponse,
     NodeReloadResponse,
     ReloadStatusResponse,
 )
-from app.api.v1.schemas.common import StatusResponse
+from app.services.nodes.schema import NodeDefinition
 from .service import (
     list_nodes, list_node_definitions, get_node,
     set_node_enabled, set_node_visible, reload_all_config, get_nodes_status,
@@ -24,9 +24,9 @@ from .service import (
     NodeStatusToggle, NodeVisibilityToggle, NodeTypeToggle, NodeTypeRecord,
 )
 
-
 # Router configuration
 router = APIRouter(tags=["Nodes"])
+
 
 # Endpoint configurations
 @router.get(
@@ -54,8 +54,8 @@ async def nodes_definitions_endpoint():
     response_model=list[NodeTypeRecord],
     summary="List Node Type Registry",
     description=(
-        "Returns every scanned node definition with its enabled/disabled state. "
-        "Disabled types are hidden from the palette but remain on disk."
+            "Returns every scanned node definition with its enabled/disabled state. "
+            "Disabled types are hidden from the palette but remain on disk."
     ),
 )
 @roles_required("service")
@@ -67,15 +67,15 @@ async def nodes_definitions_registry_endpoint():
     "/nodes/definitions/{node_type}/enabled",
     summary="Enable / Disable a Node Type",
     description=(
-        "Toggle a node type on or off. Disabling a type hides it from the "
-        "palette and disables all existing DAG instances of that type."
+            "Toggle a node type on or off. Disabling a type hides it from the "
+            "palette and disables all existing DAG instances of that type."
     ),
     responses={404: {"description": "Node type not found"}},
 )
 @roles_required("service")
 async def nodes_definition_toggle_endpoint(
-    node_type: str,
-    req: NodeTypeToggle,
+        node_type: str,
+        req: NodeTypeToggle,
 ):
     return await set_node_type_enabled(node_type, req)
 
@@ -115,7 +115,7 @@ async def nodes_reload_endpoint():
 )
 @roles_required("admin")
 async def node_reload_endpoint(
-    node_id: str,
+        node_id: str,
 ):
     return await reload_single_node(node_id)
 

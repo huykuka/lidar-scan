@@ -1,6 +1,7 @@
 """LiDAR DTOs - Data Transfer Objects for request/response serialization."""
 
 from typing import List, Optional
+
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -24,7 +25,7 @@ class LidarConfigValidationRequest(BaseModel):
             ]
         }
     )
-    
+
     lidar_type: str
     hostname: str
     udp_receiver_ip: Optional[str] = None

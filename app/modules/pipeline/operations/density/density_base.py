@@ -18,10 +18,9 @@ StatisticalDensify) must:
 from __future__ import annotations
 
 import logging
-import math
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 import open3d as o3d
@@ -295,9 +294,9 @@ class DensityAlgorithmBase(ABC):
 
     @abstractmethod
     def apply(
-        self,
-        pcd: o3d.t.geometry.PointCloud,
-        n_new: int,
+            self,
+            pcd: o3d.t.geometry.PointCloud,
+            n_new: int,
     ) -> o3d.t.geometry.PointCloud:
         """
         Generate ``n_new`` synthetic points and merge with the original ``pcd``.
@@ -371,7 +370,7 @@ class DensityAlgorithmBase(ABC):
 
     @staticmethod
     def _tangent_basis(
-        normal: np.ndarray,
+            normal: np.ndarray,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Compute two orthonormal vectors {u, v} perpendicular to ``normal``.
@@ -392,9 +391,9 @@ class DensityAlgorithmBase(ABC):
 
     @staticmethod
     def _filter_too_close(
-        synthetic: np.ndarray,
-        kd_existing: Any,
-        min_dist: float,
+            synthetic: np.ndarray,
+            kd_existing: Any,
+            min_dist: float,
     ) -> np.ndarray:
         """
         Remove synthetic points within min_dist of any existing (original) point.
