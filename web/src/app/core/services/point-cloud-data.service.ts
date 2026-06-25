@@ -1,11 +1,16 @@
-import {effect, inject, Injectable, OnDestroy, signal} from '@angular/core';
-import {Subscription} from 'rxjs';
-import {MultiWebsocketService} from './multi-websocket.service';
-import {TopicConfig, WorkspaceStoreService} from '@core/services/stores';
-import {FramePayload, parseJsonPointCloud, parseLidrFrame} from './lidr-parser';
-import {environment} from '@env/environment';
+import { effect, inject, Injectable, NgZone, OnDestroy, signal } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { MultiWebsocketService } from './multi-websocket.service';
+import { TopicConfig, WorkspaceStoreService } from '@core/services/stores';
+import { FramePayload } from './lidr-parser';
+import { environment } from '@env/environment';
 
 export type { FramePayload };
+
+// ── Worker-pool types ────────────────────────────────────────────────────────
+type WorkerCallback = (payload: FramePayload) => void;
+
+const WORKER_COUNT = Math.min(Math.max(navigator.hardwareConcurrency ?? 2, 2), 4);
 
 @Injectable({ providedIn: 'root' })
 export class PointCloudDataService implements OnDestroy {
@@ -25,14 +30,27 @@ export class PointCloudDataService implements OnDestroy {
 
   // ── Private State ─────────────────────────────────────────────────────────
 
-  private wsService       = inject(MultiWebsocketService);
-  private workspaceStore  = inject(WorkspaceStoreService);
+  private wsService = inject(MultiWebsocketService);
+  private workspaceStore = inject(WorkspaceStoreService);
+  private zone = inject(NgZone);
 
-  private subscriptions      = new Map<string, Subscription>();
+  private subscriptions = new Map<string, Subscription>();
   private frameCountPerTopic = new Map<string, number>();
   private readonly fpsInterval?: ReturnType<typeof setInterval>;
 
+  // ── Worker pool ────────────────────────────────────────────────────────────
+  /** Round-robin pool of parser workers. */
+  private readonly workers: Worker[] = [];
+  /** Pending callbacks keyed by message id. */
+  private readonly pending = new Map<number, WorkerCallback>();
+  /** Monotonically-increasing message id. */
+  private msgId = 0;
+  /** Topics with an in-flight parse — used to drop stale frames. */
+  private readonly inFlight = new Set<string>();
+
   constructor() {
+    this.initWorkers();
+
     // React to topic selection changes → sync WebSocket connections
     effect(() => {
       const selectedTopics = this.workspaceStore.selectedTopics();
@@ -44,12 +62,13 @@ export class PointCloudDataService implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.subscriptions.forEach(s => s.unsubscribe());
+    this.subscriptions.forEach((s) => s.unsubscribe());
     this.subscriptions.clear();
     this.wsService.disconnectAll();
-    if (this.fpsInterval !== undefined) {
-      clearInterval(this.fpsInterval);
-    }
+    if (this.fpsInterval !== undefined) clearInterval(this.fpsInterval);
+    this.workers.forEach((w) => w.terminate());
+    this.workers.length = 0;
+    this.pending.clear();
   }
 
   // ── Private Methods ───────────────────────────────────────────────────────
@@ -59,8 +78,8 @@ export class PointCloudDataService implements OnDestroy {
    * enabled topics from the workspace store.
    */
   private syncConnections(selectedTopics: TopicConfig[]): void {
-    const enabledTopics   = selectedTopics.filter(t => t.enabled);
-    const enabledTopicSet = new Set(enabledTopics.map(t => t.topic));
+    const enabledTopics = selectedTopics.filter((t) => t.enabled);
+    const enabledTopicSet = new Set(enabledTopics.map((t) => t.topic));
 
     // Disconnect topics that are no longer enabled
     this.subscriptions.forEach((_, topic) => {
@@ -85,9 +104,9 @@ export class PointCloudDataService implements OnDestroy {
 
     const url = environment.wsUrl(topic);
     const subscription = this.wsService.connect(topic, url).subscribe({
-      next: (data: any)  => this.handleMessage(topic, data),
-      complete: ()       => this.onTopicComplete(topic),
-      error: ()          => this.onTopicError(topic),
+      next: (data: any) => this.handleMessage(topic, data),
+      complete: () => this.onTopicComplete(topic),
+      error: () => this.onTopicError(topic),
     });
 
     this.subscriptions.set(topic, subscription);
@@ -125,7 +144,7 @@ export class PointCloudDataService implements OnDestroy {
     // Re-connect if the topic is still enabled in the store.
     const stillEnabled = this.workspaceStore
       .selectedTopics()
-      .some(t => t.topic === topic && t.enabled);
+      .some((t) => t.topic === topic && t.enabled);
     if (stillEnabled) {
       // Small delay so the backend has time to recover before we hammer it.
       setTimeout(() => this.connectTopic(topic), 1500);
@@ -149,71 +168,93 @@ export class PointCloudDataService implements OnDestroy {
     // Re-connect if the topic is still enabled.
     const stillEnabled = this.workspaceStore
       .selectedTopics()
-      .some(t => t.topic === topic && t.enabled);
+      .some((t) => t.topic === topic && t.enabled);
     if (stillEnabled) {
       setTimeout(() => this.connectTopic(topic), 1500);
     }
   }
 
-  private handleMessage(topic: string, data: any): void {
-    // Increment frame counter for FPS tracking
-    const count = this.frameCountPerTopic.get(topic) ?? 0;
-    this.frameCountPerTopic.set(topic, count + 1);
+  // ── Worker pool ────────────────────────────────────────────────────────────
 
-    let payload: FramePayload | null = null;
+  private initWorkers(): void {
+    for (let i = 0; i < WORKER_COUNT; i++) {
+      const w = new Worker(new URL('../workers/point-cloud-parser.worker', import.meta.url), {
+        type: 'module',
+      });
+      w.onmessage = ({ data }) => this.onWorkerMessage(data);
+      w.onerror = (e) => console.error('[PCWorker] error', e);
+      this.workers.push(w);
+    }
+  }
 
-    if (data instanceof ArrayBuffer) {
-      payload = parseLidrFrame(data);
-    } else {
-      payload = this.parseJsonMessage(topic, data);
+  private onWorkerMessage(data: any): void {
+    const cb = this.pending.get(data.id);
+    if (!cb) return;
+    this.pending.delete(data.id);
+    this.inFlight.delete(data.topic);
+
+    if (data.type === 'error') {
+      console.warn(`[PCWorker] parse error for topic "${data.topic}": ${data.reason}`);
+      return;
     }
 
-    if (!payload) return;
+    const payload: FramePayload = {
+      timestamp: data.timestamp,
+      count: data.count,
+      points: new Float32Array(data.buffer),
+    };
 
+    // Signal updates must run in the Angular zone so effects / OnPush fire.
+    this.zone.run(() => this.applyFrame(data.topic, payload));
+  }
+
+  private handleMessage(topic: string, data: any): void {
+    // Increment frame counter for FPS tracking
+    const cnt = this.frameCountPerTopic.get(topic) ?? 0;
+    this.frameCountPerTopic.set(topic, cnt + 1);
+
+    // Drop frame if the previous parse for this topic hasn't finished yet
+    // — avoids a back-log that would grow unboundedly under a fast sender.
+    if (this.inFlight.has(topic)) return;
+    this.inFlight.add(topic);
+
+    const id = this.msgId++;
+    const worker = this.workers[id % this.workers.length];
+
+    this.pending.set(id, (payload) => this.applyFrame(topic, payload));
+
+    if (data instanceof ArrayBuffer) {
+      // Transfer ownership — zero copy, no clone.
+      worker.postMessage({ id, type: 'binary', topic, buffer: data }, [data]);
+    } else {
+      const payload = typeof data === 'string' ? data : JSON.stringify(data);
+      worker.postMessage({ id, type: 'json', topic, payload });
+    }
+  }
+
+  private applyFrame(topic: string, payload: FramePayload): void {
     // Immutable Map update (signal requires a new reference to trigger)
     const next = new Map(this.frames());
     next.set(topic, payload);
     this.frames.set(next);
 
-    // Update lidarTime if available
     if (payload.timestamp > 0) {
       const date = new Date(payload.timestamp * 1000);
       this.workspaceStore.set('lidarTime', date.toISOString().substr(11, 12));
     }
 
-    // Update total point count (sum across all topics)
     let totalPoints = 0;
-    this.frames().forEach(f => { totalPoints += f.count; });
+    this.frames().forEach((f) => {
+      totalPoints += f.count;
+    });
     this.workspaceStore.set('pointCount', totalPoints);
-  }
-
-  private parseJsonMessage(topic: string, data: any): FramePayload | null {
-    try {
-      const raw = typeof data === 'string' ? JSON.parse(data) : data;
-      const pointArrays = parseJsonPointCloud(raw);
-      if (!pointArrays) return null;
-
-      const flatArray = new Float32Array(pointArrays.length * 3);
-      for (let i = 0; i < pointArrays.length; i++) {
-        flatArray[i * 3]     = pointArrays[i][0];
-        flatArray[i * 3 + 1] = pointArrays[i][1];
-        flatArray[i * 3 + 2] = pointArrays[i][2];
-      }
-
-      return {
-        timestamp: 0,
-        count: pointArrays.length,
-        points: flatArray,
-      };
-    } catch (e) {
-      console.error(`[PointCloudData] JSON parse error for topic "${topic}":`, e);
-      return null;
-    }
   }
 
   private updateFps(): void {
     let total = 0;
-    this.frameCountPerTopic.forEach(n => { total += n; });
+    this.frameCountPerTopic.forEach((n) => {
+      total += n;
+    });
     this.workspaceStore.set('fps', total);
     this.frameCountPerTopic.forEach((_, k) => this.frameCountPerTopic.set(k, 0));
   }
