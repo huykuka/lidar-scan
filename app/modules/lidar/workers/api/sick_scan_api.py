@@ -7,7 +7,7 @@ See doc/sick_scan_api/sick_scan_api.md for further information.
 import ctypes
 import os
 from enum import Enum
-
+import numpy as np
 """ 
 Message definitions
 """

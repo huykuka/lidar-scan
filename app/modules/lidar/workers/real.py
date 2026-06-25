@@ -2,6 +2,7 @@ import logging
 import time
 from pathlib import Path
 from typing import Any
+import numpy as np
 
 from app.modules.lidar.workers.api.sick_scan_api import *
 

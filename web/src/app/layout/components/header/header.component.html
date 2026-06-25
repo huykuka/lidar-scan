@@ -6,6 +6,13 @@
 
     <app-notices-status (acknowledge)="onAcknowledge()" />
 
+    <syn-icon-button
+      name="info"
+      label="Platform Guide"
+      size="medium"
+      (click)="toggleGuide()"
+    />
+
     <app-theme-switch />
 
     <app-user-info />

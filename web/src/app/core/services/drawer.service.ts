@@ -9,6 +9,8 @@ export interface DrawerConfig<T = unknown> {
   size?: string;
   /** Optional inputs to pass to the child component */
   inputs?: Partial<Record<keyof T, unknown>>;
+  /** Whether to render the default footer actions (Cancel/Save). Defaults to true. */
+  showFooter?: boolean;
   /** Called after the drawer has fully closed */
   onClose?: () => void;
 }
@@ -23,6 +25,7 @@ export class DrawerService {
   readonly title = signal('');
   readonly placement = signal<'end' | 'start' | 'top' | 'bottom'>('end');
   readonly size = signal<string | null>(null);
+  readonly showFooter = signal(true);
 
   private _component = signal<Type<unknown> | null>(null);
   private _inputs = signal<Record<string, unknown>>({});
@@ -37,6 +40,7 @@ export class DrawerService {
     this.title.set(config.title ?? '');
     this.placement.set(config.placement ?? 'end');
     this.size.set(config.size ?? null);
+    this.showFooter.set(config.showFooter ?? true);
     this._onClose = config.onClose;
     this.isOpen.set(true);
 
@@ -48,6 +52,7 @@ export class DrawerService {
     setTimeout(() => {
       this._component.set(null);
       this._inputs.set({});
+      this.showFooter.set(true);
       this._onClose?.();
       this._onClose = undefined;
     }, 300);

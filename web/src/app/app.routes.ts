@@ -6,7 +6,8 @@ import {serviceGuard} from '@core/guards/auth.guard';
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('@layout/main-layout/main-layout.component').then(m => m.MainLayoutComponent),
+    loadComponent: () =>
+      import('@layout/main-layout/main-layout.component').then((m) => m.MainLayoutComponent),
     children: [
       {
         path: '',
@@ -15,8 +16,8 @@ export const routes: Routes = [
       },
       {
         path: 'start',
-        loadComponent: () =>
-          import('./features/start/start.component').then((m) => m.StartComponent),
+        redirectTo: 'workspaces',
+        pathMatch: 'full',
       },
       {
         path: 'workspaces',
@@ -75,7 +76,9 @@ export const routes: Routes = [
       {
         path: 'calibration',
         loadComponent: () =>
-          import('./features/calibration/calibration.component').then((m) => m.CalibrationComponent),
+          import('./features/calibration/calibration.component').then(
+            (m) => m.CalibrationComponent,
+          ),
       },
       {
         path: 'calibration/:id',
