@@ -20,8 +20,9 @@
 
   <div slot="label" class="flex items-center gap-2 h-full">
     <span class="font-semibold text-lg whitespace-nowrap">
-      {{ label() }}
+      {{ label() }} v{{ uiVersion }}
     </span>
+
 
     @if (headline()) {
       <syn-icon name="chevron_right" class="text-neutral-500 flex-shrink-0" />

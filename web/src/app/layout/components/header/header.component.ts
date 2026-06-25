@@ -9,6 +9,7 @@ import { SensorStatusComponent } from './sensor-status/sensor-status.component';
 import { NoticesStatusComponent } from './notices-status/notices-status.component';
 import { UserInfoComponent } from './user-info/user-info.component';
 import { ThemeSwitchComponent } from './theme-switch/theme-switch.component';
+import packageJson from '../../../../../package.json';
 
 @Component({
   selector: 'app-header',
@@ -27,6 +28,7 @@ import { ThemeSwitchComponent } from './theme-switch/theme-switch.component';
 })
 export class HeaderComponent {
   label = input<string>('Lidar 3D Control Cockpit');
+  protected readonly uiVersion: string = packageJson.version;
 
   readonly synHeader = viewChild.required<SynHeaderComponent>('header');
 
