@@ -74,6 +74,7 @@ class OutputNode(ModuleNode):
 
             message: Dict[str, Any] = {
                 "type": "output_node_metadata",
+                "name": self.name,
                 "node_id": self.id,
                 "timestamp": payload.get("timestamp") or time.time(),
                 "metadata": metadata,  # can be None or dict
@@ -124,7 +125,6 @@ class OutputNode(ModuleNode):
         recent = (time.time() - self.last_metadata_at) < 5.0
         return NodeStatusUpdate(
             node_id=self.id,
-            name = self.name,
             operational_state=OperationalState.RUNNING,
             application_state=ApplicationState(
                 label="metadata",
