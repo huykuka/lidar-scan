@@ -124,6 +124,7 @@ class OutputNode(ModuleNode):
         recent = (time.time() - self.last_metadata_at) < 5.0
         return NodeStatusUpdate(
             node_id=self.id,
+            name = self.name,
             operational_state=OperationalState.RUNNING,
             application_state=ApplicationState(
                 label="metadata",
