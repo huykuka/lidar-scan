@@ -1,0 +1,82 @@
+/* SVG icon containers — ::ng-deep required for [innerHTML]-injected SVGs */
+.orient-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+:host ::ng-deep .orient-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.orient-svg--sm {
+  width: 18px;
+  height: 18px;
+}
+
+/* Trigger button — frosted dark glass, always visible over the canvas */
+.orient-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  background: rgba(20, 20, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s;
+  outline: none;
+}
+.orient-trigger:hover {
+  background: rgba(20, 20, 20, 0.9);
+}
+.orient-trigger:focus-visible {
+  box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.6);
+}
+
+/* Dropdown panel — explicit bg so it renders correctly in light mode */
+.orient-menu {
+  min-width: 148px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--syn-color-neutral-0);
+  border-radius: 6px;
+}
+
+/* Menu row */
+.orient-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--syn-color-neutral-800);
+  font-size: var(--syn-font-size-small);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+  outline: none;
+}
+.orient-item:hover {
+  background: var(--syn-color-neutral-100);
+}
+.orient-item--active {
+  background: var(--syn-color-primary-100);
+  color: var(--syn-color-primary-700);
+  font-weight: 600;
+}
+
+.orient-item-label {
+  white-space: nowrap;
+}

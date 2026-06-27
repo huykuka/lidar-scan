@@ -1,21 +1,39 @@
 <!-- Viewport overlay: positioned absolutely over the Three.js canvas -->
 <div class="absolute inset-0 pointer-events-none z-10">
 
-  <!-- Top-left: orientation dropdown only -->
-  <div class="absolute top-4 left-4 flex items-center pointer-events-auto">
-    <select
-      class="text-[10px] font-semibold bg-black/50 text-white border border-white/20 rounded
-             px-1.5 py-0.5 backdrop-blur-sm cursor-pointer uppercase tracking-widest
-             focus:outline-none focus:ring-1 focus:ring-white/40"
-      (change)="changeOrientation($event)"
-      [attr.aria-label]="'Change orientation of ' + pane().orientation + ' view'"
+  <!-- Top-left: orientation dropdown -->
+  <div class="absolute top-2 left-2 pointer-events-auto">
+    <syn-dropdown
+      placement="bottom-start"
+      [distance]="4"
+      [open]="dropdownOpen()"
+      (synAfterShowEvent)="dropdownOpen.set(true)"
+      (synAfterHideEvent)="dropdownOpen.set(false)"
     >
-      @for (opt of orientationOptions; track opt.value) {
-        <option [value]="opt.value" [selected]="opt.value === pane().orientation">{{ opt.label }}</option>
-      }
-    </select>
-  </div>
+      <!-- Trigger button -->
+      <button
+        slot="trigger"
+        class="orient-trigger"
+        [title]="currentOption().label"
+      >
+        <span class="orient-svg" [innerHTML]="currentOption().svg"></span>
+      </button>
 
+      <!-- Menu items -->
+      <div class="orient-menu">
+        @for (opt of orientationOptions; track opt.value) {
+          <button
+            class="orient-item"
+            [class.orient-item--active]="opt.value === pane().orientation"
+            (click)="setOrientation(opt.value)"
+          >
+            <span class="orient-svg orient-svg--sm" [innerHTML]="opt.svg"></span>
+            <span class="orient-item-label">{{ opt.label }}</span>
+          </button>
+        }
+      </div>
+    </syn-dropdown>
+  </div>
 
   <!-- Empty state overlay: shown when no point cloud data is loaded -->
   @if (!hasData()) {
