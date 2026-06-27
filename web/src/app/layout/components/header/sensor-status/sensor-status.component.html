@@ -1,15 +1,15 @@
-<div
-  class="relative inline-flex items-center"
-  [title]="label()"
-  [style.--status-color]="statusColor()"
->
-  <syn-icon-button [name]="icon()" [label]="label()" size="medium" />
+<syn-tooltip [content]="label()" [distance]="13">
+  <div
+    class="relative inline-flex items-center"
+  >
+    <syn-icon-button [name]="icon()" [label]="label()" size="medium" />
 
-  @if (count() > 0) {
-    <span
-      class="count-badge pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
-      [style.background-color]="badgeColor()"
-      >{{ count() }}</span
-    >
-  }
-</div>
+    @if (count() > 0) {
+      <span
+        class="count-badge pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
+        [style.background-color]="badgeColor()"
+        >{{ count() }}</span
+      >
+    }
+  </div>
+</syn-tooltip>

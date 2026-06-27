@@ -1,11 +1,8 @@
-<div
-  class="relative inline-flex items-center"
-  [title]="label()"
-  [style.--status-color]="statusColor()"
->
-  <syn-icon-button [name]="icon()"
-    [label]="label()"
-    size="medium"
-    (click)="onRefresh()"
-   />
-</div>
+<syn-tooltip [content]="label()" [distance]="13">
+  <div
+    class="relative inline-flex items-center"
+    [style.--status-color]="statusColor()"
+  >
+    <syn-icon-button [name]="icon()" [label]="label()" size="medium" (click)="onRefresh()" />
+  </div>
+</syn-tooltip>

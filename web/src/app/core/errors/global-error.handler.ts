@@ -1,11 +1,9 @@
-import {ErrorHandler, inject, Injectable} from '@angular/core';
+import {ErrorHandler, Injectable, inject} from '@angular/core';
 import {ToastService} from '@core/services';
-import {SystemStatusService} from '../services/system-status.service';
 
 @Injectable()
 export class GlobalErrorHandler implements ErrorHandler {
   private toast = inject(ToastService);
-  private systemStatus = inject(SystemStatusService);
 
   handleError(error: unknown): void {
     const message = this.normalize(error) || 'Unexpected error.';
@@ -20,8 +18,8 @@ export class GlobalErrorHandler implements ErrorHandler {
     // eslint-disable-next-line no-console
     console.error(error);
 
+    // toast.danger() internally calls systemStatus.report('error', ...) — no need to duplicate.
     this.toast.danger(message);
-    this.systemStatus.report('error', message);
   }
 
   private normalize(err: unknown): string | null {

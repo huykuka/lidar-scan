@@ -191,6 +191,36 @@ node_schema_registry.register(
                     "Maximum accepted internal cavity length. Prevents merging edges across separate trailers."
                 ),
             ),
+            # ── Edge Lookup Windows ─────────────────────────────────────────
+            PropertySchema(
+                name="rear_forward_lookup",
+                label="Rear Peak Forward Lookup (cells)",
+                type="number",
+                default=30,
+                min=5,
+                max=100,
+                step=1,
+                help_text=(
+                    "Number of cells ahead to compare when searching for the rear wall peak. "
+                    "The rear peak is accepted only if it is the highest point within this window. "
+                    "Increase for noisy profiles; decrease for tightly-spaced truck structures."
+                ),
+            ),
+            PropertySchema(
+                name="front_backward_lookup",
+                label="Front Edge Backward Lookup (cells)",
+                type="number",
+                default=5,
+                min=1,
+                max=50,
+                step=1,
+                help_text=(
+                    "Number of cells used to verify the front wall edge. "
+                    "For a vertical wall: the candidate cell must be higher than this many preceding cells. "
+                    "For an inclined wall: the slope must reach wall threshold within this many cells ahead. "
+                    "Increase for wider inclined walls; decrease for near-vertical front walls."
+                ),
+            ),
         ],
         inputs=[
             PortSchema(

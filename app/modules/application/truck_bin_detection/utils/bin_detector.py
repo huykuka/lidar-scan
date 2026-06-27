@@ -61,6 +61,8 @@ class BinDetector:
             max_bin_length: float = 8.5,
             bed_normal_z_min: float = 0.8,
             min_bed_inliers: int = 5,
+            rear_forward_lookup: int = 30,
+            front_backward_lookup: int = 5,
     ) -> None:
         self._lane_width = lane_width
         self._z_min = z_min
@@ -77,6 +79,8 @@ class BinDetector:
         self._max_bin_length = max_bin_length
         self._bed_normal_z_min = bed_normal_z_min
         self._min_bed_inliers = min_bed_inliers
+        self._rear_forward_lookup = rear_forward_lookup
+        self._front_backward_lookup = front_backward_lookup
 
     def detect(self, points: np.ndarray) -> BinDetectionResult:
         """Run 1D slope-based internal edge detection on a fused point cloud.
@@ -190,7 +194,7 @@ class BinDetector:
         # rising and the cavity drop begins.
         rear_peak_idx = None
         for i in range(num_bins - 1):
-            end_idx = min(i + 30, num_bins)
+            end_idx = min(i + self._rear_forward_lookup, num_bins)
             if (
                     filled_profile[i] >= self._z_wall_threshold
                     and filled_profile[i] >= np.max(filled_profile[i + 1:end_idx])
@@ -222,19 +226,42 @@ class BinDetector:
                 detected=False, status="SEARCH / REAR EDGE NOT FOUND"
             )
 
-        # 5c. Front edge: first significant positive gradient after the deadband
+        # 5c. Front edge: detect the internal front wall boundary.
+        #
+        # Strategy A — vertical wall:
+        #   gradient > 0, profile already >= wall threshold, AND higher than the
+        #   previous front_backward_lookup cells (confirms it is the first crossing,
+        #   not a mid-slope cell).
+        #
+        # Strategy B — inclined wall:
+        #   gradient > 0, profile still below threshold, but within
+        #   front_backward_lookup cells ahead the profile reaches wall height.
+        #   The foot of the slope (current cell) is the internal front edge.
         start_front_search = rear_bin_idx + int(
             1.5 / self._cellsize
-        )  # Skip at least 0.5m after rear edge
+        )  # Skip at least 1.5m after rear edge
         for i in range(start_front_search, num_bins - 1):
+            # Strategy A: vertical wall
             if (
-                    # 0.4m is should be the minimum height of the wall
-                    profile_gradient[i] > 0.4
-                    and filled_profile[i] >= self._z_wall_threshold
+                profile_gradient[i] > 0
+                and filled_profile[i] >= self._z_wall_threshold
+                and filled_profile[i] >= np.max(
+                    filled_profile[max(0, i - self._front_backward_lookup):i] if i > 0 else [0]
+                )
             ):
                 front_bin_idx = i
                 x_front_internal = x_min + i * self._cellsize
                 break
+
+            # Strategy B: inclined wall — foot of slope, profile still below threshold
+            # if (
+            #     profile_gradient[i] > 0
+            #     and filled_profile[i] < self._z_wall_threshold
+            #     and np.max(filled_profile[i:min(i + self._front_backward_lookup, num_bins)]) >= self._z_wall_threshold
+            # ):
+            #     front_bin_idx = i
+            #     x_front_internal = x_min + i * self._cellsize
+            #     break
 
         if x_front_internal is None or front_bin_idx is None:
             logger.debug("Failed to detect front internal edge (climb out of cavity)")

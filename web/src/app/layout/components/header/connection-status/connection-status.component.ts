@@ -42,7 +42,7 @@ export class ConnectionStatusComponent {
   protected readonly icon = computed(() => {
     const o = this.online();
     if (o === null) return 'signal_wifi_0_bar_fill'; // checking/unknown
-    return o ? 'leak_add_fill' : 'leak_remove_fill';
+    return o ? 'cast_fill' : 'plug_connected_fill'; // online/offline
   });
 
   protected readonly label = computed(() => {

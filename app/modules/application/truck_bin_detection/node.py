@@ -63,6 +63,8 @@ class TruckBinDetectionNode(ModuleNode):
             max_wall_x_std=float(config.get("max_wall_x_std", 0.15)),
             min_bin_length=float(config.get("min_bin_length", 3.0)),
             max_bin_length=float(config.get("max_bin_length", 8.5)),
+            rear_forward_lookup=int(config.get("rear_forward_lookup", 30)),
+            front_backward_lookup=int(config.get("front_backward_lookup", 5)),
         )
 
         # State machine and status

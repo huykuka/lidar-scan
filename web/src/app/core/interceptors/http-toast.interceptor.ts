@@ -44,8 +44,8 @@ export const httpToastInterceptor: HttpInterceptorFn = (req, next) => {
       const body: any = event.body;
       if (isBackendStatusError(body)) {
         const msg = normalizeMessage(body) || 'Request failed.';
+        // toast.danger() internally calls systemStatus.report('error', ...) via ToastService.
         toast.danger(msg);
-        systemStatus.report('error', msg);
         return;
       }
 
@@ -72,12 +72,22 @@ export const httpToastInterceptor: HttpInterceptorFn = (req, next) => {
           else message = err.message || 'Request failed.';
         }
 
-        if (!silent || toastOnError) toast.danger(message);
-        systemStatus.report('error', message);
+        // Always report to notices badge, even for silent GET errors.
+        // Only show toast for non-silent requests (or when explicitly opted in).
+        if (!silent || toastOnError) {
+          // toast.danger() internally calls systemStatus.report — no extra call needed.
+          toast.danger(message);
+        } else {
+          // Silent request: badge only, no toast.
+          systemStatus.report('error', message);
+        }
       } else {
         const message = normalizeMessage(err) || 'Unexpected error.';
-        if (!silent || toastOnError) toast.danger(message);
-        systemStatus.report('error', message);
+        if (!silent || toastOnError) {
+          toast.danger(message);
+        } else {
+          systemStatus.report('error', message);
+        }
       }
 
       return throwError(() => err);
