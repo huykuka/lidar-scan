@@ -14,7 +14,6 @@ const ICP_MIN_SOURCE_SENSORS = 1;
 
 @Component({
   selector: 'app-calibration',
-  standalone: true,
   imports: [SynergyComponentsModule, KeyValuePipe],
   templateUrl: './calibration.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

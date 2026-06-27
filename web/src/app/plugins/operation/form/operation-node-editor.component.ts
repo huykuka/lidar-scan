@@ -9,7 +9,6 @@ import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node
 
 @Component({
   selector: 'app-operation-node-editor',
-  standalone: true,
 
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],

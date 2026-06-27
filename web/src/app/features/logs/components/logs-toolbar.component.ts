@@ -4,7 +4,6 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs-toolbar',
-  standalone: true,
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `

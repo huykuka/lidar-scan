@@ -14,7 +14,6 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs',
-  standalone: true,
   imports: [FormsModule, LogsToolbarComponent, LogsTableComponent, SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './logs.component.html',

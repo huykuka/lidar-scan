@@ -15,7 +15,6 @@ import {LidarApiService} from '@core/services/api';
 
 @Component({
   selector: 'app-sensor-node-editor',
-  standalone: true,
   imports: [
     ReactiveFormsModule,
     SynergyComponentsModule,

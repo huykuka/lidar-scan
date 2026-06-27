@@ -4,7 +4,6 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-flow-canvas-empty-state',
-  standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-empty-state.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

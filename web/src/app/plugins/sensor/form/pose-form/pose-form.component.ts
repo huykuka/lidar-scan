@@ -31,7 +31,6 @@ export function angleRangeValidator(control: AbstractControl): ValidationErrors 
 
 @Component({
   selector: 'app-pose-form',
-  standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, UpperCasePipe, SynergyFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './pose-form.component.html',

@@ -7,7 +7,6 @@ import {DialogHostComponent} from './shared/components/dialog-host/dialog-host.c
 
 @Component({
   selector: 'app-root',
-  standalone: true,
   imports: [RouterOutlet, LoadingScreenComponent, DrawerHostComponent, DialogHostComponent],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -8,7 +8,6 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-results-overview',
-  standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './results-overview.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

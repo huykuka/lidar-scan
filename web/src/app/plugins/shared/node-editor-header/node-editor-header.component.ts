@@ -4,7 +4,6 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-node-editor-header',
-  standalone: true,
 
   imports: [SynergyComponentsModule, NgClass],
   changeDetection: ChangeDetectionStrategy.OnPush,

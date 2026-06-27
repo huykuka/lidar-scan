@@ -19,7 +19,6 @@ import { HasUnsavedChanges } from '@core/guards/unsaved-changes.guard';
 
 @Component({
   selector: 'app-settings',
-  standalone: true,
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.css',
   providers: [CanvasEditStoreService],

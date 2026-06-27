@@ -4,14 +4,9 @@
 
     <app-sensor-status />
 
-    <app-notices-status (acknowledge)="onAcknowledge()" />
+    <!-- <app-notices-status (acknowledge)="onAcknowledge()" /> -->
 
-    <syn-icon-button
-      name="info"
-      label="Platform Guide"
-      size="medium"
-      (click)="toggleGuide()"
-    />
+    <app-platform-guide />
 
     <app-theme-switch />
 
@@ -19,10 +14,7 @@
   </nav>
 
   <div slot="label" class="flex items-center gap-2 h-full">
-    <span class="font-semibold text-lg whitespace-nowrap">
-      {{ label() }} v{{ uiVersion }}
-    </span>
-
+    <span class="font-semibold text-lg whitespace-nowrap"> {{ label() }} v{{ uiVersion }} </span>
 
     @if (headline()) {
       <syn-icon name="chevron_right" class="text-neutral-500 flex-shrink-0" />

@@ -17,7 +17,6 @@ import { environment } from '@env/environment';
  */
 @Component({
   selector: 'app-snapshot-node-editor',
-  standalone: true,
   imports: [
     ReactiveFormsModule,
     SynergyComponentsModule,

@@ -16,7 +16,6 @@ export interface PendingConnection {
 
 @Component({
   selector: 'app-flow-canvas-connections',
-  standalone: true,
   imports: [],
   templateUrl: './flow-canvas-connections.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

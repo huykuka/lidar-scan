@@ -20,7 +20,6 @@ import { DrawerService } from '@core/services/drawer.service';
 
 @Component({
   selector: 'app-drawer-host',
-  standalone: true,
   imports: [SynDrawerComponent, SynButtonComponent, SynIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [

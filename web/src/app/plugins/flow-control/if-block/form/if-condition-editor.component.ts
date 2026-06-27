@@ -26,7 +26,6 @@ interface AutocompleteSuggestion {
  */
 @Component({
   selector: 'app-if-condition-editor',
-  standalone: true,
 
   imports: [
     ReactiveFormsModule,

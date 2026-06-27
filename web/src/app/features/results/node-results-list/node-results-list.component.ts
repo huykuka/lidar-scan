@@ -12,7 +12,6 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-node-results-list',
-  standalone: true,
   imports: [SynergyComponentsModule, RouterModule],
   templateUrl: './node-results-list.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

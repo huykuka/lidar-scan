@@ -6,7 +6,6 @@ import { DrawerService } from '@core/services/drawer.service';
 
 @Component({
   selector: 'app-start-guide-drawer',
-  standalone: true,
   imports: [SynIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [
@@ -16,13 +15,20 @@ import { DrawerService } from '@core/services/drawer.service';
       }
       .guide-hero {
         background:
-          radial-gradient(circle at top right, color-mix(in srgb, var(--syn-color-primary-200) 45%, transparent) 0%, transparent 60%),
+          radial-gradient(
+            circle at top right,
+            color-mix(in srgb, var(--syn-color-primary-200) 45%, transparent) 0%,
+            transparent 60%
+          ),
           linear-gradient(180deg, var(--syn-color-neutral-25), var(--syn-color-neutral-50));
       }
       .guide-card {
         border: 1px solid var(--syn-color-neutral-200);
         background: var(--syn-color-neutral-50);
-        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+        transition:
+          transform 160ms ease,
+          border-color 160ms ease,
+          box-shadow 160ms ease;
       }
       .guide-card:hover {
         transform: translateY(-2px);
@@ -39,7 +45,7 @@ import { DrawerService } from '@core/services/drawer.service';
   template: `
     <div class="w-full overflow-auto p-1 sm:p-2">
       <div class="w-full mx-auto space-y-5 sm:space-y-6">
-        <section class="guide-hero rounded-2xl border border-syn-color-neutral-200 p-4 sm:p-6">
+        <section class="rounded-2xl p-4 sm:p-6">
           <div class="flex items-start gap-3 sm:gap-4">
             <syn-icon class="text-syn-color-primary-700 text-2xl sm:text-3xl mt-1" name="hub" />
             <div class="space-y-2">
@@ -51,10 +57,18 @@ import { DrawerService } from '@core/services/drawer.service';
                 recordings, inspect generated results, and debug execution from one interface.
               </p>
               <div class="flex flex-wrap gap-2 pt-1">
-                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium">Realtime Streaming</span>
-                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium">Calibration</span>
-                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium">Results Explorer</span>
-                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium">Role Protected</span>
+                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium"
+                  >Realtime Streaming</span
+                >
+                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium"
+                  >Calibration</span
+                >
+                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium"
+                  >Results Explorer</span
+                >
+                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium"
+                  >Role Protected</span
+                >
               </div>
             </div>
           </div>
@@ -73,7 +87,8 @@ import { DrawerService } from '@core/services/drawer.service';
               Workspaces
             </h3>
             <p class="text-xs sm:text-sm mb-2 sm:mb-3 leading-relaxed">
-              Visualize live point cloud streams in interactive 3D workspaces with real-time rendering.
+              Visualize live point cloud streams in interactive 3D workspaces with real-time
+              rendering.
             </p>
           </div>
 
@@ -89,8 +104,8 @@ import { DrawerService } from '@core/services/drawer.service';
               Settings
             </h3>
             <p class="text-xs sm:text-sm mb-2 sm:mb-3 leading-relaxed">
-              Build processing graphs with drag-and-drop nodes. Configure sensors, fusion, and pipeline
-              operations.
+              Build processing graphs with drag-and-drop nodes. Configure sensors, fusion, and
+              pipeline operations.
             </p>
           </div>
 
@@ -139,8 +154,8 @@ import { DrawerService } from '@core/services/drawer.service';
               Calibration
             </h3>
             <p class="text-xs sm:text-sm mb-2 sm:mb-3 leading-relaxed">
-              Run and review calibration workflows to align sensors and improve fusion quality across
-              your setup.
+              Run and review calibration workflows to align sensors and improve fusion quality
+              across your setup.
             </p>
           </div>
 
@@ -156,8 +171,8 @@ import { DrawerService } from '@core/services/drawer.service';
               Logs
             </h3>
             <p class="text-xs sm:text-sm mb-2 sm:mb-3 leading-relaxed">
-              Monitor backend/runtime activity and troubleshoot with structured log streams for errors,
-              warnings, and operations.
+              Monitor backend/runtime activity and troubleshoot with structured log streams for
+              errors, warnings, and operations.
             </p>
           </div>
         </div>
@@ -170,8 +185,14 @@ import { DrawerService } from '@core/services/drawer.service';
             <li>1. Configure sensors and runtime behavior in <strong>Settings</strong>.</li>
             <li>2. Build your node graph and connect pipeline stages.</li>
             <li>3. Calibrate alignment before running multi-sensor fusion.</li>
-            <li>4. Validate live data in <strong>Workspaces</strong> and inspect outcomes in <strong>Results</strong>.</li>
-            <li>5. Record sessions for replay and audit in <strong>Recordings</strong> and <strong>Logs</strong>.</li>
+            <li>
+              4. Validate live data in <strong>Workspaces</strong> and inspect outcomes in
+              <strong>Results</strong>.
+            </li>
+            <li>
+              5. Record sessions for replay and audit in <strong>Recordings</strong> and
+              <strong>Logs</strong>.
+            </li>
           </ol>
         </div>
       </div>

@@ -5,7 +5,6 @@ import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-user-info',
-  standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, SynergyFormsModule],
   templateUrl: './user-info.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

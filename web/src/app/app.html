@@ -1,7 +1,7 @@
 @if (isReady()) {
   <!-- Global overlay components: drawer, toast, dialog -->
   <app-drawer-host />
-  <app-dialog-host />
+  <app-dialog-host style="z-index: 1000;" />
 
   <router-outlet />
 } @else {

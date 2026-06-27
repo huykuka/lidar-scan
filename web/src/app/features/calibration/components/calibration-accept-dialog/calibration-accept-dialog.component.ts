@@ -19,7 +19,6 @@ export interface PendingResultEntry {
  */
 @Component({
   selector: 'app-calibration-accept-dialog',
-  standalone: true,
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './calibration-accept-dialog.component.html',

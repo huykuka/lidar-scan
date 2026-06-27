@@ -5,7 +5,6 @@ import {AdminApiService, NodeTypeRecord} from '@core/services/api/admin-api.serv
 
 @Component({
   selector: 'app-admin',
-  standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './admin.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

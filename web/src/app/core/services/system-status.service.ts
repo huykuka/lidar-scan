@@ -88,8 +88,12 @@ export class SystemStatusService {
   }
 
   report(level: SystemNoticeLevel, message: string): void {
+    const prev = this.lastNotice();
+    const isDuplicate = prev?.level === level && prev?.message === message;
     this.lastNotice.set({level, message, at: Date.now()});
-    this.unreadCount.update((c) => c + 1);
+    if (!isDuplicate) {
+      this.unreadCount.update((c) => c + 1);
+    }
   }
 
   private fetchStatus$() {

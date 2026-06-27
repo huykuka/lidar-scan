@@ -29,7 +29,6 @@ import {
 
 @Component({
   selector: 'app-playback-node-editor',
-  standalone: true,
   imports: [
     SynergyComponentsModule,
     NodeEditorHeaderComponent,

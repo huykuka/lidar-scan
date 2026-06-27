@@ -4,7 +4,6 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-toolbox-header',
-  standalone: true,
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toolbox-header.component.html',

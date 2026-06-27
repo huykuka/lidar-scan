@@ -5,7 +5,6 @@ const SICK_LOGO_PATH =
 
 @Component({
   selector: 'app-loading-screen',
-  standalone: true,
   template: `
     <!-- Begin of loading screen (Synergy template) -->
     <div aria-busy="true" role="status" class="loading-screen">

@@ -10,7 +10,6 @@ import { NodeStoreService } from '@core/services/stores';
  */
 @Component({
   selector: 'app-sensor-status',
-  standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './sensor-status.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -11,7 +11,6 @@ import {PropertySchema} from '@core/models/node.model';
 
 @Component({
   selector: 'app-application-node-editor',
-  standalone: true,
   imports: [ReactiveFormsModule, SynergyComponentsModule, NodeEditorHeaderComponent],
   providers: [NodeEditorFacadeService],
   templateUrl: './application-node-editor.component.html',

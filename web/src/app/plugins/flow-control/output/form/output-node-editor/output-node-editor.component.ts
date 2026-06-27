@@ -14,7 +14,6 @@ import {NodeEditorFacadeService} from '@features/settings/services/node-editor-f
  */
 @Component({
   selector: 'app-output-node-editor',
-  standalone: true,
   imports: [
     ReactiveFormsModule,
     SynergyComponentsModule,

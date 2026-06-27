@@ -30,7 +30,6 @@ interface PCDData {
 
 @Component({
   selector: 'app-recording-viewer',
-  standalone: true,
   imports: [SynergyComponentsModule, FormsModule, DecimalPipe, NgClass],
   templateUrl: './recording-viewer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

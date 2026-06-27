@@ -6,7 +6,6 @@ import {environment} from '@env/environment';
 
 @Component({
   selector: 'app-recording-card',
-  standalone: true,
   imports: [SynergyComponentsModule, DatePipe],
   templateUrl: './recording-card.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

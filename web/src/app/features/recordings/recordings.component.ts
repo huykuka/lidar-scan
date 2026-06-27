@@ -12,7 +12,6 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-recordings',
-  standalone: true,
   imports: [SynergyComponentsModule, RecordingCardComponent],
   templateUrl: './recordings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

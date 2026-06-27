@@ -9,10 +9,11 @@ import { ThemeService } from '@core/services/theme.service';
  */
 @Component({
   selector: 'app-theme-switch',
-  standalone: true,
   imports: [SynergyComponentsModule],
   template: `
-    <syn-icon-button [name]="icon()" [label]="label()" size="medium" (click)="toggle()" />
+    <syn-tooltip content="Switch theme" [distance]="13">
+      <syn-icon-button [name]="icon()" [label]="label()" size="medium" (click)="toggle()" />
+    </syn-tooltip>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `

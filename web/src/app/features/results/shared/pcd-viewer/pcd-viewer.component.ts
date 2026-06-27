@@ -24,7 +24,6 @@ const POINT_SIZE = 0.04;
 
 @Component({
   selector: 'app-pcd-viewer',
-  standalone: true,
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './pcd-viewer.component.html',

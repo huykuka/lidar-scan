@@ -9,7 +9,6 @@ import {CalibrationHistoryRecord} from '@core/models';
  */
 @Component({
   selector: 'app-calibration-history-table',
-  standalone: true,
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './calibration-history-table.component.html',

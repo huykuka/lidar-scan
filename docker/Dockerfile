@@ -27,6 +27,7 @@ RUN git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /workspace/sic
 # Stage 2: Build Angular frontend
 # ----------------------------------------
 FROM --platform=$BUILDPLATFORM node:24-slim AS frontend-builder
+ENV CI=true
 WORKDIR /web
 # Copy package manifests first for caching
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./

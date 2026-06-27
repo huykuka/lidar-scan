@@ -19,7 +19,6 @@ import {environment} from '@env/environment';
  */
 @Component({
   selector: 'app-pcd-injection-editor',
-  standalone: true,
   imports: [
     ReactiveFormsModule,
     SynergyComponentsModule,

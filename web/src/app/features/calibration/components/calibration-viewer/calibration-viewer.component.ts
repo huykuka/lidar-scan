@@ -15,7 +15,6 @@ import {NodeConfig} from '@core/models/node.model';
 
 @Component({
   selector: 'app-calibration-viewer',
-  standalone: true,
   imports: [SynergyComponentsModule, KeyValuePipe],
   templateUrl: './calibration-viewer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,17 +1,28 @@
-<syn-tooltip [content]="label()" [distance]="13">
-  <div
-    class="relative inline-flex items-center"
-    [style.--status-color]="statusColor()"
-  >
-    <syn-icon-button [name]="icon()" [label]="label()" size="medium" (click)="onAcknowledge()" />
-
+<syn-dropdown
+  placement="bottom-end"
+  [distance]="8"
+  [open]="dropdownOpen()"
+  (synAfterShowEvent)="onDropdownShow()"
+  (synAfterHideEvent)="onDropdownHide()"
+>
+  <div slot="trigger" class="relative inline-flex items-center" [style.--status-color]="statusColor()">
+    <syn-icon-button [name]="icon()" label="Notifications" size="medium" />
     @if (unreadCount() > 0) {
-      <!-- Unread count badge anchored top-right -->
       <span
         class="pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
         [style.background-color]="statusColor()"
-        >{{ badgeText() }}</span
-      >
+      >{{ badgeText() }}</span>
     }
   </div>
-</syn-tooltip>
+
+  <div class="notice-panel rounded-xl">
+    @if (lastNotice(); as notice) {
+      <div class="notice-row" [style.--status-color]="statusColor()">
+        <syn-icon [name]="icon()" class="notice-icon" />
+        <span class="notice-message">{{ notice.message }}</span>
+      </div>
+    } @else {
+      <span class="notice-empty">No notifications</span>
+    }
+  </div>
+</syn-dropdown>

@@ -35,7 +35,6 @@ import { AuthService } from '@app/core/services/auth.service';
 
 @Component({
   selector: 'app-flow-canvas',
-  standalone: true,
   imports: [
     SynergyComponentsModule,
     FlowCanvasNodeComponent,

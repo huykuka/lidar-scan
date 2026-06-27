@@ -29,20 +29,23 @@ const SEVERITY_STYLES: Record<DialogSeverity, string> = {
  */
 @Component({
   selector: 'app-dialog-host',
-  standalone: true,
   imports: [SynDialogComponent, SynButtonComponent, SynIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <syn-dialog
-      [label]="svc.title()"
-      [open]="svc.isOpen()"
-      (syn-request-close)="svc.cancel()"
-    >
+    <syn-dialog [label]="svc.title()" [open]="svc.isOpen()" (syn-request-close)="svc.cancel()">
       <p>{{ svc.message() }}</p>
 
       <div slot="footer" class="flex justify-end gap-2">
-        <syn-button variant="outline" (click)="svc.cancel()"><syn-icon slot="prefix" name="close" aria-hidden="true" />{{ svc.cancelLabel() }}</syn-button>
-        <syn-button variant="filled" [style]="confirmStyle()" (click)="svc.accept()"><syn-icon slot="prefix" [name]="svc.confirmIcon()"  aria-hidden="true" />{{ svc.confirmLabel() || 'Delete' }}</syn-button>
+        <syn-button variant="outline" (click)="svc.cancel()"
+          ><syn-icon slot="prefix" name="close" aria-hidden="true" />{{
+            svc.cancelLabel()
+          }}</syn-button
+        >
+        <syn-button variant="filled" [style]="confirmStyle()" (click)="svc.accept()"
+          ><syn-icon slot="prefix" [name]="svc.confirmIcon()" aria-hidden="true" />{{
+            svc.confirmLabel() || 'Delete'
+          }}</syn-button
+        >
       </div>
     </syn-dialog>
   `,
@@ -50,5 +53,7 @@ const SEVERITY_STYLES: Record<DialogSeverity, string> = {
 export class DialogHostComponent {
   protected readonly svc = inject(DialogService);
 
-  protected readonly confirmStyle = computed(() => SEVERITY_STYLES[this.svc.confirmSeverity()] ?? '');
+  protected readonly confirmStyle = computed(
+    () => SEVERITY_STYLES[this.svc.confirmSeverity()] ?? '',
+  );
 }

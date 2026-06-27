@@ -11,7 +11,6 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
  */
 @Component({
   selector: 'app-flow-canvas-controls',
-  standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './flow-canvas-controls.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

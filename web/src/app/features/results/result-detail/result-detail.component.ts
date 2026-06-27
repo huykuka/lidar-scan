@@ -17,7 +17,6 @@ import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-result-detail',
-  standalone: true,
   imports: [SynergyComponentsModule, RouterModule, MetadataTableComponent, PcdViewerComponent],
   templateUrl: './result-detail.component.html',
   styleUrl: './result-detail.component.css',

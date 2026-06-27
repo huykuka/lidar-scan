@@ -11,7 +11,6 @@ const DEFAULT_COLOR = '#9E9E9E';
 
 @Component({
   selector: 'app-result-storage-editor',
-  standalone: true,
   imports: [
     ReactiveFormsModule,
     SynergyComponentsModule,

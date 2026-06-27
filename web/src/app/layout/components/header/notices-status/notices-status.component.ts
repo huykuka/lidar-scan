@@ -1,4 +1,4 @@
-import { Component, computed, inject, output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { SystemStatusService } from '@core/services/system-status.service';
 
@@ -14,7 +14,6 @@ import { SystemStatusService } from '@core/services/system-status.service';
  */
 @Component({
   selector: 'app-notices-status',
-  standalone: true,
   imports: [SynergyComponentsModule],
   templateUrl: './notices-status.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,6 +25,31 @@ import { SystemStatusService } from '@core/services/system-status.service';
     }
     syn-icon-button {
       color: var(--status-color);
+    }
+    .notice-panel {
+      min-width: 220px;
+      max-width: 320px;
+      padding: 12px 14px;
+    }
+    .notice-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .notice-icon {
+      flex-shrink: 0;
+      color: var(--status-color);
+      font-size: 18px;
+      margin-top: 1px;
+    }
+    .notice-message {
+      font-size: var(--syn-font-size-small);
+      line-height: 1.4;
+      color: var(--syn-color-neutral-900);
+    }
+    .notice-empty {
+      font-size: var(--syn-font-size-small);
+      color: var(--syn-color-neutral-500);
     }
   `,
 })
@@ -72,7 +96,15 @@ export class NoticesStatusComponent {
     return 'var(--syn-color-neutral-500)';
   });
 
-  protected onAcknowledge(): void {
+  protected readonly dropdownOpen = signal(false);
+
+  protected onDropdownShow(): void {
+    this.dropdownOpen.set(true);
+  }
+
+  protected onDropdownHide(): void {
+    this.dropdownOpen.set(false);
+    this.svc.acknowledge();
     this.acknowledge.emit();
   }
 }

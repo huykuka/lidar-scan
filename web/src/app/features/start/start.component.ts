@@ -5,7 +5,6 @@ import {SynIconComponent} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-start',
-  standalone: true,
   templateUrl: './start.component.html',
   styleUrl: './start.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

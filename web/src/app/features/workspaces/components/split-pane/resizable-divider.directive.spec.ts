@@ -9,11 +9,15 @@ import { By } from '@angular/platform-browser';
 @Component({
   template: `
     <div style="width:1000px; height:100px; display:flex">
-      <div appResizableDivider [axis]="axis()" [paneId]="paneId()" style="width:8px; cursor:col-resize"></div>
+      <div
+        appResizableDivider
+        [axis]="axis()"
+        [paneId]="paneId()"
+        style="width:8px; cursor:col-resize"
+      ></div>
     </div>
   `,
   imports: [ResizableDividerDirective],
-  standalone: true,
 })
 class TestHostComponent {
   axis = signal<'horizontal' | 'vertical'>('horizontal');

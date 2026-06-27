@@ -11,7 +11,6 @@ import {NodeConfig} from '../../../../core/models/node.model';
  */
 @Component({
   selector: 'app-calibration-history-detail',
-  standalone: true,
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './calibration-history-detail.component.html',

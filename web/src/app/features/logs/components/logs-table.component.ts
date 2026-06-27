@@ -5,7 +5,6 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-logs-table',
-  standalone: true,
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
