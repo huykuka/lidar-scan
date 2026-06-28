@@ -569,6 +569,8 @@ class EnvironmentFilteringNode(ModuleNode):
 
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardised node status for DAG status API."""
+        cycle_ms = round(self.processing_time_ms, 1) if self.processing_time_ms else None
+
         if self.last_error:
             return NodeStatusUpdate(
                 node_id=self.id,
@@ -579,6 +581,7 @@ class EnvironmentFilteringNode(ModuleNode):
                     color="red",
                 ),
                 error_message=self.last_error,
+                cycle_time_ms=cycle_ms,
             )
 
         recently_active = (
@@ -598,6 +601,7 @@ class EnvironmentFilteringNode(ModuleNode):
                     value=planes_filtered,
                     color=color,
                 ),
+                cycle_time_ms=cycle_ms,
             )
 
         return NodeStatusUpdate(
@@ -608,4 +612,5 @@ class EnvironmentFilteringNode(ModuleNode):
                 value=False,
                 color="gray",
             ),
+            cycle_time_ms=cycle_ms,
         )

@@ -135,6 +135,15 @@
           (visibilityChanged)="onToggleVisibility.emit($event)"
         />
       }
+
+      <!-- Cycle time badge -->
+      @if (cycleTimeLabel()) {
+        <span
+          class="tabular-nums text-[9px] leading-none px-2 py-1 rounded
+                 bg-syn-color-neutral-200  pointer-events-none"
+          [title]="'Last cycle: ' + cycleTimeLabel()"
+        >{{ cycleTimeLabel() }}</span>
+      }
     </div>
 
     <!-- Right-aligned Unit-specific Controls -->

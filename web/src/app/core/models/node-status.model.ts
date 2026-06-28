@@ -24,6 +24,8 @@ export interface NodeStatusUpdate {
   error_message?: string;
   /** Unix epoch seconds (float) */
   timestamp: number;
+  /** Last processing cycle duration in milliseconds (OperationNode only) */
+  cycle_time_ms?: number;
 }
 
 export interface NodesStatusResponse {

@@ -131,7 +131,7 @@ class VehicleProfilerNode(ModuleNode):
         self.last_input_at: Optional[float] = None
         self.last_output_at: Optional[float] = None
         self.last_error: Optional[str] = None
-
+        self.processing_time_ms: float = 0.0
         self.last_profile_points: int = 0
 
         # Serialise all detector access: ICP runs in a thread-pool via
@@ -155,6 +155,7 @@ class VehicleProfilerNode(ModuleNode):
 
         timestamp = payload.get("timestamp", time.time())
         self.last_input_at = time.time()
+        start_time = self.last_input_at
 
         try:
             is_positioning_sensor = (
@@ -166,6 +167,7 @@ class VehicleProfilerNode(ModuleNode):
                 await self._handle_velocity_frame(points, timestamp)
             else:
                 await self._handle_profile_frame(source_id, points, timestamp)
+            self.processing_time_ms = (time.time() - start_time) * 1000
             self.last_error = None
         except Exception as e:
             self.last_error = str(e)
@@ -173,6 +175,8 @@ class VehicleProfilerNode(ModuleNode):
             notify_status_change(self.id)
 
     def emit_status(self) -> NodeStatusUpdate:
+        cycle_ms = round(self.processing_time_ms, 1) if self.processing_time_ms else None
+
         if self.last_error:
             return NodeStatusUpdate(
                 node_id=self.id,
@@ -183,6 +187,7 @@ class VehicleProfilerNode(ModuleNode):
                     color="red",
                 ),
                 error_message=self.last_error,
+                cycle_time_ms=cycle_ms,
             )
 
         color_map = {
@@ -197,6 +202,7 @@ class VehicleProfilerNode(ModuleNode):
                 value=self._state.value,
                 color=color_map.get(self._state, "gray"),
             ),
+            cycle_time_ms=cycle_ms,
         )
 
     def start(self, data_queue: Any = None, runtime_status: Any = None) -> None:

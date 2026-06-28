@@ -255,6 +255,7 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
                     color="gray",
                 ),
                 error_message=self.last_error,
+                cycle_time_ms=round(self.processing_time_ms, 1) if self.processing_time_ms else None,
             )
 
         recently_active = (
@@ -274,6 +275,7 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
                     value=value,
                     color="blue",
                 ),
+                cycle_time_ms=round(self.processing_time_ms, 1) if self.processing_time_ms else None,
             )
 
         return NodeStatusUpdate(
@@ -284,4 +286,5 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
                 value=recently_active,
                 color="blue" if recently_active else "gray",
             ),
+            cycle_time_ms=round(self.processing_time_ms, 1) if self.processing_time_ms else None,
         )

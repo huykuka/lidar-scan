@@ -79,6 +79,7 @@ class TruckBinDetectionNode(ModuleNode):
         self.last_input_at: Optional[float] = None
         self.last_output_at: Optional[float] = None
         self.last_error: Optional[str] = None
+        self.processing_time_ms: float = 0.0
         self._processing: bool = False
 
     # ── ModuleNode interface ──────────────────────────────────────────────
@@ -95,6 +96,7 @@ class TruckBinDetectionNode(ModuleNode):
         self.last_input_at = time.time()
         self._processing = True
         self._state = _State.DETECTING
+        start_time = time.time()
         notify_status_change(self.id)
 
         try:
@@ -102,6 +104,7 @@ class TruckBinDetectionNode(ModuleNode):
 
             # Execute heavy 1D geometry profile extraction in threadpool
             result = await asyncio.to_thread(self._detector.detect, points)
+            self.processing_time_ms = (time.time() - start_time) * 1000
 
             if result.detected:
                 # Apply 1D temporal smoothing to prevent jitter
@@ -154,6 +157,8 @@ class TruckBinDetectionNode(ModuleNode):
             notify_status_change(self.id)
 
     def emit_status(self) -> NodeStatusUpdate:
+        cycle_ms = round(self.processing_time_ms, 1) if self.processing_time_ms else None
+
         if self.last_error:
             return NodeStatusUpdate(
                 node_id=self.id,
@@ -164,6 +169,7 @@ class TruckBinDetectionNode(ModuleNode):
                     color="red",
                 ),
                 error_message=self.last_error,
+                cycle_time_ms=cycle_ms,
             )
 
         if self._state == _State.DETECTING:
@@ -176,6 +182,7 @@ class TruckBinDetectionNode(ModuleNode):
                     value="detecting",
                     color="blue",
                 ),
+                cycle_time_ms=cycle_ms,
             )
 
         if self._last_result and self._last_result.detected:
@@ -199,6 +206,7 @@ class TruckBinDetectionNode(ModuleNode):
                 value=value,
                 color=color,
             ),
+            cycle_time_ms=cycle_ms,
         )
 
     def start(self, data_queue: Any = None, runtime_status: Any = None) -> None:

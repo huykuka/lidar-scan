@@ -141,6 +141,7 @@ class VolumeCalculationNode(ModuleNode):
         self.last_output_at: Optional[float] = None
         self.last_error: Optional[str] = None
         self.last_volume_m3: Optional[float] = None
+        self.processing_time_ms: float = 0.0
         self._calculation_count: int = 0
 
     # ── ModuleNode interface ──────────────────────────────────────────────
@@ -196,6 +197,8 @@ class VolumeCalculationNode(ModuleNode):
             notify_status_change(self.id)
 
     def emit_status(self) -> NodeStatusUpdate:
+        cycle_ms = round(self.processing_time_ms, 1) if self.processing_time_ms else None
+
         if self.last_error:
             return NodeStatusUpdate(
                 node_id=self.id,
@@ -206,6 +209,7 @@ class VolumeCalculationNode(ModuleNode):
                     color="red",
                 ),
                 error_message=self.last_error,
+                cycle_time_ms=cycle_ms,
             )
 
         value = self._state.value
@@ -220,6 +224,7 @@ class VolumeCalculationNode(ModuleNode):
                 value=value,
                 color=_STATE_COLOR.get(self._state, "gray"),
             ),
+            cycle_time_ms=cycle_ms,
         )
 
     def start(self, data_queue: Any = None, runtime_status: Any = None) -> None:
@@ -251,9 +256,11 @@ class VolumeCalculationNode(ModuleNode):
         self._reset_buffers()
 
         try:
+            start_time = time.time()
             result = await asyncio.to_thread(
                 self._calculator.calculate, empty_pts, loaded_pts
             )
+            self.processing_time_ms = (time.time() - start_time) * 1000
 
             self._calculation_count += 1
             self.last_volume_m3 = result.volume_m3

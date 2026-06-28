@@ -134,6 +134,15 @@ export class FlowCanvasNodeComponent {
     return status.error_message ?? null;
   });
 
+  /**
+   * Formatted cycle time string, e.g. "12.3ms" or "1.2s". Null when not available.
+   */
+  protected cycleTimeLabel = computed<string | null>(() => {
+    const ms = this.status()?.cycle_time_ms;
+    if (ms == null) return null;
+    return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(ms >= 10 ? 0 : 1)}ms`;
+  });
+
   /** True when the node definition has WebSocket streaming enabled (default: true when definition is absent). */
   protected isWebsocketEnabled = computed(() => {
     const def = this.nodeDefinition();

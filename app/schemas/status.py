@@ -55,6 +55,7 @@ class NodeStatusUpdate(BaseModel):
     application_state: Optional[ApplicationState] = Field(None, description="Node-specific state")
     error_message:     Optional[str]           = Field(None, description="Only set when operational_state=ERROR")
     timestamp:         float                   = Field(default_factory=time.time, description="Unix epoch seconds")
+    cycle_time_ms:     Optional[float]         = Field(None, description="Last processing cycle duration in milliseconds")
 
     model_config = {"use_enum_values": True}
 
