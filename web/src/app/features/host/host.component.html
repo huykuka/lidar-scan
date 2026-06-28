@@ -1,0 +1,206 @@
+<!-- Host Monitor page -->
+<syn-card
+  style="overflow: auto; scrollbar-width: none; -ms-overflow-style: none"
+  class="hide-scrollbar"
+>
+  @if (loading()) {
+    <div class="flex items-center justify-center h-40 text-syn-color-neutral-500">
+      <syn-spinner></syn-spinner>
+    </div>
+  } @else if (error()) {
+    <div
+      class="text-syn-color-error-600 p-4 rounded-lg border border-syn-color-error-200 bg-syn-color-error-50"
+    >
+      {{ error() }}
+    </div>
+  } @else {
+    <!-- Host / Process info bar -->
+    @if (hostInfo(); as h) {
+      <div
+        class="flex flex-wrap gap-6 text-[12px] text-syn-color-neutral-700 bg-syn-color-neutral-50 border rounded-lg px-4 py-2.5 items-center"
+      >
+        <span class="font-semibold text-syn-color-neutral-900">{{ h.hostname }}</span>
+        <span>{{ h.platform }}</span>
+        <span class="ml-auto"
+          >Uptime: <b>{{ formatUptime(h.uptime_s) }}</b></span
+        >
+        @if (processInfo(); as p) {
+          <span
+            >PID {{ p.pid }} · {{ p.rss_mb?.toFixed(0) }} MB RSS · {{ p.num_threads }} threads</span
+          >
+        }
+      </div>
+    }
+
+    <!-- Tabs: CPU | Memory | Network -->
+    <syn-tab-group class="flex-1 min-h-0">
+      <syn-tab slot="nav" panel="cpu">CPU</syn-tab>
+      <syn-tab slot="nav" panel="memory">Memory</syn-tab>
+      <syn-tab slot="nav" panel="network">Network</syn-tab>
+
+      <!-- ── CPU tab ──────────────────────────────────────────────────────── -->
+      <syn-tab-panel name="cpu" class="pt-4">
+        @if (snapshot(); as s) {
+          <div class="flex flex-wrap gap-3 mb-4 text-[12px]">
+            <span class="bg-syn-color-neutral-100 rounded px-2 py-1">
+              <b>{{ s.cpu.count_logical }}</b> logical / <b>{{ s.cpu.count_physical }}</b> physical
+              cores
+            </span>
+            @if (s.cpu.freq_mhz.current) {
+              <span class="bg-syn-color-neutral-100 rounded px-2 py-1">
+                <b>{{ s.cpu.freq_mhz.current }} MHz</b>
+              </span>
+            }
+          </div>
+
+          <!-- Core usage bars grid (2 columns) -->
+          <div class="grid grid-cols-2 gap-x-6 gap-y-2 mb-5">
+            @for (core of coreUsages(); track core.label) {
+              <div>
+                <div class="flex justify-between text-[11px] text-syn-color-neutral-600 mb-0.5">
+                  <span [class.font-semibold]="core.label === 'Total'">{{ core.label }}</span>
+                  <span [class.font-bold]="core.label === 'Total'">{{ core.pct.toFixed(1) }}%</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div
+                    class="progress-bar-fill"
+                    [style.width.%]="core.pct"
+                    [class.opacity-60]="core.label !== 'Total'"
+                  ></div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Usage per core chart -->
+        <p
+          class="text-[11px] text-syn-color-neutral-500 mb-1 font-semibold uppercase tracking-wide"
+        >
+          Usage per core (%)
+        </p>
+        <div class="chart-wrap mb-6">
+          @if (cpuChartConfig(); as cfg) {
+            <syn-chart [config]="cfg" palette="sequential-01" class="w-full h-full" />
+          }
+        </div>
+
+        <!-- Load average chart -->
+        <p
+          class="text-[11px] text-syn-color-neutral-500 mb-1 font-semibold uppercase tracking-wide"
+        >
+          Average load
+        </p>
+        <div class="chart-wrap">
+          @if (loadChartConfig(); as cfg) {
+            <syn-chart [config]="cfg" palette="categorical" class="w-full h-full" />
+          }
+        </div>
+      </syn-tab-panel>
+
+      <!-- ── Memory tab ───────────────────────────────────────────────────── -->
+      <syn-tab-panel name="memory" class="pt-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- RAM card -->
+          <div class="border rounded-lg p-4 bg-syn-color-neutral-0">
+            <p class="font-semibold text-[13px] mb-3">RAM</p>
+            <div class="flex justify-between text-[11px] text-syn-color-neutral-600 mb-1">
+              <span>{{ ramLabel() }}</span>
+              <span
+                ><b>{{ ramPercent().toFixed(1) }}%</b></span
+              >
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" [style.width.%]="ramPercent()"></div>
+            </div>
+            <div class="flex gap-4 mt-3 text-[11px] text-syn-color-neutral-500">
+              <span>● Used</span>
+              <span style="opacity: 0.5">● Free</span>
+            </div>
+          </div>
+
+          <!-- Swap card -->
+          @if (swap(); as s) {
+            <div class="border rounded-lg p-4 bg-syn-color-neutral-0">
+              <p class="font-semibold text-[13px] mb-3">Swap</p>
+              <div class="flex justify-between text-[11px] text-syn-color-neutral-600 mb-1">
+                <span>{{ swapLabel() }}</span>
+                <span
+                  ><b>{{ swapPercent().toFixed(1) }}%</b></span
+                >
+              </div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" [style.width.%]="swapPercent()"></div>
+              </div>
+            </div>
+          }
+
+          <!-- Disk partitions -->
+          <div class="border rounded-lg p-4 bg-syn-color-neutral-0 md:col-span-2">
+            <p class="font-semibold text-[13px] mb-3">Storage</p>
+            @for (part of partitions(); track part.mountpoint) {
+              <div class="mb-3 last:mb-0">
+                <div class="flex justify-between text-[11px] text-syn-color-neutral-700 mb-1">
+                  <span class="font-medium">{{ part.mountpoint }} ({{ part.fstype }})</span>
+                  <span>
+                    <b>{{ part.used_gb?.toFixed(2) }}</b>
+                    Used / {{ part.total_gb?.toFixed(2) }} Total (GB)
+                  </span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" [style.width.%]="part.percent ?? 0"></div>
+                </div>
+              </div>
+            }
+            <div class="flex gap-4 mt-3 text-[11px] text-syn-color-neutral-500">
+              <span>● Used</span>
+              <span style="opacity: 0.5">● Free</span>
+            </div>
+          </div>
+        </div>
+      </syn-tab-panel>
+
+      <!-- ── Network tab ──────────────────────────────────────────────────── -->
+      <syn-tab-panel name="network" class="pt-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          @for (iface of interfaces(); track iface.name) {
+            <div class="border rounded-lg p-3 bg-syn-color-neutral-0 text-[12px]">
+              <div class="flex items-center gap-2 mb-2">
+                <span
+                  class="w-2 h-2 rounded-full shrink-0"
+                  [class.bg-syn-color-success-600]="iface.is_up"
+                  [class.bg-syn-color-neutral-400]="!iface.is_up"
+                ></span>
+                <span class="font-semibold text-[13px] truncate">{{ iface.name }}</span>
+                @if (iface.speed_mbps) {
+                  <span class="ml-auto text-syn-color-neutral-500 text-[10px]"
+                    >{{ iface.speed_mbps }} Mb/s</span
+                  >
+                }
+              </div>
+              @if (iface.ipv4) {
+                <p class="text-syn-color-neutral-700">{{ iface.ipv4 }}</p>
+              }
+              @if (iface.ipv6) {
+                <p class="text-syn-color-neutral-500 truncate" [title]="iface.ipv6">
+                  {{ iface.ipv6 }}
+                </p>
+              }
+              @if (iface.sent_mb !== null) {
+                <div class="flex gap-3 mt-2 text-syn-color-neutral-500 text-[10px]">
+                  <span>↑ {{ iface.sent_mb?.toFixed(1) }} MB</span>
+                  <span>↓ {{ iface.recv_mb?.toFixed(1) }} MB</span>
+                  @if (iface.errin || iface.errout) {
+                    <span class="text-syn-color-error-600">
+                      err {{ iface.errin }}/{{ iface.errout }}
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </syn-tab-panel>
+    </syn-tab-group>
+  }
+</syn-card>

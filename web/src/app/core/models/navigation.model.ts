@@ -23,5 +23,6 @@ export const NAVIGATION_CONFIG: NavItem[] = [
     footer: true,
     requiredRole: 'service',
   },
-  { label: 'Logs', route: '/logs', icon: 'terminal', divider: true },
+  { label: 'Logs',        route: '/logs',  icon: 'terminal',    divider: true },
+  { label: 'Resource Monitor', route: '/host',  icon: 'monitor_heart', divider: true },
 ];

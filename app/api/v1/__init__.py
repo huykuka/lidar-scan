@@ -7,6 +7,7 @@ from .config import router as config_router
 from .dag import router as dag_router
 from .edges import router as edges_router
 from .flow_control import router as flow_control_router
+from .host import router as host_router
 from .lidar import router as lidar_router
 from .logs import router as logs_router
 from .nodes import router as nodes_router
@@ -30,5 +31,6 @@ router.include_router(pcd_injection_router)
 router.include_router(assets_router)
 router.include_router(flow_control_router)
 router.include_router(dag_router)
+router.include_router(host_router)
 router.include_router(ws_router)
 router.include_router(auth_router)

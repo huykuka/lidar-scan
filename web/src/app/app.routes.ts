@@ -53,6 +53,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/logs/logs.component').then((m) => m.LogsComponent),
       },
       {
+        path: 'host',
+        loadComponent: () => import('./features/host/host.component').then((m) => m.HostComponent),
+      },
+      {
         path: 'results',
         loadComponent: () =>
           import('./features/results/results-overview/results-overview.component').then(

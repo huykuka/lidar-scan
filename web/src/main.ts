@@ -3,6 +3,9 @@ import { appConfig } from './app/app.config';
 import { App } from './app/app';
 import { setGlobalDefaultSettings } from '@synergy-design-system/components';
 
+// syn-chart is not in the default Synergy bundle — must be imported explicitly
+import '@synergy-design-system/components/components/chart/chart.js';
+
 // Set size="small" globally for all Synergy components that support it
 setGlobalDefaultSettings({
   size: {

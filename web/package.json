@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "scripts": {
     "ng": "ng",
     "start": "ng serve --host 0.0.0.0",
@@ -38,6 +38,7 @@
     "@synergy-design-system/fonts": "^1.0.7",
     "@synergy-design-system/styles": "^2.1.1",
     "@synergy-design-system/tokens": "^3.15.5",
+    "echarts": "^6.1.0",
     "jszip": "^3.10.1",
     "rxjs": "~7.8.0",
     "three": "^0.183.1"

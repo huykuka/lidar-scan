@@ -16,3 +16,7 @@
 @import './styles/layout.css';
 @import './styles/scrollbar.css';
 @import './styles/border-tokens.css';
+
+/* syn-chart: chart-specific design tokens */
+@import './styles/chart-tokens-light.css';
+@import './styles/chart-tokens-dark.css';
