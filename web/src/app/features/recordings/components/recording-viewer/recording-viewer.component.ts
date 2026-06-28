@@ -47,6 +47,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   playbackSpeed = signal(1.0);
   error = signal<string | null>(null);
   isDownloading = signal(false);
+  downloadProgress = signal<number>(-1); // -1 = indeterminate, 0-100 = progress
   // Display Settings
   pointSize = signal(0.05);
   pointColor = signal('#3b82f6');
@@ -284,25 +285,23 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     });
   }
 
-  private downloadRecordingArchive(id: string) {
+  private async downloadRecordingArchive(id: string): Promise<void> {
     this.isDownloading.set(true);
-    this.recordingApi.getRecordingZip(id).subscribe({
-      next: async (blob) => {
-        try {
-          this.zip = await JSZip.loadAsync(blob);
-          this.isDownloading.set(false);
-          this.isLoading.set(false);
-          this.ensureFrameBuffered(0);
-        } catch (err: any) {
-          this.error.set(`Extraction Error: ${err.message}`);
-          this.isLoading.set(false);
-        }
-      },
-      error: (err) => {
-        this.error.set(`Stream Interrupted: ${err.message}`);
-        this.isLoading.set(false);
-      },
-    });
+    this.downloadProgress.set(-1);
+    try {
+      const blob = await this.recordingApi.getRecordingZip(id, (pct) => {
+        this.downloadProgress.set(pct);
+      });
+      this.zip = await JSZip.loadAsync(blob);
+      this.isDownloading.set(false);
+      this.downloadProgress.set(-1);
+      this.isLoading.set(false);
+      this.ensureFrameBuffered(0);
+    } catch (err: any) {
+      this.error.set(`Stream Interrupted: ${err.message}`);
+      this.isLoading.set(false);
+      this.isDownloading.set(false);
+    }
   }
 
   private async ensureFrameBuffered(frameIndex: number) {

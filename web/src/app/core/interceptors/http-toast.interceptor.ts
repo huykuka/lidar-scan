@@ -40,6 +40,9 @@ export const httpToastInterceptor: HttpInterceptorFn = (req, next) => {
     tap((event) => {
       if (!(event instanceof HttpResponse)) return;
 
+      // Skip toast logic for binary responses — body is a Blob, not JSON.
+      if (event.body instanceof Blob) return;
+
       // Backends sometimes respond 200 with {status:"error"}; treat as user-visible error.
       const body: any = event.body;
       if (isBackendStatusError(body)) {

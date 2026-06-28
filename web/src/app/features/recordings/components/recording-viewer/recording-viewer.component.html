@@ -1,19 +1,15 @@
 <div
   class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500 relative bg-syn-page-background-color-muted"
 >
-  <!-- Local Action Bar -->
-  <div class="absolute -top-11 right-2 z-30 flex gap-2">
-    <button
-      (click)="goBack()"
-      class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black uppercase hover:text-syn-color-primary-600 transition-colors"
-    >
-      <syn-icon name="arrow_back" />
-      Back
-    </button>
-    <div class="h-4 w-px bg-syn-color-neutral-300 self-center"></div>
+  <!-- Top bar: back button + cockpit toggle -->
+  <div class="flex items-center gap-2 mb-3 shrink-0">
+    <syn-button variant="outline" size="small" (click)="goBack()">
+      <syn-icon name="arrow_back" slot="prefix" />
+      Recordings
+    </syn-button>
+    <div class="h-4 w-px bg-syn-color-neutral-300"></div>
     <syn-button
       (click)="toggleCockpit()"
-      class="text-syn-color-primary-600"
       size="small"
       variant="text"
     >
@@ -29,6 +25,18 @@
     >
       <!-- 3D Canvas -->
       <div #container class="h-full w-full bg-transparent"></div>
+
+      <!-- Download progress overlay -->
+      @if (isDownloading()) {
+        <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded-2xl z-20">
+          <syn-progress-ring
+            [value]="downloadProgress() >= 0 ? downloadProgress() : 0"
+            label="Downloading recording"
+            style="font-size: 1.1rem; --size: 80px;"
+          >
+          </syn-progress-ring>
+        </div>
+      }
 
       <!-- Playback HUD (Inside 3D View) -->
       <div
