@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { PointCloudDataService, type FramePayload } from '@core/services/point-cloud-data.service';
-import { ViewOrientation } from '@core/services/split-layout-store.service';
+import { ViewOrientation, SplitLayoutStoreService } from '@core/services/split-layout-store.service';
 import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
 import { ShapeLayerService } from '@core/services/shape-layer.service';
 import { ShapesWsService } from '@core/services/shapes-ws.service';
@@ -61,7 +61,7 @@ import { Subscription } from 'rxjs';
     `,
   ],
 })
-export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
+export class PointCloudComponent implements AfterViewInit, OnDestroy {
   readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
 
   // Inputs for customization
@@ -102,6 +102,8 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Injected workspace store — provides selected topics with colors */
   private readonly workspaceStore = inject(WorkspaceStoreService);
+  /** Injected split layout store — used to react to camera reset requests */
+  private readonly splitLayout = inject(SplitLayoutStoreService);
 
   /** Injected shape layer service — owns Three.js shape objects on Layer 2 */
   private readonly shapeLayerService = inject(ShapeLayerService);
@@ -123,6 +125,9 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   > = new Map();
   private readonly lastAppliedFrames = new Map<string, FramePayload>();
+
+  /** Previous snapshot of enabled topics used to diff against next update. */
+  private prevTopicSnapshot = new Map<string, string>(); // topic → color
 
   private gridHelper?: THREE.GridHelper;
   private axesHelper?: THREE.AxesHelper;
@@ -204,21 +209,21 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    // Re-sync Three.js point cloud objects whenever selected topics change
+    // React to camera reset requests from the overlay
     effect(() => {
-      const selectedTopics = this.workspaceStore.selectedTopics(); // tracked signal
+      const req = this.splitLayout.resetCameraRequest();
+      if (req?.paneId === this.viewId() && this.controls) {
+        this.resetCamera();
+      }
+    });
+
+    // Re-sync Three.js point cloud objects whenever selected topics change.
+    // Deferred until scene is ready; initial call from ngAfterViewInit handles
+    // the bootstrap case so no changes are lost.
+    effect(() => {
+      const selectedTopics = this.workspaceStore.selectedTopics();
       if (!this.scene) return;
-      const enabledSet = new Set(selectedTopics.filter((t) => t.enabled).map((t) => t.topic));
-
-      // Remove clouds for topics no longer enabled
-      Array.from(this.pointClouds.keys()).forEach((topic) => {
-        if (!enabledSet.has(topic)) this.removePointCloud(topic);
-      });
-
-      // Add or update clouds for enabled topics
-      selectedTopics.forEach(({ topic, color, enabled }) => {
-        if (enabled) this.addOrUpdatePointCloud(topic, color);
-      });
+      this.diffAndSyncTopics(selectedTopics);
     });
 
     // ── FE-04: Subscribe to PointCloudDataService frames signal ──────────────
@@ -228,8 +233,6 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       this.syncFrameBuffers(frames);
     });
   }
-
-  ngOnInit() {}
 
   ngAfterViewInit() {
     try {
@@ -241,9 +244,9 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       this.errorMessage.set(message);
       return; // Don't attempt syncTopicClouds or animate
     }
-    // Initialize point clouds for all currently selected topics now that
-    // the Three.js scene is ready. Subsequent changes are handled by effect().
-    this.syncTopicClouds();
+    // Bootstrap: sync topics now that the scene is ready.
+    // Subsequent changes are handled by the selectedTopics effect().
+    this.diffAndSyncTopics(this.workspaceStore.selectedTopics());
     this.animate();
 
     // ── FE-06: Initialize shape layer and subscribe to shapes stream ──────────
@@ -308,10 +311,13 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   addOrUpdatePointCloud(topic: string, color: string) {
     if (this.pointClouds.has(topic)) {
-      // Update existing cloud color
+      // Already exists — diffAndSyncTopics handles color-only updates separately.
+      // This path is kept for callers that bypass the diff (e.g. direct invocation).
       const cloud = this.pointClouds.get(topic)!;
-      cloud.material.color.set(color);
-      this.requestRender();
+      if (cloud.material.color.getHexString() !== new THREE.Color(color).getHexString()) {
+        cloud.material.color.set(color);
+        this.requestRender();
+      }
       return;
     }
 
@@ -397,33 +403,50 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   resetCamera() {
-    this.perspCamera.position.set(15, 15, 15);
-    this.controls.target.set(0, 0, 0);
-    this.controls.update();
-    this.requestRender();
+    this.initCamera(this.viewType());
   }
 
   /**
-   * Synchronise Three.js point cloud objects with the currently selected topics.
-   * Called once from ngAfterViewInit (after scene is ready) and from the
-   * selectedTopics effect() for subsequent changes.
+   * Diff the incoming topic list against the previous snapshot and apply only
+   * the minimum set of Three.js operations needed:
+   *   - Remove clouds for topics that are no longer enabled
+   *   - Update material color for topics whose color changed
+   *   - Create a new cloud only for genuinely new enabled topics
+   *
+   * Called both from `ngAfterViewInit` (bootstrap) and the selectedTopics effect.
    */
-  private syncTopicClouds(): void {
-    const selectedTopics = this.workspaceStore.selectedTopics();
-    const enabledSet = new Set(selectedTopics.filter((t) => t.enabled).map((t) => t.topic));
+  private diffAndSyncTopics(
+    selectedTopics: { topic: string; color: string; enabled: boolean }[],
+  ): void {
+    // Build the incoming enabled snapshot: topic → color
+    const next = new Map<string, string>();
+    for (const { topic, color, enabled } of selectedTopics) {
+      if (enabled) next.set(topic, color);
+    }
 
-    // Remove clouds for topics no longer enabled
-    Array.from(this.pointClouds.keys()).forEach((topic) => {
-      if (!enabledSet.has(topic)) {
-        this.removePointCloud(topic);
+    // 1. Remove clouds that are no longer in the enabled set
+    for (const topic of this.pointClouds.keys()) {
+      if (!next.has(topic)) this.removePointCloud(topic);
+    }
+
+    // 2. Add new or update color-changed clouds
+    for (const [topic, color] of next) {
+      const prev = this.prevTopicSnapshot.get(topic);
+      if (prev === undefined) {
+        // New topic — create cloud
+        this.addOrUpdatePointCloud(topic, color);
+      } else if (prev !== color) {
+        // Color changed — update material only (no geometry allocation)
+        const cloud = this.pointClouds.get(topic);
+        if (cloud) {
+          cloud.material.color.set(color);
+          this.requestRender();
+        }
       }
-    });
+      // else: topic exists with same color — no-op
+    }
 
-    // Add or update clouds for enabled topics
-    selectedTopics.forEach(({ topic, color, enabled }) => {
-      if (!enabled) return;
-      this.addOrUpdatePointCloud(topic, color);
-    });
+    this.prevTopicSnapshot = next;
   }
 
   private syncSize() {
@@ -507,20 +530,15 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     // Axis Labels
     const axisX = this.createTextSprite('Y', '#ff0000');
     axisX.position.set(5.5, 0, 0);
-    axisX.visible = !!this.showAxes();
 
     const axisY = this.createTextSprite('Z', '#00ff00');
     axisY.position.set(0, 5.5, 0);
-    axisY.visible = !!this.showAxes();
 
     const axisZ = this.createTextSprite('X', '#0000ff');
     axisZ.position.set(0, 0, 5.5);
     axisZ.visible = !!this.showAxes();
 
     this.axesLabels = [axisX, axisY, axisZ];
-    this.scene.add(...this.axesLabels);
-
-    // NOTE: ResizeObserver is created in ngAfterViewInit — do NOT add a second one here.
   }
 
   /**
@@ -539,14 +557,28 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
       this.controls.object = this.perspCamera;
       this.controls.enableRotate = true;
     } else {
+      // Reset up vector to default; override below where needed
+      this.orthoCamera.up.set(0, 1, 0);
+
       switch (viewType) {
         case 'top':
           this.orthoCamera.position.set(0, distance, 0);
+          this.orthoCamera.up.set(0, 0, -1);
+          break;
+        case 'bottom':
+          this.orthoCamera.position.set(0, -distance, 0);
+          this.orthoCamera.up.set(0, 0, 1);
           break;
         case 'front':
           this.orthoCamera.position.set(0, 0, distance);
           break;
-        case 'side':
+        case 'end':
+          this.orthoCamera.position.set(0, 0, -distance);
+          break;
+        case 'left':
+          this.orthoCamera.position.set(-distance, 0, 0);
+          break;
+        case 'right':
           this.orthoCamera.position.set(distance, 0, 0);
           break;
       }
@@ -653,7 +685,7 @@ export class PointCloudComponent implements OnInit, AfterViewInit, OnDestroy {
     context.fillStyle = 'rgba(0,0,0,0)';
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.font = 'bold 20px ';
+    context.font = 'bold 1000px ';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
     context.fillStyle = color;

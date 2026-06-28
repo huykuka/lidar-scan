@@ -1,8 +1,8 @@
 <!-- Viewport overlay: positioned absolutely over the Three.js canvas -->
 <div class="absolute inset-0 pointer-events-none z-10">
 
-  <!-- Top-left: orientation dropdown -->
-  <div class="absolute top-2 left-2 pointer-events-auto">
+  <!-- Top-left: orientation dropdown + reset button — always on top of empty-state -->
+  <div class="absolute top-2 left-2 pointer-events-auto flex items-center gap-1 z-20">
     <syn-dropdown
       placement="bottom-start"
       [distance]="4"
@@ -33,6 +33,15 @@
         }
       </div>
     </syn-dropdown>
+
+    <!-- Reset camera to center -->
+    <button
+      class="orient-trigger"
+      title="Reset view to center"
+      (click)="resetCamera()"
+    >
+      <syn-icon name="center_focus_strong" style="font-size:16px;color:#fff;display:flex;"></syn-icon>
+    </button>
   </div>
 
   <!-- Empty state overlay: shown when no point cloud data is loaded -->

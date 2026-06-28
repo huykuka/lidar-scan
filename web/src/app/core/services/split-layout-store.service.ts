@@ -1,4 +1,4 @@
-import { computed, effect, Injectable } from '@angular/core';
+import { computed, effect, Injectable, signal } from '@angular/core';
 import { SignalsSimpleStoreService } from './signals-simple-store.service';
 
 /**
@@ -15,13 +15,13 @@ function randomUUID(): string {
   crypto.getRandomValues(bytes);
   bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant bits
-  const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0'));
-  return `${hex.slice(0,4).join('')}-${hex.slice(4,6).join('')}-${hex.slice(6,8).join('')}-${hex.slice(8,10).join('')}-${hex.slice(10).join('')}`;
+  const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0'));
+  return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`;
 }
 
 // ── Public Type Exports (API Spec §2.1) ───────────────────────────────────────
 
-export type ViewOrientation = 'perspective' | 'top' | 'front' | 'side';
+export type ViewOrientation = 'perspective' | 'top' | 'bottom' | 'front' | 'end' | 'left' | 'right';
 export type SplitAxis = 'horizontal' | 'vertical';
 export type LayoutMode = 'single' | 'h-split' | 'v-split' | '4-grid' | '1+2';
 
@@ -60,17 +60,25 @@ export interface SplitLayoutState {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const VALID_ORIENTATIONS: ReadonlySet<ViewOrientation> = new Set([
-  'perspective', 'top', 'front', 'side',
+  'perspective',
+  'top',
+  'bottom',
+  'front',
+  'end',
+  'left',
+  'right',
 ]);
 
 const STORAGE_KEY = 'lidar_split_layout_v1';
 
 /** Exported for use in tests and mocks */
 export const DEFAULT_SPLIT_LAYOUT: SplitLayoutState = {
-  groups: [{
-    axis: 'horizontal',
-    panes: [{ id: 'default-pane', orientation: 'perspective', sizeFraction: 1 }],
-  }],
+  groups: [
+    {
+      axis: 'horizontal',
+      panes: [{ id: 'default-pane', orientation: 'perspective', sizeFraction: 1 }],
+    },
+  ],
   focusedPaneId: null,
   paneCount: 1,
   isTransitioning: false,
@@ -86,14 +94,14 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
   readonly MIN_PX = 200;
 
   // ── Signal selectors ─────────────────────────────────────────────────────
-  groups          = this.select('groups');
-  focusedPaneId   = this.select('focusedPaneId');
-  paneCount       = this.select('paneCount');
+  groups = this.select('groups');
+  focusedPaneId = this.select('focusedPaneId');
+  paneCount = this.select('paneCount');
   isTransitioning = this.select('isTransitioning');
-  layoutMode      = this.select('layoutMode');
+  layoutMode = this.select('layoutMode');
 
   // ── Computed signals ──────────────────────────────────────────────────────
-  allPanes   = computed(() => this.groups().flatMap(g => g.panes));
+  allPanes = computed(() => this.groups().flatMap((g) => g.panes));
   canAddPane = computed(() => this.paneCount() < this.MAX_PANES);
 
   /**
@@ -143,12 +151,12 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     };
 
     // Replace largest pane with two halves
-    const updatedPanes = group.panes.map(p =>
+    const updatedPanes = group.panes.map((p) =>
       p.id === largestPane.id ? { ...p, sizeFraction: halfFraction } : p,
     );
 
     // Insert new pane after the split pane
-    const splitIndex = updatedPanes.findIndex(p => p.id === largestPane.id);
+    const splitIndex = updatedPanes.findIndex((p) => p.id === largestPane.id);
     updatedPanes.splice(splitIndex + 1, 0, newPane);
 
     const newCount = this.paneCount() + 1;
@@ -173,15 +181,15 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     const group = groups[0];
     if (!group) return;
 
-    const paneIndex = group.panes.findIndex(p => p.id === paneId);
+    const paneIndex = group.panes.findIndex((p) => p.id === paneId);
     if (paneIndex === -1) return;
 
     const removedFraction = group.panes[paneIndex].sizeFraction;
-    const remaining = group.panes.filter(p => p.id !== paneId);
+    const remaining = group.panes.filter((p) => p.id !== paneId);
     const sumRemaining = remaining.reduce((s, p) => s + p.sizeFraction, 0);
 
     // Proportionally redistribute the removed fraction
-    const redistributed = remaining.map(p => ({
+    const redistributed = remaining.map((p) => ({
       ...p,
       sizeFraction: p.sizeFraction + removedFraction * (p.sizeFraction / sumRemaining),
     }));
@@ -189,12 +197,14 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     const newCount = this.paneCount() - 1;
 
     this.setState({
-      groups: [{
-        ...group,
-        panes: redistributed,
-        // Reset axis to neutral when only 1 pane remains
-        axis: newCount === 1 ? 'horizontal' : group.axis,
-      }],
+      groups: [
+        {
+          ...group,
+          panes: redistributed,
+          // Reset axis to neutral when only 1 pane remains
+          axis: newCount === 1 ? 'horizontal' : group.axis,
+        },
+      ],
       paneCount: newCount,
       isTransitioning: true,
     });
@@ -205,11 +215,23 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
   /** Update the orientation of a single pane. */
   setPaneOrientation(paneId: string, orientation: ViewOrientation): void {
     const groups = this.groups();
-    const updatedGroups = groups.map(group => ({
+    const updatedGroups = groups.map((group) => ({
       ...group,
-      panes: group.panes.map(p => p.id === paneId ? { ...p, orientation } : p),
+      panes: group.panes.map((p) => (p.id === paneId ? { ...p, orientation } : p)),
     }));
     this.setState({ groups: updatedGroups });
+  }
+
+  /**
+   * Each call sets { paneId, seq } where seq increments — so the effect in
+   * PointCloudComponent always sees a new object reference and re-runs,
+   * even for repeated presses on the same pane.
+   */
+  readonly resetCameraRequest = signal<{ paneId: string; seq: number } | null>(null);
+  private _resetSeq = 0;
+
+  requestCameraReset(paneId: string): void {
+    this.resetCameraRequest.set({ paneId, seq: ++this._resetSeq });
   }
 
   /**
@@ -221,7 +243,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     const groups = this.groups();
 
     // Find which group contains this pane
-    let targetGroupIdx = groups.findIndex(g => g.panes.some(p => p.id === paneId));
+    let targetGroupIdx = groups.findIndex((g) => g.panes.some((p) => p.id === paneId));
 
     // In '1+2' mode the outer column divider is keyed to groups[0]'s pane —
     // treat it as a special outer-column resize.
@@ -234,7 +256,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     const group = groups[targetGroupIdx];
     if (!group) return;
 
-    const idx = group.panes.findIndex(p => p.id === paneId);
+    const idx = group.panes.findIndex((p) => p.id === paneId);
     if (idx === -1 || idx === group.panes.length - 1) return;
 
     const minFraction = this.MIN_PX / containerPx;
@@ -297,13 +319,15 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
   /** Set a horizontal 2-split (top/bottom): top pane perspective, bottom pane top-view. */
   setHorizontalSplit(): void {
     this.setState({
-      groups: [{
-        axis: 'horizontal',
-        panes: [
-          { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
-          { id: randomUUID(), orientation: 'top',         sizeFraction: 0.5 },
-        ],
-      }],
+      groups: [
+        {
+          axis: 'horizontal',
+          panes: [
+            { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
+            { id: randomUUID(), orientation: 'top', sizeFraction: 0.5 },
+          ],
+        },
+      ],
       focusedPaneId: null,
       paneCount: 2,
       isTransitioning: false,
@@ -314,13 +338,15 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
   /** Set a vertical 2-split (left/right): left pane perspective, right pane front-view. */
   setVerticalSplit(): void {
     this.setState({
-      groups: [{
-        axis: 'vertical',
-        panes: [
-          { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
-          { id: randomUUID(), orientation: 'front',       sizeFraction: 0.5 },
-        ],
-      }],
+      groups: [
+        {
+          axis: 'vertical',
+          panes: [
+            { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.5 },
+            { id: randomUUID(), orientation: 'front', sizeFraction: 0.5 },
+          ],
+        },
+      ],
       focusedPaneId: null,
       paneCount: 2,
       isTransitioning: false,
@@ -328,18 +354,20 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     });
   }
 
-  /** Set a 4-pane grid (2×2): perspective (TL), top (TR), front (BL), side (BR). */
+  /** Set a 4-pane grid (2×2): perspective (TL), top (TR), front (BL), right (BR). */
   setFourPaneGrid(): void {
     this.setState({
-      groups: [{
-        axis: 'vertical',
-        panes: [
-          { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.25 },
-          { id: randomUUID(), orientation: 'top',         sizeFraction: 0.25 },
-          { id: randomUUID(), orientation: 'front',       sizeFraction: 0.25 },
-          { id: randomUUID(), orientation: 'side',        sizeFraction: 0.25 },
-        ],
-      }],
+      groups: [
+        {
+          axis: 'vertical',
+          panes: [
+            { id: randomUUID(), orientation: 'perspective', sizeFraction: 0.25 },
+            { id: randomUUID(), orientation: 'top', sizeFraction: 0.25 },
+            { id: randomUUID(), orientation: 'front', sizeFraction: 0.25 },
+            { id: randomUUID(), orientation: 'right', sizeFraction: 0.25 },
+          ],
+        },
+      ],
       focusedPaneId: null,
       paneCount: 4,
       isTransitioning: false,
@@ -363,7 +391,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
         {
           axis: 'vertical',
           panes: [
-            { id: randomUUID(), orientation: 'top',   sizeFraction: 0.5 },
+            { id: randomUUID(), orientation: 'top', sizeFraction: 0.5 },
             { id: randomUUID(), orientation: 'front', sizeFraction: 0.5 },
           ],
         },
@@ -411,32 +439,41 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
 
   private validateAndSanitise(state: SplitLayoutState): SplitLayoutState | null {
     if (!state || !Array.isArray(state.groups) || state.groups.length === 0) return null;
-    if (typeof state.paneCount !== 'number' || state.paneCount < 1 || state.paneCount > 4) return null;
+    if (typeof state.paneCount !== 'number' || state.paneCount < 1 || state.paneCount > 4)
+      return null;
 
     // Sanitise each group's panes
-    const sanitisedGroups = state.groups.map(group => {
-      const sanitisedPanes = group.panes.map(pane => ({
+    const sanitisedGroups = state.groups.map((group) => {
+      const sanitisedPanes = group.panes.map((pane) => ({
         ...pane,
-        orientation: VALID_ORIENTATIONS.has(pane.orientation) ? pane.orientation : 'perspective' as ViewOrientation,
+        orientation: VALID_ORIENTATIONS.has(pane.orientation)
+          ? pane.orientation
+          : ('perspective' as ViewOrientation),
       }));
 
       // Check if any fractions are out of range → normalise to equal distribution
       const hasInvalidFraction = sanitisedPanes.some(
-        p => typeof p.sizeFraction !== 'number' || p.sizeFraction < 0 || p.sizeFraction > 1,
+        (p) => typeof p.sizeFraction !== 'number' || p.sizeFraction < 0 || p.sizeFraction > 1,
       );
 
       if (hasInvalidFraction) {
         const equalFraction = 1 / sanitisedPanes.length;
         return {
           ...group,
-          panes: sanitisedPanes.map(p => ({ ...p, sizeFraction: equalFraction })),
+          panes: sanitisedPanes.map((p) => ({ ...p, sizeFraction: equalFraction })),
         };
       }
 
       return { ...group, panes: sanitisedPanes };
     });
 
-    const VALID_MODES: ReadonlySet<string> = new Set(['single', 'h-split', 'v-split', '4-grid', '1+2']);
+    const VALID_MODES: ReadonlySet<string> = new Set([
+      'single',
+      'h-split',
+      'v-split',
+      '4-grid',
+      '1+2',
+    ]);
 
     return {
       ...state,
@@ -448,10 +485,12 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
 
   private getDefaultState(): SplitLayoutState {
     return {
-      groups: [{
-        axis: 'horizontal',
-        panes: [{ id: randomUUID(), orientation: 'perspective', sizeFraction: 1 }],
-      }],
+      groups: [
+        {
+          axis: 'horizontal',
+          panes: [{ id: randomUUID(), orientation: 'perspective', sizeFraction: 1 }],
+        },
+      ],
       focusedPaneId: null,
       paneCount: 1,
       isTransitioning: false,
