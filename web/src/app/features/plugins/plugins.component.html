@@ -1,0 +1,136 @@
+<div class="h-full flex flex-col gap-4 animate-in fade-in duration-500">
+
+  <!-- Summary + Upload bar -->
+  <div class="bg-syn-page-background-color rounded-xl shadow-sm border p-4 flex items-center justify-between gap-4 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 text-sm text-syn-color-neutral-700">
+        <syn-icon name="extension" class="text-lg text-syn-color-primary-600" />
+        <span class="font-semibold">{{ loadedCount() }}</span>
+        <span class="text-syn-color-neutral-500">of {{ totalCount() }} plugin(s) loaded</span>
+      </div>
+    </div>
+
+    <syn-button
+      (click)="onUploadClick()"
+      [loading]="isUploading()"
+      [disabled]="isUploading()"
+      variant="filled"
+    >
+      <syn-icon name="upload" slot="prefix" />
+      Upload Plugin (.zip)
+    </syn-button>
+
+    <!-- Hidden file input -->
+    <input
+      #fileInput
+      type="file"
+      accept=".zip"
+      class="hidden"
+      (change)="onFileSelected($event)"
+    />
+  </div>
+
+  <!-- Drop zone + list -->
+  <div
+    class="bg-syn-page-background-color rounded-xl shadow-sm border overflow-hidden flex-1 min-h-0 flex flex-col"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+    [class.ring-2]="isDragOver()"
+    [class.ring-syn-color-primary-400]="isDragOver()"
+  >
+    @if (isLoading()) {
+      <div class="flex-1 flex items-center justify-center">
+        <div class="flex flex-col items-center gap-3 text-syn-color-neutral-600">
+          <syn-spinner style="font-size: 2rem" />
+          <span class="text-sm font-medium">Loading plugins...</span>
+        </div>
+      </div>
+
+    } @else if (plugins().length === 0) {
+      <!-- Empty state / drop target -->
+      <div
+        class="flex-1 flex items-center justify-center"
+        [class.bg-syn-color-primary-50]="isDragOver()"
+      >
+        <div class="flex flex-col items-center gap-3 text-syn-color-neutral-400 text-center px-8">
+          <syn-icon name="extension" class="text-5xl" />
+          <p class="text-sm font-semibold text-syn-color-neutral-600">No plugins installed</p>
+          <p class="text-xs max-w-xs">
+            Drop a <code class="font-mono bg-syn-color-neutral-100 px-1 rounded">.zip</code>
+            here or use the Upload button. Each zip must contain a single directory with a
+            <code class="font-mono bg-syn-color-neutral-100 px-1 rounded">registry.py</code>.
+          </p>
+        </div>
+      </div>
+
+    } @else {
+      @if (isDragOver()) {
+        <!-- Drop overlay -->
+        <div class="absolute inset-0 z-20 flex items-center justify-center bg-syn-color-primary-50/90 rounded-xl pointer-events-none">
+          <div class="flex flex-col items-center gap-2 text-syn-color-primary-600">
+            <syn-icon name="upload" class="text-5xl" />
+            <span class="text-sm font-semibold">Drop to install plugin</span>
+          </div>
+        </div>
+      }
+
+      <div class="flex-1 overflow-y-auto syn-scrollbar relative">
+        @for (plugin of plugins(); track plugin.name) {
+          <div
+            class="flex items-center gap-4 px-5 py-4 border-b hover:bg-syn-color-neutral-50 transition-colors"
+          >
+            <!-- Icon -->
+            <div
+              class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              [class]="plugin.loaded ? 'bg-syn-color-primary-100' : 'bg-syn-color-neutral-100'"
+            >
+              <syn-icon
+                name="extension"
+                [class]="plugin.loaded ? 'text-xl text-syn-color-primary-600' : 'text-xl text-syn-color-neutral-400'"
+              />
+            </div>
+
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span
+                  class="text-sm font-semibold"
+                  [class]="plugin.loaded ? 'text-syn-color-neutral-900' : 'text-syn-color-neutral-400'"
+                >
+                  {{ plugin.name }}
+                </span>
+
+                <!-- Type badges -->
+                @for (type of plugin.types; track type) {
+                  <code class="text-[10px] px-1.5 py-0.5 rounded font-mono bg-syn-color-primary-50 text-syn-color-primary-700 border border-syn-color-primary-200">
+                    {{ type }}
+                  </code>
+                }
+
+                @if (!plugin.loaded && plugin.types.length === 0) {
+                  <span class="text-xs text-syn-color-neutral-400 italic">not loaded</span>
+                }
+              </div>
+            </div>
+
+            <!-- Toggle load/unload -->
+            <div class="shrink-0 flex items-center gap-2">
+              @if (actionInProgress() === plugin.name) {
+                <syn-spinner style="font-size: 1rem" />
+              } @else {
+                <syn-switch
+                  [checked]="plugin.loaded"
+                  (syn-change)="onToggle(plugin)"
+                  size="small"
+                  [title]="plugin.loaded ? 'Unload plugin' : 'Load plugin'"
+                />
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+</div>

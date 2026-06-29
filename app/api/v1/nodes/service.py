@@ -8,7 +8,7 @@ per-node calls.
 """
 
 import time
-from typing import Optional
+from typing import Optional, Set
 
 from fastapi import HTTPException
 from pydantic import BaseModel
@@ -323,3 +323,64 @@ async def get_nodes_status():
         status_updates.append(entry)
 
     return {"nodes": status_updates}
+
+
+# ── Plugin load / unload ───────────────────────────────────────────────────
+
+
+class PluginRecord(BaseModel):
+    name: str
+    loaded: bool
+    types: list[str]
+
+
+async def list_plugins() -> list[PluginRecord]:
+    """List all plugin directories with their load state."""
+    from app.plugins import list_plugins as _list
+
+    return [PluginRecord(**p) for p in _list()]
+
+
+async def load_plugin(plugin_name: str) -> dict:
+    """Hot-load a plugin from app/plugins/."""
+    from app.plugins import load_plugin as _load
+
+    try:
+        registered_types = _load(plugin_name)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ModuleNotFoundError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to load plugin '{plugin_name}': {exc}")
+
+    return {"status": "loaded", "plugin": plugin_name, "types": sorted(registered_types)}
+
+
+async def unload_plugin(plugin_name: str) -> dict:
+    """Hot-unload a plugin from app/plugins/."""
+    from app.plugins import _loaded_plugins, unload_plugin as _unload
+
+    if plugin_name not in _loaded_plugins:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' is not currently loaded")
+
+    removed_types = _unload(plugin_name)
+    return {"status": "unloaded", "plugin": plugin_name, "types": sorted(removed_types)}
+
+
+async def upload_plugin(zip_bytes: bytes, auto_load: bool) -> dict:
+    """Install a plugin from a zip upload."""
+    from app.plugins import install_plugin_zip
+
+    try:
+        plugin_name, registered_types = install_plugin_zip(zip_bytes, auto_load=auto_load)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Plugin install failed: {exc}")
+
+    return {
+        "status": "installed" if not auto_load else "installed_and_loaded",
+        "plugin": plugin_name,
+        "types": sorted(registered_types),
+    }

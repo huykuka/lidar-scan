@@ -5,7 +5,7 @@ All node creation, update, and deletion is now performed atomically via
 PUT /api/v1/dag/config. This router retains read-only and live-action endpoints.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File, Query
 
 from app.api.v1.auth.dependencies import roles_required
 from app.api.v1.schemas.common import StatusResponse
@@ -21,7 +21,8 @@ from .service import (
     set_node_enabled, set_node_visible, reload_all_config, get_nodes_status,
     reload_single_node, get_reload_status,
     list_node_type_registry, set_node_type_enabled,
-    NodeStatusToggle, NodeVisibilityToggle, NodeTypeToggle, NodeTypeRecord,
+    list_plugins, load_plugin, unload_plugin, upload_plugin,
+    NodeStatusToggle, NodeVisibilityToggle, NodeTypeToggle, NodeTypeRecord, PluginRecord,
 )
 
 # Router configuration
@@ -121,6 +122,89 @@ async def node_reload_endpoint(
 
 
 @router.get(
+    "/nodes/status/all",
+    response_model=NodesStatusResponse,
+    summary="Get Nodes Status",
+    description="Returns runtime status of all nodes based on their engine handlers",
+)
+async def nodes_status_endpoint():
+    return await get_nodes_status()
+
+
+# ── Plugin load / unload ──────────────────────────────────────────────────
+
+
+@router.get(
+    "/nodes/plugins",
+    response_model=list[PluginRecord],
+    summary="List Plugins",
+    description="List all plugin packages in app/plugins/ with their current load state and registered types.",
+)
+async def nodes_plugins_list_endpoint():
+    return await list_plugins()
+
+
+@router.post(
+    "/nodes/plugins/upload",
+    summary="Upload Plugin",
+    description=(
+        "Upload a plugin as a `.zip` file. The zip must contain a single top-level "
+        "directory that has a `registry.py`. Set `auto_load=false` to install without "
+        "activating immediately."
+    ),
+    responses={
+        422: {"description": "Invalid zip structure or missing registry.py"},
+        500: {"description": "Error during extraction or load"},
+    },
+)
+@roles_required("service")
+async def nodes_plugins_upload_endpoint(
+    file: UploadFile = File(..., description="Plugin zip archive"),
+    auto_load: bool = Query(True, description="Load the plugin immediately after install"),
+):
+    zip_bytes = await file.read()
+    return await upload_plugin(zip_bytes, auto_load)
+
+
+@router.post(
+    "/nodes/plugins/{plugin_name}/load",
+    summary="Load Plugin",
+    description=(
+        "Load (or reload) an installed plugin by its directory name. "
+        "Returns the set of node types that were registered."
+    ),
+    responses={
+        404: {"description": "Plugin directory not found in app/plugins/"},
+        422: {"description": "Plugin has no registry.py"},
+        500: {"description": "Import error during load"},
+    },
+)
+@roles_required("service")
+async def nodes_plugins_load_endpoint(plugin_name: str):
+    return await load_plugin(plugin_name)
+
+
+@router.delete(
+    "/nodes/plugins/{plugin_name}",
+    summary="Unload Plugin",
+    description=(
+        "Unload a plugin — removes its node types from NodeFactory and SchemaRegistry "
+        "and evicts it from sys.modules. The files remain on disk; re-load with POST "
+        ".../load. Existing DAG instances keep running until the next reload."
+    ),
+    responses={
+        404: {"description": "Plugin is not currently loaded"},
+    },
+)
+@roles_required("service")
+async def nodes_plugins_unload_endpoint(plugin_name: str):
+    return await unload_plugin(plugin_name)
+
+
+# ── Per-node wildcard routes (must come LAST) ─────────────────────────────
+
+
+@router.get(
     "/nodes/{node_id}",
     response_model=NodeRecord,
     responses={404: {"description": "Node not found"}},
@@ -155,13 +239,3 @@ async def node_visible_endpoint(node_id: str, req: NodeVisibilityToggle):
 @roles_required("admin")
 async def node_enabled_endpoint(node_id: str, req: NodeStatusToggle):
     return await set_node_enabled(node_id, req)
-
-
-@router.get(
-    "/nodes/status/all",
-    response_model=NodesStatusResponse,
-    summary="Get Nodes Status",
-    description="Returns runtime status of all nodes based on their engine handlers",
-)
-async def nodes_status_endpoint():
-    return await get_nodes_status()

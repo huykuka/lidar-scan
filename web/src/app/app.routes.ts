@@ -49,6 +49,12 @@ export const routes: Routes = [
           import('./features/admin/admin.component').then((m) => m.AdminComponent),
       },
       {
+        path: 'plugins',
+        canActivate: [serviceGuard],
+        loadComponent: () =>
+          import('./features/plugins/plugins.component').then((m) => m.PluginsComponent),
+      },
+      {
         path: 'logs',
         loadComponent: () => import('./features/logs/logs.component').then((m) => m.LogsComponent),
       },
