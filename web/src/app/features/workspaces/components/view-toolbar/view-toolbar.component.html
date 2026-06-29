@@ -1,13 +1,18 @@
 <div class="flex items-center gap-0.5">
   @for (preset of presets; track preset.id) {
     <syn-tooltip [content]="preset.title" [distance]="13">
-      <syn-icon-button
-        [name]="preset.icon"
-        (click)="applyPreset(preset.id)"
-        [label]="preset.title"
-        size="medium"
-        [color]="activeMode() === preset.id ? 'primary' : 'neutral'"
-      />
+      <!-- Wrapper gives us a relative context for the spinner overlay -->
+      <span class="relative inline-flex">
+        <syn-icon-button
+          [name]="pendingPresetId() === preset.id ? 'autorenew' : preset.icon"
+          (click)="applyPreset(preset.id)"
+          [label]="preset.title"
+          size="medium"
+          [color]="activeMode() === preset.id ? 'primary' : 'neutral'"
+          [disabled]="isTransitioning()"
+          [class.animate-spin]="pendingPresetId() === preset.id"
+        />
+      </span>
     </syn-tooltip>
   }
 </div>

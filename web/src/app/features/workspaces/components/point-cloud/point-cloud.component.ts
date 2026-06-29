@@ -129,11 +129,17 @@ export class PointCloudComponent implements AfterViewInit, OnDestroy {
   /** Previous snapshot of enabled topics used to diff against next update. */
   private prevTopicSnapshot = new Map<string, string>(); // topic → color
 
-  private gridHelper?: THREE.GridHelper;
-  private axesHelper?: THREE.AxesHelper;
+  /** All scene objects owned by the grid system — disposed on rebuild/destroy */
+  private gridObjects: THREE.Object3D[] = [];
   private axesLabels: THREE.Sprite[] = [];
   private gridLabels: THREE.Sprite[] = [];
-  private currentGridSize = 50;
+  private currentGridSize = 30;
+
+  // ── HUD axis gizmo (inset bottom-left) ───────────────────────────────────
+  private gizmoScene!: THREE.Scene;
+  private gizmoCamera!: THREE.PerspectiveCamera;
+  /** Size of the gizmo viewport in CSS pixels */
+  private readonly GIZMO_SIZE = 120;
 
   private animationId?: number;
   /**
@@ -175,19 +181,18 @@ export class PointCloudComponent implements AfterViewInit, OnDestroy {
     });
 
     effect(() => {
-      if (this.gridHelper) {
+      if (this.gridObjects.length) {
         const isVisible = this.showGrid();
-        this.gridHelper.visible = isVisible;
+        this.gridObjects.forEach((o) => (o.visible = isVisible));
         this.gridLabels.forEach((l) => (l.visible = isVisible));
         this.requestRender();
       }
     });
 
     effect(() => {
-      if (this.axesHelper) {
+      if (this.gizmoScene) {
         const isVisible = this.showAxes();
-        this.axesHelper.visible = isVisible;
-        this.axesLabels.forEach((l) => (l.visible = isVisible));
+        this.gizmoScene.visible = isVisible;
         this.requestRender();
       }
     });
@@ -279,16 +284,7 @@ export class PointCloudComponent implements AfterViewInit, OnDestroy {
     this.gridLabels = [];
     this.disposeSpriteGroup(this.axesLabels);
     this.axesLabels = [];
-    if (this.gridHelper) {
-      this.scene?.remove(this.gridHelper);
-      this.gridHelper.dispose();
-      this.gridHelper = undefined;
-    }
-    if (this.axesHelper) {
-      this.scene?.remove(this.axesHelper);
-      this.axesHelper.dispose();
-      this.axesHelper = undefined;
-    }
+    this.disposeGridObjects();
     // Dispose all point clouds
     this.pointClouds.forEach(({ pointsObj, geometry, material }) => {
       this.scene?.remove(pointsObj);
@@ -523,22 +519,8 @@ export class PointCloudComponent implements AfterViewInit, OnDestroy {
     // Grid & Axes
     this.rebuildGrid();
 
-    this.axesHelper = new THREE.AxesHelper(5);
-    this.axesHelper.visible = !!this.showAxes();
-    this.scene.add(this.axesHelper);
-
-    // Axis Labels
-    const axisX = this.createTextSprite('Y', '#ff0000');
-    axisX.position.set(5.5, 0, 0);
-
-    const axisY = this.createTextSprite('Z', '#00ff00');
-    axisY.position.set(0, 5.5, 0);
-
-    const axisZ = this.createTextSprite('X', '#0000ff');
-    axisZ.position.set(0, 0, 5.5);
-    axisZ.visible = !!this.showAxes();
-
-    this.axesLabels = [axisX, axisY, axisZ];
+    // HUD axis gizmo (bottom-left inset)
+    this.initGizmo();
   }
 
   /**
@@ -611,96 +593,375 @@ export class PointCloudComponent implements AfterViewInit, OnDestroy {
 
     // Dynamically scale text sprites based on active camera distance
     const cam = this.activeCamera;
-    for (const label of this.gridLabels) {
-      if (!label.visible) continue;
-      const distance = cam.position.distanceTo(label.position);
-      const scaleBase = Math.max(0.2, distance * 0.05);
-      label.scale.set(scaleBase * 2, scaleBase, 1);
-    }
-    for (const label of this.axesLabels) {
-      if (!label.visible) continue;
-      const distance = cam.position.distanceTo(label.position);
-      const scaleBase = Math.max(0.2, distance * 0.05);
-      label.scale.set(scaleBase * 2, scaleBase, 1);
-    }
+    // Grid labels are fixed-orientation meshes — no per-frame scale needed.
 
+    // Main scene
     this.renderer.render(this.scene, this.activeCamera);
+
+    // HUD gizmo — overlay without clearing the colour buffer (SMC pattern)
+    if (this.gizmoScene?.visible !== false) {
+      this.renderer.autoClear = false;
+      this.renderGizmo();
+      this.renderer.autoClear = true;
+    }
+  }
+
+  /**
+   * Build the HUD gizmo scene (SMC pattern):
+   *  - OrthographicCamera (no foreshortening — axes stay the same apparent size)
+   *  - Three thin line stems + canvas letter sprites (no ArrowHelper, no background disc)
+   *  - depthTest:false on sprites so letters always paint on top
+   *
+   * Axis label → Three.js direction mapping (LiDAR Z-up, point cloud rotated
+   * rx=-PI/2 rz=-PI/2):
+   *   LiDAR X  →  Three.js +Z  →  red   (syn-color-error-500   #f93a3f)
+   *   LiDAR Y  →  Three.js +X  →  green (syn-color-success-500 #4fc275)
+   *   LiDAR Z  →  Three.js +Y  →  blue  (syn-color-primary-500 #3183fe)
+   */
+  private initGizmo(): void {
+    this.gizmoScene = new THREE.Scene();
+    this.gizmoScene.visible = !!this.showAxes();
+
+    // OrthographicCamera — matches SMC exactly; frustum ±1.7 gives comfortable padding
+    this.gizmoCamera = new THREE.OrthographicCamera(
+      -1.7, 1.7, 1.7, -1.7, 0.1, 50,
+    ) as unknown as THREE.PerspectiveCamera;
+
+    // Synergy design-system colors (sick2025-dark):
+    //   error-500   #f93a3f  → LiDAR X
+    //   success-500 #4fc275  → LiDAR Y
+    //   primary-500 #3183fe  → LiDAR Z (up)
+    const AXES: { dir: THREE.Vector3; hex: string; lineColor: number; label: string }[] = [
+      { dir: new THREE.Vector3(0, 0, 1), hex: '#f93a3f', lineColor: 0xf93a3f, label: 'X' }, // LiDAR X  → Three.js +Z
+      { dir: new THREE.Vector3(1, 0, 0), hex: '#4fc275', lineColor: 0x4fc275, label: 'Y' }, // LiDAR Y  → Three.js +X
+      { dir: new THREE.Vector3(0, 1, 0), hex: '#3183fe', lineColor: 0x3183fe, label: 'Z' }, // LiDAR Z  → Three.js +Y
+    ];
+
+    for (const { dir, hex, lineColor, label } of AXES) {
+      // Thin line stem: origin → 74% of unit vector
+      const stem = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          dir.clone().multiplyScalar(0.74),
+        ]),
+        new THREE.LineBasicMaterial({ color: lineColor, transparent: true, opacity: 0.9 }),
+      );
+      this.gizmoScene.add(stem);
+
+      // Letter sprite — bold letter with dark stroke outline, transparent bg
+      const sprite = this.createAxisSprite(label, hex);
+      sprite.position.copy(dir); // sits at the unit-vector tip
+      sprite.scale.set(0.72, 0.72, 1);
+      this.gizmoScene.add(sprite);
+      this.axesLabels.push(sprite);
+    }
+  }
+
+  /**
+   * Create a canvas sprite: bold axis letter, Synergy-themed colour fill,
+   * near-black stroke outline for legibility on dark backgrounds.
+   * Outline colour: syn-color-neutral-0 (#000206).
+   */
+  private createAxisSprite(letter: string, hex: string): THREE.Sprite {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const ctx = cv.getContext('2d')!;
+    ctx.font = "600 50px 'SICK Intl', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // syn-color-neutral-0 (#000206) outline for contrast on any bg
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = 'rgba(0,2,6,0.96)';
+    ctx.strokeText(letter, 32, 34);
+    ctx.fillStyle = hex;
+    ctx.fillText(letter, 32, 34);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.anisotropy = 4;
+    return new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }),
+    );
+  }
+
+  /**
+   * Render the gizmo into a scissored viewport in the bottom-left corner.
+   *
+   * SMC pattern:
+   *  - Gizmo camera position = normalised (mainCam - orbitTarget) * 4
+   *    so the gizmo always reflects the orbit direction, even when the
+   *    orbit target is not the world origin.
+   *  - `renderer.autoClear = false` (set by the caller) — the gizmo is
+   *    drawn on top of the main scene without erasing it.
+   *  - `clearDepth()` clears depth only so closer gizmo objects don't
+   *    get depth-occluded by the main scene geometry.
+   */
+  private renderGizmo(): void {
+    const dpr = this.renderer.getPixelRatio();
+    const size = Math.round(this.GIZMO_SIZE * dpr);
+    const canvas = this.renderer.domElement;
+    const canvasH = canvas.clientHeight * dpr;
+    const canvasW = canvas.clientWidth * dpr;
+
+    // Mirror the main camera's view direction relative to the orbit target
+    const cam = this.activeCamera as THREE.PerspectiveCamera;
+    (this.gizmoCamera as unknown as THREE.OrthographicCamera).position
+      .copy(cam.position)
+      .sub(this.controls.target)
+      .normalize()
+      .multiplyScalar(4);
+    (this.gizmoCamera as unknown as THREE.OrthographicCamera).up.copy(cam.up);
+    (this.gizmoCamera as unknown as THREE.OrthographicCamera).lookAt(0, 0, 0);
+
+    this.renderer.setScissorTest(true);
+    this.renderer.setViewport(14, 14, size, size);
+    this.renderer.setScissor(14, 14, size, size);
+    this.renderer.clearDepth(); // prevent main-scene geometry occluding gizmo
+    this.renderer.render(this.gizmoScene, this.gizmoCamera as unknown as THREE.Camera);
+
+    // Restore full viewport
+    this.renderer.setScissorTest(false);
+    this.renderer.setViewport(0, 0, canvasW, canvasH);
   }
 
   private rebuildGrid() {
-    if (this.gridHelper) {
-      this.scene.remove(this.gridHelper);
-      this.gridHelper.dispose();
-    }
-
-    const size = this.currentGridSize; // Always 50
-    const stepLines = 10; // Labels every 10m
-    const divisions = size / stepLines; // 5 divisions across the 50m grid
-
-    this.gridHelper = new THREE.GridHelper(size, divisions, 0x555555, 0x333333);
-    this.gridHelper.position.y = -0.1; // lower to avoid z-fighting
-    this.gridHelper.visible = !!this.showGrid();
-    this.scene.add(this.gridHelper);
-
-    // Remove old labels
-    this.gridLabels.forEach((label) => {
-      this.scene.remove(label);
-      if (label.material.map) label.material.map.dispose();
-      label.material.dispose();
-    });
+    // ── tear down ───────────────────────────────────────────────────────────
+    this.disposeGridObjects();
+    this.disposeSpriteGroup(this.gridLabels);
     this.gridLabels = [];
 
-    const halfSize = size / 2;
-    for (let i = -halfSize; i <= halfSize; i += stepLines) {
+    const visible = !!this.showGrid();
+    const S = this.currentGridSize; // 50 m half → full grid 100 m
+    const FINE = 1;                 // 1 m fine cells
+    const COARSE = 5;               // 5 m coarse cells (labelled)
+
+    // ── Synergy sick2025-dark palette ──────────────────────────────────────
+    //   fine lines   → neutral-300  #262f55  (very subtle)
+    //   coarse lines → neutral-500  #4d5473  (readable)
+    //   center lines → neutral-700  #777ea4  (noticeable, but not garish)
+    //   origin X     → error-500    #f93a3f  (LiDAR X = Three.js +Z)
+    //   origin Y     → success-500  #4fc275  (LiDAR Y = Three.js +X)
+    //   origin Z     → primary-500  #3183fe  (LiDAR Z = Three.js +Y)
+    const COL_FINE   = 0x262f55;
+    const COL_COARSE = 0x4d5473;
+    const COL_CENTER = 0x777ea4;
+    const COL_X      = 0xf93a3f; // LiDAR X → Three.js +Z
+    const COL_Y      = 0x4fc275; // LiDAR Y → Three.js +X
+    const COL_Z      = 0x3183fe; // LiDAR Z → Three.js +Y
+
+    const addLine = (
+      points: THREE.Vector3[],
+      color: number,
+      opacity: number,
+      obj?: THREE.Object3D,
+    ) => {
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(points),
+        new THREE.LineBasicMaterial({ color, transparent: true, opacity }),
+      );
+      line.visible = visible;
+      if (obj) {
+        (obj as THREE.Group).add(line);
+      } else {
+        this.scene.add(line);
+        this.gridObjects.push(line);
+      }
+      return line;
+    };
+
+    // ── FLOOR grid (Three.js XZ plane = LiDAR XY plane) ──────────────────
+    const floorGroup = new THREE.Group();
+    floorGroup.visible = visible;
+
+    for (let i = -S; i <= S; i += FINE) {
+      const isCoarse = i % COARSE === 0;
+      const isCenter = i === 0;
+      if (isCenter) continue; // drawn separately as origin lines
+      const col = isCoarse ? COL_COARSE : COL_FINE;
+      const op  = isCoarse ? 0.55 : 0.25;
+
+      // Lines parallel to Z (vary X)
+      addLine(
+        [new THREE.Vector3(i, 0, -S), new THREE.Vector3(i, 0, S)],
+        col, op, floorGroup,
+      );
+      // Lines parallel to X (vary Z)
+      addLine(
+        [new THREE.Vector3(-S, 0, i), new THREE.Vector3(S, 0, i)],
+        col, op, floorGroup,
+      );
+    }
+    this.scene.add(floorGroup);
+    this.gridObjects.push(floorGroup);
+
+    // ── VERTICAL grid (Three.js XY plane = LiDAR YZ plane) ───────────────
+    // Shows elevation structure — visible from front/side/perspective views.
+    // Extends from -S to +S in both Y (elevation) and X (horizontal).
+    const vertGroup = new THREE.Group();
+    vertGroup.visible = visible;
+
+    for (let i = -S; i <= S; i += FINE) {
+      const isCoarse = i % COARSE === 0;
+      const isCenter = i === 0;
+      if (isCenter) continue;
+      const col = isCoarse ? COL_COARSE : COL_FINE;
+      const opV  = isCoarse ? 0.45 : 0.18;
+
+      // Vertical lines (vary X, full height -S to +S)
+      addLine(
+        [new THREE.Vector3(i, -S, 0), new THREE.Vector3(i, S, 0)],
+        col, opV, vertGroup,
+      );
+      // Horizontal (elevation) lines — both above and below ground
+      addLine(
+        [new THREE.Vector3(-S, i, 0), new THREE.Vector3(S, i, 0)],
+        col, opV, vertGroup,
+      );
+    }
+    this.scene.add(vertGroup);
+    this.gridObjects.push(vertGroup);
+
+    // ── Z-elevation labels on the vertical plane ──────────────────────────
+    // Flat in the YZ plane (rotate 90° around Y so text faces along +X).
+    // primary-500 blue to match the Z axis colour in the gizmo.
+    const LABEL_STEP = 5;
+    for (let i = -S; i <= S; i += LABEL_STEP) {
+      if (i === 0) continue;
+      const lz = this.createTextMesh(`${i}m`, '#3183fe');
+      lz.rotation.y = Math.PI / 2; // face along +X so it lies in the YZ plane
+      lz.position.set(S + 1.2, i, 0);
+      lz.visible = visible;
+      this.gridLabels.push(lz as unknown as THREE.Sprite);
+      this.scene.add(lz);
+    }
+
+    // ── CENTER cross-hair lines (axis-coloured, pass through origin) ──────
+    // LiDAR X → Three.js +Z → red
+    addLine(
+      [new THREE.Vector3(0, 0, -S), new THREE.Vector3(0, 0, S)],
+      COL_X, 0.7,
+    );
+    // LiDAR Y → Three.js +X → green
+    addLine(
+      [new THREE.Vector3(-S, 0, 0), new THREE.Vector3(S, 0, 0)],
+      COL_Y, 0.7,
+    );
+    // LiDAR Z → Three.js +Y → blue (vertical origin line)
+    addLine(
+      [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, S, 0)],
+      COL_Z, 0.7,
+    );
+    // Center cross in the floor plane (bright neutral)
+    addLine(
+      [new THREE.Vector3(-S, 0, 0), new THREE.Vector3(S, 0, 0)],
+      COL_CENTER, 0.35,
+    );
+    addLine(
+      [new THREE.Vector3(0, 0, -S), new THREE.Vector3(0, 0, S)],
+      COL_CENTER, 0.35,
+    );
+
+    // ── ORIGIN dot ────────────────────────────────────────────────────────
+    const originGeo = new THREE.BufferGeometry();
+    originGeo.setAttribute(
+      'position',
+      new THREE.BufferAttribute(new Float32Array([0, 0, 0]), 3),
+    );
+    const originDot = new THREE.Points(
+      originGeo,
+      new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 6,
+        sizeAttenuation: false,
+        transparent: true,
+        opacity: 0.9,
+      }),
+    );
+    originDot.visible = visible;
+    this.scene.add(originDot);
+    this.gridObjects.push(originDot);
+
+    // ── LABELS ─────────────────────────────────────────────────────────────
+    // X-axis labels: along Three.js +Z, laid FLAT in the XZ floor plane (Y=0).
+    // Y-axis labels: along Three.js +X, laid FLAT in the YZ vertical plane (Z=0).
+    for (let i = -S; i <= S; i += LABEL_STEP) {
       if (i === 0) continue;
 
-      const spriteX = this.createTextSprite(`${i}m`);
-      spriteX.position.set(i, 0, halfSize + stepLines * 0.2);
-      spriteX.visible = this.showGrid();
-      this.gridLabels.push(spriteX);
-      this.scene.add(spriteX);
+      // LiDAR-X labels — flat in XoZ floor plane, ON the X axis line (x=0)
+      const lx = this.createTextMesh(`${i}m`);
+      lx.rotation.x = -Math.PI / 2;
+      lx.position.set(0, 0, i);
+      lx.visible = visible;
+      this.gridLabels.push(lx as unknown as THREE.Sprite);
+      this.scene.add(lx);
 
-      const spriteZ = this.createTextSprite(`${i}m`);
-      spriteZ.position.set(halfSize + stepLines * 0.2, 0, i);
-      spriteZ.visible = this.showGrid();
-      this.gridLabels.push(spriteZ);
-      this.scene.add(spriteZ);
+      // LiDAR-Y labels — flat in YoZ vertical plane (faces along Z=0, no rotation needed)
+      const ly = this.createTextMesh(`${i}m`);
+      ly.position.set(i, 0, 0);
+      ly.visible = visible;
+      this.gridLabels.push(ly as unknown as THREE.Sprite);
+      this.scene.add(ly);
     }
+
     this.requestRender();
   }
 
+  /** Dispose and remove all non-sprite grid objects from the scene. */
+  private disposeGridObjects(): void {
+    for (const obj of this.gridObjects) {
+      this.scene?.remove(obj);
+      obj.traverse((child) => {
+        if ((child as THREE.Line).geometry) (child as THREE.Line).geometry.dispose();
+        if ((child as THREE.Line).material) {
+          const mat = (child as THREE.Line).material;
+          if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+          else (mat as THREE.Material).dispose();
+        }
+      });
+    }
+    this.gridObjects = [];
+  }
+
   private disposeSpriteGroup(sprites: THREE.Sprite[]): void {
-    sprites.forEach((sprite) => {
-      this.scene?.remove(sprite);
-      sprite.material.map?.dispose();
-      sprite.material.dispose();
+    sprites.forEach((obj) => {
+      this.scene?.remove(obj);
+      // Works for both Sprite and Mesh cast as Sprite
+      const mesh = obj as unknown as THREE.Mesh;
+      if (mesh.geometry) mesh.geometry.dispose();
+      const mat = mesh.material ?? (obj as THREE.Sprite).material;
+      if (mat) {
+        const materials = Array.isArray(mat) ? mat : [mat];
+        materials.forEach((m: THREE.Material & { map?: THREE.Texture }) => {
+          m.map?.dispose();
+          m.dispose();
+        });
+      }
     });
   }
 
-  private createTextSprite(message: string, color: string = '#888888'): THREE.Sprite {
+  /**
+   * Create a flat text mesh using a canvas texture on a PlaneGeometry.
+   * Unlike a Sprite, the plane stays in world-space and can be given a fixed
+   * rotation so it lies in a specific plane (floor or vertical wall).
+   */
+  private createTextMesh(message: string, color = '#777ea4'): THREE.Mesh {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
-    canvas.height = 64;
-    const context = canvas.getContext('2d')!;
-    context.fillStyle = 'rgba(0,0,0,0)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    context.font = 'bold 1000px ';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillStyle = color;
-    context.fillText(message, canvas.width / 2, canvas.height / 2);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    const material = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      depthWrite: true,
-    });
-    const sprite = new THREE.Sprite(material);
-
-    // Dynamic scaling happens in animate() to make it responsive to zoom
-    return sprite;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = "400 20px 'SICK Intl', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,2,6,0.80)';
+    ctx.strokeText(message, canvas.width / 2, canvas.height / 2);
+    ctx.fillStyle = color;
+    ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.minFilter = THREE.LinearFilter;
+    // PlaneGeometry sized in world metres: 1.5 m wide × 0.4 m tall
+    return new THREE.Mesh(
+      new THREE.PlaneGeometry(1.5, 0.4),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+    );
   }
 }

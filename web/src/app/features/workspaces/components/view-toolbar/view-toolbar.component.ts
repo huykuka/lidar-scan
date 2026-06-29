@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { LayoutMode, SplitLayoutStoreService } from '@core/services/split-layout-store.service';
 
@@ -22,36 +22,47 @@ export class ViewToolbarComponent {
   /** Current active layout mode — drives button highlight */
   protected activeMode = computed(() => this.layout.layoutMode());
 
+  /** True while the layout transition animation is in progress */
+  protected isTransitioning = computed(() => this.layout.isTransitioning());
+
+  /** ID of the preset currently being applied — drives per-button spinner */
+  protected pendingPresetId = signal<LayoutMode | null>(null);
+
+  /** Transition duration in ms — must match CSS pane-fade-in delay+duration (80+320) */
+  private readonly TRANSITION_MS = 400;
+
   readonly presets: LayoutPreset[] = [
     { id: 'single', label: '1', title: 'Single pane (perspective)', icon: 'crop_square' },
-    {
-      id: 'h-split',
-      label: '2H',
-      title: 'Horizontal split (top/bottom)',
-      icon: 'horizontal_split',
-    },
+    { id: 'h-split', label: '2H', title: 'Horizontal split (top/bottom)', icon: 'horizontal_split' },
     { id: 'v-split', label: '2V', title: 'Vertical split (left/right)', icon: 'vertical_split' },
     { id: '1+2', label: '1+2', title: '1+2 split (perspective + top/front)', icon: 'view_sidebar' },
     { id: '4-grid', label: '4', title: '4-pane grid (2×2)', icon: 'grid_view' },
   ];
 
   applyPreset(id: LayoutMode): void {
+    // No-op if already in this layout or mid-transition
+    if (id === this.layout.layoutMode()) return;
+    if (this.layout.isTransitioning()) return;
+
+    // Mark transition start — shows spinner on the clicked button
+    this.pendingPresetId.set(id);
+    this.layout.set('isTransitioning', true);
+
     switch (id) {
-      case 'single':
-        this.layout.resetToDefault();
-        break;
-      case 'h-split':
-        this.layout.setHorizontalSplit();
-        break;
-      case 'v-split':
-        this.layout.setVerticalSplit();
-        break;
-      case '1+2':
-        this.layout.setSplitOneTwo();
-        break;
-      case '4-grid':
-        this.layout.setFourPaneGrid();
-        break;
+      case 'single':  this.layout.resetToDefault();      break;
+      case 'h-split': this.layout.setHorizontalSplit();  break;
+      case 'v-split': this.layout.setVerticalSplit();    break;
+      case '1+2':     this.layout.setSplitOneTwo();      break;
+      case '4-grid':  this.layout.setFourPaneGrid();     break;
     }
+
+    // Layout methods above set isTransitioning: false immediately —
+    // override it back to true so the UX delay is actually felt.
+    this.layout.set('isTransitioning', true);
+
+    setTimeout(() => {
+      this.layout.set('isTransitioning', false);
+      this.pendingPresetId.set(null);
+    }, this.TRANSITION_MS);
   }
 }

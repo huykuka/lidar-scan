@@ -11,22 +11,30 @@
    edges are always legible regardless of point-cloud background color.    */
 .viewport-pane {
   border: 1px solid var(--syn-color-neutral-300);
+  /* Hold opacity:0 for 80ms then fade in over 320ms.
+     The delay gives Three.js ngAfterViewInit + initThree() time to produce
+     the first rendered frame before the canvas becomes visible, eliminating
+     the black/blank flash that causes the perceived jerk. */
+  animation: pane-fade-in 320ms ease-out 80ms both;
 }
 
-/* Fade-in + subtle scale applied to the layout wrapper on mode switch */
+/* Fade-in applied to the layout wrapper on mode switch.
+   No scale transform — scale on a WebGL canvas forces a ResizeObserver
+   reflow mid-animation which causes the visible "jerk". Opacity-only is
+   GPU-composited and does not trigger layout. Duration extended to 400ms
+   to cover Three.js renderer cold-start time. */
 .layout-enter {
-  animation: layout-fade-in 220ms ease-out both;
+  animation: layout-fade-in 400ms ease-out both;
 }
 
 @keyframes layout-fade-in {
-  from {
-    opacity: 0;
-    scale: 0.98;
-  }
-  to {
-    opacity: 1;
-    scale: 1;
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pane-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ── Resizable dividers ──────────────────────────────────────────────────── */
