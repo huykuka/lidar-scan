@@ -8,10 +8,12 @@
     }
 
     <ngts-orbit-controls [options]="orbitOptions()" />
-    <ngts-grid [options]="gridOptions()" />
-    <ngt-axes-helper *args="[30]" />
-    <ngts-grid [options]="{ rotation: [Math.PI / 2, 0, 0], ...gridOptions() }" />
-    <ngts-grid [options]="{ ...gridOptions() }" />
+          <ngt-axes-helper *args="[30]" />
+
+    @if (showGrid()) {
+      <ngts-grid [options]="gridOptions()" />
+      <ngts-grid [options]="{ rotation: [Math.PI / 2, 0, 0], ...gridOptions() }" />
+    }
 
     <ngts-points-instances [options]="{ limit: 1 }">
       <ngt-points-material [size]="0.5" [vertexColors]="true" />

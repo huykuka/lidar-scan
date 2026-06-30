@@ -1,8 +1,8 @@
 <!-- Viewport overlay: positioned absolutely over the Three.js canvas -->
 <div class="absolute inset-0 pointer-events-none z-10">
 
-  <!-- Top-left: orientation dropdown + reset button -->
-  <div class="absolute top-2 left-2 pointer-events-auto flex items-center gap-1 z-20">
+  <!-- Center-left: orientation dropdown + view toggles -->
+  <div class="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-auto flex flex-col items-center gap-1 z-20">
     <syn-dropdown
       placement="bottom-start"
       [distance]="4"
@@ -36,6 +36,16 @@
       (click)="toggleOrtho()"
     >
       <syn-icon [name]="isOrtho() ? 'view_in_ar' : 'grid_on'" class="orient-btn-icon"></syn-icon>
+    </button>
+
+    <!-- Grid toggle -->
+    <button
+      class="orient-trigger"
+      [class.orient-trigger--active]="showGrid()"
+      title="Toggle grid"
+      (click)="toggleGrid()"
+    >
+      <syn-icon name="grid_goldenratio" class="orient-btn-icon"></syn-icon>
     </button>
   </div>
 

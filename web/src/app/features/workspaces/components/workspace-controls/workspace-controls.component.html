@@ -1,9 +1,9 @@
-<div class="panel">
+<div class="flex flex-col gap-[var(--syn-spacing-small)] p-[var(--syn-spacing-medium)] bg-syn-panel-background-color border border-[var(--syn-panel-border-color)] h-full rounded-xl overflow-x-hidden">
 
   <!-- Header -->
-  <div class="panel__header">
-    <syn-icon class="panel__icon" name="sensors" />
-    <h3 class="panel__title">Live Sources</h3>
+  <div class="flex items-center gap-[var(--syn-spacing-x-small)] pb-[var(--syn-spacing-x-small)] border-b border-[var(--syn-panel-border-color)] shrink-0">
+    <syn-icon class="flex items-center text-syn-color-primary-500 text-[var(--syn-font-size-medium)] shrink-0" name="sensors" />
+    <h3 class="[font:var(--syn-body-x-small-bold)] tracking-[0.12em] uppercase text-syn-typography-color-text leading-none">Live Sources</h3>
   </div>
 
   <!-- Add New Topic -->
@@ -11,10 +11,11 @@
     <syn-select
       (synChangeEvent)="onTopicSelect($event)"
       [value]="selectedNewTopic"
-      class="w-full"
+      class="block w-full"
       placeholder="Select topic to add..."
       size="small"
     >
+      <syn-icon style="margin-right: 6px;" name="playlist_add" slot="prefix"></syn-icon>
       @for (topic of availableTopics(); track topic) {
         <syn-option [title]="topic" [value]="topic">{{ topic }}</syn-option>
       }
@@ -22,7 +23,7 @@
   }
 
   @if (availableTopics().length === 0 && topics().length > 0) {
-    <p class="all-active-msg">
+    <p class="flex w-full items-center gap-[var(--syn-spacing-2x-small)] [font:var(--syn-body-x-small-semibold)] text-[var(--syn-namur-success-color)]">
       <syn-icon name="check_circle" />
       All topics active
     </p>
@@ -30,20 +31,23 @@
 
   <!-- Topic List -->
   @if (selectedTopics().length > 0) {
-    <div class="topic-list">
-      <p class="section-label">Active Topics ({{ selectedTopics().length }})</p>
+    <div class="flex flex-col w-full gap-[var(--syn-spacing-2x-small)] overflow-y-auto min-h-0 [&::-webkit-scrollbar]:hidden" style="scrollbar-width: none; -ms-overflow-style: none;">
+      <p class="[font:var(--syn-body-2x-small-regular)] tracking-[0.08em] uppercase text-[var(--syn-typography-color-text-quiet)] m-0">Active Topics ({{ selectedTopics().length }})</p>
 
       @for (topicConfig of selectedTopics(); track topicConfig.topic) {
-        <div class="topic-card" [class.topic-card--disabled]="!topicConfig.enabled">
-          <div class="topic-row">
+        <div
+          class="flex flex-col w-full gap-[var(--syn-spacing-2x-small)] p-[var(--syn-spacing-x-small)] rounded-[var(--syn-border-radius-medium)] border border-[var(--syn-panel-border-color)] bg-syn-panel-background-color transition-opacity duration-[var(--syn-duration-fast)]"
+          [class.opacity-45]="!topicConfig.enabled"
+        >
+          <div class="flex items-center gap-[var(--syn-spacing-x-small)]">
             <input
               (input)="onTopicColorChange(topicConfig.topic, $event)"
               [value]="topicConfig.color"
-              class="color-swatch"
+              class="w-[18px] h-[18px] cursor-pointer border bg-transparent shrink-0 appearance-none rounded-sm"
               title="Change color"
               type="color"
             />
-            <span [title]="topicConfig.topic" class="topic-name">{{ topicConfig.topic }}</span>
+            <span [title]="topicConfig.topic" class="flex-1 min-w-0 [font:var(--syn-body-x-small-semibold)] text-syn-typography-color-text truncate">{{ topicConfig.topic }}</span>
             <syn-icon-button
               (click)="removeTopic(topicConfig.topic)"
               label="Remove"
@@ -54,15 +58,15 @@
             />
           </div>
 
-          <div class="size-row">
-            <span class="size-label">Size</span>
+          <div class="flex items-center gap-[var(--syn-spacing-x-small)]">
+            <span class="[font:var(--syn-body-2x-small-regular)] tracking-[0.06em] uppercase text-[var(--syn-typography-color-text-quiet)] shrink-0 w-[28px]">Size</span>
             <syn-range
               (synInputEvent)="onTopicPointSizeChange(topicConfig.topic, $event)"
               [max]="8"
               [min]="1"
               [step]="0.5"
               [value]="topicConfig.pointSize.toString()"
-              class="size-slider"
+              class="flex-1"
             />
           </div>
         </div>
@@ -72,19 +76,21 @@
 
   <!-- Empty State -->
   @if (selectedTopics().length === 0) {
-    <div class="empty-state">
-      <syn-icon name="radar" />
+    <div class="flex flex-col items-center gap-[var(--syn-spacing-x-small)] py-[var(--syn-spacing-x-large)] text-[var(--syn-typography-color-text-quiet)] [font:var(--syn-body-x-small-regular)]">
+      <syn-icon class="text-[var(--syn-font-size-x-large)]" name="radar" />
       <p>No topics selected</p>
     </div>
   }
 
   <!-- Stream status -->
-  <div [class.status--bad]="!isConnected()" [class.status--ok]="isConnected()" class="status">
-    <div class="status__dot">
-      <span class="status__ping"></span>
-      <span class="status__core"></span>
+  <div class="flex items-center gap-[var(--syn-spacing-x-small)] px-[var(--syn-spacing-x-small)] py-[var(--syn-spacing-small)] rounded-[var(--syn-border-radius-medium)] border border-[var(--syn-panel-border-color)] bg-syn-page-background-color mt-auto shrink-0">
+    <div class="relative w-[10px] h-[10px] shrink-0">
+      <span class="absolute inset-0 rounded-full animate-ping opacity-75" [style.background]="isConnected() ? 'var(--syn-color-success-500)' : 'var(--syn-color-error-500)'"></span>
+      <span class="absolute inset-0 rounded-full scale-[0.8]" [style.background]="isConnected() ? 'var(--syn-color-success-400)' : 'var(--syn-color-error-400)'"></span>
     </div>
-    <p class="status__label">{{ isConnected() ? 'Stream Active' : 'Waiting for data' }}</p>
+    <p class="[font:var(--syn-body-2x-small-regular)] tracking-[0.1em] uppercase" [style.color]="isConnected() ? 'var(--syn-namur-success-color)' : 'var(--syn-namur-error-color)'">
+      {{ isConnected() ? 'Stream Active' : 'Waiting for data' }}
+    </p>
   </div>
 
 </div>

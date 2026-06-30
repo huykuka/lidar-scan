@@ -1,12 +1,3 @@
-:host {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-}
-
-/* Animation utilities */
 .animate-in {
   animation-duration: 0.5s;
   animation-fill-mode: both;
@@ -17,10 +8,177 @@
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Settings panel (copied from workspace) ──────────────── */
+.workspace-settings-panel {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.settings-toggle {
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 48px;
+  background: var(--syn-panel-background-color);
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+  border-right: none;
+  border-radius: var(--syn-border-radius-small) 0 0 var(--syn-border-radius-small);
+  cursor: pointer;
+  color: var(--syn-typography-color-text-quiet);
+  transition: color var(--syn-duration-fast), background var(--syn-duration-fast);
+  outline: none;
+  box-shadow: var(--syn-shadow-small);
+}
+
+.settings-toggle:hover {
+  background: var(--syn-interactive-background-color-hover);
+  color: var(--syn-typography-color-text);
+}
+
+.settings-toggle:focus-visible {
+  box-shadow: var(--syn-focus-ring);
+}
+
+.settings-toggle__icon {
+  font-size: var(--syn-font-size-x-small);
+}
+
+.settings-content {
+  width: 280px;
+  min-height: 0;
+  overflow: hidden;
+  overflow-y: auto;
+  transition: width var(--syn-duration-normal) ease,
+              opacity var(--syn-duration-normal) ease;
+  opacity: 1;
+}
+
+.settings-content--collapsed {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Panel (copied from workspace-controls) ─────────────── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-small);
+  padding: var(--syn-spacing-small);
+  background: var(--syn-panel-background-color);
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+  border-radius: var(--syn-border-radius-large);
+  height: 100%;
+  box-sizing: border-box;
+  box-shadow: var(--syn-shadow-medium);
+}
+
+.panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--syn-spacing-x-small);
+  padding-bottom: var(--syn-spacing-x-small);
+  border-bottom: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+  flex-shrink: 0;
+}
+
+.panel__icon {
+  color: var(--syn-color-primary-500);
+  font-size: var(--syn-font-size-medium);
+  flex-shrink: 0;
+}
+
+.panel__title {
+  font: var(--syn-body-x-small-bold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--syn-typography-color-text);
+}
+
+.panel-divider {
+  height: 1px;
+  background: var(--syn-panel-border-color);
+  margin: var(--syn-spacing-x-small) 0;
+  flex-shrink: 0;
+}
+
+/* ── Section label ──────────────────────────────────────── */
+.section-label {
+  font: var(--syn-body-2x-small-regular);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--syn-typography-color-text-quiet);
+  margin: 0;
+}
+
+/* ── Metadata grid ──────────────────────────────────────── */
+.metadata-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-2x-small);
+}
+
+.metadata-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--syn-spacing-2x-small) 0;
+}
+
+.metadata-row + .metadata-row {
+  border-top: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+}
+
+.metadata-value {
+  font: var(--syn-body-x-small-semibold);
+  color: var(--syn-typography-color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+/* ── Controls ───────────────────────────────────────────── */
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-2x-small);
+}
+
+.control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 1023px) {
+  .workspace-settings-panel {
+    width: 100%;
+    position: static;
   }
-  to {
+
+  .settings-toggle {
+    display: none;
+  }
+
+  .settings-content,
+  .settings-content--collapsed {
+    width: 100%;
     opacity: 1;
+    pointer-events: auto;
   }
 }

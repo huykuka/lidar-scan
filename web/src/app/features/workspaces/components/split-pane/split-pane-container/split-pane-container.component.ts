@@ -50,6 +50,16 @@ export class SplitPaneContainerComponent {
    */
   protected animateEnter = signal(false);
 
+  private gridState = new Map<string, boolean>();
+
+  protected onGridToggled(paneId: string, show: boolean): void {
+    this.gridState.set(paneId, show);
+  }
+
+  protected showGrid(paneId: string): boolean {
+    return this.gridState.get(paneId) ?? true;
+  }
+
   private prevMode: LayoutMode | null = null;
 
   constructor() {

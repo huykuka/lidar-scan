@@ -71,6 +71,7 @@ const ORTHO_UP: Record<Exclude<ViewOrientation, 'perspective'>, [number, number,
 export class PointCloudComponent implements OnDestroy {
   readonly viewType = input<ViewOrientation>('perspective');
   readonly viewId = input<string>('');
+  readonly showGrid = input(true);
 
   // Perspective: position behind and above in Z-up space
   protected readonly perspCameraOptions = {
@@ -104,9 +105,10 @@ export class PointCloudComponent implements OnDestroy {
 
   protected readonly gridOptions = computed(() => ({
     cellSize: 1,
-    sectionSize: 1,
+    sectionSize: 5,
     cellThickness: 0.5,
-    sectionThickness: 0.8,
+    sectionThickness: 1.3,
+    cellColor: '#797676',
     infiniteGrid: false,
     fadeDistance: 9_999,
     fadeStrength: 1.5,

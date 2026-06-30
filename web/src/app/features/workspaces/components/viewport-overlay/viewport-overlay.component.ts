@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import {
@@ -101,6 +101,8 @@ export class ViewportOverlayComponent {
   private sanitizer = inject(DomSanitizer);
 
   protected readonly dropdownOpen = signal(false);
+  protected readonly showGrid = signal(true);
+  readonly gridToggled = output<boolean>();
 
   protected hasData = computed(() => this.dataService.frames().size > 0);
 
@@ -140,6 +142,11 @@ export class ViewportOverlayComponent {
   toggleOrtho(): void {
     const next: ViewOrientation = this.isOrtho() ? 'perspective' : 'top';
     this.layout.setPaneOrientation(this.pane().id, next);
+  }
+
+  protected toggleGrid(): void {
+    this.showGrid.update(v => !v);
+    this.gridToggled.emit(this.showGrid());
   }
 
   resetCamera(): void {

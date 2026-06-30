@@ -1,26 +1,32 @@
 import {
-  AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
-  computed,
-  effect,
-  ElementRef,
-  inject,
+  CUSTOM_ELEMENTS_SCHEMA,
   OnDestroy,
   OnInit,
+  computed,
+  effect,
+  inject,
   signal,
   viewChild,
-  ChangeDetectionStrategy
 } from '@angular/core';
-import { NgClass, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { RecordingApiService } from '@core/services/api/recording-api.service';
 import { NavigationService } from '@core/services';
 import { RecordingViewerInfo } from '@core/models';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { FormsModule } from '@angular/forms';
 import JSZip from 'jszip';
+
+import { NgtCanvas } from 'angular-three/dom';
+import { NgtsGrid } from 'angular-three-soba/abstractions';
+import { NgtsOrbitControls } from 'angular-three-soba/controls';
+import { NgtsPerspectiveCamera } from 'angular-three-soba/cameras';
+import { NgtsGizmoHelper, NgtsGizmoViewport } from 'angular-three-soba/gizmos';
+import { NgtsPointsBuffer } from 'angular-three-soba/performances';
+import { NgtArgs } from 'angular-three';
 
 interface PCDData {
   points: Float32Array;
@@ -28,16 +34,30 @@ interface PCDData {
   count: number;
 }
 
+const MAX_POINTS = 250_000;
+
 @Component({
   selector: 'app-recording-viewer',
-  imports: [SynergyComponentsModule, FormsModule, DecimalPipe, NgClass],
+  imports: [
+    SynergyComponentsModule,
+    FormsModule,
+    DecimalPipe,
+    NgtCanvas,
+    NgtsGrid,
+    NgtsOrbitControls,
+    NgtsPerspectiveCamera,
+    NgtsGizmoHelper,
+    NgtsGizmoViewport,
+    NgtsPointsBuffer,
+    NgtArgs,
+  ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './recording-viewer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { style: 'display:flex;flex-direction:column;flex:1;min-height:0;width:100%' },
   styleUrl: './recording-viewer.component.css',
 })
-export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestroy {
-  readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
-
+export class RecordingViewerComponent implements OnInit, OnDestroy {
   // ── State ──────────────────────────────────────────────────────────────────
   recordingId = signal<string | null>(null);
   recordingName = signal<string>('Loading...');
@@ -79,46 +99,54 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   private frameCache = new Map<number, PCDData>();
   private readonly MAX_CACHE_SIZE = 200;
   private framesLoading = new Set<number>();
-  private lastPCDData: PCDData | null = null;
+  private lastFrameData: PCDData | null = null;
 
-  // ── Three.js core ──────────────────────────────────────────────────────────
-  private scene!: THREE.Scene;
-  private camera!: THREE.PerspectiveCamera;
-  private renderer!: THREE.WebGLRenderer;
-  private controls!: OrbitControls;
-  private pointCloud: THREE.Points | null = null;
-  private animationFrameId: number | null = null;
-  private playbackInterval: number | null = null;
-  private resizeObserver?: ResizeObserver;
+  // ── Point cloud buffer ─────────────────────────────────────────────────────
+  protected readonly positionsBuffer = new Float32Array(MAX_POINTS * 3);
+  private readonly pointsBufferRef = viewChild<NgtsPointsBuffer>('pointBuf');
 
-  // ── Grid system ────────────────────────────────────────────────────────────
-  /** All scene objects owned by the grid — disposed on rebuild/destroy */
-  private gridObjects: THREE.Object3D[] = [];
-  /** Label meshes (cast as Sprite for unified dispose path) */
-  private gridLabels: THREE.Sprite[] = [];
-  private readonly GRID_SIZE = 30;
+  // ── Template options ───────────────────────────────────────────────────────
+  protected readonly cameraOptions = {
+    makeDefault: true,
+    position: [20, 20, 20] as [number, number, number],
+    fov: 45,
+    near: 0.1,
+    far: 1000,
+  };
 
-  // ── HUD axis gizmo (top-left inset) ───────────────────────────────────────
-  private gizmoScene!: THREE.Scene;
-  private gizmoCamera!: THREE.OrthographicCamera;
-  private axesLabels: THREE.Sprite[] = [];
-  private readonly GIZMO_SIZE = 120;
+  protected readonly gridOptions = {
+    cellSize: 1,
+    sectionSize: 5,
+    cellThickness: 0.5,
+    sectionThickness: 1.3,
+    cellColor: '#797676',
+    infiniteGrid: false,
+    fadeDistance: 9_999,
+    fadeStrength: 1.5,
+    side: THREE.DoubleSide,
+    planeArgs: [30, 30] as [number, number],
+  };
+
+  protected readonly Math = Math;
 
   constructor() {
     this.decodingWorker = new Worker(new URL('./pcd-decoder.worker.ts', import.meta.url), {
       type: 'module',
     });
 
-    // Update visualisation when the current frame changes
     effect(() => {
       const frame = this.currentFrame();
       this.ensureFrameBuffered(frame);
       if (this.frameCache.has(frame)) {
-        this.updatePointCloud(this.frameCache.get(frame)!);
+        this.applyFrame(this.frameCache.get(frame)!);
       }
     });
 
-    // Proactive buffer ahead during playback
+    effect(() => {
+      this.minIntensity();
+      if (this.lastFrameData) this.applyFrame(this.lastFrameData);
+    });
+
     effect(() => {
       if (this.isPlaying()) {
         const current = this.currentFrame();
@@ -128,36 +156,15 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
         }
       }
     });
-
-    // React to point-cloud display settings
-    effect(() => {
-      const size = this.pointSize();
-      const color = this.pointColor();
-      if (this.pointCloud) {
-        (this.pointCloud.material as THREE.PointsMaterial).size = size;
-        (this.pointCloud.material as THREE.PointsMaterial).color.set(color);
-      }
-      if (this.lastPCDData) this.updatePointCloud(this.lastPCDData);
-    });
-
-    // React to grid visibility toggle
-    effect(() => {
-      if (this.gridObjects.length) {
-        const vis = this.showGrid();
-        this.gridObjects.forEach((o) => (o.visible = vis));
-        this.gridLabels.forEach((l) => (l.visible = vis));
-      }
-    });
-
-    // React to axes visibility toggle
-    effect(() => {
-      if (this.gizmoScene) this.gizmoScene.visible = this.showAxes();
-    });
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
-  toggleCockpit() { this.showCockpit.set(!this.showCockpit()); }
-  closeCockpit()  { this.showCockpit.set(false); }
+  toggleCockpit() {
+    this.showCockpit.set(!this.showCockpit());
+  }
+  closeCockpit() {
+    this.showCockpit.set(false);
+  }
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id');
@@ -169,26 +176,24 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     }
   }
 
-  ngAfterViewInit() {
-    this.initThreeJS();
-    this.animate();
-  }
-
   ngOnDestroy() {
-    if (this.decodingWorker) { this.decodingWorker.terminate(); this.decodingWorker = null; }
-    this.stopPlayback();
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
+    if (this.decodingWorker) {
+      this.decodingWorker.terminate();
+      this.decodingWorker = null;
     }
-    this.resizeObserver?.disconnect();
-    this.cleanupThreeJS();
+    this.stopPlayback();
     this.frameCache.clear();
   }
 
-  onPlay()        { this.isPlaying() ? this.stopPlayback() : this.startPlayback(); }
-  onSeek(e: any)  { this.currentFrame.set(parseInt(e.target.value, 10)); }
-  goBack()        { this.router.navigate(['/recordings']); }
+  onPlay() {
+    this.isPlaying() ? this.stopPlayback() : this.startPlayback();
+  }
+  onSeek(e: any) {
+    this.currentFrame.set(parseInt(e.target.value, 10));
+  }
+  goBack() {
+    this.router.navigate(['/recordings']);
+  }
 
   formatTime(s: number): string {
     const m = Math.floor(s / 60);
@@ -196,318 +201,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     return `${m}:${r.toString().padStart(2, '0')}`;
   }
 
-  // ── Three.js lifecycle ─────────────────────────────────────────────────────
-  private cleanupThreeJS() {
-    if (this.pointCloud) {
-      this.pointCloud.geometry.dispose();
-      (this.pointCloud.material as THREE.Material).dispose();
-      this.pointCloud = null;
-    }
-    this.disposeSpriteGroup(this.gridLabels);
-    this.gridLabels = [];
-    this.disposeSpriteGroup(this.axesLabels);
-    this.axesLabels = [];
-    this.disposeGridObjects();
-    this.controls?.dispose();
-    this.renderer?.dispose();
-  }
-
-  private initThreeJS() {
-    const container = this.containerRef().nativeElement;
-    const width  = container.clientWidth  || 800;
-    const height = container.clientHeight || 600;
-
-    // Scene
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a0b);
-
-    // Camera
-    this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    this.camera.position.set(20, 20, 20);
-    this.camera.lookAt(0, 0, 0);
-
-    // Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(this.renderer.domElement);
-
-    // Controls
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.05;
-
-    // Grid + gizmo
-    this.rebuildGrid();
-    this.initGizmo();
-
-    // Resize observer
-    this.resizeObserver = new ResizeObserver(() => {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (w > 0 && h > 0) {
-        this.camera.aspect = w / h;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(w, h);
-      }
-    });
-    this.resizeObserver.observe(container);
-  }
-
-  private animate = () => {
-    this.animationFrameId = requestAnimationFrame(this.animate);
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
-
-    // HUD gizmo overlay — top-left corner
-    if (this.gizmoScene?.visible !== false) {
-      this.renderer.autoClear = false;
-      this.renderGizmo();
-      this.renderer.autoClear = true;
-    }
-  };
-
-  // ── HUD axis gizmo ─────────────────────────────────────────────────────────
-  /**
-   * Axis label → Three.js direction mapping (LiDAR Z-up, point cloud rotated
-   * rx=-PI/2 rz=-PI/2):
-   *   LiDAR X → Three.js +Z → red   #f93a3f (syn-color-error-500)
-   *   LiDAR Y → Three.js +X → green #4fc275 (syn-color-success-500)
-   *   LiDAR Z → Three.js +Y → blue  #3183fe (syn-color-primary-500)
-   */
-  private initGizmo(): void {
-    this.gizmoScene = new THREE.Scene();
-    this.gizmoScene.visible = this.showAxes();
-
-    this.gizmoCamera = new THREE.OrthographicCamera(-1.7, 1.7, 1.7, -1.7, 0.1, 50);
-
-    const AXES = [
-      { dir: new THREE.Vector3(0, 0, 1), hex: '#f93a3f', color: 0xf93a3f, label: 'X' },
-      { dir: new THREE.Vector3(1, 0, 0), hex: '#4fc275', color: 0x4fc275, label: 'Y' },
-      { dir: new THREE.Vector3(0, 1, 0), hex: '#3183fe', color: 0x3183fe, label: 'Z' },
-    ];
-
-    for (const { dir, hex, color, label } of AXES) {
-      this.gizmoScene.add(new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(0, 0, 0),
-          dir.clone().multiplyScalar(0.74),
-        ]),
-        new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.9 }),
-      ));
-      const sprite = this.createAxisSprite(label, hex);
-      sprite.position.copy(dir);
-      sprite.scale.set(0.72, 0.72, 1);
-      this.gizmoScene.add(sprite);
-      this.axesLabels.push(sprite);
-    }
-  }
-
-  /** Render gizmo into a scissored viewport at the TOP-LEFT corner. */
-  private renderGizmo(): void {
-    const canvas  = this.renderer.domElement;
-    const canvasW = canvas.clientWidth;
-    const canvasH = canvas.clientHeight;
-    const GZ      = this.GIZMO_SIZE; // CSS pixels — Three.js applies DPR internally
-
-    // Mirror main camera direction relative to orbit target
-    this.gizmoCamera.position
-      .copy(this.camera.position)
-      .sub(this.controls.target)
-      .normalize()
-      .multiplyScalar(4);
-    this.gizmoCamera.up.copy(this.camera.up);
-    this.gizmoCamera.lookAt(0, 0, 0);
-
-    // Top-left corner: x=14, y = canvasH - GZ - 14 (CSS px)
-    const x = 14;
-    const y = canvasH - GZ - 14;
-
-    this.renderer.setScissorTest(true);
-    this.renderer.setViewport(x, y, GZ, GZ);
-    this.renderer.setScissor(x, y, GZ, GZ);
-    this.renderer.clearDepth();
-    this.renderer.render(this.gizmoScene, this.gizmoCamera);
-
-    this.renderer.setScissorTest(false);
-    this.renderer.setViewport(0, 0, canvasW, canvasH);
-  }
-
-  private createAxisSprite(letter: string, hex: string): THREE.Sprite {
-    const cv  = document.createElement('canvas');
-    cv.width  = cv.height = 64;
-    const ctx = cv.getContext('2d')!;
-    ctx.font         = "600 50px 'SICK Intl', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth    = 7;
-    ctx.strokeStyle  = 'rgba(0,2,6,0.96)';
-    ctx.strokeText(letter, 32, 34);
-    ctx.fillStyle = hex;
-    ctx.fillText(letter, 32, 34);
-    const tex = new THREE.CanvasTexture(cv);
-    tex.anisotropy = 4;
-    return new THREE.Sprite(
-      new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }),
-    );
-  }
-
-  // ── Grid ───────────────────────────────────────────────────────────────────
-  private rebuildGrid(): void {
-    this.disposeGridObjects();
-    this.disposeSpriteGroup(this.gridLabels);
-    this.gridLabels = [];
-
-    const visible = this.showGrid();
-    const S       = this.GRID_SIZE;
-    const FINE    = 1;
-    const COARSE  = 5;
-    const LABEL_STEP = 5;
-
-    // Synergy sick2025-dark palette
-    const COL_FINE   = 0x262f55;
-    const COL_COARSE = 0x4d5473;
-    const COL_CENTER = 0x777ea4;
-    const COL_X      = 0xf93a3f; // LiDAR X → Three.js +Z
-    const COL_Y      = 0x4fc275; // LiDAR Y → Three.js +X
-    const COL_Z      = 0x3183fe; // LiDAR Z → Three.js +Y
-
-    const addLine = (pts: THREE.Vector3[], color: number, opacity: number, grp?: THREE.Group) => {
-      const line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color, transparent: true, opacity }),
-      );
-      line.visible = visible;
-      if (grp) { grp.add(line); } else { this.scene.add(line); this.gridObjects.push(line); }
-    };
-
-    // Floor grid (Three.js XZ = LiDAR XY)
-    const floorGroup = new THREE.Group();
-    floorGroup.visible = visible;
-    for (let i = -S; i <= S; i += FINE) {
-      if (i === 0) continue;
-      const isCoarse = i % COARSE === 0;
-      const col = isCoarse ? COL_COARSE : COL_FINE;
-      const op  = isCoarse ? 0.55 : 0.22;
-      addLine([new THREE.Vector3(i, 0, -S), new THREE.Vector3(i, 0,  S)], col, op, floorGroup);
-      addLine([new THREE.Vector3(-S, 0, i), new THREE.Vector3( S, 0, i)], col, op, floorGroup);
-    }
-    this.scene.add(floorGroup);
-    this.gridObjects.push(floorGroup);
-
-    // Vertical grid (Three.js XY = LiDAR YZ)
-    const vertGroup = new THREE.Group();
-    vertGroup.visible = visible;
-    for (let i = -S; i <= S; i += FINE) {
-      if (i === 0) continue;
-      const isCoarse = i % COARSE === 0;
-      const col = isCoarse ? COL_COARSE : COL_FINE;
-      const op  = isCoarse ? 0.45 : 0.18;
-      addLine([new THREE.Vector3(i, -S, 0), new THREE.Vector3(i,  S, 0)], col, op, vertGroup);
-      addLine([new THREE.Vector3(-S, i, 0), new THREE.Vector3( S, i, 0)], col, op, vertGroup);
-    }
-    this.scene.add(vertGroup);
-    this.gridObjects.push(vertGroup);
-
-    // Z-elevation labels (vertical plane, right edge, blue)
-    for (let i = -S; i <= S; i += LABEL_STEP) {
-      if (i === 0) continue;
-      const lz = this.createTextMesh(`${i}m`, '#3183fe');
-      lz.rotation.y = Math.PI / 2;
-      lz.position.set(S + 1.2, i, 0);
-      lz.visible = visible;
-      this.gridLabels.push(lz as unknown as THREE.Sprite);
-      this.scene.add(lz);
-    }
-
-    // Center cross-hair lines
-    addLine([new THREE.Vector3(0, 0, -S), new THREE.Vector3(0, 0,  S)], COL_X,      0.7);
-    addLine([new THREE.Vector3(-S, 0, 0), new THREE.Vector3( S, 0, 0)], COL_Y,      0.7);
-    addLine([new THREE.Vector3(0, -S, 0), new THREE.Vector3(0,  S, 0)], COL_Z,      0.7);
-    addLine([new THREE.Vector3(-S, 0, 0), new THREE.Vector3( S, 0, 0)], COL_CENTER, 0.3);
-    addLine([new THREE.Vector3(0, 0, -S), new THREE.Vector3(0, 0,  S)], COL_CENTER, 0.3);
-
-    // Origin dot
-    const originGeo = new THREE.BufferGeometry();
-    originGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 0, 0]), 3));
-    const originDot = new THREE.Points(
-      originGeo,
-      new THREE.PointsMaterial({ color: 0xffffff, size: 6, sizeAttenuation: false, transparent: true, opacity: 0.9 }),
-    );
-    originDot.visible = visible;
-    this.scene.add(originDot);
-    this.gridObjects.push(originDot);
-
-    // Floor labels
-    for (let i = -S; i <= S; i += LABEL_STEP) {
-      if (i === 0) continue;
-      // LiDAR-X (Three.js +Z): flat in XZ floor plane
-      const lx = this.createTextMesh(`${i}m`);
-      lx.rotation.x = -Math.PI / 2;
-      lx.position.set(0, 0, i);
-      lx.visible = visible;
-      this.gridLabels.push(lx as unknown as THREE.Sprite);
-      this.scene.add(lx);
-
-      // LiDAR-Y (Three.js +X): flat in YZ vertical plane
-      const ly = this.createTextMesh(`${i}m`);
-      ly.position.set(i, 0, 0);
-      ly.visible = visible;
-      this.gridLabels.push(ly as unknown as THREE.Sprite);
-      this.scene.add(ly);
-    }
-  }
-
-  private disposeGridObjects(): void {
-    for (const obj of this.gridObjects) {
-      this.scene?.remove(obj);
-      obj.traverse((child) => {
-        const line = child as THREE.Line;
-        if (line.geometry) line.geometry.dispose();
-        if (line.material) {
-          const mat = line.material;
-          (Array.isArray(mat) ? mat : [mat]).forEach((m: THREE.Material) => m.dispose());
-        }
-      });
-    }
-    this.gridObjects = [];
-  }
-
-  private disposeSpriteGroup(items: THREE.Sprite[]): void {
-    items.forEach((obj) => {
-      this.scene?.remove(obj);
-      const mesh = obj as unknown as THREE.Mesh;
-      if (mesh.geometry) mesh.geometry.dispose();
-      const mat = mesh.material ?? (obj as THREE.Sprite).material;
-      if (mat) {
-        (Array.isArray(mat) ? mat : [mat]).forEach(
-          (m: THREE.Material & { map?: THREE.Texture }) => { m.map?.dispose(); m.dispose(); },
-        );
-      }
-    });
-  }
-
-  private createTextMesh(message: string, color = '#777ea4'): THREE.Mesh {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128; canvas.height = 32;
-    const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, 128, 32);
-    ctx.font         = "400 20px 'SICK Intl', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth    = 3;
-    ctx.strokeStyle  = 'rgba(0,2,6,0.80)';
-    ctx.strokeText(message, 64, 16);
-    ctx.fillStyle = color;
-    ctx.fillText(message, 64, 16);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.minFilter = THREE.LinearFilter;
-    return new THREE.Mesh(
-      new THREE.PlaneGeometry(1.5, 0.4),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide }),
-    );
-  }
-
+  // ── Data loading ───────────────────────────────────────────────────────────
   private loadRecordingInfo(id: string) {
     this.isLoading.set(true);
     this.error.set(null);
@@ -577,7 +271,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
       await this.loadSingleFrame(frameIndex);
       this.framesLoading.delete(frameIndex);
       if (frameIndex === this.currentFrame()) {
-        this.updatePointCloud(this.frameCache.get(frameIndex)!);
+        this.applyFrame(this.frameCache.get(frameIndex)!);
       }
     } catch (err) {
       this.framesLoading.delete(frameIndex);
@@ -607,49 +301,51 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     });
   }
 
-  private updatePointCloud(pcdData: PCDData) {
-    this.lastPCDData = pcdData;
+  // ── Point cloud update ─────────────────────────────────────────────────────
+  private applyFrame(pcdData: PCDData) {
+    this.lastFrameData = pcdData;
 
-    // Filtering
     const threshold = this.minIntensity();
-    let finalPoints: Float32Array;
-    let count = 0;
+    let src = pcdData.points;
+    let count = pcdData.count;
 
     if (threshold > 0) {
       const tmp = new Float32Array(pcdData.points.length);
+      let outIdx = 0;
       for (let i = 0; i < pcdData.count; i++) {
         if (pcdData.intensities[i] >= threshold) {
-          tmp[count * 3] = pcdData.points[i * 3];
-          tmp[count * 3 + 1] = pcdData.points[i * 3 + 1];
-          tmp[count * 3 + 2] = pcdData.points[i * 3 + 2];
-          count++;
+          tmp[outIdx * 3] = pcdData.points[i * 3];
+          tmp[outIdx * 3 + 1] = pcdData.points[i * 3 + 1];
+          tmp[outIdx * 3 + 2] = pcdData.points[i * 3 + 2];
+          outIdx++;
         }
       }
-      finalPoints = tmp.slice(0, count * 3);
-    } else {
-      finalPoints = pcdData.points;
-      count = pcdData.count;
+      src = tmp;
+      count = outIdx;
     }
 
-    if (this.pointCloud) {
-      this.scene.remove(this.pointCloud);
-      this.pointCloud.geometry.dispose();
-      (this.pointCloud.material as THREE.Material).dispose();
+    const actualCount = Math.min(count, MAX_POINTS);
+    this.positionsBuffer.set(src.subarray(0, actualCount * 3));
+
+    const buf = this.pointsBufferRef();
+    const points = buf?.pointsRef()?.nativeElement;
+    if (!points) return;
+
+    if (actualCount === 0) {
+      points.visible = false;
+      return;
     }
+    points.visible = true;
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(finalPoints, 3));
-    const material = new THREE.PointsMaterial({
-      size: this.pointSize(),
-      color: new THREE.Color(this.pointColor()),
-      sizeAttenuation: true,
-    });
-
-    this.pointCloud = new THREE.Points(geometry, material);
-    this.pointCloud.rotation.x = -Math.PI / 2;
-    this.pointCloud.rotation.z = -Math.PI / 2;
-    this.scene.add(this.pointCloud);
+    const geo = points.geometry;
+    if (!geo) return;
+    geo.setDrawRange(0, actualCount);
+    const attr = geo.attributes['position'];
+    if (attr) attr.needsUpdate = true;
   }
+
+  // ── Playback ───────────────────────────────────────────────────────────────
+  private playbackInterval: number | null = null;
 
   private startPlayback() {
     this.isPlaying.set(true);
@@ -670,5 +366,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   private stopPlayback() {
     this.isPlaying.set(false);
     if (this.playbackInterval) clearInterval(this.playbackInterval);
+    this.playbackInterval = null;
   }
 }
