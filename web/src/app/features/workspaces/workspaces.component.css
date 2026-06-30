@@ -6,42 +6,111 @@
   width: 100%;
 }
 
-.bg-black\/60 {
-  background-color: rgba(0, 0, 0, 0.6);
-}
-
-.backdrop-blur-md {
-  backdrop-filter: blur(12px);
-}
-
-.text-white {
-  --syn-button-color-outline: #ffffff;
-  --syn-button-color-text: #ffffff;
-  color: #ffffff;
-}
-
-.text-white syn-icon {
-  color: #ffffff;
-}
-
 .workspace-layout {
   display: flex;
   flex-direction: row;
-  gap: 16px;
+  align-items: stretch;
+  gap: var(--syn-spacing-small);
+  flex: 1;
+  min-height: 0;
 }
 
+/* ── Settings panel wrapper ───────────────────────────────── */
 .workspace-settings-panel {
-  width: 320px;
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex-shrink: 0;
 }
 
-/* Small screens: stack vertically */
+/* Toggle tab — attached to left edge of panel, blends in */
+.settings-toggle {
+  position: absolute;
+  left: -22px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 48px;
+  background: var(--syn-panel-background-color);
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+  border-right: none;
+  border-radius: var(--syn-border-radius-small) 0 0 var(--syn-border-radius-small);
+  cursor: pointer;
+  color: var(--syn-typography-color-text-quiet);
+  transition: color var(--syn-duration-fast), background var(--syn-duration-fast);
+  outline: none;
+  box-shadow: var(--syn-shadow-small);
+}
+
+.settings-toggle:hover {
+  background: var(--syn-interactive-background-color-hover);
+  color: var(--syn-typography-color-text);
+}
+
+.settings-toggle:focus-visible { box-shadow: var(--syn-focus-ring); }
+
+.settings-toggle__icon { font-size: var(--syn-font-size-x-small); }
+
+/* Panel content slides in/out */
+.settings-content {
+  width: 280px;
+  min-height: 0;
+  overflow: hidden;
+  overflow-y: auto;
+  transition: width var(--syn-duration-normal) ease,
+              opacity var(--syn-duration-normal) ease;
+  opacity: 1;
+}
+
+.settings-content--collapsed {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Small screens: toggle hidden, panel always visible ───── */
 @media (max-width: 1023px) {
-  .workspace-layout {
-    flex-direction: column;
-  }
+  .workspace-layout { flex-direction: column; }
 
   .workspace-settings-panel {
     width: 100%;
-    max-height: none;
+    position: static;
+  }
+
+  .settings-toggle { display: none; }
+
+  .settings-content,
+  .settings-content--collapsed {
+    width: 100%;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Small screens */
+@media (max-width: 1023px) {
+  .workspace-layout { flex-direction: column; }
+
+  .workspace-settings-panel {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .settings-toggle {
+    width: 100%;
+    height: 18px;
+    align-self: auto;
+  }
+
+  .settings-content,
+  .settings-content--collapsed {
+    width: 100%;
+    opacity: 1;
+    pointer-events: auto;
   }
 }

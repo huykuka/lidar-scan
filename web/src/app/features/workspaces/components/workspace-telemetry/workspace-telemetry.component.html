@@ -1,0 +1,45 @@
+@if (showHud()) {
+  <div class="hud-container">
+    <div class="hud-card">
+
+      <div class="hud-row">
+        <span class="hud-label">Total Points</span>
+        <span class="hud-value">{{ pointCount() | number }}</span>
+      </div>
+
+      <div class="hud-divider"></div>
+
+      <div class="hud-row">
+        <span class="hud-label">Data Framing</span>
+        <span class="hud-value">{{ fps() }}<span class="hud-unit"> Hz</span></span>
+      </div>
+
+      <div class="hud-divider"></div>
+
+      <div class="hud-row">
+        <span class="hud-label">Lidar Time</span>
+        <span class="hud-value hud-value--mono">{{ lidarTime() }}</span>
+      </div>
+
+      <div class="hud-divider"></div>
+
+      <div class="hud-row">
+        <span class="hud-label">Active Topics ({{ enabledTopicsCount() }})</span>
+      </div>
+
+      @if (enabledTopics().length > 0) {
+        <div class="hud-topics">
+          @for (topic of enabledTopics(); track topic.topic) {
+            <div class="hud-topic">
+              <span class="hud-topic-dot" [style.background-color]="topic.color"></span>
+              <span class="hud-topic-name">{{ topic.topic }}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <span class="hud-empty">No topics selected</span>
+      }
+
+    </div>
+  </div>
+}

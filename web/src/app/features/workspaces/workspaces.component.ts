@@ -41,6 +41,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
 
   /** Hide HUD and cockpit controls when more than one pane is active */
   protected isSinglePane = computed(() => this.splitLayout.paneCount() <= 1);
+  protected settingsOpen = signal(true);
 
   // ── FE-11: Responsive narrow-screen guard ──────────────────────────────────
   protected isNarrowScreen = signal(window.innerWidth < 1024);

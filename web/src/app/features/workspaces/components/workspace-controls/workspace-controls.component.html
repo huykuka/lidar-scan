@@ -1,100 +1,90 @@
-<syn-accordion [contained]="true">
-  <syn-details [open]="true">
-    <span slot="summary">
-      <div class="flex flex-row gap-4">
-        <syn-icon class="panel__icon" name="sensors" />
-        <h3 class="panel__title">Live Sources</h3>
-      </div></span
+<div class="panel">
+
+  <!-- Header -->
+  <div class="panel__header">
+    <syn-icon class="panel__icon" name="sensors" />
+    <h3 class="panel__title">Live Sources</h3>
+  </div>
+
+  <!-- Add New Topic -->
+  @if (availableTopics().length > 0) {
+    <syn-select
+      (synChangeEvent)="onTopicSelect($event)"
+      [value]="selectedNewTopic"
+      class="w-full"
+      placeholder="Select topic to add..."
+      size="small"
     >
-    <div class="panel__body">
-
-      <!-- Add New Topic -->
-      @if (availableTopics().length > 0) {
-        <syn-select
-          (synChangeEvent)="onTopicSelect($event)"
-          [value]="selectedNewTopic"
-          class="w-full"
-          placeholder="Select topic to add..."
-          size="small"
-        >
-          @for (topic of availableTopics(); track topic) {
-            <syn-option [title]="topic" [value]="topic">{{ topic }}</syn-option>
-          }
-        </syn-select>
+      @for (topic of availableTopics(); track topic) {
+        <syn-option [title]="topic" [value]="topic">{{ topic }}</syn-option>
       }
+    </syn-select>
+  }
 
-      <!-- All Topics Selected -->
-      @if (availableTopics().length === 0 && topics().length > 0) {
-        <p class="all-active-msg">
-          <syn-icon name="check_circle" />
-          All topics active
-        </p>
-      }
+  @if (availableTopics().length === 0 && topics().length > 0) {
+    <p class="all-active-msg">
+      <syn-icon name="check_circle" />
+      All topics active
+    </p>
+  }
 
-      <!-- Topic List -->
-      @if (selectedTopics().length > 0) {
-        <div class="topic-list">
-          <p class="section-label">Active Topics ({{ selectedTopics().length }})</p>
+  <!-- Topic List -->
+  @if (selectedTopics().length > 0) {
+    <div class="topic-list">
+      <p class="section-label">Active Topics ({{ selectedTopics().length }})</p>
 
-          @for (topicConfig of selectedTopics(); track topicConfig.topic) {
-            <div class="topic-card" [class.topic-card--disabled]="!topicConfig.enabled">
+      @for (topicConfig of selectedTopics(); track topicConfig.topic) {
+        <div class="topic-card" [class.topic-card--disabled]="!topicConfig.enabled">
+          <div class="topic-row">
+            <input
+              (input)="onTopicColorChange(topicConfig.topic, $event)"
+              [value]="topicConfig.color"
+              class="color-swatch"
+              title="Change color"
+              type="color"
+            />
+            <span [title]="topicConfig.topic" class="topic-name">{{ topicConfig.topic }}</span>
+            <syn-icon-button
+              (click)="removeTopic(topicConfig.topic)"
+              label="Remove"
+              name="playlist_remove_fill"
+              size="small"
+              title="Remove"
+              style="color: var(--syn-color-error-500) ;"
+            />
+          </div>
 
-              <!-- Row 1: color · name · actions -->
-              <div class="topic-row">
-                <input
-                  (input)="onTopicColorChange(topicConfig.topic, $event)"
-                  [value]="topicConfig.color"
-                  class="color-swatch"
-                  title="Change color"
-                  type="color"
-                />
-                <span [title]="topicConfig.topic" class="topic-name">{{ topicConfig.topic }}</span>
-                <div class="topic-actions">
-                  <syn-icon-button
-                    (click)="removeTopic(topicConfig.topic)"
-                    label="Remove"
-                    name="close"
-                    size="small"
-                    title="Remove"
-                  />
-                </div>
-              </div>
-
-              <!-- Row 2: size label · slider · value -->
-              <div class="size-row">
-                <span class="size-label">Size</span>
-                <syn-range
-                  (synInputEvent)="onTopicPointSizeChange(topicConfig.topic, $event)"
-                  [max]="8"
-                  [min]="1"
-                  [step]="0.5"
-                  [value]="topicConfig.pointSize.toString()"
-                  class="size-slider"
-                />
-              </div>
-
-            </div>
-          }
+          <div class="size-row">
+            <span class="size-label">Size</span>
+            <syn-range
+              (synInputEvent)="onTopicPointSizeChange(topicConfig.topic, $event)"
+              [max]="8"
+              [min]="1"
+              [step]="0.5"
+              [value]="topicConfig.pointSize.toString()"
+              class="size-slider"
+            />
+          </div>
         </div>
       }
-
-      <!-- Empty State -->
-      @if (selectedTopics().length === 0) {
-        <div class="empty-state">
-          <syn-icon name="radar" />
-          <p>No topics selected</p>
-        </div>
-      }
-
-      <!-- Stream status -->
-      <div [class.status--bad]="!isConnected()" [class.status--ok]="isConnected()" class="status">
-        <div class="status__dot">
-          <span class="status__ping"></span>
-          <span class="status__core"></span>
-        </div>
-        <p class="status__label">{{ isConnected() ? 'Stream Active' : 'Waiting for data' }}</p>
-      </div>
-
     </div>
-  </syn-details>
-</syn-accordion>
+  }
+
+  <!-- Empty State -->
+  @if (selectedTopics().length === 0) {
+    <div class="empty-state">
+      <syn-icon name="radar" />
+      <p>No topics selected</p>
+    </div>
+  }
+
+  <!-- Stream status -->
+  <div [class.status--bad]="!isConnected()" [class.status--ok]="isConnected()" class="status">
+    <div class="status__dot">
+      <span class="status__ping"></span>
+      <span class="status__core"></span>
+    </div>
+    <p class="status__label">{{ isConnected() ? 'Stream Active' : 'Waiting for data' }}</p>
+  </div>
+
+</div>

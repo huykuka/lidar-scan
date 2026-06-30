@@ -1,3 +1,96 @@
-.backdrop-blur-md {
+.hud-container {
+  position: absolute;
+  top: var(--syn-spacing-large);
+  right: var(--syn-spacing-large);
+  pointer-events: none;
+  z-index: 10;
+  animation: fade-in-left var(--syn-duration-normal) ease both;
+}
+
+.hud-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-small);
+  min-width: 200px;
+  padding: var(--syn-spacing-medium);
+  background: var(--syn-overlay-background-color);
   backdrop-filter: blur(12px);
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+  border-radius: var(--syn-border-radius-large);
+}
+
+.hud-divider {
+  height: var(--syn-border-width-small);
+  background: var(--syn-panel-border-color);
+  width: 100%;
+}
+
+.hud-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-3x-small);
+}
+
+.hud-label {
+  font: var(--syn-body-2x-small-regular);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--syn-typography-color-text-quiet);
+}
+
+.hud-value {
+  font: var(--syn-body-large-bold);
+  color: var(--syn-typography-color-text);
+  line-height: 1;
+}
+
+.hud-value--mono {
+  font-family: var(--syn-font-mono);
+  font-size: var(--syn-font-size-medium);
+  font-weight: var(--syn-font-weight-bold);
+}
+
+.hud-unit {
+  font: var(--syn-body-x-small-regular);
+  color: var(--syn-typography-color-text-quiet);
+}
+
+.hud-topics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-2x-small);
+}
+
+.hud-topic {
+  display: flex;
+  align-items: center;
+  gap: var(--syn-spacing-2x-small);
+}
+
+.hud-topic-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--syn-border-radius-circle);
+  flex-shrink: 0;
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+}
+
+.hud-topic-name {
+  font: var(--syn-body-x-small-semibold);
+  font-family: var(--syn-font-mono);
+  color: var(--syn-typography-color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-empty {
+  font: var(--syn-body-x-small-regular);
+  font-family: var(--syn-font-mono);
+  color: var(--syn-typography-color-text-quiet);
+}
+
+@keyframes fade-in-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
 }

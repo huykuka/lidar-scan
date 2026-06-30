@@ -24,9 +24,18 @@
         }
       </div>
 
-      <!-- Always-visible settings panel -->
-      <aside class="workspace-settings-panel shrink-0 overflow-y-auto">
-        <app-workspace-controls class="block w-full" />
+      <!-- Settings panel — toggle always visible, panel slides in/out -->
+      <aside class="workspace-settings-panel shrink-0">
+        <button
+          class="settings-toggle sm:hidden"
+          (click)="settingsOpen.set(!settingsOpen())"
+          [title]="settingsOpen() ? 'Collapse settings' : 'Expand settings'"
+        >
+          <syn-icon [name]="settingsOpen() ? 'chevron_right' : 'chevron_left'" class="settings-toggle__icon"></syn-icon>
+        </button>
+        <div class="settings-content" [class.settings-content--collapsed]="!settingsOpen()">
+          <app-workspace-controls class="block h-full" />
+        </div>
       </aside>
     </div>
   }
