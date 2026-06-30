@@ -1,0 +1,33 @@
+<ngt-canvas [scene]="{ background: '#000000' }">
+
+  <div *canvasContent>
+    @if (viewType() === 'perspective') {
+      <ngts-perspective-camera [options]="perspCameraOptions" />
+    } @else {
+      <ngts-orthographic-camera [options]="orthoCameraOptions()" />
+    }
+
+    <ngts-orbit-controls [options]="orbitOptions()" />
+    <ngts-grid [options]="gridOptions()" />
+    <ngt-axes-helper *args="[30]" />
+    <ngts-grid [options]="{ rotation: [Math.PI / 2, 0, 0], ...gridOptions() }" />
+    <ngts-grid [options]="{ ...gridOptions() }" />
+
+    <ngts-points-instances [options]="{ limit: 1 }">
+      <ngt-points-material [size]="0.5" [vertexColors]="true" />
+      <ngts-point [options]="{ position: [0, 0, 0], color: 'red' }" />
+    </ngts-points-instances>
+
+    @for (entry of topicEntries(); track entry.topic) {
+      <ngts-points-buffer #buf [positions]="entry.buf">
+        <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false" />
+      </ngts-points-buffer>
+    }
+
+    <ngts-gizmo-helper [options]="{ margin: [80, 80]}">
+      <ng-template gizmoHelperContent>
+        <ngts-gizmo-viewport [options]="{ disabled: true ,hideNegativeAxes:true}" />
+      </ng-template>
+    </ngts-gizmo-helper>
+  </div>
+</ngt-canvas>

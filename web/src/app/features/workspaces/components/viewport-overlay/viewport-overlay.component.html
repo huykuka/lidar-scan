@@ -1,7 +1,7 @@
 <!-- Viewport overlay: positioned absolutely over the Three.js canvas -->
 <div class="absolute inset-0 pointer-events-none z-10">
 
-  <!-- Top-left: orientation dropdown + reset button — always on top of empty-state -->
+  <!-- Top-left: orientation dropdown + reset button -->
   <div class="absolute top-2 left-2 pointer-events-auto flex items-center gap-1 z-20">
     <syn-dropdown
       placement="bottom-start"
@@ -10,16 +10,10 @@
       (synAfterShowEvent)="dropdownOpen.set(true)"
       (synAfterHideEvent)="dropdownOpen.set(false)"
     >
-      <!-- Trigger button -->
-      <button
-        slot="trigger"
-        class="orient-trigger"
-        [title]="currentOption().label"
-      >
+      <button slot="trigger" class="orient-trigger" [title]="currentOption().label">
         <span class="orient-svg" [innerHTML]="currentOption().svg"></span>
       </button>
 
-      <!-- Menu items -->
       <div class="orient-menu">
         @for (opt of orientationOptions; track opt.value) {
           <button
@@ -34,28 +28,33 @@
       </div>
     </syn-dropdown>
 
-    <!-- Reset camera to center -->
+    <!-- Ortho / perspective toggle -->
     <button
       class="orient-trigger"
-      title="Reset view to center"
-      (click)="resetCamera()"
+      [class.orient-trigger--active]="isOrtho()"
+      [title]="isOrtho() ? 'Switch to 3D perspective' : 'Switch to orthographic'"
+      (click)="toggleOrtho()"
     >
-      <syn-icon name="center_focus_strong" style="font-size:16px;color:#fff;display:flex;"></syn-icon>
+      <syn-icon [name]="isOrtho() ? 'view_in_ar' : 'grid_on'" class="orient-btn-icon"></syn-icon>
     </button>
   </div>
 
-  <!-- Empty state overlay: shown when no point cloud data is loaded -->
+  <!-- Bottom-left: scale indicator -->
+  <div class="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 select-none">
+    <syn-icon name="straighten" class="scale-icon"></syn-icon>
+    <div class="scale-ruler">
+      <div class="scale-bar"></div>
+      <span class="scale-label">1 m</span>
+    </div>
+  </div>
+
+  <!-- Empty state overlay -->
   @if (!hasData()) {
-    <div
-      class="absolute inset-0 flex flex-col items-center justify-center
-             bg-black/20 backdrop-blur-[1px] pointer-events-none"
-    >
-      <span
-        class="text-2xl font-black uppercase tracking-widest
-               text-white/30 select-none"
-      >{{ pane().orientation }} VIEW</span>
-      <span class="text-xs text-white/20 mt-1 select-none">No point cloud loaded</span>
+    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none empty-state">
+      <span class="empty-state__label">{{ pane().orientation }} VIEW</span>
+      <span class="empty-state__sub">No point cloud loaded</span>
     </div>
   }
 
 </div>
+

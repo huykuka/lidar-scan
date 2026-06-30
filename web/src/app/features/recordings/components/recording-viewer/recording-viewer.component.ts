@@ -305,11 +305,10 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
 
   /** Render gizmo into a scissored viewport at the TOP-LEFT corner. */
   private renderGizmo(): void {
-    const dpr     = this.renderer.getPixelRatio();
-    const size    = Math.round(this.GIZMO_SIZE * dpr);
     const canvas  = this.renderer.domElement;
-    const canvasW = canvas.clientWidth  * dpr;
-    const canvasH = canvas.clientHeight * dpr;
+    const canvasW = canvas.clientWidth;
+    const canvasH = canvas.clientHeight;
+    const GZ      = this.GIZMO_SIZE; // CSS pixels — Three.js applies DPR internally
 
     // Mirror main camera direction relative to orbit target
     this.gizmoCamera.position
@@ -320,13 +319,13 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     this.gizmoCamera.up.copy(this.camera.up);
     this.gizmoCamera.lookAt(0, 0, 0);
 
-    // Top-left: x=14, y = canvasH - size - 14
+    // Top-left corner: x=14, y = canvasH - GZ - 14 (CSS px)
     const x = 14;
-    const y = canvasH - size - 14;
+    const y = canvasH - GZ - 14;
 
     this.renderer.setScissorTest(true);
-    this.renderer.setViewport(x, y, size, size);
-    this.renderer.setScissor(x, y, size, size);
+    this.renderer.setViewport(x, y, GZ, GZ);
+    this.renderer.setScissor(x, y, GZ, GZ);
     this.renderer.clearDepth();
     this.renderer.render(this.gizmoScene, this.gizmoCamera);
 

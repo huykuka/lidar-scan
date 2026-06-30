@@ -5,6 +5,7 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
+import { provideNgtRenderer } from 'angular-three/dom';
 import { PreloadAllModules, provideRouter, withPreloading } from '@angular/router';
 import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 
@@ -16,6 +17,7 @@ import { AppInitService } from './core/services/app-init.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideNgtRenderer(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideHttpClient(withXhr(), withInterceptors([authInterceptor, httpToastInterceptor])),

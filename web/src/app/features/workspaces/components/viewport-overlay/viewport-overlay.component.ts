@@ -14,6 +14,8 @@ export interface OrientationOption {
   svg: SafeHtml;
 }
 
+const ORTHO_VIEWS = new Set<ViewOrientation>(['top', 'bottom', 'front', 'end', 'left', 'right']);
+
 /**
  * Two-tone isometric cube SVGs — each highlights the face matching the view direction.
  * Stroke: #888  |  Active face fill: #4a9eff
@@ -57,27 +59,31 @@ const RAW_SVGS: Record<ViewOrientation, string> = {
 
   // End — back-right face highlighted (-Z)
   end: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="${S}" stroke-width="1.4" stroke-linejoin="round">
-    <path d="M21 8 L12 13 L12 21 L21 16 Z" fill="${F}" stroke="${F}" stroke-width="0.5"/>
+    <path d="M12 3 L21 8 L21 16 L12 11 Z" fill="${F}" stroke="${F}" stroke-width="0.5"/>
     <path d="M12 3 L21 8 L12 13 L3 8 Z" fill="none" stroke="${S}"/>
     <path d="M3 8 L3 16 L12 21" fill="none" stroke="${S}"/>
     <path d="M12 13 L3 8" fill="none" stroke="${S}"/>
+    <path d="M12 13 L12 21" fill="none" stroke="${S}"/>
   </svg>`,
 
-  // Left — left face highlighted (-X)
+  // Left → now labeled "Front": highlight the front face (left-facing panel in iso view)
   left: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="${S}" stroke-width="1.4" stroke-linejoin="round">
-    <path d="M3 8 L12 13 L12 21 L3 16 Z" fill="${F}" stroke="${F}" stroke-width="0.5"/>
-    <path d="M3 8 L12 3 L21 8 L12 13 Z" fill="none" stroke="${S}"/>
-    <path d="M21 8 L21 16 L12 21" fill="none" stroke="${S}"/>
-    <path d="M12 13 L21 8" fill="none" stroke="${S}"/>
-  </svg>`,
-
-  // Right — right face highlighted (+X)
-  right: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="${S}" stroke-width="1.4" stroke-linejoin="round">
-    <path d="M21 8 L12 13 L12 21 L21 16 Z" fill="${F}" stroke="${F}" stroke-width="0.5"/>
+    <path d="M12 13 L21 8 L21 16 L12 21 Z" fill="${F}" stroke="${F}" stroke-width="0.5"/>
     <path d="M12 3 L21 8 L12 13 L3 8 Z" fill="none" stroke="${S}"/>
     <path d="M3 8 L3 16 L12 21" fill="none" stroke="${S}"/>
     <path d="M12 13 L3 8" fill="none" stroke="${S}"/>
-  </svg>`,
+  </svg>
+`,
+
+  // Right → now labeled "Rear": highlight the rear face (right-facing panel in iso view)
+  right: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="${S}" stroke-width="1.4" stroke-linejoin="round">
+    <path d="M12 3 L3 8 L3 16 L12 11 Z" fill="${F}" stroke="${F}" stroke-width="0.5"/>
+    <path d="M12 3 L21 8 L12 13 L3 8 Z" fill="none" stroke="${S}"/>
+    <path d="M21 8 L21 16 L12 21" fill="none" stroke="${S}"/>
+    <path d="M12 13 L3 8" fill="none" stroke="${S}"/>
+    <path d="M3 8 L3 16 L12 21" fill="none" stroke="${S}"/>
+</svg>
+`,
 };
 
 @Component({
@@ -124,9 +130,16 @@ export class ViewportOverlayComponent {
       this.orientationOptions[0],
   );
 
+  protected readonly isOrtho = computed(() => ORTHO_VIEWS.has(this.pane().orientation));
+
   setOrientation(value: ViewOrientation): void {
     this.layout.setPaneOrientation(this.pane().id, value);
     this.dropdownOpen.set(false);
+  }
+
+  toggleOrtho(): void {
+    const next: ViewOrientation = this.isOrtho() ? 'perspective' : 'top';
+    this.layout.setPaneOrientation(this.pane().id, next);
   }
 
   resetCamera(): void {

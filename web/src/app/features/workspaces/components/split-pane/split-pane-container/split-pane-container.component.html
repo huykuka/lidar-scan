@@ -11,11 +11,6 @@
       [style.flex]="oneTwoFractions()[0]"
     >
       <app-point-cloud
-        class="w-full h-full block"
-        [backgroundColor]="store.backgroundColor()"
-        [pointSize]="store.pointSize()"
-        [showAxes]="store.showAxes()"
-        [showGrid]="store.showGrid()"
         [viewType]="groups()[0].panes[0].orientation"
         [viewId]="groups()[0].panes[0].id"
       />
@@ -41,11 +36,7 @@
           [style.flex]="pane.sizeFraction"
         >
           <app-point-cloud
-            class="w-full h-full block"
-            [backgroundColor]="store.backgroundColor()"
-            [pointSize]="store.pointSize()"
-            [showAxes]="store.showAxes()"
-            [showGrid]="store.showGrid()"
+
             [viewType]="pane.orientation"
             [viewId]="pane.id"
           />
@@ -78,11 +69,6 @@
         [attr.data-pane-id]="pane.id"
       >
         <app-point-cloud
-          class="w-full h-full block"
-          [backgroundColor]="store.backgroundColor()"
-          [pointSize]="store.pointSize()"
-          [showAxes]="store.showAxes()"
-          [showGrid]="store.showGrid()"
           [viewType]="pane.orientation"
           [viewId]="pane.id"
         />
@@ -105,11 +91,7 @@
           [attr.data-pane-id]="pane.id"
         >
           <app-point-cloud
-            class="w-full h-full block"
-            [backgroundColor]="store.backgroundColor()"
-            [pointSize]="store.pointSize()"
-            [showAxes]="store.showAxes()"
-            [showGrid]="store.showGrid()"
+
             [viewType]="pane.orientation"
             [viewId]="pane.id"
           />
