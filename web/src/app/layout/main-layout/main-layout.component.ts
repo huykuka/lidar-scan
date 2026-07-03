@@ -1,12 +1,13 @@
 import {
-  AfterViewInit,
+  ChangeDetectorRef,
   Component,
   HostListener,
   inject,
   OnInit,
   signal,
   viewChild,
-  ChangeDetectionStrategy
+  ChangeDetectionStrategy,
+  AfterViewInit,
 } from '@angular/core';
 import { ChildrenOutletContexts, RouterOutlet } from '@angular/router';
 

@@ -1,3 +1,19 @@
 :host {
   display: block;
 }
+
+/* On mobile: hide version number and headline breadcrumb to save header space for meta-nav icons */
+@media (max-width: 1023px) {
+  .header-version {
+    display: none;
+  }
+
+  .header-headline {
+    display: none;
+  }
+
+  /* Hide lower-priority actions on mobile — keep connection, sensor count, account */
+  .header-mobile-hidden {
+    display: none;
+  }
+}
