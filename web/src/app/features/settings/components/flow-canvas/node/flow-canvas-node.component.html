@@ -11,52 +11,55 @@
 >
   <!-- Input Port -->
   @if (hasInputPort()) {
-    <div
-      (mousedown)="$event.stopPropagation()"
-      (mouseup)="$event.stopPropagation(); portDrop.emit({ nodeId: node().id, portType: 'input' })"
-      class="absolute left-0 top-4 -translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
-      title="Input — drop connection here"
-    ></div>
+    <syn-tooltip content="Input — drop connection here" [distance]="13" placement="left">
+      <div
+        (mousedown)="$event.stopPropagation()"
+        (mouseup)="$event.stopPropagation(); portDrop.emit({ nodeId: node().id, portType: 'input' })"
+        class="absolute left-0 top-4 -translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
+      ></div>
+    </syn-tooltip>
   }
 
   <!-- Output Port(s) -->
   @if (hasOutputPort()) {
     @if (outputPorts().length === 1) {
       <!-- Single output port (legacy behavior) -->
-      <div
-        (mousedown)="
-          $event.stopPropagation();
-          portDragStart.emit({
-            nodeId: node().id,
-            portType: 'output',
-            portId: outputPorts()[0].id,
-            portIndex: 0,
-            event: $event,
-          })
-        "
-        (mouseup)="$event.stopPropagation()"
-        class="absolute right-0 top-4 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
-        title="Output — drag to connect"
-      ></div>
-    } @else {
-      <!-- Multiple output ports -->
-      @for (port of outputPorts(); track port.id; let i = $index) {
+      <syn-tooltip content="Output — drag to connect" [distance]="13" placement="right">
         <div
           (mousedown)="
             $event.stopPropagation();
             portDragStart.emit({
               nodeId: node().id,
               portType: 'output',
-              portId: port.id,
-              portIndex: i,
+              portId: outputPorts()[0].id,
+              portIndex: 0,
               event: $event,
             })
           "
           (mouseup)="$event.stopPropagation()"
           class="absolute right-0 top-4 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
-          [style.top.px]="getOutputPortY(i, outputPorts().length)"
-          [title]="port.label + ' — drag to connect'"
         ></div>
+      </syn-tooltip>
+    } @else {
+      <!-- Multiple output ports -->
+      @for (port of outputPorts(); track port.id; let i = $index) {
+        <syn-tooltip [content]="port.label + ' — drag to connect'" [distance]="13" placement="right">
+          <div
+            (mousedown)="
+              $event.stopPropagation();
+              portDragStart.emit({
+                nodeId: node().id,
+                portType: 'output',
+                portId: port.id,
+                portIndex: i,
+                event: $event,
+              })
+            "
+            (mouseup)="$event.stopPropagation()"
+            class="absolute right-0 top-4 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
+            [style.top.px]="getOutputPortY(i, outputPorts().length)"
+          ></div>
+        </syn-tooltip>
       }
     }
   }
@@ -91,11 +94,12 @@
       </span>
     </div>
     @if (isNodeEnabled()) {
-      <syn-icon
-        [name]="operationalIcon().icon"
-        [class]="operationalIcon().css + ' text-[20px] shrink-0'"
-        [title]="status()?.operational_state ?? 'Unknown'"
-      />
+      <syn-tooltip [content]="status()?.operational_state ?? 'Unknown'" [distance]="13" placement="top">
+        <syn-icon
+          [name]="operationalIcon().icon"
+          [class]="operationalIcon().css + ' text-[20px] shrink-0'"
+        />
+      </syn-tooltip>
     }
   </div>
 

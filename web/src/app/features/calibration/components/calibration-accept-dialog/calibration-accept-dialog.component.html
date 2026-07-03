@@ -112,11 +112,12 @@
                           >
                             {{ getSensorName(result.source_sensor_id) }}
                           </syn-badge>
-                          <syn-icon
-                            class="text-xs text-neutral-400"
-                            name="info"
-                            title="This is the sensor whose pose configuration will be updated on accept"
-                          />
+                          <syn-tooltip content="This is the sensor whose pose configuration will be updated on accept" [distance]="13" placement="top">
+                            <syn-icon
+                              class="text-xs text-neutral-400"
+                              name="info"
+                            />
+                          </syn-tooltip>
                         </div>
                       }
                     </div>
@@ -132,11 +133,12 @@
                     >
                       <div class="flex items-center gap-1 mb-1">
                         <span class="text-xs font-semibold text-neutral-600">Processing Chain</span>
-                        <syn-icon
-                          class="text-xs text-neutral-400"
-                          name="info"
-                          title="Ordered list of DAG nodes from sensor to calibration node"
-                        />
+                        <syn-tooltip content="Ordered list of DAG nodes from sensor to calibration node" [distance]="13" placement="top">
+                          <syn-icon
+                            class="text-xs text-neutral-400"
+                            name="info"
+                          />
+                        </syn-tooltip>
                       </div>
                     </div>
                   }

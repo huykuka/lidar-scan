@@ -3,22 +3,24 @@
   class="flex items-center gap-px bg-syn-page-background-color border border-neutral-200 rounded-lg shadow-md overflow-hidden h-7"
 >
   <!-- Reset View -->
-  <button
-    (click)="onResetView.emit()"
-    title="Reset view"
-    class="flex items-center justify-center w-7 h-7 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border-r border-neutral-200"
-  >
-    <syn-icon name="map" style="font-size: 14px" />
-  </button>
+  <syn-tooltip content="Reset view" [distance]="13" placement="top">
+    <button
+      (click)="onResetView.emit()"
+      class="flex items-center justify-center w-7 h-7 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border-r border-neutral-200"
+    >
+      <syn-icon name="map" style="font-size: 14px" />
+    </button>
+  </syn-tooltip>
 
   <!-- Zoom out -->
-  <button
-    (click)="onZoomOut.emit()"
-    title="Zoom out"
-    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none"
-  >
-    −
-  </button>
+  <syn-tooltip content="Zoom out" [distance]="13" placement="top">
+    <button
+      (click)="onZoomOut.emit()"
+      class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none"
+    >
+      −
+    </button>
+  </syn-tooltip>
 
   <!-- Zoom level -->
   <span class="text-[11px] font-mono font-semibold  w-8 text-center select-none">
@@ -26,23 +28,30 @@
   </span>
   
   <!-- Zoom in -->
-  <button
-    (click)="onZoomIn.emit()"
-    title="Zoom in"
-    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none "
-  >
-    +
-  </button>
+  <syn-tooltip content="Zoom in" [distance]="13" placement="top">
+    <button
+      (click)="onZoomIn.emit()"
+      class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none "
+    >
+      +
+    </button>
+  </syn-tooltip>
+
   <!-- Snap to Grid toggle -->
-  <button
-    (click)="onSnapToggle.emit()"
-    [class.text-blue-600]="snapToGrid()"
-    [class.text-neutral-400]="!snapToGrid()"
-    [title]="snapToGrid() ? 'Snap to grid: on' : 'Snap to grid: off'"
-    class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors border-l border-neutral-200"
+  <syn-tooltip
+    [content]="snapToGrid() ? 'Snap to grid: on' : 'Snap to grid: off'"
+    [distance]="13"
+    placement="top"
   >
-    <syn-icon name="grid_4x4" style="font-size: 14px" />
-  </button>
+    <button
+      (click)="onSnapToggle.emit()"
+      [class.text-blue-600]="snapToGrid()"
+      [class.text-neutral-400]="!snapToGrid()"
+      class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors border-l border-neutral-200"
+    >
+      <syn-icon name="grid_4x4" style="font-size: 14px" />
+    </button>
+  </syn-tooltip>
 
 
 </div>

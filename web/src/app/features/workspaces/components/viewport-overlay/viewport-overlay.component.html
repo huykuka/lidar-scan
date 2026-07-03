@@ -1,8 +1,9 @@
 <!-- Viewport overlay: positioned absolutely over the Three.js canvas -->
 <div class="absolute inset-0 pointer-events-none z-10">
-
   <!-- Center-left: orientation dropdown + view toggles -->
-  <div class="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-auto flex flex-col items-center gap-1 z-20">
+  <div
+    class="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-auto flex flex-col items-center gap-1 z-20"
+  >
     <syn-dropdown
       placement="bottom-start"
       [distance]="4"
@@ -10,7 +11,7 @@
       (synAfterShowEvent)="dropdownOpen.set(true)"
       (synAfterHideEvent)="dropdownOpen.set(false)"
     >
-      <button slot="trigger" class="orient-trigger" [title]="currentOption().label">
+      <button slot="trigger" class="orient-trigger">
         <span class="orient-svg" [innerHTML]="currentOption().svg"></span>
       </button>
 
@@ -29,24 +30,33 @@
     </syn-dropdown>
 
     <!-- Ortho / perspective toggle -->
-    <button
-      class="orient-trigger"
-      [class.orient-trigger--active]="isOrtho()"
-      [title]="isOrtho() ? 'Switch to 3D perspective' : 'Switch to orthographic'"
-      (click)="toggleOrtho()"
+    <syn-tooltip
+      [content]="isOrtho() ? 'Switch to 3D perspective' : 'Switch to orthographic'"
+      [distance]="13"
+      placement="right"
     >
-      <syn-icon [name]="isOrtho() ? 'view_in_ar' : 'grid_on'" class="orient-btn-icon"></syn-icon>
-    </button>
-
+      <button
+        class="orient-trigger"
+        [class.orient-trigger--active]="isOrtho()"
+        (click)="toggleOrtho()"
+      >
+        <syn-icon [name]="isOrtho() ? 'view_in_ar' : 'grid_on'" class="orient-btn-icon"></syn-icon>
+      </button>
+    </syn-tooltip>
     <!-- Grid toggle -->
-    <button
-      class="orient-trigger"
-      [class.orient-trigger--active]="showGrid()"
-      title="Toggle grid"
-      (click)="toggleGrid()"
+    <syn-tooltip
+      [content]="showGrid() ? 'Hide grid' : 'Show grid'"
+      [distance]="13"
+      placement="right"
     >
-      <syn-icon name="grid_goldenratio" class="orient-btn-icon"></syn-icon>
-    </button>
+      <button
+        class="orient-trigger"
+        [class.orient-trigger--active]="showGrid()"
+        (click)="toggleGrid()"
+      >
+        <syn-icon name="grid_goldenratio" class="orient-btn-icon"></syn-icon>
+      </button>
+    </syn-tooltip>
   </div>
 
   <!-- Bottom-left: scale indicator -->
@@ -60,11 +70,11 @@
 
   <!-- Empty state overlay -->
   @if (!hasData()) {
-    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none empty-state">
+    <div
+      class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none empty-state"
+    >
       <span class="empty-state__label">{{ pane().orientation }} VIEW</span>
       <span class="empty-state__sub">No point cloud loaded</span>
     </div>
   }
-
 </div>
-

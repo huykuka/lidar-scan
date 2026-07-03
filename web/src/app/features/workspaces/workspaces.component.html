@@ -26,13 +26,18 @@
 
       <!-- Settings panel — toggle always visible, panel slides in/out -->
       <aside class="workspace-settings-panel shrink-0">
-        <button
-          class="settings-toggle sm:hidden"
-          (click)="settingsOpen.set(!settingsOpen())"
-          [title]="settingsOpen() ? 'Collapse settings' : 'Expand settings'"
+        <syn-tooltip
+          [content]="settingsOpen() ? 'Collapse settings' : 'Expand settings'"
+          [distance]="13"
+          placement="left"
         >
-          <syn-icon [name]="settingsOpen() ? 'chevron_right' : 'chevron_left'" class="settings-toggle__icon"></syn-icon>
-        </button>
+          <button
+            class="settings-toggle sm:hidden"
+            (click)="settingsOpen.set(!settingsOpen())"
+          >
+            <syn-icon [name]="settingsOpen() ? 'chevron_right' : 'chevron_left'" class="settings-toggle__icon"></syn-icon>
+          </button>
+        </syn-tooltip>
         <div class="settings-content" [class.settings-content--collapsed]="!settingsOpen()">
           <app-workspace-controls class="block h-full" />
         </div>

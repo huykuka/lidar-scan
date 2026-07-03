@@ -80,28 +80,31 @@
 
   <!-- Quick Actions Column -->
   <div class="flex flex-col justify-center gap-2 px-3 py-2 bg-syn-color-neutral-50 flex-shrink-0">
-    <syn-icon-button variant="text"
-      name="play_arrow"
-      color="primary"
-      (click)="play.emit(recording()); $event.stopPropagation()"
-      label="Play"
-      title="Play"
-     />
+    <syn-tooltip content="Play" [distance]="13" placement="top">
+      <syn-icon-button variant="text"
+        name="play_arrow"
+        color="primary"
+        (click)="play.emit(recording()); $event.stopPropagation()"
+        label="Play"
+       />
+    </syn-tooltip>
 
-    <syn-icon-button variant="text"
-      name="download"
-      title="Download"
-      style="color: var(--syn-color-primary-600)"
-      (click)="download.emit(recording()); $event.stopPropagation()"
-      label="Download"
-     />
+    <syn-tooltip content="Download" [distance]="13" placement="top">
+      <syn-icon-button variant="text"
+        name="download"
+        style="color: var(--syn-color-primary-600)"
+        (click)="download.emit(recording()); $event.stopPropagation()"
+        label="Download"
+       />
+    </syn-tooltip>
 
-    <syn-icon-button variant="text"
-      style="color: var(--syn-color-error-600)"
-      name="delete"
-      title="Delete"
-      (click)="delete.emit(recording()); $event.stopPropagation()"
-      label="Delete"
-     />
+    <syn-tooltip content="Delete" [distance]="13" placement="top">
+      <syn-icon-button variant="text"
+        style="color: var(--syn-color-error-600)"
+        name="delete"
+        (click)="delete.emit(recording()); $event.stopPropagation()"
+        label="Delete"
+       />
+    </syn-tooltip>
   </div>
 </div>

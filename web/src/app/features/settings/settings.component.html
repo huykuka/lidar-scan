@@ -7,50 +7,70 @@
     >
       <!-- Left: file actions + system control -->
       <div class="flex items-center gap-2">
-        <syn-button
-          (click)="onExportConfig()"
-          [disabled]="isExporting()"
-          [loading]="isExporting()"
-          variant="outline"
-          [title]="canEdit() ? 'Export configuration' : 'Admin access required'"
+        <syn-tooltip
+          [content]="canEdit() ? 'Export configuration' : 'Admin access required'"
+          [distance]="13"
+          placement="bottom"
         >
-          <syn-icon name="download" slot="prefix" />
-          Export
-        </syn-button>
+          <syn-button
+            (click)="onExportConfig()"
+            [disabled]="isExporting()"
+            [loading]="isExporting()"
+            variant="outline"
+          >
+            <syn-icon name="download" slot="prefix" />
+            Export
+          </syn-button>
+        </syn-tooltip>
 
-        <syn-button
-          (click)="onImportConfigClick()"
-          [disabled]="isImporting() || !canEdit()"
-          [loading]="isImporting()"
-          variant="outline"
-          [title]="canEdit() ? 'Import configuration' : 'Admin access required'"
+        <syn-tooltip
+          [content]="canEdit() ? 'Import configuration' : 'Admin access required'"
+          [distance]="13"
+          placement="bottom"
         >
-          <syn-icon name="upload" slot="prefix" />
-          Import
-        </syn-button>
+          <syn-button
+            (click)="onImportConfigClick()"
+            [disabled]="isImporting() || !canEdit()"
+            [loading]="isImporting()"
+            variant="outline"
+          >
+            <syn-icon name="upload" slot="prefix" />
+            Import
+          </syn-button>
+        </syn-tooltip>
 
         <div class="w-px h-5 bg-syn-color-neutral-200 mx-1"></div>
 
         @if (isSystemRunning()) {
-          <syn-button
-            (click)="onStopSystem()"
-            [disabled]="!canEdit()"
-            variant="filled"
-            [title]="canEdit() ? 'Stop system' : 'Admin access required'"
+          <syn-tooltip
+            [content]="canEdit() ? 'Stop system' : 'Admin access required'"
+            [distance]="13"
+            placement="bottom"
           >
-            <syn-icon name="stop" slot="prefix" />
-            Stop
-          </syn-button>
+            <syn-button
+              (click)="onStopSystem()"
+              [disabled]="!canEdit()"
+              variant="filled"
+            >
+              <syn-icon name="stop" slot="prefix" />
+              Stop
+            </syn-button>
+          </syn-tooltip>
         } @else {
-          <syn-button
-            (click)="onStartSystem()"
-            [disabled]="!canEdit()"
-            variant="outline"
-            [title]="canEdit() ? 'Start system' : 'Admin access required'"
+          <syn-tooltip
+            [content]="canEdit() ? 'Start system' : 'Admin access required'"
+            [distance]="13"
+            placement="bottom"
           >
-            <syn-icon name="play_arrow" slot="prefix" />
-            Start
-          </syn-button>
+            <syn-button
+              (click)="onStartSystem()"
+              [disabled]="!canEdit()"
+              variant="outline"
+            >
+              <syn-icon name="play_arrow" slot="prefix" />
+              Start
+            </syn-button>
+          </syn-tooltip>
         }
       </div>
 
@@ -65,44 +85,59 @@
           </span>
         }
 
-        <syn-button
-          variant="outline"
-          [loading]="canvasEditStore.isReloading()"
-          [disabled]="canvasEditStore.isReloading() || !canEdit()"
-          (click)="onReloadRuntime()"
-          [title]="canEdit() ? 'Restart backend runtime without saving' : 'Admin access required'"
+        <syn-tooltip
+          [content]="canEdit() ? 'Restart backend runtime without saving' : 'Admin access required'"
+          [distance]="13"
+          placement="bottom"
         >
-          <syn-icon name="refresh" slot="prefix" />
-          <span> Reload </span>
-        </syn-button>
+          <syn-button
+            variant="outline"
+            [loading]="canvasEditStore.isReloading()"
+            [disabled]="canvasEditStore.isReloading() || !canEdit()"
+            (click)="onReloadRuntime()"
+          >
+            <syn-icon name="refresh" slot="prefix" />
+            <span> Reload </span>
+          </syn-button>
+        </syn-tooltip>
 
-        <syn-button
-          variant="outline"
-          [disabled]="canvasEditStore.isSyncing()"
-          (click)="onSync()"
-          [loading]="canvasEditStore.isSyncing()"
-          title="Pull latest config from backend"
+        <syn-tooltip
+          content="Pull latest config from backend"
+          [distance]="13"
+          placement="bottom"
         >
-            <syn-icon name="sync" slot="prefix" />
-            <span> Sync </span>
-        </syn-button>
+          <syn-button
+            variant="outline"
+            [disabled]="canvasEditStore.isSyncing()"
+            (click)="onSync()"
+            [loading]="canvasEditStore.isSyncing()"
+          >
+              <syn-icon name="sync" slot="prefix" />
+              <span> Sync </span>
+          </syn-button>
+        </syn-tooltip>
 
-        <syn-button
-          variant="filled"
-          [disabled]="
-            !canEdit() ||
-            !canvasEditStore.isDirty() ||
-            canvasEditStore.isSaving() ||
-            !canvasEditStore.isValid() ||
-            isNodeReloading()
-          "
-          (click)="onApply()"
-          [loading]="canvasEditStore.isSaving()"
-          [title]="canEdit() ? 'Apply changes to backend' : 'Admin access required'"
+        <syn-tooltip
+          [content]="canEdit() ? 'Apply changes to backend' : 'Admin access required'"
+          [distance]="13"
+          placement="bottom"
         >
-          <syn-icon name="save" slot="prefix" />
-          <span> Apply </span>
-        </syn-button>
+          <syn-button
+            variant="filled"
+            [disabled]="
+              !canEdit() ||
+              !canvasEditStore.isDirty() ||
+              canvasEditStore.isSaving() ||
+              !canvasEditStore.isValid() ||
+              isNodeReloading()
+            "
+            (click)="onApply()"
+            [loading]="canvasEditStore.isSaving()"
+          >
+            <syn-icon name="save" slot="prefix" />
+            <span> Apply </span>
+          </syn-button>
+        </syn-tooltip>
       </div>
     </div>
 

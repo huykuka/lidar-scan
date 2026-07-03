@@ -25,11 +25,12 @@
       <div class="flex justify-between items-center text-sm">
         <span class="text-neutral-600 font-medium">
           Source Sensor ID
-          <syn-icon
-            class="ml-1 text-xs text-neutral-400"
-            name="info"
-            title="The original hardware sensor whose pose config will be updated on accept"
-          />
+          <syn-tooltip content="The original hardware sensor whose pose config will be updated on accept" [distance]="13" placement="top">
+            <syn-icon
+              class="ml-1 text-xs text-neutral-400"
+              name="info"
+            />
+          </syn-tooltip>
         </span>
         @if (record().source_sensor_id) {
           <syn-badge
@@ -48,24 +49,26 @@
       <div class="flex justify-between items-center text-sm">
         <span class="text-neutral-600 font-medium">
           Run ID
-          <syn-icon
-            class="ml-1 text-xs text-neutral-400"
-            name="info"
-            title="Unique identifier correlating sensors aligned together in one trigger call"
-          />
+          <syn-tooltip content="Unique identifier correlating sensors aligned together in one trigger call" [distance]="13" placement="top">
+            <syn-icon
+              class="ml-1 text-xs text-neutral-400"
+              name="info"
+            />
+          </syn-tooltip>
         </span>
         @if (record().run_id) {
           <div class="flex items-center gap-2">
             <span class="font-mono text-xs text-neutral-800">{{ record().run_id }}</span>
-            <syn-button
-              size="small"
-              variant="text"
-              (click)="onViewRun(record().run_id!)"
-              title="View all sensors from this calibration run"
-              aria-label="View all sensors from this calibration run"
-            >
-              View all in run
-            </syn-button>
+            <syn-tooltip content="View all sensors from this calibration run" [distance]="13" placement="top">
+              <syn-button
+                size="small"
+                variant="text"
+                (click)="onViewRun(record().run_id!)"
+                aria-label="View all sensors from this calibration run"
+              >
+                View all in run
+              </syn-button>
+            </syn-tooltip>
           </div>
         } @else {
           <syn-badge variant="neutral" aria-label="Not available for legacy record">N/A</syn-badge>
@@ -76,11 +79,12 @@
       <div class="flex flex-col gap-2 text-sm">
         <span class="text-neutral-600 font-medium">
           Processing Chain
-          <syn-icon
-            class="ml-1 text-xs text-neutral-400"
-            name="info"
-            title="Ordered list of DAG nodes the source cloud traversed before arriving at the calibration node"
-          />
+          <syn-tooltip content="Ordered list of DAG nodes the source cloud traversed before arriving at the calibration node" [distance]="13" placement="top">
+            <syn-icon
+              class="ml-1 text-xs text-neutral-400"
+              name="info"
+            />
+          </syn-tooltip>
         </span>
         @if (processingChain().length > 0) {
           <div

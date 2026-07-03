@@ -120,22 +120,27 @@
 
             <!-- Actions -->
             <div class="flex flex-wrap justify-end gap-2 mt-auto">
-              <syn-button
-                size="small"
-                variant="filled"
-                (click)="triggerCalibration(nodeConfig.id)"
-                [disabled]="
-                  calibrationStore.isTriggering() || isCalibrationDisabled()(nodeConfig.id)
-                "
-                [title]="isCalibrationDisabled()(nodeConfig.id) ? calibrationDisabledTooltip : ''"
+              <syn-tooltip
+                [content]="isCalibrationDisabled()(nodeConfig.id) ? calibrationDisabledTooltip : 'Run Calibration'"
+                [distance]="13"
+                placement="top"
               >
-                <syn-icon name="play_arrow" slot="prefix" />
-                @if (calibrationStore.isTriggering()) {
-                  Running…
-                } @else {
-                  Run Calibration
-                }
-              </syn-button>
+                <syn-button
+                  size="small"
+                  variant="filled"
+                  (click)="triggerCalibration(nodeConfig.id)"
+                  [disabled]="
+                    calibrationStore.isTriggering() || isCalibrationDisabled()(nodeConfig.id)
+                  "
+                >
+                  <syn-icon name="play_arrow" slot="prefix" />
+                  @if (calibrationStore.isTriggering()) {
+                    Running…
+                  } @else {
+                    Run Calibration
+                  }
+                </syn-button>
+              </syn-tooltip>
               <syn-button (click)="viewDetails(nodeConfig.id)" size="small" variant="text">
                 <syn-icon name="visibility" slot="prefix" />
                 View Details
