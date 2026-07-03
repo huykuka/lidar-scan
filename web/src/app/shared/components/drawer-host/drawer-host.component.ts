@@ -28,16 +28,6 @@ import { DrawerService } from '@core/services/drawer.service';
         --guide-border: color-mix(in srgb, var(--syn-color-neutral-300) 80%, transparent);
       }
 
-      /* Ensure the global drawer panel always spans the full viewport width,
-         not just the area to the right of the sticky side nav icon strip. */
-      syn-drawer::part(panel) {
-        left: 0 !important;
-        width: var(--size, min(980px, 92vw));
-      }
-
-      syn-drawer::part(overlay) {
-        left: 0 !important;
-      }
       .drawer-header {
         display: flex;
         align-items: center;

@@ -1,4 +1,4 @@
-<syn-header #header>
+<syn-header #header [label]="headerLabel()">
   <nav slot="meta-navigation" class="flex items-center">
     <app-connection-status (refresh)="onRefresh()" />
     <app-sensor-status />
@@ -8,18 +8,15 @@
     <app-user-info />
   </nav>
 
-  <div slot="label" class="flex items-center gap-2 h-full">
-    <span class="font-semibold text-lg whitespace-nowrap">
-      {{ label() }}<span class="header-version"> v{{ uiVersion }}</span>
-    </span>
-
-    @if (headline()) {
-      <span class="header-headline flex items-center gap-2">
-        <syn-icon name="chevron_right" class="text-neutral-500 flex-shrink-0" />
-        <span class="text-base font-bold self-center" style="color: var(--syn-color-neutral-700)">
-          {{ headline() }}
-        </span>
+  @if (headline()) {
+    <span slot="label" class="header-headline flex items-center gap-2 h-full">
+      <span class="font-semibold text-lg whitespace-nowrap">
+        {{ label() }} v{{ uiVersion }}
       </span>
-    }
-  </div>
+      <syn-icon name="chevron_right" class="text-neutral-500 flex-shrink-0" />
+      <span class="text-base font-bold self-center whitespace-nowrap" style="color: var(--syn-color-neutral-700)">
+        {{ headline() }}
+      </span>
+    </span>
+  }
 </syn-header>
