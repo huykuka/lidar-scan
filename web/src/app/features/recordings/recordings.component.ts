@@ -88,6 +88,21 @@ export class RecordingsComponent implements OnInit {
     this.recordingApi.downloadRecording(recording.id, filename);
   }
 
+  protected async renameRecording({
+    recording,
+    name,
+  }: {
+    recording: Recording;
+    name: string;
+  }): Promise<void> {
+    try {
+      await firstValueFrom(this.recordingApi.renameRecording(recording.id, name));
+      await this.recordingStore.loadRecordings();
+    } catch (error) {
+      console.error('Failed to rename recording:', error);
+    }
+  }
+
   protected async confirmDelete(recording: Recording): Promise<void> {
     const confirmed = await this.dialogService.confirm({
       title: 'Delete Recording',

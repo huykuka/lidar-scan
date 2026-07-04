@@ -109,6 +109,7 @@
             (delete)="confirmDelete($event)"
             (download)="downloadRecording($event)"
             (play)="loadForPlayback($event)"
+            (rename)="renameRecording($event)"
             (select)="selectRecording($event)"
             (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
             [priority]="idx < 4"
