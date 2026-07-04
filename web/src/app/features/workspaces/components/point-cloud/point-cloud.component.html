@@ -1,36 +1,9 @@
 <ngt-canvas style="width:100%;height:100%;display:block">
-
-  <ng-template canvasContent>
-    @if (viewType() === 'perspective') {
-      <ngts-perspective-camera [options]="perspCameraOptions" />
-    } @else {
-      <ngts-orthographic-camera [options]="orthoCameraOptions()" />
-    }
-
-    <ngts-orbit-controls [options]="orbitOptions()" />
-          <ngt-axes-helper *args="[30]" />
-
-    @if (showGrid()) {
-      <ngts-grid [options]="gridOptions()" />
-      <ngts-grid [options]="{ rotation: [Math.PI / 2, 0, 0], ...gridOptions() }" />
-    }
-
-    <ngts-points-instances [options]="{ limit: 1 }">
-      <ngt-points-material [size]="0.5" [vertexColors]="true" />
-      <ngts-point [options]="{ position: [0, 0, 0], color: 'red' }" />
-    </ngts-points-instances>
-
+  <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewType()">
     @for (entry of topicEntries(); track entry.topic) {
       <ngts-points-buffer #buf [positions]="entry.buf">
-        <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false" />
+        <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false"/>
       </ngts-points-buffer>
     }
-
-    <ngts-gizmo-helper [options]="{ margin: [80, 80]}">
-      <ng-template gizmoHelperContent>
-        <ngts-gizmo-viewport [options]="{ disabled: true ,hideNegativeAxes:true}" />
-      </ng-template>
-    </ngts-gizmo-helper>
-  </ng-template>
-
+  </app-threed-scene-graph>
 </ngt-canvas>

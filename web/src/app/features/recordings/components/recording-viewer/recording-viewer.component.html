@@ -4,17 +4,8 @@
   <!-- Top bar: back button + cockpit toggle -->
   <div class="flex items-center gap-2 mb-3 shrink-0">
     <syn-button variant="outline" size="small" (click)="goBack()">
-      <syn-icon name="arrow_back" slot="prefix" />
+      <syn-icon name="arrow_back" slot="prefix"/>
       Recordings
-    </syn-button>
-    <div class="h-4 w-px bg-syn-color-neutral-300"></div>
-    <syn-button
-      (click)="toggleCockpit()"
-      size="small"
-      variant="text"
-    >
-      <syn-icon [name]="showCockpit() ? 'visibility_off' : 'visibility'" slot="prefix" />
-      {{ showCockpit() ? 'Hide Settings' : 'Show Settings' }}
     </syn-button>
   </div>
 
@@ -25,21 +16,11 @@
     >
       <!-- 3D Canvas (angular-three) -->
       <ngt-canvas style="width:100%;height:100%;display:block">
-        <ng-template canvasContent>
-          <ngts-perspective-camera [options]="cameraOptions" />
-          <ngts-orbit-controls [options]="{ makeDefault: true, enableDamping: true }" />
-          <ngts-grid [options]="gridOptions" />
-          <ngt-axes-helper *args="[30]" />
-          <ngts-grid [options]="{ rotation: [Math.PI / 2, 0, 0], ...gridOptions }" />
+        <app-threed-scene-graph *canvasContent>
           <ngts-points-buffer #pointBuf [positions]="positionsBuffer">
-            <ngt-points-material [size]="pointSize()" [color]="pointColor()" [sizeAttenuation]="true" />
+            <ngt-points-material [size]="pointSize()" [color]="pointColor()" [sizeAttenuation]="true"/>
           </ngts-points-buffer>
-          <ngts-gizmo-helper [options]="{ margin: [80, 80] }">
-            <ng-template gizmoHelperContent>
-              <ngts-gizmo-viewport [options]="{ disabled: true, hideNegativeAxes: true }" />
-            </ng-template>
-          </ngts-gizmo-helper>
-        </ng-template>
+        </app-threed-scene-graph>
       </ngt-canvas>
 
       <!-- Download progress overlay -->
@@ -69,7 +50,7 @@
             size="small"
             variant="outline"
           >
-            <syn-icon [name]="isPlaying() ? 'pause' : 'play_arrow'" slot="prefix" />
+            <syn-icon [name]="isPlaying() ? 'pause' : 'play_arrow'" slot="prefix"/>
             {{ isPlaying() ? 'Pause' : 'Play' }}
           </syn-button>
 
@@ -109,11 +90,11 @@
           <syn-icon [name]="showCockpit() ? 'chevron_right' : 'chevron_left'" class="settings-toggle__icon"></syn-icon>
         </button>
       </syn-tooltip>
-      <div class="settings-content" [class.settings-content--collapsed]="!showCockpit()">
+      <div class="settings-content">
         <div class="panel">
           <!-- Metadata -->
           <div class="panel__header">
-            <syn-icon class="panel__icon" name="info" />
+            <syn-icon class="panel__icon" name="info"/>
             <h3 class="panel__title">Recording Info</h3>
           </div>
 
@@ -136,17 +117,17 @@
 
           <!-- Appearance -->
           <div class="panel__header">
-            <syn-icon class="panel__icon" name="blur_on" />
+            <syn-icon class="panel__icon" name="blur_on"/>
             <h3 class="panel__title">Appearance</h3>
           </div>
 
           <div class="control-group">
             <div class="control-row">
               <span class="section-label">Point Size</span>
-              <syn-badge pill size="small" variant="neutral">{{ pointSize() | number: '1.2-2' }}</syn-badge>
+              <syn-badge size="small" variant="neutral">{{ pointSize() | number: '1.2-2' }}</syn-badge>
             </div>
             <syn-range
-              (syn-input)="pointSize.set(+$any($event.target).value)"
+              (synChangeEvent)="pointSize.set(+$any($event.target).value)"
               [max]="0.3"
               [min]="0.01"
               [step]="0.01"
@@ -157,7 +138,7 @@
           <div class="control-group">
             <div class="flex flex-col">
               <span class="section-label">Render Color</span>
-              <div class="relative w-6 h-6 rounded overflow-hidden border border-syn-panel-border-color flex-shrink-0">
+              <div class="relative w-6 h-6 rounded overflow-hidden border border-syn-panel-border-color shrink-0">
                 <input
                   dir="rtl"
                   (input)="pointColor.set($any($event.target).value)"
@@ -186,27 +167,6 @@
     </aside>
   </div>
 
-  <!-- Mobile Settings -->
-  <syn-drawer
-    (syn-hide)="closeCockpit()"
-    [open]="showCockpit()"
-    class="lg:hidden"
-    label="Playback Settings"
-    placement="end"
-  >
-    <div class="p-6 space-y-6">
-      <div class="space-y-2">
-        <label class="text-xs font-bold text-syn-color-neutral-500 uppercase">Point size</label>
-        <syn-range
-          (syn-input)="pointSize.set(+$any($event.target).value)"
-          [max]="0.3"
-          [min]="0.01"
-          [step]="0.01"
-          [value]="pointSize().toString()"
-        />
-      </div>
-    </div>
-  </syn-drawer>
 
   <!-- Error Alerts -->
   @if (error()) {
@@ -220,8 +180,8 @@
         open
         variant="danger"
       >
-        <syn-icon name="error" slot="icon" />
-        <strong>Decoding interrupt</strong><br />{{ error() }}
+        <syn-icon name="error" slot="icon"/>
+        <strong>Decoding interrupt</strong><br/>{{ error() }}
       </syn-alert>
     </div>
   }

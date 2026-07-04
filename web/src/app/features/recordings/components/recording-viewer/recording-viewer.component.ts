@@ -1,32 +1,27 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  CUSTOM_ELEMENTS_SCHEMA,
-  OnDestroy,
-  OnInit,
   computed,
+  CUSTOM_ELEMENTS_SCHEMA,
   effect,
   inject,
+  OnDestroy,
+  OnInit,
   signal,
   viewChild,
 } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { RecordingApiService } from '@core/services/api/recording-api.service';
-import { NavigationService } from '@core/services';
-import { RecordingViewerInfo } from '@core/models';
-import * as THREE from 'three';
-import { FormsModule } from '@angular/forms';
+import {DecimalPipe} from '@angular/common';
+import {ActivatedRoute, Router} from '@angular/router';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {RecordingApiService} from '@core/services/api/recording-api.service';
+import {NavigationService} from '@core/services';
+import {RecordingViewerInfo} from '@core/models';
+import {FormsModule} from '@angular/forms';
 import JSZip from 'jszip';
 
-import { NgtCanvas } from 'angular-three/dom';
-import { NgtsGrid } from 'angular-three-soba/abstractions';
-import { NgtsOrbitControls } from 'angular-three-soba/controls';
-import { NgtsPerspectiveCamera } from 'angular-three-soba/cameras';
-import { NgtsGizmoHelper, NgtsGizmoViewport } from 'angular-three-soba/gizmos';
-import { NgtsPointsBuffer } from 'angular-three-soba/performances';
-import { NgtArgs } from 'angular-three';
+import {NgtsPointsBuffer} from 'angular-three-soba/performances';
+import {NgtCanvas, NgtCanvasImpl} from 'angular-three/dom';
+import {ThreedSceneGraphComponent} from '@shared/components';
 
 interface PCDData {
   points: Float32Array;
@@ -43,13 +38,9 @@ const MAX_POINTS = 250_000;
     FormsModule,
     DecimalPipe,
     NgtCanvas,
-    NgtsGrid,
-    NgtsOrbitControls,
-    NgtsPerspectiveCamera,
-    NgtsGizmoHelper,
-    NgtsGizmoViewport,
+    ThreedSceneGraphComponent,
     NgtsPointsBuffer,
-    NgtArgs,
+    NgtCanvasImpl,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './recording-viewer.component.html',
@@ -72,9 +63,8 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
 
   // ── Display settings ───────────────────────────────────────────────────────
   pointSize = signal(0.05);
-  pointColor = signal('#3b82f6');
+  pointColor = signal('red');
   showGrid = signal(true);
-  showAxes = signal(true);
   minIntensity = signal(0);
   showCockpit = signal(true);
 
@@ -104,30 +94,6 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
   // ── Point cloud buffer ─────────────────────────────────────────────────────
   protected readonly positionsBuffer = new Float32Array(MAX_POINTS * 3);
   private readonly pointsBufferRef = viewChild<NgtsPointsBuffer>('pointBuf');
-
-  // ── Template options ───────────────────────────────────────────────────────
-  protected readonly cameraOptions = {
-    makeDefault: true,
-    position: [20, 20, 20] as [number, number, number],
-    fov: 45,
-    near: 0.1,
-    far: 1000,
-  };
-
-  protected readonly gridOptions = {
-    cellSize: 1,
-    sectionSize: 5,
-    cellThickness: 0.5,
-    sectionThickness: 1.3,
-    cellColor: '#797676',
-    infiniteGrid: false,
-    fadeDistance: 9_999,
-    fadeStrength: 1.5,
-    side: THREE.DoubleSide,
-    planeArgs: [30, 30] as [number, number],
-  };
-
-  protected readonly Math = Math;
 
   constructor() {
     this.decodingWorker = new Worker(new URL('./pcd-decoder.worker.ts', import.meta.url), {

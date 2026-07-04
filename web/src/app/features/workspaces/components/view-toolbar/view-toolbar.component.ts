@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { LayoutMode, SplitLayoutStoreService } from '@core/services/split-layout-store.service';
+import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {LayoutMode, SplitLayoutStoreService} from '@core/services/split-layout-store.service';
 
 interface LayoutPreset {
   id: LayoutMode;
@@ -36,9 +36,9 @@ export class ViewToolbarComponent {
       id: 'h-split',
       label: '2H',
       title: 'Horizontal split (top/bottom)',
-      icon: 'horizontal_split',
+      icon: 'vertical_split',
     },
-    { id: 'v-split', label: '2V', title: 'Vertical split (left/right)', icon: 'vertical_split' },
+    { id: 'v-split', label: '2V', title: 'Vertical split (left/right)', icon: 'horizontal_split' },
     { id: '1+2', label: '1+2', title: '1+2 split (perspective + top/front)', icon: 'view_sidebar' },
     { id: '4-grid', label: '4', title: '4-pane grid (2×2)', icon: 'grid_view' },
   ];

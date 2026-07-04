@@ -1,0 +1,29 @@
+@if (viewType() === 'perspective') {
+  <ngts-perspective-camera [options]="perspCameraOptions"/>
+} @else {
+  <ngts-orthographic-camera [options]="orthoCameraOptions()"/>
+}
+
+<ngts-orbit-controls [options]="orbitOptions()"/>
+<ngt-axes-helper *args="[30]"/>
+
+@if (showGrid()) {
+  <ngts-grid [options]="gridOptions()"/>
+  <ngts-grid [options]="{ rotation: [Math.PI / 2, 0, 0], ...gridOptions() }"/>
+}
+
+//Main content to be injected
+<ng-content/>
+
+
+//Center
+<ngts-points-instances [options]="{ limit: 1 }">
+  <ngt-points-material [size]="0.5" [vertexColors]="true"/>
+  <ngts-point [options]="{ position: [0, 0, 0], color: 'red' }"/>
+</ngts-points-instances>
+
+<ngts-gizmo-helper [options]="{ margin: [80, 80] }">
+  <ng-template gizmoHelperContent>
+    <ngts-gizmo-viewport [options]="{ disabled: true, hideNegativeAxes: true }"/>
+  </ng-template>
+</ngts-gizmo-helper>
