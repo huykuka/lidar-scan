@@ -1,8 +1,7 @@
-import {TestBed} from '@angular/core/testing';
 import * as THREE from 'three';
-import {vi, describe, it, expect, beforeEach, afterEach} from 'vitest';
-import {ShapeLayerService, SHAPE_DECAY_MS, SHAPE_FADE_WINDOW_MS, SHAPE_LERP_ALPHA} from './shape-layer.service';
-import {ShapeFrame, SHAPE_LAYER} from '@core/models/shapes.model';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {SHAPE_DECAY_MS, SHAPE_FADE_WINDOW_MS, SHAPE_LERP_ALPHA, ShapeLayerService} from './shape-layer.service';
+import {SHAPE_LAYER, ShapeFrame} from '@core/models/shapes.model';
 
 // ── Frame factories ────────────────────────────────────────────────────────────
 

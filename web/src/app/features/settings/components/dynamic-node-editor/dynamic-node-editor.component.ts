@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   ComponentRef,
   effect,
@@ -8,8 +9,7 @@ import {
   signal,
   untracked,
   viewChild,
-  ViewContainerRef,
-  ChangeDetectionStrategy
+  ViewContainerRef
 } from '@angular/core';
 
 import {NodeStoreService} from '@core/services/stores/node-store.service';

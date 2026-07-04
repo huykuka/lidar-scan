@@ -1,12 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import {
-  SplitLayoutStoreService,
-  ViewPane,
-  ViewOrientation,
-} from '@core/services/split-layout-store.service';
-import { PointCloudDataService } from '@core/services/point-cloud-data.service';
+import {ChangeDetectionStrategy, Component, computed, inject, input, output, signal} from '@angular/core';
+import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {SplitLayoutStoreService, ViewOrientation, ViewPane,} from '@core/services/split-layout-store.service';
+import {PointCloudDataService} from '@core/services/point-cloud-data.service';
 
 export interface OrientationOption {
   value: ViewOrientation;

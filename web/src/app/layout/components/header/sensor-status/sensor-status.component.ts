@@ -1,6 +1,6 @@
-import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NodeStoreService } from '@core/services/stores';
+import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {NodeStoreService} from '@core/services/stores';
 
 /**
  * Sensor-node health indicator.

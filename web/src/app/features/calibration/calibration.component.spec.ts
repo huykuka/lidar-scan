@@ -1,7 +1,7 @@
 // @ts-nocheck
 import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {provideRouter, Router} from '@angular/router';
-import {signal, ApplicationRef} from '@angular/core';
+import {signal} from '@angular/core';
 import {CalibrationComponent} from './calibration.component';
 import {CalibrationStoreService} from '../../core/services/stores/calibration-store.service';
 import {NodeStoreService} from '../../core/services/stores/node-store.service';

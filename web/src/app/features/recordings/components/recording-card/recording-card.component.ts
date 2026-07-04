@@ -1,4 +1,4 @@
-import {Component, signal, input, output, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, output, signal} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {Recording} from '@core/models';

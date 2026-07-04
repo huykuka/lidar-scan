@@ -1,9 +1,9 @@
-import { effect, inject, Injectable, NgZone, OnDestroy, signal } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { MultiWebsocketService } from './multi-websocket.service';
-import { TopicConfig, WorkspaceStoreService } from '@core/services/stores';
-import { FramePayload } from './lidr-parser';
-import { environment } from '@env/environment';
+import {effect, inject, Injectable, NgZone, OnDestroy, signal} from '@angular/core';
+import {Subscription} from 'rxjs';
+import {MultiWebsocketService} from './multi-websocket.service';
+import {TopicConfig, WorkspaceStoreService} from '@core/services/stores';
+import {FramePayload} from './lidr-parser';
+import {environment} from '@env/environment';
 
 export type { FramePayload };
 

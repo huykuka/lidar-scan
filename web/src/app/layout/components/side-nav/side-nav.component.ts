@@ -1,7 +1,7 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
-  DestroyRef,
   HostListener,
   inject,
   input,
@@ -9,7 +9,6 @@ import {
   output,
   signal,
   viewChild,
-  ChangeDetectionStrategy,
 } from '@angular/core';
 
 import {NavigationEnd, Router, RouterModule} from '@angular/router';

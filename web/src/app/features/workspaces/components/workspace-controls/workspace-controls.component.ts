@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
-import { TopicApiService, WorkspaceStoreService } from '@core/services';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { PointCloudDataService } from '@core/services/point-cloud-data.service';
+import {ChangeDetectionStrategy, Component, computed, inject, output} from '@angular/core';
+import {WorkspaceStoreService} from '@core/services';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {PointCloudDataService} from '@core/services/point-cloud-data.service';
 
 @Component({
   selector: 'app-workspace-controls',

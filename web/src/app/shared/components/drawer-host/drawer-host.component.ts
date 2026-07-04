@@ -1,22 +1,18 @@
 import {
-  Component,
-  inject,
-  computed,
-  ViewContainerRef,
-  effect,
   ChangeDetectionStrategy,
-  signal,
+  Component,
+  computed,
   DestroyRef,
-  viewChild
+  effect,
+  inject,
+  signal,
+  viewChild,
+  ViewContainerRef
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AbstractControl } from '@angular/forms';
-import {
-  SynDrawerComponent,
-  SynButtonComponent,
-  SynIconComponent,
-} from '@synergy-design-system/angular';
-import { DrawerService } from '@core/services/drawer.service';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {AbstractControl} from '@angular/forms';
+import {SynButtonComponent, SynDrawerComponent, SynIconComponent,} from '@synergy-design-system/angular';
+import {DrawerService} from '@core/services/drawer.service';
 
 @Component({
   selector: 'app-drawer-host',

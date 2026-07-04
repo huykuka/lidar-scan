@@ -1,11 +1,11 @@
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { firstValueFrom } from 'rxjs';
+import {TestBed} from '@angular/core/testing';
+import {provideHttpClient} from '@angular/common/http';
+import {provideHttpClientTesting} from '@angular/common/http/testing';
+import {firstValueFrom} from 'rxjs';
 
-import { ConfigTransferService } from './config-transfer.service';
-import { ConfigApiService } from './config-api.service';
-import { ConfigExport, ConfigImportResponse, ConfigValidationResponse } from '../../models/config.model';
+import {ConfigTransferService} from './config-transfer.service';
+import {ConfigApiService} from './config-api.service';
+import {ConfigExport, ConfigImportResponse, ConfigValidationResponse} from '../../models/config.model';
 
 // ---------------------------------------------------------------------------
 // JSDOM polyfills — Blob.text() and File.text() are not available in JSDOM

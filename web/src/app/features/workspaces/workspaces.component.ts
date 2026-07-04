@@ -1,23 +1,20 @@
+import {ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy, OnInit, signal,} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {NavigationService} from '@core/services/navigation.service';
+import {TopicApiService} from '@core/services/api/topic-api.service';
+import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
+import {NodeStatusService} from '@core/services/node-status.service';
+import {SplitLayoutStoreService} from '@core/services/split-layout-store.service';
 import {
-  Component,
-  computed,
-  effect,
-  inject,
-  OnDestroy,
-  OnInit,
-  signal,
-  ChangeDetectionStrategy,
-} from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NavigationService } from '@core/services/navigation.service';
-import { TopicApiService } from '@core/services/api/topic-api.service';
-import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
-import { NodeStatusService } from '@core/services/node-status.service';
-import { SplitLayoutStoreService } from '@core/services/split-layout-store.service';
-import { WorkspaceTelemetryComponent } from '@features/workspaces/components/workspace-telemetry/workspace-telemetry.component';
-import { WorkspaceControlsComponent } from '@features/workspaces/components/workspace-controls/workspace-controls.component';
-import { SplitPaneContainerComponent } from '@features/workspaces/components/split-pane/split-pane-container/split-pane-container.component';
-import { ViewToolbarComponent } from '@features/workspaces/components/view-toolbar/view-toolbar.component';
+  WorkspaceTelemetryComponent
+} from '@features/workspaces/components/workspace-telemetry/workspace-telemetry.component';
+import {
+  WorkspaceControlsComponent
+} from '@features/workspaces/components/workspace-controls/workspace-controls.component';
+import {
+  SplitPaneContainerComponent
+} from '@features/workspaces/components/split-pane/split-pane-container/split-pane-container.component';
+import {ViewToolbarComponent} from '@features/workspaces/components/view-toolbar/view-toolbar.component';
 
 @Component({
   selector: 'app-workspaces',

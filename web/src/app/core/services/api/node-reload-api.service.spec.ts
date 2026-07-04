@@ -1,9 +1,9 @@
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {TestBed} from '@angular/core/testing';
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 
-import { NodeReloadApiService } from './node-reload-api.service';
-import { NodeReloadResponse, ReloadStatusResponse } from '@core/models/status.model';
+import {NodeReloadApiService} from './node-reload-api.service';
+import {NodeReloadResponse, ReloadStatusResponse} from '@core/models/status.model';
 
 describe('NodeReloadApiService', () => {
   let service: NodeReloadApiService;

@@ -1,11 +1,11 @@
-import { Component, computed, inject, input, output, ChangeDetectionStrategy } from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, input, output} from '@angular/core';
 
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NodeConfig, PortSchema } from '@core/models/node.model';
-import { NodeStatusUpdate } from '@core/models/node-status.model';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { NodeRecordingControls } from './node-recording-controls/node-recording-controls';
-import { NodeVisibilityToggleComponent } from '../../node-visibility-toggle/node-visibility-toggle.component';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {NodeConfig, PortSchema} from '@core/models/node.model';
+import {NodeStatusUpdate} from '@core/models/node-status.model';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
+import {NodeVisibilityToggleComponent} from '../../node-visibility-toggle/node-visibility-toggle.component';
 
 export interface CanvasNode {
   id: string;

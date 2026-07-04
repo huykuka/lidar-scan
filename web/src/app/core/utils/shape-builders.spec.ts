@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {vi, describe, it, expect} from 'vitest';
+import {describe, expect, it} from 'vitest';
 import {ShapeBuilders} from './shape-builders';
 import {CubeDescriptor, LabelDescriptor, PlaneDescriptor} from '@core/models/shapes.model';
 

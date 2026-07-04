@@ -1,23 +1,22 @@
 import {
-  ChangeDetectorRef,
+  AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   HostListener,
   inject,
   OnInit,
   signal,
   viewChild,
-  ChangeDetectionStrategy,
-  AfterViewInit,
 } from '@angular/core';
-import { ChildrenOutletContexts, RouterOutlet } from '@angular/router';
+import {ChildrenOutletContexts, RouterOutlet} from '@angular/router';
 
-import { NavigationService } from '@core/services';
-import { NodeStatusService } from '@core/services/node-status.service';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { HeaderComponent } from '../components/header/header.component';
-import { SideNavComponent } from '../components/side-nav/side-nav.component';
-import { FooterComponent } from '../components/footer/footer.component';
-import { pageTransition } from '@core/animations/page-transitions';
+import {NavigationService} from '@core/services';
+import {NodeStatusService} from '@core/services/node-status.service';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {HeaderComponent} from '../components/header/header.component';
+import {SideNavComponent} from '../components/side-nav/side-nav.component';
+import {FooterComponent} from '../components/footer/footer.component';
+import {pageTransition} from '@core/animations/page-transitions';
 
 @Component({
   selector: 'app-main-layout',

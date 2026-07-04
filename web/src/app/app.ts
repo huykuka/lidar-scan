@@ -1,4 +1,4 @@
-import {Component, inject, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
 import {RouterOutlet} from '@angular/router';
 import {AppInitService} from './core/services/app-init.service';
 import {LoadingScreenComponent} from './layout/loading-screen/loading-screen.component';

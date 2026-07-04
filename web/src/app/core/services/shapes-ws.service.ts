@@ -1,8 +1,8 @@
-import {Injectable, inject} from '@angular/core';
+import {inject, Injectable} from '@angular/core';
 import {Observable, of, Subject} from 'rxjs';
 import {delay, repeat} from 'rxjs/operators';
 import {MultiWebsocketService} from './multi-websocket.service';
-import {ShapeFrame, ShapeDescriptor} from '@core/models/shapes.model';
+import {ShapeDescriptor, ShapeFrame} from '@core/models/shapes.model';
 import {environment} from '@env/environment';
 
 // ── Mock frame (FE-02) — covers all three shape types ─────────────────────────

@@ -1,4 +1,4 @@
-import {Component, computed, inject, OnDestroy, OnInit, signal, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal} from '@angular/core';
 
 import {FormsModule} from '@angular/forms';
 import {LogsStoreService} from '@core/services/stores';

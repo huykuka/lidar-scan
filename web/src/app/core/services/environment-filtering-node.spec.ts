@@ -10,20 +10,19 @@
  * api-spec.md reference: § 1, § 3, § 6
  */
 
-import { signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
-import { ComponentFixture } from '@angular/core/testing';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
 
-import { FlowCanvasPaletteComponent } from '@features/settings/components/flow-canvas/palette/flow-canvas-palette.component';
 import {
-  FlowCanvasNodeComponent,
+  FlowCanvasPaletteComponent
+} from '@features/settings/components/flow-canvas/palette/flow-canvas-palette.component';
+import {
   CanvasNode,
+  FlowCanvasNodeComponent,
 } from '@features/settings/components/flow-canvas/node/flow-canvas-node.component';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
-import { NodeDefinition, PropertySchema } from '@core/models/node.model';
-import { NodePlugin } from '@core/models';
-import { NodeStatusUpdate } from '@core/models/node-status.model';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {NodeDefinition, PropertySchema} from '@core/models/node.model';
+import {NodePlugin} from '@core/models';
+import {NodeStatusUpdate} from '@core/models/node-status.model';
 
 // ---------------------------------------------------------------------------
 // Mock NodeDefinition for environment_filtering — api-spec.md § 1 & § 3

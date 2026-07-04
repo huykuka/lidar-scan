@@ -1,8 +1,8 @@
-import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
-import { environment } from '@env/environment';
-import { DeleteResultResponse, NodeResultSummary, ResultDetail, ResultSummary } from '@core/models';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {Observable} from 'rxjs';
+import {environment} from '@env/environment';
+import {DeleteResultResponse, NodeResultSummary, ResultDetail, ResultSummary} from '@core/models';
 
 // ---------------------------------------------------------------------------
 // Mock data — used when backend is not yet available

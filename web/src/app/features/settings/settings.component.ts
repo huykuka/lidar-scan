@@ -1,21 +1,30 @@
-import { Component, computed, effect, HostListener, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  HostListener,
+  inject,
+  OnInit,
+  signal
+} from '@angular/core';
 
-import { FormsModule } from '@angular/forms';
-import { NavigationService, ToastService } from '@core/services';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { SystemStatusService } from '@core/services/system-status.service';
-import { AuthService } from '@core/services/auth.service';
-import { DagApiService } from '@core/services/api/dag-api.service';
-import { ConfigTransferService } from '@core/services/api/config-transfer.service';
-import { ConfigExport, ConfigValidationResponse } from '@core/models/config.model';
-import { ConfigImportDialogComponent } from './components/config-import-dialog/config-import-dialog.component';
-import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.component';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { CanvasEditStoreService } from '@features/settings/services/canvas-edit-store.service';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DialogService } from '@core/services/dialog.service';
-import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
-import { HasUnsavedChanges } from '@core/guards/unsaved-changes.guard';
+import {FormsModule} from '@angular/forms';
+import {NavigationService, ToastService} from '@core/services';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {SystemStatusService} from '@core/services/system-status.service';
+import {AuthService} from '@core/services/auth.service';
+import {DagApiService} from '@core/services/api/dag-api.service';
+import {ConfigTransferService} from '@core/services/api/config-transfer.service';
+import {ConfigExport, ConfigValidationResponse} from '@core/models/config.model';
+import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
+import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {DialogService} from '@core/services/dialog.service';
+import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
+import {HasUnsavedChanges} from '@core/guards/unsaved-changes.guard';
 
 @Component({
   selector: 'app-settings',

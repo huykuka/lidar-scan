@@ -1,7 +1,7 @@
-import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
-import { AuthService } from '@core/services/auth.service';
+import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
+import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
+import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
+import {AuthService} from '@core/services/auth.service';
 
 @Component({
   selector: 'app-user-info',

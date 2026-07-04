@@ -1,8 +1,8 @@
-import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
-import { environment } from '@env/environment';
-import { NodeReloadResponse, ReloadStatusResponse } from '@core/models/status.model';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {firstValueFrom} from 'rxjs';
+import {environment} from '@env/environment';
+import {NodeReloadResponse, ReloadStatusResponse} from '@core/models/status.model';
 
 // ---------------------------------------------------------------------------
 // Mock data — used when environment.production === false (dev/test mode)

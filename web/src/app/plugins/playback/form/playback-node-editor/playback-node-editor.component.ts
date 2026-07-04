@@ -1,4 +1,5 @@
 import {
+  ChangeDetectionStrategy,
   Component,
   computed,
   effect,
@@ -6,20 +7,19 @@ import {
   OnDestroy,
   output,
   signal,
-  untracked,
-  ChangeDetectionStrategy
+  untracked
 } from '@angular/core';
-import { Subscription } from 'rxjs';
-import { DatePipe, DecimalPipe } from '@angular/common';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { RecordingApiService } from '@core/services/api/recording-api.service';
-import { NodeEditorFacadeService } from '@features/settings/services/node-editor-facade.service';
-import { NodeEditorComponent } from '@core/models/node-plugin.model';
-import { NodeEditorHeaderComponent } from '@plugins/shared/node-editor-header/node-editor-header.component';
-import { PoseFormComponent } from '@plugins/sensor/form/pose-form/pose-form.component';
-import { Pose, ZERO_POSE } from '@core/models/pose.model';
-import { Recording } from '@core/models/recording.model';
+import {Subscription} from 'rxjs';
+import {DatePipe, DecimalPipe} from '@angular/common';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {RecordingApiService} from '@core/services/api/recording-api.service';
+import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {NodeEditorComponent} from '@core/models/node-plugin.model';
+import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
+import {PoseFormComponent} from '@plugins/sensor/form/pose-form/pose-form.component';
+import {Pose, ZERO_POSE} from '@core/models/pose.model';
+import {Recording} from '@core/models/recording.model';
 import {
   PLAYBACK_SPEED_OPTIONS,
   PlaybackConfig,

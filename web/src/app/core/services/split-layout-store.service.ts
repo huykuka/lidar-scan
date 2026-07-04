@@ -1,5 +1,5 @@
-import { computed, effect, Injectable, signal } from '@angular/core';
-import { SignalsSimpleStoreService } from './signals-simple-store.service';
+import {computed, effect, Injectable, signal} from '@angular/core';
+import {SignalsSimpleStoreService} from './signals-simple-store.service';
 
 /**
  * Generates a RFC 4122 v4 UUID.

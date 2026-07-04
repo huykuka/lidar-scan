@@ -1,4 +1,4 @@
-import {Component, input, model, output, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, input, model, output} from '@angular/core';
 import {NgClass} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {ConfigValidationResponse} from '@core/models/config.model';

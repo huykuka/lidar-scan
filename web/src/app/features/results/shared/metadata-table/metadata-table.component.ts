@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, Pipe, signal } from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input, signal} from '@angular/core';
 
 @Component({
   selector: 'app-metadata-table',

@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, signal } from '@angular/core';
-import { ResizableDividerDirective } from './resizable-divider.directive';
-import { SplitLayoutStoreService } from '@core/services/split-layout-store.service';
-import { By } from '@angular/platform-browser';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {Component, signal} from '@angular/core';
+import {ResizableDividerDirective} from './resizable-divider.directive';
+import {SplitLayoutStoreService} from '@core/services/split-layout-store.service';
+import {By} from '@angular/platform-browser';
 
 @Component({
   template: `

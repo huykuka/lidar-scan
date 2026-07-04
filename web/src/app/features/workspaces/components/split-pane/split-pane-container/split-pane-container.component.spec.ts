@@ -1,16 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
-import { Component, input, NO_ERRORS_SCHEMA } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { signal, computed } from '@angular/core';
-import { SplitPaneContainerComponent } from './split-pane-container.component';
-import { SplitLayoutStoreService } from '@core/services/split-layout-store.service';
-import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
-import { PointCloudDataService } from '@core/services/point-cloud-data.service';
-import { PointCloudComponent } from '../../point-cloud/point-cloud.component';
-import { ViewportOverlayComponent } from '../../viewport-overlay/viewport-overlay.component';
-import { ResizableDividerDirective } from '../resizable-divider.directive';
-import { ViewPane } from '@core/services/split-layout-store.service';
+import {beforeEach, describe, expect, it} from 'vitest';
+import {Component, computed, input, NO_ERRORS_SCHEMA, signal} from '@angular/core';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {SplitPaneContainerComponent} from './split-pane-container.component';
+import {SplitLayoutStoreService, ViewPane} from '@core/services/split-layout-store.service';
+import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
+import {PointCloudDataService} from '@core/services/point-cloud-data.service';
+import {PointCloudComponent} from '../../point-cloud/point-cloud.component';
+import {ViewportOverlayComponent} from '../../viewport-overlay/viewport-overlay.component';
+import {ResizableDividerDirective} from '../resizable-divider.directive';
 
 // ── Stub components to avoid Three.js WebGL and Synergy ResizeObserver errors ─
 

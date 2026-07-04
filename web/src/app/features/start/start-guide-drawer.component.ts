@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
-import { SynIconComponent } from '@synergy-design-system/angular';
+import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
+import {Router} from '@angular/router';
+import {SynIconComponent} from '@synergy-design-system/angular';
 
-import { DrawerService } from '@core/services/drawer.service';
+import {DrawerService} from '@core/services/drawer.service';
 
 @Component({
   selector: 'app-start-guide-drawer',

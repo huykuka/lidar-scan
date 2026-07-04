@@ -1,14 +1,14 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, signal } from '@angular/core';
-import { vi } from 'vitest';
-import { NodeVisibilityToggleComponent } from './node-visibility-toggle.component';
-import { NodeConfig } from '../../../../core/models/node.model';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {Component, signal} from '@angular/core';
+import {vi} from 'vitest';
+import {NodeVisibilityToggleComponent} from './node-visibility-toggle.component';
+import {NodeConfig} from '../../../../core/models/node.model';
 
 // Test host component to test inputs/outputs
 @Component({
   template: `
-    <app-node-visibility-toggle 
-      [node]="testNode()" 
+    <app-node-visibility-toggle
+      [node]="testNode()"
       [isPending]="isPending()"
       (visibilityChanged)="onVisibilityChanged($event)">
     </app-node-visibility-toggle>

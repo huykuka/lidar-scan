@@ -1,4 +1,4 @@
-import {Component, computed, effect, input, output, signal, untracked, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, effect, input, output, signal, untracked} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodePlugin} from '@core/models';

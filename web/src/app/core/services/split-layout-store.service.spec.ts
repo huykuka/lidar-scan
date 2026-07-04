@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TestBed } from '@angular/core/testing';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {TestBed} from '@angular/core/testing';
 import {
-  SplitLayoutStoreService,
   DEFAULT_SPLIT_LAYOUT,
   SplitLayoutState,
+  SplitLayoutStoreService,
   ViewOrientation,
 } from './split-layout-store.service';
 

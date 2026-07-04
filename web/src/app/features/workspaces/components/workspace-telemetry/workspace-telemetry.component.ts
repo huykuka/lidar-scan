@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
-import { WorkspaceStoreService } from '@core/services';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
+import {DecimalPipe} from '@angular/common';
+import {WorkspaceStoreService} from '@core/services';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 @Component({
   selector: 'app-workspace-telemetry',

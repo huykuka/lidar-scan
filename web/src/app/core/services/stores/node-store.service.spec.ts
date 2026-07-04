@@ -1,8 +1,8 @@
 // @ts-nocheck
-import { TestBed } from '@angular/core/testing';
-import { NodeStoreService } from './node-store.service';
-import { NodeStatusService } from '../node-status.service';
-import { NodesStatusResponse } from '../../models/node-status.model';
+import {TestBed} from '@angular/core/testing';
+import {NodeStoreService} from './node-store.service';
+import {NodeStatusService} from '../node-status.service';
+import {NodesStatusResponse} from '../../models/node-status.model';
 
 describe('NodeStoreService', () => {
   let service: NodeStoreService;
@@ -48,7 +48,7 @@ describe('NodeStoreService', () => {
       });
 
       const statusMap = service.nodeStatusMap();
-      
+
       expect(statusMap.size).toBe(2);
       expect(statusMap.get('node_1')?.operational_state).toBe('RUNNING');
       expect(statusMap.get('node_2')?.operational_state).toBe('ERROR');
@@ -62,7 +62,7 @@ describe('NodeStoreService', () => {
       });
 
       const statusMap = service.nodeStatusMap();
-      
+
       expect(statusMap.size).toBe(0);
     });
 
@@ -73,7 +73,7 @@ describe('NodeStoreService', () => {
       });
 
       const statusMap = service.nodeStatusMap();
-      
+
       expect(statusMap.size).toBe(0);
     });
   });

@@ -1,4 +1,4 @@
-import {Component, computed, effect, inject, OnDestroy, signal, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy, signal} from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
 import {KeyValuePipe} from '@angular/common';
 import {ActivatedRoute, Router} from '@angular/router';

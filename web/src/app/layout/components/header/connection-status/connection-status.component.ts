@@ -1,6 +1,6 @@
-import { Component, computed, inject, output, ChangeDetectionStrategy } from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { SystemStatusService } from '@core/services/system-status.service';
+import {ChangeDetectionStrategy, Component, computed, inject, output} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {SystemStatusService} from '@core/services/system-status.service';
 
 /**
  * Backend connectivity indicator.

@@ -1,13 +1,9 @@
-import { inject, Injectable } from '@angular/core';
-import { from, Observable, throwError } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import {inject, Injectable} from '@angular/core';
+import {from, Observable, throwError} from 'rxjs';
+import {catchError, map, switchMap} from 'rxjs/operators';
 
-import { ConfigApiService } from './config-api.service';
-import {
-  ConfigExport,
-  ConfigImportResponse,
-  ConfigValidationResponse,
-} from '../../models/config.model';
+import {ConfigApiService} from './config-api.service';
+import {ConfigExport, ConfigImportResponse, ConfigValidationResponse,} from '../../models/config.model';
 
 /** Result emitted by {@link ConfigTransferService#uploadConfig} after the file
  *  has been parsed and validated against the backend. */

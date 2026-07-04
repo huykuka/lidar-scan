@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TestBed } from '@angular/core/testing';
-import { Subject } from 'rxjs';
-import { signal } from '@angular/core';
-import { PointCloudDataService } from './point-cloud-data.service';
-import { MultiWebsocketService } from './multi-websocket.service';
-import { WorkspaceStoreService } from './stores/workspace-store.service';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {TestBed} from '@angular/core/testing';
+import {Subject} from 'rxjs';
+import {signal} from '@angular/core';
+import {PointCloudDataService} from './point-cloud-data.service';
+import {MultiWebsocketService} from './multi-websocket.service';
+import {WorkspaceStoreService} from './stores/workspace-store.service';
 
 describe('PointCloudDataService', () => {
   let service: PointCloudDataService;

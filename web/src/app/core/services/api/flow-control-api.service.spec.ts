@@ -1,10 +1,10 @@
 // @ts-nocheck
-import { TestBed } from '@angular/core/testing';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { FlowControlApiService } from './flow-control-api.service';
-import { environment } from '@env/environment';
-import { ExternalStateResponse } from '@core/models/flow-control.model';
+import {TestBed} from '@angular/core/testing';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
+import {provideHttpClient} from '@angular/common/http';
+import {FlowControlApiService} from './flow-control-api.service';
+import {environment} from '@env/environment';
+import {ExternalStateResponse} from '@core/models/flow-control.model';
 
 describe('FlowControlApiService', () => {
   let service: FlowControlApiService;

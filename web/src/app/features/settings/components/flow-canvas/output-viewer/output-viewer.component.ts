@@ -1,4 +1,14 @@
-import {Component, computed, effect, ElementRef, inject, OnDestroy, signal, viewChild, ChangeDetectionStrategy} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  OnDestroy,
+  signal,
+  viewChild
+} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';

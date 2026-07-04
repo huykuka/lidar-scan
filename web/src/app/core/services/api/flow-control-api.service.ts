@@ -1,9 +1,9 @@
-import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
-import { Observable, of } from 'rxjs';
-import { catchError, delay, map } from 'rxjs/operators';
-import { ExternalStateResponse } from '../../models/flow-control.model';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {environment} from '../../../../environments/environment';
+import {Observable} from 'rxjs';
+import {catchError} from 'rxjs/operators';
+import {ExternalStateResponse} from '../../models/flow-control.model';
 
 /**
  * API service for Flow Control module endpoints

@@ -1,6 +1,6 @@
-import { Component, inject, ChangeDetectionStrategy, computed } from '@angular/core';
-import { SynDialogComponent, SynButtonComponent, SynIconComponent } from '@synergy-design-system/angular';
-import { DialogService, DialogSeverity } from '@core/services/dialog.service';
+import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
+import {SynButtonComponent, SynDialogComponent, SynIconComponent} from '@synergy-design-system/angular';
+import {DialogService, DialogSeverity} from '@core/services/dialog.service';
 
 /** Maps severity to Synergy color token overrides for syn-button */
 const SEVERITY_STYLES: Record<DialogSeverity, string> = {
