@@ -51,8 +51,6 @@ export interface SplitLayoutState {
   focusedPaneId: string | null;
   /** Denormalised count of all active panes (1–4) */
   paneCount: number;
-  /** Prevents rapid add/remove operations during transitions */
-  isTransitioning: boolean;
   /** Active layout preset — drives rendering strategy in SplitPaneContainerComponent */
   layoutMode: LayoutMode;
 }
@@ -81,7 +79,6 @@ export const DEFAULT_SPLIT_LAYOUT: SplitLayoutState = {
   ],
   focusedPaneId: null,
   paneCount: 1,
-  isTransitioning: false,
   layoutMode: 'single',
 };
 
@@ -97,7 +94,6 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
   groups = this.select('groups');
   focusedPaneId = this.select('focusedPaneId');
   paneCount = this.select('paneCount');
-  isTransitioning = this.select('isTransitioning');
   layoutMode = this.select('layoutMode');
 
   // ── Computed signals ──────────────────────────────────────────────────────
@@ -134,7 +130,6 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
    */
   addPane(orientation: ViewOrientation): void {
     if (this.paneCount() >= this.MAX_PANES) return;
-    if (this.isTransitioning()) return;
 
     const groups = this.groups();
     const group = groups[0]; // V1: single group
@@ -164,10 +159,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     this.setState({
       groups: [{ ...group, panes: updatedPanes }],
       paneCount: newCount,
-      isTransitioning: true,
     });
-
-    setTimeout(() => this.set('isTransitioning', false), 300);
   }
 
   /**
@@ -206,10 +198,7 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
         },
       ],
       paneCount: newCount,
-      isTransitioning: true,
     });
-
-    setTimeout(() => this.set('isTransitioning', false), 300);
   }
 
   /** Update the orientation of a single pane. */
@@ -330,7 +319,6 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       ],
       focusedPaneId: null,
       paneCount: 2,
-      isTransitioning: false,
       layoutMode: 'h-split',
     });
   }
@@ -349,7 +337,6 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       ],
       focusedPaneId: null,
       paneCount: 2,
-      isTransitioning: false,
       layoutMode: 'v-split',
     });
   }
@@ -370,7 +357,6 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       ],
       focusedPaneId: null,
       paneCount: 4,
-      isTransitioning: false,
       layoutMode: '4-grid',
     });
   }
@@ -398,7 +384,6 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       ],
       focusedPaneId: null,
       paneCount: 3,
-      isTransitioning: false,
       layoutMode: '1+2',
     });
   }
@@ -478,7 +463,6 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     return {
       ...state,
       groups: sanitisedGroups,
-      isTransitioning: false,
       layoutMode: VALID_MODES.has(state.layoutMode) ? state.layoutMode : 'single',
     };
   }
@@ -493,7 +477,6 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
       ],
       focusedPaneId: null,
       paneCount: 1,
-      isTransitioning: false,
       layoutMode: 'single',
     };
   }

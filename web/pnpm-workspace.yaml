@@ -5,3 +5,6 @@ allowBuilds:
   msgpackr-extract: true
   nx: false
   sharp: false
+minimumReleaseAgeExclude:
+  - angular-three-soba@4.2.3
+  - angular-three@4.2.3

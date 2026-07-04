@@ -4,13 +4,11 @@
       <!-- Wrapper gives us a relative context for the spinner overlay -->
       <span class="relative inline-flex">
         <syn-icon-button
-          [name]="pendingPresetId() === preset.id ? 'autorenew' : preset.icon"
+          [name]="preset.icon"
           (click)="applyPreset(preset.id)"
           [label]="preset.title"
-          size="medium"
+          size="small"
           [color]="activeMode() === preset.id ? 'primary' : 'neutral'"
-          [disabled]="isTransitioning()"
-          [class.animate-spin]="pendingPresetId() === preset.id"
         />
       </span>
     </syn-tooltip>
