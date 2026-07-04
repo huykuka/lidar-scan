@@ -1,11 +1,5 @@
-<div
-  [class.border-none]="isCollapsed()"
-  [class.w-0]="isCollapsed()"
-  [class.w-60]="!isCollapsed()"
-  class="bg-syn-page-background-color h-full flex flex-col relative transition-all duration-300 z-10"
-  style="background: var(--syn-color-neutral-0)"
->
-  <!-- Collapse toggle -->
+<div class="palette-shell h-full relative z-10">
+  <!-- Collapse toggle — lives OUTSIDE the clipped wrapper so it's always visible -->
   <button
     (click)="isCollapsed.set(!isCollapsed())"
     [class.-right-10]="isCollapsed()"
@@ -17,11 +11,10 @@
   </button>
 
   <div
-    [class.opacity-0]="isCollapsed()"
-    [class.opacity-100]="!isCollapsed()"
-    [class.pointer-events-none]="isCollapsed()"
-    class="flex-1 flex flex-col overflow-hidden w-60 transition-opacity duration-300 palette-body"
-    style="border-right: 1px solid var(--syn-color-neutral-300)"
+    [class.is-collapsed]="isCollapsed()"
+    [class.border-r]="!isCollapsed()"
+    class="palette-wrapper bg-syn-page-background-color h-full flex flex-col border-syn-color-neutral-300"
+    style="background: var(--syn-color-neutral-0)"
   >
     <!-- Search bar -->
     <div class="palette-search px-3 py-2 flex items-center gap-2">
@@ -108,4 +101,4 @@
       }
     </div>
   </div>
-</div>
+  </div>

@@ -1,6 +1,6 @@
 <div
-  (click)="selectable() ? toggleSelection.emit(!selected()) : select.emit(recording())"
-  class="flex items-stretch rounded-xl border-syn h-30 hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex-row relative"
+  (click)="selectable() ? toggleSelection.emit(!selected()) : play.emit(recording())"
+  class="flex items-stretch rounded-xl border-syn hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex-row relative h-full"
   style="border-color: var(--syn-color-neutral-300)"
 >
   @if (selectable()) {
@@ -14,7 +14,7 @@
       />
     </div>
   }
-  <div class="flex-shrink-0 h-full w-35 bg-slate-900 flex items-center justify-center relative">
+  <div class="flex-shrink-0 h-full w-24 sm:w-35 bg-slate-900 flex items-center justify-center relative">
     @if (recording().thumbnail_path && !thumbnailLoadFailed(recording().id)) {
       <img
         (error)="onThumbnailError(recording().id)"
@@ -79,7 +79,7 @@
   </div>
 
   <!-- Quick Actions Column -->
-  <div class="flex flex-col justify-center gap-2 px-3 py-2 bg-syn-color-neutral-50 flex-shrink-0">
+  <div class="flex flex-col justify-center gap-2 px-2 sm:px-3 py-2 bg-syn-color-neutral-50 flex-shrink-0">
     <syn-tooltip content="Play" [distance]="13" placement="top">
       <syn-icon-button variant="text"
         name="play_arrow"

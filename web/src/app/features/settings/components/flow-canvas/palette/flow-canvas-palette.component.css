@@ -5,11 +5,45 @@
   height: 100%;
 }
 
+/* Outer shell: no overflow clipping so the toggle button stays visible */
+.palette-shell {
+  display: flex;
+  height: 100%;
+  position: relative;
+}
+
+/* Toggle button: always anchored to the right edge of the wrapper */
+.palette-toggle {
+  right: -12px;
+  transition: right 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Wrapper: width slides open/closed; overflow-hidden clips the inner content */
+.palette-wrapper {
+  width: 15rem; /* w-60 */
+  overflow: hidden;
+  transition: width 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.palette-wrapper.is-collapsed {
+  width: 0;
+}
+
 /* The inner scrollable content area — uses a distinct surface color
    (neutral-50 in light / dark equivalent via token) so the palette
    reads as a separate panel from the canvas background.              */
 .palette-body {
   background: var(--syn-color-neutral-50);
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 180ms ease 80ms, visibility 0ms ease 80ms;
+}
+
+.palette-wrapper.is-collapsed .palette-body {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease, visibility 0ms ease 150ms;
+  pointer-events: none;
 }
 
 /* Search bar row — sits on the page background, slightly lighter than

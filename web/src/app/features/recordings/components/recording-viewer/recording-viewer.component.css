@@ -1,3 +1,20 @@
+/* ── 3D canvas area: responsive height (mirrors result-detail) ── */
+.viewer-canvas-area {
+  position: relative;
+  flex-shrink: 0;
+  height: 50vh;
+  min-height: 320px;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .viewer-canvas-area {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 400px;
+  }
+}
+
 .animate-in {
   animation-duration: 0.5s;
   animation-fill-mode: both;

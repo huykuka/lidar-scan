@@ -1,4 +1,4 @@
-<ngt-canvas style="width:100%;height:100%;display:block">
+<ngt-canvas>
   <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewType()">
     @for (entry of topicEntries(); track entry.topic) {
       <ngts-points-buffer #buf [positions]="entry.buf">

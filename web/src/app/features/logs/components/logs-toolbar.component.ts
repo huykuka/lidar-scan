@@ -57,7 +57,6 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
         <syn-button
           [variant]="isStreaming() ? 'filled' : 'outline'"
           (click)="streamingToggled.emit(!isStreaming())"
-          class="min-w-[120px]"
         >
           <syn-icon
             slot="prefix"
@@ -69,19 +68,11 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
         </syn-button>
 
         <div class="flex items-center gap-2">
-          <syn-button
-            variant="outline"
-            (click)="refreshClicked.emit()"
-            class="transition-all hover:bg-syn-color-primary-50"
-          >
+          <syn-button variant="outline" (click)="refreshClicked.emit()">
             <syn-icon slot="prefix" name="refresh" />
             Refresh
           </syn-button>
-          <syn-button
-            variant="outline"
-            (click)="downloadClicked.emit()"
-            class="transition-all hover:bg-syn-color-primary-50"
-          >
+          <syn-button variant="outline" (click)="downloadClicked.emit()">
             <syn-icon slot="prefix" name="file_download" />
             Download Logs
           </syn-button>
