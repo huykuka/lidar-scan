@@ -69,6 +69,7 @@ class BinDetector:
             rear_peak_back_window: int = 7,
             min_cavity_run_ratio: float = 0.6,
             min_bed_cells: int = 3,
+            max_wall_thickness: float = 0.5,
     ) -> None:
         self._lane_width = lane_width
         self._z_min = z_min
@@ -88,9 +89,10 @@ class BinDetector:
         self._rear_peak_back_window = rear_peak_back_window
         self._min_cavity_run_ratio = min_cavity_run_ratio
         self._min_bed_cells = min_bed_cells
+        self._max_wall_thickness = max_wall_thickness
 
     # ------------------------------------------------------------------
-    # Helper: validate the rear wall peak candidate (step 5a)
+    # Helper: confirm rear wall orientation (step 5a)
     # ------------------------------------------------------------------
 
     def _rear_peak_back_ok(
@@ -98,51 +100,48 @@ class BinDetector:
         peak_idx: int,
         filled_profile: np.ndarray,
     ) -> bool:
-        """Check that the space BEHIND a rear wall candidate is clear.
+        """Confirm a peak is a rear wall (RW), not a front wall (FW) seen in reverse.
 
-        The outside face of the real rear wall faces open air — there should
-        be nothing tall behind it (no other wall, no rim).  Floor-level
-        returns (road surface, station floor) are fine and are ignored.
+        A real rear wall has open space behind it (approach floor, air) — nothing
+        tall. A front wall of a following bin (FW2) also has open space behind it,
+        BUT the key difference is: the region immediately behind FW2 is the gap/
+        drawbar between trailers, which is well below wall height.
 
-        Why skip the wall slab first:
-            The peak sits on the outer face of the wall, but the wall itself
-            is several cells wide.  Walking straight back from the peak would
-            immediately see those wall cells and wrongly flag them as a
-            "structure behind".  Instead we step back past the full wall
-            thickness first, then add an extra ~50 cm safety buffer before
-            we start looking.
-
-        Steps:
-          1. Walk back through the wall slab (cells still at wall height).
-          2. Skip an additional ~50 cm to clear any gradient overhang.
-          3. Check the next ``rear_peak_back_window`` cells for tall structures.
-          4. If any cell is at wall height → something tall is behind this
-             peak → it is not the true outer rear face → skip it.
+        How it works:
+          1. From the peak, walk LEFT (backwards) through the wall slab itself —
+             these cells are part of the same wall, not a separate structure.
+          2. From the first cell outside the slab, look back ``rear_peak_back_window``
+             cells (~50 cm). Nothing in that window should be at wall height.
+             - RW1: only approach floor (~1 m) behind it → passes ✓
+             - FW2 (stray): only approach floor behind it too → also passes.
+             NOTE: back_ok alone cannot distinguish FW2 from RW1 in all cases.
+             Its job is specifically to reject peaks that sit INSIDE a bin cavity
+             (e.g. the rear face of the front wall seen from inside), where the
+             cells immediately behind the peak are at wall height. The cavity check
+             in step 5b handles the FW2-vs-RW1 distinction.
 
         Args:
             peak_idx: profile cell index of the candidate peak.
             filled_profile: interpolated height profile.
 
         Returns:
-            True if the space behind the peak is clear (no tall structures).
+            True if nothing tall is immediately behind this peak (after the slab).
         """
-        # Step 1: walk back through the wall slab.
+        # Walk back through the wall slab (cells belonging to this same wall).
         j = peak_idx
         while j > 0 and filled_profile[j] >= self._z_wall_threshold:
             j -= 1
         # j is now the first cell to the LEFT of the wall slab.
 
         # Step 2: skip an extra ~50 cm safety buffer.
-        safety_cells = int(0.5 / self._cellsize)
+        safety_cells = int(0.2 / self._cellsize)
         j = max(0, j - safety_cells)
 
         # Step 3: look back rear_peak_back_window cells from here.
         back_start = max(0, j - self._rear_peak_back_window)
         if j <= back_start:
-            return True  # not enough history to check — accept the peak
+            return True  # not enough cells to check — accept
         back_slice = filled_profile[back_start:j]
-
-        # Step 4: nothing in that window should be at wall height.
         return bool(np.max(back_slice) < self._z_wall_threshold)
 
     # ------------------------------------------------------------------
@@ -307,71 +306,88 @@ class BinDetector:
         rear_bin_idx = None
         front_bin_idx = None
 
-        # --- Step 5a: find the outer face of the rear wall -------------------
-        # We scan left-to-right and look for the first tall peak (above
-        # z_wall_threshold) that is the highest point in the next
-        # rear_forward_lookup cells.  That is the outer face of the rear wall.
+        # --- Steps 5a + 5b: find the rear wall (outer peak → inner edge) -------
         #
-        # Multi-bin guard: if a second bin sits in front of the first, only
-        # its front wall may be visible (the rest is out of range).  That
-        # lone wall looks exactly like a rear wall peak.  We reject it by
-        # checking that the space BEHIND the candidate peak is clear — a real
-        # rear wall faces open air, not another structure.
-        # → _rear_peak_back_ok() handles this check.
+        # These two steps are combined into one loop so that if a peak fails
+        # the inner-edge search, we automatically try the next peak rather than
+        # giving up entirely.
+        #
+        # For each candidate peak (left-to-right):
+        #   5a) Must be the tallest point in the next rear_forward_lookup cells.
+        #       _rear_peak_back_ok() checks that nothing tall sits behind it.
+        #   5b) Walk forward from that peak to find the inner face (where the
+        #       profile drops into the cavity).  _rear_internal_cavity_ok()
+        #       confirms a real cavity — not a short inter-trailer gap.
+        #       If no valid inner edge is found, move on to the next peak.
+        #
+        # This means a stray front wall of a following bin (FW2) that slips
+        # past the 5a back-check will be rejected in 5b (no real cavity ahead),
+        # and the loop continues to find the true rear wall behind it.
         rear_peak_idx = None
+        rear_bin_idx = None
+        x_rear_internal = None
+
         for i in range(num_bins - 1):
+            # --- 5a: peak candidate check ------------------------------------
             end_idx = min(i + self._rear_forward_lookup, num_bins)
             if not (
                     filled_profile[i] >= self._z_wall_threshold
                     and filled_profile[i] >= np.max(filled_profile[i + 1:end_idx])
             ):
                 continue
+
+            # Back-check: nothing tall should sit immediately behind the wall
+            # slab — confirms this is a rear face (RW), not a front face seen
+            # from behind. The 5b cavity check handles FW2-vs-RW1 distinction.
             if not self._rear_peak_back_ok(i, filled_profile):
                 logger.debug(
                     "Skipping peak at cell %d (x=%.2fm): tall structure found "
-                    "behind it — likely a stray wall, not the true rear face.",
+                    "right behind the wall slab — not a rear-facing wall.",
                     i,
                     x_min + i * self._cellsize,
                 )
                 continue
-            rear_peak_idx = i
-            break
 
-        if rear_peak_idx is None:
-            logger.debug("No rear wall peak found.")
-            return BinDetectionResult(
-                detected=False, status="SEARCH / REAR PEAK NOT FOUND"
+            # --- 5b: inner edge search — bounded to max_wall_thickness ----------
+            # A real bin wall is a thin steel plate. The inner face must appear
+            # within max_wall_thickness of the outer peak. If nothing is found
+            # inside that window, this peak is not a real rear wall — move on.
+            found_inner = False
+            max_wall_cells = int(np.ceil(self._max_wall_thickness / self._cellsize)) + 1
+            inner_search_end = min(i + max_wall_cells + 1, num_bins - 1)
+
+            for j in range(i + 1, inner_search_end):
+                if profile_gradient[j] < 0:
+                    end_idx_j = min(j + 30, len(filled_profile))
+                    if filled_profile[j] >= np.max(filled_profile[j + 1:end_idx_j]):
+                        if not self._rear_internal_cavity_ok(
+                            j, filled_profile, height_profile, num_bins
+                        ):
+                            logger.debug(
+                                "Skipping inner rear candidate at cell %d (x=%.2fm): "
+                                "no valid cavity ahead — too short or no cargo bed.",
+                                j,
+                                x_min + j * self._cellsize,
+                            )
+                            continue
+                        rear_peak_idx = i
+                        rear_bin_idx = j
+                        x_rear_internal = x_min + j * self._cellsize
+                        found_inner = True
+                        break
+
+            if found_inner:
+                break
+            # Inner edge not found for this peak — try the next peak candidate.
+            logger.debug(
+                "No valid inner edge found from peak at cell %d (x=%.2fm) — "
+                "trying next peak.",
+                i,
+                x_min + i * self._cellsize,
             )
 
-        # --- Step 5b: find the inner face of the rear wall -------------------
-        # Walk forward from the outer peak and find the first point where the
-        # profile is falling AND is the highest point in the next 30 cells.
-        # That is where the wall ends and the open bin cavity begins.
-        #
-        # Before accepting a candidate, _rear_internal_cavity_ok() does a
-        # quick check that what follows is actually a real bin cavity (long
-        # enough and has cargo-bed returns) — not a short gap between trailers.
-        # If the check fails we keep looking for the next candidate.
-        for i in range(rear_peak_idx + 1, num_bins - 1):
-            if profile_gradient[i] < 0:
-                end_idx = min(i + 30, len(filled_profile))
-                if filled_profile[i] >= np.max(filled_profile[i + 1:end_idx]):
-                    if not self._rear_internal_cavity_ok(
-                        i, filled_profile, height_profile, num_bins
-                    ):
-                        logger.debug(
-                            "Skipping inner rear candidate at cell %d (x=%.2fm): "
-                            "no valid cavity ahead — too short or no cargo bed.",
-                            i,
-                            x_min + i * self._cellsize,
-                        )
-                        continue
-                    rear_bin_idx = i
-                    x_rear_internal = x_min + i * self._cellsize
-                    break
-
         if x_rear_internal is None or rear_bin_idx is None:
-            logger.debug("Could not find the inner face of the rear wall.")
+            logger.debug("Could not find a valid rear wall in the scan.")
             return BinDetectionResult(
                 detected=False, status="SEARCH / REAR EDGE NOT FOUND"
             )

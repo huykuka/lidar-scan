@@ -194,6 +194,21 @@ node_schema_registry.register(
             # These control how the detector scans the profile to find the walls.
 
             PropertySchema(
+                name="max_wall_thickness",
+                label="Max Wall Thickness (m)",
+                type="number",
+                default=0.5,
+                min=0.05,
+                max=1.0,
+                step=0.01,
+                help_text=(
+                    "Maximum distance allowed between the outer face and inner face of "
+                    "the rear wall. A bin wall is a thin steel plate — if the gap between "
+                    "the detected outer peak and the inner edge exceeds this, the peak is "
+                    "discarded and the search continues. Default 20 cm."
+                ),
+            ),
+            PropertySchema(
                 name="rear_forward_lookup",
                 label="Rear Wall Peak Look-ahead (cells)",
                 type="number",
@@ -226,24 +241,26 @@ node_schema_registry.register(
 
             # ── Multi-bin protection ─────────────────────────────────────────
             # When two bins are on the truck, the front wall of the second bin
-            # can be mistaken for the rear wall of the first.  These three
-            # settings protect against that.
+            # can be mistaken for the rear wall of the first.  These settings
+            # protect against that.
 
             PropertySchema(
                 name="rear_peak_back_window",
-                label="Rear Wall Clear-Space Check (cells)",
+                label="Rear Wall Back-Check Window (cells)",
                 type="number",
                 default=7,
                 min=1,
                 max=50,
                 step=1,
                 help_text=(
-                    "After skipping past the wall slab and a 50 cm safety gap, this many "
-                    "cells are inspected behind the rear wall candidate. A real rear wall "
-                    "faces open air behind it — nothing tall should be there. "
-                    "If a tall structure is found, the candidate is skipped "
-                    "(it is probably an interior wall or the front wall of a second bin). "
-                    "~50 cm at default cell size."
+                    "After the detector finds a wall peak, it steps back past the wall "
+                    "slab itself and checks this many cells behind it (~50 cm at default "
+                    "cell size). Nothing tall should be there — a real rear wall (RW) "
+                    "faces open air or low approach floor. If a tall structure is found "
+                    "right behind the slab, the candidate is a front face seen from the "
+                    "wrong side and is skipped. Note: keep this window SHORT — shorter "
+                    "than the minimum gap between two consecutive bins — so the front "
+                    "wall of a following bin does not accidentally trigger this check."
                 ),
             ),
             PropertySchema(

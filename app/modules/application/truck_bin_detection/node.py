@@ -66,6 +66,7 @@ class TruckBinDetectionNode(ModuleNode):
             rear_peak_back_window=int(config.get("rear_peak_back_window", 7)),
             min_cavity_run_ratio=float(config.get("min_cavity_run_ratio", 0.6)),
             min_bed_cells=int(config.get("min_bed_cells", 3)),
+            max_wall_thickness=float(config.get("max_wall_thickness", 0.5)),
         )
 
         # State machine and status
