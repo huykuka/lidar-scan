@@ -104,8 +104,11 @@ class TruckBinDetectionNode(ModuleNode):
         try:
             timestamp = payload.get("timestamp", time.time())
 
-            # Execute heavy 1D geometry profile extraction in threadpool
-            result = await asyncio.to_thread(self._detector.detect, points)
+            # detect() runs in ~0.1-0.4 ms — fast enough to run directly on
+            # the event loop without dispatching to a thread.  asyncio.to_thread
+            # adds 1-5 ms of scheduling overhead (GIL, context switch, thread
+            # pool latency) which dominates the actual compute time.
+            result = self._detector.detect(points)
             self.processing_time_ms = (time.time() - start_time) * 1000
 
             if result.detected:
