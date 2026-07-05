@@ -1,53 +1,31 @@
 """
-Bin detector for the Hopper Discharge Station.
+BinDetector — finds the open-top cargo bin in a fused LiDAR point cloud.
 
-Reads a fused point cloud from two 16-layer LiDARs and finds the open-top
-cargo bin on the truck by building a side-view height profile along the
-travel direction, then locating the rear and front walls of the bin cavity.
+Works by collapsing the 3-D scan into a 2-D side-view height profile
+(height vs. position along the truck's travel direction), then searching
+that profile for the characteristic shape of a bin: a tall rear wall,
+a low open cavity, and a tall front wall.
+
+Pure helper functions and shared types live in profile_helpers.py.
 """
 import logging
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
 
 import numpy as np
 import open3d as o3d
 
+from .profile_helpers import (
+    BinDetectionResult,
+    build_height_profile,
+    fill_profile,
+    miss,
+    rolling_bwd_max,
+    rolling_fwd_max,
+)
+
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class BinDetectionResult:
-    """Everything the system needs to know about a detected bin."""
-
-    detected: bool
-    x_rear_internal: float = 0.0   # inner face of rear wall (m)
-    x_front_internal: float = 0.0  # inner face of front wall (m)
-    x_center: float = 0.0          # midpoint between the two walls (m)
-    length: float = 0.0            # internal cavity length (m)
-    confidence: float = 0.0        # 0–1, fraction of bed points on a flat plane
-    status: str = "SEARCH"
-    bin_points: Optional[np.ndarray] = None  # wall edge point clouds (rear + front)
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "detected": self.detected,
-            "x_rear_internal": round(self.x_rear_internal, 3),
-            "x_front_internal": round(self.x_front_internal, 3),
-            "x_center": round(self.x_center, 3),
-            "length": round(self.length, 3),
-            "confidence": round(self.confidence, 2),
-            "status": self.status,
-        }
-
-
 class BinDetector:
-    """Finds the open-top cargo bin in a LiDAR point cloud.
-
-    Works by collapsing the 3-D scan into a 2-D side-view height profile
-    (height vs. position along the truck's travel direction), then searching
-    that profile for the characteristic shape of a bin: a tall rear wall,
-    a low open cavity, and a tall front wall.
-    """
 
     def __init__(
             self,
@@ -92,128 +70,76 @@ class BinDetector:
         self._max_wall_thickness = max_wall_thickness
 
     # ------------------------------------------------------------------
-    # Helper: confirm rear wall orientation (step 5a)
+    # Private: peak / edge validators
     # ------------------------------------------------------------------
 
-    def _rear_peak_back_ok(
-        self,
-        peak_idx: int,
-        filled_profile: np.ndarray,
-    ) -> bool:
-        """Confirm a peak is a rear wall (RW), not a front wall (FW) seen in reverse.
+    def _rear_peak_back_ok(self, peak_idx: int, fp: np.ndarray) -> bool:
+        """Confirm nothing tall sits immediately behind a candidate rear-wall peak.
 
-        A real rear wall has open space behind it (approach floor, air) — nothing
-        tall. A front wall of a following bin (FW2) also has open space behind it,
-        BUT the key difference is: the region immediately behind FW2 is the gap/
-        drawbar between trailers, which is well below wall height.
+        Why: the scan direction is left-to-right (increasing X).  The very
+        first tall peak the scan encounters should be the outer face of the
+        rear wall — open air is behind it (between the sensor and the truck).
+        If a tall structure exists in the cells directly behind the peak, it
+        means this peak is actually an interior wall (e.g. the front wall of
+        the bin seen from inside after we have already passed the rear wall),
+        not the true outer rear face.
 
-        How it works:
-          1. From the peak, walk LEFT (backwards) through the wall slab itself —
-             these cells are part of the same wall, not a separate structure.
-          2. From the first cell outside the slab, look back ``rear_peak_back_window``
-             cells (~50 cm). Nothing in that window should be at wall height.
-             - RW1: only approach floor (~1 m) behind it → passes ✓
-             - FW2 (stray): only approach floor behind it too → also passes.
-             NOTE: back_ok alone cannot distinguish FW2 from RW1 in all cases.
-             Its job is specifically to reject peaks that sit INSIDE a bin cavity
-             (e.g. the rear face of the front wall seen from inside), where the
-             cells immediately behind the peak are at wall height. The cavity check
-             in step 5b handles the FW2-vs-RW1 distinction.
-
-        Args:
-            peak_idx: profile cell index of the candidate peak.
-            filled_profile: interpolated height profile.
-
-        Returns:
-            True if nothing tall is immediately behind this peak (after the slab).
+        We skip over the wall slab cells first because those belong to the
+        same wall and must not be counted as a "structure behind".  A short
+        safety gap is then added to avoid triggering on the gradient overhang
+        right at the slab edge.
         """
-        # Walk back through the wall slab (cells belonging to this same wall).
         j = peak_idx
-        while j > 0 and filled_profile[j] >= self._z_wall_threshold:
+        while j > 0 and fp[j] >= self._z_wall_threshold:
             j -= 1
-        # j is now the first cell to the LEFT of the wall slab.
-
-        # Step 2: skip an extra ~50 cm safety buffer.
-        safety_cells = int(0.2 / self._cellsize)
-        j = max(0, j - safety_cells)
-
-        # Step 3: look back rear_peak_back_window cells from here.
+        j = max(0, j - int(0.2 / self._cellsize))          # small safety gap
         back_start = max(0, j - self._rear_peak_back_window)
-        if j <= back_start:
-            return True  # not enough cells to check — accept
-        back_slice = filled_profile[back_start:j]
-        return bool(np.max(back_slice) < self._z_wall_threshold)
-
-    # ------------------------------------------------------------------
-    # Helper: validate the cavity ahead of the inner rear edge (step 5b)
-    # ------------------------------------------------------------------
+        return j <= back_start or bool(np.max(fp[back_start:j]) < self._z_wall_threshold)
 
     def _rear_internal_cavity_ok(
         self,
         internal_idx: int,
-        filled_profile: np.ndarray,
-        height_profile: np.ndarray,
+        fp: np.ndarray,
+        hp: np.ndarray,
         num_bins: int,
     ) -> bool:
-        """Early check that the space AHEAD of the inner rear wall is a real cavity.
+        """Early check that a real bin cavity follows the inner rear wall edge.
 
-        Once we find the inner face of the rear wall (where the profile drops
-        into the bin), we quickly verify that what follows is actually a bin
-        cavity — not a short gap between two separate trailers.
+        Why: once the inner face of the rear wall is found, we quickly verify
+        that what follows is actually a bin cavity and not a short gap between
+        two separate trailers.  Running this check before committing to a peak
+        lets the outer loop skip false positives cheaply and try the next peak,
+        instead of waiting for step 6 to reject a bad detection.
 
-        Two things must be true:
+        Two conditions must hold:
           1. The low region must be long enough — at least
-             ``min_cavity_run_ratio`` × ``min_bin_length``.  A gap between
-             trailers is much shorter than a real bin.
-          2. The floor of that region must carry real LiDAR returns at cargo
-             bed height (between ``z_cavity_min`` and ``z_wall_threshold``).
-             A drawbar/coupling sits lower than the cargo bed; an open gap
-             between trailers returns almost no points at all.
-
-        Note: if this check passes, step 6 still does a precise length and
-        bed-plane check.  This is just a fast early-exit to save time.
-
-        Args:
-            internal_idx: profile cell index of the inner rear wall face.
-            filled_profile: interpolated height profile (gaps filled in).
-            height_profile: raw height profile (0.0 where no point landed).
-            num_bins: total number of profile cells.
-
-        Returns:
-            True if a valid cavity is found ahead.
+             min_cavity_run_ratio × min_bin_length.  A gap between trailers
+             is far shorter than a real bin cavity.
+          2. The floor of that region must carry real LiDAR returns at cargo-
+             bed height (z_cavity_min ≤ z < z_wall_threshold).  A drawbar or
+             coupling bar sits lower than the cargo bed; an open gap between
+             trailers returns almost no points at all.  We use the raw (un-
+             interpolated) height profile so that empty cells cannot fake a bed
+             through forward-fill interpolation.
         """
-        min_run_cells = int(
-            (self._min_bin_length * self._min_cavity_run_ratio) / self._cellsize
-        )
-
-        # The inner edge cell itself may still be on the wall slope.
-        # Skip forward until the profile drops below wall height.
+        min_run = int(self._min_bin_length * self._min_cavity_run_ratio / self._cellsize)
         j = internal_idx + 1
-        while j < num_bins and filled_profile[j] >= self._z_wall_threshold:
+        while j < num_bins and fp[j] >= self._z_wall_threshold:
             j += 1
-        cavity_start = j
-
-        # Walk forward through the low region until the next wall.
-        while j < num_bins and filled_profile[j] < self._z_wall_threshold:
+        cav_start = j
+        while j < num_bins and fp[j] < self._z_wall_threshold:
             j += 1
-        cavity_end = j  # exclusive — first cell of the next wall (or end)
-
-        # Check 1: cavity long enough?
-        if cavity_end - cavity_start < min_run_cells:
+        if j - cav_start < min_run:
             return False
-
-        # Check 2: real cargo bed present?
-        # Use raw height_profile — a gap with no returns stays 0.0 even after
-        # interpolation, so it cannot fake a bed here.
-        cavity_heights = height_profile[cavity_start:cavity_end]
-        bed_cells = np.count_nonzero(
-            (cavity_heights >= self._z_cavity_min)
-            & (cavity_heights < self._z_wall_threshold)
+        cav_hp = hp[cav_start:j]
+        return bool(
+            np.count_nonzero(
+                (cav_hp >= self._z_cavity_min) & (cav_hp < self._z_wall_threshold)
+            ) >= self._min_bed_cells
         )
-        return bool(bed_cells >= self._min_bed_cells)
 
     # ------------------------------------------------------------------
-    # Main detection
+    # Public: main detection
     # ------------------------------------------------------------------
 
     def detect(self, points: np.ndarray) -> BinDetectionResult:
@@ -226,333 +152,220 @@ class BinDetector:
             BinDetectionResult with wall positions and cavity length.
         """
         if points is None or len(points) < 20:
-            return BinDetectionResult(detected=False, status="SEARCH / NO VEHICLE")
+            return miss("SEARCH / NO VEHICLE")
 
-        # Work with XYZ only, in float64.
+        # Keep a 3-D copy for the bed-plane fit later (step 6b).
+        # All profile work uses a flattened XZ version (Y set to 0) so the
+        # 1-D height profile is purely longitudinal.
         pts_3d = np.asarray(points[:, :3], dtype=np.float64)
-
-        # Flatten to the XZ plane (side view) for the 1-D profile algorithm.
-        # The original 3-D cloud (pts_3d) is kept for the bed-plane fit later.
         pts = pts_3d.copy()
         pts[:, 1] = 0.0
 
-        # --- Step 1: check that the scan covers a useful range ---------------
-        x_min = float(np.min(pts[:, 0]))
-        x_max = float(np.max(pts[:, 0]))
+        x_min = float(pts[:, 0].min())
+        x_max = float(pts[:, 0].max())
 
+        # --- Step 1: sanity-check the scan range ----------------------------
+        # The scan must span at least 2 m to contain any meaningful structure.
+        # A shorter range means the truck is not in the scan area yet.
         if x_max - x_min < 2.0:
-            return BinDetectionResult(
-                detected=False, status="SEARCH / INSUFFICIENT SCAN RANGE"
-            )
+            return miss("SEARCH / INSUFFICIENT SCAN RANGE")
 
-        # --- Step 2: divide the scan range into equal-width cells -------------
-        # Each cell will hold the highest point seen at that position.
+        # Fast pre-check: if the tallest point in the entire scan is below
+        # wall height, there is no bin wall at all.  Return immediately to
+        # avoid the expensive profile-building steps below.
+        if float(pts[:, 2].max()) < self._z_wall_threshold:
+            return miss("SEARCH / NO WALL HEIGHT DETECTED")
+
+        # --- Step 2: divide the scan into equal-width cells -----------------
+        # We collapse the 3-D cloud into a 1-D height profile by slicing the
+        # X axis into cells of width cell_size.  Each cell will hold the
+        # maximum height seen at that longitudinal position.
         num_bins = int(np.ceil((x_max - x_min) / self._cellsize))
         if num_bins < 10:
-            return BinDetectionResult(
-                detected=False, status="SEARCH / INSUFFICIENT CELL COUNT"
-            )
-
-        bin_indices = np.clip(
-            ((pts[:, 0] - x_min) / self._cellsize).astype(np.intp),
-            0,
-            num_bins - 1,
-        )
+            return miss("SEARCH / INSUFFICIENT CELL COUNT")
 
         # --- Step 3: build the height profile --------------------------------
-        # For each cell take the 90th-percentile height.  Using the 90th
-        # percentile instead of the maximum suppresses rain drops and dust
-        # that occasionally appear above the real structure.
-        height_profile = np.zeros(num_bins)
-        sort_order = np.argsort(bin_indices, kind="stable")
-        sorted_bins = bin_indices[sort_order]
-        sorted_z = pts[sort_order, 2]
+        # For each cell, take the maximum Z after clipping to z_max.  Clipping
+        # suppresses rain/dust returns that sit above the bin rim without the
+        # cost of a full 90th-percentile sort; z_max filtering is expected to
+        # be applied upstream anyway.  np.maximum.at is a single O(N) scatter —
+        # much faster than the previous sort + per-bin partition loop.
+        hp = build_height_profile(pts, x_min, num_bins, self._cellsize, self._z_max)
 
-        unique_bins, first_occurrence = np.unique(sorted_bins, return_index=True)
-        groups = np.split(sorted_z, first_occurrence[1:])
+        # --- Step 4: fill empty cells ----------------------------------------
+        # Some cells have no LiDAR return (open air above the bin cavity, or
+        # sparse coverage).  Empty cells (value 0) would break the gradient
+        # and threshold comparisons that follow.  We forward-fill then backward-
+        # fill so every cell carries a plausible height value.
+        # The raw profile (hp, with its zeros) is kept for the bed-presence
+        # check in step 5b where we must not confuse "no return" with a bed.
+        fp = fill_profile(hp)
 
-        for bin_id, z_vals in zip(unique_bins, groups):
-            n = len(z_vals)
-            if n == 1:
-                height_profile[bin_id] = z_vals[0]
-            else:
-                k = max(0, int(np.ceil(0.90 * n)) - 1)
-                height_profile[bin_id] = np.partition(z_vals, k)[k]
+        # Profile gradient: used to detect rising (front wall) and falling
+        # (rear wall inner face) edges.  np.gradient uses central differences,
+        # so each value is smoothed by its immediate neighbours — resilient to
+        # single-cell noise.
+        grad = np.gradient(fp)
 
-        # --- Step 4: fill gaps in the profile --------------------------------
-        # Some cells have no LiDAR return (e.g. open air inside the bin).
-        # Forward-fill then backward-fill so the profile is continuous for
-        # gradient and threshold comparisons.  The raw height_profile (with
-        # its zeros) is kept for occupancy checks later.
-        filled_profile = height_profile.copy()
-        last_valid = 0.0
-        for i in range(num_bins):
-            if filled_profile[i] > 0.0:
-                last_valid = filled_profile[i]
-            elif last_valid > 0.0:
-                filled_profile[i] = last_valid
-        last_valid = 0.0
-        for i in range(num_bins - 1, -1, -1):
-            if filled_profile[i] > 0.0:
-                last_valid = filled_profile[i]
-            elif last_valid > 0.0:
-                filled_profile[i] = last_valid
-
-        # Gradient of the filled profile — used to detect rising/falling edges.
-        profile_gradient = np.gradient(filled_profile)
-
-        x_rear_internal = None
-        x_front_internal = None
-        rear_bin_idx = None
-        front_bin_idx = None
-
-        # --- Steps 5a + 5b: find the rear wall (outer peak → inner edge) -------
+        # --- Precompute rolling maxima ---------------------------------------
+        # Steps 5a and 5b each need "what is the max height in the next W
+        # cells?".  Computing that inside the loop is O(N×W); building the
+        # lookup tables once here makes every per-cell check O(1).
         #
+        # max_peak_cell: a rear-wall peak only makes sense if there is enough
+        # room ahead to fit a full bin (min_bin_length).  Peaks beyond this
+        # point are guaranteed to fail the length gate in step 6, so we stop
+        # the search early.
+        max_peak_cell  = int((x_max - x_min - self._min_bin_length) / self._cellsize)
+        max_wall_cells = int(np.ceil(self._max_wall_thickness / self._cellsize)) + 1
+        fwd_max_5a = rolling_fwd_max(fp, self._rear_forward_lookup)
+        fwd_max_5b = rolling_fwd_max(fp, 30)
+
+        # Backward rolling max for step 5c: bwd_max[i] = max(fp[i-W : i]).
+        # The front-wall check requires the candidate cell to be higher than
+        # the W cells immediately before it (confirms we are at the START of
+        # the rising edge, not somewhere in the middle of the slope).
+        bwd_max_5c = rolling_bwd_max(fp, self._front_backward_lookup)
+
+        # --- Steps 5a + 5b: find the rear wall (outer peak → inner edge) ----
         # These two steps are combined into one loop so that if a peak fails
-        # the inner-edge search, we automatically try the next peak rather than
+        # the inner-edge search we automatically try the next peak, rather than
         # giving up entirely.
         #
-        # For each candidate peak (left-to-right):
-        #   5a) Must be the tallest point in the next rear_forward_lookup cells.
-        #       _rear_peak_back_ok() checks that nothing tall sits behind it.
-        #   5b) Walk forward from that peak to find the inner face (where the
-        #       profile drops into the cavity).  _rear_internal_cavity_ok()
-        #       confirms a real cavity — not a short inter-trailer gap.
-        #       If no valid inner edge is found, move on to the next peak.
-        #
-        # This means a stray front wall of a following bin (FW2) that slips
-        # past the 5a back-check will be rejected in 5b (no real cavity ahead),
-        # and the loop continues to find the true rear wall behind it.
-        rear_peak_idx = None
-        rear_bin_idx = None
-        x_rear_internal = None
+        # 5a — outer peak: must be the tallest point in the next
+        #      rear_forward_lookup cells AND pass the back-check (nothing tall
+        #      sits behind it).
+        # 5b — inner edge: walk forward from that peak within max_wall_thickness.
+        #      The inner face is where the gradient goes negative AND the cell
+        #      is still a local maximum looking forward 30 cells.  The cavity
+        #      check rejects peaks whose "cavity" is really a short inter-trailer
+        #      gap or a low drawbar rather than a real bin floor.
+        rear_bin_idx = x_rear_internal = None
 
-        for i in range(num_bins - 1):
-            # --- 5a: peak candidate check ------------------------------------
-            end_idx = min(i + self._rear_forward_lookup, num_bins)
-            if not (
-                    filled_profile[i] >= self._z_wall_threshold
-                    and filled_profile[i] >= np.max(filled_profile[i + 1:end_idx])
-            ):
+        for i in range(min(num_bins - 1, max_peak_cell)):
+
+            # 5a: reject cells below wall height or not a local forward maximum.
+            if fp[i] < self._z_wall_threshold or fp[i] < fwd_max_5a[i]:
                 continue
 
-            # Back-check: nothing tall should sit immediately behind the wall
-            # slab — confirms this is a rear face (RW), not a front face seen
-            # from behind. The 5b cavity check handles FW2-vs-RW1 distinction.
-            if not self._rear_peak_back_ok(i, filled_profile):
-                logger.debug(
-                    "Skipping peak at cell %d (x=%.2fm): tall structure found "
-                    "right behind the wall slab — not a rear-facing wall.",
-                    i,
-                    x_min + i * self._cellsize,
-                )
+            # 5a: reject peaks with a tall structure immediately behind them.
+            if not self._rear_peak_back_ok(i, fp):
+                logger.debug("peak @%d (%.2fm): tall structure behind — skip", i, x_min + i * self._cellsize)
                 continue
 
-            # --- 5b: inner edge search — bounded to max_wall_thickness ----------
-            # A real bin wall is a thin steel plate. The inner face must appear
-            # within max_wall_thickness of the outer peak. If nothing is found
-            # inside that window, this peak is not a real rear wall — move on.
-            found_inner = False
-            max_wall_cells = int(np.ceil(self._max_wall_thickness / self._cellsize)) + 1
-            inner_search_end = min(i + max_wall_cells + 1, num_bins - 1)
+            # 5b: search for the inner face within max_wall_thickness.
+            inner_end = min(i + max_wall_cells + 1, num_bins - 1)
+            for j in range(i + 1, inner_end):
+                if grad[j] < 0 and fp[j] >= fwd_max_5b[j]:
+                    if not self._rear_internal_cavity_ok(j, fp, hp, num_bins):
+                        logger.debug("inner @%d (%.2fm): no valid cavity — skip", j, x_min + j * self._cellsize)
+                        continue
+                    rear_bin_idx = j
+                    x_rear_internal = x_min + j * self._cellsize
+                    break
 
-            for j in range(i + 1, inner_search_end):
-                if profile_gradient[j] < 0:
-                    end_idx_j = min(j + 30, len(filled_profile))
-                    if filled_profile[j] >= np.max(filled_profile[j + 1:end_idx_j]):
-                        if not self._rear_internal_cavity_ok(
-                            j, filled_profile, height_profile, num_bins
-                        ):
-                            logger.debug(
-                                "Skipping inner rear candidate at cell %d (x=%.2fm): "
-                                "no valid cavity ahead — too short or no cargo bed.",
-                                j,
-                                x_min + j * self._cellsize,
-                            )
-                            continue
-                        rear_peak_idx = i
-                        rear_bin_idx = j
-                        x_rear_internal = x_min + j * self._cellsize
-                        found_inner = True
-                        break
-
-            if found_inner:
+            if x_rear_internal is not None:
                 break
-            # Inner edge not found for this peak — try the next peak candidate.
-            logger.debug(
-                "No valid inner edge found from peak at cell %d (x=%.2fm) — "
-                "trying next peak.",
-                i,
-                x_min + i * self._cellsize,
-            )
+            logger.debug("peak @%d (%.2fm): no inner edge found — try next", i, x_min + i * self._cellsize)
 
-        if x_rear_internal is None or rear_bin_idx is None:
-            logger.debug("Could not find a valid rear wall in the scan.")
-            return BinDetectionResult(
-                detected=False, status="SEARCH / REAR EDGE NOT FOUND"
-            )
+        if x_rear_internal is None:
+            logger.debug("No valid rear wall found.")
+            return miss("SEARCH / REAR EDGE NOT FOUND")
 
-        # --- Step 5c: find the inner face of the front wall ------------------
-        # Starting at least 1.5 m past the rear inner edge, scan forward for
-        # the first rising edge that reaches wall height.  That is the inner
-        # face of the front wall (the bin cavity ends here).
-        #
-        # Strategy A — vertical front wall:
-        #   Profile is already at wall height and still rising, AND higher than
-        #   the previous front_backward_lookup cells (confirms we are at the
-        #   start of the rise, not somewhere in the middle of the slope).
-        #
-        # Strategy B (commented out) — sloped front wall:
-        #   Profile is rising but not yet at wall height; wall height is
-        #   reached within front_backward_lookup cells ahead.
-        start_front_search = rear_bin_idx + int(1.5 / self._cellsize)
-        for i in range(start_front_search, num_bins - 1):
-            if (
-                profile_gradient[i] > 0
-                and filled_profile[i] >= self._z_wall_threshold
-                and filled_profile[i] >= np.max(
-                    filled_profile[max(0, i - self._front_backward_lookup):i] if i > 0 else [0]
-                )
-            ):
+        # --- Step 5c: find the front wall inner edge -------------------------
+        # Starting at least 1.5 m past the rear inner edge (to skip the cavity
+        # floor returns), scan forward for the first cell that is rising,
+        # above wall height, AND higher than the previous front_backward_lookup
+        # cells.  That last condition confirms we are at the START of the rising
+        # edge rather than somewhere in the middle of the slope.
+        x_front_internal = front_bin_idx = None
+        for i in range(rear_bin_idx + int(1.5 / self._cellsize), num_bins - 1):
+            if grad[i] > 0 and fp[i] >= self._z_wall_threshold and fp[i] >= bwd_max_5c[i]:
                 front_bin_idx = i
                 x_front_internal = x_min + i * self._cellsize
                 break
 
-            # Strategy B: sloped front wall (disabled — enable if needed)
-            # if (
-            #     profile_gradient[i] > 0
-            #     and filled_profile[i] < self._z_wall_threshold
-            #     and np.max(filled_profile[i:min(i + self._front_backward_lookup, num_bins)]) >= self._z_wall_threshold
-            # ):
-            #     front_bin_idx = i
-            #     x_front_internal = x_min + i * self._cellsize
-            #     break
+        if x_front_internal is None:
+            logger.debug("No front wall found.")
+            return miss("SEARCH / FRONT EDGE NOT FOUND")
 
-        if x_front_internal is None or front_bin_idx is None:
-            logger.debug("Could not find the inner face of the front wall.")
-            return BinDetectionResult(
-                detected=False, status="SEARCH / FRONT EDGE NOT FOUND"
-            )
-
-        # --- Step 6: check the measured cavity length ------------------------
+        # --- Step 6: length gate ---------------------------------------------
+        # The distance between the two inner faces must fall within the
+        # configured [min_bin_length, max_bin_length] range.  Too short means
+        # we latched onto a coupling structure or a cabin; too long means the
+        # front edge is actually the rear wall of the next trailer.
         length = x_front_internal - x_rear_internal
         if not (self._min_bin_length <= length <= self._max_bin_length):
-            logger.debug(
-                "Rejected: measured length %.2f m is outside the allowed "
-                "range [%.2f, %.2f] m.",
-                length,
-                self._min_bin_length,
-                self._max_bin_length,
-            )
-            return BinDetectionResult(
-                detected=False, status=f"SEARCH / INVALID LENGTH ({length:.1f}m)"
-            )
+            logger.debug("Length %.2fm outside [%.2f, %.2f]", length, self._min_bin_length, self._max_bin_length)
+            return miss(f"SEARCH / INVALID LENGTH ({length:.1f}m)")
 
-        # --- Step 6b: confirm a flat cargo bed exists inside the cavity ------
-        # Crop the 3-D cloud to the interior of the detected cavity and fit a
-        # plane to it.  A real open-top bin has a flat, roughly horizontal
-        # floor.  We reject detections where the fitted surface is tilted
-        # (could be a coupling bar, wall remnant, or random structure) or
-        # where too few points land on it (almost-empty cavity).
+        # --- Step 6b: bed-plane confirmation ---------------------------------
+        # Crop the 3-D cloud to the interior of the cavity and verify that a
+        # roughly horizontal flat plane — the cargo bed — actually exists there.
+        # This rejects cases where the two detected walls happen to be the right
+        # distance apart but there is no real open-top bin between them (e.g. a
+        # drawbar trailer, a closed container, or a random pair of structures).
         #
-        # If enable_area_check is False, skip the 3-D fit and use a simpler
-        # check on the 1-D profile instead.
-        _edge_half = self._cellsize
-        interior_mask = (pts_3d[:, 0] > x_rear_internal + _edge_half) & (
-                pts_3d[:, 0] < x_front_internal - _edge_half
-        )
-        interior_pts_3d = pts_3d[interior_mask]
+        # If enable_area_check is False, use a simpler 1-D profile check
+        # instead (suitable when only one LiDAR is available and Y-spread is
+        # unreliable).
+        eh = self._cellsize
+        interior_pts = pts_3d[
+            (pts_3d[:, 0] > x_rear_internal + eh) & (pts_3d[:, 0] < x_front_internal - eh)
+        ]
 
         if self._enable_area_check:
-            if len(interior_pts_3d) < 3:
-                logger.debug("Rejected: fewer than 3 points inside the cavity.")
-                return BinDetectionResult(
-                    detected=False, status="SEARCH / NO INTERIOR POINTS"
-                )
+            if len(interior_pts) < 3:
+                return miss("SEARCH / NO INTERIOR POINTS")
 
-            # Fit a plane with RANSAC — robust against a few outliers (rain,
-            # cargo material, wall remnants) as long as the flat bed makes up
-            # more than half the interior points.
-            interior_pcd = o3d.geometry.PointCloud()
-            interior_pcd.points = o3d.utility.Vector3dVector(interior_pts_3d)
-            plane_model, inliers = interior_pcd.segment_plane(
-                distance_threshold=self._cellsize,
-                ransac_n=3,
-                num_iterations=200,
+            # RANSAC plane fit: robust against outliers (rain, cargo material,
+            # wall remnants) as long as the flat bed makes up > 50 % of points.
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(interior_pts)
+            plane_model, inliers = pcd.segment_plane(
+                distance_threshold=self._cellsize, ransac_n=3, num_iterations=200
             )
-            a, b, c, d = plane_model
-            normal = np.array([a, b, c], dtype=np.float64)
-            normal = normal / np.linalg.norm(normal)
-            n_z = abs(float(normal[2]))
+            # The Z component of the plane normal must be close to 1 — a value
+            # near 0 means the fitted surface is nearly vertical (wall remnant
+            # or coupling bar), not a horizontal cargo bed.
+            normal = np.array(plane_model[:3])
+            n_z = abs(float(normal[2] / np.linalg.norm(normal)))
 
             if n_z < self._bed_normal_z_min:
-                logger.debug(
-                    "Rejected: fitted surface is not flat enough "
-                    "(|n_z|=%.3f, need >= %.3f). Not a horizontal cargo bed.",
-                    n_z,
-                    self._bed_normal_z_min,
-                )
-                return BinDetectionResult(
-                    detected=False,
-                    status=f"SEARCH / NON-HORIZONTAL BED (|n_z|={n_z:.2f})",
-                )
+                logger.debug("Bed not flat enough: |n_z|=%.3f", n_z)
+                return miss(f"SEARCH / NON-HORIZONTAL BED (|n_z|={n_z:.2f})")
 
             inlier_count = len(inliers)
             if inlier_count < self._min_bed_inliers:
-                logger.debug(
-                    "Rejected: only %d points fit the bed plane (need %d). "
-                    "Cavity may be empty or blocked.",
-                    inlier_count,
-                    self._min_bed_inliers,
-                )
-                return BinDetectionResult(
-                    detected=False,
-                    status=f"SEARCH / SPARSE BED ({inlier_count} inliers)",
-                )
+                logger.debug("Too few bed inliers: %d", inlier_count)
+                return miss(f"SEARCH / SPARSE BED ({inlier_count} inliers)")
 
-            confidence = round(min(inlier_count / len(interior_pts_3d), 1.0), 2)
+            confidence = round(min(inlier_count / len(interior_pts), 1.0), 2)
 
         else:
-            # Simplified check: look at the lowest return inside the cavity.
-            # A real bin cavity has a floor well below wall height.
-            cavity_slice = height_profile[rear_bin_idx + 1:front_bin_idx]
-            if len(cavity_slice) == 0:
-                logger.debug("Rejected: no profile cells between the two walls.")
-                return BinDetectionResult(
-                    detected=False, status="SEARCH / NO CAVITY"
-                )
-
-            non_zero = cavity_slice[cavity_slice > 0]
-            cavity_z = float(np.min(non_zero)) if len(non_zero) > 0 else 0.0
+            # Simplified check: the lowest real return between the two walls
+            # must be below z_cavity_max.  If the minimum is too high there is
+            # no open cavity — we may have latched onto a closed container or
+            # the truck chassis.
+            cav = hp[rear_bin_idx + 1:front_bin_idx]
+            if len(cav) == 0:
+                return miss("SEARCH / NO CAVITY")
+            nz = cav[cav > 0]
+            cavity_z = float(nz.min()) if len(nz) else 0.0
             if cavity_z > self._z_cavity_max:
-                logger.debug(
-                    "Rejected: lowest return inside cavity is %.3f m — "
-                    "too high (max allowed %.3f m). No clear open cavity.",
-                    cavity_z,
-                    self._z_cavity_max,
-                )
-                return BinDetectionResult(
-                    detected=False,
-                    status=f"SEARCH / SHALLOW CAVITY ({cavity_z:.2f}m)",
-                )
-
+                logger.debug("Cavity too shallow: %.3fm", cavity_z)
+                return miss(f"SEARCH / SHALLOW CAVITY ({cavity_z:.2f}m)")
             confidence = 1.0
 
-        # --- Step 7: compute final bin position ------------------------------
+        # --- Step 7: output --------------------------------------------------
+        # Compute the bin centre and collect the wall-face point clouds for
+        # downstream visualisation.  A window of ±cell_size around each inner
+        # edge position captures the wall slab without pulling in cavity floor
+        # or truck-frame returns.
         x_center = (x_rear_internal + x_front_internal) / 2.0
-
-        # Collect the wall-face point clouds for visualisation.
-        # A narrow window around each wall position captures the wall slab
-        # without pulling in cavity floor or truck-frame returns.
-        _edge_half = self._cellsize
-        rear_mask = (pts[:, 0] >= x_rear_internal - _edge_half) & (
-                pts[:, 0] <= x_rear_internal + _edge_half
-        )
-        front_mask = (pts[:, 0] >= x_front_internal - _edge_half) & (
-                pts[:, 0] <= x_front_internal + _edge_half
-        )
-
-        edge_pts = np.concatenate([pts[rear_mask], pts[front_mask]], axis=0)
+        rear_mask  = np.abs(pts[:, 0] - x_rear_internal)  <= eh
+        front_mask = np.abs(pts[:, 0] - x_front_internal) <= eh
+        edge_pts = np.concatenate([pts[rear_mask], pts[front_mask]])
 
         return BinDetectionResult(
             detected=True,
