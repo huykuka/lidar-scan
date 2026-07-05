@@ -177,6 +177,30 @@ class CoordinateTransform(PipelineOperation):
         transformed = (self._matrix @ homogeneous.T).T  # (N, 4)
         return transformed[:, :3]
 
+    def apply_numpy(self, pts: np.ndarray):
+        """Fast path: apply the transform directly on a numpy (N, 3+) array.
+
+        XYZ columns are transformed; extra columns (intensity, ring, etc.)
+        are passed through unchanged.  No Open3D allocation needed.
+        """
+        if np.allclose(self._matrix, np.eye(4)):
+            return pts, {"point_count": pts.shape[0], "skipped": True,
+                         "skip_reason": "Identity transform"}
+        xyz = pts[:, :3].astype(np.float64)
+        xyz_out = self._transform_points(xyz).astype(pts.dtype)
+        if pts.shape[1] > 3:
+            out = pts.copy()
+            out[:, :3] = xyz_out
+        else:
+            out = xyz_out.astype(pts.dtype)
+        return out, {
+            "point_count": out.shape[0],
+            "skipped": False,
+            "translation": self._translation.tolist(),
+            "rotation_deg": self._rotation_deg.tolist(),
+            "scale": self._scale.tolist(),
+        }
+
     @staticmethod
     def _point_count(pcd: Any) -> int:
         if isinstance(pcd, o3d.t.geometry.PointCloud):

@@ -113,7 +113,7 @@ class PcdInjectionNode(ModuleNode):
             from app.modules.lidar.core.transformations import transform_points
 
             now = time.time()
-            transformed = await asyncio.to_thread(transform_points, points, self.transformation)
+            transformed = transform_points(points, self.transformation)
             payload: Dict[str, Any] = {
                 "points": transformed,
                 "timestamp": now,

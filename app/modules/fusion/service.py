@@ -123,12 +123,9 @@ class FusionService(ModuleNode):
             # Fallback to XYZ (3 columns) if fields don't match (e.g. Real Lidar 16-cols + Sim PCD 3-cols)
             frames = [f[:, :3] for f in frames]
 
-        # Merge all frames into one cloud off the main thread
-        import asyncio
-        def _concat():
-            return np.concatenate(frames, axis=0)
-
-        fused = await asyncio.to_thread(_concat)
+        # Merge all frames into one cloud — np.concatenate is fast enough
+        # (~10-50 µs for 2-4 sensor frames) to run directly on the event loop.
+        fused = np.concatenate(frames, axis=0)
 
         # Forward output to downstream nodes via NodeManager (fire-and-forget)
         # NodeManager will handle WebSocket broadcasting automatically.

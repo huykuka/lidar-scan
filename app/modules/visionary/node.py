@@ -242,9 +242,7 @@ class VisionarySensor(ModuleNode):
                 else:
                     points = compact
 
-                transformed_points = await asyncio.to_thread(
-                    transform_points, points, self.transformation
-                )
+                transformed_points = transform_points(points, self.transformation)
                 payload["points"] = transformed_points
 
                 frame_count = runtime_status.get(self.id, {}).get("frame_count", 0)
