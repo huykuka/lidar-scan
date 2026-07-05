@@ -5,22 +5,14 @@ import {TopicApiService} from '@core/services/api/topic-api.service';
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
 import {NodeStatusService} from '@core/services/node-status.service';
 import {SplitLayoutStoreService} from '@core/services/split-layout-store.service';
-import {
-  WorkspaceTelemetryComponent
-} from '@features/workspaces/components/workspace-telemetry/workspace-telemetry.component';
-import {
-  WorkspaceControlsComponent
-} from '@features/workspaces/components/workspace-controls/workspace-controls.component';
-import {
-  SplitPaneContainerComponent
-} from '@features/workspaces/components/split-pane/split-pane-container/split-pane-container.component';
-import {ViewToolbarComponent} from '@features/workspaces/components/view-toolbar/view-toolbar.component';
+import { WorkspaceControlsComponent } from '@features/workspaces/components/workspace-controls/workspace-controls.component';
+import { ViewToolbarComponent } from '@features/workspaces/components/view-toolbar/view-toolbar.component';
+import { SplitPaneContainerComponent } from '@features/workspaces/components/split-pane/split-pane-container/split-pane-container.component';
 
 @Component({
   selector: 'app-workspaces',
   imports: [
     SynergyComponentsModule,
-    WorkspaceTelemetryComponent,
     WorkspaceControlsComponent,
     SplitPaneContainerComponent,
     ViewToolbarComponent,

@@ -11,7 +11,7 @@ import {
   NgtsGizmoViewport
 } from 'angular-three-soba/gizmos';
 import {ViewOrientation} from '@core/services/split-layout-store.service';
-import {NgtsPoint, NgtsPointsInstances} from 'angular-three-soba/performances';
+
 
 // Z-is-up coordinate system (THREE.Object3D.DEFAULT_UP = [0,0,1])
 const D = 5;
@@ -62,8 +62,6 @@ const ORTHO_UP: Record<Exclude<ViewOrientation, 'perspective'>, [number, number,
     NgtsGizmoHelper,
     NgtsGizmoViewport,
     NgtArgs,
-    NgtsPointsInstances,
-    NgtsPoint,
     NgtsGizmoHelperImpl,
     NgtsGizmoHelperContent,
   ],

@@ -5,7 +5,10 @@
 }
 
 <ngts-orbit-controls [options]="orbitOptions()"/>
-<ngt-axes-helper *args="[30]"/>
+<ngt-axes-helper *args="[40]"/>
+<!-- <ngts-text [text]="'X'" [options]="{ position: [42, 0, 0], color: '#ff4d4f', fontSize: 1.6 }"/>
+<ngts-text [text]="'Y'" [options]="{ position: [0, 42, 0], color: '#52c41a', fontSize: 1.6 }"/>
+<ngts-text [text]="'Z'" [options]="{ position: [0, 0, 42], color: '#4096ff', fontSize: 1.6 }"/> -->
 
 @if (showGrid()) {
   <ngts-grid [options]="gridOptions()"/>
@@ -16,11 +19,12 @@
 <ng-content/>
 
 
-//Center
-<ngts-points-instances [options]="{ limit: 1 }">
-  <ngt-points-material [size]="0.5" [vertexColors]="true"/>
-  <ngts-point [options]="{ position: [0, 0, 0], color: 'red' }"/>
-</ngts-points-instances>
+// Center origin marker (cleaner than a single fat point)
+<ngt-mesh [position]="[0, 0, 0]">
+  <ngt-sphere-geometry *args="[0.14, 16, 16]"/>
+  <ngt-mesh-basic-material color="#ff4d4f" [toneMapped]="false"/>
+</ngt-mesh>
+
 
 <ngts-gizmo-helper [options]="{ margin: [80, 80] }">
   <ng-template gizmoHelperContent>

@@ -1,9 +1,4 @@
 <div class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500">
-  <!-- Action bar: layout presets -->
-  <div class="flex items-center mb-2 shrink-0">
-    <app-view-toolbar />
-  </div>
-
   @if (isNarrowScreen() && !isSinglePane()) {
     <!-- Responsive guard: <1024px in multi-pane mode -->
     <div class="flex flex-col items-center justify-center flex-1 text-center p-8">
@@ -17,11 +12,10 @@
     <div class="workspace-layout flex-1 min-h-0">
       <div class="flex-1 relative overflow-hidden rounded-xs min-h-0 min-w-0">
         <app-split-pane-container class="w-full h-full" />
-
-        <!-- HUD telemetry: only in single-pane mode -->
-        @if (isSinglePane() && !isNarrowScreen()) {
-          <app-workspace-telemetry />
-        }
+        <!-- Layout switcher overlay — top-left of viewport (Foxglove/RViz pattern) -->
+        <div class="absolute top-3 left-3 z-10 flex items-center bg-[var(--syn-panel-background-color)] border border-[var(--syn-panel-border-color)] rounded-[var(--syn-border-radius-medium)] p-0.5">
+          <app-view-toolbar />
+        </div>
       </div>
 
       <!-- Settings panel — toggle always visible, panel slides in/out -->

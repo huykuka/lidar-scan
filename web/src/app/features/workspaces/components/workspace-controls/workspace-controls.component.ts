@@ -2,10 +2,11 @@ import {ChangeDetectionStrategy, Component, computed, inject, output} from '@ang
 import {WorkspaceStoreService} from '@core/services';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {PointCloudDataService} from '@core/services/point-cloud-data.service';
+import { WorkspaceTelemetryComponent } from '../workspace-telemetry/workspace-telemetry.component';
 
 @Component({
   selector: 'app-workspace-controls',
-  imports: [SynergyComponentsModule],
+  imports: [SynergyComponentsModule, WorkspaceTelemetryComponent],
   templateUrl: './workspace-controls.component.html',
   styleUrl: './workspace-controls.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

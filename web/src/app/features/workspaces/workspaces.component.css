@@ -58,7 +58,7 @@
 
 /* Panel content slides in/out */
 .settings-content {
-  width: 280px;
+  width: 350px;
   min-height: 0;
   overflow: hidden;
   overflow-y: auto;
