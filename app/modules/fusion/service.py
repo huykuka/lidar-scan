@@ -137,8 +137,6 @@ class FusionService(ModuleNode):
             "count": len(fused)
         }
 
-        asyncio.create_task(self._service.forward_data(self.id, fused_payload))
-
         import time
         self.last_broadcast_at = time.time()
         self.last_broadcast_ts = timestamp
