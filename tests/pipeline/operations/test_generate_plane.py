@@ -151,16 +151,16 @@ class TestSquareMode:
         return _make_flat_cloud(100)
 
     def test_square_mode_basic_output_type(self, flat_pcd_100):
-        """Square mode must return (o3d.t.geometry.PointCloud, dict)."""
+        """Square mode must return (np.ndarray, dict)."""
         GeneratePlane = _import_generate_plane()
         gen = GeneratePlane(mode="square", size=1.0, voxel_size=0.05,
                             plane_model=[0, 0, 1, 0])
         result = gen.apply(flat_pcd_100)
         assert isinstance(result, tuple), "apply() must return a tuple"
         assert len(result) == 2, "Tuple must have 2 elements"
-        vertex_pcd, metadata = result
-        assert isinstance(vertex_pcd, o3d.t.geometry.PointCloud), \
-            "First return value must be o3d.t.geometry.PointCloud"
+        vertex_pts, metadata = result
+        assert isinstance(vertex_pts, np.ndarray), \
+            "First return value must be np.ndarray"
         assert isinstance(metadata, dict), "Second return value must be dict"
 
     def test_square_mode_metadata_keys(self, flat_pcd_100):

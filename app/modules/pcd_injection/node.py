@@ -54,6 +54,7 @@ class PcdInjectionNode(ModuleNode):
         self._frames_injected: int = 0
         self._last_inject_at: Optional[float] = None
         self._last_error: Optional[str] = None
+        self._cycle_time_ms: Optional[float] = None  # last injection processing duration
 
     def set_pose(self, pose: Pose) -> "PcdInjectionNode":
         """Set the node pose and recompute the transformation matrix."""
@@ -94,6 +95,7 @@ class PcdInjectionNode(ModuleNode):
                 color=app_color,
             ),
             error_message=self._last_error,
+            cycle_time_ms=round(self._cycle_time_ms, 1) if self._cycle_time_ms is not None else None,
         )
 
     # ------------------------------------------------------------------
@@ -113,6 +115,7 @@ class PcdInjectionNode(ModuleNode):
             from app.modules.lidar.core.transformations import transform_points
 
             now = time.time()
+            _start = time.monotonic()
             transformed = transform_points(points, self.transformation)
             payload: Dict[str, Any] = {
                 "points": transformed,
@@ -124,6 +127,7 @@ class PcdInjectionNode(ModuleNode):
             self._last_error = None
 
             await self.manager.forward_data(self.id, payload)
+            self._cycle_time_ms = (time.monotonic() - _start) * 1000
             notify_status_change(self.id)
 
             logger.debug(

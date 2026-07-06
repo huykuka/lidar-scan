@@ -1,7 +1,14 @@
-from typing import Any, Dict, Tuple
+"""
+edge_detection/node.py — Centroid-gradient edge detection.
+
+Uses scipy.spatial.cKDTree for neighbour queries instead of Open3D's
+KDTreeFlann, eliminating the Open3D dependency for this node.
+The detection algorithm (Xia & Wang 2017) is otherwise unchanged.
+"""
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
-import open3d as o3d
+from scipy.spatial import cKDTree
 
 from ...base import PipelineOperation
 
@@ -32,6 +39,9 @@ class EdgeDetection(PipelineOperation):
             gradient direction test (0-1).
     """
 
+    # Heavy CPU loop — OperationNode will use a dedicated single-thread executor.
+    PREFERS_LEGACY = False
+
     def __init__(
         self,
         radius: float = 0.12,
@@ -49,97 +59,91 @@ class EdgeDetection(PipelineOperation):
         self.nms_cos_threshold = float(nms_cos_threshold)
 
     # ------------------------------------------------------------------
-    # Core algorithm
+    # Core algorithm (pure numpy + scipy)
     # ------------------------------------------------------------------
 
-    def _detect_edges(
-        self, pcd: o3d.geometry.PointCloud
-    ) -> Tuple[o3d.geometry.PointCloud, Dict[str, Any]]:
-        """Run centroid-gradient edge detection on a *legacy* PointCloud."""
-        points = np.asarray(pcd.points)
-        n_points = len(points)
-        if n_points == 0:
-            return pcd, {"edge_count": 0, "original_count": 0}
+    def _detect_edges_numpy(
+        self, points: np.ndarray
+    ) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """Run centroid-gradient edge detection on an (N, 3) float64 array."""
+        n = len(points)
+        if n == 0:
+            return points, {"edge_count": 0, "original_count": 0}
 
-        tree = o3d.geometry.KDTreeFlann(pcd)
+        tree = cKDTree(points)
 
-        # --- Step 1: compute per-point edge index ----------------------
-        edge_index = np.zeros(n_points, dtype=np.float64)
+        # --- Step 1: per-point edge index ---------------------------------
+        # query_ball_point returns variable-length lists; cap at max_nn
+        all_neighbours: List[np.ndarray] = tree.query_ball_point(
+            points, r=self.radius, workers=-1
+        )
 
-        # Pre-build neighbour lists (reused in NMS)
-        neighbours: list[np.ndarray] = []
+        edge_index = np.zeros(n, dtype=np.float64)
 
-        for i in range(n_points):
-            k, idx, _ = tree.search_hybrid_vector_3d(
-                points[i], self.radius, self.max_nn
-            )
-            idx_arr = np.asarray(idx)
-            neighbours.append(idx_arr)
-
-            if k <= 1:
+        for i in range(n):
+            idx = np.asarray(all_neighbours[i], dtype=np.int64)
+            if len(idx) <= 1:
                 continue
+            # Enforce max_nn cap (query_ball_point has no built-in limit)
+            if len(idx) > self.max_nn:
+                # Keep closest max_nn neighbours
+                dists = np.linalg.norm(points[idx] - points[i], axis=1)
+                idx = idx[np.argpartition(dists, self.max_nn)[:self.max_nn]]
+                all_neighbours[i] = idx
 
-            nb_pts = points[idx_arr]
+            nb_pts = points[idx]
             centroid = nb_pts.mean(axis=0)
-
-            # Distance from the point to its neighbourhood centroid
             dist_to_centroid = np.linalg.norm(points[i] - centroid)
-
-            # Normalise by farthest neighbour distance
-            dists_to_nbs = np.linalg.norm(nb_pts - points[i], axis=1)
-            max_dist = dists_to_nbs.max()
+            max_dist = np.linalg.norm(nb_pts - points[i], axis=1).max()
             if max_dist < 1e-8:
                 continue
-
             edge_index[i] = dist_to_centroid / max_dist
 
-        # --- Step 2: threshold -----------------------------------------
+        # --- Step 2: threshold --------------------------------------------
         edge_mask = edge_index >= self.threshold
 
-        # --- Step 3 (optional): gradient-guided NMS --------------------
+        # --- Step 3 (optional): gradient-guided NMS -----------------------
         if self.nms:
-            # Compute gradient orientation for every point
-            gradient_dir = np.zeros((n_points, 3), dtype=np.float64)
-            for i in range(n_points):
-                idx_arr = neighbours[i]
-                if len(idx_arr) <= 1:
+            gradient_dir = np.zeros((n, 3), dtype=np.float64)
+            for i in range(n):
+                idx = np.asarray(all_neighbours[i])
+                if len(idx) <= 1:
                     continue
-                diffs = np.abs(edge_index[i] - edge_index[idx_arr])
+                diffs = np.abs(edge_index[i] - edge_index[idx])
                 max_id = np.argmax(diffs)
-                direction = points[idx_arr[max_id]] - points[i]
+                direction = points[idx[max_id]] - points[i]
                 norm = np.linalg.norm(direction)
                 if norm > 1e-8:
                     gradient_dir[i] = direction / norm
 
-            # Suppress non-maxima along the gradient direction
             suppressed = edge_index.copy()
-            for i in range(n_points):
+            for i in range(n):
                 if not edge_mask[i]:
                     continue
-                idx_arr = neighbours[i]
-                if len(idx_arr) <= 1:
+                idx = np.asarray(all_neighbours[i])
+                if len(idx) <= 1:
                     continue
-
-                nb_pts = points[idx_arr]
-                deltas = nb_pts - points[i]
+                deltas = points[idx] - points[i]
                 norms = np.linalg.norm(deltas, axis=1)
                 norms[norms < 1e-8] = 1e-8
                 orientations = deltas / norms[:, np.newaxis]
-
                 cos_sim = np.abs((orientations * gradient_dir[i]).sum(axis=1))
-                along_grad = idx_arr[cos_sim > self.nms_cos_threshold]
-
+                along_grad = idx[cos_sim > self.nms_cos_threshold]
                 if len(along_grad) > 0 and (edge_index[along_grad] > edge_index[i]).any():
                     suppressed[i] = 0.0
 
             edge_mask = suppressed >= self.threshold
 
         edge_indices = np.where(edge_mask)[0]
-        result_pcd = pcd.select_by_index(edge_indices.tolist(), invert=self.invert)
 
-        return result_pcd, {
+        if self.invert:
+            result = points[~edge_mask]
+        else:
+            result = points[edge_indices]
+
+        return result, {
             "edge_count": int(len(edge_indices)),
-            "original_count": int(n_points),
+            "original_count": int(n),
             "inverted": self.invert,
         }
 
@@ -148,10 +152,23 @@ class EdgeDetection(PipelineOperation):
     # ------------------------------------------------------------------
 
     def apply(self, pcd: Any) -> Tuple[Any, Dict[str, Any]]:
+        import open3d as o3d
         if isinstance(pcd, o3d.t.geometry.PointCloud):
-            legacy = pcd.to_legacy()
-            edge_legacy, meta = self._detect_edges(legacy)
-            edge_tensor = o3d.t.geometry.PointCloud.from_legacy(edge_legacy)
-            return edge_tensor, meta
+            pts = pcd.point.positions.cpu().numpy().astype(np.float64)
+            result_pts, meta = self._detect_edges_numpy(pts)
+            # Wrap back into a minimal tensor PCD (positions only)
+            out = o3d.t.geometry.PointCloud()
+            if result_pts.shape[0] > 0:
+                out.point.positions = o3d.core.Tensor(
+                    result_pts.astype(np.float32)
+                )
+            return out, meta
 
-        return self._detect_edges(pcd)
+        if isinstance(pcd, o3d.geometry.PointCloud):
+            pts = np.asarray(pcd.points, dtype=np.float64)
+            result_pts, meta = self._detect_edges_numpy(pts)
+            out = o3d.geometry.PointCloud()
+            out.points = o3d.utility.Vector3dVector(result_pts)
+            return out, meta
+
+        raise TypeError(f"EdgeDetection: unsupported pcd type {type(pcd)}")

@@ -72,12 +72,56 @@ _HEAVY_OP_TYPES = frozenset({
 _PRIMITIVE = (str, int, float, bool, type(None), list, dict)
 
 
+def build_operation_node(
+    op_type: str,
+    node: dict,
+    service_context: Any,
+    *,
+    default_throttle_ms: float = 0.0,
+    pre_process: Any = None,
+) -> "OperationNode":
+    """Shared factory helper used by every operation registry.
+
+    Extracts ``op_type`` and ``throttle_ms`` from the node config dict,
+    applies an optional *pre_process* callable to further transform the config
+    (e.g. unflattening dot-notation keys), then constructs an OperationNode.
+
+    Args:
+        op_type:             The operation type string (e.g. ``"crop"``).
+        node:                The raw DAG node dict from the config store.
+        service_context:     The NodeManager passed as the first arg by NodeFactory.
+        default_throttle_ms: Fallback throttle when the key is absent (default 0).
+        pre_process:         Optional ``Callable[[dict], dict]`` applied to the
+                             op_config dict after ``throttle_ms`` is extracted.
+    """
+    config = node.get("config", {})
+    op_config = config.copy()
+    op_config.pop("op_type", None)
+    throttle_raw = op_config.pop("throttle_ms", default_throttle_ms)
+    try:
+        throttle_ms = float(throttle_raw)
+    except (ValueError, TypeError):
+        throttle_ms = float(default_throttle_ms)
+
+    if pre_process is not None:
+        op_config = pre_process(op_config)
+
+    return OperationNode(
+        manager=service_context,
+        node_id=node["id"],
+        op_type=op_type,
+        op_config=op_config,
+        name=node.get("name"),
+        throttle_ms=throttle_ms,
+    )
+
+
 class OperationNode(ModuleNode, ShapeCollectorMixin):
     """Applies a single point cloud operation inside a processing pipeline DAG.
 
     Dispatch strategy (fastest to slowest):
-      1. ``apply_numpy`` present on op → run synchronously on event loop
-         (~0.1 ms, no Open3D, no thread hop).
+      1. ``NUMPY_ONLY`` flag on op → call apply(pts) synchronously on event loop.
+         No Open3D allocation, no thread hop (~0.1 ms).
       2. ``PREFERS_LEGACY + apply_filter`` → numpy→legacy PCD→index select,
          still synchronous.
       3. Heavy op (in ``_HEAVY_OP_TYPES``) → dedicated single-thread executor
@@ -136,7 +180,7 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
 
         # Pre-compute which dispatch path this op uses so on_input() has zero
         # branching overhead per frame.
-        self._is_numpy_op: bool = hasattr(self.op, "apply_numpy")
+        self._is_numpy_op: bool = getattr(self.op, "NUMPY_ONLY", False)
         self._is_legacy_op: bool = (
             getattr(self.op, "PREFERS_LEGACY", False)
             and hasattr(self.op, "apply_filter")
@@ -155,9 +199,10 @@ class OperationNode(ModuleNode, ShapeCollectorMixin):
         """
         from app.modules.pipeline.base import PointConverter
 
-        # Fast path A: pure numpy, no Open3D at all (~0.1 ms).
+        # Fast path A: NUMPY_ONLY ops — apply() accepts (N, M) numpy directly.
+        # No Open3D allocation, no conversion, no thread hop.
         if self._is_numpy_op:
-            return self.op.apply_numpy(points)
+            return self.op.apply(points)
 
         # Fast path B: legacy PCD index-select, avoids Tensor allocation.
         if self._is_legacy_op:

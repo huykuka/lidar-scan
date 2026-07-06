@@ -16,6 +16,7 @@ Usage in app.py:
     # WebSocket topic is auto-generated as: {node_name}_{node_id[:8]}
 """
 from typing import Any, Dict, List, Optional, Set
+import time
 
 import numpy as np
 
@@ -54,6 +55,7 @@ class FusionService(ModuleNode):
         self.last_broadcast_at: Optional[float] = None
         self.last_broadcast_ts: Optional[float] = None
         self.last_error: Optional[str] = None
+        self.processing_time_ms: float = 0.0
 
     async def on_input(self, payload: Dict[str, Any]):
         """Standard input port for the NodeManager to push data into."""
@@ -117,6 +119,8 @@ class FusionService(ModuleNode):
         # Collect frames for fusion
         frames = [self._latest_frames[sid] for sid in expected_sensors]
 
+        start_time = time.time()
+
         # Check for column mismatch
         num_cols = {f.shape[1] for f in frames}
         if len(num_cols) > 1:
@@ -126,10 +130,8 @@ class FusionService(ModuleNode):
         # Merge all frames into one cloud — np.concatenate is fast enough
         # (~10-50 µs for 2-4 sensor frames) to run directly on the event loop.
         fused = np.concatenate(frames, axis=0)
+        self.processing_time_ms = (time.time() - start_time) * 1000
 
-        # Forward output to downstream nodes via NodeManager (fire-and-forget)
-        # NodeManager will handle WebSocket broadcasting automatically.
-        # Decoupled so slow downstream nodes can't stall the fusion cycle.
         fused_payload = {
             "node_id": self.id,
             "points": fused,
@@ -137,10 +139,11 @@ class FusionService(ModuleNode):
             "count": len(fused)
         }
 
-        import time
         self.last_broadcast_at = time.time()
         self.last_broadcast_ts = timestamp
         self.last_error = None
+
+        await self.manager.forward_data(self.id, fused_payload)
 
     def emit_status(self) -> NodeStatusUpdate:
         """Return standardised status for this fusion node.
@@ -154,6 +157,8 @@ class FusionService(ModuleNode):
         Returns:
             NodeStatusUpdate with operational_state and fusing application_state
         """
+        cycle_ms = round(self.processing_time_ms, 1) if self.processing_time_ms else None
+
         if self.last_error:
             return NodeStatusUpdate(
                 node_id=self.id,
@@ -164,6 +169,7 @@ class FusionService(ModuleNode):
                     color="red",
                 ),
                 error_message=self.last_error,
+                cycle_time_ms=cycle_ms,
             )
 
         if not self._enabled:
@@ -175,6 +181,7 @@ class FusionService(ModuleNode):
                     value=0,
                     color="gray",
                 ),
+                cycle_time_ms=cycle_ms,
             )
 
         frame_count = len(self._latest_frames)
@@ -186,4 +193,5 @@ class FusionService(ModuleNode):
                 value=frame_count,
                 color="blue" if frame_count > 0 else "gray",
             ),
+            cycle_time_ms=cycle_ms,
         )

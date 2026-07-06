@@ -46,7 +46,7 @@ from .mls import MLSDensify
 from .nearest_neighbor import NearestNeighborDensify
 from .poisson import PoissonDensify
 from .statistical import StatisticalDensify
-from ...base import PipelineOperation, _tensor_map_keys
+from ...base import PipelineOperation, _tensor_map_keys, get_point_count
 
 logger = logging.getLogger(__name__)
 
@@ -369,13 +369,7 @@ class Densify(PipelineOperation):
     @staticmethod
     def _get_count(pcd: Any) -> int:
         """Return point count for either tensor or legacy pcd."""
-        if isinstance(pcd, o3d.t.geometry.PointCloud):
-            return (
-                int(pcd.point.positions.shape[0])
-                if "positions" in pcd.point
-                else 0
-            )
-        return len(pcd.points)
+        return get_point_count(pcd)
 
     @staticmethod
     def _compute_mean_nn_dist_global(pts: np.ndarray) -> float:

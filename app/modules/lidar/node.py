@@ -81,6 +81,7 @@ class LidarSensor(ModuleNode):
 
         self._process = None
         self._stop_event = None
+        self._cycle_time_ms: Optional[float] = None  # last frame processing duration
 
     def set_pose(self, pose: Pose) -> "LidarSensor":
         """Set the sensor pose and recompute the transformation matrix.
@@ -241,7 +242,8 @@ class LidarSensor(ModuleNode):
                     effective_T = self.transformation @ self._imu_gravity_matrix
 
                 # 2. Transform points to world space off the main thread
-                transformed_points = await asyncio.to_thread(transform_points, points, effective_T)
+                _frame_start = time.monotonic()
+                transformed_points = transform_points(points, effective_T)
                 # Update payload for downstream
                 payload["points"] = transformed_points
 
@@ -250,11 +252,8 @@ class LidarSensor(ModuleNode):
                     logger.debug(f"[{self.id}] Frame #{frame_count}: {len(transformed_points)} points after transform")
 
                 # 2. Forward to downstream nodes via Manager (fire-and-forget)
-                # NodeManager will handle WebSocket broadcasting automatically.
-                # We don't await here — decouples this sensor from downstream
-                # processing latency so slow nodes (e.g. densify) can't stall
-                # the producer or starve the event loop.
                 asyncio.create_task(self.manager.forward_data(self.id, payload))
+                self._cycle_time_ms = (time.monotonic() - _frame_start) * 1000
 
         except Exception as e:
             logger.error(f"Error handling data for {self.id}: {e}", exc_info=True)
@@ -368,4 +367,5 @@ class LidarSensor(ModuleNode):
                 color=app_color,
             ),
             error_message=last_error,
+            cycle_time_ms=round(self._cycle_time_ms, 1) if self._cycle_time_ms is not None else None,
         )
