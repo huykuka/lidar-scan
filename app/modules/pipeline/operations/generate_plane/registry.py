@@ -42,21 +42,5 @@ node_schema_registry.register(NodeDefinition(
 # --- Factory Builder ---
 @NodeFactory.register("generate_plane")
 def build(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
-    from app.modules.pipeline.operation_node import OperationNode
-    config = node.get("config", {})
-    op_config = config.copy()
-    op_config.pop("op_type", None)
-    throttle_ms = op_config.pop("throttle_ms", 0)
-    try:
-        throttle_ms = float(throttle_ms)
-    except (ValueError, TypeError):
-        throttle_ms = 0.0
-
-    return OperationNode(
-        manager=service_context,
-        node_id=node["id"],
-        op_type="generate_plane",
-        op_config=op_config,
-        name=node.get("name"),
-        throttle_ms=throttle_ms,
-    )
+    from app.modules.pipeline.operation_node import build_operation_node
+    return build_operation_node("generate_plane", node, service_context)
