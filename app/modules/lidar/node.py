@@ -68,8 +68,8 @@ class LidarSensor(ModuleNode):
         self.launch_args = launch_args
 
         # LiDAR model information (set externally by build_sensor after instantiation)
-        self.lidar_type: str = "multiscan"
-        self.lidar_display_name: str = "SICK multiScan"
+        self.lidar_type: str = "multiscan136"
+        self.lidar_display_name: str = "SICK multiScan136"
 
         self.transformation = transformation if transformation is not None else np.eye(4)
         self.pose_params: Pose = Pose.zero()

@@ -18,10 +18,10 @@ _port_capable_models = [p.model_id for p in get_all_profiles() if p.port_arg]
 # Result: ["tim_240", "tim_5xx", "tim_7xx", "tim_7xxs"] - TiM series with configurable ports
 
 _udp_receiver_models = [p.model_id for p in get_all_profiles() if p.has_udp_receiver]
-# Result: ["multiscan", "picoscan_120", "picoscan_150"] - Models requiring UDP receiver
+# Result: ["multiscan136", "multiscan165", "picoscan_120", "picoscan_150"] - Models requiring UDP receiver
 
 _imu_capable_models = [p.model_id for p in get_all_profiles() if p.has_imu_udp_port]
-# Result: ["multiscan"] - Only multiScan supports IMU data currently
+# Result: ["multiscan136", "multiscan165"] - multiScan series supports IMU data
 
 
 # --- Schema Definition ---
@@ -39,7 +39,7 @@ node_schema_registry.register(NodeDefinition(
             name="lidar_type",
             label="LiDAR Model",
             type="select",
-            default="multiscan",
+            default="multiscan136",
             required=True,
             help_text="Select the SICK LiDAR hardware model for this node",
             options=[
@@ -103,7 +103,7 @@ def build_sensor(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         throttle_ms = 0.0
 
     # Read multi-model configuration
-    lidar_type = config.get("lidar_type", "multiscan")
+    lidar_type = config.get("lidar_type", "multiscan136")
     hostname = config.get("hostname", "192.168.100.124")
     port = config.get("port")  # replaces udp_port
     udp_receiver_ip = config.get("udp_receiver_ip")
