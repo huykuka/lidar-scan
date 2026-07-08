@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import {
+  FCanvasComponent,
   FCreateConnectionEvent,
   FCreateNodeEvent,
   F_DRAG_SELECT_CONTROL_SCHEME,
@@ -41,7 +42,6 @@ import { CanvasNode, FlowCanvasNodeComponent } from './node/flow-canvas-node.com
 import { FlowCanvasPaletteComponent } from './palette/flow-canvas-palette.component';
 import { FlowCanvasControlsComponent } from './controls/flow-canvas-controls.component';
 import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-state.component';
-import { FlowCanvasHintComponent } from './hint/flow-canvas-hint.component';
 import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
 import { OutputViewerComponent } from '@features/settings/components/flow-canvas/output-viewer/output-viewer.component';
 import { AuthService } from '@app/core/services/auth.service';
@@ -55,7 +55,6 @@ import { AuthService } from '@app/core/services/auth.service';
     FlowCanvasPaletteComponent,
     FlowCanvasControlsComponent,
     FlowCanvasEmptyStateComponent,
-    FlowCanvasHintComponent,
     DynamicNodeEditorComponent,
     OutputViewerComponent,
   ],
@@ -70,6 +69,7 @@ export class FlowCanvasComponent {
 
   // ------ Foblex view references ------
   private readonly _flow = viewChild.required(FFlowComponent);
+  private readonly _canvas = viewChild(FCanvasComponent);
   private readonly _zoom = viewChild(FZoomDirective);
 
   // ------ Auth ------
@@ -136,6 +136,7 @@ export class FlowCanvasComponent {
   // ------ Node drag/move — Foblex grid snap handles position snapping via [vCellSize]/[hCellSize] ------
 
   onMoveNodes(event: FMoveNodesEvent): void {
+    this.canvasEditStore.pushUndoState();
     const updates = new Map<string, { x: number; y: number }>();
     for (const node of event.nodes) {
       updates.set(node.id, { x: node.position.x, y: node.position.y });
@@ -147,6 +148,7 @@ export class FlowCanvasComponent {
 
   onCreateNode(event: FCreateNodeEvent): void {
     if (this.readOnly()) return;
+    this.canvasEditStore.pushUndoState();
     const type = event.data as string;
     // Snap drop position to grid when snap is on
     const raw = { x: event.externalItemRect.x, y: event.externalItemRect.y };
@@ -163,6 +165,7 @@ export class FlowCanvasComponent {
 
   onCreateConnection(event: FCreateConnectionEvent): void {
     if (this.readOnly()) return;
+    this.canvasEditStore.pushUndoState();
 
     const sourceConnectorId = event.sourceId;
     const targetConnectorId = event.targetId;
@@ -174,19 +177,6 @@ export class FlowCanvasComponent {
     const sourcePortId = this._portIdFromConnector(sourceConnectorId);
 
     if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) return;
-
-    const exists = this.canvasEditStore
-      .localEdges()
-      .some(
-        (e) =>
-          e.source_node === sourceNodeId &&
-          e.target_node === targetNodeId &&
-          e.source_port === sourcePortId,
-      );
-    if (exists) {
-      this.toast.danger('Connection already exists.');
-      return;
-    }
 
     this.canvasEditStore.addEdge({
       source_node: sourceNodeId,
@@ -214,6 +204,7 @@ export class FlowCanvasComponent {
       variant: 'danger',
     });
     if (!confirmed) return;
+    this.canvasEditStore.pushUndoState();
     this.canvasEditStore.deleteNode(node.id);
     this.toast.success(`${name} deleted.`);
   }
@@ -227,6 +218,7 @@ export class FlowCanvasComponent {
       variant: 'danger',
     });
     if (!confirmed) return;
+    this.canvasEditStore.pushUndoState();
     this.canvasEditStore.deleteEdge(edgeId);
     this.toast.success('Connection removed.');
   }
@@ -293,8 +285,12 @@ export class FlowCanvasComponent {
 
   // ------ Controls ------
 
-  resetView() {
-    this._zoom()?.reset();
+  fitToScreen() {
+    this._canvas()?.fitToScreen();
+  }
+
+  resetScaleAndCenter() {
+    this._canvas()?.resetScaleAndCenter();
   }
 
   zoomIn() {
@@ -303,6 +299,19 @@ export class FlowCanvasComponent {
 
   zoomOut() {
     this._zoom()?.zoomOut();
+  }
+
+  undo() {
+    this.canvasEditStore.undo();
+  }
+
+  redo() {
+    this.canvasEditStore.redo();
+  }
+
+  resetToSaved() {
+    this.canvasEditStore.resetToSaved();
+    this.toast.success('Canvas reset to last saved state.');
   }
 
   // ------ Keyboard shortcuts ------
@@ -315,6 +324,16 @@ export class FlowCanvasComponent {
 
     const ctrl = event.ctrlKey || event.metaKey;
     if (this.canEdit()) {
+      if (ctrl && event.key === 'z') {
+        event.preventDefault();
+        this.undo();
+        return;
+      }
+      if (ctrl && (event.key === 'y' || (event.shiftKey && event.key === 'Z'))) {
+        event.preventDefault();
+        this.redo();
+        return;
+      }
       if (ctrl && event.key === 'a') {
         event.preventDefault();
         this._flow().select(
@@ -363,6 +382,7 @@ export class FlowCanvasComponent {
   private _pasteNodes(): void {
     const clip = this.clipboard();
     if (!clip || clip.nodes.length === 0) return;
+    this.canvasEditStore.pushUndoState();
 
     const offset = 40;
     const idMap = new Map<string, string>();
@@ -433,6 +453,7 @@ export class FlowCanvasComponent {
       variant: 'danger',
     });
     if (!confirmed) return;
+    this.canvasEditStore.pushUndoState();
     this.canvasEditStore.deleteNodes(nodeIds);
     this.toast.success(`${count} node(s) deleted.`);
   }

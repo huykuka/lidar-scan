@@ -48,6 +48,14 @@ export class CanvasEditStoreService {
    *  the initial empty-signal state (before HTTP completes) from a real empty node list. */
   private _isInitialized = signal<boolean>(false);
 
+  // ------ Undo/Redo state ------
+  private _undoStack: { nodes: NodeConfig[]; edges: Edge[] }[] = [];
+  private _redoStack: { nodes: NodeConfig[]; edges: Edge[] }[] = [];
+  private static readonly MAX_HISTORY = 50;
+
+  readonly canUndo = signal(false);
+  readonly canRedo = signal(false);
+
   // ------ View-layer state (owned here, consumed by FlowCanvasComponent) ------
   /** Mutable view-model for nodes on the canvas. Written by mergeCanvasNodes()
    *  and directly mutated during drag to keep rendering smooth. */
@@ -247,6 +255,66 @@ export class CanvasEditStoreService {
       }),
     );
     this._mergeCanvasNodes(this._localNodes());
+  }
+
+  // ---------------------------------------------------------------------------
+  // Undo / Redo
+  // ---------------------------------------------------------------------------
+
+  /** Call before any mutation to snapshot current state for undo. */
+  pushUndoState(): void {
+    this._undoStack.push(this._snapshot());
+    if (this._undoStack.length > CanvasEditStoreService.MAX_HISTORY) {
+      this._undoStack.shift();
+    }
+    this._redoStack = [];
+    this._syncHistorySignals();
+  }
+
+  undo(): void {
+    if (this._undoStack.length === 0) return;
+    this._redoStack.push(this._snapshot());
+    const prev = this._undoStack.pop()!;
+    this._restoreSnapshot(prev);
+    this._syncHistorySignals();
+  }
+
+  redo(): void {
+    if (this._redoStack.length === 0) return;
+    this._undoStack.push(this._snapshot());
+    const next = this._redoStack.pop()!;
+    this._restoreSnapshot(next);
+    this._syncHistorySignals();
+  }
+
+  /** Reset to the last saved backend state (clears undo/redo). */
+  resetToSaved(): void {
+    const nodes = this.nodeStore.nodes();
+    const edges = this.nodeStore.edges();
+    this._localNodes.set(structuredClone(nodes));
+    this._localEdges.set(structuredClone(edges));
+    this._mergeCanvasNodes(this._localNodes());
+    this._undoStack = [];
+    this._redoStack = [];
+    this._syncHistorySignals();
+  }
+
+  private _snapshot(): { nodes: NodeConfig[]; edges: Edge[] } {
+    return {
+      nodes: structuredClone(this._localNodes()),
+      edges: structuredClone(this._localEdges()),
+    };
+  }
+
+  private _restoreSnapshot(snap: { nodes: NodeConfig[]; edges: Edge[] }): void {
+    this._localNodes.set(snap.nodes);
+    this._localEdges.set(snap.edges);
+    this._mergeCanvasNodes(this._localNodes());
+  }
+
+  private _syncHistorySignals(): void {
+    this.canUndo.set(this._undoStack.length > 0);
+    this.canRedo.set(this._redoStack.length > 0);
   }
 
   // ---------------------------------------------------------------------------

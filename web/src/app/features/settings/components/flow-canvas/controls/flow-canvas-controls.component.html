@@ -1,57 +1,138 @@
-<!-- Compact horizontal toolbar: [reset] | − | zoom% | [snap] | + -->
-<div
-  class="flex items-center gap-px bg-syn-page-background-color border border-neutral-200 rounded-lg shadow-md overflow-hidden h-7"
->
-  <!-- Reset View -->
-  <syn-tooltip content="Reset view" [distance]="13" placement="top">
-    <button
-      (click)="onResetView.emit()"
-      class="flex items-center justify-center w-7 h-7 hover:bg-neutral-100 hover:text-neutral-800 transition-colors border-r border-neutral-200"
-    >
-      <syn-icon name="map" style="font-size: 14px" />
-    </button>
+<!-- Unified canvas toolbar -->
+<div class="controls-toolbar">
+  <syn-tooltip content="Fit to screen" placement="top">
+    <syn-icon-button
+      name="expand_content"
+      label="Fit to screen"
+      size="small"
+      color="neutral"
+      (click)="onFitToScreen.emit()"
+    />
   </syn-tooltip>
 
-  <!-- Zoom out -->
-  <syn-tooltip content="Zoom out" [distance]="13" placement="top">
-    <button
+  <syn-tooltip content="Reset zoom (1:1)" placement="top">
+    <syn-icon-button
+      name="center_focus_strong"
+      label="Reset zoom (1:1)"
+      size="small"
+      color="neutral"
+      (click)="onOneToOne.emit()"
+    />
+  </syn-tooltip>
+
+  <span class="divider"></span>
+
+  <syn-tooltip content="Zoom out" placement="top">
+    <syn-icon-button
+      name="zoom_out"
+      label="Zoom out"
+      size="small"
+      color="neutral"
       (click)="onZoomOut.emit()"
-      class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none"
-    >
-      −
-    </button>
+    />
   </syn-tooltip>
 
-  <!-- Zoom level -->
-  <span class="text-[11px] font-mono font-semibold  w-8 text-center select-none">
-    {{ (zoom() * 100).toFixed(0) }}%
-  </span>
-  
-  <!-- Zoom in -->
-  <syn-tooltip content="Zoom in" [distance]="13" placement="top">
-    <button
+  <syn-tooltip content="Zoom in" placement="top">
+    <syn-icon-button
+      name="zoom_in"
+      label="Zoom in"
+      size="small"
+      color="neutral"
       (click)="onZoomIn.emit()"
-      class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors text-sm font-bold select-none "
-    >
-      +
-    </button>
+    />
   </syn-tooltip>
 
-  <!-- Snap to Grid toggle -->
-  <syn-tooltip
-    [content]="snapToGrid() ? 'Snap to grid: on' : 'Snap to grid: off'"
-    [distance]="13"
-    placement="top"
-  >
-    <button
+  <span class="divider"></span>
+
+  <syn-tooltip [content]="snapToGrid() ? 'Snap to grid: ON' : 'Snap to grid: OFF'" placement="top">
+    <syn-icon-button
+      name="grid_4x4"
+      label="Snap to grid"
+      size="small"
+      [color]="snapToGrid() ? 'primary' : 'neutral'"
       (click)="onSnapToggle.emit()"
-      [class.text-blue-600]="snapToGrid()"
-      [class.text-neutral-400]="!snapToGrid()"
-      class="flex items-center justify-center w-6 h-7 hover:bg-neutral-100 transition-colors border-l border-neutral-200"
-    >
-      <syn-icon name="grid_4x4" style="font-size: 14px" />
-    </button>
+    />
   </syn-tooltip>
 
+  <span class="divider"></span>
 
+  <syn-tooltip content="Undo (Ctrl+Z)" placement="top">
+    <syn-icon-button
+      name="undo"
+      label="Undo"
+      size="small"
+      color="neutral"
+      [disabled]="!canUndo()"
+      (click)="onUndo.emit()"
+    />
+  </syn-tooltip>
+
+  <syn-tooltip content="Redo (Ctrl+Y)" placement="top">
+    <syn-icon-button
+      name="redo"
+      label="Redo"
+      size="small"
+      color="neutral"
+      [disabled]="!canRedo()"
+      (click)="onRedo.emit()"
+    />
+  </syn-tooltip>
+
+  <syn-tooltip content="Reset to saved state" placement="top">
+    <syn-icon-button
+      name="settings_backup_restore"
+      label="Reset to saved state"
+      size="small"
+      color="neutral"
+      (click)="onReset.emit()"
+    />
+  </syn-tooltip>
+
+  <span class="divider"></span>
+
+  <syn-tooltip content="Keyboard shortcuts" placement="top">
+    <syn-icon-button
+      id="hint-anchor"
+      name="keyboard"
+      label="Keyboard shortcuts"
+      size="small"
+      [color]="hintOpen() ? 'primary' : 'neutral'"
+      (click)="hintOpen.set(!hintOpen())"
+    />
+  </syn-tooltip>
 </div>
+
+<!-- Shortcuts popup -->
+@if (hintOpen()) {
+  <div class="hint-backdrop" (click)="hintOpen.set(false)"></div>
+}
+<syn-popup
+  anchor="hint-anchor"
+  placement="top-end"
+  [active]="hintOpen()"
+  [distance]="8"
+  flip
+  shift
+>
+  <div class="hint-panel">
+    <div class="hint-header">
+      <span class="hint-title">Shortcuts</span>
+      <syn-icon-button
+        name="close"
+        label="Close"
+        size="small"
+        color="neutral"
+        (click)="hintOpen.set(false)"
+      />
+    </div>
+    <ul class="hint-list">
+      @for (h of hints; track h.key) {
+        <li class="hint-row">
+          <syn-icon [name]="h.icon" class="hint-icon" />
+          <kbd class="hint-key">{{ h.key }}</kbd>
+          <span class="hint-desc">{{ h.desc }}</span>
+        </li>
+      }
+    </ul>
+  </div>
+</syn-popup>
