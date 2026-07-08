@@ -31,7 +31,7 @@ import { NodePlugin } from '@core/models';
 import { Edge } from '@core/models/node.model';
 import { NodeStoreService } from '@core/services/stores';
 import { NodesApiService } from '@core/services/api';
-import { DialogService, ThemeService, ToastService } from '@core/services';
+import { DialogService, ToastService } from '@core/services';
 import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
 import { NodeStatusService } from '@core/services/node-status.service';
 import { SystemStatusService } from '@core/services/system-status.service';
@@ -41,6 +41,7 @@ import { CanvasNode, FlowCanvasNodeComponent } from './node/flow-canvas-node.com
 import { FlowCanvasPaletteComponent } from './palette/flow-canvas-palette.component';
 import { FlowCanvasControlsComponent } from './controls/flow-canvas-controls.component';
 import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-state.component';
+import { FlowCanvasHintComponent } from './hint/flow-canvas-hint.component';
 import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
 import { OutputViewerComponent } from '@features/settings/components/flow-canvas/output-viewer/output-viewer.component';
 import { AuthService } from '@app/core/services/auth.service';
@@ -54,11 +55,13 @@ import { AuthService } from '@app/core/services/auth.service';
     FlowCanvasPaletteComponent,
     FlowCanvasControlsComponent,
     FlowCanvasEmptyStateComponent,
+    FlowCanvasHintComponent,
     DynamicNodeEditorComponent,
     OutputViewerComponent,
   ],
   templateUrl: './flow-canvas.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [provideFFlow(withConnectionFlow('click'))],
   styleUrls: ['./flow-canvas.component.scss'],
 })
 export class FlowCanvasComponent {

@@ -17,6 +17,7 @@
 @include flow-theme.connection-drag-handles-visible();
 @include flow-theme.background();
 @include flow-theme.plugins($scoped: false);  
+@include flow-theme.selection-area();
 
 
 @include flow-theme.minimap($scoped: false);

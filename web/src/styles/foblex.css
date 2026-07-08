@@ -24,6 +24,26 @@ f-flow .f-connection-drag-handle,
   pointer-events: none !important;
 }
 
+/* ── Node selection indicator ─────────────────────────────────────────────── */
+/*
+  Foblex adds .f-selected to the fNode host element.
+  The host gets classes: "f-node f-component f-drag-handle f-selected"
+  Use box-shadow instead of outline — box-shadow respects border-radius
+  and follows the rounded shape of the inner card perfectly.
+*/
+.f-node.f-selected {
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 3px var(--syn-color-primary-500, #005aff),
+    0 0 0 6px color-mix(in srgb, var(--syn-color-primary-500, #005aff) 20%, transparent);
+}
+
+/* Dragging state */
+.f-node.f-dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  opacity: 0.9;
+}
+
 /* ── Connection rule feedback ─────────────────────────────────────────────── */
 /*
   During drag-to-connect, Foblex adds:

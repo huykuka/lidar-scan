@@ -20,31 +20,6 @@ f-flow {
   fConnector must NOT be hidden with display:none (FF1006).
   We position them on the left/right edges of the node card (w-48 = 192px).
 */
-.canvas-node-wrapper {
-  position: relative;
-  border-radius: 8px; /* match the inner card's rounded-lg */
-}
-
-/*
-  Selection indicator.
-  Foblex adds .f-selected to the fNode host element (.canvas-node-wrapper).
-  The inner app-flow-canvas-node card sits at position (0,0) inside the wrapper,
-  so we use outline (layout-safe) + box-shadow to show a visible ring.
-  outline sits outside the border-box and does not shift any children.
-  The 2px offset keeps the ring clear of the card edge.
-*/
-.canvas-node-wrapper.f-selected {
-  outline: 2px solid var(--syn-color-primary-500, #005aff);
-  outline-offset: 2px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--syn-color-primary-500, #005aff) 18%, transparent);
-}
-
-/* Dragging state — slightly elevated shadow, no extra ring */
-.canvas-node-wrapper.f-dragging {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  opacity: 0.9;
-}
-
 .port:hover {
   transform: scale(1.3);
 }
