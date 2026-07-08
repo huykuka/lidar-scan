@@ -101,7 +101,10 @@ export class CanvasEditStoreService {
 
   readonly isValid = computed(() => this.validationErrors().length === 0);
 
-  // ------ Computed: SVG connection paths (derived from canvasNodes + localEdges) ------
+  // ------ Computed: edge view-model for Foblex f-connection ------
+  //
+  // Foblex owns path rendering; we just map edges to the connector-ID format
+  // that the canvas template expects: "<nodeId>__out__<portId>" → "<nodeId>__in".
   readonly connections = computed<Connection[]>(() => {
     const nodes = this._canvasNodes();
     const edges = this._localEdges();
@@ -112,14 +115,18 @@ export class CanvasEditStoreService {
       const targetNode = nodeMap.get(edge.target_node);
       if (!sourceNode || !targetNode) return [];
 
-      const sourceDef = this.nodeStore.nodeDefinitions().find((d) => d.type === sourceNode.data.type);
-      const outputPorts = sourceDef?.outputs ?? [];
-      const portIndex = outputPorts.findIndex((p) => p.id === edge.source_port);
+      // Determine port color based on port id (true/false branching)
+      const portId = edge.source_port ?? 'out';
+      let color: string | undefined;
+      if (portId === 'true') color = '#16a34a';
+      else if (portId === 'false') color = '#f97316';
 
-      let color = '#6366f1';
+      // Connector IDs must match what the template builds via buildSourceConnectorId /
+      // buildTargetConnectorId in FlowCanvasComponent.
+      const from = `${edge.source_node}__out__${portId}`;
+      const to = `${edge.target_node}__in`;
 
-      const path = this._calculatePath(sourceNode, targetNode, portIndex >= 0 ? portIndex : 0, outputPorts.length);
-      return [{ id: edge.id, from: edge.source_node, to: edge.target_node, path, color }];
+      return [{ id: edge.id, from, to, color }];
     });
   });
 
@@ -422,29 +429,6 @@ export class CanvasEditStoreService {
         }),
       );
     }
-  }
-
-  private _calculatePath(
-    fromNode: CanvasNode,
-    toNode: CanvasNode,
-    fromPortIndex: number = 0,
-    totalOutputPorts: number = 1,
-  ): string {
-    const fromX = fromNode.position.x + 192 + 6;
-    const fromY = fromNode.position.y + this._portY(fromPortIndex, totalOutputPorts);
-    const toX = toNode.position.x - 6;
-    const toY = toNode.position.y + 16;
-
-    const cp = Math.max(Math.abs(toX - fromX) * 0.5, 40);
-    return `M ${fromX} ${fromY} C ${fromX + cp} ${fromY}, ${toX - cp} ${toY}, ${toX} ${toY}`;
-  }
-
-  /** Y offset of a port within its node, matching FlowCanvasNodeComponent.getOutputPortY(). */
-  private _portY(portIndex: number, totalPorts: number): number {
-    if (totalPorts === 1) return 16;
-    const nodeHeight = 80;
-    const spacing = nodeHeight / (totalPorts + 1);
-    return spacing * (portIndex + 1);
   }
 
   /** Snap a value to the nearest grid line. */

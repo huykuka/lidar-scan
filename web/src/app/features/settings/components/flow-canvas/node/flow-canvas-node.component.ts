@@ -1,7 +1,7 @@
 import {ChangeDetectionStrategy, Component, computed, inject, input, output} from '@angular/core';
 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeConfig, PortSchema} from '@core/models/node.model';
+import {NodeConfig} from '@core/models/node.model';
 import {NodeStatusUpdate} from '@core/models/node-status.model';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
@@ -31,26 +31,7 @@ export class FlowCanvasNodeComponent {
   onEdit = output<void>();
   onToggleEnabled = output<boolean>();
   onToggleVisibility = output<boolean>();
-  portDragStart = output<{
-    nodeId: string;
-    portType: 'input' | 'output';
-    portId: string;
-    portIndex: number;
-    event: MouseEvent;
-  }>();
-  portDrop = output<{ nodeId: string; portType: 'input' | 'output' }>();
-  protected hasInputPort = computed(() => {
-    const def = this.nodeDefinition();
-    return def && def.inputs && def.inputs.length > 0;
-  });
-  protected hasOutputPort = computed(() => {
-    const def = this.nodeDefinition();
-    return def && def.outputs && def.outputs.length > 0;
-  });
-  protected outputPorts = computed<PortSchema[]>(() => {
-    const def = this.nodeDefinition();
-    return def?.outputs ?? [];
-  });
+
   protected nodeCategory = computed(() => {
     const categoryFromDefinition = this.nodeDefinition()?.category?.toLowerCase();
     if (categoryFromDefinition) return categoryFromDefinition;
@@ -72,9 +53,6 @@ export class FlowCanvasNodeComponent {
     gray: '#6b7280',
   };
 
-  /**
-   * Compute operational state icon and styling
-   */
   protected operationalIcon = computed<{ icon: string; css: string }>(() => {
     const status = this.status();
     if (!status) {
@@ -95,19 +73,12 @@ export class FlowCanvasNodeComponent {
     }
   });
 
-  /**
-   * Compute application-specific state badge (Node-RED style bottom-right badge)
-   */
   protected appBadge = computed<{ text: string; color: string } | null>(() => {
     const status = this.status();
     if (!status?.application_state) return null;
 
     const { label, value, color } = status.application_state;
-
-    // Convert boolean values to strings
     const displayValue = typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value);
-
-    // Map semantic color to hex, defaulting to gray if not provided
     const hexColor = color ? (this.badgeColorMap[color] ?? color) : this.badgeColorMap['gray'];
 
     return {
@@ -116,39 +87,36 @@ export class FlowCanvasNodeComponent {
     };
   });
 
-  /**
-   * Compute PCD color from node config (for Result Storage nodes)
-   */
   protected pcdColor = computed<string | null>(() => {
     const config = this.node().data.config;
     const color = config?.['pcd_color'];
     return typeof color === 'string' && color.startsWith('#') ? color : null;
   });
 
-  /**
-   * Compute error message (only when operational_state is ERROR)
-   */
   protected errorText = computed<string | null>(() => {
     const status = this.status();
     if (!status || status.operational_state !== 'ERROR') return null;
     return status.error_message ?? null;
   });
 
-  /**
-   * Formatted cycle time string, e.g. "12.3ms" or "1.2s". Null when not available.
-   */
   protected cycleTimeLabel = computed<string | null>(() => {
     const ms = this.status()?.cycle_time_ms;
     if (ms == null) return null;
     return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(ms >= 10 ? 0 : 1)}ms`;
   });
 
-  /** True when the node definition has WebSocket streaming enabled (default: true when definition is absent). */
   protected isWebsocketEnabled = computed(() => {
     const def = this.nodeDefinition();
-    // When no definition is found, default to true (backward-compat with unknown types)
     return def ? def.websocket_enabled : true;
   });
+
+  /** True when the node definition declares at least one output port — used
+   *  to conditionally show recording controls. */
+  protected hasOutputPort = computed(() => {
+    const def = this.nodeDefinition();
+    return !!(def && def.outputs && def.outputs.length > 0);
+  });
+
   private nodeStore = inject(NodeStoreService);
   protected nodeDefinition = computed(() => {
     return this.nodeStore.nodeDefinitions().find((d) => d.type === this.node().data.type);
@@ -165,19 +133,5 @@ export class FlowCanvasNodeComponent {
   getNodeIcon(): string {
     const definitionIcon = this.nodeDefinition()?.icon;
     return definitionIcon || 'settings_input_component';
-  }
-
-  /**
-   * Calculate Y position for an output port based on its index
-   * Ports are distributed evenly across the node height
-   */
-  getOutputPortY(portIndex: number, totalPorts: number): number {
-    if (totalPorts === 1) {
-      return 16; // Single port: center at top-4 (original position)
-    }
-    // Multiple ports: distribute evenly
-    const nodeHeight = 80; // Approximate node height in pixels
-    const spacing = nodeHeight / (totalPorts + 1);
-    return spacing * (portIndex + 1);
   }
 }

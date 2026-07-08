@@ -53,7 +53,7 @@
               }
             ],
             "styles": [
-              "src/styles.css",
+              "src/styles.scss",
               "@synergy-design-system/fonts/src/sick-intl/font.css",
               "@synergy-design-system/components/index.css",
               "@synergy-design-system/styles/index.css"

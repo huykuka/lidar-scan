@@ -1,135 +1,88 @@
 <div class="flex flex-col h-full">
-  <!-- Phase 7.1: Validation errors — shown only when dirty AND invalid -->
-  @if (canvasEditStore.isDirty() && !canvasEditStore.isValid()) {
-    <div class="shrink-0 mx-3 mt-2 mb-0">
-      <div
-        class="flex items-start gap-2 px-3 py-2 rounded-md border border-syn-color-error-300 bg-syn-color-error-50 text-syn-color-error-800"
-      >
-        <syn-icon name="error_outline"
-          class="mt-0.5 shrink-0 text-syn-color-error-600"
-          style="font-size: 1rem"
-         />
-        <div class="flex-1 min-w-0">
-          <p class="text-xs font-semibold mb-1">Fix validation errors before saving:</p>
-          <ul class="text-xs space-y-0.5 list-disc list-inside">
-            @for (err of canvasEditStore.validationErrors(); track $index) {
-              <li>{{ err.message }}</li>
-            }
-          </ul>
-        </div>
-      </div>
-    </div>
-  }
-
   <div class="flex flex-1 min-h-0 relative">
-    <!-- Left Palette Sidebar (hidden in read-only mode) -->
+    <!-- Left Palette Sidebar — fExternalItem on chips; works outside f-flow per Foblex docs -->
     @if (!readOnly()) {
-      <app-flow-canvas-palette
-        (onPluginDragEnd)="onPaletteDragEnd()"
-        (onPluginDragStart)="onPluginDragStart($event.plugin, $event.event)"
-        [isLoading]="isPaletteLoading()"
-        [plugins]="availablePlugins()"
-      />
+      <app-flow-canvas-palette [isLoading]="isPaletteLoading()" [plugins]="availablePlugins()" />
     }
 
-    <!-- Canvas Area: relative container holds both the scrollable canvas and the fixed controls overlay -->
+    <!-- Canvas Area -->
     <div class="flex-1 relative overflow-hidden">
-      <!-- Scrollable canvas surface -->
-      <div class="absolute inset-0 overflow-auto">
-        <div
-          (dragover)="onCanvasDragOver($event)"
-          (drop)="onCanvasDrop($event)"
-          (mousedown)="onCanvasMouseDown($event)"
-          (mousemove)="onCanvasMouseMove($event)"
-          (mouseup)="onCanvasMouseUp($event)"
-          (wheel)="onCanvasWheel($event)"
-          [style.cursor]="
-            pendingConnection()
-              ? 'crosshair'
-              : isPanning()
-                ? 'grabbing'
-                : paletteDragType()
-                  ? 'copy'
-                  : marqueeRect()
-                    ? 'crosshair'
-                    : 'default'
-          "
-          [style.min-height]="canvasHeight()"
-          [style.min-width]="canvasWidth()"
-          class="relative"
-        >
-          <!-- Grid Background: dots scale with zoom and track pan offset -->
-          <svg
-            class="absolute inset-0 w-full h-full pointer-events-none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <defs>
-              <!-- Minor cell: one dot per snap unit, scaled by zoom -->
-              <pattern
-                [attr.height]="gridSize * zoom()"
-                [attr.width]="gridSize * zoom()"
-                [attr.x]="panOffset().x % (gridSize * zoom())"
-                [attr.y]="panOffset().y % (gridSize * zoom())"
-                id="grid-minor"
-                patternUnits="userSpaceOnUse"
-              >
-                <circle
-                  [attr.cx]="zoom()"
-                  [attr.cy]="zoom()"
-                  [attr.fill]="snapToGrid() ? gridDotColorActive() : gridDotColor()"
-                  [attr.r]="zoom() < 0.5 ? 0.5 : zoom()"
-                />
-              </pattern>
-            </defs>
-            <rect fill="url(#grid-minor)" height="100%" width="100%" />
-          </svg>
+      <!-- Foblex Flow root -->
+      <f-flow
+        fDraggable
+        [vCellSize]="snapToGrid() ? gridSize : 1"
+        [hCellSize]="snapToGrid() ? gridSize : 1"
+        [fCellSizeWhileDragging]="snapToGrid()"
+        (fFullRendered)="onFlowLoaded()"
+        (fCreateNode)="onCreateNode($event)"
+        (fCreateConnection)="onCreateConnection($event)"
+        (fMoveNodes)="onMoveNodes($event)"
+      >
+        @if (snapToGrid()) {
+          <f-background>
+            <f-rect-pattern [vSize]="gridSize" [hSize]="gridSize" />
+          </f-background>
+        } @else {
+          <f-background>
+            <f-circle-pattern />
+          </f-background>
+        }
+        @if (!snapToGrid()) {
+         <f-magnetic-lines [threshold]="gridSize" />
+        }
+        
 
-          <!-- Nodes Container -->
-          <div
-            [style.transform-origin]="'0 0'"
-            [style.transform]="
-              'translate(' + panOffset().x + 'px, ' + panOffset().y + 'px) scale(' + zoom() + ')'
-            "
-            class="absolute inset-0"
-          >
-            <!-- Connection Lines Layer (below nodes) -->
-            <app-flow-canvas-connections
-              (onDelete)="onDeleteEdge($event)"
-              [connections]="connections()"
-              [defaultColor]="edgeColor()"
-              [defaultFlowColor]="edgeFlowColor()"
-              [pendingPath]="pendingPath()"
-            />
+        <f-canvas fZoom [fZoomMinimum]="0.1" [fZoomMaximum]="3" [fZoomStep]="0.1">
+          <!-- In-progress connection preview — direct child of f-canvas -->
+          <f-connection-for-create fType="segment"></f-connection-for-create>
+          <f-snap-connection [fSnapThreshold]="50" fType="segment"></f-snap-connection>
 
-            <!-- Nodes Layer -->
+          @for (conn of connections(); track conn.id) {
+            <f-connection
+              [fSourceId]="conn.from"
+              [fTargetId]="conn.to"
+              fType="segment"
+              [fReassignDisabled]="readOnly()"
+              class="flow-edge"
+              (click)="!readOnly() && conn.id ? onDeleteEdge(conn.id) : null"
+            >
+              <f-connection-marker-arrow></f-connection-marker-arrow>
+            </f-connection>
+          }
+
+          <!-- Nodes layer (ngProjectAs required for nested @for) -->
+          <ng-container ngProjectAs="[fNodes]">
             @for (node of canvasNodes(); track node.id) {
               <div
-                (dblclick)="readOnly() ? null : onEditNode(node)"
-                (mousedown)="readOnly() ? null : onNodeMouseDown($event, node)"
-                [class.ring-2]="selectedNodeIds().has(node.id)"
-                [class.ring-syn-color-primary-500]="selectedNodeIds().has(node.id)"
-                [class.shadow-xl]="selectedNodeIds().has(node.id)"
-                [class.z-10]="selectedNodeIds().has(node.id)"
-                [class.select-none]="!!draggingNode() || !!pendingConnection()"
-                [style.cursor]="
-                  draggingNode() && selectedNodeIds().has(node.id)
-                    ? 'grabbing'
-                    : pendingConnection()
-                      ? 'default'
-                      : 'grab'
-                "
-                [style.left.px]="node.position.x"
-                [style.top.px]="node.position.y"
-                class="absolute transition-shadow rounded-lg"
-                title="Double-click to edit"
+                fNode
+                [fNodeId]="node.id"
+                fDragHandle
+                [fNodePosition]="node.position"
+                [fNodeDraggingDisabled]="readOnly()"
+                (dblclick)="!readOnly() ? onEditNode(node) : null"
               >
+                @if (hasInputPort(node)) {
+                  <div
+                    fConnector
+                    fConnectorType="target"
+                    [fConnectorId]="buildTargetConnectorId(node.id)"
+                    [fConnectorCategory]="node.data.category"
+                    class="port port--input"
+                  ></div>
+                }
+                @for (port of getOutputPorts(node); track port.id; let i = $index) {
+                  <div
+                    fConnector
+                    fConnectorType="source"
+                    [fConnectorId]="buildSourceConnectorId(node.id, port.id)"
+                    [fCanBeConnectedTo]="getAllowedTargetCategories(node)"
+                    class="port port--output"
+                  ></div>
+                }
                 <app-flow-canvas-node
-                  (onEdit)="readOnly() ? null : onEditNode(node)"
-                  (onToggleEnabled)="readOnly() ? null : onToggleNodeEnabled(node, $event)"
-                  (onToggleVisibility)="readOnly() ? null : onToggleNodeVisibility(node, $event)"
-                  (portDragStart)="readOnly() ? null : onPortDragStart($event)"
-                  (portDrop)="readOnly() ? null : onPortDrop($event)"
-                  [isDragging]="draggingNode()?.id === node.id"
+                  (onEdit)="!readOnly() ? onEditNode(node) : null"
+                  (onToggleEnabled)="!readOnly() ? onToggleNodeEnabled(node, $event) : null"
+                  (onToggleVisibility)="!readOnly() ? onToggleNodeVisibility(node, $event) : null"
                   [isLoading]="isNodeLoading(node.id)"
                   [isReloading]="reloadingNodeIds().has(node.data.id)"
                   [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
@@ -138,36 +91,39 @@
                 />
               </div>
             }
-          </div>
-
-          <!-- Empty State -->
-          @if (canvasNodes().length === 0) {
-            <app-flow-canvas-empty-state />
-          }
-
-          <!-- Marquee Selection Overlay -->
-          @if (marqueeRect()) {
-            <div
-              class="absolute border border-syn-color-primary-500 bg-syn-color-primary-100/25 pointer-events-none z-50 rounded-sm"
-              [style.left.px]="marqueeRect()!.x"
-              [style.top.px]="marqueeRect()!.y"
-              [style.width.px]="marqueeRect()!.w"
-              [style.height.px]="marqueeRect()!.h"
-            ></div>
-          }
+          </ng-container>
+        </f-canvas>
+        <!-- f-selection-area must be a direct child of f-flow -->
+        <f-selection-area />
+        <f-minimap [fMinSize]="2000" />
+      </f-flow>
+      <!-- Empty state overlay -->
+      @if (canvasNodes().length === 0 && !isCanvasLoading()) {
+        <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <app-flow-canvas-empty-state />
         </div>
-      </div>
+      }
 
-      <!-- Bottom-right canvas controls: always fixed to the visible viewport corner -->
-      <div class="absolute bottom-4 right-4 z-20 pointer-events-auto">
+      <!-- Loading overlay -->
+      @if (isCanvasLoading()) {
+        <div
+          class="absolute inset-0 flex items-center justify-center bg-syn-page-background-color/80 z-30"
+        >
+          <syn-spinner />
+        </div>
+      }
+
+      <!-- Bottom canvas toolbar: controls + hint -->
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto flex items-center gap-2">
         <app-flow-canvas-controls
           (onResetView)="resetView()"
           (onSnapToggle)="snapToGrid.set(!snapToGrid())"
           (onZoomIn)="zoomIn()"
           (onZoomOut)="zoomOut()"
           [snapToGrid]="snapToGrid()"
-          [zoom]="zoom()"
+          [zoom]="zoomValue"
         />
+        <app-flow-canvas-hint />
       </div>
     </div>
 
@@ -183,6 +139,7 @@
         <app-dynamic-node-editor (cancel)="onDrawerClose()" (save)="onEditorSave()" />
       }
     </syn-drawer>
+
     <app-output-viewer />
   </div>
 </div>
