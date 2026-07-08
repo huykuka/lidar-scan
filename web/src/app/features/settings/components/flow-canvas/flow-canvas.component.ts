@@ -491,6 +491,11 @@ export class FlowCanvasComponent {
     return !!(def && def.inputs && def.inputs.length > 0);
   }
 
+  isInputMultiple(node: CanvasNode): boolean {
+    const def = this.nodeStore.nodeDefinitions().find((d) => d.type === node.data.type);
+    return !!def?.inputs?.[0]?.multiple;
+  }
+
   getOutputPorts(node: CanvasNode): Array<{ id: string }> {
     const def = this.nodeStore.nodeDefinitions().find((d) => d.type === node.data.type);
     return def?.outputs ?? [];

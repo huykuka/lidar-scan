@@ -27,7 +27,7 @@ node_schema_registry.register(NodeDefinition(
         PropertySchema(name="invert", label="Inverted", type="boolean", default=False,
                        help_text="Keep points outside the bounds instead of inside"),
     ],
-    inputs=[PortSchema(id="in", label="Input")],
+    inputs=[PortSchema(id="in", label="Input", multiple=True)],
     outputs=[PortSchema(id="out", label="Output")]
 ))
 

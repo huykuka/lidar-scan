@@ -44,7 +44,6 @@ node_schema_registry.register(NodeDefinition(
                        depends_on={"ftp_enabled": [True]}),
     ],
     inputs=[PortSchema(id="in", label="Input")],
-    outputs=[PortSchema(id="out", label="Output")]
 ))
 
 

@@ -65,6 +65,7 @@
                   <div
                     fConnector
                     fConnectorType="target"
+                    [fConnectorMultiple]="isInputMultiple(node)"
                     [fConnectorId]="buildTargetConnectorId(node.id)"
                     [fConnectorCategory]="node.data.category"
                     class="port port--input"
