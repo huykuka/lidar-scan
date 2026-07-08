@@ -13,10 +13,11 @@ import {
 import {Subscription} from 'rxjs';
 import {MultiWebsocketService} from '@core/services/multi-websocket.service';
 import {DEFAULT_TOPIC_COLORS} from '@core/services/stores/workspace-store.service';
+import {ViewOrientation} from '@core/services/split-layout-store.service';
 import {environment} from '@env/environment';
 import {NgtsPointsBuffer} from 'angular-three-soba/performances';
 import {NgtCanvas, NgtCanvasContent, NgtCanvasImpl} from 'angular-three/dom';
-import {ThreedSceneGraphComponent} from '@shared/components';
+import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 
 export interface PreviewTopic {
@@ -43,6 +44,7 @@ export interface PreviewTopic {
     NgtCanvasImpl,
     NgtCanvasContent,
     SynergyComponentsModule,
+    ViewportOverlayComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [MultiWebsocketService], // Own instance, isolated from workspace
@@ -59,6 +61,7 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
 
   readonly isConnected = signal(false);
   readonly showGrid = signal(true);
+  readonly viewOrientation = signal<ViewOrientation>('perspective');
   readonly topicCount = computed(() => this.previewTopics().length);
 
   readonly MAX_POINTS = 250_000;

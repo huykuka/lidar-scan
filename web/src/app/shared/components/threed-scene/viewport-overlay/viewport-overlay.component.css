@@ -125,7 +125,7 @@
   user-select: none;
 }
 
-/* ── Scale indicator ──────────────────────────────────────── */
+/* ── Scale indicator ── */
 .scale-ruler {
   display: flex;
   flex-direction: column;

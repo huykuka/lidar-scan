@@ -15,14 +15,15 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {PcdParserService} from '@core/services/pcd-parser.service';
 import {NgtsPointsBuffer} from 'angular-three-soba/performances';
 import {NgtCanvas, NgtCanvasContent, NgtCanvasImpl} from 'angular-three/dom';
-import {ThreedSceneGraphComponent} from '@shared/components';
+import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
+import {ViewOrientation} from '@core/services/split-layout-store.service';
 
 const MAX_POINTS = 500_000;
 const POINT_SIZE = 0.04;
 
 @Component({
   selector: 'app-pcd-viewer',
-  imports: [SynergyComponentsModule, NgtCanvas, ThreedSceneGraphComponent, NgtsPointsBuffer, NgtCanvasImpl, NgtCanvasContent],
+  imports: [SynergyComponentsModule, NgtCanvas, ThreedSceneGraphComponent, NgtsPointsBuffer, NgtCanvasImpl, NgtCanvasContent, ViewportOverlayComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './pcd-viewer.component.html',
@@ -38,6 +39,8 @@ export class PcdViewerComponent implements OnDestroy {
   protected readonly isLoading = signal(false);
   protected readonly hasError = signal(false);
   protected readonly errorMessage = signal('');
+  protected readonly showGrid = signal(true);
+  protected readonly viewOrientation = signal<ViewOrientation>('perspective');
 
   /** Pre-allocated position buffer, mutated in-place on each load. */
   protected readonly positionsBuffer = new Float32Array(MAX_POINTS * 3);

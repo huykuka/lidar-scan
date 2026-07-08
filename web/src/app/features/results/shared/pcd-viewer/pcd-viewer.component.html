@@ -1,7 +1,6 @@
 <div class="relative w-full h-full min-h-0">
   <ngt-canvas style="width:100%;height:100%;display:block">
-    <app-threed-scene-graph *canvasContent [showGrid]="true">
-      <!-- Coordinate flip: PCD is Y-forward/Z-up; rotate to match Three.js Y-up convention -->
+    <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
       <ngts-points-buffer
         #pointsBuf
         [colors]="colorsBuffer"
@@ -16,6 +15,13 @@
       </ngts-points-buffer>
     </app-threed-scene-graph>
   </ngt-canvas>
+  <app-shared-viewport-overlay
+    [orientation]="viewOrientation()"
+    [showGrid]="showGrid()"
+    [hasData]="pointCount() > 0"
+    (orientationChange)="viewOrientation.set($event)"
+    (gridToggle)="showGrid.set($event)"
+  />
 
   @if (onDownload()) {
     <syn-tooltip content="Download PCD" [distance]="13" placement="top">

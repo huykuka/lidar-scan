@@ -19,7 +19,7 @@
         @for (opt of orientationOptions; track opt.value) {
           <button
             class="orient-item"
-            [class.orient-item--active]="opt.value === pane().orientation"
+            [class.orient-item--active]="opt.value === orientation()"
             (click)="setOrientation(opt.value)"
           >
             <span class="orient-svg orient-svg--sm" [innerHTML]="opt.svg"></span>
@@ -73,7 +73,7 @@
     <div
       class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none empty-state"
     >
-      <span class="empty-state__label">{{ pane().orientation }} VIEW</span>
+      <span class="empty-state__label">{{ emptyLabel() || (orientation() + ' VIEW') }}</span>
       <span class="empty-state__sub">No point cloud loaded</span>
     </div>
   }

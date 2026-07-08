@@ -46,11 +46,11 @@
       <div class="preview-empty">
         <syn-icon name="sensors_off" style="font-size: 32px" />
         <span>No nodes previewed</span>
-        <span class="preview-empty-hint">Right-click a node and select "Preview in 3D" to see its output here</span>
+        <span class="preview-empty-hint">Right-click a node and select "Add to 3D view" to see its output here</span>
       </div>
     }
     <ngt-canvas>
-      <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" viewType="perspective">
+      <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
         @for (entry of topicEntries(); track entry.topic) {
           <ngts-points-buffer #buf [positions]="entry.buf">
             <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false"/>
@@ -58,5 +58,12 @@
         }
       </app-threed-scene-graph>
     </ngt-canvas>
+    <app-shared-viewport-overlay
+      [orientation]="viewOrientation()"
+      [showGrid]="showGrid()"
+      [hasData]="topicCount() > 0"
+      (orientationChange)="viewOrientation.set($event)"
+      (gridToggle)="showGrid.set($event)"
+    />
   </div>
 </div>

@@ -21,7 +21,8 @@ import JSZip from 'jszip';
 
 import {NgtsPointsBuffer} from 'angular-three-soba/performances';
 import {NgtCanvas, NgtCanvasImpl} from 'angular-three/dom';
-import {ThreedSceneGraphComponent} from '@shared/components';
+import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
+import {ViewOrientation} from '@core/services/split-layout-store.service';
 
 interface PCDData {
   points: Float32Array;
@@ -41,6 +42,7 @@ const MAX_POINTS = 250_000;
     ThreedSceneGraphComponent,
     NgtsPointsBuffer,
     NgtCanvasImpl,
+    ViewportOverlayComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './recording-viewer.component.html',
@@ -65,6 +67,7 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
   pointSize = signal(0.05);
   pointColor = signal('red');
   showGrid = signal(true);
+  viewOrientation = signal<ViewOrientation>('perspective');
   minIntensity = signal(0);
   showCockpit = signal(true);
 

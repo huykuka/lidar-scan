@@ -16,12 +16,19 @@
     >
       <!-- 3D Canvas (angular-three) -->
       <ngt-canvas style="width:100%;height:100%;display:block">
-        <app-threed-scene-graph *canvasContent>
+        <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
           <ngts-points-buffer #pointBuf [positions]="positionsBuffer">
             <ngt-points-material [size]="pointSize()" [color]="pointColor()" [sizeAttenuation]="true"/>
           </ngts-points-buffer>
         </app-threed-scene-graph>
       </ngt-canvas>
+      <app-shared-viewport-overlay
+        [orientation]="viewOrientation()"
+        [showGrid]="showGrid()"
+        [hasData]="currentFrame() > 0"
+        (orientationChange)="viewOrientation.set($event)"
+        (gridToggle)="showGrid.set($event)"
+      />
 
       <!-- Download progress overlay -->
       @if (isDownloading()) {
