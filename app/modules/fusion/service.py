@@ -76,8 +76,15 @@ class FusionService(ModuleNode):
         if not self._enabled:
             return
 
-        # Accept either lidar_id (from workers) or node_id (from other nodes)
-        source_id = payload.get("lidar_id") or payload.get("node_id")
+        # Key each frame by its immediate DAG predecessor. Every node stamps
+        # node_id=self.id before forwarding, so node_id is the direct upstream
+        # sender — which is what expected_sensors (built from downstream_map
+        # edges) contains. Fall back to lidar_id for real sensors that only
+        # stamp lidar_id (== their own id) and omit node_id. Preferring lidar_id
+        # would break fusion whenever an intermediate node (e.g. a Crop filter)
+        # sits between the sensor and the fusion node, because lidar_id stays
+        # pinned to the original leaf sensor instead of the direct predecessor.
+        source_id = payload.get("node_id") or payload.get("lidar_id")
         timestamp = payload.get("timestamp", 0.0)
 
         if not source_id:
@@ -106,14 +113,19 @@ class FusionService(ModuleNode):
             # If filter is set, wait for those specific sensors
             expected_sensors = self._filter
         else:
-            # If no filter, wait for all LiDAR sensors in the system
+            # If no filter, wait for every node directly wired into this fusion
+            # node in the DAG. This works for any source type (LiDAR, playback,
+            # pcd injection, upstream filters), not just nodes with topic_prefix.
             expected_sensors = {
-                node_id for node_id, node in self._service.nodes.items()
-                if hasattr(node, "topic_prefix")  # LiDAR sensors have topic_prefix
+                src_id
+                for src_id, edges in self._service.downstream_map.items()
+                for edge in edges
+                if edge.get("target_id") == self.id
             }
 
-        # Wait until all expected sensors have contributed at least once
-        if not expected_sensors.issubset(self._latest_frames.keys()):
+        # Wait until all expected sensors have contributed at least once.
+        # Require at least one expected sensor to avoid fusing an empty set.
+        if not expected_sensors or not expected_sensors.issubset(self._latest_frames.keys()):
             return
 
         # Collect frames for fusion

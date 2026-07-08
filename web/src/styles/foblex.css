@@ -1,0 +1,50 @@
+/* ── Foblex Flow global overrides ─────────────────────────────────────────────
+   Component-scoped CSS never reaches Foblex internals (Shadow DOM / global
+   class targets). All Foblex-specific rules must live here.
+   Reference: node_modules/@foblex/flow/STYLING.md                            */
+
+/* ── Selection area rectangle ─────────────────────────────────────────────── */
+.f-selection-area {
+  background: color-mix(in srgb, var(--syn-color-primary-600, #005aff) 10%, transparent);
+  border: 1.5px solid var(--syn-color-primary-500, #005aff);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* ── Hide connection drag-handle circles at endpoints ─────────────────────── */
+/*
+  Foblex renders SVG <circle> elements with class .f-connection-drag-handle at
+  connection start/end points. We don't use reassignment so hide them.
+  SVG elements don't respond to display:none — use visibility + zero radius.
+*/
+f-flow .f-connection-drag-handle,
+.f-flow .f-connection-drag-handle {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ── Connection rule feedback ─────────────────────────────────────────────── */
+/*
+  During drag-to-connect, Foblex adds:
+  - .f-connector-connectable  → valid drop target for the current source
+  - .f-connector-not-connectable → blocked by fCanBeConnectedTo rules
+
+  These classes land on the .port elements (our custom connector divs).
+  Styles here override the Foblex theme defaults so the feedback is
+  clearly visible using Synergy tokens.
+*/
+.f-connector-connectable {
+  background: var(--syn-color-success-600, #16a34a) !important;
+  border-color: var(--syn-color-success-700, #15803d) !important;
+  transform: scale(1.4);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--syn-color-success-600, #16a34a) 25%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.f-connector-not-connectable {
+  background: var(--syn-color-neutral-300, #d1d5db) !important;
+  border-color: var(--syn-color-neutral-400, #9ca3af) !important;
+  opacity: 0.4;
+  cursor: not-allowed;
+}

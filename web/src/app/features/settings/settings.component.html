@@ -153,15 +153,6 @@
 
     <!-- Canvas -->
     <div class="flex-1 min-h-0 overflow-hidden relative">
-      @if (isInitializing()) {
-        <div
-          class="absolute inset-0 z-10 flex items-center justify-center bg-syn-page-background-color/80 backdrop-blur-sm"
-        >
-          <div class="flex flex-col items-center gap-3 text-syn-color-neutral-600">
-            <syn-spinner style="font-size: 2rem" />
-          </div>
-        </div>
-      }
       <app-flow-canvas [readOnly]="!canEdit()" />
     </div>
   </div>

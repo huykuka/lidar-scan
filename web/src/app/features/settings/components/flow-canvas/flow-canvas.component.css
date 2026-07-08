@@ -4,21 +4,88 @@
   height: 100%;
 }
 
-/* Smooth dragging */
-.dragging {
-  opacity: 0.8;
-  cursor: grabbing !important;
+/* Foblex f-flow must have a nonzero height */
+f-flow {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-/* Node hover effects */
-.node-card:hover {
-  transform: translateY(-2px);
+/* ── Port connector dots ──────────────────────────────────────────────────── */
+
+/*
+  Ports are absolutely positioned children of the fNode wrapper.
+  fConnector must NOT be hidden with display:none (FF1006).
+  We position them on the left/right edges of the node card (w-48 = 192px).
+*/
+.canvas-node-wrapper {
+  position: relative;
+  border-radius: 8px; /* match the inner card's rounded-lg */
 }
 
-/* Prevent text selection during drag */
-.no-select {
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
+/*
+  Selection indicator.
+  Foblex adds .f-selected to the fNode host element (.canvas-node-wrapper).
+  The inner app-flow-canvas-node card sits at position (0,0) inside the wrapper,
+  so we use outline (layout-safe) + box-shadow to show a visible ring.
+  outline sits outside the border-box and does not shift any children.
+  The 2px offset keeps the ring clear of the card edge.
+*/
+.canvas-node-wrapper.f-selected {
+  outline: 2px solid var(--syn-color-primary-500, #005aff);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--syn-color-primary-500, #005aff) 18%, transparent);
 }
+
+/* Dragging state — slightly elevated shadow, no extra ring */
+.canvas-node-wrapper.f-dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  opacity: 0.9;
+}
+
+.port:hover {
+  transform: scale(1.3);
+}
+
+/* Input port — hangs fully outside the left card edge.
+   left: -14px places center at -8px (8px outside the card).
+   Foblex terminates bezier curves at the connector center,
+   so the line visually reaches the dot cleanly. */
+.port--input {
+  left: -14px;
+  top: 10px;
+}
+
+/* Output port — right edge; top is overridden per-port via [style.top.px].
+   right: -14px places center 8px outside the right card edge. */
+.port--output {
+  right: -14px;
+  top: 10px;
+}
+
+/* ── Connection edges ─────────────────────────────────────────────────────── */
+
+/* Base bezier path — drawn by Foblex into an SVG inside f-canvas */
+.flow-edge ::ng-deep path {
+  stroke: var(--syn-color-primary-600, #005aff);
+  stroke-width: 1px;
+  fill: none;
+}
+/* Flow-dash animation overlay on connection lines */
+.flow-edge ::ng-deep .f-connection-path {
+  stroke-dasharray: 8 16;
+  animation: edge-flow 0.9s linear infinite;
+}
+
+@keyframes edge-flow {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -24; }
+}
+
+/* Click-to-delete hover — Foblex adds .f-selected; we add a hover tint */
+.flow-edge:hover ::ng-deep path {
+  stroke: #ef4444;
+  cursor: pointer;
+}
+
+/* ── Palette drag proxy (no longer needed — fExternalItem lives in palette component) ── */

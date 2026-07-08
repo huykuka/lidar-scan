@@ -1,6 +1,5 @@
 <div
   data-testid="node-card"
-  draggable="false"
   (click)="$event.stopPropagation()"
   [class.grayscale]="!isNodeEnabled()"
   [class.opacity-70]="!isNodeEnabled()"
@@ -9,54 +8,6 @@
   [class.opacity-8]="isReloading()"
   class="bg-syn-page-background-color rounded-lg shadow border w-48 hover:shadow-md transition-shadow transition-opacity duration-200 relative flex flex-col"
 >
-  <!-- Input Port -->
-  @if (hasInputPort()) {
-    <div
-      (mousedown)="$event.stopPropagation()"
-      (mouseup)="$event.stopPropagation(); portDrop.emit({ nodeId: node().id, portType: 'input' })"
-      class="absolute left-0 top-4 -translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
-    ></div>
-  }
-
-  <!-- Output Port(s) -->
-  @if (hasOutputPort()) {
-    @if (outputPorts().length === 1) {
-      <!-- Single output port (legacy behavior) -->
-      <div
-        (mousedown)="
-          $event.stopPropagation();
-          portDragStart.emit({
-            nodeId: node().id,
-            portType: 'output',
-            portId: outputPorts()[0].id,
-            portIndex: 0,
-            event: $event,
-          })
-        "
-        (mouseup)="$event.stopPropagation()"
-        class="absolute right-0 top-4 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
-      ></div>
-    } @else {
-      <!-- Multiple output ports -->
-      @for (port of outputPorts(); track port.id; let i = $index) {
-        <div
-          (mousedown)="
-            $event.stopPropagation();
-            portDragStart.emit({
-              nodeId: node().id,
-              portType: 'output',
-              portId: port.id,
-              portIndex: i,
-              event: $event,
-            })
-          "
-          (mouseup)="$event.stopPropagation()"
-          class="absolute right-0 top-4 translate-x-full -translate-y-1/2 w-3 h-3 rounded-sm border-2 border-white shadow-sm z-20 cursor-crosshair transition-all hover:scale-125 bg-syn-color-primary-600 after:absolute after:-inset-4 after:content-['']"
-          [style.top.px]="getOutputPortY(i, outputPorts().length)"
-        ></div>
-      }
-    }
-  }
 
   <!-- Reload Spinner Badge (top-right corner, only visible while reloading) -->
   @if (isReloading()) {
@@ -114,7 +65,7 @@
   }
   <!-- Node Actions Bar -->
   <div
-    class="px-0.5 py-0.5 border-t flex items-center justify-between bg-syn-page-background-color rounded-b-lg transition-colors"
+    class="px-0.5 py-0.5 border-t border-white flex items-center justify-between bg-syn-page-background-color rounded-b-lg transition-colors"
     [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
   >
     <div class="flex items-center">

@@ -1,5 +1,5 @@
 <div class="palette-shell h-full relative z-10">
-  <!-- Collapse toggle — lives OUTSIDE the clipped wrapper so it's always visible -->
+  <!-- Collapse toggle -->
   <button
     (click)="isCollapsed.set(!isCollapsed())"
     [class.-right-10]="isCollapsed()"
@@ -44,7 +44,7 @@
         }
 
         @for (group of groupedPlugins(); track group.category) {
-          <!-- Category header — primary-tinted surface -->
+          <!-- Category header -->
           <div
             (click)="toggleCategory(group.category)"
             class="category-header flex items-center gap-2 px-3 py-1.5 cursor-pointer select-none transition-colors"
@@ -56,24 +56,17 @@
             <span class="category-label">{{ group.category }}</span>
           </div>
 
-          <!-- Nodes list -->
+          <!-- Node chips — each one is an fExternalItem so it can be dragged onto the canvas -->
           @if (isExpanded(group.category)) {
             <div class="nodes-container p-3 grid grid-cols-1 gap-2">
-              @for (plugin of group.plugins; track plugin.type) {
-                <syn-tooltip [content]="plugin.description" placement="right">
+              @for (plugin of group.plugins; track $index) {
                   <div
-                    (dragend)="onPluginDragEnd.emit()"
-                    (dragstart)="onPluginDragStart.emit({ plugin: plugin.type, event: $event })"
+                    fExternalItem
+                    [fData]="plugin.type"
                     class="relative group cursor-grab active:cursor-grabbing"
-                    draggable="true"
                   >
-                    <!-- Port decorators -->
-                    <div class="port-dot port-dot--left"></div>
-                    <div class="port-dot port-dot--right"></div>
-
                     <!-- Node row -->
                     <div class="node-row flex items-stretch h-8 overflow-hidden">
-                      <!-- Icon -->
                       <div
                         class="w-8 flex items-center justify-center shrink-0"
                         [style.background-color]="plugin.style.color"
@@ -84,8 +77,6 @@
                           class="text-lg text-white/90 drop-shadow-sm"
                         />
                       </div>
-
-                      <!-- Label -->
                       <div class="flex-1 flex items-center justify-center px-2 min-w-0">
                         <span class="node-label truncate leading-none text-center px-1">
                           {{ plugin.displayName }}
@@ -93,7 +84,6 @@
                       </div>
                     </div>
                   </div>
-                </syn-tooltip>
               }
             </div>
           }
@@ -101,4 +91,4 @@
       }
     </div>
   </div>
-  </div>
+</div>
