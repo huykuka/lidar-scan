@@ -52,3 +52,15 @@
   background-color: var(--syn-color-neutral-400);
 }
 
+/* ── Context Menu ── */
+.node-context-menu {
+  position: absolute;
+  z-index: 100;
+  min-width: 180px;
+  background: var(--syn-panel-background-color);
+  border: var(--syn-panel-border-width) solid var(--syn-panel-border-color);
+  border-radius: var(--syn-border-radius-medium);
+  box-shadow: var(--syn-shadow-large);
+  overflow: hidden;
+}
+

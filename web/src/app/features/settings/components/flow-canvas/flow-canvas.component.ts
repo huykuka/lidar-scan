@@ -8,6 +8,7 @@ import {
   input,
   OnDestroy,
   OnInit,
+  output,
   signal,
   untracked,
   viewChild,
@@ -66,6 +67,10 @@ import { AuthService } from '@app/core/services/auth.service';
 export class FlowCanvasComponent {
   // ------ Inputs ------
   readonly readOnly = input(false);
+  readonly previewedNodeIds = input<Set<string>>(new Set());
+
+  // ------ Outputs ------
+  onTogglePreview = output<CanvasNode>();
 
   // ------ Foblex view references ------
   private readonly _flow = viewChild.required(FFlowComponent);

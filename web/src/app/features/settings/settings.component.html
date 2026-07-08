@@ -151,9 +151,58 @@
       </div>
     }
 
-    <!-- Canvas -->
-    <div class="flex-1 min-h-0 overflow-hidden relative">
-      <app-flow-canvas [readOnly]="!canEdit()" />
+    <!-- Canvas + Preview split -->
+    <div class="flex-1 min-h-0 overflow-hidden relative flex">
+      <!-- Flow Canvas (left pane) -->
+      <div class="flex-1 min-w-0 min-h-0 overflow-hidden relative">
+        <app-flow-canvas
+          [readOnly]="!canEdit()"
+          [previewedNodeIds]="previewedNodeIds()"
+          (onTogglePreview)="onToggleNodePreview($event)"
+        />
+      </div>
+
+      <!-- Preview toggle (when preview is collapsed) -->
+      @if (!previewOpen()) {
+        <div class="flex items-center border-l-syn">
+          <syn-tooltip content="Open live preview" placement="left">
+            <syn-icon-button
+              name="visibility"
+              label="Open live preview"
+              size="small"
+              color="neutral"
+              (click)="previewOpen.set(true)"
+            />
+          </syn-tooltip>
+        </div>
+      }
+
+      <!-- Resizable divider + Preview (right pane) -->
+      @if (previewOpen()) {
+        <div
+          class="settings-divider"
+          (pointerdown)="onDividerDown($event)"
+        ></div>
+        <div
+          class="min-h-0 overflow-hidden relative flex flex-col"
+          [style.width.px]="previewWidth()"
+        >
+          <div class="flex items-center justify-end px-1 py-0.5 border-b-syn shrink-0">
+            <syn-tooltip content="Close preview" placement="left">
+              <syn-icon-button
+                name="visibility_off"
+                label="Close preview"
+                size="small"
+                color="neutral"
+                (click)="previewOpen.set(false)"
+              />
+            </syn-tooltip>
+          </div>
+          <div class="flex-1 min-h-0">
+            <app-settings-preview-panel />
+          </div>
+        </div>
+      }
     </div>
   </div>
 

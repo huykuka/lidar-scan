@@ -97,6 +97,7 @@ export class PointCloudComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Dispose Three.js geometries and materials
     this.pointsBuffers().forEach((buf) => {
       const points = buf.pointsRef?.()?.nativeElement;
       if (!points) return;
@@ -105,6 +106,8 @@ export class PointCloudComponent implements OnDestroy {
       if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
       else mat?.dispose();
     });
+
+    // Release all Float32Array buffers
     this.staticBuffers.clear();
   }
 }

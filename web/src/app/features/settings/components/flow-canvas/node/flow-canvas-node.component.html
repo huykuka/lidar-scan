@@ -1,6 +1,7 @@
 <div
   data-testid="node-card"
   (click)="$event.stopPropagation()"
+  (contextmenu)="onContextMenu($event)"
   [class.grayscale]="!isNodeEnabled()"
   [class.opacity-70]="!isNodeEnabled()"
   [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
@@ -126,3 +127,26 @@
     </div>
   }
 </div>
+
+<!-- Context Menu (only for nodes with WebSocket output) -->
+@if (contextMenuOpen() && isWebsocketEnabled()) {
+  <div
+    class="node-context-menu"
+    [style.left.px]="contextMenuPos().x"
+    [style.top.px]="contextMenuPos().y"
+  >
+    <syn-menu (syn-select)="onMenuSelect($event)">
+      @if (isPreviewed()) {
+        <syn-menu-item value="preview">
+          <syn-icon name="visibility_off" slot="prefix" />
+          Remove from 3D view
+        </syn-menu-item>
+      } @else {
+        <syn-menu-item value="preview">
+          <syn-icon name="visibility" slot="prefix" />
+          Add to 3D view
+        </syn-menu-item>
+      }
+    </syn-menu>
+  </div>
+}

@@ -1,12 +1,9 @@
 <div
-  [class.border-none]="isCollapsed()"
   [class.w-0]="isCollapsed()"
   [class.w-70]="!isCollapsed()"
+  [style.borderLeft]="isCollapsed() ? '1px solid var(--syn-color-neutral-300)' : 'none'"
   class="h-full flex flex-col relative transition-all duration-300 z-10"
-  style="
-    background: var(--syn-color-neutral-0);
-    border-left: 1px solid var(--syn-color-neutral-300);
-  "
+  style="background: var(--syn-color-neutral-0);"
 >
   <!-- Toggle button -->
   <button

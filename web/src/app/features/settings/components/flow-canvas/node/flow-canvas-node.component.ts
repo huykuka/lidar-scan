@@ -1,11 +1,20 @@
-import {ChangeDetectionStrategy, Component, computed, inject, input, output} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  HostListener,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeConfig} from '@core/models/node.model';
-import {NodeStatusUpdate} from '@core/models/node-status.model';
-import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {NodeRecordingControls} from './node-recording-controls/node-recording-controls';
-import {NodeVisibilityToggleComponent} from '../../node-visibility-toggle/node-visibility-toggle.component';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { NodeConfig } from '@core/models/node.model';
+import { NodeStatusUpdate } from '@core/models/node-status.model';
+import { NodeStoreService } from '@core/services/stores/node-store.service';
+import { NodeRecordingControls } from './node-recording-controls/node-recording-controls';
+import { NodeVisibilityToggleComponent } from '../../node-visibility-toggle/node-visibility-toggle.component';
 
 export interface CanvasNode {
   id: string;
@@ -28,9 +37,11 @@ export class FlowCanvasNodeComponent {
   isDragging = input<boolean>(false);
   isTogglingVisibility = input<boolean>(false);
   isReloading = input<boolean>(false);
+  isPreviewed = input<boolean>(false);
   onEdit = output<void>();
   onToggleEnabled = output<boolean>();
   onToggleVisibility = output<boolean>();
+  onTogglePreview = output<void>();
 
   protected nodeCategory = computed(() => {
     const categoryFromDefinition = this.nodeDefinition()?.category?.toLowerCase();
@@ -133,5 +144,35 @@ export class FlowCanvasNodeComponent {
   getNodeIcon(): string {
     const definitionIcon = this.nodeDefinition()?.icon;
     return definitionIcon || 'settings_input_component';
+  }
+
+  // -- Context Menu --
+  contextMenuOpen = signal(false);
+  contextMenuPos = signal({ x: 0, y: 0 });
+
+  @HostListener('document:click')
+  @HostListener('document:contextmenu')
+  onDocumentClick(): void {
+    if (this.contextMenuOpen()) {
+      this.contextMenuOpen.set(false);
+    }
+  }
+
+  onContextMenu(event: MouseEvent): void {
+    if (!this.isWebsocketEnabled()) return;
+    event.preventDefault();
+    event.stopPropagation();
+    // Close first in case another node's menu was open
+    this.contextMenuOpen.set(false);
+    // Open on next tick so the document:click doesn't immediately close it
+    setTimeout(() => {
+      this.contextMenuPos.set({ x: event.offsetX, y: event.offsetY });
+      this.contextMenuOpen.set(true);
+    });
+  }
+
+  onMenuSelect(event: Event): void {
+    this.contextMenuOpen.set(false);
+    this.onTogglePreview.emit();
   }
 }
