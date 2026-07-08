@@ -27,6 +27,10 @@
             <f-circle-pattern />
           </f-background>
         }
+        @if (!snapToGrid()) {
+         <f-magnetic-lines [threshold]="gridSize" />
+        }
+        
 
         <f-canvas fZoom [fZoomMinimum]="0.1" [fZoomMaximum]="3" [fZoomStep]="0.1">
           <!-- In-progress connection preview — direct child of f-canvas -->
@@ -42,14 +46,13 @@
               class="flow-edge"
               (click)="!readOnly() && conn.id ? onDeleteEdge(conn.id) : null"
             >
+              <f-connection-marker-arrow></f-connection-marker-arrow>
             </f-connection>
           }
 
           <!-- Nodes layer (ngProjectAs required for nested @for) -->
           <ng-container ngProjectAs="[fNodes]">
             @for (node of canvasNodes(); track node.id) {
-
-
               <div
                 fNode
                 [fNodeId]="node.id"
@@ -92,6 +95,7 @@
         </f-canvas>
         <!-- f-selection-area must be a direct child of f-flow -->
         <f-selection-area />
+        <f-minimap [fMinSize]="2000" />
       </f-flow>
       <!-- Empty state overlay -->
       @if (canvasNodes().length === 0 && !isCanvasLoading()) {
@@ -110,7 +114,7 @@
       }
 
       <!-- Bottom-right canvas controls -->
-      <div class="absolute bottom-4 right-4 z-20 pointer-events-auto">
+      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
         <app-flow-canvas-controls
           (onResetView)="resetView()"
           (onSnapToggle)="snapToGrid.set(!snapToGrid())"

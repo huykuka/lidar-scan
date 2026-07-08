@@ -2,6 +2,53 @@
   display: block;
 }
 
-[data-testid="node-card"] {
+/* ── Card frame ──────────────────────────────────────────────────────────────
+   `border-2` (set in the template) escapes the global `.border { … !important }`
+   normalization, so the color set here is authoritative. A 2px line + a
+   theme-aware color keeps the card clearly separated from the canvas in both
+   light and dark themes.                                                       */
+.node-card {
   border-color: var(--syn-color-neutral-400);
 }
+
+.node-card:hover {
+  border-color: var(--syn-color-primary-500);
+}
+
+/* Dark mode needs a lighter border to read against the dark canvas/card bg. */
+:host-context(.dark) .node-card {
+  border-color: var(--syn-color-neutral-600);
+}
+
+:host-context(.dark) .node-card:hover {
+  border-color: var(--syn-color-primary-500);
+}
+
+/* ── Left status accent strip ───────────────────────────────────────────────
+   Quick, colour-coded state scan without changing any node data/behaviour. */
+.node-card__accent {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+  background-color: var(--syn-color-neutral-400);
+  transition: background-color 0.2s ease;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.node-card--running .node-card__accent {
+  background-color: var(--syn-color-success-600);
+}
+
+.node-card--error .node-card__accent {
+  background-color: var(--syn-color-error-600);
+}
+
+.node-card--disabled .node-card__accent {
+  background-color: var(--syn-color-neutral-400);
+}
+

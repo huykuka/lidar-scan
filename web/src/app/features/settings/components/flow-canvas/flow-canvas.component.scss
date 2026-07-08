@@ -1,3 +1,5 @@
+/* ── Palette drag proxy (no longer needed — fExternalItem lives in palette component) ── */
+@use '@foblex/flow/styles' as flow-theme;
 :host {
   display: block;
   width: 100%;
@@ -87,5 +89,3 @@ f-flow {
   stroke: #ef4444;
   cursor: pointer;
 }
-
-/* ── Palette drag proxy (no longer needed — fExternalItem lives in palette component) ── */

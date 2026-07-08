@@ -8,7 +8,7 @@ import {
   untracked,
 } from '@angular/core';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { FExternalItem, FExternalItemPlaceholder } from '@foblex/flow';
+import { FExternalItem } from '@foblex/flow';
 import { NodePlugin } from '@core/models';
 
 @Component({

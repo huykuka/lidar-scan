@@ -58,32 +58,31 @@
 
           <!-- Node chips — each one is an fExternalItem so it can be dragged onto the canvas -->
           @if (isExpanded(group.category)) {
-            <div class="nodes-container p-3 grid grid-cols-1 gap-2">
+            <div class="nodes-container p-2 grid grid-cols-1 gap-1.5">
               @for (plugin of group.plugins; track $index) {
-                  <div
-                    fExternalItem
-                    [fData]="plugin.type"
-                    class="relative group cursor-grab active:cursor-grabbing"
-                  >
-                    <!-- Node row -->
-                    <div class="node-row flex items-stretch h-8 overflow-hidden">
-                      <div
-                        class="w-8 flex items-center justify-center shrink-0"
-                        [style.background-color]="plugin.style.color"
-                        style="border-right: 1px solid rgba(0, 0, 0, 0.12)"
-                      >
-                        <syn-icon
-                          [name]="plugin.icon || 'extension'"
-                          class="text-lg text-white/90 drop-shadow-sm"
-                        />
-                      </div>
-                      <div class="flex-1 flex items-center justify-center px-2 min-w-0">
-                        <span class="node-label truncate leading-none text-center px-1">
-                          {{ plugin.displayName }}
-                        </span>
-                      </div>
-                    </div>
+                <div
+                  fExternalItem
+                  [fData]="plugin.type"
+                  class="node-chip relative cursor-grab active:cursor-grabbing"
+                >
+                  <!-- Left accent strip — same pattern as canvas node card -->
+                  <span
+                    class="chip-accent"
+                    [style.background-color]="plugin.style.color"
+                    aria-hidden="true"
+                  ></span>
+                  <!-- Icon + name row -->
+                  <div class="chip-body flex items-center gap-2 px-2 py-1.5 min-w-0">
+                    <syn-icon
+                      [name]="plugin.icon || 'extension'"
+                      class="chip-icon text-[15px] shrink-0"
+                      [style.color]="plugin.style.color"
+                    />
+                    <span class="node-label truncate text-[11px] font-bold leading-none">
+                      {{ plugin.displayName }}
+                    </span>
                   </div>
+                </div>
               }
             </div>
           }

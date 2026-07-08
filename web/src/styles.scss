@@ -16,7 +16,18 @@
 @include flow-theme.connection-all();
 @include flow-theme.connection-drag-handles-visible();
 @include flow-theme.background();
+@include flow-theme.plugins($scoped: false);  
 
+
+@include flow-theme.minimap($scoped: false);
+
+  .custom-class-for-minimap {
+    fill: var(--ff-color-danger) !important;
+
+    &.f-selected {
+      fill: var(--ff-minimap-node-selected-color) !important;
+    }
+  }
 @import './styles/base.css';
 @import './styles/theme.css';
 @import './styles/layout.css';

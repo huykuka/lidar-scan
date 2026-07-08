@@ -6,8 +6,14 @@
   [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
   [class.animate-pulse]="isReloading()"
   [class.opacity-8]="isReloading()"
-  class="bg-syn-page-background-color rounded-lg shadow border w-48 hover:shadow-md transition-shadow transition-opacity duration-200 relative flex flex-col"
+  [class.node-card--error]="!!errorText()"
+  [class.node-card--running]="isNodeEnabled() && !errorText()"
+  [class.node-card--disabled]="!isNodeEnabled()"
+  class="node-card bg-syn-page-background-color rounded-lg shadow-md border-2 border-l-0 w-56 hover:shadow-lg hover:-translate-y-px transition-all duration-200 relative flex flex-col"
 >
+  <!-- Left status accent strip — quick visual scan of node state -->
+  <span class="node-card__accent" aria-hidden="true"></span>
+
 
   <!-- Reload Spinner Badge (top-right corner, only visible while reloading) -->
   @if (isReloading()) {
@@ -24,7 +30,7 @@
 
   <!-- Node Header (Ultra Compact) -->
   <div
-    class="px-2 py-1.5 flex items-center gap-2 cursor-default min-h-8 rounded-t-lg transition-colors overflow-hidden"
+    class="px-2 py-1.5 flex items-center gap-2 cursor-default min-h-8 rounded-t-lg border-b border-syn-color-neutral-200 transition-colors overflow-hidden"
     [class.bg-syn-color-neutral-50]="isNodeEnabled()"
     [class.bg-syn-color-neutral-200]="!isNodeEnabled()"
   >
@@ -65,7 +71,7 @@
   }
   <!-- Node Actions Bar -->
   <div
-    class="px-0.5 py-0.5 border-t border-white flex items-center justify-between bg-syn-page-background-color rounded-b-lg transition-colors"
+    class="px-0.5 py-0.5 border-t border-syn-color-neutral-200 flex items-center justify-between bg-syn-page-background-color rounded-b-lg transition-colors"
     [class.bg-syn-color-neutral-100]="!isNodeEnabled()"
   >
     <div class="flex items-center">

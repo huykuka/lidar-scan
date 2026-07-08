@@ -59,7 +59,7 @@ import { AuthService } from '@app/core/services/auth.service';
   ],
   templateUrl: './flow-canvas.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './flow-canvas.component.css',
+  styleUrls: ['./flow-canvas.component.scss'],
 })
 export class FlowCanvasComponent {
   // ------ Inputs ------
