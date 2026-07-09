@@ -216,7 +216,6 @@ export class FlowCanvasComponent {
     if (!confirmed) return;
     this.canvasEditStore.pushUndoState();
     this.canvasEditStore.deleteNode(node.id);
-    this.toast.success(`${name} deleted.`);
   }
 
   async onDeleteEdge(edgeId: string) {
@@ -230,7 +229,6 @@ export class FlowCanvasComponent {
     if (!confirmed) return;
     this.canvasEditStore.pushUndoState();
     this.canvasEditStore.deleteEdge(edgeId);
-    this.toast.success('Connection removed.');
   }
 
   async onToggleNodeEnabled(node: CanvasNode, enabled: boolean) {
@@ -238,11 +236,9 @@ export class FlowCanvasComponent {
     try {
       await this.nodesApi.setNodeEnabled(node.id, enabled);
       const name = node.data.name || node.id;
-      this.toast.success(`${name} ${enabled ? 'enabled' : 'disabled'}.`);
       this.canvasEditStore.updateNode(node.id, { enabled });
     } catch (error) {
       console.error('Failed to toggle node', error);
-      this.toast.danger(`Failed to update node.`);
     } finally {
       this.nodeLoadingStates.update((states) => {
         const newStates = { ...states };
@@ -386,7 +382,7 @@ export class FlowCanvasComponent {
       .filter((e) => nodeIds.has(e.source_node) && nodeIds.has(e.target_node));
 
     this.clipboard.set({ nodes: structuredClone(nodes), edges: structuredClone(edges) });
-    this.toast.success(`Copied ${nodes.length} node(s).`);
+    this.toast.primary(`Copied ${nodes.length} node(s).`);
   }
 
   private _pasteNodes(): void {
@@ -443,7 +439,6 @@ export class FlowCanvasComponent {
       };
     });
 
-    this.toast.success(`Pasted ${clip.nodes.length} node(s).`);
   }
 
   private async _deleteSelectedNodes(): Promise<void> {

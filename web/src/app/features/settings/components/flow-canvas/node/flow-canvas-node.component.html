@@ -84,7 +84,7 @@
       }
 
       <!-- Cycle time badge -->
-      @if (cycleTimeLabel()) {
+      @if (cycleTimeLabel() && isNodeEnabled()) {
         <span
           class="inline-flex items-center gap-1 rounded bg-syn-color-neutral-200 px-2 py-1 text-[9px] leading-none tabular-nums pointer-events-none"
           [title]="'Last cycle: ' + cycleTimeLabel()"
