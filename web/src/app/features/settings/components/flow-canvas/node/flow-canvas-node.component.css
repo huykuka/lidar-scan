@@ -56,11 +56,62 @@
 .node-context-menu {
   position: absolute;
   z-index: 100;
-  min-width: 180px;
-  background: var(--syn-panel-background-color);
-  border: var(--syn-panel-border-width) solid var(--syn-panel-border-color);
-  border-radius: var(--syn-border-radius-medium);
-  box-shadow: var(--syn-shadow-large);
-  overflow: hidden;
+  min-width: 140px;
+  background: var(--syn-color-neutral-0, #fff);
+  border: 1px solid var(--syn-color-neutral-200, #e5e7eb);
+  border-radius: 6px;
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 4px;
+  animation: menu-enter 0.15s cubic-bezier(0.2, 0, 0, 1.2) forwards;
+  transform-origin: top left;
+}
+
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  white-space: nowrap;
+}
+
+.menu-item:hover {
+  background: var(--syn-color-neutral-100, #f3f4f6);
+}
+
+.menu-item:active {
+  background: var(--syn-color-neutral-200, #e5e7eb);
+  transform: scale(0.97);
+}
+
+.menu-item__icon {
+  font-size: 14px;
+  color: var(--syn-color-neutral-600, #4b5563);
+  flex-shrink: 0;
+}
+
+.menu-item__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--syn-color-neutral-800, #1f2937);
+  line-height: 1;
 }
 

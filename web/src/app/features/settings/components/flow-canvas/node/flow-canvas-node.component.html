@@ -115,25 +115,19 @@
   }
 </div>
 
-<!-- Context Menu (only for nodes with WebSocket output) -->
-@if (contextMenuOpen() && (isWebsocketEnabled() || isNodeEnabled() || isTogglingVisibility())) {
+<!-- Context Menu (lightweight custom menu with animation) -->
+@if (contextMenuOpen()) {
   <div
     class="node-context-menu"
     [style.left.px]="contextMenuPos().x"
     [style.top.px]="contextMenuPos().y"
   >
-    <syn-menu (syn-select)="onMenuSelect($event)" size="small" >
-      @if (isPreviewed()) {
-        <syn-menu-item value="preview">
-          <syn-icon name="visibility_off" slot="prefix" />
-          Remove from 3D view
-        </syn-menu-item>
-      } @else {
-        <syn-menu-item value="preview">
-          <syn-icon name="visibility" slot="prefix" />
-          Add to 3D view
-        </syn-menu-item>
-      }
-    </syn-menu>
+    <button
+      class="menu-item"
+      (click)="onMenuAction('preview')"
+    >
+      <syn-icon [name]="isPreviewed() ? 'visibility_off' : 'visibility'" class="menu-item__icon" />
+      <span class="menu-item__label">{{ isPreviewed() ? 'Remove from 3D' : 'Add to 3D view' }}</span>
+    </button>
   </div>
 }
