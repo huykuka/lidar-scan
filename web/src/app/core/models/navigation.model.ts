@@ -10,7 +10,7 @@ export interface NavItem {
 }
 
 export const NAVIGATION_CONFIG: NavItem[] = [
-  { label: 'Workspaces', route: '/workspaces', icon: 'home', divider: true },
+  { label: 'Workspaces', route: '/workspaces', icon: 'home', divider: false },
   { label: 'Settings', route: '/settings', icon: 'settings', divider: true, footer: false },
   { label: 'Calibration', route: '/calibration', icon: 'tune', divider: true },
   { label: 'Recordings', route: '/recordings', icon: 'video_library', divider: true },

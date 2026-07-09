@@ -1,0 +1,149 @@
+/* SVG icon containers — ::ng-deep required for [innerHTML]-injected SVGs */
+.orient-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+:host ::ng-deep .orient-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.orient-svg--sm {
+  width: 18px;
+  height: 18px;
+}
+
+/* Trigger button — uses panel tokens, adapts to light/dark */
+.orient-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+  background: var(--syn-panel-background-color);
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+  border-radius: var(--syn-border-radius-small);
+  color: var(--syn-typography-color-text);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background var(--syn-duration-fast);
+  outline: none;
+}
+.orient-trigger:hover {
+  background: var(--syn-interactive-background-color-hover);
+}
+.orient-trigger--active {
+  background: var(--syn-interactive-emphasis-color);
+  border-color: var(--syn-interactive-emphasis-color);
+  color: var(--syn-typography-color-text-inverted);
+}
+.orient-trigger--active:hover {
+  background: var(--syn-interactive-emphasis-color-hover);
+  border-color: var(--syn-interactive-emphasis-color-hover);
+}
+.orient-trigger:focus-visible {
+  box-shadow: var(--syn-focus-ring);
+}
+
+/* Dropdown panel */
+.orient-menu {
+  min-width: 148px;
+  padding: var(--syn-spacing-2x-small);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--syn-panel-background-color);
+  border-radius: var(--syn-border-radius-small);
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+}
+
+/* Menu row */
+.orient-item {
+  display: flex;
+  align-items: center;
+  gap: var(--syn-spacing-x-small);
+  width: 100%;
+  padding: var(--syn-spacing-2x-small) var(--syn-spacing-x-small);
+  border: none;
+  border-radius: var(--syn-border-radius-small);
+  background: transparent;
+  color: var(--syn-typography-color-text);
+  font: var(--syn-body-small-regular);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--syn-duration-fast);
+  outline: none;
+}
+.orient-item:hover {
+  background: var(--syn-interactive-background-color-hover);
+}
+.orient-item--active {
+  background: var(--syn-interactive-background-color-active);
+  color: var(--syn-typography-color-text);
+  font-weight: var(--syn-font-weight-bold);
+}
+
+.orient-item-label {
+  white-space: nowrap;
+}
+
+/* Icon sizing inside buttons */
+.orient-btn-icon {
+  font-size: var(--syn-font-size-medium);
+  display: flex;
+}
+
+/* Scale indicator icon */
+.scale-icon {
+  font-size: var(--syn-font-size-x-small);
+  color: var(--syn-typography-color-text-quiet);
+}
+
+/* Empty state */
+.empty-state {
+  background: var(--syn-overlay-background-color);
+  backdrop-filter: blur(1px);
+}
+
+.empty-state__label {
+  font: var(--syn-body-large-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--syn-typography-color-text-quiet);
+  user-select: none;
+}
+
+.empty-state__sub {
+  font: var(--syn-body-x-small-regular);
+  color: var(--syn-typography-color-text-quiet);
+  margin-top: var(--syn-spacing-2x-small);
+  user-select: none;
+}
+
+/* ── Scale indicator ── */
+.scale-ruler {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--syn-spacing-3x-small);
+}
+
+.scale-bar {
+  width: 48px;
+  height: 6px;
+  border-left: var(--syn-border-width-medium) solid var(--syn-color-neutral-800);
+  border-right: var(--syn-border-width-medium) solid var(--syn-color-neutral-800);
+  border-bottom: var(--syn-border-width-medium) solid var(--syn-color-neutral-800);
+}
+
+.scale-label {
+  font: var(--syn-body-x-small-semibold);
+  color: var(--syn-color-neutral-800);
+  letter-spacing: 0.05em;
+  padding-left: var(--syn-spacing-4x-small);
+}

@@ -32,6 +32,20 @@ def _tensor_map_keys(tensor_map: Any) -> List[str]:
             return []
 
 
+def get_point_count(pcd: Any) -> int:
+    """Return the point count for either a tensor or legacy Open3D PointCloud.
+
+    This is the single canonical implementation used by all pipeline operations.
+    Replaces the identical private copies that previously existed in
+    ``DensityAlgorithmBase``, ``Densify``, and ``reconstruction_base``.
+    """
+    if isinstance(pcd, o3d.t.geometry.PointCloud):
+        return int(pcd.point.positions.shape[0]) if "positions" in pcd.point else 0
+    if isinstance(pcd, o3d.geometry.PointCloud):
+        return len(pcd.points)
+    return 0
+
+
 class PipelineOperation(ABC):
     """Base class for all atomic point cloud operations"""
 
@@ -39,6 +53,12 @@ class PipelineOperation(ABC):
     # OperationNode will then skip the expensive Tensor round-trip and
     # create a legacy PCD directly.
     PREFERS_LEGACY: bool = False
+
+    # Set to True on operations that accept a raw (N, M) numpy array directly
+    # in apply() and never touch Open3D.  OperationNode will call apply(pts)
+    # synchronously on the event loop with zero conversion overhead — no
+    # Open3D allocation, no thread hop.
+    NUMPY_ONLY: bool = False
 
     @abstractmethod
     def apply(self, pcd: Any) -> Any:

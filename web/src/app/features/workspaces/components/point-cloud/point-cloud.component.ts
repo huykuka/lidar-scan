@@ -1,706 +1,113 @@
 import {
   ChangeDetectionStrategy,
-  AfterViewInit,
   Component,
+  computed,
+  CUSTOM_ELEMENTS_SCHEMA,
   effect,
-  ElementRef,
   inject,
   input,
   OnDestroy,
-  OnInit,
-  signal,
-  viewChild,
+  viewChildren,
 } from '@angular/core';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { PointCloudDataService, type FramePayload } from '@core/services/point-cloud-data.service';
-import { ViewOrientation, SplitLayoutStoreService } from '@core/services/split-layout-store.service';
-import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
-import { ShapeLayerService } from '@core/services/shape-layer.service';
-import { ShapesWsService } from '@core/services/shapes-ws.service';
-import { Subscription } from 'rxjs';
+
+import {PointCloudDataService} from '@core/services/point-cloud-data.service';
+import {ViewOrientation} from '@core/services/split-layout-store.service';
+import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
+import {ShapeLayerService} from '@core/services/shape-layer.service';
+import {NgtsPointsBuffer} from 'angular-three-soba/performances';
+import {NgtCanvas, NgtCanvasContent, NgtCanvasImpl} from 'angular-three/dom';
+import {ThreedSceneGraphComponent} from '@shared/components';
 
 @Component({
   selector: 'app-point-cloud',
-  imports: [SynergyComponentsModule],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-
-  /**
-   * ShapeLayerService is provided HERE — at the component level — so that
-   * Angular creates a **fresh, isolated instance** for every PointCloudComponent
-   * in the DOM tree (i.e. every split-view pane).
-   *
-   * This is the architectural guarantee that prevents:
-   *   • Scene cross-contamination (shapes from pane A appearing in pane B)
-   *   • The "last init wins" race where the global singleton's `scene` ref
-   *     is overwritten by the most-recently-mounted pane
-   *   • disposeAll() in one pane nuking shape objects owned by another pane
-   *
-   * DO NOT move this back to providedIn: 'root'.
-   */
-  providers: [ShapeLayerService],
-  template: ` <div #container class="w-full h-full min-h-0 bg-transparent overflow-hidden"></div>
-    @if (hasError()) {
-      <div
-        class="absolute inset-0 flex flex-col items-center justify-center bg-black/70 rounded-lg z-10 p-4 text-center"
-      >
-        <syn-icon name="error" class="text-4xl text-red-400 mb-2" />
-        <p class="text-white font-semibold text-sm">Rendering Error</p>
-        <p class="text-syn-color-neutral-300 text-xs mt-1 break-all">{{ errorMessage() }}</p>
-      </div>
-    }`,
-  styles: [
-    `
-      :host {
-        display: block;
-        width: 100%;
-        height: 100%;
-        position: relative;
-      }
-    `,
+  templateUrl: './point-cloud.component.html',
+  imports: [
+    NgtCanvas,
+    ThreedSceneGraphComponent,
+    NgtsPointsBuffer,
+    NgtCanvasImpl,
+    NgtCanvasContent,
   ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  providers: [ShapeLayerService],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PointCloudComponent implements AfterViewInit, OnDestroy {
-  readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
+export class PointCloudComponent implements OnDestroy {
+  readonly viewType = input<ViewOrientation>('perspective');
+  readonly viewId = input<string>('');
+  readonly showGrid = input(true);
 
-  // Inputs for customization
-  pointSize = input<number>(0.1);
-  showGrid = input<boolean>(true);
-  showAxes = input<boolean>(true);
-  backgroundColor = input<string>('#000000');
-
-  // ── New signal inputs (FE-04) ─────────────────────────────────────────────
-  /** Camera mode: perspective (default) or orthographic (top/front/side) */
-  viewType = input<ViewOrientation>('perspective');
-  /** Stable pane ID — used to key into PointCloudDataService.frames() */
-  viewId = input<string>('');
-  /** When true, reduces MAX_POINTS cap to MAX_POINTS_LOD for performance */
-  adaptiveLod = input<boolean>(false);
-
-  // ── FE-12: Error boundary signals ────────────────────────────────────────
-  /** Set to true if initThree() throws — causes the error overlay to appear. */
-  readonly hasError = signal(false);
-  /** Human-readable error message captured from the caught exception. */
-  readonly errorMessage = signal('');
-
-  // Three.js instances
-  private scene!: THREE.Scene;
-  /** Perspective camera — active when viewType() === 'perspective' */
-  private perspCamera!: THREE.PerspectiveCamera;
-  /** Orthographic camera — active for top / front / side views */
-  private orthoCamera!: THREE.OrthographicCamera;
-  private renderer!: THREE.WebGLRenderer;
-  private controls!: OrbitControls;
-  private readonly controlsChangeHandler = () => this.requestRender();
-
-  /** ResizeObserver — keeps canvas size in sync when pane dimensions change */
-  private resizeObserver?: ResizeObserver;
-
-  /** Injected data service — provides shared frame signals per topic */
-  readonly dataService = inject(PointCloudDataService);
-
-  /** Injected workspace store — provides selected topics with colors */
+  private readonly dataService = inject(PointCloudDataService);
   private readonly workspaceStore = inject(WorkspaceStoreService);
-  /** Injected split layout store — used to react to camera reset requests */
-  private readonly splitLayout = inject(SplitLayoutStoreService);
 
-  /** Injected shape layer service — owns Three.js shape objects on Layer 2 */
-  private readonly shapeLayerService = inject(ShapeLayerService);
-
-  /** Injected shapes WebSocket service — streams ShapeFrame events */
-  private readonly shapesWsService = inject(ShapesWsService);
-
-  /** RxJS subscription for the shapes stream — cleaned up in ngOnDestroy */
-  private shapesSubscription?: Subscription;
-
-  // Multiple point clouds support
-  readonly pointClouds: Map<
-    string,
-    {
-      pointsObj: THREE.Points;
-      geometry: THREE.BufferGeometry;
-      material: THREE.PointsMaterial;
-      lastCount: number;
-    }
-  > = new Map();
-  private readonly lastAppliedFrames = new Map<string, FramePayload>();
-
-  /** Previous snapshot of enabled topics used to diff against next update. */
-  private prevTopicSnapshot = new Map<string, string>(); // topic → color
-
-  private gridHelper?: THREE.GridHelper;
-  private axesHelper?: THREE.AxesHelper;
-  private axesLabels: THREE.Sprite[] = [];
-  private gridLabels: THREE.Sprite[] = [];
-  private currentGridSize = 50;
-
-  private animationId?: number;
-  /**
-   * Dirty flag — when true the next animation-loop tick will actually call
-   * renderer.render().  Every mutation that touches the scene graph, camera
-   * or material must call requestRender() so the flag is set.
-   */
-  private needsRender = true;
-  /** Full-quality cap (default: no adaptive LOD) */
   readonly MAX_POINTS = 250_000;
-  /** Reduced cap used when adaptiveLod input is true */
-  readonly MAX_POINTS_LOD = 125_000;
+  private readonly staticBuffers = new Map<string, Float32Array>();
 
-  /**
-   * Returns the active Three.js camera based on the current viewType input.
-   * Perspective view → PerspectiveCamera; all orthometric views → OrthographicCamera.
-   */
-  private get activeCamera(): THREE.Camera {
-    return this.viewType() === 'perspective' ? this.perspCamera : this.orthoCamera;
-  }
+  protected readonly topicEntries = computed(() =>
+    this.workspaceStore
+      .selectedTopics()
+      .filter((t) => t.enabled)
+      .map((t) => {
+        if (!this.staticBuffers.has(t.topic)) {
+          this.staticBuffers.set(t.topic, new Float32Array(this.MAX_POINTS * 3));
+        }
+        return {
+          topic: t.topic,
+          color: t.color,
+          pointSize: t.pointSize,
+          buf: this.staticBuffers.get(t.topic)!,
+        };
+      }),
+  );
 
-  /**
-   * Returns the effective MAX_POINTS limit, respecting adaptiveLod flag.
-   * Exposed as a helper so it can be tested without a live WebGL context.
-   */
-  getEffectiveMaxPoints(lodActive: boolean): number {
-    return lodActive ? this.MAX_POINTS_LOD : this.MAX_POINTS;
-  }
+  private readonly pointsBuffers = viewChildren<NgtsPointsBuffer>('buf');
+
+  protected readonly topicFrames = computed(() =>
+    this.topicEntries().map((entry) => ({
+      entry,
+      frame: this.dataService.frames().get(entry.topic) ?? null,
+    })),
+  );
 
   constructor() {
-    // React to input changes
     effect(() => {
-      // Update point size for all clouds
-      const size = this.pointSize();
-      this.pointClouds.forEach(({ material }) => {
-        material.size = size;
-      });
-      this.requestRender();
-    });
+      const pairs = this.topicFrames();
+      const bufs = this.pointsBuffers();
 
-    effect(() => {
-      if (this.gridHelper) {
-        const isVisible = this.showGrid();
-        this.gridHelper.visible = isVisible;
-        this.gridLabels.forEach((l) => (l.visible = isVisible));
-        this.requestRender();
-      }
-    });
+      pairs.forEach(({ entry, frame }, i) => {
+        const points = bufs[i]?.pointsRef()?.nativeElement;
+        if (!points) return;
 
-    effect(() => {
-      if (this.axesHelper) {
-        const isVisible = this.showAxes();
-        this.axesHelper.visible = isVisible;
-        this.axesLabels.forEach((l) => (l.visible = isVisible));
-        this.requestRender();
-      }
-    });
-
-    effect(() => {
-      const color = this.backgroundColor();
-      if (this.scene) {
-        this.scene.background = new THREE.Color(color);
-        this.requestRender();
-      }
-    });
-
-    // ── FE-04: React to viewType changes → switch camera preset ──────────────
-    effect(() => {
-      const vt = this.viewType();
-      if (this.controls) {
-        // Only call initCamera once Three.js is bootstrapped
-        this.initCamera(vt);
-      }
-    });
-
-    // React to camera reset requests from the overlay
-    effect(() => {
-      const req = this.splitLayout.resetCameraRequest();
-      if (req?.paneId === this.viewId() && this.controls) {
-        this.resetCamera();
-      }
-    });
-
-    // Re-sync Three.js point cloud objects whenever selected topics change.
-    // Deferred until scene is ready; initial call from ngAfterViewInit handles
-    // the bootstrap case so no changes are lost.
-    effect(() => {
-      const selectedTopics = this.workspaceStore.selectedTopics();
-      if (!this.scene) return;
-      this.diffAndSyncTopics(selectedTopics);
-    });
-
-    // ── FE-04: Subscribe to PointCloudDataService frames signal ──────────────
-    effect(() => {
-      const frames = this.dataService.frames();
-      if (!frames.size) return;
-      this.syncFrameBuffers(frames);
-    });
-  }
-
-  ngAfterViewInit() {
-    try {
-      this.initThree();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[PointCloudComponent] Failed to initialize Three.js renderer:', err);
-      this.hasError.set(true);
-      this.errorMessage.set(message);
-      return; // Don't attempt syncTopicClouds or animate
-    }
-    // Bootstrap: sync topics now that the scene is ready.
-    // Subsequent changes are handled by the selectedTopics effect().
-    this.diffAndSyncTopics(this.workspaceStore.selectedTopics());
-    this.animate();
-
-    // ── FE-06: Initialize shape layer and subscribe to shapes stream ──────────
-    this.shapeLayerService.init(this.scene);
-    // Enable all camera layers so shape objects on Layer 2 are rendered
-    this.perspCamera.layers.enableAll();
-    this.orthoCamera.layers.enableAll();
-    this.shapesSubscription = this.shapesWsService.frames$.subscribe((frame) => {
-      this.shapeLayerService.applyFrame(frame);
-      this.requestRender();
-    });
-    // ResizeObserver keeps canvas in sync whenever the pane is resized
-    // (including the initial paint, layout-switch re-paints, and divider drags).
-    this.resizeObserver = new ResizeObserver(() => this.syncSize());
-    this.resizeObserver.observe(this.containerRef().nativeElement);
-  }
-
-  ngOnDestroy() {
-    // ── FE-06: Clean up shapes subscription and dispose shape objects ─────────
-    this.shapesSubscription?.unsubscribe();
-    this.shapeLayerService.disposeAll();
-
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-    }
-    this.resizeObserver?.disconnect();
-    this.controls?.removeEventListener('change', this.controlsChangeHandler);
-    this.controls?.dispose();
-    this.disposeSpriteGroup(this.gridLabels);
-    this.gridLabels = [];
-    this.disposeSpriteGroup(this.axesLabels);
-    this.axesLabels = [];
-    if (this.gridHelper) {
-      this.scene?.remove(this.gridHelper);
-      this.gridHelper.dispose();
-      this.gridHelper = undefined;
-    }
-    if (this.axesHelper) {
-      this.scene?.remove(this.axesHelper);
-      this.axesHelper.dispose();
-      this.axesHelper = undefined;
-    }
-    // Dispose all point clouds
-    this.pointClouds.forEach(({ pointsObj, geometry, material }) => {
-      this.scene?.remove(pointsObj);
-      geometry.dispose();
-      material.dispose();
-    });
-    this.pointClouds.clear();
-    this.lastAppliedFrames.clear();
-    // Dispose renderer if it was ever initialized
-    this.renderer?.dispose();
-    // Null cameras for GC (Three.js cameras have no .dispose())
-    this.perspCamera = null as unknown as THREE.PerspectiveCamera;
-    this.orthoCamera = null as unknown as THREE.OrthographicCamera;
-  }
-
-  /**
-   * Add or update a point cloud for a specific topic
-   * @param topic Topic identifier
-   * @param color Color for this point cloud
-   */
-  addOrUpdatePointCloud(topic: string, color: string) {
-    if (this.pointClouds.has(topic)) {
-      // Already exists — diffAndSyncTopics handles color-only updates separately.
-      // This path is kept for callers that bypass the diff (e.g. direct invocation).
-      const cloud = this.pointClouds.get(topic)!;
-      if (cloud.material.color.getHexString() !== new THREE.Color(color).getHexString()) {
-        cloud.material.color.set(color);
-        this.requestRender();
-      }
-      return;
-    }
-
-    // Create new point cloud
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(this.MAX_POINTS * 3);
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-    const material = new THREE.PointsMaterial({
-      size: this.pointSize(),
-      color: color,
-      // Bug fix: sizeAttenuation: false keeps point size in screen-pixels (not
-      // world units), so all panels — perspective AND orthographic — render dots
-      // at the same pixel size regardless of camera type or frustum dimensions.
-      sizeAttenuation: false,
-    });
-
-    const pointsObj = new THREE.Points(geometry, material);
-    pointsObj.frustumCulled = false;
-
-    // Rotate to match LiDAR coordinate system (Z-up vs Three.js Y-up)
-    pointsObj.rotation.x = -Math.PI / 2;
-    pointsObj.rotation.z = -Math.PI / 2;
-
-    this.scene.add(pointsObj);
-
-    this.pointClouds.set(topic, {
-      pointsObj,
-      geometry,
-      material,
-      lastCount: 0,
-    });
-    this.requestRender();
-  }
-
-  /**
-   * Remove a point cloud for a specific topic
-   * @param topic Topic identifier
-   */
-  removePointCloud(topic: string) {
-    const cloud = this.pointClouds.get(topic);
-    if (!cloud) return;
-
-    this.scene.remove(cloud.pointsObj);
-    cloud.geometry.dispose();
-    cloud.material.dispose();
-    this.pointClouds.delete(topic);
-    this.lastAppliedFrames.delete(topic);
-    this.requestRender();
-  }
-
-  private syncFrameBuffers(frames: Map<string, FramePayload>): void {
-    frames.forEach((frame, topic) => {
-      if (!this.pointClouds.has(topic)) return;
-      if (this.lastAppliedFrames.get(topic) === frame) return;
-
-      this.lastAppliedFrames.set(topic, frame);
-      this.updatePointsForTopic(topic, frame.points, frame.count);
-    });
-  }
-
-  /**
-   * Update points for a specific topic
-   * @param topic Topic identifier
-   * @param positionsArray Point positions as Float32Array
-   * @param count Number of points
-   */
-  updatePointsForTopic(topic: string, positionsArray: Float32Array, count: number) {
-    const cloud = this.pointClouds.get(topic);
-    if (!cloud) return;
-
-    const positions = cloud.geometry.attributes['position'].array as Float32Array;
-
-    // Copy incoming point data into the pre-allocated buffer
-    const copyCount = Math.min(count, this.MAX_POINTS);
-    positions.set(positionsArray.subarray(0, copyCount * 3));
-
-    // Update draw range and mark attribute dirty
-    cloud.lastCount = copyCount;
-    cloud.geometry.setDrawRange(0, copyCount);
-    cloud.geometry.attributes['position'].needsUpdate = true;
-    this.requestRender();
-  }
-
-  resetCamera() {
-    this.initCamera(this.viewType());
-  }
-
-  /**
-   * Diff the incoming topic list against the previous snapshot and apply only
-   * the minimum set of Three.js operations needed:
-   *   - Remove clouds for topics that are no longer enabled
-   *   - Update material color for topics whose color changed
-   *   - Create a new cloud only for genuinely new enabled topics
-   *
-   * Called both from `ngAfterViewInit` (bootstrap) and the selectedTopics effect.
-   */
-  private diffAndSyncTopics(
-    selectedTopics: { topic: string; color: string; enabled: boolean }[],
-  ): void {
-    // Build the incoming enabled snapshot: topic → color
-    const next = new Map<string, string>();
-    for (const { topic, color, enabled } of selectedTopics) {
-      if (enabled) next.set(topic, color);
-    }
-
-    // 1. Remove clouds that are no longer in the enabled set
-    for (const topic of this.pointClouds.keys()) {
-      if (!next.has(topic)) this.removePointCloud(topic);
-    }
-
-    // 2. Add new or update color-changed clouds
-    for (const [topic, color] of next) {
-      const prev = this.prevTopicSnapshot.get(topic);
-      if (prev === undefined) {
-        // New topic — create cloud
-        this.addOrUpdatePointCloud(topic, color);
-      } else if (prev !== color) {
-        // Color changed — update material only (no geometry allocation)
-        const cloud = this.pointClouds.get(topic);
-        if (cloud) {
-          cloud.material.color.set(color);
-          this.requestRender();
+        if (!frame || frame.count === 0) {
+          points.visible = false;
+          return;
         }
-      }
-      // else: topic exists with same color — no-op
-    }
+        points.visible = true;
 
-    this.prevTopicSnapshot = next;
-  }
+        const count = Math.min(frame.count, this.MAX_POINTS);
+        entry.buf.set(frame.points.subarray(0, count * 3));
 
-  private syncSize() {
-    const container = this.containerRef().nativeElement;
-    const w = container.clientWidth;
-    const h = container.clientHeight;
-    if (w > 0 && h > 0) {
-      const aspect = w / h;
-
-      // Update perspective camera
-      if (this.perspCamera) {
-        this.perspCamera.aspect = aspect;
-        this.perspCamera.updateProjectionMatrix();
-      }
-
-      // Update orthographic camera frustum
-      if (this.orthoCamera) {
-        const frustumSize = 40;
-        this.orthoCamera.left = (-frustumSize * aspect) / 2;
-        this.orthoCamera.right = (frustumSize * aspect) / 2;
-        this.orthoCamera.top = frustumSize / 2;
-        this.orthoCamera.bottom = -frustumSize / 2;
-        this.orthoCamera.updateProjectionMatrix();
-      }
-
-      this.renderer.setSize(w, h);
-      this.requestRender();
-    }
-  }
-
-  private initThree() {
-    const container = this.containerRef().nativeElement;
-    const aspect = container.clientWidth / Math.max(container.clientHeight, 1);
-    const frustumSize = 40;
-
-    // Scene
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(this.backgroundColor());
-
-    // ── Perspective camera (default / perspective view) ───────────────────────
-    this.perspCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 1000);
-    this.perspCamera.position.set(15, 15, 15);
-    this.perspCamera.lookAt(0, 0, 0);
-
-    // ── Orthographic camera (top / front / side views) ────────────────────────
-    this.orthoCamera = new THREE.OrthographicCamera(
-      (-frustumSize * aspect) / 2,
-      (frustumSize * aspect) / 2,
-      frustumSize / 2,
-      -frustumSize / 2,
-      0.1,
-      1000,
-    );
-    this.orthoCamera.position.set(0, 30, 0);
-    this.orthoCamera.lookAt(0, 0, 0);
-
-    // Renderer
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-    this.renderer.setSize(container.clientWidth, container.clientHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(this.renderer.domElement);
-
-    // Controls — always attach to the active camera's type
-    this.controls = new OrbitControls(this.perspCamera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.target.set(0, 0, 0);
-
-    // Mark frame dirty whenever OrbitControls moves the camera (includes damping ticks)
-    this.controls.addEventListener('change', this.controlsChangeHandler);
-
-    // Apply initial camera preset from viewType input
-    this.initCamera(this.viewType());
-
-    // Grid & Axes
-    this.rebuildGrid();
-
-    this.axesHelper = new THREE.AxesHelper(5);
-    this.axesHelper.visible = !!this.showAxes();
-    this.scene.add(this.axesHelper);
-
-    // Axis Labels
-    const axisX = this.createTextSprite('Y', '#ff0000');
-    axisX.position.set(5.5, 0, 0);
-
-    const axisY = this.createTextSprite('Z', '#00ff00');
-    axisY.position.set(0, 5.5, 0);
-
-    const axisZ = this.createTextSprite('X', '#0000ff');
-    axisZ.position.set(0, 0, 5.5);
-    axisZ.visible = !!this.showAxes();
-
-    this.axesLabels = [axisX, axisY, axisZ];
-  }
-
-  /**
-   * Configure the camera position and controls based on the view orientation.
-   * Perspective → PerspectiveCamera at (15,15,15), rotation enabled.
-   * top/front/side → OrthographicCamera at respective axis positions, rotation disabled.
-   */
-  private initCamera(viewType: ViewOrientation): void {
-    if (!this.controls) return;
-
-    const distance = 30;
-
-    if (viewType === 'perspective') {
-      this.perspCamera.position.set(15, 15, 15);
-      this.perspCamera.lookAt(0, 0, 0);
-      this.controls.object = this.perspCamera;
-      this.controls.enableRotate = true;
-    } else {
-      // Reset up vector to default; override below where needed
-      this.orthoCamera.up.set(0, 1, 0);
-
-      switch (viewType) {
-        case 'top':
-          this.orthoCamera.position.set(0, distance, 0);
-          this.orthoCamera.up.set(0, 0, -1);
-          break;
-        case 'bottom':
-          this.orthoCamera.position.set(0, -distance, 0);
-          this.orthoCamera.up.set(0, 0, 1);
-          break;
-        case 'front':
-          this.orthoCamera.position.set(0, 0, distance);
-          break;
-        case 'end':
-          this.orthoCamera.position.set(0, 0, -distance);
-          break;
-        case 'left':
-          this.orthoCamera.position.set(-distance, 0, 0);
-          break;
-        case 'right':
-          this.orthoCamera.position.set(distance, 0, 0);
-          break;
-      }
-      this.orthoCamera.lookAt(0, 0, 0);
-      this.controls.object = this.orthoCamera;
-      this.controls.enableRotate = false;
-    }
-
-    this.controls.target.set(0, 0, 0);
-    this.controls.update();
-    this.requestRender();
-  }
-
-  /**
-   * Mark the scene as needing a repaint on the next animation-loop tick.
-   * Cheap to call many times per frame — only the next tick will render.
-   */
-  requestRender(): void {
-    this.needsRender = true;
-  }
-
-  private animate() {
-    this.animationId = requestAnimationFrame(() => this.animate());
-    // controls.update() must run every tick for damping to work;
-    // it fires the 'change' event (→ requestRender) only when the camera actually moves.
-    this.controls.update();
-
-    if (!this.needsRender) return;
-    this.needsRender = false;
-
-    // Dynamically scale text sprites based on active camera distance
-    const cam = this.activeCamera;
-    for (const label of this.gridLabels) {
-      if (!label.visible) continue;
-      const distance = cam.position.distanceTo(label.position);
-      const scaleBase = Math.max(0.2, distance * 0.05);
-      label.scale.set(scaleBase * 2, scaleBase, 1);
-    }
-    for (const label of this.axesLabels) {
-      if (!label.visible) continue;
-      const distance = cam.position.distanceTo(label.position);
-      const scaleBase = Math.max(0.2, distance * 0.05);
-      label.scale.set(scaleBase * 2, scaleBase, 1);
-    }
-
-    this.renderer.render(this.scene, this.activeCamera);
-  }
-
-  private rebuildGrid() {
-    if (this.gridHelper) {
-      this.scene.remove(this.gridHelper);
-      this.gridHelper.dispose();
-    }
-
-    const size = this.currentGridSize; // Always 50
-    const stepLines = 10; // Labels every 10m
-    const divisions = size / stepLines; // 5 divisions across the 50m grid
-
-    this.gridHelper = new THREE.GridHelper(size, divisions, 0x555555, 0x333333);
-    this.gridHelper.position.y = -0.1; // lower to avoid z-fighting
-    this.gridHelper.visible = !!this.showGrid();
-    this.scene.add(this.gridHelper);
-
-    // Remove old labels
-    this.gridLabels.forEach((label) => {
-      this.scene.remove(label);
-      if (label.material.map) label.material.map.dispose();
-      label.material.dispose();
-    });
-    this.gridLabels = [];
-
-    const halfSize = size / 2;
-    for (let i = -halfSize; i <= halfSize; i += stepLines) {
-      if (i === 0) continue;
-
-      const spriteX = this.createTextSprite(`${i}m`);
-      spriteX.position.set(i, 0, halfSize + stepLines * 0.2);
-      spriteX.visible = this.showGrid();
-      this.gridLabels.push(spriteX);
-      this.scene.add(spriteX);
-
-      const spriteZ = this.createTextSprite(`${i}m`);
-      spriteZ.position.set(halfSize + stepLines * 0.2, 0, i);
-      spriteZ.visible = this.showGrid();
-      this.gridLabels.push(spriteZ);
-      this.scene.add(spriteZ);
-    }
-    this.requestRender();
-  }
-
-  private disposeSpriteGroup(sprites: THREE.Sprite[]): void {
-    sprites.forEach((sprite) => {
-      this.scene?.remove(sprite);
-      sprite.material.map?.dispose();
-      sprite.material.dispose();
+        const geo = points.geometry;
+        if (!geo) return;
+        geo.setDrawRange(0, count);
+        const attr = geo.attributes['position'];
+        if (attr) attr.needsUpdate = true;
+      });
     });
   }
 
-  private createTextSprite(message: string, color: string = '#888888'): THREE.Sprite {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 64;
-    const context = canvas.getContext('2d')!;
-    context.fillStyle = 'rgba(0,0,0,0)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    context.font = 'bold 1000px ';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillStyle = color;
-    context.fillText(message, canvas.width / 2, canvas.height / 2);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.minFilter = THREE.LinearFilter;
-    const material = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-      depthWrite: true,
+  ngOnDestroy(): void {
+    // Dispose Three.js geometries and materials
+    this.pointsBuffers().forEach((buf) => {
+      const points = buf.pointsRef?.()?.nativeElement;
+      if (!points) return;
+      points.geometry?.dispose();
+      const mat = points.material;
+      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+      else mat?.dispose();
     });
-    const sprite = new THREE.Sprite(material);
 
-    // Dynamic scaling happens in animate() to make it responsive to zoom
-    return sprite;
+    // Release all Float32Array buffers
+    this.staticBuffers.clear();
   }
 }

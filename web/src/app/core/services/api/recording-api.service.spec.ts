@@ -1,9 +1,9 @@
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { firstValueFrom } from 'rxjs';
-import { RecordingApiService } from './recording-api.service';
-import { ListRecordingsResponse, Recording } from '../../models/recording.model';
+import {TestBed} from '@angular/core/testing';
+import {provideHttpClient} from '@angular/common/http';
+import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
+import {firstValueFrom} from 'rxjs';
+import {RecordingApiService} from './recording-api.service';
+import {ListRecordingsResponse, Recording} from '../../models/recording.model';
 
 /** Mock data aligned to api-spec.md §5 */
 const MOCK_RECORDING: Recording = {

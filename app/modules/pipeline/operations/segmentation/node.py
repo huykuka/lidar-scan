@@ -57,80 +57,63 @@ class PlaneSegmentation(PipelineOperation):
             return False
         return True
 
-    def apply(self, pcd: Any):
+    @staticmethod
+    def _get_inlier_points(pcd: Any, inliers: Any) -> np.ndarray:
+        """Extract inlier XYZ positions as a numpy array from tensor or legacy PCD."""
         if isinstance(pcd, o3d.t.geometry.PointCloud):
-            count = pcd.point.positions.shape[0] if 'positions' in pcd.point else 0
-        else:
-            count = len(pcd.points)
+            return pcd.select_by_index(inliers).point.positions.cpu().numpy()
+        return np.asarray(pcd.select_by_index(inliers).points)
+
+    @staticmethod
+    def _plane_model_list(plane_model: Any, is_tensor: bool) -> list:
+        """Normalise plane model to a plain Python list."""
+        if is_tensor:
+            return plane_model.cpu().numpy().tolist()
+        return plane_model.tolist()
+
+    def apply(self, pcd: Any):
+        is_tensor = isinstance(pcd, o3d.t.geometry.PointCloud)
+        count = (
+            pcd.point.positions.shape[0] if (is_tensor and 'positions' in pcd.point)
+            else len(pcd.points)
+        )
 
         has_area_filter = self.min_area > 0 or self.max_area > 0
 
-        if count >= self.ransac_n:
-            if isinstance(pcd, o3d.t.geometry.PointCloud):
-                plane_model, inliers = pcd.segment_plane(
-                    distance_threshold=self.distance_threshold,
-                    ransac_n=self.ransac_n,
-                    num_iterations=self.num_iterations,
-                    probability=0.9999
-                )
-                plane_model_list = plane_model.cpu().numpy().tolist()
+        if count < self.ransac_n:
+            return pcd, {}
 
-                area: Optional[float] = None
-                if has_area_filter:
-                    inlier_pts = pcd.select_by_index(inliers).point.positions.cpu().numpy()
-                    normal = np.array(plane_model_list[:3])
-                    area = self._compute_plane_area(inlier_pts, normal)
-                    if not self._area_ok(area):
-                        return pcd, {
-                            "plane_model": plane_model_list,
-                            "inlier_count": len(inliers),
-                            "inverted": self.invert,
-                            "area": area,
-                            "area_rejected": True,
-                        }
+        plane_model_raw, inliers = pcd.segment_plane(
+            distance_threshold=self.distance_threshold,
+            ransac_n=self.ransac_n,
+            num_iterations=self.num_iterations,
+            probability=0.9999,
+        )
+        plane_model_list = self._plane_model_list(plane_model_raw, is_tensor)
 
-                pcd = pcd.select_by_index(inliers, invert=self.invert)
-                meta = {
+        area: Optional[float] = None
+        if has_area_filter:
+            inlier_pts = self._get_inlier_points(pcd, inliers)
+            normal = np.array(plane_model_list[:3])
+            area = self._compute_plane_area(inlier_pts, normal)
+            if not self._area_ok(area):
+                return pcd, {
                     "plane_model": plane_model_list,
                     "inlier_count": len(inliers),
                     "inverted": self.invert,
+                    "area": area,
+                    "area_rejected": True,
                 }
-                if area is not None:
-                    meta["area"] = area
-                    meta["area_rejected"] = False
-                return pcd, meta
-            else:
-                plane_model, inliers = pcd.segment_plane(
-                    distance_threshold=self.distance_threshold,
-                    ransac_n=self.ransac_n,
-                    num_iterations=self.num_iterations,
-                    probability=0.9999
-                )
-                plane_model_list = plane_model.tolist()
 
-                area = None
-                if has_area_filter:
-                    inlier_pts = np.asarray(pcd.select_by_index(inliers).points)
-                    normal = np.array(plane_model_list[:3])
-                    area = self._compute_plane_area(inlier_pts, normal)
-                    if not self._area_ok(area):
-                        return pcd, {
-                            "plane_model": plane_model_list,
-                            "inlier_count": len(inliers),
-                            "inverted": self.invert,
-                            "area": area,
-                            "area_rejected": True,
-                        }
+        pcd = pcd.select_by_index(inliers, invert=self.invert)
+        meta = {
+            "plane_model": plane_model_list,
+            "inlier_count": len(inliers),
+            "inverted": self.invert,
+        }
+        if area is not None:
+            meta["area"] = area
+            meta["area_rejected"] = False
+        return pcd, meta
 
-                pcd = pcd.select_by_index(inliers, invert=self.invert)
-                meta = {
-                    "plane_model": plane_model_list,
-                    "inlier_count": len(inliers),
-                    "inverted": self.invert,
-                }
-                if area is not None:
-                    meta["area"] = area
-                    meta["area_rejected"] = False
-                return pcd, meta
-        return pcd, {}
 

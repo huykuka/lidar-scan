@@ -1,19 +1,12 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  OnInit,
-  signal,
-} from '@angular/core';
-import { ActivatedRoute, RouterModule } from '@angular/router';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { ResultsApiService, MOCK_NODE_INDEX } from '@core/services/api/results-api.service';
-import { NavigationService } from '@core/services';
-import { PcdFileEntry, ResultDetail } from '@core/models';
-import { MetadataTableComponent } from '../shared/metadata-table/metadata-table.component';
-import { PcdViewerComponent } from '../shared/pcd-viewer/pcd-viewer.component';
-import { firstValueFrom } from 'rxjs';
+import {ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,} from '@angular/core';
+import {ActivatedRoute, RouterModule} from '@angular/router';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {MOCK_NODE_INDEX, ResultsApiService} from '@core/services/api/results-api.service';
+import {NavigationService} from '@core/services';
+import {PcdFileEntry, ResultDetail} from '@core/models';
+import {MetadataTableComponent} from '../shared/metadata-table/metadata-table.component';
+import {PcdViewerComponent} from '../shared/pcd-viewer/pcd-viewer.component';
+import {firstValueFrom} from 'rxjs';
 
 @Component({
   selector: 'app-result-detail',

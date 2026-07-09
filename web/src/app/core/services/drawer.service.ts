@@ -1,4 +1,4 @@
-import { Injectable, Type, signal } from '@angular/core';
+import {Injectable, signal, Type} from '@angular/core';
 
 export interface DrawerConfig<T = unknown> {
   /** Title shown in the drawer header */

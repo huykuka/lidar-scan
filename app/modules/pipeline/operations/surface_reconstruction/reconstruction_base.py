@@ -24,6 +24,8 @@ import numpy as np
 import open3d as o3d
 from pydantic import BaseModel, Field
 
+from ...base import get_point_count
+
 logger = logging.getLogger(__name__)
 
 MIN_INPUT_POINTS: int = 10
@@ -169,11 +171,7 @@ class ReconstructionMetadata(BaseModel):
 
 def _get_count(pcd: Any) -> int:
     """Return the point count for either legacy or tensor Open3D point clouds."""
-    if isinstance(pcd, o3d.t.geometry.PointCloud):
-        return pcd.point.positions.shape[0] if "positions" in pcd.point else 0
-    if isinstance(pcd, o3d.geometry.PointCloud):
-        return len(pcd.points)
-    return 0
+    return get_point_count(pcd)
 
 
 def _to_legacy(pcd: Any) -> o3d.geometry.PointCloud:

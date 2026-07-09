@@ -172,8 +172,17 @@ class LifecycleManager:
                     )
                 except asyncio.TimeoutError:
                     logger.warning(
-                        f"[LifecycleManager] stop() for sensor node {node_id!r} timed out after 10s"
+                        f"[LifecycleManager] stop() for sensor node {node_id!r} timed out after 10s — "
+                        "force-killing process"
                     )
+                    # Last resort: kill the worker process to avoid orphans holding
+                    # hardware resources across reloads.
+                    proc = getattr(node_instance, "_process", None)
+                    if proc is not None and proc.is_alive():
+                        proc.kill()
+                        proc.join(timeout=2.0)
+                    node_instance._process = None
+                    node_instance._stop_event = None
                 except Exception as exc:
                     logger.warning(
                         f"[LifecycleManager] node {node_id!r} stop() raised {exc!r} — ignoring"

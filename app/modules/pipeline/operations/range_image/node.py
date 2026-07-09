@@ -37,7 +37,9 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
 import logging
+import struct
 import time
 from typing import Any, Dict, Optional, Tuple
 
@@ -95,6 +97,43 @@ def _normalise_channel(data: np.ndarray, filled_mask: np.ndarray) -> np.ndarray:
         normed = np.ones_like(vals)
     result[filled_mask] = (normed * 255.0).astype(np.uint8)
     return result
+
+
+def _build_bev_frame(
+    image_arr: np.ndarray,
+    png_bytes: bytes,
+    channel: str,
+    resolution: float,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+    width: int,
+    height: int,
+    n_pts: int,
+    filled_cells: int,
+) -> bytes:
+    """Pack a BEV image into the binary WebSocket frame format.
+
+    Frame layout: 4-byte magic ``b"BEVI"`` + 4-byte little-endian uint32 (JSON
+    header length) + JSON header bytes + PNG payload bytes.
+    """
+    header_dict = {
+        "type": "bev_image",
+        "channel": channel,
+        "resolution": resolution,
+        "x_min": x_min,
+        "x_max": x_max,
+        "y_min": y_min,
+        "y_max": y_max,
+        "width": width,
+        "height": height,
+        "timestamp": time.time(),
+        "point_count": n_pts,
+        "filled_cells": filled_cells,
+    }
+    header_bytes = json.dumps(header_dict).encode("utf-8")
+    return b"BEVI" + struct.pack("<I", len(header_bytes)) + header_bytes + png_bytes
 
 
 class RangeImage(PipelineOperation):
@@ -272,31 +311,19 @@ class RangeImage(PipelineOperation):
 
         # Broadcast the PNG image over WebSocket on this node's topic.
         # We fire-and-forget in the calling thread's event loop.
-        # The binary WebSocket frame carries: 4-byte magic "BEVI" + 4-byte
-        # header length (little-endian uint32) + JSON header + PNG bytes.
-        import json
-        import struct
-
-        header_dict = {
-            "type": "bev_image",
-            "channel": self.channel,
-            "resolution": self.resolution,
-            "x_min": self.x_min,
-            "x_max": self.x_max,
-            "y_min": self.y_min,
-            "y_max": self.y_max,
-            "width": self.width,
-            "height": self.height,
-            "timestamp": time.time(),
-            "point_count": n_pts,
-            "filled_cells": filled_cells,
-        }
-        header_bytes = json.dumps(header_dict).encode("utf-8")
-        frame = (
-                b"BEVI"
-                + struct.pack("<I", len(header_bytes))
-                + header_bytes
-                + png_bytes
+        frame = _build_bev_frame(
+            image_arr=image_arr,
+            png_bytes=png_bytes,
+            channel=self.channel,
+            resolution=self.resolution,
+            x_min=self.x_min,
+            x_max=self.x_max,
+            y_min=self.y_min,
+            y_max=self.y_max,
+            width=self.width,
+            height=self.height,
+            n_pts=n_pts,
+            filled_cells=filled_cells,
         )
 
         topic = self._ws_topic

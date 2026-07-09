@@ -1,27 +1,22 @@
-<syn-header #header>
+<syn-header #header [label]="headerLabel()">
   <nav slot="meta-navigation" class="flex items-center">
     <app-connection-status (refresh)="onRefresh()" />
-
     <app-sensor-status />
-
     <!-- <app-notices-status (acknowledge)="onAcknowledge()" /> -->
-
-    <app-platform-guide />
-
-    <app-theme-switch />
-
+    <app-platform-guide class="header-mobile-hidden" />
+    <app-theme-switch class="header-mobile-hidden" />
     <app-user-info />
   </nav>
 
-  <div slot="label" class="flex items-center gap-2 h-full">
-    <span class="font-semibold text-lg whitespace-nowrap"> {{ label() }} v{{ uiVersion }} </span>
-
-    @if (headline()) {
+  @if (headline()) {
+    <span slot="label" class="header-headline flex items-center gap-2 h-full">
+      <span class="font-semibold text-lg whitespace-nowrap">
+        {{ label() }} v{{ uiVersion }}
+      </span>
       <syn-icon name="chevron_right" class="text-neutral-500 flex-shrink-0" />
-
-      <span class="text-base self-center" style="color: var(--syn-color-neutral-700)">
+      <span class="text-base font-bold self-center whitespace-nowrap" style="color: var(--syn-color-neutral-700)">
         {{ headline() }}
       </span>
-    }
-  </div>
+    </span>
+  }
 </syn-header>

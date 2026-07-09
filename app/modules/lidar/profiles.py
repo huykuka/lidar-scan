@@ -25,6 +25,9 @@ class SickLidarProfile:
     thumbnail_url: Optional[str] = None  # URL to device thumbnail image
     icon_name: Optional[str] = None  # Synergy UI icon name  
     icon_color: Optional[str] = None  # Hex color for icon (e.g., "#FF6B35")
+    # Layer lookup table index for multiScan series:
+    #   0: multiScan136/166, 1: multiScan165, -1: automatic retrieval of the elevation table (experimental)
+    layer_lookup_table_id: Optional[int] = None
     # Model availability
     disabled: bool = False  # True to hide from frontend dropdown
 
@@ -33,9 +36,9 @@ class SickLidarProfile:
 # Based on official SICK scan_xd documentation
 _PROFILES = {
     # --- multiScan Series (3D Multi-Layer) ---
-    "multiscan": SickLidarProfile(
-        model_id="multiscan",
-        display_name="SICK multiScan100",
+    "multiscan136": SickLidarProfile(
+        model_id="multiscan136",
+        display_name="SICK multiScan136",
         launch_file="launch/sick_multiscan.launch",
         default_hostname="192.168.100.124",
         port_arg="udp_port",
@@ -45,7 +48,23 @@ _PROFILES = {
         scan_layers=16,
         thumbnail_url="/api/v1/assets/lidar/multiscan.png",
         icon_name="device_hub",
-        icon_color="#0066CC"
+        icon_color="#0066CC",
+        layer_lookup_table_id=0,
+    ),
+    "multiscan165": SickLidarProfile(
+        model_id="multiscan165",
+        display_name="SICK multiScan165",
+        launch_file="launch/sick_multiscan.launch",
+        default_hostname="192.168.100.124",
+        port_arg="udp_port",
+        default_port=2115,
+        has_udp_receiver=True,
+        has_imu_udp_port=True,
+        scan_layers=16,
+        thumbnail_url="/api/v1/assets/lidar/multiscan.png",
+        icon_name="device_hub",
+        icon_color="#0066CC",
+        layer_lookup_table_id=1,
     ),
 
     # --- TiM Series (2D Time-of-Flight) ---
@@ -439,7 +458,7 @@ def get_all_profiles() -> List[SickLidarProfile]:
     # Define the desired display order
     ordered_keys = [
         # Multi-layer 3D sensors first
-        "multiscan",
+        "multiscan136", "multiscan165",
 
         # TiM series (2D Time-of-Flight)
         "tim_240", "tim_5xx", "tim_7xx", "tim_7xxs", "picoscan_120", "picoscan_150",
@@ -536,5 +555,9 @@ def build_launch_args(
     # Add IMU UDP port for multiScan only
     if profile.has_imu_udp_port and imu_udp_port is not None:
         args += f" imu_udp_port:={imu_udp_port}"
+
+    # Add layer lookup table ID for multiScan series (distinguishes 136/166 vs 165)
+    if profile.layer_lookup_table_id is not None:
+        args += f" layer_lookup_table_id:={profile.layer_lookup_table_id}"
 
     return args

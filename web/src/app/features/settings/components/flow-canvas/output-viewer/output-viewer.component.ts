@@ -1,4 +1,14 @@
-import {Component, computed, effect, ElementRef, inject, OnDestroy, signal, viewChild, ChangeDetectionStrategy} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  OnDestroy,
+  signal,
+  viewChild
+} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
@@ -29,7 +39,7 @@ const RENDER_WINDOW = 100;
   styleUrl: './output-viewer.component.css',
 })
 export class OutputViewerComponent implements OnDestroy {
-  isCollapsed = signal<boolean>(false);
+  isCollapsed = signal<boolean>(true);
   isFrozen = signal<boolean>(false);
 
   /** Full live message buffer — capped at MAX_MESSAGES. Always updated by WS. */

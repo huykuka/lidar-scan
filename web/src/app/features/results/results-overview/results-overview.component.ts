@@ -1,10 +1,10 @@
-import { Component, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
-import { Router } from '@angular/router';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { ResultsApiService, MOCK_NODE_INDEX } from '@core/services/api/results-api.service';
-import { NavigationService } from '@core/services';
-import { NodeResultSummary } from '@core/models';
-import { firstValueFrom } from 'rxjs';
+import {ChangeDetectionStrategy, Component, inject, OnInit, signal} from '@angular/core';
+import {Router} from '@angular/router';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {ResultsApiService} from '@core/services/api/results-api.service';
+import {NavigationService} from '@core/services';
+import {NodeResultSummary} from '@core/models';
+import {firstValueFrom} from 'rxjs';
 
 @Component({
   selector: 'app-results-overview',

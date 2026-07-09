@@ -1,21 +1,33 @@
-import { Component, computed, effect, HostListener, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  HostListener,
+  inject,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 
-import { FormsModule } from '@angular/forms';
-import { NavigationService, ToastService } from '@core/services';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { SystemStatusService } from '@core/services/system-status.service';
-import { AuthService } from '@core/services/auth.service';
-import { DagApiService } from '@core/services/api/dag-api.service';
-import { ConfigTransferService } from '@core/services/api/config-transfer.service';
-import { ConfigExport, ConfigValidationResponse } from '@core/models/config.model';
-import { ConfigImportDialogComponent } from './components/config-import-dialog/config-import-dialog.component';
-import { FlowCanvasComponent } from './components/flow-canvas/flow-canvas.component';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { CanvasEditStoreService } from '@features/settings/services/canvas-edit-store.service';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { DialogService } from '@core/services/dialog.service';
-import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
-import { HasUnsavedChanges } from '@core/guards/unsaved-changes.guard';
+import {FormsModule} from '@angular/forms';
+import {NavigationService, ToastService} from '@core/services';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {SystemStatusService} from '@core/services/system-status.service';
+import {AuthService} from '@core/services/auth.service';
+import {DagApiService} from '@core/services/api/dag-api.service';
+import {ConfigTransferService} from '@core/services/api/config-transfer.service';
+import {ConfigExport, ConfigValidationResponse} from '@core/models/config.model';
+import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
+import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
+import {SettingsPreviewPanelComponent} from './components/preview-panel/settings-preview-panel.component';
+import {CanvasNode} from './components/flow-canvas/node/flow-canvas-node.component';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {CanvasEditStoreService} from '@features/settings/services/canvas-edit-store.service';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {DialogService} from '@core/services/dialog.service';
+import {NodePluginRegistry} from '@core/services/node-plugin-registry.service';
+import {HasUnsavedChanges} from '@core/guards/unsaved-changes.guard';
 
 @Component({
   selector: 'app-settings',
@@ -23,7 +35,7 @@ import { HasUnsavedChanges } from '@core/guards/unsaved-changes.guard';
   styleUrl: './settings.component.css',
   providers: [CanvasEditStoreService],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, SynergyComponentsModule, ConfigImportDialogComponent, FlowCanvasComponent],
+  imports: [FormsModule, SynergyComponentsModule, ConfigImportDialogComponent, FlowCanvasComponent, SettingsPreviewPanelComponent],
 })
 export class SettingsComponent implements OnInit, HasUnsavedChanges {
   protected auth = inject(AuthService);
@@ -57,6 +69,22 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
   protected validationResult = signal<ConfigValidationResponse | null>(null);
   protected pendingImportConfig = signal<ConfigExport | null>(null);
   protected importMergeMode = signal(false);
+
+  // Preview panel state
+  protected previewOpen = signal(false);
+  protected previewWidth = signal(400);
+  private _dividerDragging = false;
+  private _dividerStartX = 0;
+  private _dividerStartWidth = 0;
+
+  private readonly previewPanel = viewChild(SettingsPreviewPanelComponent);
+
+  /** Set of node IDs currently being previewed — passed to flow canvas for visual feedback */
+  readonly previewedNodeIds = computed(() => {
+    const panel = this.previewPanel();
+    if (!panel) return new Set<string>();
+    return new Set(panel.previewTopics().map((t) => t.nodeId));
+  });
 
   private navService = inject(NavigationService);
   private configTransfer = inject(ConfigTransferService);
@@ -242,5 +270,78 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
         this.isImporting.set(false);
       },
     });
+  }
+
+  // -- Preview panel node toggle --
+
+  onToggleNodePreview(node: CanvasNode): void {
+    const panel = this.previewPanel();
+    if (!panel) {
+      // Auto-open preview when first node is added
+      this.previewOpen.set(true);
+      // Need to wait for panel to render
+      setTimeout(() => this._toggleNodeInPreview(node), 0);
+      return;
+    }
+    this._toggleNodeInPreview(node);
+  }
+
+  private _toggleNodeInPreview(node: CanvasNode): void {
+    const panel = this.previewPanel();
+    if (!panel) return;
+
+    if (panel.isNodePreviewed(node.id)) {
+      const topic = this._deriveTopicName(node);
+      panel.removePreviewTopic(topic);
+    } else {
+      const topic = this._deriveTopicName(node);
+      panel.addPreviewTopic(node.id, node.data.name || node.id, topic);
+      // Auto-open preview panel if closed
+      if (!this.previewOpen()) {
+        this.previewOpen.set(true);
+      }
+    }
+  }
+
+  /**
+   * Derive the WebSocket topic name from a node config.
+   * Matches backend logic: slugify(node_name) + "_" + node_id[:8]
+   */
+  private _deriveTopicName(node: CanvasNode): string {
+    const name = node.data.name || node.id;
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9_\-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+    const idPrefix = node.data.id ? node.data.id.slice(0, 8) : node.id.slice(0, 8);
+    return `${slug}_${idPrefix}`;
+  }
+
+  // -- Preview panel divider resize --
+
+  onDividerDown(event: PointerEvent) {
+    event.preventDefault();
+    this._dividerDragging = true;
+    this._dividerStartX = event.clientX;
+    this._dividerStartWidth = this.previewWidth();
+    (event.target as HTMLElement).setPointerCapture(event.pointerId);
+
+    const onMove = (e: PointerEvent) => {
+      if (!this._dividerDragging) return;
+      const delta = this._dividerStartX - e.clientX;
+      const newWidth = Math.max(250, Math.min(800, this._dividerStartWidth + delta));
+      this.previewWidth.set(newWidth);
+    };
+
+    const onUp = (e: PointerEvent) => {
+      this._dividerDragging = false;
+      (e.target as HTMLElement)?.releasePointerCapture?.(e.pointerId);
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
+
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
   }
 }

@@ -1,4 +1,4 @@
-import {Component, computed, inject, OnInit, signal, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, OnInit, signal} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NavigationService, ToastService} from '@core/services';
 import {AdminApiService, NodeTypeRecord} from '@core/services/api/admin-api.service';

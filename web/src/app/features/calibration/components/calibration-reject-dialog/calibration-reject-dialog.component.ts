@@ -1,4 +1,4 @@
-import {Component, computed, input, output, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, input, output} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CalibrationNodeStatus} from '@core/models';
 

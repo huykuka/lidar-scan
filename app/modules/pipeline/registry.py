@@ -21,6 +21,7 @@ from .operations.coordinate_transform import registry as coordinate_transform_re
 from .operations.edge_detection import registry as edge_detection_registry
 from .operations.plane_projection import registry as plane_projection_registry
 from .operations.range_image import registry as range_image_registry
+from .operations.centroid_calculation import registry as centroid_calculation_registry
 
 __all__ = [
     "crop_registry",
@@ -39,4 +40,5 @@ __all__ = [
     "edge_detection_registry",
     "plane_projection_registry",
     "range_image_registry",
+    "centroid_calculation_registry",
 ]

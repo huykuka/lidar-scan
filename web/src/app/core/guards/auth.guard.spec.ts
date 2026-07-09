@@ -1,10 +1,9 @@
 import {TestBed} from '@angular/core/testing';
-import {Router} from '@angular/router';
+import {provideRouter, Router} from '@angular/router';
 import {serviceGuard} from './auth.guard';
 import {AuthService} from '@core/services/auth.service';
 import {provideHttpClient} from '@angular/common/http';
 import {provideHttpClientTesting} from '@angular/common/http/testing';
-import {provideRouter} from '@angular/router';
 
 describe('serviceGuard', () => {
   let auth: AuthService;

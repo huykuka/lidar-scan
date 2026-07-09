@@ -71,6 +71,7 @@ class VisionarySensor(ModuleNode):
 
         self._process: Optional[mp.Process] = None
         self._stop_event: Optional[mp.Event] = None
+        self._cycle_time_ms: Optional[float] = None  # last frame processing duration
 
     def set_pose(self, pose: Pose) -> "VisionarySensor":
         """Set the sensor pose and recompute the transformation matrix."""
@@ -242,9 +243,8 @@ class VisionarySensor(ModuleNode):
                 else:
                     points = compact
 
-                transformed_points = await asyncio.to_thread(
-                    transform_points, points, self.transformation
-                )
+                _frame_start = time.monotonic()
+                transformed_points = transform_points(points, self.transformation)
                 payload["points"] = transformed_points
 
                 frame_count = runtime_status.get(self.id, {}).get("frame_count", 0)
@@ -255,6 +255,7 @@ class VisionarySensor(ModuleNode):
                     )
 
                 asyncio.create_task(self.manager.forward_data(self.id, payload))
+                self._cycle_time_ms = (time.monotonic() - _frame_start) * 1000
 
         except Exception as exc:
             logger.error(f"Error handling data for {self.id}: {exc}", exc_info=True)
@@ -300,4 +301,5 @@ class VisionarySensor(ModuleNode):
                 color=app_color,
             ),
             error_message=last_error,
+            cycle_time_ms=round(self._cycle_time_ms, 1) if self._cycle_time_ms is not None else None,
         )

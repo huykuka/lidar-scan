@@ -9,17 +9,18 @@
     <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-500"
       >Sensor Pose</span
     >
-    <syn-button
-      variant="text"
-      size="small"
-      type="button"
-      title="Reset all pose values to zero"
-      class="text-syn-color-primary-600"
-      (click)="resetPose()"
-    >
-      <syn-icon name="restart_alt" slot="prefix" />
-      <strong>Reset</strong>
-    </syn-button>
+    <syn-tooltip content="Reset all pose values to zero" [distance]="13" placement="top">
+      <syn-button
+        variant="text"
+        size="small"
+        type="button"
+        class="text-syn-color-primary-600"
+        (click)="resetPose()"
+      >
+        <syn-icon name="restart_alt" slot="prefix" />
+        <strong>Reset</strong>
+      </syn-button>
+    </syn-tooltip>
   </div>
 
   <!-- Position -->

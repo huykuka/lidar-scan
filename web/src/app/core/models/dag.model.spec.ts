@@ -4,7 +4,7 @@
  * and reloaded_node_ids fields introduced by the node-reload-improvement feature.
  */
 
-import type { DagConfigSaveResponse } from './dag.model';
+import type {DagConfigSaveResponse} from './dag.model';
 
 describe('DagConfigSaveResponse interface', () => {
   it('should accept reload_mode "selective" with reloaded_node_ids', () => {

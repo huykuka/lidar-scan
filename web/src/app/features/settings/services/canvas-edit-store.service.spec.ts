@@ -1,12 +1,12 @@
-import { TestBed } from '@angular/core/testing';
-import { CanvasEditStoreService } from './canvas-edit-store.service';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { DagApiService } from '@core/services/api/dag-api.service';
-import { ToastService } from '@core/services/toast.service';
-import { DialogService } from '@core/services/dialog.service';
-import { NodesApiService } from '@core/services/api/nodes-api.service';
-import { NodeConfig, Edge } from '@core/models/node.model';
-import { DagConfigResponse } from '@core/models/dag.model';
+import {TestBed} from '@angular/core/testing';
+import {CanvasEditStoreService} from './canvas-edit-store.service';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {DagApiService} from '@core/services/api/dag-api.service';
+import {ToastService} from '@core/services/toast.service';
+import {DialogService} from '@core/services/dialog.service';
+import {NodesApiService} from '@core/services/api/nodes-api.service';
+import {Edge, NodeConfig} from '@core/models/node.model';
+import {DagConfigResponse} from '@core/models/dag.model';
 
 // ---------------------------------------------------------------------------
 // Helpers

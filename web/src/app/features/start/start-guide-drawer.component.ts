@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { Router } from '@angular/router';
-import { SynIconComponent } from '@synergy-design-system/angular';
+import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
+import {Router} from '@angular/router';
+import {SynIconComponent} from '@synergy-design-system/angular';
 
-import { DrawerService } from '@core/services/drawer.service';
+import {DrawerService} from '@core/services/drawer.service';
 
 @Component({
   selector: 'app-start-guide-drawer',
@@ -45,35 +45,6 @@ import { DrawerService } from '@core/services/drawer.service';
   template: `
     <div class="w-full overflow-auto p-1 sm:p-2">
       <div class="w-full mx-auto space-y-5 sm:space-y-6">
-        <section class="rounded-2xl p-4 sm:p-6">
-          <div class="flex items-start gap-3 sm:gap-4">
-            <syn-icon class="text-syn-color-primary-700 text-2xl sm:text-3xl mt-1" name="hub" />
-            <div class="space-y-2">
-              <h3 class="text-lg sm:text-2xl font-bold text-syn-typography-color-text">
-                LiDAR Platform Guide
-              </h3>
-              <p class="text-sm sm:text-base leading-relaxed text-syn-typography-color-text">
-                Configure runtime and node graphs, calibrate sensors, monitor live streams, manage
-                recordings, inspect generated results, and debug execution from one interface.
-              </p>
-              <div class="flex flex-wrap gap-2 pt-1">
-                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium"
-                  >Realtime Streaming</span
-                >
-                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium"
-                  >Calibration</span
-                >
-                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium"
-                  >Results Explorer</span
-                >
-                <span class="guide-chip rounded-full px-2.5 py-1 text-xs font-medium"
-                  >Role Protected</span
-                >
-              </div>
-            </div>
-          </div>
-        </section>
-
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           <div
             (click)="navigateTo('/workspaces')"

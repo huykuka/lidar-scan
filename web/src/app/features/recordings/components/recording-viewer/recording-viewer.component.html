@@ -4,27 +4,31 @@
   <!-- Top bar: back button + cockpit toggle -->
   <div class="flex items-center gap-2 mb-3 shrink-0">
     <syn-button variant="outline" size="small" (click)="goBack()">
-      <syn-icon name="arrow_back" slot="prefix" />
+      <syn-icon name="arrow_back" slot="prefix"/>
       Recordings
-    </syn-button>
-    <div class="h-4 w-px bg-syn-color-neutral-300"></div>
-    <syn-button
-      (click)="toggleCockpit()"
-      size="small"
-      variant="text"
-    >
-      <syn-icon [name]="showCockpit() ? 'visibility_off' : 'visibility'" slot="prefix" />
-      {{ showCockpit() ? 'Hide Settings' : 'Show Settings' }}
     </syn-button>
   </div>
 
-  <div class="flex flex-col lg:flex-row gap-4 flex-1 h-full w-full min-h-0">
+  <div class="flex flex-col lg:flex-row gap-4 flex-1 w-full min-h-0">
     <!-- View Container (Main Area) -->
     <div
-      class="relative flex-1 min-h-100 bg-[#2a2a2b] rounded-2xl overflow-hidden border border-syn-color-neutral-300"
+      class="viewer-canvas-area relative rounded-2xl overflow-hidden border border-syn-color-neutral-300"
     >
-      <!-- 3D Canvas -->
-      <div #container class="h-full w-full bg-transparent"></div>
+      <!-- 3D Canvas (angular-three) -->
+      <ngt-canvas style="width:100%;height:100%;display:block">
+        <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
+          <ngts-points-buffer #pointBuf [positions]="positionsBuffer">
+            <ngt-points-material [size]="pointSize()" [color]="pointColor()" [sizeAttenuation]="true"/>
+          </ngts-points-buffer>
+        </app-threed-scene-graph>
+      </ngt-canvas>
+      <app-shared-viewport-overlay
+        [orientation]="viewOrientation()"
+        [showGrid]="showGrid()"
+        [hasData]="currentFrame() > 0"
+        (orientationChange)="viewOrientation.set($event)"
+        (gridToggle)="showGrid.set($event)"
+      />
 
       <!-- Download progress overlay -->
       @if (isDownloading()) {
@@ -40,11 +44,11 @@
 
       <!-- Playback HUD (Inside 3D View) -->
       <div
-        class="sticky px-4 pointer-events-none rounded-xl bottom-24"
+        class="sticky px-4 pointer-events-none rounded-xl bottom-24 w-full flex justify-center z-10"
         style="bottom: 1rem; width: 100%"
       >
         <div
-          class="flex items-center gap-4 w-full bg-syn-page-background-color pointer-events-auto rounded-xl px-4 py-2"
+          class="flex items-center gap-4 w-2/3 bg-syn-page-background-color pointer-events-auto rounded-xl px-4 py-2"
         >
           <!-- Play Button -->
           <syn-button
@@ -53,7 +57,7 @@
             size="small"
             variant="outline"
           >
-            <syn-icon [name]="isPlaying() ? 'pause' : 'play_arrow'" slot="prefix" />
+            <syn-icon [name]="isPlaying() ? 'pause' : 'play_arrow'" slot="prefix"/>
             {{ isPlaying() ? 'Pause' : 'Play' }}
           </syn-button>
 
@@ -79,118 +83,97 @@
         </div>
       </div>
     </div>
-    <!-- Sidebar Cockpit -->
-    <div
-      [ngClass]="showCockpit() ? 'w-[360px] opacity-100' : 'w-0 opacity-0 -ml-4'"
-      class="hidden lg:block overflow-hidden transition-all duration-500 ease-in-out shrink-0"
-    >
-      <div class="flex flex-col gap-4 w-[360px] h-full overflow-y-auto pr-1">
-        <!-- Metadata -->
-        <div class="bg-syn-page-background-color p-6 rounded-2xl border shadow-sm">
-          <div class="flex items-center gap-2 mb-4">
-            <syn-icon class="text-syn-color-primary-600" name="info" />
-            <h3 class="text-[12px] font-black uppercase tracking-widest">Metadata</h3>
-          </div>
-          <div class="space-y-3">
-            <div class="flex justify-between border-b border-syn-color-neutral-50 pb-2">
-              <span
-                class="text-[11px] font-bold text-syn-color-neutral-400 uppercase tracking-tight"
-                >Name</span
-              >
-              <span
-                class="text-[11px] font-black text-syn-color-neutral-900 truncate max-w-[180px]"
-                >{{ recordingName() }}</span
-              >
-            </div>
-            <div class="flex justify-between border-b border-syn-color-neutral-50 pb-2">
-              <span
-                class="text-[11px] font-bold text-syn-color-neutral-400 uppercase tracking-tight"
-                >Timeline</span
-              >
-              <span class="text-[11px] font-black text-syn-color-neutral-900"
-                >{{ duration().toFixed(1) }}s</span
-              >
-            </div>
-            <div class="flex justify-between">
-              <span
-                class="text-[11px] font-bold text-syn-color-neutral-400 uppercase tracking-tight"
-                >Capacity</span
-              >
-              <span class="text-[11px] font-black text-syn-color-neutral-900"
-                >{{ frameCount() }} frames</span
-              >
-            </div>
-          </div>
-        </div>
-
-        <!-- Appearance -->
-        <div class="bg-syn-page-background-color p-6 rounded-2xl border shadow-sm">
-          <div class="flex items-center gap-2 mb-6">
-            <syn-icon class="text-syn-color-primary-600" name="blur_on" />
-            <h3 class="text-[12px] font-black uppercase tracking-widest">Appearance</h3>
+    <!-- Settings panel (workspace style) -->
+    <aside class="workspace-settings-panel shrink-0">
+      <syn-tooltip
+        [content]="showCockpit() ? 'Collapse settings' : 'Expand settings'"
+        [distance]="13"
+        placement="left"
+      >
+        <button
+          class="settings-toggle"
+          (click)="showCockpit.set(!showCockpit())"
+        >
+          <syn-icon [name]="showCockpit() ? 'chevron_right' : 'chevron_left'" class="settings-toggle__icon"></syn-icon>
+        </button>
+      </syn-tooltip>
+      <div class="settings-content">
+        <div class="panel">
+          <!-- Metadata -->
+          <div class="panel__header">
+            <syn-icon class="panel__icon" name="info"/>
+            <h3 class="panel__title">Recording Info</h3>
           </div>
 
-          <div class="flex flex-col space-y-6">
-            <div class="space-y-2">
-              <div class="flex justify-between">
-                <label class="text-[11px] font-bold text-syn-color-neutral-500 uppercase"
-                  >Point Size</label
-                >
-                <syn-badge pill size="small" variant="neutral"
-                  >{{ pointSize() | number: '1.2-2' }}
-                </syn-badge>
-              </div>
-              <syn-range
-                (syn-input)="pointSize.set(+$any($event.target).value)"
-                [max]="0.3"
-                [min]="0.01"
-                [step]="0.01"
-                [value]="pointSize().toString()"
-              />
+          <div class="metadata-grid">
+            <div class="metadata-row">
+              <span class="section-label">Name</span>
+              <span class="metadata-value">{{ recordingName() }}</span>
             </div>
+            <div class="metadata-row">
+              <span class="section-label">Timeline</span>
+              <span class="metadata-value">{{ duration().toFixed(1) }}s</span>
+            </div>
+            <div class="metadata-row">
+              <span class="section-label">Capacity</span>
+              <span class="metadata-value">{{ frameCount() }} frames</span>
+            </div>
+          </div>
 
-            <div
-              class="flex items-center justify-between p-3 bg-syn-color-neutral-50 rounded-xl border border-syn-color-neutral-100"
-            >
-              <span class="text-[11px] font-bold text-syn-color-neutral-500 uppercase"
-                >Render Color</span
-              >
-              <div class="relative w-8 h-8 rounded-lg overflow-hidden border shadow-sm">
+          <div class="panel-divider"></div>
+
+          <!-- Appearance -->
+          <div class="panel__header">
+            <syn-icon class="panel__icon" name="blur_on"/>
+            <h3 class="panel__title">Appearance</h3>
+          </div>
+
+          <div class="control-group">
+            <div class="control-row">
+              <span class="section-label">Point Size</span>
+              <syn-badge size="small" variant="neutral">{{ pointSize() | number: '1.2-2' }}</syn-badge>
+            </div>
+            <syn-range
+              (synChangeEvent)="pointSize.set(+$any($event.target).value)"
+              [max]="0.3"
+              [min]="0.01"
+              [step]="0.01"
+              [value]="pointSize().toString()"
+            />
+          </div>
+
+          <div class="control-group">
+            <div class="flex flex-col">
+              <span class="section-label">Render Color</span>
+              <div class="relative w-6 h-6 rounded overflow-hidden border border-syn-panel-border-color shrink-0">
                 <input
+                  dir="rtl"
                   (input)="pointColor.set($any($event.target).value)"
                   [value]="pointColor()"
-                  class="absolute inset-0 w-full h-full p-0 border-0 bg-transparent cursor-pointer scale-150"
+                  class="absolute inset-0 w-full p-0 border-0 bg-transparent cursor-pointer scale-150"
                   type="color"
                 />
               </div>
             </div>
           </div>
+
+          <div class="control-group">
+            <div class="control-row">
+              <span class="section-label">Intensity</span>
+            </div>
+            <syn-range
+              (syn-input)="minIntensity.set(+$any($event.target).value)"
+              [max]="255"
+              [min]="0"
+              [step]="1"
+              [value]="minIntensity().toString()"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </aside>
   </div>
 
-  <!-- Mobile Settings -->
-  <syn-drawer
-    (syn-hide)="closeCockpit()"
-    [open]="showCockpit()"
-    class="lg:hidden"
-    label="Playback Settings"
-    placement="end"
-  >
-    <div class="p-6 space-y-6">
-      <div class="space-y-2">
-        <label class="text-xs font-bold text-syn-color-neutral-500 uppercase">Point size</label>
-        <syn-range
-          (syn-input)="pointSize.set(+$any($event.target).value)"
-          [max]="0.3"
-          [min]="0.01"
-          [step]="0.01"
-          [value]="pointSize().toString()"
-        />
-      </div>
-    </div>
-  </syn-drawer>
 
   <!-- Error Alerts -->
   @if (error()) {
@@ -204,8 +187,8 @@
         open
         variant="danger"
       >
-        <syn-icon name="error" slot="icon" />
-        <strong>Decoding interrupt</strong><br />{{ error() }}
+        <syn-icon name="error" slot="icon"/>
+        <strong>Decoding interrupt</strong><br/>{{ error() }}
       </syn-alert>
     </div>
   }

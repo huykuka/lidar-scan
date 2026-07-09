@@ -7,12 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.db.models import get_db
 from .dto import (
-    StartRecordingRequest, RecordingResponse, ListRecordingsResponse
+    StartRecordingRequest, RecordingResponse, ListRecordingsResponse, RenameRecordingRequest
 )
 from .service import (
     start_recording, stop_recording, list_recordings, get_recording,
     delete_recording, download_recording, get_recording_viewer_info,
-    get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording
+    get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording,
+    rename_recording
 )
 
 # Router configuration
@@ -105,6 +106,24 @@ async def recordings_get_endpoint(
         db: Annotated[Session, Depends(get_db)]
 ):
     return await get_recording(recording_id, db)
+
+
+@router.patch(
+    "/recordings/{recording_id}/rename",
+    response_model=RecordingResponse,
+    responses={
+        404: {"description": "Recording not found"},
+        500: {"description": "Internal server error"},
+    },
+    summary="Rename Recording",
+    description="Update the display name of a recording.",
+)
+async def recordings_rename_endpoint(
+        recording_id: str,
+        request: RenameRecordingRequest,
+        db: Annotated[Session, Depends(get_db)]
+):
+    return await rename_recording(recording_id, request.name, db)
 
 
 @router.delete(

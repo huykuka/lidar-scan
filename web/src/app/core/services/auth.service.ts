@@ -1,7 +1,6 @@
-import { Injectable, signal, computed, inject } from '@angular/core';
+import {computed, inject, Injectable, signal} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
-import {firstValueFrom} from 'rxjs';
-import {catchError, of} from 'rxjs';
+import {catchError, firstValueFrom, of} from 'rxjs';
 import {environment} from '@env/environment';
 
 export type UserRole = 'user' | 'admin' | 'service';

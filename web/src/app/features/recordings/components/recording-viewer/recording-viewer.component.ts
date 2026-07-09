@@ -1,26 +1,28 @@
 import {
-  AfterViewInit,
+  ChangeDetectionStrategy,
   Component,
   computed,
+  CUSTOM_ELEMENTS_SCHEMA,
   effect,
-  ElementRef,
   inject,
   OnDestroy,
   OnInit,
   signal,
   viewChild,
-  ChangeDetectionStrategy
 } from '@angular/core';
-import { NgClass, DecimalPipe } from '@angular/common';
-import { ActivatedRoute, Router } from '@angular/router';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { RecordingApiService } from '@core/services/api/recording-api.service';
-import { NavigationService } from '@core/services';
-import { RecordingViewerInfo } from '@core/models';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { FormsModule } from '@angular/forms';
+import {DecimalPipe} from '@angular/common';
+import {ActivatedRoute, Router} from '@angular/router';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {RecordingApiService} from '@core/services/api/recording-api.service';
+import {NavigationService} from '@core/services';
+import {RecordingViewerInfo} from '@core/models';
+import {FormsModule} from '@angular/forms';
 import JSZip from 'jszip';
+
+import {NgtsPointsBuffer} from 'angular-three-soba/performances';
+import {NgtCanvas, NgtCanvasImpl} from 'angular-three/dom';
+import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
+import {ViewOrientation} from '@core/services/split-layout-store.service';
 
 interface PCDData {
   points: Float32Array;
@@ -28,16 +30,28 @@ interface PCDData {
   count: number;
 }
 
+const MAX_POINTS = 250_000;
+
 @Component({
   selector: 'app-recording-viewer',
-  imports: [SynergyComponentsModule, FormsModule, DecimalPipe, NgClass],
+  imports: [
+    SynergyComponentsModule,
+    FormsModule,
+    DecimalPipe,
+    NgtCanvas,
+    ThreedSceneGraphComponent,
+    NgtsPointsBuffer,
+    NgtCanvasImpl,
+    ViewportOverlayComponent,
+  ],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './recording-viewer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { style: 'display:flex;flex-direction:column;flex:1;min-height:0;width:100%' },
   styleUrl: './recording-viewer.component.css',
 })
-export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestroy {
-  readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
-  // State
+export class RecordingViewerComponent implements OnInit, OnDestroy {
+  // ── State ──────────────────────────────────────────────────────────────────
   recordingId = signal<string | null>(null);
   recordingName = signal<string>('Loading...');
   info = signal<RecordingViewerInfo | null>(null);
@@ -47,15 +61,17 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   playbackSpeed = signal(1.0);
   error = signal<string | null>(null);
   isDownloading = signal(false);
-  downloadProgress = signal<number>(-1); // -1 = indeterminate, 0-100 = progress
-  // Display Settings
+  downloadProgress = signal<number>(-1);
+
+  // ── Display settings ───────────────────────────────────────────────────────
   pointSize = signal(0.05);
-  pointColor = signal('#3b82f6');
+  pointColor = signal('red');
   showGrid = signal(true);
-  showAxes = signal(true);
+  viewOrientation = signal<ViewOrientation>('perspective');
   minIntensity = signal(0);
   showCockpit = signal(true);
-  // Computed
+
+  // ── Computed ───────────────────────────────────────────────────────────────
   frameCount = computed(() => this.info()?.frame_count ?? 0);
   duration = computed(() => this.info()?.duration_seconds ?? 0);
   currentTime = computed(() => {
@@ -63,83 +79,58 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     const dur = this.duration();
     return fc > 0 ? (this.currentFrame() / fc) * dur : 0;
   });
+
+  // ── Services ───────────────────────────────────────────────────────────────
   private recordingApi = inject(RecordingApiService);
   private navService = inject(NavigationService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
-  // Archive handle
+
+  // ── Archive / worker ───────────────────────────────────────────────────────
   private zip: JSZip | null = null;
   private decodingWorker: Worker | null = null;
   private frameCache = new Map<number, PCDData>();
   private readonly MAX_CACHE_SIZE = 200;
   private framesLoading = new Set<number>();
-  private lastPCDData: PCDData | null = null;
-  // Three.js objects
-  private scene!: THREE.Scene;
-  private camera!: THREE.PerspectiveCamera;
-  private renderer!: THREE.WebGLRenderer;
-  private controls!: OrbitControls;
-  private pointCloud: THREE.Points | null = null;
-  private gridHelper: THREE.GridHelper | null = null;
-  private axesHelper: THREE.AxesHelper | null = null;
-  private animationFrameId: number | null = null;
-  private playbackInterval: number | null = null;
+  private lastFrameData: PCDData | null = null;
+
+  // ── Point cloud buffer ─────────────────────────────────────────────────────
+  protected readonly positionsBuffer = new Float32Array(MAX_POINTS * 3);
+  private readonly pointsBufferRef = viewChild<NgtsPointsBuffer>('pointBuf');
 
   constructor() {
-    // Initialize Web Worker for PCD decoding
     this.decodingWorker = new Worker(new URL('./pcd-decoder.worker.ts', import.meta.url), {
       type: 'module',
     });
 
-    // Update visualization when current frame changes
     effect(() => {
       const frame = this.currentFrame();
       this.ensureFrameBuffered(frame);
-
       if (this.frameCache.has(frame)) {
-        this.updatePointCloud(this.frameCache.get(frame)!);
+        this.applyFrame(this.frameCache.get(frame)!);
       }
     });
 
-    // Proactive buffering logic
+    effect(() => {
+      this.minIntensity();
+      if (this.lastFrameData) this.applyFrame(this.lastFrameData);
+    });
+
     effect(() => {
       if (this.isPlaying()) {
         const current = this.currentFrame();
         for (let i = 1; i <= 20; i++) {
           const ahead = current + i;
-          if (ahead < this.frameCount()) {
-            this.ensureFrameBuffered(ahead);
-          }
+          if (ahead < this.frameCount()) this.ensureFrameBuffered(ahead);
         }
       }
     });
-
-    // React to display settings
-    effect(() => {
-      const size = this.pointSize();
-      const color = this.pointColor();
-      const grid = this.showGrid();
-      const axes = this.showAxes();
-
-      if (this.pointCloud) {
-        (this.pointCloud.material as THREE.PointsMaterial).size = size;
-        (this.pointCloud.material as THREE.PointsMaterial).color.set(color);
-      }
-
-      if (this.gridHelper) this.gridHelper.visible = grid;
-      if (this.axesHelper) this.axesHelper.visible = axes;
-
-      // Re-render if intensity changes
-      if (this.lastPCDData) {
-        this.updatePointCloud(this.lastPCDData);
-      }
-    });
   }
 
+  // ── Public API ─────────────────────────────────────────────────────────────
   toggleCockpit() {
     this.showCockpit.set(!this.showCockpit());
   }
-
   closeCockpit() {
     this.showCockpit.set(false);
   }
@@ -154,36 +145,21 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     }
   }
 
-  ngAfterViewInit() {
-    this.initThreeJS();
-    this.animate();
-  }
-
   ngOnDestroy() {
     if (this.decodingWorker) {
       this.decodingWorker.terminate();
       this.decodingWorker = null;
     }
-
     this.stopPlayback();
-
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-
-    this.cleanupThreeJS();
     this.frameCache.clear();
   }
 
   onPlay() {
     this.isPlaying() ? this.stopPlayback() : this.startPlayback();
   }
-
   onSeek(e: any) {
     this.currentFrame.set(parseInt(e.target.value, 10));
   }
-
   goBack() {
     this.router.navigate(['/recordings']);
   }
@@ -194,76 +170,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     return `${m}:${r.toString().padStart(2, '0')}`;
   }
 
-  private cleanupThreeJS() {
-    if (this.pointCloud) {
-      this.pointCloud.geometry.dispose();
-      (this.pointCloud.material as THREE.Material).dispose();
-      this.pointCloud = null;
-    }
-
-    if (this.gridHelper) {
-      this.gridHelper.geometry.dispose();
-      (this.gridHelper.material as THREE.Material).dispose();
-    }
-
-    if (this.axesHelper) {
-      this.axesHelper.geometry.dispose();
-      (this.axesHelper.material as THREE.Material).dispose();
-    }
-
-    this.renderer?.dispose();
-    this.controls?.dispose();
-  }
-
-  private initThreeJS() {
-    const container = this.containerRef().nativeElement;
-
-    this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a0b); // Deeper dark
-
-    const width = container.clientWidth || 800;
-    const height = container.clientHeight || 600;
-
-    this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    this.camera.position.set(20, 20, 20);
-    this.camera.lookAt(0, 0, 0);
-
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
-    container.appendChild(this.renderer.domElement);
-
-    this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.05;
-
-    // Helpers
-    this.gridHelper = new THREE.GridHelper(40, 40, 0x334155, 0x1e293b);
-    this.gridHelper.rotation.x = 0;
-    this.gridHelper.visible = this.showGrid();
-    this.scene.add(this.gridHelper);
-
-    this.axesHelper = new THREE.AxesHelper(10);
-    this.axesHelper.visible = this.showAxes();
-    this.scene.add(this.axesHelper);
-
-    const resizeObserver = new ResizeObserver(() => {
-      window.requestAnimationFrame(() => {
-        if (!container || container.clientWidth <= 0 || container.clientHeight <= 0) return;
-        this.camera.aspect = container.clientWidth / container.clientHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(container.clientWidth, container.clientHeight);
-      });
-    });
-    resizeObserver.observe(container);
-  }
-
-  private animate = () => {
-    this.animationFrameId = requestAnimationFrame(this.animate);
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
-  };
-
+  // ── Data loading ───────────────────────────────────────────────────────────
   private loadRecordingInfo(id: string) {
     this.isLoading.set(true);
     this.error.set(null);
@@ -333,7 +240,7 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
       await this.loadSingleFrame(frameIndex);
       this.framesLoading.delete(frameIndex);
       if (frameIndex === this.currentFrame()) {
-        this.updatePointCloud(this.frameCache.get(frameIndex)!);
+        this.applyFrame(this.frameCache.get(frameIndex)!);
       }
     } catch (err) {
       this.framesLoading.delete(frameIndex);
@@ -363,49 +270,51 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
     });
   }
 
-  private updatePointCloud(pcdData: PCDData) {
-    this.lastPCDData = pcdData;
+  // ── Point cloud update ─────────────────────────────────────────────────────
+  private applyFrame(pcdData: PCDData) {
+    this.lastFrameData = pcdData;
 
-    // Filtering
     const threshold = this.minIntensity();
-    let finalPoints: Float32Array;
-    let count = 0;
+    let src = pcdData.points;
+    let count = pcdData.count;
 
     if (threshold > 0) {
       const tmp = new Float32Array(pcdData.points.length);
+      let outIdx = 0;
       for (let i = 0; i < pcdData.count; i++) {
         if (pcdData.intensities[i] >= threshold) {
-          tmp[count * 3] = pcdData.points[i * 3];
-          tmp[count * 3 + 1] = pcdData.points[i * 3 + 1];
-          tmp[count * 3 + 2] = pcdData.points[i * 3 + 2];
-          count++;
+          tmp[outIdx * 3] = pcdData.points[i * 3];
+          tmp[outIdx * 3 + 1] = pcdData.points[i * 3 + 1];
+          tmp[outIdx * 3 + 2] = pcdData.points[i * 3 + 2];
+          outIdx++;
         }
       }
-      finalPoints = tmp.slice(0, count * 3);
-    } else {
-      finalPoints = pcdData.points;
-      count = pcdData.count;
+      src = tmp;
+      count = outIdx;
     }
 
-    if (this.pointCloud) {
-      this.scene.remove(this.pointCloud);
-      this.pointCloud.geometry.dispose();
-      (this.pointCloud.material as THREE.Material).dispose();
+    const actualCount = Math.min(count, MAX_POINTS);
+    this.positionsBuffer.set(src.subarray(0, actualCount * 3));
+
+    const buf = this.pointsBufferRef();
+    const points = buf?.pointsRef()?.nativeElement;
+    if (!points) return;
+
+    if (actualCount === 0) {
+      points.visible = false;
+      return;
     }
+    points.visible = true;
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(finalPoints, 3));
-    const material = new THREE.PointsMaterial({
-      size: this.pointSize(),
-      color: new THREE.Color(this.pointColor()),
-      sizeAttenuation: true,
-    });
-
-    this.pointCloud = new THREE.Points(geometry, material);
-    this.pointCloud.rotation.x = -Math.PI / 2;
-    this.pointCloud.rotation.z = -Math.PI / 2;
-    this.scene.add(this.pointCloud);
+    const geo = points.geometry;
+    if (!geo) return;
+    geo.setDrawRange(0, actualCount);
+    const attr = geo.attributes['position'];
+    if (attr) attr.needsUpdate = true;
   }
+
+  // ── Playback ───────────────────────────────────────────────────────────────
+  private playbackInterval: number | null = null;
 
   private startPlayback() {
     this.isPlaying.set(true);
@@ -426,5 +335,6 @@ export class RecordingViewerComponent implements OnInit, AfterViewInit, OnDestro
   private stopPlayback() {
     this.isPlaying.set(false);
     if (this.playbackInterval) clearInterval(this.playbackInterval);
+    this.playbackInterval = null;
   }
 }

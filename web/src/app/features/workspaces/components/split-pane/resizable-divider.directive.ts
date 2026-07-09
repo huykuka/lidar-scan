@@ -1,13 +1,5 @@
-import {
-  Directive,
-  ElementRef,
-  HostBinding,
-  HostListener,
-  inject,
-  input,
-  OnDestroy,
-} from '@angular/core';
-import { SplitLayoutStoreService, SplitAxis } from '@core/services/split-layout-store.service';
+import {Directive, ElementRef, HostBinding, HostListener, inject, input, OnDestroy,} from '@angular/core';
+import {SplitAxis, SplitLayoutStoreService} from '@core/services/split-layout-store.service';
 
 /**
  * Drag-to-resize directive placed on the divider element between two panes.

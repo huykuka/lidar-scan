@@ -1,6 +1,6 @@
-import { Component, computed, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { SystemStatusService } from '@core/services/system-status.service';
+import {ChangeDetectionStrategy, Component, computed, inject, output, signal} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {SystemStatusService} from '@core/services/system-status.service';
 
 /**
  * System notices / error badge.

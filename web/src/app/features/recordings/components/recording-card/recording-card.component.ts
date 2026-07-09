@@ -1,8 +1,16 @@
-import {Component, signal, input, output, ChangeDetectionStrategy} from '@angular/core';
-import {DatePipe} from '@angular/common';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {Recording} from '@core/models';
-import {environment} from '@env/environment';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { Recording } from '@core/models';
+import { environment } from '@env/environment';
 
 @Component({
   selector: 'app-recording-card',
@@ -22,6 +30,43 @@ export class RecordingCardComponent {
   readonly play = output<Recording>();
   readonly download = output<Recording>();
   readonly delete = output<Recording>();
+  readonly rename = output<{ recording: Recording; name: string }>();
+
+  protected isRenaming = signal(false);
+  protected renameValue = signal('');
+  private readonly renameInputRef = viewChild<ElementRef<HTMLInputElement>>('renameInput');
+
+  protected startRename(event: Event): void {
+    event.stopPropagation();
+    this.renameValue.set(this.recording().name);
+    this.isRenaming.set(true);
+    setTimeout(() => {
+      const el = this.renameInputRef()?.nativeElement;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    });
+  }
+
+  protected commitRename(event: Event): void {
+    event.stopPropagation();
+    const name = this.renameValue().trim();
+    if (name && name !== this.recording().name) {
+      this.rename.emit({ recording: this.recording(), name });
+    }
+    this.isRenaming.set(false);
+  }
+
+  protected cancelRename(event: Event): void {
+    event.stopPropagation();
+    this.isRenaming.set(false);
+  }
+
+  protected onRenameKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') this.commitRename(event);
+    else if (event.key === 'Escape') this.cancelRename(event);
+  }
 
   // Thumbnail state
   private failedThumbnails = signal<Set<string>>(new Set());

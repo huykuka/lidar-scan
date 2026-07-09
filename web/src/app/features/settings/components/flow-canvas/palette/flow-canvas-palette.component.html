@@ -1,10 +1,4 @@
-<div
-  [class.border-none]="isCollapsed()"
-  [class.w-0]="isCollapsed()"
-  [class.w-60]="!isCollapsed()"
-  class="bg-syn-page-background-color h-full flex flex-col relative transition-all duration-300 z-10"
-  style="background: var(--syn-color-neutral-0)"
->
+<div class="palette-shell h-full relative z-10 select-none">
   <!-- Collapse toggle -->
   <button
     (click)="isCollapsed.set(!isCollapsed())"
@@ -17,11 +11,10 @@
   </button>
 
   <div
-    [class.opacity-0]="isCollapsed()"
-    [class.opacity-100]="!isCollapsed()"
-    [class.pointer-events-none]="isCollapsed()"
-    class="flex-1 flex flex-col overflow-hidden w-60 transition-opacity duration-300 palette-body"
-    style="border-right: 1px solid var(--syn-color-neutral-300)"
+    [class.is-collapsed]="isCollapsed()"
+    [class.border-r]="!isCollapsed()"
+    class="palette-wrapper bg-syn-page-background-color h-full flex flex-col border-syn-color-neutral-300"
+    style="background: var(--syn-color-neutral-0)"
   >
     <!-- Search bar -->
     <div class="palette-search px-3 py-2 flex items-center gap-2">
@@ -51,7 +44,7 @@
         }
 
         @for (group of groupedPlugins(); track group.category) {
-          <!-- Category header — primary-tinted surface -->
+          <!-- Category header -->
           <div
             (click)="toggleCategory(group.category)"
             class="category-header flex items-center gap-2 px-3 py-1.5 cursor-pointer select-none transition-colors"
@@ -63,44 +56,33 @@
             <span class="category-label">{{ group.category }}</span>
           </div>
 
-          <!-- Nodes list -->
+          <!-- Node chips — each one is an fExternalItem so it can be dragged onto the canvas -->
           @if (isExpanded(group.category)) {
-            <div class="nodes-container p-3 grid grid-cols-1 gap-2">
-              @for (plugin of group.plugins; track plugin.type) {
-                <syn-tooltip [content]="plugin.description" placement="right">
-                  <div
-                    (dragend)="onPluginDragEnd.emit()"
-                    (dragstart)="onPluginDragStart.emit({ plugin: plugin.type, event: $event })"
-                    class="relative group cursor-grab active:cursor-grabbing"
-                    draggable="true"
-                  >
-                    <!-- Port decorators -->
-                    <div class="port-dot port-dot--left"></div>
-                    <div class="port-dot port-dot--right"></div>
-
-                    <!-- Node row -->
-                    <div class="node-row flex items-stretch h-8 overflow-hidden">
-                      <!-- Icon -->
-                      <div
-                        class="w-8 flex items-center justify-center shrink-0"
-                        [style.background-color]="plugin.style.color"
-                        style="border-right: 1px solid rgba(0, 0, 0, 0.12)"
-                      >
-                        <syn-icon
-                          [name]="plugin.icon || 'extension'"
-                          class="text-lg text-white/90 drop-shadow-sm"
-                        />
-                      </div>
-
-                      <!-- Label -->
-                      <div class="flex-1 flex items-center justify-center px-2 min-w-0">
-                        <span class="node-label truncate leading-none text-center px-1">
-                          {{ plugin.displayName }}
-                        </span>
-                      </div>
-                    </div>
+            <div class="nodes-container p-2 grid grid-cols-1 gap-1.5">
+              @for (plugin of group.plugins; track $index) {
+                <div
+                  fExternalItem
+                  [fData]="plugin.type"
+                  class="node-chip relative cursor-grab active:cursor-grabbing"
+                >
+                  <!-- Left accent strip — same pattern as canvas node card -->
+                  <span
+                    class="chip-accent"
+                    [style.background-color]="plugin.style.color"
+                    aria-hidden="true"
+                  ></span>
+                  <!-- Icon + name row -->
+                  <div class="chip-body flex items-center gap-2 px-2 py-1.5 min-w-0">
+                    <syn-icon
+                      [name]="plugin.icon || 'extension'"
+                      class="chip-icon text-[15px] shrink-0"
+                      [style.color]="plugin.style.color"
+                    />
+                    <span class="node-label truncate text-[11px] font-bold leading-none">
+                      {{ plugin.displayName }}
+                    </span>
                   </div>
-                </syn-tooltip>
+                </div>
               }
             </div>
           }

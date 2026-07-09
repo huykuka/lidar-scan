@@ -89,22 +89,5 @@ node_schema_registry.register(NodeDefinition(
 # --- Factory Builder ---
 @NodeFactory.register("range_image")
 def build(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
-    from app.modules.pipeline.operation_node import OperationNode
-
-    config = node.get("config", {})
-    op_config = config.copy()
-    op_config.pop("op_type", None)
-    throttle_ms = op_config.pop("throttle_ms", 100)
-    try:
-        throttle_ms = float(throttle_ms)
-    except (ValueError, TypeError):
-        throttle_ms = 100.0
-
-    return OperationNode(
-        manager=service_context,
-        node_id=node["id"],
-        op_type="range_image",
-        op_config=op_config,
-        name=node.get("name"),
-        throttle_ms=throttle_ms,
-    )
+    from app.modules.pipeline.operation_node import build_operation_node
+    return build_operation_node("range_image", node, service_context, default_throttle_ms=100.0)

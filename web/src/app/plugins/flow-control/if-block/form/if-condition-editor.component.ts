@@ -1,4 +1,4 @@
-import {Component, computed, inject, OnDestroy, OnInit, output, signal, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, output, signal} from '@angular/core';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';

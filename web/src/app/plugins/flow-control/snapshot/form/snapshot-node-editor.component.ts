@@ -1,13 +1,13 @@
-import { Component, computed, inject, output, signal, ChangeDetectionStrategy } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {ChangeDetectionStrategy, Component, computed, inject, output, signal} from '@angular/core';
+import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 
-import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
-import { NodeEditorComponent } from '@core/models/node-plugin.model';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { ToastService } from '@core/services/toast.service';
-import { NodeEditorHeaderComponent } from '@plugins/shared/node-editor-header/node-editor-header.component';
-import { NodeEditorFacadeService } from '@features/settings/services/node-editor-facade.service';
-import { environment } from '@env/environment';
+import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
+import {NodeEditorComponent} from '@core/models/node-plugin.model';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {ToastService} from '@core/services/toast.service';
+import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
+import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {environment} from '@env/environment';
 
 /**
  * Editor component for configuring Snapshot Nodes.

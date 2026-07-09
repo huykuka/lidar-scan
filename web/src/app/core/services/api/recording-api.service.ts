@@ -37,8 +37,8 @@ export class RecordingApiService {
    * List all recordings, optionally filtered by topic
    */
   listRecordings(topic?: string): Observable<ListRecordingsResponse> {
-    const params = topic ? {topic} : undefined;
-    return this.http.get<ListRecordingsResponse>(this.baseUrl, {params});
+    const params = topic ? { topic } : undefined;
+    return this.http.get<ListRecordingsResponse>(this.baseUrl, { params });
   }
 
   /**
@@ -65,14 +65,18 @@ export class RecordingApiService {
   }
 
   /**
+   * Rename a recording
+   */
+  renameRecording(recordingId: string, name: string): Observable<Recording> {
+    return this.http.patch<Recording>(`${this.baseUrl}/${recordingId}/rename`, { name });
+  }
+
+  /**
    * Download a recording zip using native fetch with progress reporting.
    * Returns a Promise that resolves to the Blob.
    * onProgress callback receives 0–100 (or -1 if Content-Length is absent).
    */
-  async getRecordingZip(
-    recordingId: string,
-    onProgress?: (pct: number) => void,
-  ): Promise<Blob> {
+  async getRecordingZip(recordingId: string, onProgress?: (pct: number) => void): Promise<Blob> {
     const url = `${this.baseUrl}/${recordingId}/download`;
 
     // Include auth token manually since we bypass HttpClient/interceptors

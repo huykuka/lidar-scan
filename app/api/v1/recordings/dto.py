@@ -56,3 +56,8 @@ class ListRecordingsResponse(BaseModel):
     """Response for listing recordings."""
     recordings: list[RecordingResponse]
     active_recordings: list[ActiveRecordingResponse]
+
+
+class RenameRecordingRequest(BaseModel):
+    """Request body for renaming a recording."""
+    name: str

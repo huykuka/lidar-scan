@@ -1,9 +1,9 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FlowCanvasNodeComponent, CanvasNode } from './flow-canvas-node.component';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { NodeStatusUpdate } from '@core/models/node-status.model';
-import { NodeDefinition } from '@core/models/node.model';
-import { By } from '@angular/platform-browser';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {CanvasNode, FlowCanvasNodeComponent} from './flow-canvas-node.component';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {NodeStatusUpdate} from '@core/models/node-status.model';
+import {NodeDefinition} from '@core/models/node.model';
+import {By} from '@angular/platform-browser';
 
 describe('FlowCanvasNodeComponent', () => {
   let component: FlowCanvasNodeComponent;

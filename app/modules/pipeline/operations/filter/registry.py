@@ -42,27 +42,14 @@ node_schema_registry.register(NodeDefinition(
 # --- Factory Builder ---
 @NodeFactory.register("filter_by_key")
 def build(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
-    from app.modules.pipeline.operation_node import OperationNode
-    config = node.get("config", {})
-    op_config = config.copy()
-    op_config.pop("op_type", None)
-    throttle_ms = op_config.pop("throttle_ms", 0)
-    try:
-        throttle_ms = float(throttle_ms)
-    except (ValueError, TypeError):
-        throttle_ms = 0.0
+    from app.modules.pipeline.operation_node import build_operation_node
 
-    # Translate operator setting to array format expected by FilterByKey
-    operator = op_config.pop("operator", "==")
-    val = op_config.get("value")
-    if operator != "==":
-        op_config["value"] = [operator, val]
+    def _translate_operator(cfg: Dict[str, Any]) -> Dict[str, Any]:
+        """Translate the UI ``operator`` field to the [op, val] tuple FilterByKey expects."""
+        operator = cfg.pop("operator", "==")
+        val = cfg.get("value")
+        if operator != "==":
+            cfg["value"] = [operator, val]
+        return cfg
 
-    return OperationNode(
-        manager=service_context,
-        node_id=node["id"],
-        op_type="filter_by_key",
-        op_config=op_config,
-        name=node.get("name"),
-        throttle_ms=throttle_ms,
-    )
+    return build_operation_node("filter_by_key", node, service_context, pre_process=_translate_operator)

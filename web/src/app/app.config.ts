@@ -5,17 +5,19 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { PreloadAllModules, provideRouter, withPreloading } from '@angular/router';
-import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
+import {provideNgtRenderer} from 'angular-three/dom';
+import {PreloadAllModules, provideRouter, withPreloading} from '@angular/router';
+import {provideHttpClient, withInterceptors, withXhr} from '@angular/common/http';
 
-import { routes } from './app.routes';
-import { authInterceptor } from './core/interceptors/auth.interceptor';
-import { httpToastInterceptor } from './core/interceptors/http-toast.interceptor';
-import { GlobalErrorHandler } from './core/errors/global-error.handler';
-import { AppInitService } from './core/services/app-init.service';
+import {routes} from './app.routes';
+import {authInterceptor} from '@core/interceptors/auth.interceptor';
+import {httpToastInterceptor} from '@core/interceptors/http-toast.interceptor';
+import {GlobalErrorHandler} from '@core/errors/global-error.handler';
+import {AppInitService} from '@core/services/app-init.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideNgtRenderer(),
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withPreloading(PreloadAllModules)),
     provideHttpClient(withXhr(), withInterceptors([authInterceptor, httpToastInterceptor])),

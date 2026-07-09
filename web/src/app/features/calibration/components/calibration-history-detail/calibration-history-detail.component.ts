@@ -1,4 +1,4 @@
-import {Component, computed, inject, input, output, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, input, output} from '@angular/core';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {CalibrationHistoryRecord} from '@core/models';

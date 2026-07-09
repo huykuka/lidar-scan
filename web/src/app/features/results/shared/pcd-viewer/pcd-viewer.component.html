@@ -1,26 +1,51 @@
 <div class="relative w-full h-full min-h-0">
-  <div #container class="w-full h-full min-h-0 bg-black rounded-md overflow-hidden"></div>
+  <ngt-canvas style="width:100%;height:100%;display:block">
+    <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
+      <ngts-points-buffer
+        #pointsBuf
+        [colors]="colorsBuffer"
+        [positions]="positionsBuffer"
+      >
+        <ngt-points-material
+          [color]="materialColor()"
+          [sizeAttenuation]="true"
+          [size]="pointSize"
+          [vertexColors]="useVertexColors()"
+        />
+      </ngts-points-buffer>
+    </app-threed-scene-graph>
+  </ngt-canvas>
+  <app-shared-viewport-overlay
+    [orientation]="viewOrientation()"
+    [showGrid]="showGrid()"
+    [hasData]="pointCount() > 0"
+    (orientationChange)="viewOrientation.set($event)"
+    (gridToggle)="showGrid.set($event)"
+  />
 
   @if (onDownload()) {
-    <button class="pcd-download-btn" (click)="onDownload()!()" title="Download PCD">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      <span>Download PCD</span>
-    </button>
+    <syn-tooltip content="Download PCD" [distance]="13" placement="top">
+      <button class="pcd-download-btn" (click)="onDownload()!()">
+        <svg fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+             viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        <span>Download PCD</span>
+      </button>
+    </syn-tooltip>
   }
 
   @if (isLoading()) {
     <div class="absolute inset-0 flex items-center justify-center bg-black/60 rounded-md z-10">
-      <syn-spinner />
+      <syn-spinner/>
     </div>
   }
 
   @if (hasError()) {
     <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-md z-10 p-4 text-center">
-      <syn-icon name="error" class="text-4xl text-red-400 mb-2" />
+      <syn-icon class="text-4xl text-red-400 mb-2" name="error"/>
       <p class="text-white font-semibold text-sm">Unable to render point cloud</p>
       @if (errorMessage()) {
         <p class="text-syn-color-neutral-400 text-xs mt-1 break-all">{{ errorMessage() }}</p>

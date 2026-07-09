@@ -10,9 +10,31 @@
      4. layout        — Angular router-outlet stretch rule
      5. scrollbar     — Custom thin scrollbar (light + dark)
      6. border-tokens — .border-syn utilities + global neutral normalization    */
+@use '@foblex/flow/styles' as flow-theme;
+@include flow-theme.theme-tokens();
+@include flow-theme.connector();
+@include flow-theme.connection-all();
+@include flow-theme.connection-drag-handles-visible();
+@include flow-theme.background();
+@include flow-theme.plugins($scoped: false);  
+@include flow-theme.selection-area();
 
+
+@include flow-theme.minimap($scoped: false);
+
+  .custom-class-for-minimap {
+    fill: var(--ff-color-danger) !important;
+
+    &.f-selected {
+      fill: var(--ff-minimap-node-selected-color) !important;
+    }
+  }
 @import './styles/base.css';
 @import './styles/theme.css';
 @import './styles/layout.css';
 @import './styles/scrollbar.css';
 @import './styles/border-tokens.css';
+@import './styles/foblex.css';
+
+
+

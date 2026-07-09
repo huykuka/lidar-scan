@@ -1,12 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, inject, output } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
-import { TopicApiService, WorkspaceStoreService } from '@core/services';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { PointCloudDataService } from '@core/services/point-cloud-data.service';
+import {ChangeDetectionStrategy, Component, computed, inject, output} from '@angular/core';
+import {WorkspaceStoreService} from '@core/services';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {PointCloudDataService} from '@core/services/point-cloud-data.service';
+import { WorkspaceTelemetryComponent } from '../workspace-telemetry/workspace-telemetry.component';
 
 @Component({
   selector: 'app-workspace-controls',
-  imports: [SynergyComponentsModule, DecimalPipe],
+  imports: [SynergyComponentsModule, WorkspaceTelemetryComponent],
   templateUrl: './workspace-controls.component.html',
   styleUrl: './workspace-controls.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,9 +24,6 @@ export class WorkspaceControlsComponent {
   protected topics = this.store.topics;
   protected selectedTopics = this.store.selectedTopics;
   protected isConnected = this.dataService.isConnected;
-  protected pointSize = this.store.pointSize;
-  protected backgroundColor = this.store.backgroundColor;
-  private topicApi = inject(TopicApiService);
 
   protected onTopicSelect(event: any) {
     const topic = event.target.value;
@@ -45,27 +42,11 @@ export class WorkspaceControlsComponent {
     this.actionTaken.emit();
   }
 
-  protected toggleTopicEnabled(topic: string) {
-    this.store.toggleTopicEnabled(topic);
-    this.actionTaken.emit();
-  }
-
   protected onTopicColorChange(topic: string, event: any) {
     this.store.updateTopicColor(topic, event.target.value);
   }
 
-  protected onCapturePcd(topic: string) {
-    if (topic) {
-      this.topicApi.downloadPcd(topic);
-    }
-    this.actionTaken.emit();
-  }
-
-  protected onPointSizeChange(event: any) {
-    this.store.set('pointSize', parseFloat(event.target.value));
-  }
-
-  protected onBackgroundColorChange(event: any) {
-    this.store.set('backgroundColor', event.target.value);
+  protected onTopicPointSizeChange(topic: string, event: any) {
+    this.store.updateTopicPointSize(topic, parseFloat(event.target.value));
   }
 }

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
-import { ViewToolbarComponent } from './view-toolbar.component';
-import { SplitLayoutStoreService } from '@core/services/split-layout-store.service';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {signal} from '@angular/core';
+import {ViewToolbarComponent} from './view-toolbar.component';
+import {SplitLayoutStoreService} from '@core/services/split-layout-store.service';
 
 describe('ViewToolbarComponent', () => {
   let component: ViewToolbarComponent;

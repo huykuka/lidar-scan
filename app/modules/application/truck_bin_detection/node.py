@@ -50,7 +50,6 @@ class TruckBinDetectionNode(ModuleNode):
 
         # Build detector
         self._detector = BinDetector(
-            lane_width=float(config.get("lane_width", 1.4)),
             z_min=float(config.get("z_min", 2.0)),
             z_max=float(config.get("z_max", 3.8)),
             cell_size=float(config.get("cell_size", 0.07)),
@@ -59,12 +58,15 @@ class TruckBinDetectionNode(ModuleNode):
             z_cavity_min=float(config.get("z_cavity_min", 0.5)),
             min_bin_area=float(config.get("min_bin_area", 2.0)),
             enable_area_check=bool(config.get("enable_area_check", True)),
-            min_wall_points=int(config.get("min_wall_points", 3)),
-            max_wall_x_std=float(config.get("max_wall_x_std", 0.15)),
+
             min_bin_length=float(config.get("min_bin_length", 3.0)),
             max_bin_length=float(config.get("max_bin_length", 8.5)),
             rear_forward_lookup=int(config.get("rear_forward_lookup", 30)),
             front_backward_lookup=int(config.get("front_backward_lookup", 5)),
+            rear_peak_back_window=int(config.get("rear_peak_back_window", 7)),
+            min_cavity_run_ratio=float(config.get("min_cavity_run_ratio", 0.6)),
+            min_bed_cells=int(config.get("min_bed_cells", 3)),
+            max_wall_thickness=float(config.get("max_wall_thickness", 0.5)),
         )
 
         # State machine and status
@@ -102,8 +104,11 @@ class TruckBinDetectionNode(ModuleNode):
         try:
             timestamp = payload.get("timestamp", time.time())
 
-            # Execute heavy 1D geometry profile extraction in threadpool
-            result = await asyncio.to_thread(self._detector.detect, points)
+            # detect() runs in ~0.1-0.4 ms — fast enough to run directly on
+            # the event loop without dispatching to a thread.  asyncio.to_thread
+            # adds 1-5 ms of scheduling overhead (GIL, context switch, thread
+            # pool latency) which dominates the actual compute time.
+            result = self._detector.detect(points)
             self.processing_time_ms = (time.time() - start_time) * 1000
 
             if result.detected:

@@ -1,4 +1,4 @@
-import { Edge, NodeConfig, NodeDefinition } from '@core/models/node.model';
+import {Edge, NodeConfig, NodeDefinition} from '@core/models/node.model';
 
 export interface ValidationError {
   nodeId: string;

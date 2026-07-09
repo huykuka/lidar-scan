@@ -1,4 +1,4 @@
-import { NodeConfig, Edge } from './node.model';
+import {Edge, NodeConfig} from './node.model';
 
 export interface DagConfigResponse {
   config_version: number;

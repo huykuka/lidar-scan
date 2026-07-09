@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 from asyncio import sleep as asyncio_sleep
 from typing import Any, Dict, Optional
 
@@ -91,6 +92,7 @@ class PlaybackNode(ModuleNode):
         self._current_frame: int = 0
         self._total_frames: int = 0
         self._error_message: Optional[str] = None
+        self._cycle_time_ms: Optional[float] = None  # last frame processing duration
 
     def set_pose(self, pose: Pose) -> "PlaybackNode":
         """Set the node pose and recompute the transformation matrix."""
@@ -246,6 +248,7 @@ class PlaybackNode(ModuleNode):
             operational_state=operational_state,
             application_state=app_state,
             error_message=error_msg,
+            cycle_time_ms=round(self._cycle_time_ms, 1) if self._cycle_time_ms is not None else None,
         )
 
     # ------------------------------------------------------------------
@@ -311,7 +314,8 @@ class PlaybackNode(ModuleNode):
                 # ─────────────────────────────────────────────────────────
 
                 from app.modules.lidar.core.transformations import transform_points
-                points = await asyncio.to_thread(transform_points, points, self.transformation)
+                _frame_start = time.monotonic()
+                points = transform_points(points, self.transformation)
 
                 payload: Dict[str, Any] = {
                     "lidar_id": self.id,
@@ -330,6 +334,7 @@ class PlaybackNode(ModuleNode):
                 }
 
                 await self.manager.forward_data(self.id, payload)
+                self._cycle_time_ms = (time.monotonic() - _frame_start) * 1000
 
                 await asyncio_sleep(sleep_s)
 

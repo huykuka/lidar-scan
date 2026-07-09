@@ -1,0 +1,12 @@
+.settings-divider {
+  width: 4px;
+  cursor: col-resize;
+  background: var(--syn-panel-border-color);
+  transition: background var(--syn-duration-fast);
+  flex-shrink: 0;
+}
+
+.settings-divider:hover,
+.settings-divider:active {
+  background: var(--syn-interactive-emphasis-color);
+}

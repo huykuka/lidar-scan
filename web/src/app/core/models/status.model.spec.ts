@@ -4,8 +4,8 @@
  * per the node-reload-improvement api-spec.md.
  */
 
-import type { ReloadEvent, SystemStatusBroadcast } from './status.model';
-import type { NodeStatusUpdate } from './node-status.model';
+import type {ReloadEvent, SystemStatusBroadcast} from './status.model';
+import type {NodeStatusUpdate} from './node-status.model';
 
 const makeNodeStatus = (): NodeStatusUpdate => ({
   node_id: 'test-node',

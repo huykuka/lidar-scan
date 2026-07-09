@@ -1,7 +1,7 @@
 import {TestBed} from '@angular/core/testing';
 import {Subject} from 'rxjs';
-import {vi, describe, it, expect, beforeEach, afterEach} from 'vitest';
-import {ShapesWsService, MOCK_SHAPE_FRAME} from './shapes-ws.service';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {MOCK_SHAPE_FRAME, ShapesWsService} from './shapes-ws.service';
 import {MultiWebsocketService} from './multi-websocket.service';
 import {ShapeFrame} from '@core/models/shapes.model';
 

@@ -1,21 +1,9 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  signal,
-} from '@angular/core';
-import {
-  SplitGroup,
-  SplitLayoutStoreService,
-  LayoutMode,
-  ViewPane,
-} from '@core/services/split-layout-store.service';
-import { WorkspaceStoreService } from '@core/services/stores/workspace-store.service';
-import { PointCloudComponent } from '../../point-cloud/point-cloud.component';
-import { ViewportOverlayComponent } from '../../viewport-overlay/viewport-overlay.component';
-import { ResizableDividerDirective } from '../resizable-divider.directive';
+import {ChangeDetectionStrategy, Component, computed, effect, inject, signal,} from '@angular/core';
+import {LayoutMode, SplitGroup, SplitLayoutStoreService, ViewPane,} from '@core/services/split-layout-store.service';
+import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
+import {PointCloudComponent} from '../../point-cloud/point-cloud.component';
+import {ViewportOverlayComponent} from '../../viewport-overlay/viewport-overlay.component';
+import {ResizableDividerDirective} from '../resizable-divider.directive';
 
 @Component({
   selector: 'app-split-pane-container',
@@ -49,6 +37,16 @@ export class SplitPaneContainerComponent {
    * Resets itself automatically when the animation ends (see template).
    */
   protected animateEnter = signal(false);
+
+  private gridState = new Map<string, boolean>();
+
+  protected onGridToggled(paneId: string, show: boolean): void {
+    this.gridState.set(paneId, show);
+  }
+
+  protected showGrid(paneId: string): boolean {
+    return this.gridState.get(paneId) ?? true;
+  }
 
   private prevMode: LayoutMode | null = null;
 

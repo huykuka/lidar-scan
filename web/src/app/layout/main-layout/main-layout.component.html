@@ -2,26 +2,31 @@
   <!-- Top Header -->
   <app-header #header class="z-50 shrink-0" label="LiDAR Studio" />
 
-  <div class="flex flex-1 overflow-hidden relative min-h-0">
-    <!-- Sidebar -->
+  <!--
+    Main area mirrors the Synergy pattern:
+      position:relative  → bounds the overlay on mobile (variant="default")
+      display:flex       → sticky sidenav + content sit side-by-side on desktop (variant="sticky")
+      overflow:hidden    → clips the canvas / 3D viewport, not the overlay (overlay is absolute inside main)
+  -->
+  <main class="flex flex-1 overflow-hidden relative min-h-0">
+    <!-- Sidebar: inside <main> so the overlay covers only the content area -->
     <app-side-nav
       #sideNav
       (onHide)="handleSideNavHide()"
       (onShow)="handleSideNavShow()"
       [open]="isSideNavOpen()"
-      class="h-full shrink-0 border-r shadow-sm"
+      class="z-30"
     />
 
-    <!-- Content Area -->
+    <!-- Content area -->
     <div class="flex-1 flex flex-col overflow-hidden min-h-0">
-      <main class="flex-1 flex flex-col px-4 py-3 overflow-auto lg:overflow-hidden min-h-0">
-        <!-- Main Content Slot -->
+      <div class="flex-1 flex flex-col px-3 py-3 overflow-auto lg:overflow-hidden min-h-0">
         <div class="flex-1 flex flex-col lg:min-h-0 relative lg:overflow-hidden pb-1 pr-1">
           <router-outlet />
         </div>
-      </main>
+      </div>
 
       <app-footer class="shrink-0" />
     </div>
-  </div>
+  </main>
 </div>

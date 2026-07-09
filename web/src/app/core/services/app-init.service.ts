@@ -1,4 +1,4 @@
-import {Injectable, inject, signal} from '@angular/core';
+import {inject, Injectable, signal} from '@angular/core';
 import {AuthService} from './auth.service';
 import {SystemStatusService} from './system-status.service';
 import {ThemeService} from './theme.service';
@@ -16,6 +16,6 @@ export class AppInitService {
     this.themeService.checkTheme();
     await this.auth.verifyToken();
     this.systemStatus.start();
-    setTimeout(() => this.isReady.set(true), 1000); // Ensure loading screen is visible for at least 1s
+    setTimeout(() => this.isReady.set(true), 0); // Ensure loading screen is visible for at least 1s
   }
 }

@@ -5,6 +5,7 @@ export interface TopicConfig {
   topic: string;
   color: string;
   enabled: boolean;
+  pointSize: number;
 }
 
 export interface WorkspaceState {
@@ -95,7 +96,10 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
       showCockpit: false, // Always start hidden; user opens explicitly
       isConnected: false, // Don't persist connection status
       topics: [], // Don't persist topics
-      selectedTopics: persistedState.selectedTopics || [], // Persist topic selections
+      selectedTopics: (persistedState.selectedTopics || []).map((t: TopicConfig) => ({
+        ...t,
+        pointSize: t.pointSize ?? initialState.pointSize,
+      })),
     });
 
     // 2. Setup persistence effect
@@ -125,6 +129,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
       topic,
       color: DEFAULT_TOPIC_COLORS[colorIndex],
       enabled: true,
+      pointSize: this.getValue('pointSize'),
     };
     this.set('selectedTopics', [...current, newTopic]);
   }
@@ -150,6 +155,14 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
     this.set(
       'selectedTopics',
       current.map((t) => (t.topic === topic ? {...t, color} : t)),
+    );
+  }
+
+  updateTopicPointSize(topic: string, pointSize: number) {
+    const current = this.getValue('selectedTopics');
+    this.set(
+      'selectedTopics',
+      current.map((t) => (t.topic === topic ? {...t, pointSize} : t)),
     );
   }
 }

@@ -11,15 +11,15 @@
       [style.flex]="oneTwoFractions()[0]"
     >
       <app-point-cloud
-        class="w-full h-full block"
-        [backgroundColor]="store.backgroundColor()"
-        [pointSize]="store.pointSize()"
-        [showAxes]="store.showAxes()"
-        [showGrid]="store.showGrid()"
+        class="flex w-full h-full"
         [viewType]="groups()[0].panes[0].orientation"
         [viewId]="groups()[0].panes[0].id"
+        [showGrid]="showGrid(groups()[0].panes[0].id)"
       />
-      <app-viewport-overlay [pane]="groups()[0].panes[0]"/>
+      <app-viewport-overlay
+        [pane]="groups()[0].panes[0]"
+        (gridToggled)="onGridToggled(groups()[0].panes[0].id, $event)"
+      />
     </div>
 
     <!-- Outer column divider (resizes left vs right column) -->
@@ -41,15 +41,14 @@
           [style.flex]="pane.sizeFraction"
         >
           <app-point-cloud
-            class="w-full h-full block"
-            [backgroundColor]="store.backgroundColor()"
-            [pointSize]="store.pointSize()"
-            [showAxes]="store.showAxes()"
-            [showGrid]="store.showGrid()"
             [viewType]="pane.orientation"
             [viewId]="pane.id"
+            [showGrid]="showGrid(pane.id)"
           />
-          <app-viewport-overlay [pane]="pane"/>
+          <app-viewport-overlay
+            [pane]="pane"
+            (gridToggled)="onGridToggled(pane.id, $event)"
+          />
         </div>
 
         <!-- Inner row divider between the two right panes -->
@@ -78,15 +77,14 @@
         [attr.data-pane-id]="pane.id"
       >
         <app-point-cloud
-          class="w-full h-full block"
-          [backgroundColor]="store.backgroundColor()"
-          [pointSize]="store.pointSize()"
-          [showAxes]="store.showAxes()"
-          [showGrid]="store.showGrid()"
           [viewType]="pane.orientation"
           [viewId]="pane.id"
+          [showGrid]="showGrid(pane.id)"
         />
-        <app-viewport-overlay [pane]="pane"/>
+        <app-viewport-overlay
+          [pane]="pane"
+          (gridToggled)="onGridToggled(pane.id, $event)"
+        />
       </div>
     }
   </div>
@@ -105,15 +103,14 @@
           [attr.data-pane-id]="pane.id"
         >
           <app-point-cloud
-            class="w-full h-full block"
-            [backgroundColor]="store.backgroundColor()"
-            [pointSize]="store.pointSize()"
-            [showAxes]="store.showAxes()"
-            [showGrid]="store.showGrid()"
             [viewType]="pane.orientation"
             [viewId]="pane.id"
+            [showGrid]="showGrid(pane.id)"
           />
-          <app-viewport-overlay [pane]="pane"/>
+          <app-viewport-overlay
+            [pane]="pane"
+            (gridToggled)="onGridToggled(pane.id, $event)"
+          />
         </div>
 
         <!-- Resizable divider between panes (not after the last pane) -->

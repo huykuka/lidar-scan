@@ -1,11 +1,19 @@
-import {Component, computed, effect, input, output, signal, untracked, ChangeDetectionStrategy} from '@angular/core';
-
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodePlugin} from '@core/models';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  input,
+  signal,
+  untracked,
+} from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { FExternalItem } from '@foblex/flow';
+import { NodePlugin } from '@core/models';
 
 @Component({
   selector: 'app-flow-canvas-palette',
-  imports: [SynergyComponentsModule],
+  imports: [SynergyComponentsModule, FExternalItem],
   templateUrl: './flow-canvas-palette.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './flow-canvas-palette.component.css',
@@ -18,24 +26,14 @@ export class FlowCanvasPaletteComponent {
 
   constructor() {
     effect(() => {
-      const allPlugs = this.plugins();
-      untracked(() => {
-        const cats = new Set(this.expandedCategories());
-        allPlugs.forEach((p) => {
-          const cat = p.category || 'other';
-          if (!cats.has(cat)) {
-            cats.add(cat);
-          }
-        });
-        this.expandedCategories.set(cats);
-      });
+      const newCats = this.plugins().map((p) => p.category || 'other');
+      untracked(() => this.expandedCategories.update((set) => new Set([...set, ...newCats])));
     });
   }
 
   filteredPlugins = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
     if (!query) return this.plugins();
-
     return this.plugins().filter(
       (p) =>
         p.displayName.toLowerCase().includes(query) ||
@@ -48,32 +46,25 @@ export class FlowCanvasPaletteComponent {
 
   groupedPlugins = computed(() => {
     const groups: { [key: string]: NodePlugin[] } = {};
-    const currentPlugins = this.filteredPlugins();
-
-    for (const plugin of currentPlugins) {
+    for (const plugin of this.filteredPlugins()) {
       const cat = plugin.category || 'other';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(plugin);
     }
-
     return Object.keys(groups)
       .sort()
       .map((key) => ({ category: key, plugins: groups[key] }));
   });
 
-  onPluginDragStart = output<{ plugin: string; event: DragEvent }>();
-  onPluginDragEnd = output<void>();
-
-  onSearch(event: any) {
-    this.searchQuery.set(event.target.value);
+  onSearch(event: Event) {
+    this.searchQuery.set((event.target as HTMLInputElement).value);
   }
 
   toggleCategory(cat: string) {
     this.expandedCategories.update((set) => {
-      const newSet = new Set(set);
-      if (newSet.has(cat)) newSet.delete(cat);
-      else newSet.add(cat);
-      return newSet;
+      const next = new Set(set);
+      next.has(cat) ? next.delete(cat) : next.add(cat);
+      return next;
     });
   }
 

@@ -1,7 +1,7 @@
-import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { DrawerService } from '@core/services/drawer.service';
-import { StartGuideDrawerComponent } from '@features/start/start-guide-drawer.component';
+import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {DrawerService} from '@core/services/drawer.service';
+import {StartGuideDrawerComponent} from '@features/start/start-guide-drawer.component';
 
 @Component({
   selector: 'app-platform-guide',

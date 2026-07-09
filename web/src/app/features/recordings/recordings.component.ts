@@ -1,14 +1,23 @@
-import { Component, computed, ElementRef, inject, OnInit, signal, ChangeDetectionStrategy, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  OnInit,
+  signal,
+  viewChild
+} from '@angular/core';
 
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { RecordingStoreService } from '@core/services/stores/recording-store.service';
-import { RecordingApiService } from '@core/services/api/recording-api.service';
-import { NavigationService } from '@core/services';
-import { Router } from '@angular/router';
-import { Recording } from '@core/models';
-import { RecordingCardComponent } from './components/recording-card/recording-card.component';
-import { DialogService } from '@core/services/dialog.service';
-import { firstValueFrom } from 'rxjs';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {RecordingStoreService} from '@core/services/stores/recording-store.service';
+import {RecordingApiService} from '@core/services/api/recording-api.service';
+import {NavigationService} from '@core/services';
+import {Router} from '@angular/router';
+import {Recording} from '@core/models';
+import {RecordingCardComponent} from './components/recording-card/recording-card.component';
+import {DialogService} from '@core/services/dialog.service';
+import {firstValueFrom} from 'rxjs';
 
 @Component({
   selector: 'app-recordings',
@@ -77,6 +86,21 @@ export class RecordingsComponent implements OnInit {
     // Download the recording file
     const filename = `${recording.name}_${recording.created_at.substring(0, 10)}.zip`;
     this.recordingApi.downloadRecording(recording.id, filename);
+  }
+
+  protected async renameRecording({
+    recording,
+    name,
+  }: {
+    recording: Recording;
+    name: string;
+  }): Promise<void> {
+    try {
+      await firstValueFrom(this.recordingApi.renameRecording(recording.id, name));
+      await this.recordingStore.loadRecordings();
+    } catch (error) {
+      console.error('Failed to rename recording:', error);
+    }
   }
 
   protected async confirmDelete(recording: Recording): Promise<void> {

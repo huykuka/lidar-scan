@@ -1,3 +1,14 @@
 :host {
   display: block;
 }
+
+/* On mobile: hide headline breadcrumb slot and lower-priority meta-nav icons */
+@media (max-width: 500px) {
+  .header-headline {
+    display: none;
+  }
+
+  .header-mobile-hidden {
+    display: none;
+  }
+}

@@ -1,0 +1,69 @@
+<div class="preview-container">
+  <div class="preview-header">
+    <span class="preview-title">
+      <syn-icon name="visibility" style="font-size: 14px" />
+      Live Preview
+      @if (topicCount() > 0) {
+        <span class="preview-badge">{{ topicCount() }}</span>
+      }
+    </span>
+    <div class="preview-actions">
+      @if (!isConnected() && topicCount() > 0) {
+        <span class="preview-status preview-status--disconnected">
+          <syn-icon name="cloud_off" style="font-size: 12px" />
+          Waiting
+        </span>
+      } @else if (isConnected()) {
+        <span class="preview-status preview-status--connected">
+          <syn-icon name="cloud_done" style="font-size: 12px" />
+          Live
+        </span>
+      }
+    </div>
+  </div>
+
+  <!-- Active preview topics list -->
+  @if (topicCount() > 0) {
+    <div class="preview-topics">
+      @for (t of previewTopics(); track t.topic) {
+        <div class="preview-topic-row">
+          <span class="preview-topic-dot" [style.background]="t.color"></span>
+          <span class="preview-topic-name">{{ t.nodeName }}</span>
+          <syn-icon-button
+            name="close"
+            label="Remove from preview"
+            size="small"
+            color="neutral"
+            (click)="removePreviewTopic(t.topic)"
+          />
+        </div>
+      }
+    </div>
+  }
+
+  <div class="preview-canvas">
+    @if (topicCount() === 0) {
+      <div class="preview-empty">
+        <syn-icon name="sensors_off" style="font-size: 32px" />
+        <span>No nodes previewed</span>
+        <span class="preview-empty-hint">Right-click a node and select "Add to 3D view" to see its output here</span>
+      </div>
+    }
+    <ngt-canvas>
+      <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
+        @for (entry of topicEntries(); track entry.topic) {
+          <ngts-points-buffer #buf [positions]="entry.buf">
+            <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false"/>
+          </ngts-points-buffer>
+        }
+      </app-threed-scene-graph>
+    </ngt-canvas>
+    <app-shared-viewport-overlay
+      [orientation]="viewOrientation()"
+      [showGrid]="showGrid()"
+      [hasData]="topicCount() > 0"
+      (orientationChange)="viewOrientation.set($event)"
+      (gridToggle)="showGrid.set($event)"
+    />
+  </div>
+</div>

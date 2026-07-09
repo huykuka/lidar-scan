@@ -1,4 +1,5 @@
-import {ErrorHandler, Injectable, inject} from '@angular/core';
+import {HttpErrorResponse} from '@angular/common/http';
+import {ErrorHandler, inject, Injectable} from '@angular/core';
 import {ToastService} from '@core/services';
 
 @Injectable()
@@ -7,6 +8,9 @@ export class GlobalErrorHandler implements ErrorHandler {
 
   handleError(error: unknown): void {
     const message = this.normalize(error) || 'Unexpected error.';
+    if (!(error instanceof HttpErrorResponse)) {
+      return;
+    }
 
     // Ignore ResizeObserver loop errors as they are non-critical browser warnings
     // often triggered during transitions or layout shifts and don't affect app state.

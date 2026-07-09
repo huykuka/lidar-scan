@@ -1,15 +1,7 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  OnDestroy,
-  OnInit,
-  signal,
-} from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { HostApiService, HostSnapshot } from '@core/services/api/host-api.service';
-import { NavigationService } from '@core/services';
+import {ChangeDetectionStrategy, Component, computed, inject, OnDestroy, OnInit, signal,} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {HostApiService, HostSnapshot} from '@core/services/api/host-api.service';
+import {NavigationService} from '@core/services';
 
 const POLL_MS = 3000;
 

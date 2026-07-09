@@ -1,14 +1,10 @@
-import { Component, effect, inject, OnInit, signal, ChangeDetectionStrategy } from '@angular/core';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import {
-  ResultsApiService,
-  MOCK_RESULTS_BY_NODE,
-  MOCK_NODE_INDEX,
-} from '@core/services/api/results-api.service';
-import { NavigationService } from '@core/services';
-import { NodeResultSummary, ResultSummary } from '@core/models';
-import { firstValueFrom } from 'rxjs';
+import {ChangeDetectionStrategy, Component, effect, inject, OnInit, signal} from '@angular/core';
+import {ActivatedRoute, Router, RouterModule} from '@angular/router';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {MOCK_NODE_INDEX, MOCK_RESULTS_BY_NODE, ResultsApiService,} from '@core/services/api/results-api.service';
+import {NavigationService} from '@core/services';
+import {NodeResultSummary, ResultSummary} from '@core/models';
+import {firstValueFrom} from 'rxjs';
 
 @Component({
   selector: 'app-node-results-list',

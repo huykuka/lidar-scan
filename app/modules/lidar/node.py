@@ -68,8 +68,8 @@ class LidarSensor(ModuleNode):
         self.launch_args = launch_args
 
         # LiDAR model information (set externally by build_sensor after instantiation)
-        self.lidar_type: str = "multiscan"
-        self.lidar_display_name: str = "SICK multiScan"
+        self.lidar_type: str = "multiscan136"
+        self.lidar_display_name: str = "SICK multiScan136"
 
         self.transformation = transformation if transformation is not None else np.eye(4)
         self.pose_params: Pose = Pose.zero()
@@ -81,6 +81,7 @@ class LidarSensor(ModuleNode):
 
         self._process = None
         self._stop_event = None
+        self._cycle_time_ms: Optional[float] = None  # last frame processing duration
 
     def set_pose(self, pose: Pose) -> "LidarSensor":
         """Set the sensor pose and recompute the transformation matrix.
@@ -154,18 +155,20 @@ class LidarSensor(ModuleNode):
             logger.info(f"[{self.id}] Stopping worker process (PID: {self._process.pid})...")
 
             # Give the process time to finish gracefully.
-            # Worker loop checks stop_event every 0.1 s; 0.5 s is ample.
-            self._process.join(timeout=0.5)
+            # The worker's finally block calls SickScanApiClose() which sends
+            # shutdown telegrams to the hardware — typically needs 1-3s.
+            # The worker has an 8s watchdog that will force-exit if cleanup hangs.
+            self._process.join(timeout=5.0)
 
             if self._process.is_alive():
-                logger.warning(f"[{self.id}] Worker didn't stop gracefully, terminating...")
+                logger.warning(f"[{self.id}] Worker didn't stop gracefully after 5s, terminating...")
                 self._process.terminate()
-                self._process.join(timeout=1.0)
+                self._process.join(timeout=2.0)
 
                 if self._process.is_alive():
                     logger.error(f"[{self.id}] Worker still alive after terminate, killing...")
                     self._process.kill()
-                    self._process.join(timeout=0.5)
+                    self._process.join(timeout=1.0)
 
         self._process = None
         self._stop_event = None
@@ -241,7 +244,8 @@ class LidarSensor(ModuleNode):
                     effective_T = self.transformation @ self._imu_gravity_matrix
 
                 # 2. Transform points to world space off the main thread
-                transformed_points = await asyncio.to_thread(transform_points, points, effective_T)
+                _frame_start = time.monotonic()
+                transformed_points = transform_points(points, effective_T)
                 # Update payload for downstream
                 payload["points"] = transformed_points
 
@@ -250,11 +254,8 @@ class LidarSensor(ModuleNode):
                     logger.debug(f"[{self.id}] Frame #{frame_count}: {len(transformed_points)} points after transform")
 
                 # 2. Forward to downstream nodes via Manager (fire-and-forget)
-                # NodeManager will handle WebSocket broadcasting automatically.
-                # We don't await here — decouples this sensor from downstream
-                # processing latency so slow nodes (e.g. densify) can't stall
-                # the producer or starve the event loop.
                 asyncio.create_task(self.manager.forward_data(self.id, payload))
+                self._cycle_time_ms = (time.monotonic() - _frame_start) * 1000
 
         except Exception as e:
             logger.error(f"Error handling data for {self.id}: {e}", exc_info=True)
@@ -368,4 +369,5 @@ class LidarSensor(ModuleNode):
                 color=app_color,
             ),
             error_message=last_error,
+            cycle_time_ms=round(self._cycle_time_ms, 1) if self._cycle_time_ms is not None else None,
         )

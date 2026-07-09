@@ -1,8 +1,8 @@
 """
-Node registry for the Truck Bin Detection application module.
+Node registry for the Truck Bin Detection module.
 
-Registers the ``truck_bin_detection`` node type with the DAG orchestrator.
-Loaded automatically when :mod:`app.modules.application.registry` is imported.
+Registers the truck_bin_detection node so it is available in the pipeline
+editor and can be wired up inside a processing graph.
 """
 
 from typing import Any, Dict, List
@@ -15,63 +15,73 @@ from app.services.nodes.schema import (
     node_schema_registry,
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Schema Definition
-# ─────────────────────────────────────────────────────────────────────────────
-
 node_schema_registry.register(
     NodeDefinition(
         type="truck_bin_detection",
         display_name="Truck Bin Detection",
         category="application",
         description=(
-            "Detects and measures open-top dump truck cargo bins and aligns them "
-            "with a discharging target under a hopper. Crops points along spatial "
-            "Y and Z boundaries, projects to a 1D elevation profile, and tracks "
-            "rear and front internal walls to output real-time alignment errors."
+            "Finds the open-top cargo bin on a dump truck and measures its position "
+            "so the hopper can discharge into it accurately. "
+            "Builds a side-view height profile from the LiDAR scan, then locates "
+            "the rear and front walls of the bin cavity."
         ),
         icon="local_shipping",
         websocket_enabled=True,
         properties=[
-            # ── Spatial Filtering & Projection ──────────────────────────────────
+
+            # ── Height filter ────────────────────────────────────────────────
+            # Only points inside this height band are used. This cuts out the
+            # ground, wheels, and anything above the bin rim.
+
             PropertySchema(
                 name="z_min",
-                label="Min Z Height (m)",
+                label="Min Height (m)",
                 type="number",
                 default=2.0,
                 min=0.0,
                 max=5.0,
                 step=0.1,
                 help_text=(
-                    "Minimum height at the bin rim level. Filters out wheels, axles, and ground returns."
+                    "Lowest height to include. Points below this (ground, wheels, axles) "
+                    "are ignored. Set just below the lowest expected bin rim."
                 ),
             ),
             PropertySchema(
                 name="z_max",
-                label="Max Z Height (m)",
+                label="Max Height (m)",
                 type="number",
                 default=3.8,
                 min=1.0,
                 max=10.0,
                 step=0.1,
                 help_text=(
-                    "Maximum height at the bin rim level. Removes returns from overhead structures."
+                    "Highest height to include. Points above this (overhead structures, "
+                    "crane beams) are ignored. Set just above the tallest expected bin wall."
                 ),
             ),
+
+            # ── Profile resolution ───────────────────────────────────────────
             PropertySchema(
                 name="cell_size",
-                label="Longitudinal Bin Size (m)",
+                label="Profile Cell Size (m)",
                 type="number",
                 default=0.07,
                 min=0.002,
                 max=0.5,
                 step=0.001,
                 help_text=(
-                    "Cell width along the longitudinal travel axis. Smaller values improve "
-                    "resolution; larger values reduce empty cells for sparse sensor data."
+                    "Width of each slice in the side-view height profile. "
+                    "Smaller = finer detail but more empty cells in sparse scans. "
+                    "Larger = smoother profile but less precise wall positions. "
+                    "7 cm works well for two fused 16-layer LiDARs."
                 ),
             ),
-            # ── Height Thresholds ───────────────────────────────────────────
+
+            # ── Wall and cavity height thresholds ────────────────────────────
+            # These tell the detector what counts as a 'wall' and what counts
+            # as the open interior of the bin.
+
             PropertySchema(
                 name="z_wall_threshold",
                 label="Wall Height Threshold (m)",
@@ -81,7 +91,10 @@ node_schema_registry.register(
                 max=5.0,
                 step=0.1,
                 help_text=(
-                    "Minimum height that characterises a bin wall (front or rear wall top edge)."
+                    "A profile cell must reach at least this height to be treated as "
+                    "a bin wall. Set between the cargo bed height and the wall-top height. "
+                    "Too low → the detector may latch onto the truck frame. "
+                    "Too high → it misses short walls."
                 ),
             ),
             PropertySchema(
@@ -93,37 +106,48 @@ node_schema_registry.register(
                 max=4.0,
                 step=0.1,
                 help_text=(
-                    "Maximum height that characterises the interior cavity floor of the bin."
+                    "The open cavity inside the bin must have a floor below this height. "
+                    "If the lowest return between the two walls is above this value the "
+                    "detector rejects the result — no real open cavity was found."
                 ),
             ),
             PropertySchema(
                 name="z_cavity_min",
-                label="Cavity Min Height (m)",
+                label="Cavity Floor Min Height (m)",
                 type="number",
                 default=0.5,
                 min=0.0,
                 max=3.0,
                 step=0.1,
                 help_text=(
-                    "Minimum height for a valid cavity floor return. "
-                    "Rejects ground-level returns from open gaps between separate trucks."
+                    "Minimum height for a point to count as a cargo bed return. "
+                    "This separates the real bin floor from a low drawbar/coupling bar "
+                    "or an open gap between two separate trailers — both of which sit "
+                    "lower than the actual cargo bed."
                 ),
             ),
+
+            # ── Interior area check ──────────────────────────────────────────
+            # This is the most reliable way to confirm a real bin was found.
+            # It checks that the space between the two walls is wide enough in
+            # 3-D to be a full-width cargo bay, not a narrow coupling or gap.
+
             PropertySchema(
                 name="enable_area_check",
                 label="Enable Interior Area Check",
                 type="boolean",
                 default=True,
                 help_text=(
-                    "When enabled, confirms the bin by measuring the 3D XY area of points "
-                    "inside the cavity. Rejects inter-truck gaps and drawbars. "
-                    "Disable for single-sensor setups where Y-spread is not available — "
-                    "wall line coherence checks are used instead."
+                    "When ON: confirms the bin by fitting a flat plane to the 3-D points "
+                    "inside the cavity. Rejects drawbars, coupling structures, and gaps "
+                    "between trailers. Recommended when two LiDARs are fused. "
+                    "When OFF: uses a simpler height-only check on the 1-D profile — "
+                    "suitable for single-sensor setups."
                 ),
             ),
             PropertySchema(
                 name="min_bin_area",
-                label="Min Interior Area (m²)",
+                label="Min Interior Footprint (m²)",
                 type="number",
                 default=2.0,
                 min=0.1,
@@ -131,42 +155,14 @@ node_schema_registry.register(
                 step=0.1,
                 depends_on={"enable_area_check": [True]},
                 help_text=(
-                    "Minimum XY bounding-box area of the 3D points found between the two "
-                    "detected walls. A real open-top bin covers length × lane width. "
-                    "Rejects inter-truck gaps (near-zero points) and drawbars (narrow Y-span)."
+                    "Minimum floor area of the points found between the two detected walls. "
+                    "A real open-top bin covers roughly length × lane width. "
+                    "A drawbar is very narrow (small area) and a gap between trailers "
+                    "has almost no returns — both are rejected by this check."
                 ),
             ),
-            PropertySchema(
-                name="min_wall_points",
-                label="Min Wall Points",
-                type="number",
-                default=3,
-                min=1,
-                max=50,
-                step=1,
-                depends_on={"enable_area_check": [False]},
-                help_text=(
-                    "Minimum number of raw LiDAR points that must be present in each "
-                    "wall slab window to accept it as a real wall. "
-                    "Handles partially hidden or segmented walls."
-                ),
-            ),
-            PropertySchema(
-                name="max_wall_x_std",
-                label="Max Wall X Std Dev (m)",
-                type="number",
-                default=0.15,
-                min=0.01,
-                max=1.0,
-                step=0.01,
-                depends_on={"enable_area_check": [False]},
-                help_text=(
-                    "Maximum allowed standard deviation of X-coordinates within each "
-                    "wall slab. A real vertical wall face has very low X-spread. "
-                    "High spread indicates scattered noise or an angled structure."
-                ),
-            ),
-            # ── Geometric Verification ──────────────────────────────────────
+
+            # ── Bin size limits ──────────────────────────────────────────────
             PropertySchema(
                 name="min_bin_length",
                 label="Min Bin Length (m)",
@@ -176,7 +172,8 @@ node_schema_registry.register(
                 max=10.0,
                 step=0.1,
                 help_text=(
-                    "Minimum accepted internal cavity length. Rejects false positives from cabin structures."
+                    "Shortest cavity the detector will accept. Anything shorter is likely "
+                    "the truck cab, a coupling structure, or sensor noise."
                 ),
             ),
             PropertySchema(
@@ -188,37 +185,114 @@ node_schema_registry.register(
                 max=20.0,
                 step=0.1,
                 help_text=(
-                    "Maximum accepted internal cavity length. Prevents merging edges across separate trailers."
+                    "Longest cavity the detector will accept. Prevents the detector from "
+                    "accidentally spanning across two separate trailers."
                 ),
             ),
-            # ── Edge Lookup Windows ─────────────────────────────────────────
+
+            # ── Wall search windows ──────────────────────────────────────────
+            # These control how the detector scans the profile to find the walls.
+
+            PropertySchema(
+                name="max_wall_thickness",
+                label="Max Wall Thickness (m)",
+                type="number",
+                default=0.5,
+                min=0.05,
+                max=1.0,
+                step=0.01,
+                help_text=(
+                    "Maximum distance allowed between the outer face and inner face of "
+                    "the rear wall. A bin wall is a thin steel plate — if the gap between "
+                    "the detected outer peak and the inner edge exceeds this, the peak is "
+                    "discarded and the search continues. Default 20 cm."
+                ),
+            ),
             PropertySchema(
                 name="rear_forward_lookup",
-                label="Rear Peak Forward Lookup (cells)",
+                label="Rear Wall Peak Look-ahead (cells)",
                 type="number",
                 default=30,
                 min=5,
                 max=100,
                 step=1,
                 help_text=(
-                    "Number of cells ahead to compare when searching for the rear wall peak. "
-                    "The rear peak is accepted only if it is the highest point within this window. "
-                    "Increase for noisy profiles; decrease for tightly-spaced truck structures."
+                    "When searching for the rear wall, a candidate peak is accepted only "
+                    "if it is the tallest point within this many cells ahead (~2 m at "
+                    "default cell size). Increase if the profile is noisy and peaks are "
+                    "missed; decrease if closely-spaced structures cause false peaks."
                 ),
             ),
             PropertySchema(
                 name="front_backward_lookup",
-                label="Front Edge Backward Lookup (cells)",
+                label="Front Wall Edge Look-back (cells)",
                 type="number",
                 default=5,
                 min=1,
                 max=50,
                 step=1,
                 help_text=(
-                    "Number of cells used to verify the front wall edge. "
-                    "For a vertical wall: the candidate cell must be higher than this many preceding cells. "
-                    "For an inclined wall: the slope must reach wall threshold within this many cells ahead. "
-                    "Increase for wider inclined walls; decrease for near-vertical front walls."
+                    "When confirming the front wall, the candidate cell must be taller "
+                    "than this many cells immediately behind it — confirming we are at "
+                    "the start of the rising edge, not somewhere in the middle of a slope. "
+                    "Increase for wider sloped front walls."
+                ),
+            ),
+
+            # ── Multi-bin protection ─────────────────────────────────────────
+            # When two bins are on the truck, the front wall of the second bin
+            # can be mistaken for the rear wall of the first.  These settings
+            # protect against that.
+
+            PropertySchema(
+                name="rear_peak_back_window",
+                label="Rear Wall Back-Check Window (cells)",
+                type="number",
+                default=7,
+                min=1,
+                max=50,
+                step=1,
+                help_text=(
+                    "After the detector finds a wall peak, it steps back past the wall "
+                    "slab itself and checks this many cells behind it (~50 cm at default "
+                    "cell size). Nothing tall should be there — a real rear wall (RW) "
+                    "faces open air or low approach floor. If a tall structure is found "
+                    "right behind the slab, the candidate is a front face seen from the "
+                    "wrong side and is skipped. Note: keep this window SHORT — shorter "
+                    "than the minimum gap between two consecutive bins — so the front "
+                    "wall of a following bin does not accidentally trigger this check."
+                ),
+            ),
+            PropertySchema(
+                name="min_cavity_run_ratio",
+                label="Min Cavity Length Ratio",
+                type="number",
+                default=0.6,
+                min=0.1,
+                max=1.0,
+                step=0.05,
+                help_text=(
+                    "After finding the inner face of the rear wall, the open region ahead "
+                    "must be at least this fraction of Min Bin Length before hitting the "
+                    "next wall. This rejects the short gap between a stray front wall of "
+                    "a second bin and the true rear wall behind it. "
+                    "0.6 means the cavity must be at least 60% of Min Bin Length."
+                ),
+            ),
+            PropertySchema(
+                name="min_bed_cells",
+                label="Min Cargo Bed Returns",
+                type="number",
+                default=3,
+                min=1,
+                max=50,
+                step=1,
+                help_text=(
+                    "Minimum number of profile cells inside the cavity that carry a real "
+                    "LiDAR return at cargo bed height (between Cavity Floor Min and Wall "
+                    "Height Threshold). A drawbar/coupling sits lower than the bed; a gap "
+                    "between trailers has almost no returns — both are rejected. "
+                    "Increase if false positives occur in sparse scans."
                 ),
             ),
         ],
@@ -237,9 +311,8 @@ node_schema_registry.register(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Factory Builder
+# Factory
 # ─────────────────────────────────────────────────────────────────────────────
-
 
 @NodeFactory.register("truck_bin_detection")
 def build_truck_bin_detection(
@@ -247,7 +320,7 @@ def build_truck_bin_detection(
     service_context: Any,
     edges: List[Dict[str, Any]],
 ) -> Any:
-    """Build a TruckBinDetectionNode from persisted node configuration."""
+    """Build a TruckBinDetectionNode from a saved pipeline configuration."""
     from app.modules.application.truck_bin_detection.node import TruckBinDetectionNode
 
     config: Dict[str, Any] = node.get("config") or {}

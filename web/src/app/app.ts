@@ -1,4 +1,4 @@
-import {Component, inject, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, inject} from '@angular/core';
 import {RouterOutlet} from '@angular/router';
 import {AppInitService} from './core/services/app-init.service';
 import {LoadingScreenComponent} from './layout/loading-screen/loading-screen.component';
@@ -10,7 +10,7 @@ import {DialogHostComponent} from './shared/components/dialog-host/dialog-host.c
   imports: [RouterOutlet, LoadingScreenComponent, DrawerHostComponent, DialogHostComponent],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './app.css',
+  styleUrl: './app.scss',
 })
 export class App {
   readonly isReady = inject(AppInitService).isReady;

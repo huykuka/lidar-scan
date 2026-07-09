@@ -1,4 +1,4 @@
-import {Component, computed, effect, inject, OnDestroy, ChangeDetectionStrategy} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy} from '@angular/core';
 import {KeyValuePipe} from '@angular/common';
 import {Router} from '@angular/router';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';

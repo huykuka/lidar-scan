@@ -1,0 +1,28 @@
+<div class="flex flex-col gap-[var(--syn-spacing-x-small)] pb-[var(--syn-spacing-x-small)] border-b border-[var(--syn-panel-border-color)]">
+  <!-- Header -->
+  <div class="flex items-center gap-[var(--syn-spacing-x-small)] pb-[var(--syn-spacing-x-small)] border-b border-[var(--syn-panel-border-color)] shrink-0">
+    <syn-icon class="flex items-center text-syn-color-primary-500 text-[var(--syn-font-size-medium)] shrink-0" name="monitoring" />
+    <h3 class="[font:var(--syn-body-x-small-bold)] tracking-[0.12em] uppercase text-syn-typography-color-text leading-none">Telemetry</h3>
+  </div>
+
+  <div class="grid grid-cols-[1fr_1fr_1.5fr] gap-[var(--syn-spacing-x-small)]">
+    <div class="flex flex-col gap-[var(--syn-spacing-3x-small)] p-[var(--syn-spacing-x-small)] rounded-[var(--syn-border-radius-medium)] bg-syn-page-background-color">
+      <span class="flex items-center gap-[var(--syn-spacing-3x-small)] [font:var(--syn-body-2x-small-regular)] tracking-[0.08em] uppercase text-[var(--syn-typography-color-text-quiet)]">
+        <syn-icon name="grain" class="text-[var(--syn-font-size-x-small)]"></syn-icon>Points
+      </span>
+      <span class="[font:var(--syn-body-small-bold)] text-syn-typography-color-text leading-none">{{ pointCount() | number }}</span>
+    </div>
+    <div class="flex flex-col gap-[var(--syn-spacing-3x-small)] p-[var(--syn-spacing-x-small)] rounded-[var(--syn-border-radius-medium)] bg-syn-page-background-color">
+      <span class="flex items-center gap-[var(--syn-spacing-3x-small)] [font:var(--syn-body-2x-small-regular)] tracking-[0.08em] uppercase text-[var(--syn-typography-color-text-quiet)]">
+        <syn-icon name="speed" class="text-[var(--syn-font-size-x-small)]"></syn-icon>Rate
+      </span>
+      <span class="[font:var(--syn-body-small-bold)] text-syn-typography-color-text leading-none">{{ fps() }}<span class="[font:var(--syn-body-2x-small-regular)] text-[var(--syn-typography-color-text-quiet)]"> Hz</span></span>
+    </div>
+    <div class="flex flex-col gap-[var(--syn-spacing-3x-small)] p-[var(--syn-spacing-x-small)] rounded-[var(--syn-border-radius-medium)] bg-syn-page-background-color">
+      <span class="flex items-center gap-[var(--syn-spacing-3x-small)] [font:var(--syn-body-2x-small-regular)] tracking-[0.08em] uppercase text-[var(--syn-typography-color-text-quiet)]">
+        <syn-icon name="schedule" class="text-[var(--syn-font-size-x-small)]"></syn-icon>Time
+      </span>
+      <span class="[font:var(--syn-body-small-bold)] font-mono text-syn-typography-color-text leading-none">{{ lidarTime() }}</span>
+    </div>
+  </div>
+</div>

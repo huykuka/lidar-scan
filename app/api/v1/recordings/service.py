@@ -224,6 +224,30 @@ async def get_recording(recording_id: str, db: Session):
     return recording
 
 
+async def rename_recording(recording_id: str, name: str, db: Session):
+    """
+    Rename a recording.
+
+    Args:
+        recording_id: Recording ID
+        name: New display name
+        db: Database session
+
+    Returns:
+        Updated recording information
+
+    Raises:
+        HTTPException: If recording not found
+    """
+    repo = RecordingRepository(db)
+    updated = repo.update(recording_id, {"name": name})
+
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
+
+    return updated
+
+
 async def delete_recording(recording_id: str, background_tasks: BackgroundTasks, db: Session):
     """
     Delete a recording (removes file and database entry).

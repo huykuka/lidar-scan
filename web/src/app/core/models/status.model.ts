@@ -5,7 +5,7 @@
  * @see .opencode/plans/node-reload-improvement/api-spec.md § 4 & 6
  */
 
-import { NodeStatusUpdate } from './node-status.model';
+import {NodeStatusUpdate} from './node-status.model';
 
 export interface ReloadEvent {
   /** null for full DAG reload events */

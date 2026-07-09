@@ -1,14 +1,14 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
-import { of, throwError } from 'rxjs';
-import { vi } from 'vitest';
-import { PlaybackNodeEditorComponent } from './playback-node-editor.component';
-import { RecordingApiService } from '@core/services/api/recording-api.service';
-import { NodeStoreService } from '@core/services/stores/node-store.service';
-import { NodeEditorFacadeService } from '@features/settings/services/node-editor-facade.service';
-import { NodeConfig } from '@core/models/node.model';
-import { ListRecordingsResponse, Recording } from '@core/models/recording.model';
-import { PLAYBACK_SPEED_OPTIONS } from '@plugins/playback/playback.model';
+import {ComponentFixture, TestBed} from '@angular/core/testing';
+import {signal} from '@angular/core';
+import {of, throwError} from 'rxjs';
+import {vi} from 'vitest';
+import {PlaybackNodeEditorComponent} from './playback-node-editor.component';
+import {RecordingApiService} from '@core/services/api/recording-api.service';
+import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {NodeConfig} from '@core/models/node.model';
+import {ListRecordingsResponse, Recording} from '@core/models/recording.model';
+import {PLAYBACK_SPEED_OPTIONS} from '@plugins/playback/playback.model';
 
 // ── Mock data (api-spec.md §5) ──────────────────────────────────────────────
 const MOCK_RECORDING: Recording = {

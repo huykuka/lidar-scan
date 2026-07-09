@@ -1,0 +1,80 @@
+<!-- Viewport overlay: positioned absolutely over the Three.js canvas -->
+<div class="absolute inset-0 pointer-events-none z-10">
+  <!-- Center-left: orientation dropdown + view toggles -->
+  <div
+    class="absolute top-1/2 left-2 -translate-y-1/2 pointer-events-auto flex flex-col items-center gap-1 z-20"
+  >
+    <syn-dropdown
+      placement="bottom-start"
+      [distance]="4"
+      [open]="dropdownOpen()"
+      (synAfterShowEvent)="dropdownOpen.set(true)"
+      (synAfterHideEvent)="dropdownOpen.set(false)"
+    >
+      <button slot="trigger" class="orient-trigger">
+        <span class="orient-svg" [innerHTML]="currentOption().svg"></span>
+      </button>
+
+      <div class="orient-menu">
+        @for (opt of orientationOptions; track opt.value) {
+          <button
+            class="orient-item"
+            [class.orient-item--active]="opt.value === orientation()"
+            (click)="setOrientation(opt.value)"
+          >
+            <span class="orient-svg orient-svg--sm" [innerHTML]="opt.svg"></span>
+            <span class="orient-item-label">{{ opt.label }}</span>
+          </button>
+        }
+      </div>
+    </syn-dropdown>
+
+    <!-- Ortho / perspective toggle -->
+    <syn-tooltip
+      [content]="isOrtho() ? 'Switch to 3D perspective' : 'Switch to orthographic'"
+      [distance]="13"
+      placement="right"
+    >
+      <button
+        class="orient-trigger"
+        [class.orient-trigger--active]="isOrtho()"
+        (click)="toggleOrtho()"
+      >
+        <syn-icon [name]="isOrtho() ? 'view_in_ar' : 'grid_on'" class="orient-btn-icon"></syn-icon>
+      </button>
+    </syn-tooltip>
+    <!-- Grid toggle -->
+    <syn-tooltip
+      [content]="showGrid() ? 'Hide grid' : 'Show grid'"
+      [distance]="13"
+      placement="right"
+    >
+      <button
+        class="orient-trigger"
+        [class.orient-trigger--active]="showGrid()"
+        (click)="toggleGrid()"
+      >
+        <syn-icon name="grid_goldenratio" class="orient-btn-icon"></syn-icon>
+      </button>
+    </syn-tooltip>
+  </div>
+
+  <!-- Bottom-left: scale indicator -->
+  <div class="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 select-none">
+    <syn-icon name="straighten" class="scale-icon"></syn-icon>
+    <div class="scale-ruler">
+      <div class="scale-bar"></div>
+      <span class="scale-label">1 m</span>
+    </div>
+  </div>
+
+  <!-- Empty state overlay -->
+  @if (!hasData()) {
+    <div
+      class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none empty-state"
+    >
+      <span class="empty-state__label">{{ emptyLabel() || (orientation() + ' VIEW') }}</span>
+      <span class="empty-state__sub">No point cloud loaded</span>
+    </div>
+  }
+</div>

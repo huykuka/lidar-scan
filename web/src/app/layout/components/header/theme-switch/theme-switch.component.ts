@@ -1,6 +1,6 @@
-import { Component, computed, inject, ChangeDetectionStrategy } from '@angular/core';
-import { SynergyComponentsModule } from '@synergy-design-system/angular';
-import { ThemeService } from '@core/services/theme.service';
+import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
+import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {ThemeService} from '@core/services/theme.service';
 
 /**
  * Self-contained theme toggle button for the app header.

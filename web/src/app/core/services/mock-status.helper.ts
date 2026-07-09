@@ -1,14 +1,14 @@
 /**
  * Mock Status Helper for Development
- * 
+ *
  * Provides mock NodeStatusUpdate data for frontend development
  * while the backend standardization is in progress.
- * 
+ *
  * Enable by setting environment.mockStatus = true
  */
 
-import { signal, effect } from '@angular/core';
-import { NodesStatusResponse, OperationalState } from '../models/node-status.model';
+import {signal} from '@angular/core';
+import {NodesStatusResponse, OperationalState} from '../models/node-status.model';
 
 export const MOCK_SYSTEM_STATUS: NodesStatusResponse = {
   nodes: [
@@ -69,7 +69,7 @@ export const MOCK_SYSTEM_STATUS: NodesStatusResponse = {
 /**
  * Cycles through all four operational states on a 3-second timer
  * for visual testing of all status icons and badges.
- * 
+ *
  * @param statusSignal - The signal to update with cycling mock data
  * @returns cleanup function to stop the timer
  */

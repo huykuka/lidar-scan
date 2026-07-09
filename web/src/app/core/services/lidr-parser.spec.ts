@@ -1,4 +1,4 @@
-import { parseLidrFrame, parseJsonPointCloud } from './lidr-parser';
+import {parseJsonPointCloud, parseLidrFrame} from './lidr-parser';
 
 describe('parseLidrFrame', () => {
   function buildLidrBuffer(count: number, timestamp = 1234567890.5): ArrayBuffer {
