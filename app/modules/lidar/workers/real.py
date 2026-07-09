@@ -1,4 +1,6 @@
 import logging
+import os
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -125,6 +127,20 @@ def _parse_imu_msg(msg_contents) -> dict:
     }
 
 
+def _force_exit_after(timeout_sec: float, reason: str, lidar_id: str):
+    """Watchdog: force-kill this process if cleanup exceeds timeout."""
+    def _watchdog():
+        time.sleep(timeout_sec)
+        logger.error(
+            f"[{lidar_id}] Watchdog triggered after {timeout_sec}s ({reason}) — forcing exit"
+        )
+        os._exit(1)  # noqa: bypass finally blocks, C FFI may ignore SIGTERM
+
+    t = threading.Thread(target=_watchdog, daemon=True, name=f"watchdog-{lidar_id}")
+    t.start()
+    return t
+
+
 def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_event: Any):
     """
     Worker process that owns its own instance of sick_scan_xd library AND its own pipeline.
@@ -160,6 +176,13 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
     api_handle = SickScanApiCreate(sick_scan_library)
     SickScanApiSetVerboseLevel(sick_scan_library, api_handle, 5)
 
+    # Guard: if stop was requested before we even reach init, bail out early.
+    if stop_event.is_set():
+        logger.info(f"[{lidar_id}] Stop requested before init — exiting immediately")
+        SickScanApiRelease(sick_scan_library, api_handle)
+        SickScanApiUnloadLibrary(sick_scan_library)
+        return
+
     # `launch_args` is typically: "<launchfile> key:=value ...".
     # The sick_scan_api parser expects the launchfile to be readable from the
     # current working directory if a relative path is used.
@@ -183,6 +206,15 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
         pass
 
     SickScanApiInitByLaunchfile(sick_scan_library, api_handle, launch_args)
+
+    # If stop was requested during init (long blocking C call), exit now.
+    if stop_event.is_set():
+        logger.info(f"[{lidar_id}] Stop requested during init — tearing down")
+        _force_exit_after(5.0, "post-init cleanup", lidar_id)
+        SickScanApiClose(sick_scan_library, api_handle)
+        SickScanApiRelease(sick_scan_library, api_handle)
+        SickScanApiUnloadLibrary(sick_scan_library)
+        return
 
     # Process-local latest IMU snapshot (written by IMU callback, read by PC callback)
     _latest_imu: dict = {}
@@ -303,6 +335,11 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
             time.sleep(0.1)
 
     finally:
+        # Start a watchdog that will force-exit if cleanup blocks for too long.
+        # SickScanApiClose() sends shutdown telegrams to hardware and can hang
+        # if the sensor is unreachable or the network stack is stuck.
+        _force_exit_after(8.0, "finally cleanup", lidar_id)
+
         SickScanApiDeregisterCartesianPointCloudMsg(sick_scan_library, api_handle, pc_callback)
         if imu_callback is not None:
             try:
