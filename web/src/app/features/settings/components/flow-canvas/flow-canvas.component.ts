@@ -18,15 +18,12 @@ import {
   FCanvasComponent,
   FCreateConnectionEvent,
   FCreateNodeEvent,
-  F_DRAG_SELECT_CONTROL_SCHEME,
   FFlowComponent,
   FFlowModule,
   FMoveNodesEvent,
   FZoomDirective,
   provideFFlow,
-  withControlScheme,
   withConnectionFlow,
-  F_SCROLL_PAN_CONTROL_SCHEME,
 } from '@foblex/flow';
 
 import { NodePlugin } from '@core/models';
@@ -550,37 +547,42 @@ export class FlowCanvasComponent {
   /**
    * Returns the Foblex fCanBeConnectedTo allow-list for a source (output) connector.
    *
-   * Strategy: scan all node definitions. For each definition whose input ports declare
-   * `allowed_source_categories` containing the source node's category, add that
-   * definition's own category to the allow-list. Foblex then matches this list against
-   * the [fConnectorCategory] set on target input connectors (which is the target node's
-   * own category).
+   * Strategy: scan all canvas nodes (not just definitions) to build the per-instance
+   * allow-list. Each target input connector has a unique category of the form
+   * "<nodeCategory>__<nodeId>". We include every such compound category except
+   * the source node itself — this prevents self-connections visually during drag.
    *
-   * If a definition has input ports with NO restrictions, any source can connect — so
-   * when there are unrestricted definitions the allow-list is empty (= no restriction).
+   * Category-level restrictions from `allowed_source_categories` on input port
+   * definitions are also honoured: if a target definition restricts which source
+   * categories can connect, the target node is only included when the source's
+   * category is in that list.
    */
   getAllowedTargetCategories(node: CanvasNode): string[] {
     const sourceCategory = node.data.category?.toLowerCase() ?? '';
     const definitions = this.nodeStore.nodeDefinitions();
+    const nodes = this.canvasNodes();
 
-    // If any definition has unrestricted inputs, don't restrict at all
-    const hasUnrestrictedTargets = definitions.some(
-      (def) =>
-        def.inputs.length > 0 && def.inputs.every((p) => !p.allowed_source_categories?.length),
-    );
-    if (hasUnrestrictedTargets) return [];
+    const allowed: string[] = [];
 
-    // Collect categories of definitions whose inputs accept sourceCategory
-    const allowed = new Set<string>();
-    for (const def of definitions) {
-      if (!def.inputs.length) continue;
-      const accepts = def.inputs.some(
+    for (const targetNode of nodes) {
+      // Skip self
+      if (targetNode.id === node.id) continue;
+
+      const targetDef = definitions.find((d) => d.type === targetNode.data.type);
+      if (!targetDef || !targetDef.inputs.length) continue;
+
+      // Check if target accepts this source's category
+      const accepts = targetDef.inputs.some(
         (p) =>
           !p.allowed_source_categories?.length ||
           p.allowed_source_categories.map((c) => c.toLowerCase()).includes(sourceCategory),
       );
-      if (accepts) allowed.add(def.category.toLowerCase());
+
+      if (accepts) {
+        allowed.push(targetNode.data.category.toLowerCase() + '__' + targetNode.id);
+      }
     }
-    return [...allowed];
+
+    return allowed;
   }
 }

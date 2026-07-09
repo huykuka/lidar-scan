@@ -10,7 +10,7 @@
   [class.node-card--error]="!!errorText()"
   [class.node-card--running]="isNodeEnabled() && !errorText()"
   [class.node-card--disabled]="!isNodeEnabled()"
-  class="node-card bg-syn-page-background-color rounded-lg shadow-md border-2 border-l-0 w-56 hover:shadow-lg transition-all duration-200 relative flex flex-col"
+  class="node-card bg-syn-page-background-color rounded-lg shadow-md border-2 border-l-0 w-fit min-w-[200px] hover:shadow-lg transition-all duration-200 relative flex flex-col"
 >
   <!-- Left status accent strip — quick visual scan of node state -->
   <span class="node-card__accent" aria-hidden="true"></span>
@@ -28,8 +28,6 @@
       ></div>
     </div>
   }
-
-  <!-- Node Header (Ultra Compact) -->
   <div
     class="px-2 py-1.5 flex items-center gap-2 cursor-default min-h-8 rounded-t-lg border-b border-syn-color-neutral-200 transition-colors overflow-hidden"
     [class.bg-syn-color-neutral-50]="isNodeEnabled()"
@@ -59,17 +57,6 @@
     }
   </div>
 
-  <!-- Runtime Error Section -->
-  @if (errorText()) {
-    <div
-      class="px-2 py-1.5 bg-syn-color-error-50 border-t border-syn-color-error-100/50 text-[10px] text-syn-color-error-700 leading-tight italic"
-    >
-      <div class="flex items-start gap-1">
-        <syn-icon name="error" class="shrink-0 text-xs mt-0.5" />
-        <span class="wrap-break-word line-clamp-2" [title]="errorText()">{{ errorText() }}</span>
-      </div>
-    </div>
-  }
   <!-- Node Actions Bar -->
   <div
     class="px-0.5 py-0.5 border-t border-syn-color-neutral-200 flex items-center justify-between bg-syn-page-background-color rounded-b-lg transition-colors"
@@ -129,13 +116,13 @@
 </div>
 
 <!-- Context Menu (only for nodes with WebSocket output) -->
-@if (contextMenuOpen() && isWebsocketEnabled()) {
+@if (contextMenuOpen() && (isWebsocketEnabled() || isNodeEnabled() || isTogglingVisibility())) {
   <div
     class="node-context-menu"
     [style.left.px]="contextMenuPos().x"
     [style.top.px]="contextMenuPos().y"
   >
-    <syn-menu (syn-select)="onMenuSelect($event)">
+    <syn-menu (syn-select)="onMenuSelect($event)" size="small" >
       @if (isPreviewed()) {
         <syn-menu-item value="preview">
           <syn-icon name="visibility_off" slot="prefix" />
