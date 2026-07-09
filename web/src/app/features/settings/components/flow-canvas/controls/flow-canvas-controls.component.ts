@@ -21,7 +21,7 @@ const HINTS: Hint[] = [
 
 /**
  * Unified floating canvas toolbar.
- * Contains zoom controls, snap-to-grid toggle, and keyboard shortcuts hint.
+ * Contains zoom controls, snap-to-grid toggle, minimap toggle, and keyboard shortcuts hint.
  */
 @Component({
   selector: 'app-flow-canvas-controls',
@@ -33,12 +33,14 @@ const HINTS: Hint[] = [
 export class FlowCanvasControlsComponent {
   zoom = input<number>(1);
   snapToGrid = input<boolean>(true);
+  minimapVisible = input<boolean>(true);
   canUndo = input<boolean>(false);
   canRedo = input<boolean>(false);
 
   onFitToScreen = output<void>();
   onOneToOne = output<void>();
   onSnapToggle = output<void>();
+  onMinimapToggle = output<void>();
   onZoomIn = output<void>();
   onZoomOut = output<void>();
   onUndo = output<void>();

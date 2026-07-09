@@ -54,6 +54,16 @@
     />
   </syn-tooltip>
 
+  <syn-tooltip [content]="minimapVisible() ? 'Hide minimap' : 'Show minimap'" placement="top">
+    <syn-icon-button
+      name="pip"
+      label="Toggle minimap"
+      size="small"
+      [color]="minimapVisible() ? 'primary' : 'neutral'"
+      (click)="onMinimapToggle.emit()"
+    />
+  </syn-tooltip>
+
   <span class="divider"></span>
 
   <syn-tooltip content="Undo (Ctrl+Z)" placement="top">
