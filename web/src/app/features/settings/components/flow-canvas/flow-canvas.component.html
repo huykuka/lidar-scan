@@ -69,6 +69,7 @@
                     [fConnectorId]="buildTargetConnectorId(node.id)"
                     [fConnectorCategory]="node.data.category"
                     class="port port--input"
+                    [title]="getInputPortLabel(node)"
                   ></div>
                 }
                 @for (port of getOutputPorts(node); track port.id; let i = $index) {
@@ -77,6 +78,8 @@
                     fConnectorType="source"
                     [fConnectorId]="buildSourceConnectorId(node.id, port.id)"
                     [fCanBeConnectedTo]="getAllowedTargetCategories(node)"
+                    [title]="port.label"
+                    [style.top.px]="getOutputPortY(i, getOutputPorts(node).length)"
                     class="port port--output"
                   ></div>
                 }
@@ -98,7 +101,7 @@
         </f-canvas>
         <!-- f-selection-area must be a direct child of f-flow -->
         <f-selection-area />
-        <f-minimap [fMinSize]="2000" />
+        <f-minimap class="hidden:sm" [fMinSize]="2000" />
       </f-flow>
       <!-- Empty state overlay -->
       @if (canvasNodes().length === 0 && !isCanvasLoading()) {

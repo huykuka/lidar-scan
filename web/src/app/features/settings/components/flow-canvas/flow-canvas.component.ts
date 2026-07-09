@@ -522,9 +522,14 @@ export class FlowCanvasComponent {
     return !!def?.inputs?.[0]?.multiple;
   }
 
-  getOutputPorts(node: CanvasNode): Array<{ id: string }> {
+  getOutputPorts(node: CanvasNode): Array<{ id: string; label: string }> {
     const def = this.nodeStore.nodeDefinitions().find((d) => d.type === node.data.type);
     return def?.outputs ?? [];
+  }
+
+  getInputPortLabel(node: CanvasNode): string {
+    const def = this.nodeStore.nodeDefinitions().find((d) => d.type === node.data.type);
+    return def?.inputs?.[0]?.label ?? 'Input';
   }
 
   getOutputPortY(portIndex: number, totalPorts: number): number {

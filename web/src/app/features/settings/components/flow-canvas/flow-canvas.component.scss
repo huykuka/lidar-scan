@@ -40,6 +40,29 @@ f-flow {
   top: 10px;
 }
 
+/* ── Port labels ──────────────────────────────────────────────────────────── */
+.port-label {
+  position: absolute;
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--syn-color-neutral-500, #6b7280);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
+
+.port-label--input {
+  left: 4px;
+  top: 10px;
+  transform: translateY(-50%);
+}
+
+.port-label--output {
+  right: 4px;
+  transform: translateY(-50%);
+}
+
 /* ── Connection edges ─────────────────────────────────────────────────────── */
 
 /* Base bezier path — drawn by Foblex into an SVG inside f-canvas */
