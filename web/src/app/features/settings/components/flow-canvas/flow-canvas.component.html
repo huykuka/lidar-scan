@@ -101,7 +101,9 @@
         </f-canvas>
         <!-- f-selection-area must be a direct child of f-flow -->
         <f-selection-area />
-        <f-minimap class="hidden:sm" [fMinSize]="2000" />
+        @if (minimapVisible()) {
+          <f-minimap class="hidden:sm" [fMinSize]="2000" />
+        }
       </f-flow>
       <!-- Empty state overlay -->
       @if (canvasNodes().length === 0 && !isCanvasLoading()) {
@@ -125,12 +127,14 @@
           (onFitToScreen)="fitToScreen()"
           (onOneToOne)="resetScaleAndCenter()"
           (onSnapToggle)="snapToGrid.set(!snapToGrid())"
+          (onMinimapToggle)="minimapVisible.set(!minimapVisible())"
           (onZoomIn)="zoomIn()"
           (onZoomOut)="zoomOut()"
           (onUndo)="undo()"
           (onRedo)="redo()"
           (onReset)="resetToSaved()"
           [snapToGrid]="snapToGrid()"
+          [minimapVisible]="minimapVisible()"
           [zoom]="zoomValue"
           [canUndo]="canvasEditStore.canUndo()"
           [canRedo]="canvasEditStore.canRedo()"

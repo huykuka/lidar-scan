@@ -89,6 +89,9 @@ export class FlowCanvasComponent {
   protected drawerOpen = signal(false);
   protected availablePlugins = signal<NodePlugin[]>([]);
   protected snapToGrid = signal(true);
+  protected minimapVisible = signal(
+    localStorage.getItem('flow-canvas.minimapVisible') !== 'false'
+  );
   readonly gridSize = 30;
   protected isPaletteLoading = signal(true);
   protected isCanvasLoading = signal(true);
@@ -125,6 +128,11 @@ export class FlowCanvasComponent {
         this.availablePlugins.set(this.pluginRegistry.getAll());
         this.isPaletteLoading.set(false);
       });
+    });
+
+    effect(() => {
+      const visible = this.minimapVisible();
+      localStorage.setItem('flow-canvas.minimapVisible', String(visible));
     });
   }
   // ------ Foblex lifecycle events ------
