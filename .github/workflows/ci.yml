@@ -96,7 +96,7 @@ jobs:
           path: |
             /tmp/cpp-build
             /tmp/sick_scan_xd
-          key: sick-scan-xd-3.9.0-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-gcc11-${{ runner.os }}
 
   build-cpp:
     name: Build C++ sick_scan_xd
@@ -115,15 +115,17 @@ jobs:
           path: |
             /tmp/cpp-build
             /tmp/sick_scan_xd
-          key: sick-scan-xd-3.9.0-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-gcc11-${{ runner.os }}
 
       - name: Build sick_scan_xd
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build git
+          sudo apt-get install -y build-essential gcc-11 g++-11 cmake ninja-build git
           git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /tmp/sick_scan_xd
           mkdir -p /tmp/cpp-build
           cd /tmp/cpp-build
+          export CC=gcc-11
+          export CXX=g++-11
           cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" /tmp/sick_scan_xd
           make -j"$(nproc)"
 
@@ -133,7 +135,7 @@ jobs:
           path: |
             /tmp/cpp-build
             /tmp/sick_scan_xd
-          key: sick-scan-xd-3.9.0-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-gcc11-${{ runner.os }}
 
       - name: Upload C++ artifacts
         uses: actions/upload-artifact@v4
@@ -160,7 +162,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            web/node_modules
             web/dist/web/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
@@ -181,7 +182,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            web/node_modules
             web/dist/web/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
@@ -197,9 +197,24 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
+      - name: Restore pnpm dependencies
+        id: pnpm-deps
+        uses: actions/cache/restore@v4
+        with:
+          path: web/node_modules
+          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/package.json', 'web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
+
       - name: Install dependencies
         working-directory: web
+        if: steps.pnpm-deps.outputs.cache-hit != 'true'
         run: pnpm install --frozen-lockfile
+
+      - name: Save pnpm dependencies
+        if: steps.pnpm-deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: web/node_modules
+          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/package.json', 'web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
 
       - name: Build production
         working-directory: web
@@ -218,19 +233,81 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            web/node_modules
             web/dist/web/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
+
+  build-python:
+    name: Prepare Python Dependencies
+    runs-on: ubuntu-latest
+    needs: version-bump
+    steps:
+      - name: Checkout versioned source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: latest
+
+      - name: Restore uv package cache
+        id: uv-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: Restore installed Python environment
+        id: uv-env
+        uses: actions/cache/restore@v4
+        with:
+          path: .venv
+          key: uv-env-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: Install Python dependencies
+        if: steps.uv-env.outputs.cache-hit != 'true'
+        run: uv sync --frozen --no-dev --compile-bytecode
+
+      - name: Save installed Python environment
+        if: steps.uv-env.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .venv
+          key: uv-env-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: Save uv package cache
+        if: steps.uv-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+
+      - name: Archive Python environment
+        run: tar -czf python-venv.tar.gz .venv
+
+      - name: Upload Python environment
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-venv
+          path: python-venv.tar.gz
+          retention-days: 1
 
   docker:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    needs: [changes, version-bump, build-cpp, build-frontend]
+    needs: [changes, version-bump, build-cpp, build-frontend, build-python]
     if: |
       always() &&
       needs.version-bump.result == 'success' &&
       (needs.build-cpp.result == 'success' || needs.build-cpp.result == 'skipped') &&
-      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
+      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped') &&
+      needs.build-python.result == 'success'
     steps:
       - name: Checkout versioned source
         uses: actions/checkout@v4
@@ -243,18 +320,26 @@ jobs:
           path: |
             /tmp/cpp-build
             /tmp/sick_scan_xd
-          key: sick-scan-xd-3.9.0-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-gcc11-${{ runner.os }}
 
       - name: Restore frontend build cache
         uses: actions/cache/restore@v4
         with:
           path: |
-            web/node_modules
             web/dist/web/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
+      - name: Download Python environment
+        uses: actions/download-artifact@v4
+        with:
+          name: python-venv
+          path: ci-artifacts
+
       - name: Prepare prebuilt artifacts
         run: |
+          tar -xzf ci-artifacts/python-venv.tar.gz
+          mkdir -p ci-artifacts/python
+          mv .venv ci-artifacts/python/.venv
           mkdir -p ci-artifacts/build ci-artifacts/launch ci-artifacts/frontend
           cp /tmp/cpp-build/libsick_scan_xd_shared_lib.so ci-artifacts/build/
           cp /tmp/cpp-build/sick_generic_caller ci-artifacts/build/
