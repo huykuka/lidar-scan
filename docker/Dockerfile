@@ -21,8 +21,7 @@ RUN git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /workspace/sic
   && rm -rf ./* \
   && export ROS_VERSION=0 \
   && cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" ../sick_scan_xd \
-  && make -j4 \
-  && make install
+  && make -j4
 
 # ----------------------------------------
 # Stage 2: Build Angular frontend
