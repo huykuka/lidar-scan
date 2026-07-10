@@ -15,7 +15,7 @@ permissions:
 jobs:
   changes:
     name: Detect Changes
-    runs-on: cicd
+    runs-on: ubuntu-latest
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
@@ -41,7 +41,7 @@ jobs:
 
   version-bump:
     name: Bump Semver
-    runs-on: cicd
+    runs-on: ubuntu-latest
     needs: changes
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
@@ -83,19 +83,33 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
           git push origin HEAD:main
 
+  check-cpp-cache:
+    name: Check C++ Cache
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      - name: Restore C++ cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /tmp/cpp-build
+            /tmp/sick_scan_xd
+          key: sick-scan-xd-3.9.0-${{ runner.os }}
+
   build-cpp:
     name: Build C++ sick_scan_xd
-    runs-on: cicd
-    needs: [changes, version-bump]
-    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    needs: [version-bump, check-cpp-cache]
+    if: needs.check-cpp-cache.outputs.cache-hit != 'true'
     steps:
       - name: Checkout versioned source
         uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Cache C++ build
-        id: cpp-cache
+      - name: Restore C++ cache
         uses: actions/cache@v4
         with:
           path: |
@@ -104,7 +118,6 @@ jobs:
           key: sick-scan-xd-3.9.0-${{ runner.os }}
 
       - name: Build sick_scan_xd
-        if: steps.cpp-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build git
@@ -113,6 +126,14 @@ jobs:
           cd /tmp/cpp-build
           cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" /tmp/sick_scan_xd
           make -j"$(nproc)"
+
+      - name: Save C++ cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /tmp/cpp-build
+            /tmp/sick_scan_xd
+          key: sick-scan-xd-3.9.0-${{ runner.os }}
 
       - name: Upload C++ artifacts
         uses: actions/upload-artifact@v4
@@ -126,7 +147,7 @@ jobs:
 
   build-frontend:
     name: Build Angular Frontend
-    runs-on: cicd
+    runs-on: ubuntu-latest
     needs: [changes, version-bump]
     if: needs.changes.outputs.frontend == 'true'
     steps:
@@ -166,7 +187,7 @@ jobs:
 
   docker:
     name: Build & Push Docker Image
-    runs-on: cicd
+    runs-on: ubuntu-latest
     needs: [changes, version-bump, build-cpp, build-frontend]
     if: |
       always() &&
