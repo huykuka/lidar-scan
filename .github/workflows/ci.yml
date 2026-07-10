@@ -86,8 +86,6 @@ jobs:
   check-cpp-cache:
     name: Check C++ Cache
     runs-on: cicd
-    needs: changes
-    if: needs.changes.outputs.backend == 'true'
     outputs:
       cache-hit: ${{ steps.cache.outputs.cache-hit }}
     steps:
@@ -103,10 +101,8 @@ jobs:
   build-cpp:
     name: Build C++ sick_scan_xd
     runs-on: cicd
-    needs: [changes, version-bump, check-cpp-cache]
-    if: |
-      needs.changes.outputs.backend == 'true' &&
-      needs.check-cpp-cache.outputs.cache-hit != 'true'
+    needs: [version-bump, check-cpp-cache]
+    if: needs.check-cpp-cache.outputs.cache-hit != 'true'
     steps:
       - name: Checkout versioned source
         uses: actions/checkout@v4
@@ -130,6 +126,14 @@ jobs:
           cd /tmp/cpp-build
           cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" /tmp/sick_scan_xd
           make -j"$(nproc)"
+
+      - name: Save C++ cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /tmp/cpp-build
+            /tmp/sick_scan_xd
+          key: sick-scan-xd-3.9.0-${{ runner.os }}
 
       - name: Upload C++ artifacts
         uses: actions/upload-artifact@v4
