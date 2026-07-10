@@ -26,5 +26,5 @@ async def start_system():
 async def stop_system():
     """Stop the pipeline engine."""
     if node_manager.is_running:
-        node_manager.stop()
+        await node_manager.stop()
     return {"status": "success", "is_running": node_manager.is_running}
