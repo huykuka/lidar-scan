@@ -5,50 +5,18 @@ on:
     branches:
       - main
 
-# Prevent concurrent runs on the same branch so version bumps don't conflict
 concurrency:
   group: ci-main
   cancel-in-progress: false
 
 jobs:
   # ─────────────────────────────────────────
-  # Detect which parts of the repo changed
-  # ─────────────────────────────────────────
-  changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    outputs:
-      frontend: ${{ steps.filter.outputs.frontend }}
-      backend: ${{ steps.filter.outputs.backend }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed paths
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            frontend:
-              - 'web/**'
-            backend:
-              - 'app/**'
-              - 'main.py'
-              - 'pyproject.toml'
-              - 'uv.lock'
-              - 'docker/Dockerfile'
-
-  # ─────────────────────────────────────────
   # Bump semver patch in both manifests and
-  # commit back to main before any build
+  # commit back to main before Docker build
   # ─────────────────────────────────────────
   version-bump:
     name: Bump Semver
-    runs-on: ubuntu-latest
-    needs: changes
-    # Skip if triggered by the bot's own version-bump commit to avoid loops
+    runs-on: [self-hosted, linux, amd64]
     if: "!startsWith(github.event.head_commit.message, 'chore: bump version')"
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
@@ -61,36 +29,23 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Bump patch version in pyproject.toml and web/package.json
+      - name: Bump patch version
         id: bump
         run: |
-          # ── Read current version from pyproject.toml ──────────────────────
           CURRENT=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "Current version: $CURRENT"
-
-          # ── Increment patch segment ────────────────────────────────────────
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
           PATCH=$((PATCH + 1))
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-          echo "New version: $NEW_VERSION"
+          echo "Bumping ${CURRENT} → ${NEW_VERSION}"
 
-          # ── Update pyproject.toml ──────────────────────────────────────────
           sed -i "s/^version = \"${CURRENT}\"/version = \"${NEW_VERSION}\"/" pyproject.toml
 
-          # ── Update web/package.json ────────────────────────────────────────
-          sed -i "s/\"version\": \"${CURRENT_PKG}\"/\"version\": \"${NEW_VERSION}\"/" web/package.json
-          # Handle case where frontend version differs from backend
-          CURRENT_PKG=$(grep -m1 '"version"' web/package.json | sed 's/.*"version": "\(.*\)".*/\1/')
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('web/package.json', 'utf8'));
-            pkg.version = '${NEW_VERSION}';
-            fs.writeFileSync('web/package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
+          # Update web/package.json (pure sed, no node dependency)
+          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${NEW_VERSION}\"/" web/package.json
 
           echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Commit and push bumped versions
+      - name: Commit and push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -99,118 +54,22 @@ jobs:
           git push origin main
 
   # ─────────────────────────────────────────
-  # Build C++ sick_scan_xd library (shared)
-  # Only needed when backend changes
-  # ─────────────────────────────────────────
-  build-cpp:
-    name: Build C++ sick_scan_xd
-    runs-on: ubuntu-latest
-    needs: [changes, version-bump]
-    if: |
-      always() &&
-      needs.version-bump.result != 'failure' &&
-      needs.changes.outputs.backend == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: main  # pick up the version-bump commit
-
-      - name: Cache CMake build artifacts
-        uses: actions/cache@v4
-        id: cpp-cache
-        with:
-          path: /tmp/cpp-build
-          key: cpp-sick_scan_xd-3.9.0-${{ runner.os }}
-
-      - name: Build sick_scan_xd (skip if cached)
-        if: steps.cpp-cache.outputs.cache-hit != 'true'
-        run: |
-          sudo apt-get update && sudo apt-get install -y \
-            build-essential cmake ninja-build git
-          git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /tmp/sick_scan_xd
-          mkdir -p /tmp/cpp-build
-          cd /tmp/cpp-build
-          export ROS_VERSION=0
-          cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" /tmp/sick_scan_xd
-          make -j$(nproc)
-          # No 'make install' — artifacts are consumed directly from the build dir
-
-      - name: Upload C++ artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cpp-artifacts
-          path: |
-            /tmp/cpp-build/libsick_scan_xd_shared_lib.so
-            /tmp/cpp-build/sick_generic_caller
-            /tmp/sick_scan_xd/launch/
-          retention-days: 1
-
-  # ─────────────────────────────────────────
-  # Build Angular frontend
-  # ─────────────────────────────────────────
-  build-frontend:
-    name: Build Angular Frontend
-    runs-on: ubuntu-latest
-    needs: [changes, version-bump]
-    if: |
-      always() &&
-      needs.version-bump.result != 'failure' &&
-      needs.changes.outputs.frontend == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: main  # pick up the version-bump commit
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'pnpm'
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - name: Install dependencies
-        working-directory: web
-        run: pnpm install --frozen-lockfile
-
-      - name: Build production
-        working-directory: web
-        run: pnpm run build --configuration production
-        env:
-          CI: true
-
-      - name: Upload frontend dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: web/dist/web/browser/
-          retention-days: 1
-
-  # ─────────────────────────────────────────
-  # Build & push final Docker image
-  # Waits for whichever build jobs ran
+  # Build & push Docker image
+  # BuildKit registry cache means unchanged
+  # stages (C++ / frontend / Python deps) are
+  # pulled from cache — only modified stages
+  # actually rebuild.
   # ─────────────────────────────────────────
   docker:
     name: Build & Push Docker Image
-    runs-on: ubuntu-latest
-    needs: [changes, version-bump, build-cpp, build-frontend]
-    if: |
-      always() &&
-      needs.version-bump.result != 'failure' &&
-      (needs.build-cpp.result == 'success' || needs.build-cpp.result == 'skipped') &&
-      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
+    runs-on: [self-hosted, linux, amd64]
+    needs: [version-bump]
+    if: needs.version-bump.result != 'failure'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main  # pick up the version-bump commit
+          ref: main
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -221,7 +80,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Resolve version for Docker tags
+      - name: Read version
         id: ver
         run: |
           VERSION=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
@@ -237,10 +96,7 @@ jobs:
             type=raw,value=${{ steps.ver.outputs.version }}-amd64
             type=sha,prefix=sha-,format=short
 
-      # ── BuildKit registry cache covers all stages.
-      # Unchanged Docker stages (C++ builder, pnpm install, Python deps) are
-      # pulled from the registry cache even when only one side changed.
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
