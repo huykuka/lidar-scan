@@ -83,19 +83,37 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
           git push origin HEAD:main
 
+  check-cpp-cache:
+    name: Check C++ Cache
+    runs-on: cicd
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      - name: Restore C++ cache
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /tmp/cpp-build
+            /tmp/sick_scan_xd
+          key: sick-scan-xd-3.9.0-${{ runner.os }}
+
   build-cpp:
     name: Build C++ sick_scan_xd
     runs-on: cicd
-    needs: [changes, version-bump]
-    if: needs.changes.outputs.backend == 'true'
+    needs: [changes, version-bump, check-cpp-cache]
+    if: |
+      needs.changes.outputs.backend == 'true' &&
+      needs.check-cpp-cache.outputs.cache-hit != 'true'
     steps:
       - name: Checkout versioned source
         uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Cache C++ build
-        id: cpp-cache
+      - name: Restore C++ cache
         uses: actions/cache@v4
         with:
           path: |
@@ -104,7 +122,6 @@ jobs:
           key: sick-scan-xd-3.9.0-${{ runner.os }}
 
       - name: Build sick_scan_xd
-        if: steps.cpp-cache.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build git
