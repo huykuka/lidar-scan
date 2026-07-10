@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ----------------------------------------
 # Stage 1: Build sick_scan_xd C++ library
 # ----------------------------------------
@@ -31,7 +32,8 @@ ENV CI=true
 WORKDIR /web
 # Copy package manifests first for caching
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
-RUN corepack enable && corepack pnpm install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    corepack enable && corepack pnpm install --frozen-lockfile
 # Copy rest of frontend source and build
 COPY web/ ./
 RUN corepack pnpm run build --configuration production
@@ -61,9 +63,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # ✅ Dependencies before app code — maximizes cache reuse on rebuilds
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --compile-bytecode \
-  && uv cache clean \
-  && rm -rf /root/.cache \
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --compile-bytecode \
   && find /app/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true \
   && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/resources \
   && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/examples \
