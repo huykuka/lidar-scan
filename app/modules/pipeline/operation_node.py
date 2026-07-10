@@ -24,6 +24,7 @@ from app.modules.pipeline.operations import (
     PlaneSegmentation,
     RadiusOutlierRemoval,
     RangeImage,
+    ShapeFitting,
     StatisticalOutlierRemoval,
     SurfaceReconstruction,
     UniformDownsample,
@@ -57,6 +58,7 @@ _OP_MAP = {
     "edge_detection": EdgeDetection,
     "plane_projection": PlaneProjection,
     "range_image": RangeImage,
+    "shape_fitting": ShapeFitting,
 }
 
 # These ops are CPU-heavy (DBSCAN, RANSAC, ICP, mesh) and get a dedicated

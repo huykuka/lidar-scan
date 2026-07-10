@@ -14,4 +14,5 @@ from .patch_plane_segmentation import PatchPlaneSegmentation
 from .plane_projection import PlaneProjection
 from .range_image import RangeImage
 from .segmentation import PlaneSegmentation
+from .shape_fitting import ShapeFitting
 from .surface_reconstruction import SurfaceReconstruction

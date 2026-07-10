@@ -624,6 +624,7 @@ dependencies = [
     { name = "open3d-cpu" },
     { name = "psutil" },
     { name = "pyjwt" },
+    { name = "pyransac3d" },
     { name = "python-multipart" },
     { name = "scipy" },
     { name = "small-gicp" },
@@ -648,6 +649,7 @@ requires-dist = [
     { name = "open3d-cpu", specifier = ">=0.19.0" },
     { name = "psutil", specifier = ">=7.2.2" },
     { name = "pyjwt", specifier = ">=2.13.0" },
+    { name = "pyransac3d", specifier = ">=0.6.0" },
     { name = "python-multipart", specifier = ">=0.0.26" },
     { name = "scipy", specifier = ">=1.7" },
     { name = "small-gicp", specifier = ">=1.0.0" },
@@ -1023,6 +1025,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7d/0d/3d092aa20efaedacb89c3221a92c6491be5b28f618a2c36b52b53e7446c2/pyquaternion-0.9.9.tar.gz", hash = "sha256:b1f61af219cb2fe966b5fb79a192124f2e63a3f7a777ac3cadf2957b1a81bea8", size = 15530, upload-time = "2020-10-05T01:31:30.327Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/49/b3/d8482e8cacc8ea15a356efea13d22ce1c5914a9ee36622ba250523240bf2/pyquaternion-0.9.9-py3-none-any.whl", hash = "sha256:e65f6e3f7b1fdf1a9e23f82434334a1ae84f14223eee835190cd2e841f8172ec", size = 14361, upload-time = "2020-10-05T01:31:37.575Z" },
+]
+
+[[package]]
+name = "pyransac3d"
+version = "0.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4d/14/5a832a068aea13656c3b4155544d79c5e7d68b7bb8b539bac5a57abefae0/pyransac3d-0.6.0.tar.gz", hash = "sha256:2ac153b2e94cf0326b2ebf88246f4be5f2a4fd57434e9d3a7d8ed15784843328", size = 11686, upload-time = "2021-07-24T17:27:47.827Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/6b/a4cc6a28ac80d3bccef0bf869634ee21731e1a85e5ce508c41e1ba0c8437/pyransac3d-0.6.0-py3-none-any.whl", hash = "sha256:d081abf704b97b5c087418202acac385872da60d7af08556e91faf290784443f", size = 18209, upload-time = "2021-07-24T17:27:45.782Z" },
 ]
 
 [[package]]
