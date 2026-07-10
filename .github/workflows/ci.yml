@@ -237,6 +237,30 @@ jobs:
         with:
           ref: main
 
+      - name: Restore C++ build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /tmp/cpp-build
+            /tmp/sick_scan_xd
+          key: sick-scan-xd-3.9.0-${{ runner.os }}
+
+      - name: Restore frontend build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            web/node_modules
+            web/dist/web/browser
+          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
+
+      - name: Prepare prebuilt artifacts
+        run: |
+          mkdir -p ci-artifacts/build ci-artifacts/launch ci-artifacts/frontend
+          cp /tmp/cpp-build/libsick_scan_xd_shared_lib.so ci-artifacts/build/
+          cp /tmp/cpp-build/sick_generic_caller ci-artifacts/build/
+          cp -r /tmp/sick_scan_xd/launch/. ci-artifacts/launch/
+          cp -r web/dist/web/browser/. ci-artifacts/frontend/
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -266,7 +290,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile
+          file: docker/Dockerfile.ci
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
