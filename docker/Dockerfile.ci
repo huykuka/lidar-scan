@@ -32,9 +32,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
   && find /app/.venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true \
   && find /app/.venv -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
 
-COPY ci-artifacts/build/libsick_scan_xd_shared_lib.so \
-  ci-artifacts/build/sick_generic_caller \
-  ./build/
+COPY ci-artifacts/build/ ./build/
 RUN test -f ./build/libsick_scan_xd_shared_lib.so \
   && (ldd ./build/libsick_scan_xd_shared_lib.so > /tmp/sick_scan_xd.ldd || true) \
   && cat /tmp/sick_scan_xd.ldd \
