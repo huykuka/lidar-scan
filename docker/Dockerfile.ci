@@ -36,9 +36,12 @@ COPY ci-artifacts/build/libsick_scan_xd_shared_lib.so \
   ci-artifacts/build/sick_generic_caller \
   ./build/
 RUN test -f ./build/libsick_scan_xd_shared_lib.so \
-  && ldd ./build/libsick_scan_xd_shared_lib.so > /tmp/sick_scan_xd.ldd \
+  && (ldd ./build/libsick_scan_xd_shared_lib.so > /tmp/sick_scan_xd.ldd || true) \
   && cat /tmp/sick_scan_xd.ldd \
-  && ! grep -q 'not found' /tmp/sick_scan_xd.ldd
+  && if grep -Fq '=> not found' /tmp/sick_scan_xd.ldd; then \
+       echo 'Missing shared-library dependency'; \
+       exit 1; \
+     fi
 COPY ci-artifacts/launch/ ./launch/
 RUN rm -f ./launch/test_* \
   && test -s ./launch/sick_multiscan.launch \
