@@ -110,14 +110,6 @@ jobs:
         with:
           ref: main
 
-      - name: Restore C++ cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            /tmp/cpp-build
-            /tmp/sick_scan_xd
-          key: sick-scan-xd-3.9.0-ubuntu2204-${{ runner.os }}
-
       - name: Build sick_scan_xd
         run: |
           apt-get update
