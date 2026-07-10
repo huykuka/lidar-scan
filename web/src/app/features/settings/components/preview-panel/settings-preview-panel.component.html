@@ -8,6 +8,17 @@
       }
     </span>
     <div class="preview-actions">
+      @if (topicCount() > 0) {
+        <syn-tooltip [content]="showGizmos() ? 'Hide position gizmos' : 'Show position gizmos'" [distance]="13" placement="top">
+          <syn-icon-button
+            name="control_camera"
+            [label]="showGizmos() ? 'Hide position gizmos' : 'Show position gizmos'"
+            size="small"
+            [color]="showGizmos() ? 'primary' : 'neutral'"
+            (click)="showGizmos.set(!showGizmos())"
+          />
+        </syn-tooltip>
+      }
       @if (!isConnected() && topicCount() > 0) {
         <span class="preview-status preview-status--disconnected">
           <syn-icon name="cloud_off" style="font-size: 12px" />
@@ -52,9 +63,22 @@
     <ngt-canvas>
       <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
         @for (entry of topicEntries(); track entry.topic) {
-          <ngts-points-buffer #buf [positions]="entry.buf">
-            <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false"/>
-          </ngts-points-buffer>
+          <ngts-pivot-controls
+            [options]="{
+              visible: showGizmos(),
+              scale: 0.5,
+              depthTest: false,
+              disableScaling: true,
+              annotations: false,
+              autoTransform: true,
+            }"
+            (dragged)="onPivotDrag(entry.topic, $event)"
+            (dragEnded)="onPivotDragEnd(entry.topic)"
+          >
+            <ngts-points-buffer #buf [positions]="entry.buf">
+              <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false"/>
+            </ngts-points-buffer>
+          </ngts-pivot-controls>
         }
       </app-threed-scene-graph>
     </ngt-canvas>

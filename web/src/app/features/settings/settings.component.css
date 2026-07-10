@@ -1,5 +1,5 @@
 .settings-divider {
-  width: 4px;
+  width: 2px;
   cursor: col-resize;
   background: var(--syn-panel-border-color);
   transition: background var(--syn-duration-fast);
