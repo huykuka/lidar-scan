@@ -134,7 +134,7 @@ jobs:
           export ROS_VERSION=0
           cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" /tmp/sick_scan_xd
           make -j$(nproc)
-          make install
+          # No 'make install' — artifacts are consumed directly from the build dir
 
       - name: Upload C++ artifacts
         uses: actions/upload-artifact@v4
