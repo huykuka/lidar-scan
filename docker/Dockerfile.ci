@@ -5,7 +5,8 @@ FROM python:3.12-slim-bookworm
 ENV DEBIAN_FRONTEND=noninteractive \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONUNBUFFERED=1 \
-  PYTHONPATH=/app
+  PYTHONPATH=/app \
+  LD_LIBRARY_PATH=/app/build
 
 WORKDIR /app
 
@@ -13,6 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libegl1 \
   libgl1 \
   libgomp1 \
+  libstdc++6 \
+  libgcc-s1 \
   && rm -rf /var/lib/apt/lists/* \
   && rm -rf /usr/lib/x86_64-linux-gnu/dri/*
 
@@ -32,8 +35,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY ci-artifacts/build/libsick_scan_xd_shared_lib.so \
   ci-artifacts/build/sick_generic_caller \
   ./build/
+RUN test -f ./build/libsick_scan_xd_shared_lib.so \
+  && ldd ./build/libsick_scan_xd_shared_lib.so > /tmp/sick_scan_xd.ldd \
+  && cat /tmp/sick_scan_xd.ldd \
+  && ! grep -q 'not found' /tmp/sick_scan_xd.ldd
 COPY ci-artifacts/launch/ ./launch/
-RUN rm -f ./launch/test_*
+RUN rm -f ./launch/test_* \
+  && test -s ./launch/sick_multiscan.launch \
+  && test -s ./launch/sick_tim_5xx.launch \
+  && test -n "$(find ./launch -type f -not -name 'test_*' -print -quit)"
 
 COPY main.py .
 COPY app/ ./app/
