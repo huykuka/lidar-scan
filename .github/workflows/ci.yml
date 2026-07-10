@@ -273,6 +273,11 @@ jobs:
           cp /tmp/cpp-build/sick_generic_caller ci-artifacts/build/
           cp -r /tmp/sick_scan_xd/launch/. ci-artifacts/launch/
           cp -r web/dist/web/browser/. ci-artifacts/frontend/
+          test -s ci-artifacts/build/libsick_scan_xd_shared_lib.so
+          test -x ci-artifacts/build/sick_generic_caller
+          test -s ci-artifacts/launch/sick_multiscan.launch
+          test -s ci-artifacts/launch/sick_tim_5xx.launch
+          test -n "$(find ci-artifacts/launch -type f -not -name 'test_*' -print -quit)"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

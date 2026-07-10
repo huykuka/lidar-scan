@@ -40,7 +40,10 @@ RUN test -f ./build/libsick_scan_xd_shared_lib.so \
   && cat /tmp/sick_scan_xd.ldd \
   && ! grep -q 'not found' /tmp/sick_scan_xd.ldd
 COPY ci-artifacts/launch/ ./launch/
-RUN rm -f ./launch/test_*
+RUN rm -f ./launch/test_* \
+  && test -s ./launch/sick_multiscan.launch \
+  && test -s ./launch/sick_tim_5xx.launch \
+  && test -n "$(find ./launch -type f -not -name 'test_*' -print -quit)"
 
 COPY main.py .
 COPY app/ ./app/
