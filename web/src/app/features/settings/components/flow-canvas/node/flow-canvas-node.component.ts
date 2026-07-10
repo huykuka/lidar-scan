@@ -35,6 +35,7 @@ export interface CanvasNode {
 export class FlowCanvasNodeComponent implements OnInit, OnDestroy {
   node = input.required<CanvasNode>();
   status = input<NodeStatusUpdate | null>(null);
+  liveStatus = input<boolean>(true);
   isLoading = input<boolean>(false);
   isDragging = input<boolean>(false);
   isTogglingVisibility = input<boolean>(false);
@@ -67,6 +68,9 @@ export class FlowCanvasNodeComponent implements OnInit, OnDestroy {
   };
 
   protected operationalIcon = computed<{ icon: string; css: string }>(() => {
+    if (!this.liveStatus()) {
+      return { icon: 'sync_disabled', css: 'text-syn-color-neutral-300 opacity-50' };
+    }
     const status = this.status();
     if (!status) {
       return { icon: 'radio_button_unchecked', css: 'text-syn-color-neutral-300' };

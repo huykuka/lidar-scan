@@ -45,7 +45,7 @@
     </div>
     @if (isNodeEnabled()) {
       <syn-tooltip
-        [content]="status()?.operational_state ?? 'Unknown'"
+        [content]="!liveStatus() ? 'Live status paused' : (status()?.operational_state ?? 'Unknown')"
         [distance]="13"
         placement="top"
       >
@@ -84,7 +84,7 @@
       }
 
       <!-- Cycle time badge -->
-      @if (cycleTimeLabel() && isNodeEnabled()) {
+      @if (liveStatus() && cycleTimeLabel() && isNodeEnabled()) {
         <span
           class="inline-flex items-center gap-1 rounded bg-syn-color-neutral-200 px-2 py-1 text-[9px] leading-none tabular-nums pointer-events-none"
           [title]="'Last cycle: ' + cycleTimeLabel()"
@@ -105,7 +105,7 @@
   </div>
 
   <!-- Application State Label (Node-RED style: colored square + text, floats below node) -->
-  @if (appBadge()) {
+  @if (liveStatus() && appBadge()) {
     <div class="absolute -bottom-5 left-0 flex items-center gap-1.5 z-10">
       <div class="w-2.5 h-2.5 shrink-0" [style.background-color]="appBadge()!.color"></div>
       <span class="text-[10px] bg-syn-page-background-color px-1 py-0.5 font-normal leading-none">{{

@@ -39,6 +39,7 @@ import { CanvasEditStoreService } from '@features/settings/services/canvas-edit-
 import { CanvasNode, FlowCanvasNodeComponent } from './node/flow-canvas-node.component';
 import { FlowCanvasPaletteComponent } from './palette/flow-canvas-palette.component';
 import { FlowCanvasControlsComponent } from './controls/flow-canvas-controls.component';
+import { CanvasControlAction } from './controls/flow-canvas-controls.component';
 import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-state.component';
 import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
 import { OutputViewerComponent } from '@features/settings/components/flow-canvas/output-viewer/output-viewer.component';
@@ -89,6 +90,9 @@ export class FlowCanvasComponent {
   protected minimapVisible = signal(
     localStorage.getItem('flow-canvas.minimapVisible') !== 'false'
   );
+  protected liveStatus = signal(
+    localStorage.getItem('flow-canvas.liveStatus') !== 'false'
+  );
   readonly gridSize = 30;
   protected isPaletteLoading = signal(true);
   protected isCanvasLoading = signal(true);
@@ -130,6 +134,16 @@ export class FlowCanvasComponent {
     effect(() => {
       const visible = this.minimapVisible();
       localStorage.setItem('flow-canvas.minimapVisible', String(visible));
+    });
+
+    effect(() => {
+      const live = this.liveStatus();
+      localStorage.setItem('flow-canvas.liveStatus', String(live));
+      if (live) {
+        this.statusWs.connect();
+      } else {
+        this.statusWs.disconnect();
+      }
     });
   }
   // ------ Foblex lifecycle events ------
@@ -290,6 +304,21 @@ export class FlowCanvasComponent {
   }
 
   // ------ Controls ------
+
+  onControlAction(action: CanvasControlAction): void {
+    switch (action) {
+      case 'fit-to-screen':    this.fitToScreen(); break;
+      case 'one-to-one':       this.resetScaleAndCenter(); break;
+      case 'zoom-in':          this.zoomIn(); break;
+      case 'zoom-out':         this.zoomOut(); break;
+      case 'snap-toggle':      this.snapToGrid.set(!this.snapToGrid()); break;
+      case 'minimap-toggle':   this.minimapVisible.set(!this.minimapVisible()); break;
+      case 'live-status-toggle': this.liveStatus.set(!this.liveStatus()); break;
+      case 'undo':             this.undo(); break;
+      case 'redo':             this.redo(); break;
+      case 'reset':            this.resetToSaved(); break;
+    }
+  }
 
   fitToScreen() {
     this._canvas()?.fitToScreen();
