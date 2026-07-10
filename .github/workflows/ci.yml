@@ -94,7 +94,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: cpp-staging
-          key: sick-scan-xd-3.9.0-ubuntu2204-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
 
   build-cpp:
     name: Build C++ sick_scan_xd
@@ -129,7 +129,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: cpp-staging
-          key: sick-scan-xd-3.9.0-ubuntu2204-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
 
       - name: Upload C++ artifacts
         uses: actions/upload-artifact@v4
@@ -247,7 +247,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: cpp-staging
-          key: sick-scan-xd-3.9.0-ubuntu2204-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
 
       - name: Download C++ artifacts
         if: needs.build-cpp.result == 'success'
