@@ -121,7 +121,7 @@ jobs:
       - name: Build sick_scan_xd
         run: |
           apt-get update
-          apt-get install -y build-essential cmake ninja-build git
+          apt-get install -y build-essential cmake ninja-build git gdb
           git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /tmp/sick_scan_xd
           mkdir -p /tmp/cpp-build
           cd /tmp/cpp-build
@@ -264,6 +264,14 @@ jobs:
           path: |
             web/dist/web/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
+
+      - name: Stage CI artifacts
+        run: |
+          mkdir -p ci-artifacts/build ci-artifacts/launch ci-artifacts/frontend
+          cp /tmp/cpp-build/libsick_scan_xd_shared_lib.so ci-artifacts/build/
+          cp /tmp/cpp-build/sick_generic_caller ci-artifacts/build/
+          cp -a /tmp/sick_scan_xd/launch/. ci-artifacts/launch/
+          cp -a web/dist/web/browser/. ci-artifacts/frontend/
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
