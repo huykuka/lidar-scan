@@ -15,7 +15,7 @@ permissions:
 jobs:
   changes:
     name: Detect Changes
-    runs-on: ubuntu-latest
+    runs-on: cicd
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
@@ -41,7 +41,7 @@ jobs:
 
   version-bump:
     name: Bump Semver
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: changes
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
@@ -85,7 +85,7 @@ jobs:
 
   build-cpp:
     name: Build C++ sick_scan_xd
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: [changes, version-bump]
     if: needs.changes.outputs.backend == 'true'
     steps:
@@ -126,7 +126,7 @@ jobs:
 
   build-frontend:
     name: Build Angular Frontend
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: [changes, version-bump]
     if: needs.changes.outputs.frontend == 'true'
     steps:
@@ -166,7 +166,7 @@ jobs:
 
   docker:
     name: Build & Push Docker Image
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: [changes, version-bump, build-cpp, build-frontend]
     if: |
       always() &&
