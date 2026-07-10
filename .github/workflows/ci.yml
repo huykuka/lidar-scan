@@ -93,9 +93,7 @@ jobs:
         id: cache
         uses: actions/cache/restore@v4
         with:
-          path: |
-            /tmp/cpp-build
-            /tmp/sick_scan_xd
+          path: cpp-staging
           key: sick-scan-xd-3.9.0-ubuntu2204-${{ runner.os }}
 
   build-cpp:
@@ -120,22 +118,24 @@ jobs:
           cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" /tmp/sick_scan_xd
           make -j"$(nproc)"
 
+      - name: Stage C++ artifacts
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/cpp-staging/build" "$GITHUB_WORKSPACE/cpp-staging/launch"
+          cp /tmp/cpp-build/libsick_scan_xd_shared_lib.so "$GITHUB_WORKSPACE/cpp-staging/build/"
+          cp /tmp/cpp-build/sick_generic_caller "$GITHUB_WORKSPACE/cpp-staging/build/"
+          cp -a /tmp/sick_scan_xd/launch/. "$GITHUB_WORKSPACE/cpp-staging/launch/"
+
       - name: Save C++ cache
         uses: actions/cache/save@v4
         with:
-          path: |
-            /tmp/cpp-build
-            /tmp/sick_scan_xd
+          path: cpp-staging
           key: sick-scan-xd-3.9.0-ubuntu2204-${{ runner.os }}
 
       - name: Upload C++ artifacts
         uses: actions/upload-artifact@v4
         with:
           name: cpp-artifacts
-          path: |
-            /tmp/cpp-build/libsick_scan_xd_shared_lib.so
-            /tmp/cpp-build/sick_generic_caller
-            /tmp/sick_scan_xd/launch/
+          path: cpp-staging/
           retention-days: 1
 
   check-frontend-cache:
@@ -243,26 +243,40 @@ jobs:
           ref: main
 
       - name: Restore C++ build cache
+        if: needs.build-cpp.result == 'skipped'
         uses: actions/cache/restore@v4
         with:
-          path: |
-            /tmp/cpp-build
-            /tmp/sick_scan_xd
+          path: cpp-staging
           key: sick-scan-xd-3.9.0-ubuntu2204-${{ runner.os }}
 
+      - name: Download C++ artifacts
+        if: needs.build-cpp.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: cpp-artifacts
+          path: cpp-staging
+
       - name: Restore frontend build cache
+        if: needs.build-frontend.result == 'skipped'
         uses: actions/cache/restore@v4
         with:
           path: |
             web/dist/web/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
+      - name: Download frontend artifacts
+        if: needs.build-frontend.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: web/dist/web/browser
+
       - name: Stage CI artifacts
         run: |
           mkdir -p ci-artifacts/build ci-artifacts/launch ci-artifacts/frontend
-          cp /tmp/cpp-build/libsick_scan_xd_shared_lib.so ci-artifacts/build/
-          cp /tmp/cpp-build/sick_generic_caller ci-artifacts/build/
-          cp -a /tmp/sick_scan_xd/launch/. ci-artifacts/launch/
+          cp cpp-staging/build/libsick_scan_xd_shared_lib.so ci-artifacts/build/
+          cp cpp-staging/build/sick_generic_caller ci-artifacts/build/
+          cp -a cpp-staging/launch/. ci-artifacts/launch/
           cp -a web/dist/web/browser/. ci-artifacts/frontend/
 
       - name: Set up Docker Buildx
