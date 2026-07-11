@@ -6,12 +6,23 @@ on:
       cpp_changed:
         required: true
         type: boolean
+      checkout_ref:
+        required: false
+        type: string
+        default: ''
 
 jobs:
   backend_cpp:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout requested ref
+        if: inputs.checkout_ref != ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Checkout event ref
+        if: inputs.checkout_ref == ''
         uses: actions/checkout@v4
 
       - name: Restore C++ cache

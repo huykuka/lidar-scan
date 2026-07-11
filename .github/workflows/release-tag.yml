@@ -9,37 +9,66 @@ permissions:
   contents: write
 
 jobs:
-  frontend:
-    name: Frontend Pipeline
-    uses: ./.github/workflows/frontend.yml
-    with:
-      frontend_changed: false
-    secrets: inherit
-
-  backend-cpp:
-    name: Backend Cpp Pipeline
-    uses: ./.github/workflows/backend-cpp.yml
-    with:
-      cpp_changed: false
-    secrets: inherit
-
-  docker:
-    name: Build & Push Docker Image (Tag)
+  version-sync:
+    name: Sync FE/BE Version To Main
     runs-on: ubuntu-latest
-    needs: [frontend, backend-cpp]
-    if: |
-      needs.frontend.result == 'success' &&
-      needs.backend-cpp.result == 'success'
     steps:
-      - name: Checkout tagged source
+      - name: Checkout main for version sync
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
-      - name: Sync project version from tag
+      - name: Commit FE and BE versions from tag
         env:
           TAG: ${{ github.ref_name }}
         run: |
           VERSION="${TAG#v}"
           sed -i -E "s/^version = \".*\"/version = \"${VERSION}\"/" pyproject.toml
+          sed -i -E "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" web/package.json
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml web/package.json
+
+          if git diff --cached --quiet; then
+            echo "Versions already synced to ${VERSION}."
+          else
+            git commit -m "chore: release version ${VERSION} [skip ci]"
+            git push origin HEAD:main
+          fi
+
+  frontend:
+    name: Frontend Pipeline
+    needs: [version-sync]
+    uses: ./.github/workflows/frontend.yml
+    with:
+      frontend_changed: false
+      checkout_ref: main
+    secrets: inherit
+
+  backend-cpp:
+    name: Backend Cpp Pipeline
+    needs: [version-sync]
+    uses: ./.github/workflows/backend-cpp.yml
+    with:
+      cpp_changed: false
+      checkout_ref: main
+    secrets: inherit
+
+  docker:
+    name: Build & Push Docker Image (Tag)
+    runs-on: ubuntu-latest
+    needs: [version-sync, frontend, backend-cpp]
+    if: |
+      needs.version-sync.result == 'success' &&
+      needs.frontend.result == 'success' &&
+      needs.backend-cpp.result == 'success'
+    steps:
+      - name: Checkout synced main source
+        uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Download backend artifacts
         uses: actions/download-artifact@v4
@@ -81,31 +110,6 @@ jobs:
     needs: [docker]
     if: needs.docker.result == 'success'
     steps:
-      - name: Checkout main for version sync
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
-
-      - name: Commit FE and BE versions from tag
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          VERSION="${TAG#v}"
-          sed -i -E "s/^version = \".*\"/version = \"${VERSION}\"/" pyproject.toml
-          sed -i -E "s/\"version\": \"[^\"]*\"/\"version\": \"${VERSION}\"/" web/package.json
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml web/package.json
-
-          if git diff --cached --quiet; then
-            echo "Versions already synced to ${VERSION}."
-          else
-            git commit -m "chore: release version ${VERSION} [skip ci]"
-            git push origin HEAD:main
-          fi
-
       - name: Create release from tag (if missing)
         env:
           GH_TOKEN: ${{ github.token }}
