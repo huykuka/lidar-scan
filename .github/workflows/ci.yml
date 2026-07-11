@@ -425,21 +425,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Read version
-        id: ver
-        run: |
-          VERSION=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio
           tags: |
-            type=raw,value=latest-amd64
-            type=raw,value=${{ steps.ver.outputs.version }}-amd64
-            type=sha,prefix=sha-,suffix=-amd64,format=short
+            type=raw,value=latest
+            type=raw,value=${{ needs.version-bump.outputs.be_version }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -449,6 +442,10 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache-amd64
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache-amd64,mode=max
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.version=${{ needs.version-bump.outputs.be_version }}
+            io.lidarstudio.backend.version=${{ needs.version-bump.outputs.be_version }}
+            io.lidarstudio.frontend.version=${{ needs.version-bump.outputs.fe_version }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache,mode=max
