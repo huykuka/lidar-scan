@@ -21,7 +21,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-COPY pyproject.toml uv.lock ./
+# Use a normalized pyproject to avoid cache busts on version-only bumps.
+COPY ci-artifacts/pyproject-deps.toml ./pyproject.toml
+COPY uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --compile-bytecode \
   && find /app/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true \
@@ -31,6 +33,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
   && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/nbextension \
   && find /app/.venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true \
   && find /app/.venv -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
+
+# Restore real project metadata in final image.
+COPY pyproject.toml ./
 
 COPY ci-artifacts/build/ /build/
 

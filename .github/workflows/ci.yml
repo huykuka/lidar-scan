@@ -49,6 +49,8 @@ jobs:
     needs: changes
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
+      fe_version: ${{ steps.bump.outputs.fe_version }}
+      be_version: ${{ steps.bump.outputs.be_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,32 +61,53 @@ jobs:
         id: bump
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
+          BACKEND_CHANGED: ${{ needs.changes.outputs.backend }}
         run: |
-          CURRENT=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          FE_CURRENT=$(grep -m1 '"version"' web/package.json | sed 's/.*"version": "\([^"]*\)".*/\1/')
+          BE_CURRENT=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          FE_NEW="$FE_CURRENT"
+          BE_NEW="$BE_CURRENT"
 
           # A version-bump commit may trigger a workflow run without the
           # platform's [skip ci] handling. Keep this job successful but do not
           # increment the version a second time.
           if [[ "$COMMIT_MESSAGE" == chore:\ bump\ version* ]]; then
-            echo "new_version=${CURRENT}" >> "$GITHUB_OUTPUT"
+            echo "new_version=${BE_CURRENT}" >> "$GITHUB_OUTPUT"
+            echo "fe_version=${FE_CURRENT}" >> "$GITHUB_OUTPUT"
+            echo "be_version=${BE_CURRENT}" >> "$GITHUB_OUTPUT"
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-          NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
-          sed -i "s/^version = \"${CURRENT}\"/version = \"${NEW_VERSION}\"/" pyproject.toml
-          sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${NEW_VERSION}\"/" web/package.json
-          echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          CHANGED=false
+
+          if [[ "$FRONTEND_CHANGED" == "true" ]]; then
+            IFS='.' read -r FE_MAJOR FE_MINOR FE_PATCH <<< "$FE_CURRENT"
+            FE_NEW="${FE_MAJOR}.${FE_MINOR}.$((FE_PATCH + 1))"
+            sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${FE_NEW}\"/" web/package.json
+            CHANGED=true
+          fi
+
+          if [[ "$BACKEND_CHANGED" == "true" ]]; then
+            IFS='.' read -r BE_MAJOR BE_MINOR BE_PATCH <<< "$BE_CURRENT"
+            BE_NEW="${BE_MAJOR}.${BE_MINOR}.$((BE_PATCH + 1))"
+            sed -i "s/^version = \"${BE_CURRENT}\"/version = \"${BE_NEW}\"/" pyproject.toml
+            CHANGED=true
+          fi
+
+          echo "new_version=${BE_NEW}" >> "$GITHUB_OUTPUT"
+          echo "fe_version=${FE_NEW}" >> "$GITHUB_OUTPUT"
+          echo "be_version=${BE_NEW}" >> "$GITHUB_OUTPUT"
+          echo "changed=${CHANGED}" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push version
         if: steps.bump.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml web/package.json
-          git diff --cached --quiet || git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
+          git add web/package.json pyproject.toml
+          git diff --cached --quiet || git commit -m "chore: bump versions fe=${{ steps.bump.outputs.fe_version }} be=${{ steps.bump.outputs.be_version }} [skip ci]"
           git push origin HEAD:main
 
   check-cpp-cache:
@@ -192,7 +215,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: web/node_modules
-          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/package.json', 'web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
+          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
 
       - name: Install dependencies
         working-directory: web
@@ -204,7 +227,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: web/node_modules
-          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/package.json', 'web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
+          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
 
       - name: Build production
         working-directory: web
@@ -277,6 +300,7 @@ jobs:
           cp cpp-staging/build/sick_generic_caller ci-artifacts/build/
           cp -a cpp-staging/launch/. ci-artifacts/launch/
           cp -a web/dist/web/browser/. ci-artifacts/frontend/
+          sed -E 's/^version = ".*"/version = "0.0.0"/' pyproject.toml > ci-artifacts/pyproject-deps.toml
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
