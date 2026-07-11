@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {SystemStatusService} from '@core/services/system-status.service';
 import {AuthService} from '@core/services/auth.service';
@@ -19,9 +19,6 @@ import {ToastService} from '@core/services/toast.service';
       display: inline-flex;
       align-items: center;
     }
-    syn-icon-button {
-      color: var(--status-color);
-    }
   `,
 })
 export class SystemControlComponent {
@@ -31,6 +28,7 @@ export class SystemControlComponent {
 
   protected readonly isRunning = this.systemStatus.isRunning;
   protected readonly canEdit = this.auth.canEdit;
+  protected readonly loading = signal(false);
 
   protected readonly icon = computed(() =>
     this.isRunning() ? 'play_circle' : 'motion_photos_paused',
@@ -47,6 +45,7 @@ export class SystemControlComponent {
   );
 
   protected async onToggle(): Promise<void> {
+    this.loading.set(true);
     try {
       if (this.isRunning()) {
         await this.systemStatus.stopSystem();
@@ -59,6 +58,8 @@ export class SystemControlComponent {
       this.toast.danger(
         this.isRunning() ? 'Failed to stop data flow.' : 'Failed to start data flow.',
       );
+    } finally {
+      this.loading.set(false);
     }
   }
 }

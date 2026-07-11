@@ -1,14 +1,12 @@
 <syn-tooltip [content]="label()" [distance]="13">
-  <div
-    class="relative inline-flex items-center"
-    [style.--status-color]="statusColor()"
+  <syn-button
+    variant="text"
+    size="medium"
+    [loading]="loading()"
+    [disabled]="!canEdit()"
+    (click)="onToggle()"
+    
   >
-    <syn-icon-button
-      [name]="icon()"
-      [label]="label()"
-      [disabled]="!canEdit()"
-      size="medium"
-      (click)="onToggle()"
-    />
-  </div>
+    <syn-icon slot="prefix" [name]="icon()" [style.color]="statusColor()" />
+  </syn-button>
 </syn-tooltip>

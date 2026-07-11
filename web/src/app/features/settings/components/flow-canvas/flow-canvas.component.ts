@@ -172,6 +172,9 @@ export class FlowCanvasComponent {
 
   onCreateNode(event: FCreateNodeEvent): void {
     if (this.readOnly()) return;
+    // Guard: ignore if the editor drawer is already open (prevents duplicate
+    // nodes when fCreateNode fires multiple times for a single drop gesture).
+    if (this.drawerOpen()) return;
     this.canvasEditStore.pushUndoState();
     const type = event.data as string;
     // Snap drop position to grid when snap is on

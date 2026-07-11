@@ -63,26 +63,3 @@ f-flow {
   transform: translateY(-50%);
 }
 
-/* ── Connection edges ─────────────────────────────────────────────────────── */
-
-/* Base bezier path — drawn by Foblex into an SVG inside f-canvas */
-.flow-edge ::ng-deep path {
-  stroke: var(--syn-color-primary-600, #005aff);
-  stroke-width: 1px;
-  fill: none;
-}
-/* Connection path — solid line with subtle width progression.
-   No dashes, no animations — zero runtime cost.
-   Industrial look: clean solid stroke with a slight opacity layering. */
-.flow-edge ::ng-deep .f-connection-path {
-  stroke-width: 2px;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.85;
-}
-
-/* Click-to-delete hover — Foblex adds .f-selected; we add a hover tint */
-.flow-edge:hover ::ng-deep path {
-  stroke: #ef4444;
-  cursor: pointer;
-}

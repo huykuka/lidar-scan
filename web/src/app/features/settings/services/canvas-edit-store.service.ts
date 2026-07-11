@@ -20,6 +20,8 @@ function deepEqual(a: unknown, b: unknown): boolean {
 
 const GRID_SIZE = 20; // must match canvas SVG grid pattern size
 
+let _newNodeSeq = 0; // monotonic counter to guarantee unique temp IDs
+
 // ---------------------------------------------------------------------------
 // Service
 // ---------------------------------------------------------------------------
@@ -162,7 +164,7 @@ export class CanvasEditStoreService {
 
   addNode(node: Partial<NodeConfig>): void {
     const newNode: NodeConfig = {
-      id: node.id ?? `__new__${Date.now()}`,
+      id: node.id ?? `__new__${Date.now()}_${++_newNodeSeq}`,
       name: node.name ?? 'New Node',
       type: node.type ?? 'unknown',
       category: node.category ?? 'unknown',
