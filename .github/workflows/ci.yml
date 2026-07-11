@@ -118,11 +118,11 @@ jobs:
           cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" /tmp/sick_scan_xd
           make -j"$(nproc)"
 
-        - name: Stage C++ artifacts
-          run: |
+      - name: Stage C++ artifacts
+        run: |
           mkdir -p "$GITHUB_WORKSPACE/cpp-staging/build" "$GITHUB_WORKSPACE/cpp-staging/launch"
-            cp /tmp/cpp-build/ "$GITHUB_WORKSPACE/cpp-staging/build/"
-            cp -a /tmp/sick_scan_xd/launch/. "$GITHUB_WORKSPACE/cpp-staging/launch/"
+          cp -r /tmp/cpp-build/. "$GITHUB_WORKSPACE/cpp-staging/build/"
+          cp -a /tmp/sick_scan_xd/launch/. "$GITHUB_WORKSPACE/cpp-staging/launch/"
 
       - name: Save C++ cache
         uses: actions/cache/save@v4
