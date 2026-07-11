@@ -439,7 +439,7 @@ jobs:
           tags: |
             type=raw,value=latest-amd64
             type=raw,value=${{ steps.ver.outputs.version }}-amd64
-            type=sha,prefix=sha-,format=short
+            type=sha,prefix=sha-,suffix=-amd64,format=short
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -450,5 +450,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache,mode=max
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache-amd64
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache-amd64,mode=max
