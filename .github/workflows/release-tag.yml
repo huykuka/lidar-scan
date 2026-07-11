@@ -13,14 +13,14 @@ jobs:
     name: Frontend Pipeline
     uses: ./.github/workflows/frontend.yml
     with:
-      frontend_changed: true
+      frontend_changed: false
     secrets: inherit
 
   backend-cpp:
     name: Backend Cpp Pipeline
     uses: ./.github/workflows/backend-cpp.yml
     with:
-      cpp_changed: true
+      cpp_changed: false
     secrets: inherit
 
   docker:
