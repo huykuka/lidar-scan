@@ -51,4 +51,4 @@ async def lifespan(_: FastAPI):
     # ── Shutdown ──────────────────────────────────────────────────────────────
     stop_status_aggregator()
     await recorder.stop_all_recordings()
-    node_manager.stop()
+    await node_manager.stop()

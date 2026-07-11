@@ -15,7 +15,6 @@
   <!-- Left status accent strip — quick visual scan of node state -->
   <span class="node-card__accent" aria-hidden="true"></span>
 
-
   <!-- Reload Spinner Badge (top-right corner, only visible while reloading) -->
   @if (isReloading()) {
     <div
@@ -45,7 +44,9 @@
     </div>
     @if (isNodeEnabled()) {
       <syn-tooltip
-        [content]="status()?.operational_state ?? 'Unknown'"
+        [content]="
+          !liveStatus() ? 'Live status paused' : (status()?.operational_state ?? 'Unknown')
+        "
         [distance]="13"
         placement="top"
       >
@@ -84,15 +85,11 @@
       }
 
       <!-- Cycle time badge -->
-      @if (cycleTimeLabel() && isNodeEnabled()) {
-        <span
-          class="inline-flex items-center gap-1 rounded bg-syn-color-neutral-200 px-2 py-1 text-[9px] leading-none tabular-nums pointer-events-none"
-          [title]="'Last cycle: ' + cycleTimeLabel()"
-        >
-          <syn-icon name="avg_pace" class="text-[10px] shrink-0"></syn-icon>
-
-          <span>{{ cycleTimeLabel() }}</span>
-        </span>
+      @if (liveStatus() && cycleTimeLabel() && isNodeEnabled()) {
+        <syn-tag>
+          <syn-icon name="avg_pace" class="mr-2"></syn-icon>
+          {{ cycleTimeLabel() }}
+        </syn-tag>
       }
     </div>
 
@@ -105,12 +102,13 @@
   </div>
 
   <!-- Application State Label (Node-RED style: colored square + text, floats below node) -->
-  @if (appBadge()) {
-    <div class="absolute -bottom-5 left-0 flex items-center gap-1.5 z-10">
-      <div class="w-2.5 h-2.5 shrink-0" [style.background-color]="appBadge()!.color"></div>
-      <span class="text-[10px] bg-syn-page-background-color px-1 py-0.5 font-normal leading-none">{{
-        appBadge()!.text
-      }}</span>
+  @if (liveStatus() && appBadge()) {
+    <div class="absolute top-full mt-2 left-0 right-0 flex items-start gap-1.5 z-10">
+      <div class="w-2.5 h-2.5 shrink-0 mt-0.5" [style.background-color]="appBadge()!.color"></div>
+      <span
+        class="text-[10px] bg-syn-page-background-color px-1 py-0.5 font-normal leading-tight break-all min-w-0"
+        >{{ appBadge()!.text }}</span
+      >
     </div>
   }
 </div>
@@ -122,12 +120,11 @@
     [style.left.px]="contextMenuPos().x"
     [style.top.px]="contextMenuPos().y"
   >
-    <button
-      class="menu-item"
-      (click)="onMenuAction('preview')"
-    >
+    <button class="menu-item" (click)="onMenuAction('preview')">
       <syn-icon [name]="isPreviewed() ? 'visibility_off' : 'visibility'" class="menu-item__icon" />
-      <span class="menu-item__label">{{ isPreviewed() ? 'Remove from 3D' : 'Add to 3D view' }}</span>
+      <span class="menu-item__label">{{
+        isPreviewed() ? 'Remove from 3D' : 'Add to 3D view'
+      }}</span>
     </button>
   </div>
 }

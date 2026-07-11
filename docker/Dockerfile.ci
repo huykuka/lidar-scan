@@ -1,0 +1,50 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.12-slim-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive \
+  PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1 \
+  PYTHONPATH=/app \
+  LD_LIBRARY_PATH=/build
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  libegl1 \
+  libgl1 \
+  libgomp1 \
+  libstdc++6 \
+  libgcc-s1 \
+  && rm -rf /var/lib/apt/lists/* \
+  && rm -rf /usr/lib/x86_64-linux-gnu/dri/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Use a normalized pyproject to avoid cache busts on version-only bumps.
+COPY ci-artifacts/pyproject-deps.toml ./pyproject.toml
+COPY uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --compile-bytecode \
+  && find /app/.venv -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/resources \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/examples \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/labextension \
+  && rm -rf /app/.venv/lib/python3.12/site-packages/open3d/nbextension \
+  && find /app/.venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true \
+  && find /app/.venv -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
+
+# Restore real project metadata in final image.
+COPY pyproject.toml ./
+
+COPY ci-artifacts/build/ /build/
+
+COPY ci-artifacts/launch/ ./launch/
+RUN rm -f ./launch/test_* 
+
+COPY main.py .
+COPY app/ ./app/
+COPY ci-artifacts/frontend/ ./app/static/
+
+EXPOSE 8005
+CMD ["/app/.venv/bin/python", "main.py"]

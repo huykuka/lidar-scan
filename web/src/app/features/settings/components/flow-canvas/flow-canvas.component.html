@@ -46,7 +46,7 @@
               class="flow-edge"
               (click)="!readOnly() && conn.id ? onDeleteEdge(conn.id) : null"
             >
-              <f-connection-marker-arrow></f-connection-marker-arrow>
+              <!-- <f-connection-marker-arrow></f-connection-marker-arrow> -->
             </f-connection>
           }
 
@@ -94,6 +94,7 @@
                   [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"
                   [node]="node"
                   [status]="getNodeStatus(node)"
+                  [liveStatus]="liveStatus()"
                 />
               </div>
             }
@@ -124,17 +125,10 @@
       <!-- Bottom canvas toolbar -->
       <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
         <app-flow-canvas-controls
-          (onFitToScreen)="fitToScreen()"
-          (onOneToOne)="resetScaleAndCenter()"
-          (onSnapToggle)="snapToGrid.set(!snapToGrid())"
-          (onMinimapToggle)="minimapVisible.set(!minimapVisible())"
-          (onZoomIn)="zoomIn()"
-          (onZoomOut)="zoomOut()"
-          (onUndo)="undo()"
-          (onRedo)="redo()"
-          (onReset)="resetToSaved()"
+          (action)="onControlAction($event)"
           [snapToGrid]="snapToGrid()"
           [minimapVisible]="minimapVisible()"
+          [liveStatus]="liveStatus()"
           [zoom]="zoomValue"
           [canUndo]="canvasEditStore.canUndo()"
           [canRedo]="canvasEditStore.canRedo()"

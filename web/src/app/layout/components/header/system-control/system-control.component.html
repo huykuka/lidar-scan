@@ -1,0 +1,12 @@
+<syn-tooltip [content]="label()" [distance]="13">
+  <syn-button
+    variant="text"
+    size="medium"
+    [loading]="loading()"
+    [disabled]="!canEdit()"
+    (click)="onToggle()"
+    
+  >
+    <syn-icon slot="prefix" [name]="icon()" [style.color]="statusColor()" />
+  </syn-button>
+</syn-tooltip>

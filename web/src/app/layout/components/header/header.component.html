@@ -1,5 +1,6 @@
 <syn-header #header [label]="headerLabel()">
   <nav slot="meta-navigation" class="flex items-center">
+    <app-system-control />
     <app-connection-status (refresh)="onRefresh()" />
     <app-sensor-status />
     <!-- <app-notices-status (acknowledge)="onAcknowledge()" /> -->

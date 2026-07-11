@@ -38,40 +38,6 @@
             Import
           </syn-button>
         </syn-tooltip>
-
-        <div class="w-px h-5 bg-syn-color-neutral-200 mx-1"></div>
-
-        @if (isSystemRunning()) {
-          <syn-tooltip
-            [content]="canEdit() ? 'Stop system' : 'Admin access required'"
-            [distance]="13"
-            placement="bottom"
-          >
-            <syn-button
-              (click)="onStopSystem()"
-              [disabled]="!canEdit()"
-              variant="filled"
-            >
-              <syn-icon name="stop" slot="prefix" />
-              Stop
-            </syn-button>
-          </syn-tooltip>
-        } @else {
-          <syn-tooltip
-            [content]="canEdit() ? 'Start system' : 'Admin access required'"
-            [distance]="13"
-            placement="bottom"
-          >
-            <syn-button
-              (click)="onStartSystem()"
-              [disabled]="!canEdit()"
-              variant="outline"
-            >
-              <syn-icon name="play_arrow" slot="prefix" />
-              Start
-            </syn-button>
-          </syn-tooltip>
-        }
       </div>
 
       <!-- Right: dirty badge + canvas actions -->

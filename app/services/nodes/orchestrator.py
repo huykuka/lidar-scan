@@ -146,7 +146,7 @@ class NodeManager:
             
             logger.info("Starting config reload...")
             # Only set flags and cancel the listener synchronously.
-            # Actual node stops are handled by stop_all_nodes_async() below
+            # Actual node stops are handled by stop_all_nodes() below
             # to avoid blocking the event loop on sensor process.join().
             self.is_running = False
             if self._listener_task:
@@ -154,7 +154,7 @@ class NodeManager:
 
             # Stop all nodes properly via async path (runs sensor stop() in
             # threads so the event loop stays responsive).
-            await self._lifecycle_manager.stop_all_nodes_async()
+            await self._lifecycle_manager.stop_all_nodes()
             
             # Snapshot all topics registered BEFORE cleanup
             topics_before: set[str] = set(websocket_manager.active_connections.keys())
@@ -164,7 +164,7 @@ class NodeManager:
             self._topic_registry.clear()
             
             logger.info("Waiting for process cleanup and port release...")
-            await asyncio.sleep(0.5)  # Process join already handled by stop_all_nodes_async (10 s timeout); this brief pause covers port release only.
+            await asyncio.sleep(0.5)  # Process join already handled by stop_all_nodes (10 s timeout); this brief pause covers port release only.
             
             # Sweep ALL topics that don't belong to the current configuration
             # This includes both topics that failed cleanup AND phantom topics from previous deployments
@@ -341,15 +341,6 @@ class NodeManager:
                         "Frontend loading indicator may be stuck until next reconnect."
                     )
 
-    def _cleanup_all_nodes(self):
-        """
-        Remove all nodes and their resources during reload.
-        
-        # DEPRECATED: Use _cleanup_all_nodes_async() for proper async WebSocket cleanup
-        """
-        for node_id in list(self.nodes.keys()):
-            self.remove_node(node_id)
-    
     async def _cleanup_all_nodes_async(self) -> None:
         """Async remove all nodes and their resources during reload.
         
@@ -383,38 +374,23 @@ class NodeManager:
         await self._lifecycle_manager.start_all_nodes()
         self._listener_task = asyncio.create_task(self._queue_listener())
 
-    def stop(self):
+    async def stop(self):
         """
         Stop the orchestrator and all running nodes.
         
         This method:
         1. Sets running flag to False
         2. Cancels the queue listener task
-        3. Stops all node instances (sensors terminate workers, others disable)
+        3. Stops all node instances properly via async stop
         """
         self.is_running = False
         
         if self._listener_task:
             self._listener_task.cancel()
         
-        self._lifecycle_manager.stop_all_nodes()
+        await self._lifecycle_manager.stop_all_nodes()
         logger.info("All nodes stopped.")
 
-    def remove_node(self, node_id: str):
-        """
-        Dynamically remove a node from the running pipeline.
-        
-        This is useful for runtime reconfiguration without full restart.
-        Cleans up all resources including WebSocket topics, routing, and state.
-        
-        For async contexts (FastAPI routes), prefer remove_node_async().
-        
-        Args:
-            node_id: The ID of the node to remove
-        """
-        self._lifecycle_manager.remove_node(node_id)
-        self._data_router.invalidate_shape_collector_cache()
-    
     async def remove_node_async(self, node_id: str, *, delete_results: bool = True):
         """
         Async dynamically remove a node from the running pipeline with proper cleanup.

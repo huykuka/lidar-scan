@@ -36,8 +36,8 @@ syn-popup::part(popup) {
   border: var(--syn-panel-border-width) solid var(--syn-panel-border-color);
   border-radius: var(--syn-border-radius-medium);
   box-shadow: var(--syn-shadow-large);
-  padding: var(--syn-spacing-x-small) var(--syn-spacing-small);
-  width: 15rem;
+  padding: var(--syn-spacing-x-small);
+  width: 13rem;
 }
 
 .hint-header {
@@ -63,20 +63,24 @@ syn-popup::part(popup) {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--syn-spacing-3x-small);
+  gap: 2px;
 }
 
 .hint-row {
   display: grid;
-  grid-template-columns: 14px 1fr auto;
+  grid-template-columns: 16px 1fr auto;
   align-items: center;
   gap: var(--syn-spacing-2x-small);
-  padding: 2px 0;
+  padding: 3px 4px;
+  border-radius: var(--syn-border-radius-small);
+}
+
+.hint-row:hover {
+  background: var(--syn-color-neutral-50);
 }
 
 .hint-icon {
-  color: var(--syn-color-neutral-400);
-  font-size: 12px;
+  font-size: 13px;
   justify-self: center;
 }
 
@@ -87,15 +91,16 @@ syn-popup::part(popup) {
   color: var(--syn-typography-color-text);
   background: var(--syn-color-neutral-100);
   border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
-  border-bottom-width: 2px;
   border-radius: var(--syn-border-radius-small);
-  padding: 1px 5px;
+  padding: 1px 4px;
   white-space: nowrap;
   line-height: 1.4;
+  font-size: 9px;
 }
 
 .hint-desc {
   font: var(--syn-body-2x-small-regular);
   color: var(--syn-typography-color-text-quiet);
   text-align: right;
+  font-size: 9px;
 }

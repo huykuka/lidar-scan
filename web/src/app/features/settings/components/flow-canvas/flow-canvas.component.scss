@@ -63,27 +63,3 @@ f-flow {
   transform: translateY(-50%);
 }
 
-/* ── Connection edges ─────────────────────────────────────────────────────── */
-
-/* Base bezier path — drawn by Foblex into an SVG inside f-canvas */
-.flow-edge ::ng-deep path {
-  stroke: var(--syn-color-primary-600, #005aff);
-  stroke-width: 1px;
-  fill: none;
-}
-/* Flow-dash animation overlay on connection lines */
-.flow-edge ::ng-deep .f-connection-path {
-  stroke-dasharray: 8 16;
-  animation: edge-flow 0.9s linear infinite;
-}
-
-@keyframes edge-flow {
-  from { stroke-dashoffset: 0; }
-  to   { stroke-dashoffset: -24; }
-}
-
-/* Click-to-delete hover — Foblex adds .f-selected; we add a hover tint */
-.flow-edge:hover ::ng-deep path {
-  stroke: #ef4444;
-  cursor: pointer;
-}
