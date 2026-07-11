@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
 
 concurrency:
   group: ci-main
@@ -16,6 +18,7 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
+    if: github.ref_type != 'tag'
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
@@ -48,25 +51,42 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, test-frontend]
     if: |
+      github.ref_type != 'tag' &&
       always() &&
       (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
       fe_version: ${{ steps.bump.outputs.fe_version }}
       be_version: ${{ steps.bump.outputs.be_version }}
+      frontend_changed: ${{ steps.bump.outputs.frontend_changed }}
+      backend_changed: ${{ steps.bump.outputs.backend_changed }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Bump patch version
+      - name: Bump semver
         id: bump
         env:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           FRONTEND_CHANGED: ${{ needs.changes.outputs.frontend }}
           BACKEND_CHANGED: ${{ needs.changes.outputs.backend }}
         run: |
+          bump_version() {
+            local current="$1"
+            local message="$2"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$current"
+
+            if [[ "$message" == *"#major"* ]]; then
+              echo "$((MAJOR + 1)).0.0"
+            elif [[ "$message" == *"#minor"* ]]; then
+              echo "${MAJOR}.$((MINOR + 1)).0"
+            else
+              echo "${MAJOR}.${MINOR}.$((PATCH + 1))"
+            fi
+          }
+
           FE_CURRENT=$(grep -m1 '"version"' web/package.json | sed 's/.*"version": "\([^"]*\)".*/\1/')
           BE_CURRENT=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
           FE_NEW="$FE_CURRENT"
@@ -79,29 +99,35 @@ jobs:
             echo "new_version=${BE_CURRENT}" >> "$GITHUB_OUTPUT"
             echo "fe_version=${FE_CURRENT}" >> "$GITHUB_OUTPUT"
             echo "be_version=${BE_CURRENT}" >> "$GITHUB_OUTPUT"
+            echo "frontend_changed=false" >> "$GITHUB_OUTPUT"
+            echo "backend_changed=false" >> "$GITHUB_OUTPUT"
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           CHANGED=false
+          FE_BUMPED=false
+          BE_BUMPED=false
 
           if [[ "$FRONTEND_CHANGED" == "true" ]]; then
-            IFS='.' read -r FE_MAJOR FE_MINOR FE_PATCH <<< "$FE_CURRENT"
-            FE_NEW="${FE_MAJOR}.${FE_MINOR}.$((FE_PATCH + 1))"
+            FE_NEW="$(bump_version "$FE_CURRENT" "$COMMIT_MESSAGE")"
             sed -i "s/\"version\": \"[^\"]*\"/\"version\": \"${FE_NEW}\"/" web/package.json
             CHANGED=true
+            FE_BUMPED=true
           fi
 
           if [[ "$BACKEND_CHANGED" == "true" ]]; then
-            IFS='.' read -r BE_MAJOR BE_MINOR BE_PATCH <<< "$BE_CURRENT"
-            BE_NEW="${BE_MAJOR}.${BE_MINOR}.$((BE_PATCH + 1))"
+            BE_NEW="$(bump_version "$BE_CURRENT" "$COMMIT_MESSAGE")"
             sed -i "s/^version = \"${BE_CURRENT}\"/version = \"${BE_NEW}\"/" pyproject.toml
             CHANGED=true
+            BE_BUMPED=true
           fi
 
           echo "new_version=${BE_NEW}" >> "$GITHUB_OUTPUT"
           echo "fe_version=${FE_NEW}" >> "$GITHUB_OUTPUT"
           echo "be_version=${BE_NEW}" >> "$GITHUB_OUTPUT"
+          echo "frontend_changed=${FE_BUMPED}" >> "$GITHUB_OUTPUT"
+          echo "backend_changed=${BE_BUMPED}" >> "$GITHUB_OUTPUT"
           echo "changed=${CHANGED}" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push version
@@ -116,6 +142,7 @@ jobs:
   check-cpp-cache:
     name: Check C++ Cache
     runs-on: ubuntu-latest
+    if: github.ref_type != 'tag'
     outputs:
       cache-hit: ${{ steps.cache.outputs.cache-hit }}
     steps:
@@ -131,6 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [version-bump, check-cpp-cache, changes, test-frontend]
     if: |
+      github.ref_type != 'tag' &&
       (needs.check-cpp-cache.outputs.cache-hit != 'true' ||
       needs.changes.outputs.cpp == 'true') &&
       (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
@@ -168,6 +196,7 @@ jobs:
     name: Check Frontend Cache
     runs-on: ubuntu-latest
     needs: changes
+    if: github.ref_type != 'tag'
     outputs:
       cache-hit: ${{ steps.cache.outputs.cache-hit }}
     steps:
@@ -186,7 +215,7 @@ jobs:
     name: Test Frontend
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.frontend == 'true'
+    if: github.ref_type != 'tag' && needs.changes.outputs.frontend == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -235,6 +264,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, version-bump, check-frontend-cache, test-frontend]
     if: |
+      github.ref_type != 'tag' &&
       (needs.changes.outputs.frontend == 'true' ||
       needs.check-frontend-cache.outputs.cache-hit != 'true') &&
       (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
@@ -307,6 +337,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, version-bump, build-cpp]
     if: |
+      github.ref_type != 'tag' &&
       always() &&
       needs.version-bump.result == 'success' &&
       (needs.build-cpp.result == 'success' || needs.build-cpp.result == 'skipped')
@@ -353,6 +384,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, version-bump, build-frontend]
     if: |
+      github.ref_type != 'tag' &&
       always() &&
       needs.version-bump.result == 'success' &&
       (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
@@ -394,6 +426,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, version-bump, prepare-backend-artifacts, prepare-frontend-artifacts]
     if: |
+      github.ref_type != 'tag' &&
       always() &&
       needs.version-bump.result == 'success' &&
       needs.prepare-backend-artifacts.result == 'success' &&
@@ -449,3 +482,23 @@ jobs:
             io.lidarstudio.frontend.version=${{ needs.version-bump.outputs.fe_version }}
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache,mode=max
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Create release from tag (if missing)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists. Skipping."
+            exit 0
+          fi
+
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "$TAG" \
+            --generate-notes
