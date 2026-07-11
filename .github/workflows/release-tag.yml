@@ -98,7 +98,9 @@ jobs:
           file: docker/Dockerfile.ci
           platforms: linux/amd64
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:${{ github.ref_name }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:${{ github.ref_name }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:latest
           labels: |
             org.opencontainers.image.version=${{ github.ref_name }}
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache
