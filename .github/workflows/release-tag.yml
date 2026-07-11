@@ -27,10 +27,8 @@ jobs:
           IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio
           TAG: ${{ github.ref_name }}
         run: |
-          SEMVER_TAG="${TAG#v}"
           docker buildx imagetools create \
             --tag "${IMAGE_NAME}:${TAG}" \
-            --tag "${IMAGE_NAME}:${SEMVER_TAG}" \
             "${IMAGE_NAME}:latest"
 
       - name: Create release from tag (if missing)
