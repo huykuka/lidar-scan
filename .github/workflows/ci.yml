@@ -19,6 +19,7 @@ jobs:
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
+      cpp: ${{ steps.filter.outputs.cpp }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,6 +39,9 @@ jobs:
               - 'pyproject.toml'
               - 'uv.lock'
               - 'docker/Dockerfile'
+            cpp:
+              - 'docker/Dockerfile.ci'
+              - 'setup/Dockerfile'
 
   version-bump:
     name: Bump Semver
@@ -99,30 +103,26 @@ jobs:
   build-cpp:
     name: Build C++ sick_scan_xd
     runs-on: ubuntu-latest
-    container: ubuntu:22.04
-    needs: [version-bump, check-cpp-cache]
-    if: needs.check-cpp-cache.outputs.cache-hit != 'true'
+    needs: [version-bump, check-cpp-cache, changes]
+    if: |
+      needs.check-cpp-cache.outputs.cache-hit != 'true' ||
+      needs.changes.outputs.cpp == 'true'
     steps:
       - name: Checkout versioned source
         uses: actions/checkout@v4
         with:
           ref: main
 
-      - name: Build sick_scan_xd
-        run: |
-          apt-get update
-          apt-get install -y build-essential cmake ninja-build git gdb
-          git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /tmp/sick_scan_xd
-          mkdir -p /tmp/cpp-build
-          cd /tmp/cpp-build
-          cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" /tmp/sick_scan_xd
-          make -j"$(nproc)"
+      - name: Build sick_scan_xd Docker image
+        run: docker build -f setup/Dockerfile -t cpp-builder .
 
       - name: Stage C++ artifacts
         run: |
           mkdir -p "$GITHUB_WORKSPACE/cpp-staging/build" "$GITHUB_WORKSPACE/cpp-staging/launch"
-          cp -r /tmp/cpp-build/. "$GITHUB_WORKSPACE/cpp-staging/build/"
-          cp -a /tmp/sick_scan_xd/launch/. "$GITHUB_WORKSPACE/cpp-staging/launch/"
+          docker create --name cpp-builder cpp-builder
+          docker cp cpp-builder:/workspace/build/. "$GITHUB_WORKSPACE/cpp-staging/build/"
+          docker cp cpp-builder:/workspace/sick_scan_xd/launch/. "$GITHUB_WORKSPACE/cpp-staging/launch/"
+          docker rm cpp-builder
 
       - name: Save C++ cache
         uses: actions/cache/save@v4
