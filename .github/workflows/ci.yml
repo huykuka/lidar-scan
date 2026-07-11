@@ -78,9 +78,9 @@ jobs:
             local message="$2"
             IFS='.' read -r MAJOR MINOR PATCH <<< "$current"
 
-            if [[ "$message" == *"#major"* ]]; then
-              echo "$((MAJOR + 1)).0.0"
-            elif [[ "$message" == *"#minor"* ]]; then
+            # Major bumps are manual via git tags (GitFlow release tags).
+            # Pipeline auto-bumps only minor/patch.
+            if [[ "$message" == *"#minor"* ]] || [[ "$message" =~ ^feat(\(.+\))?: ]]; then
               echo "${MAJOR}.$((MINOR + 1)).0"
             else
               echo "${MAJOR}.${MINOR}.$((PATCH + 1))"
