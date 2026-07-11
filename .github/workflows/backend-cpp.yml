@@ -1,0 +1,60 @@
+name: Backend Cpp Pipeline
+
+on:
+  workflow_call:
+    inputs:
+      cpp_changed:
+        required: true
+        type: boolean
+
+jobs:
+  backend_cpp:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore C++ cache
+        id: cpp-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: cpp-staging
+          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
+
+      - name: Build sick_scan_xd Docker image
+        if: steps.cpp-cache.outputs.cache-hit != 'true' || inputs.cpp_changed
+        run: docker build -f setup/Dockerfile -t cpp-builder .
+
+      - name: Stage C++ artifacts
+        if: steps.cpp-cache.outputs.cache-hit != 'true' || inputs.cpp_changed
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/cpp-staging/build" "$GITHUB_WORKSPACE/cpp-staging/launch"
+          docker create --name cpp-builder cpp-builder
+          docker cp cpp-builder:/workspace/build/. "$GITHUB_WORKSPACE/cpp-staging/build/"
+          docker cp cpp-builder:/workspace/sick_scan_xd/launch/. "$GITHUB_WORKSPACE/cpp-staging/launch/"
+          docker rm cpp-builder
+
+      - name: Save C++ cache
+        if: steps.cpp-cache.outputs.cache-hit != 'true' || inputs.cpp_changed
+        uses: actions/cache/save@v4
+        with:
+          path: cpp-staging
+          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
+
+      - name: Stage backend artifacts
+        run: |
+          mkdir -p ci-artifacts/build ci-artifacts/launch
+          cp cpp-staging/build/libsick_scan_xd_shared_lib.so ci-artifacts/build/
+          cp cpp-staging/build/sick_generic_caller ci-artifacts/build/
+          cp -a cpp-staging/launch/. ci-artifacts/launch/
+          sed -E 's/^version = ".*"/version = "0.0.0"/' pyproject.toml > ci-artifacts/pyproject-deps.toml
+
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-ci-artifacts
+          path: |
+            ci-artifacts/build/
+            ci-artifacts/launch/
+            ci-artifacts/pyproject-deps.toml
+          retention-days: 1

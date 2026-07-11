@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
 
 concurrency:
   group: ci-main
@@ -18,7 +16,6 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
-    if: github.ref_type != 'tag'
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
@@ -46,14 +43,27 @@ jobs:
               - 'docker/Dockerfile.ci'
               - 'setup/Dockerfile'
 
+  frontend:
+    name: Frontend Pipeline
+    needs: [changes]
+    uses: ./.github/workflows/frontend.yml
+    with:
+      frontend_changed: ${{ needs.changes.outputs.frontend == 'true' }}
+    secrets: inherit
+
+  backend-cpp:
+    name: Backend Cpp Pipeline
+    needs: [changes]
+    uses: ./.github/workflows/backend-cpp.yml
+    with:
+      cpp_changed: ${{ needs.changes.outputs.cpp == 'true' }}
+    secrets: inherit
+
   version-bump:
     name: Bump Semver
     runs-on: ubuntu-latest
-    needs: [changes, test-frontend]
-    if: |
-      github.ref_type != 'tag' &&
-      always() &&
-      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
+    needs: [changes, frontend]
+    if: needs.frontend.result == 'success'
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
       fe_version: ${{ steps.bump.outputs.fe_version }}
@@ -139,298 +149,14 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: bump versions fe=${{ steps.bump.outputs.fe_version }} be=${{ steps.bump.outputs.be_version }} [skip ci]"
           git push origin HEAD:main
 
-  check-cpp-cache:
-    name: Check C++ Cache
-    runs-on: ubuntu-latest
-    if: github.ref_type != 'tag'
-    outputs:
-      cache-hit: ${{ steps.cache.outputs.cache-hit }}
-    steps:
-      - name: Restore C++ cache
-        id: cache
-        uses: actions/cache/restore@v4
-        with:
-          path: cpp-staging
-          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
-
-  build-cpp:
-    name: Build C++ sick_scan_xd
-    runs-on: ubuntu-latest
-    needs: [version-bump, check-cpp-cache, changes, test-frontend]
-    if: |
-      github.ref_type != 'tag' &&
-      (needs.check-cpp-cache.outputs.cache-hit != 'true' ||
-      needs.changes.outputs.cpp == 'true') &&
-      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
-    steps:
-      - name: Checkout versioned source
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Build sick_scan_xd Docker image
-        run: docker build -f setup/Dockerfile -t cpp-builder .
-
-      - name: Stage C++ artifacts
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/cpp-staging/build" "$GITHUB_WORKSPACE/cpp-staging/launch"
-          docker create --name cpp-builder cpp-builder
-          docker cp cpp-builder:/workspace/build/. "$GITHUB_WORKSPACE/cpp-staging/build/"
-          docker cp cpp-builder:/workspace/sick_scan_xd/launch/. "$GITHUB_WORKSPACE/cpp-staging/launch/"
-          docker rm cpp-builder
-
-      - name: Save C++ cache
-        uses: actions/cache/save@v4
-        with:
-          path: cpp-staging
-          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
-
-      - name: Upload C++ artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: cpp-artifacts
-          path: cpp-staging/
-          retention-days: 1
-
-  check-frontend-cache:
-    name: Check Frontend Cache
-    runs-on: ubuntu-latest
-    needs: changes
-    if: github.ref_type != 'tag'
-    outputs:
-      cache-hit: ${{ steps.cache.outputs.cache-hit }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Restore frontend cache
-        id: cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            web/dist/web/browser
-          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
-
-  test-frontend:
-    name: Test Frontend
-    runs-on: ubuntu-latest
-    needs: changes
-    if: github.ref_type != 'tag' && needs.changes.outputs.frontend == 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - name: Restore pnpm dependencies
-        id: pnpm-deps-test
-        uses: actions/cache/restore@v4
-        with:
-          path: web/node_modules
-          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
-
-      - name: Install dependencies
-        working-directory: web
-        if: steps.pnpm-deps-test.outputs.cache-hit != 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Save pnpm dependencies
-        if: steps.pnpm-deps-test.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: web/node_modules
-          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
-
-      - name: Run frontend tests
-        working-directory: web
-        run: npm run test
-        env:
-          CI: true
-
-  build-frontend:
-    name: Build Angular Frontend
-    runs-on: ubuntu-latest
-    needs: [changes, version-bump, check-frontend-cache, test-frontend]
-    if: |
-      github.ref_type != 'tag' &&
-      (needs.changes.outputs.frontend == 'true' ||
-      needs.check-frontend-cache.outputs.cache-hit != 'true') &&
-      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
-    steps:
-      - name: Checkout versioned source
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Restore frontend cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            web/dist/web/browser
-          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - name: Restore pnpm dependencies
-        id: pnpm-deps
-        uses: actions/cache/restore@v4
-        with:
-          path: web/node_modules
-          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
-
-      - name: Install dependencies
-        working-directory: web
-        if: steps.pnpm-deps.outputs.cache-hit != 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Save pnpm dependencies
-        if: steps.pnpm-deps.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: web/node_modules
-          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
-
-      - name: Build production
-        working-directory: web
-        run: pnpm run build --configuration production
-        env:
-          CI: true
-
-      - name: Upload frontend artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: web/dist/web/browser/
-          retention-days: 1
-
-      - name: Save frontend cache
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            web/dist/web/browser
-          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
-
-  prepare-backend-artifacts:
-    name: Prepare Backend Artifacts
-    runs-on: ubuntu-latest
-    needs: [changes, version-bump, build-cpp]
-    if: |
-      github.ref_type != 'tag' &&
-      always() &&
-      needs.version-bump.result == 'success' &&
-      (needs.build-cpp.result == 'success' || needs.build-cpp.result == 'skipped')
-    steps:
-      - name: Checkout versioned source
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Restore C++ build cache
-        if: needs.build-cpp.result == 'skipped'
-        uses: actions/cache/restore@v4
-        with:
-          path: cpp-staging
-          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
-
-      - name: Download C++ artifacts
-        if: needs.build-cpp.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: cpp-artifacts
-          path: cpp-staging
-
-      - name: Stage backend artifacts
-        run: |
-          mkdir -p ci-artifacts/build ci-artifacts/launch
-          cp cpp-staging/build/libsick_scan_xd_shared_lib.so ci-artifacts/build/
-          cp cpp-staging/build/sick_generic_caller ci-artifacts/build/
-          cp -a cpp-staging/launch/. ci-artifacts/launch/
-          sed -E 's/^version = ".*"/version = "0.0.0"/' pyproject.toml > ci-artifacts/pyproject-deps.toml
-
-      - name: Upload backend artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-ci-artifacts
-          path: |
-            ci-artifacts/build/
-            ci-artifacts/launch/
-            ci-artifacts/pyproject-deps.toml
-          retention-days: 1
-
-  prepare-frontend-artifacts:
-    name: Prepare Frontend Artifacts
-    runs-on: ubuntu-latest
-    needs: [changes, version-bump, build-frontend]
-    if: |
-      github.ref_type != 'tag' &&
-      always() &&
-      needs.version-bump.result == 'success' &&
-      (needs.build-frontend.result == 'success' || needs.build-frontend.result == 'skipped')
-    steps:
-      - name: Checkout versioned source
-        uses: actions/checkout@v4
-        with:
-          ref: main
-
-      - name: Restore frontend build cache
-        if: needs.build-frontend.result == 'skipped'
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            web/dist/web/browser
-          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
-
-      - name: Download frontend artifacts
-        if: needs.build-frontend.result == 'success'
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: web/dist/web/browser
-
-      - name: Stage frontend artifacts
-        run: |
-          mkdir -p ci-artifacts/frontend
-          cp -a web/dist/web/browser/. ci-artifacts/frontend/
-
-      - name: Upload frontend artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-ci-artifacts
-          path: ci-artifacts/frontend/
-          retention-days: 1
-
   docker:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    needs: [changes, version-bump, prepare-backend-artifacts, prepare-frontend-artifacts]
+    needs: [version-bump, backend-cpp, frontend]
     if: |
-      github.ref_type != 'tag' &&
-      always() &&
       needs.version-bump.result == 'success' &&
-      needs.prepare-backend-artifacts.result == 'success' &&
-      needs.prepare-frontend-artifacts.result == 'success'
+      needs.backend-cpp.result == 'success' &&
+      needs.frontend.result == 'success'
     steps:
       - name: Checkout versioned source
         uses: actions/checkout@v4
@@ -483,16 +209,22 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio:buildcache,mode=max
 
-  release:
-    name: Create GitHub Release
+  release-auto:
+    name: Create GitHub Release (Auto)
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [version-bump, docker]
+    if: |
+      needs.docker.result == 'success' &&
+      needs.version-bump.outputs.backend_changed == 'true'
     steps:
-      - name: Create release from tag (if missing)
+      - name: Create release from backend version (if missing)
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          BE_VERSION: ${{ needs.version-bump.outputs.be_version }}
+          FE_VERSION: ${{ needs.version-bump.outputs.fe_version }}
+          IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio
         run: |
+          TAG="v${BE_VERSION}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists. Skipping."
             exit 0
@@ -501,4 +233,5 @@ jobs:
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
             --title "$TAG" \
-            --generate-notes
+            --notes "$(printf 'Backend: %s\nFrontend: %s\nImage: %s:%s\nAlso pushed: %s:latest' "$BE_VERSION" "$FE_VERSION" "$IMAGE_NAME" "$BE_VERSION" "$IMAGE_NAME")"
+
