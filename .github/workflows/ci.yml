@@ -46,7 +46,10 @@ jobs:
   version-bump:
     name: Bump Semver
     runs-on: ubuntu-latest
-    needs: changes
+    needs: [changes, test-frontend]
+    if: |
+      always() &&
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
       fe_version: ${{ steps.bump.outputs.fe_version }}
@@ -126,10 +129,11 @@ jobs:
   build-cpp:
     name: Build C++ sick_scan_xd
     runs-on: ubuntu-latest
-    needs: [version-bump, check-cpp-cache, changes]
+    needs: [version-bump, check-cpp-cache, changes, test-frontend]
     if: |
-      needs.check-cpp-cache.outputs.cache-hit != 'true' ||
-      needs.changes.outputs.cpp == 'true'
+      (needs.check-cpp-cache.outputs.cache-hit != 'true' ||
+      needs.changes.outputs.cpp == 'true') &&
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
     steps:
       - name: Checkout versioned source
         uses: actions/checkout@v4
@@ -178,13 +182,62 @@ jobs:
             web/dist/web/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
+  test-frontend:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Restore pnpm dependencies
+        id: pnpm-deps-test
+        uses: actions/cache/restore@v4
+        with:
+          path: web/node_modules
+          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
+
+      - name: Install dependencies
+        working-directory: web
+        if: steps.pnpm-deps-test.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Save pnpm dependencies
+        if: steps.pnpm-deps-test.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: web/node_modules
+          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
+
+      - name: Run frontend tests
+        working-directory: web
+        run: npm run test
+        env:
+          CI: true
+
   build-frontend:
     name: Build Angular Frontend
     runs-on: ubuntu-latest
-    needs: [changes, version-bump, check-frontend-cache]
+    needs: [changes, version-bump, check-frontend-cache, test-frontend]
     if: |
-      needs.changes.outputs.frontend == 'true' ||
-      needs.check-frontend-cache.outputs.cache-hit != 'true'
+      (needs.changes.outputs.frontend == 'true' ||
+      needs.check-frontend-cache.outputs.cache-hit != 'true') &&
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
     steps:
       - name: Checkout versioned source
         uses: actions/checkout@v4
@@ -228,12 +281,6 @@ jobs:
         with:
           path: web/node_modules
           key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
-
-      - name: Run frontend tests
-        working-directory: web
-        run: npm run test
-        env:
-          CI: true
 
       - name: Build production
         working-directory: web
