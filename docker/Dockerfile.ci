@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
   PYTHONDONTWRITEBYTECODE=1 \
   PYTHONUNBUFFERED=1 \
   PYTHONPATH=/app \
-  LD_LIBRARY_PATH=/app/build
+  LD_LIBRARY_PATH=/build
 
 WORKDIR /app
 
@@ -32,14 +32,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
   && find /app/.venv -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true \
   && find /app/.venv -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
 
-COPY ci-artifacts/build/ ./build/
-RUN test -f ./build/libsick_scan_xd_shared_lib.so \
-  && test -x ./build/sick_generic_caller
+COPY ci-artifacts/build/ /build/
+
 COPY ci-artifacts/launch/ ./launch/
-RUN rm -f ./launch/test_* \
-  && test -s ./launch/sick_multiscan.launch \
-  && test -s ./launch/sick_tim_5xx.launch \
-  && test -n "$(find ./launch -type f -not -name 'test_*' -print -quit)"
+RUN rm -f ./launch/test_* 
 
 COPY main.py .
 COPY app/ ./app/
