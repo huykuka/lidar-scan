@@ -20,7 +20,7 @@ jobs:
         with:
           path: |
             web/dist/web/browser
-          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
+          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/package.json', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -73,7 +73,7 @@ jobs:
         with:
           path: |
             web/dist/web/browser
-          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
+          key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/package.json', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
       - name: Stage frontend artifacts
         run: |
