@@ -1,0 +1,19 @@
+@for (entry of entries(); track entry.topic) {
+  <ngts-pivot-controls
+    [options]="{
+      visible: showGizmos(),
+      scale: 0.5,
+      depthTest: false,
+      disableScaling: true,
+      annotations: false,
+      autoTransform: true,
+      matrix: entry.initialMatrix
+    }"
+    (dragged)="dragged.emit({ topic: entry.topic, event: $event })"
+    (dragEnded)="dragEnded.emit(entry.topic)"
+  >
+  </ngts-pivot-controls>
+  <ngts-points-buffer #buf [positions]="entry.buf">
+    <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false"/>
+  </ngts-points-buffer>
+}

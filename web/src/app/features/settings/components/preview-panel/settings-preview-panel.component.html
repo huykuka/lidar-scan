@@ -1,85 +1,34 @@
 <div class="preview-container">
-  <div class="preview-header">
-    <span class="preview-title">
-      <syn-icon name="visibility" style="font-size: 14px" />
-      Live Preview
-      @if (topicCount() > 0) {
-        <span class="preview-badge">{{ topicCount() }}</span>
-      }
-    </span>
-    <div class="preview-actions">
-      @if (topicCount() > 0) {
-        <syn-tooltip [content]="showGizmos() ? 'Hide position gizmos' : 'Show position gizmos'" [distance]="13" placement="top">
-          <syn-icon-button
-            name="control_camera"
-            [label]="showGizmos() ? 'Hide position gizmos' : 'Show position gizmos'"
-            size="small"
-            [color]="showGizmos() ? 'primary' : 'neutral'"
-            (click)="showGizmos.set(!showGizmos())"
-          />
-        </syn-tooltip>
-      }
-      @if (!isConnected() && topicCount() > 0) {
-        <span class="preview-status preview-status--disconnected">
-          <syn-icon name="cloud_off" style="font-size: 12px" />
-          Waiting
-        </span>
-      } @else if (isConnected()) {
-        <span class="preview-status preview-status--connected">
-          <syn-icon name="cloud_done" style="font-size: 12px" />
-          Live
-        </span>
-      }
-    </div>
-  </div>
+  <app-preview-header
+    [topicCount]="topicCount()"
+    [showGizmos]="showGizmos()"
+    [isConnected]="isConnected()"
+    (gizmoToggle)="showGizmos.set(!showGizmos())"
+  />
 
-  <!-- Active preview topics list -->
-  @if (topicCount() > 0) {
-    <div class="preview-topics">
-      @for (t of previewTopics(); track t.topic) {
-        <div class="preview-topic-row">
-          <span class="preview-topic-dot" [style.background]="t.color"></span>
-          <span class="preview-topic-name">{{ t.nodeName }}</span>
-          <syn-icon-button
-            name="close"
-            label="Remove from preview"
-            size="small"
-            color="neutral"
-            (click)="removePreviewTopic(t.topic)"
-          />
-        </div>
-      }
-    </div>
-  }
+  <app-preview-topic-list
+    [topics]="previewTopics()"
+    (removeTopic)="removePreviewTopic($event)"
+  />
 
-  <div class="preview-canvas">
+  <div class="flex-1 min-h-0 relative">
     @if (topicCount() === 0) {
-      <div class="preview-empty">
-        <syn-icon name="sensors_off" style="font-size: 32px" />
-        <span>No nodes previewed</span>
-        <span class="preview-empty-hint">Right-click a node and select "Add to 3D view" to see its output here</span>
+      <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[var(--syn-typography-color-text-quiet)] z-[1] pointer-events-none">
+        <syn-icon name="sensors_off" style="font-size: 32px; opacity: 0.4" />
+        <span class="text-sm font-semibold">No nodes previewed</span>
+        <span class="text-xs max-w-[180px] text-center">Right-click a node and select "Add to 3D view" to see its output here</span>
       </div>
     }
-    <ngt-canvas>
+    <ngt-canvas class="absolute inset-0">
       <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
-        @for (entry of topicEntries(); track entry.topic) {
-          <ngts-pivot-controls
-            [options]="{
-              visible: showGizmos(),
-              scale: 0.5,
-              depthTest: false,
-              disableScaling: true,
-              annotations: false,
-              autoTransform: true,
-            }"
-            (dragged)="onPivotDrag(entry.topic, $event)"
-            (dragEnded)="onPivotDragEnd(entry.topic)"
-          >
-            <ngts-points-buffer #buf [positions]="entry.buf">
-              <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false"/>
-            </ngts-points-buffer>
-          </ngts-pivot-controls>
-        }
+        <app-preview-scene
+          [entries]="topicEntries()"
+          [showGizmos]="showGizmos()"
+          [frames]="frames()"
+          [maxPoints]="MAX_POINTS"
+          (dragged)="onPivotDrag($event.topic, $event.event)"
+          (dragEnded)="onPivotDragEnd($event)"
+        />
       </app-threed-scene-graph>
     </ngt-canvas>
     <app-shared-viewport-overlay

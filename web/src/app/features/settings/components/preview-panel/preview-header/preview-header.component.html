@@ -1,0 +1,33 @@
+<div class="flex items-center justify-between px-3 py-1 border-b border-[var(--syn-panel-border-color)] bg-[var(--syn-page-background-color)] shrink-0">
+  <span class="flex items-center gap-1 text-xs font-semibold text-[var(--syn-typography-color-text)]">
+    <syn-icon name="visibility" style="font-size: 14px" />
+    Live Preview
+    @if (topicCount() > 0) {
+      <span class="text-[10px] font-normal bg-[var(--syn-color-primary-100)] text-[var(--syn-color-primary-700)] px-1 rounded-full">{{ topicCount() }}</span>
+    }
+  </span>
+  <div class="flex items-center gap-1">
+    @if (topicCount() > 0) {
+      <syn-tooltip [content]="showGizmos() ? 'Hide position gizmos' : 'Show position gizmos'" [distance]="13" placement="top">
+        <syn-icon-button
+          name="control_camera"
+          [label]="showGizmos() ? 'Hide position gizmos' : 'Show position gizmos'"
+          size="small"
+          [color]="showGizmos() ? 'primary' : 'neutral'"
+          (click)="gizmoToggle.emit()"
+        />
+      </syn-tooltip>
+    }
+    @if (!isConnected() && topicCount() > 0) {
+      <span class="flex items-center gap-0.5 text-[10px] px-1 py-px rounded-sm text-[var(--syn-typography-color-text-quiet)] bg-[var(--syn-color-neutral-100)]">
+        <syn-icon name="cloud_off" style="font-size: 12px" />
+        Waiting
+      </span>
+    } @else if (isConnected()) {
+      <span class="flex items-center gap-0.5 text-[10px] px-1 py-px rounded-sm text-[var(--syn-color-success-700)] bg-[var(--syn-color-success-100)]">
+        <syn-icon name="cloud_done" style="font-size: 12px" />
+        Live
+      </span>
+    }
+  </div>
+</div>

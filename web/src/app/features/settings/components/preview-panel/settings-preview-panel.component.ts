@@ -7,7 +7,6 @@ import {
   inject,
   OnDestroy,
   signal,
-  viewChildren,
 } from '@angular/core';
 
 import {Subscription} from 'rxjs';
@@ -16,12 +15,13 @@ import {DEFAULT_TOPIC_COLORS} from '@core/services/stores/workspace-store.servic
 import {ViewOrientation} from '@core/services/split-layout-store.service';
 import { Pose, ZERO_POSE } from '@core/models';
 import {environment} from '@env/environment';
-import {NgtsPointsBuffer} from 'angular-three-soba/performances';
-import { NgtsPivotControls } from 'angular-three-soba/gizmos';
 import {NgtCanvas, NgtCanvasContent, NgtCanvasImpl} from 'angular-three/dom';
 import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import { CanvasEditStoreService } from '../../services/canvas-edit-store.service';
+import { PreviewHeaderComponent } from './preview-header/preview-header.component';
+import { PreviewTopicListComponent } from './preview-topic-list/preview-topic-list.component';
+import { PreviewSceneComponent } from './preview-scene/preview-scene.component';
 import * as THREE from 'three';
 
 export interface PreviewTopic {
@@ -45,12 +45,13 @@ export interface PreviewTopic {
   imports: [
     NgtCanvas,
     ThreedSceneGraphComponent,
-    NgtsPointsBuffer,
-    NgtsPivotControls,
     NgtCanvasImpl,
     NgtCanvasContent,
     SynergyComponentsModule,
     ViewportOverlayComponent,
+    PreviewHeaderComponent,
+    PreviewTopicListComponent,
+    PreviewSceneComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [MultiWebsocketService], // Own instance, isolated from workspace
@@ -78,61 +79,45 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
 
   readonly MAX_POINTS = 250_000;
   private readonly staticBuffers = new Map<string, Float32Array>();
-  private readonly initialMatrices = new Map<string, THREE.Matrix4>();
   private readonly subscriptions = new Map<string, Subscription>();
+
+  /** Reactive matrix per topic — updated on add and external sync, NOT on drag. */
+  readonly pivotMatrices = signal<Map<string, THREE.Matrix4>>(new Map());
 
   protected readonly topicEntries = computed(() =>
     this.previewTopics().map((t) => {
       if (!this.staticBuffers.has(t.topic)) {
         this.staticBuffers.set(t.topic, new Float32Array(this.MAX_POINTS * 3));
       }
-      if (!this.initialMatrices.has(t.topic)) {
-        this.initialMatrices.set(t.topic, this._poseToMatrix(t.pose));
-      }
       return {
         topic: t.topic,
         color: t.color,
         pointSize: t.pointSize,
         buf: this.staticBuffers.get(t.topic)!,
-        initialMatrix: this.initialMatrices.get(t.topic)!,
+        initialMatrix: this.pivotMatrices().get(t.topic) ?? new THREE.Matrix4(),
       };
     }),
   );
 
-  private readonly pointsBuffers = viewChildren<NgtsPointsBuffer>('buf');
-
-  protected readonly topicFrames = computed(() =>
-    this.topicEntries().map((entry) => ({
-      entry,
-      frame: this.frames().get(entry.topic) ?? null,
-    })),
-  );
-
   constructor() {
-    // Update Three.js buffers when frames arrive
+    // Sync pivot matrices when backend node config changes (e.g. after Apply/Reload)
     effect(() => {
-      const pairs = this.topicFrames();
-      const bufs = this.pointsBuffers();
+      const nodes = this.canvasEditStore.localNodes();
+      const topics = this.previewTopics();
+      if (!topics.length || this._isDragging) return;
 
-      pairs.forEach(({ entry, frame }, i) => {
-        const points = bufs[i]?.pointsRef()?.nativeElement;
-        if (!points) return;
-
-        if (!frame || frame.count === 0) {
-          points.visible = false;
-          return;
+      for (const t of topics) {
+        const node = nodes.find((n) => n.id === t.nodeId);
+        if (!node?.pose) continue;
+        const currentPose = t.pose;
+        if (
+          node.pose.x !== currentPose.x || node.pose.y !== currentPose.y || node.pose.z !== currentPose.z ||
+          node.pose.roll !== currentPose.roll || node.pose.pitch !== currentPose.pitch || node.pose.yaw !== currentPose.yaw
+        ) {
+          // External change detected — update without triggering via untracked
+          this.syncPose(t.nodeId, node.pose);
         }
-        points.visible = true;
-
-        const count = Math.min(frame.count, this.MAX_POINTS);
-        entry.buf.set(frame.points.subarray(0, count * 3));
-
-        const geo = points.geometry;
-        if (!geo) return;
-        geo.setDrawRange(0, count);
-        const attr = geo.attributes['position'];
-        if (attr) attr.needsUpdate = true;
-      });
+      }
     });
   }
 
@@ -152,7 +137,28 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
         pose: initialPose ? { ...initialPose } : { ...ZERO_POSE },
       },
     ]);
+    // Set initial pivot matrix
+    const pose = initialPose ?? ZERO_POSE;
+    this.pivotMatrices.update((m) => {
+      const next = new Map(m);
+      next.set(topic, this._poseToMatrix(pose));
+      return next;
+    });
     this._connectTopic(topic);
+  }
+
+  /** Sync pose from external source (e.g. after backend save/reload). Updates the gizmo position. */
+  syncPose(nodeId: string, pose: Pose): void {
+    const topic = this.previewTopics().find((t) => t.nodeId === nodeId)?.topic;
+    if (!topic) return;
+    this.previewTopics.update((topics) =>
+      topics.map((t) => (t.nodeId === nodeId ? { ...t, pose } : t)),
+    );
+    this.pivotMatrices.update((m) => {
+      const next = new Map(m);
+      next.set(topic, this._poseToMatrix(pose));
+      return next;
+    });
   }
 
   /** Remove a node's topic from the preview and close its WebSocket. */
@@ -160,7 +166,11 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
     this.previewTopics.update((topics) => topics.filter((t) => t.topic !== topic));
     this._disconnectTopic(topic);
     this.staticBuffers.delete(topic);
-    this.initialMatrices.delete(topic);
+    this.pivotMatrices.update((m) => {
+      const next = new Map(m);
+      next.delete(topic);
+      return next;
+    });
     this.frames.update((m) => {
       const next = new Map(m);
       next.delete(topic);
@@ -179,23 +189,13 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
     this.subscriptions.clear();
     this.wsService.disconnectAll();
 
-    // 2. Dispose Three.js geometries and materials
-    this.pointsBuffers().forEach((buf) => {
-      const points = buf.pointsRef?.()?.nativeElement;
-      if (!points) return;
-      points.geometry?.dispose();
-      const mat = points.material;
-      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-      else mat?.dispose();
-    });
-
-    // 3. Release all Float32Array buffers
+    // 2. Release all Float32Array buffers
     this.staticBuffers.clear();
 
-    // 4. Clear frame data references
+    // 3. Clear frame data references
     this.frames.set(new Map());
 
-    // 5. Clear topic list
+    // 4. Clear topic list
     this.previewTopics.set([]);
   }
 
@@ -203,6 +203,7 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
 
   /** Called when a pivot control is dragged; extracts pose from the local matrix and syncs to store. */
   onPivotDrag(topic: string, event: any): void {
+    this._isDragging = true;
     // NgtsPivotControls (dragged) emits { l: Matrix4, deltaL: Matrix4, w: Matrix4, deltaW: Matrix4 }
     const matrix = event.l as THREE.Matrix4;
     if (!matrix || !matrix.elements) return;
@@ -235,11 +236,7 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
     const pose = this._lastDragPose;
     if (!pose || this._lastDragTopic !== topic) return;
 
-    this.previewTopics.update((topics) =>
-      topics.map((t) => (t.topic === topic ? { ...t, pose } : t)),
-    );
-
-    // Sync pose to the flow-canvas node store
+    // Sync pose to the flow-canvas node store (marks isDirty, enables Apply button)
     const previewTopic = this.previewTopics().find((t) => t.topic === topic);
     if (previewTopic) {
       this.canvasEditStore.updateNode(previewTopic.nodeId, { pose });
@@ -247,10 +244,12 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
 
     this._lastDragPose = null;
     this._lastDragTopic = null;
+    this._isDragging = false;
   }
 
   private _lastDragPose: Pose | null = null;
   private _lastDragTopic: string | null = null;
+  private _isDragging = false;
 
   /** Convert a Pose (degrees) to a THREE.Matrix4 for pivot controls initial state. */
   private _poseToMatrix(pose: Pose): THREE.Matrix4 {
