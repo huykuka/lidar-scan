@@ -19,7 +19,7 @@
         <span class="text-xs max-w-[180px] text-center">Right-click a node and select "Add to 3D view" to see its output here</span>
       </div>
     }
-    <ngt-canvas class="absolute inset-0">
+    <ngt-canvas class="absolute inset-0"  frameloop="demand">
       <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
         <app-preview-scene
           [entries]="topicEntries()"

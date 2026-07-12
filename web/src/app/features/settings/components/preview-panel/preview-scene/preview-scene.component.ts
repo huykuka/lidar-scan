@@ -5,18 +5,19 @@ import {
   effect,
   input,
   output,
+  signal,
   viewChildren,
 } from '@angular/core';
 import { NgtsPointsBuffer } from 'angular-three-soba/performances';
 import { NgtsPivotControls } from 'angular-three-soba/gizmos';
-import * as THREE from 'three';
 
 export interface PreviewSceneEntry {
   topic: string;
   color: string;
   pointSize: number;
   buf: Float32Array;
-  initialMatrix: THREE.Matrix4;
+  initialOffset: [number, number, number];
+  initialRotation: [number, number, number];
 }
 
 @Component({
@@ -34,6 +35,9 @@ export class PreviewSceneComponent {
 
   readonly dragged = output<{ topic: string; event: any }>();
   readonly dragEnded = output<string>();
+
+  /** Tracks which topic is currently being dragged */
+  protected readonly draggingTopic = signal<string | null>(null);
 
   private readonly pointsBuffers = viewChildren<NgtsPointsBuffer>('buf');
 
@@ -65,5 +69,15 @@ export class PreviewSceneComponent {
         if (attr) attr.needsUpdate = true;
       });
     });
+  }
+
+  onDragStart(topic: string): void {
+    this.draggingTopic.set(topic);
+  }
+
+  onDragEnd(topic: string): void {
+    // Hold autoTransform true briefly so point cloud stays until backend reloads
+    this.draggingTopic.set(null)
+    this.dragEnded.emit(topic);
   }
 }

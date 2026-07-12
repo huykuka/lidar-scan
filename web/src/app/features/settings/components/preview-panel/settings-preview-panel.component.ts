@@ -78,11 +78,9 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
   readonly topicCount = computed(() => this.previewTopics().length);
 
   readonly MAX_POINTS = 250_000;
+  private readonly DEG2RAD = Math.PI / 180;
   private readonly staticBuffers = new Map<string, Float32Array>();
   private readonly subscriptions = new Map<string, Subscription>();
-
-  /** Reactive matrix per topic — updated on add and external sync, NOT on drag. */
-  readonly pivotMatrices = signal<Map<string, THREE.Matrix4>>(new Map());
 
   protected readonly topicEntries = computed(() =>
     this.previewTopics().map((t) => {
@@ -94,7 +92,12 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
         color: t.color,
         pointSize: t.pointSize,
         buf: this.staticBuffers.get(t.topic)!,
-        initialMatrix: this.pivotMatrices().get(t.topic) ?? new THREE.Matrix4(),
+        initialOffset: [t.pose.x, t.pose.y, t.pose.z] as [number, number, number],
+        initialRotation: [
+          t.pose.roll * this.DEG2RAD,
+          t.pose.pitch * this.DEG2RAD,
+          t.pose.yaw * this.DEG2RAD,
+        ] as [number, number, number],
       };
     }),
   );
@@ -109,6 +112,11 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
       for (const t of topics) {
         const node = nodes.find((n) => n.id === t.nodeId);
         if (!node?.pose) continue;
+        // Skip if this change came from our own drag
+        if (this._draggedNodeIds.has(t.nodeId)) {
+          this._draggedNodeIds.delete(t.nodeId);
+          continue;
+        }
         const currentPose = t.pose;
         if (
           node.pose.x !== currentPose.x || node.pose.y !== currentPose.y || node.pose.z !== currentPose.z ||
@@ -137,13 +145,6 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
         pose: initialPose ? { ...initialPose } : { ...ZERO_POSE },
       },
     ]);
-    // Set initial pivot matrix
-    const pose = initialPose ?? ZERO_POSE;
-    this.pivotMatrices.update((m) => {
-      const next = new Map(m);
-      next.set(topic, this._poseToMatrix(pose));
-      return next;
-    });
     this._connectTopic(topic);
   }
 
@@ -154,11 +155,6 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
     this.previewTopics.update((topics) =>
       topics.map((t) => (t.nodeId === nodeId ? { ...t, pose } : t)),
     );
-    this.pivotMatrices.update((m) => {
-      const next = new Map(m);
-      next.set(topic, this._poseToMatrix(pose));
-      return next;
-    });
   }
 
   /** Remove a node's topic from the preview and close its WebSocket. */
@@ -166,11 +162,6 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
     this.previewTopics.update((topics) => topics.filter((t) => t.topic !== topic));
     this._disconnectTopic(topic);
     this.staticBuffers.delete(topic);
-    this.pivotMatrices.update((m) => {
-      const next = new Map(m);
-      next.delete(topic);
-      return next;
-    });
     this.frames.update((m) => {
       const next = new Map(m);
       next.delete(topic);
@@ -228,6 +219,7 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
       pitch: snap(euler.y * RAD2DEG, SNAP_R),
       yaw: snap(euler.z * RAD2DEG, SNAP_R),
     };
+
     this._lastDragTopic = topic;
   }
 
@@ -239,6 +231,8 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
     // Sync pose to the flow-canvas node store (marks isDirty, enables Apply button)
     const previewTopic = this.previewTopics().find((t) => t.topic === topic);
     if (previewTopic) {
+      this._draggedNodeIds.add(previewTopic.nodeId);
+      console.log(`Syncing pose for node ${previewTopic.nodeId}:`, pose);
       this.canvasEditStore.updateNode(previewTopic.nodeId, { pose });
     }
 
@@ -250,22 +244,8 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
   private _lastDragPose: Pose | null = null;
   private _lastDragTopic: string | null = null;
   private _isDragging = false;
-
-  /** Convert a Pose (degrees) to a THREE.Matrix4 for pivot controls initial state. */
-  private _poseToMatrix(pose: Pose): THREE.Matrix4 {
-    const DEG2RAD = Math.PI / 180;
-    const matrix = new THREE.Matrix4();
-    const position = new THREE.Vector3(pose.x, pose.y, pose.z);
-    const euler = new THREE.Euler(
-      pose.roll * DEG2RAD,
-      pose.pitch * DEG2RAD,
-      pose.yaw * DEG2RAD,
-      'XYZ',
-    );
-    const quaternion = new THREE.Quaternion().setFromEuler(euler);
-    matrix.compose(position, quaternion, new THREE.Vector3(1, 1, 1));
-    return matrix;
-  }
+  /** Node IDs whose pose was changed by drag — skip sync effect for these */
+  private _draggedNodeIds = new Set<string>();
 
   private _connectTopic(topic: string): void {
     if (this.subscriptions.has(topic)) return;
