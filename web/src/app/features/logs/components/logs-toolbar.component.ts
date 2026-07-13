@@ -64,7 +64,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
             [class.animate-pulse]="isStreaming()"
             [class.text-syn-color-red-500]="isStreaming()"
           />
-          {{ isStreaming() ? 'Stop Live' : 'Go Live' }}
+          <span>{{ isStreaming() ? 'Stop Live' : 'Go Live' }}</span>
         </syn-button>
 
         <div class="flex items-center gap-2">
