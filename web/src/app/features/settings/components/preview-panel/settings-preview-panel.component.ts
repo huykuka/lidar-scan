@@ -7,18 +7,22 @@ import {
   inject,
   OnDestroy,
   signal,
-  viewChildren,
 } from '@angular/core';
 
 import {Subscription} from 'rxjs';
 import {MultiWebsocketService} from '@core/services/multi-websocket.service';
 import {DEFAULT_TOPIC_COLORS} from '@core/services/stores/workspace-store.service';
 import {ViewOrientation} from '@core/services/split-layout-store.service';
+import { Pose, ZERO_POSE } from '@core/models';
 import {environment} from '@env/environment';
-import {NgtsPointsBuffer} from 'angular-three-soba/performances';
 import {NgtCanvas, NgtCanvasContent, NgtCanvasImpl} from 'angular-three/dom';
 import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import { CanvasEditStoreService } from '../../services/canvas-edit-store.service';
+import { PreviewHeaderComponent } from './preview-header/preview-header.component';
+import { PreviewTopicListComponent } from './preview-topic-list/preview-topic-list.component';
+import { PreviewSceneComponent } from './preview-scene/preview-scene.component';
+import * as THREE from 'three';
 
 export interface PreviewTopic {
   nodeId: string;
@@ -26,6 +30,7 @@ export interface PreviewTopic {
   topic: string;
   color: string;
   pointSize: number;
+  pose: Pose;
 }
 
 /**
@@ -40,11 +45,13 @@ export interface PreviewTopic {
   imports: [
     NgtCanvas,
     ThreedSceneGraphComponent,
-    NgtsPointsBuffer,
     NgtCanvasImpl,
     NgtCanvasContent,
     SynergyComponentsModule,
     ViewportOverlayComponent,
+    PreviewHeaderComponent,
+    PreviewTopicListComponent,
+    PreviewSceneComponent,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   providers: [MultiWebsocketService], // Own instance, isolated from workspace
@@ -52,6 +59,11 @@ export interface PreviewTopic {
 })
 export class SettingsPreviewPanelComponent implements OnDestroy {
   private readonly wsService = inject(MultiWebsocketService);
+  private readonly canvasEditStore = inject(CanvasEditStoreService);
+
+  /** Snap increments for pivot controls */
+  readonly TRANSLATION_SNAP = 0.05; // 5cm
+  readonly ROTATION_SNAP = 5; // 5 degrees
 
   /** Topics explicitly selected for preview via node context menu */
   readonly previewTopics = signal<PreviewTopic[]>([]);
@@ -61,10 +73,12 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
 
   readonly isConnected = signal(false);
   readonly showGrid = signal(true);
+  readonly showGizmos = signal(true);
   readonly viewOrientation = signal<ViewOrientation>('perspective');
   readonly topicCount = computed(() => this.previewTopics().length);
 
   readonly MAX_POINTS = 250_000;
+  private readonly DEG2RAD = Math.PI / 180;
   private readonly staticBuffers = new Map<string, Float32Array>();
   private readonly subscriptions = new Map<string, Subscription>();
 
@@ -78,55 +92,31 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
         color: t.color,
         pointSize: t.pointSize,
         buf: this.staticBuffers.get(t.topic)!,
+        initialOffset: [t.pose.x, t.pose.y, t.pose.z] as [number, number, number],
+        initialRotation: [
+          t.pose.roll * this.DEG2RAD,
+          t.pose.pitch * this.DEG2RAD,
+          t.pose.yaw * this.DEG2RAD,
+        ] as [number, number, number],
       };
     }),
   );
 
-  private readonly pointsBuffers = viewChildren<NgtsPointsBuffer>('buf');
-
-  protected readonly topicFrames = computed(() =>
-    this.topicEntries().map((entry) => ({
-      entry,
-      frame: this.frames().get(entry.topic) ?? null,
-    })),
-  );
-
-  constructor() {
-    // Update Three.js buffers when frames arrive
-    effect(() => {
-      const pairs = this.topicFrames();
-      const bufs = this.pointsBuffers();
-
-      pairs.forEach(({entry, frame}, i) => {
-        const points = bufs[i]?.pointsRef()?.nativeElement;
-        if (!points) return;
-
-        if (!frame || frame.count === 0) {
-          points.visible = false;
-          return;
-        }
-        points.visible = true;
-
-        const count = Math.min(frame.count, this.MAX_POINTS);
-        entry.buf.set(frame.points.subarray(0, count * 3));
-
-        const geo = points.geometry;
-        if (!geo) return;
-        geo.setDrawRange(0, count);
-        const attr = geo.attributes['position'];
-        if (attr) attr.needsUpdate = true;
-      });
-    });
-  }
-
   /** Add a node's topic to the preview and open its WebSocket connection. */
-  addPreviewTopic(nodeId: string, nodeName: string, topic: string): void {
+  addPreviewTopic(nodeId: string, nodeName: string, topic: string, initialPose?: Pose): void {
     const current = this.previewTopics();
     if (current.some((t) => t.topic === topic)) return;
     const colorIndex = current.length % DEFAULT_TOPIC_COLORS.length;
     this.previewTopics.set([
       ...current,
-      { nodeId, nodeName, topic, color: DEFAULT_TOPIC_COLORS[colorIndex], pointSize: 2 },
+      {
+        nodeId,
+        nodeName,
+        topic,
+        color: DEFAULT_TOPIC_COLORS[colorIndex],
+        pointSize: 2,
+        pose: initialPose ? { ...initialPose } : { ...ZERO_POSE },
+      },
     ]);
     this._connectTopic(topic);
   }
@@ -154,27 +144,55 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
     this.subscriptions.clear();
     this.wsService.disconnectAll();
 
-    // 2. Dispose Three.js geometries and materials
-    this.pointsBuffers().forEach((buf) => {
-      const points = buf.pointsRef?.()?.nativeElement;
-      if (!points) return;
-      points.geometry?.dispose();
-      const mat = points.material;
-      if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
-      else mat?.dispose();
-    });
-
-    // 3. Release all Float32Array buffers
+    // 2. Release all Float32Array buffers
     this.staticBuffers.clear();
 
-    // 4. Clear frame data references
+    // 3. Clear frame data references
     this.frames.set(new Map());
 
-    // 5. Clear topic list
+    // 4. Clear topic list
     this.previewTopics.set([]);
   }
 
   // -- Private WebSocket management --
+
+  /** Called during pivot drag; extracts pose and updates the store live. */
+  onPivotDrag(topic: string, event: any): void {
+    this._isDragging = true;
+    const matrix = event.l as THREE.Matrix4;
+    if (!matrix || !matrix.elements) return;
+
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    const scale = new THREE.Vector3();
+    matrix.decompose(position, quaternion, scale);
+
+    const euler = new THREE.Euler().setFromQuaternion(quaternion, 'XYZ');
+    const RAD2DEG = 180 / Math.PI;
+    const snap = (v: number, step: number) => Math.round(v / step) * step;
+    const base = this.previewTopics().find((t) => t.topic === topic)?.pose ?? ZERO_POSE;
+
+    const pose: Pose = {
+      x: snap(base.x + position.x, this.TRANSLATION_SNAP),
+      y: snap(base.y + position.y, this.TRANSLATION_SNAP),
+      z: snap(base.z + position.z, this.TRANSLATION_SNAP),
+      roll: snap(base.roll + euler.x * RAD2DEG, this.ROTATION_SNAP),
+      pitch: snap(base.pitch + euler.y * RAD2DEG, this.ROTATION_SNAP),
+      yaw: snap(base.yaw + euler.z * RAD2DEG, this.ROTATION_SNAP),
+    };
+
+    const previewTopic = this.previewTopics().find((t) => t.topic === topic);
+    if (previewTopic) {
+      this.canvasEditStore.updateNode(previewTopic.nodeId, { pose });
+    }
+  }
+
+  /** Called when pivot drag ends. */
+  onPivotDragEnd(_topic: string): void {
+    this._isDragging = false;
+  }
+
+  private _isDragging = false;
 
   private _connectTopic(topic: string): void {
     if (this.subscriptions.has(topic)) return;
