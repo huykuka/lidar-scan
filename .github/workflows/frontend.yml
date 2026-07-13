@@ -17,29 +17,29 @@ jobs:
     steps:
       - name: Checkout requested ref
         if: inputs.checkout_ref != ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.checkout_ref }}
 
       - name: Checkout event ref
         if: inputs.checkout_ref == ''
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Restore frontend cache
         id: fe-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: |
             web/dist/web/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/package.json', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: pnpm
@@ -47,7 +47,7 @@ jobs:
 
       - name: Restore pnpm dependencies
         id: pnpm-deps
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: web/node_modules
           key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
@@ -59,7 +59,7 @@ jobs:
 
       - name: Save pnpm dependencies
         if: steps.pnpm-deps.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: web/node_modules
           key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
@@ -80,7 +80,7 @@ jobs:
 
       - name: Save frontend cache
         if: inputs.frontend_changed || steps.fe-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             web/dist/web/browser
@@ -92,7 +92,7 @@ jobs:
           cp -a web/dist/web/browser/. ci-artifacts/frontend/
 
       - name: Upload frontend artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-ci-artifacts
           path: ci-artifacts/frontend/

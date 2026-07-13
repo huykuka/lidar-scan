@@ -22,7 +22,7 @@ jobs:
       cpp: ${{ steps.filter.outputs.cpp }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -50,15 +50,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: pnpm
@@ -66,7 +66,7 @@ jobs:
 
       - name: Restore pnpm dependencies
         id: pnpm-deps
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: web/node_modules
           key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
@@ -97,7 +97,7 @@ jobs:
       backend_changed: ${{ steps.bump.outputs.backend_changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -181,6 +181,7 @@ jobs:
     uses: ./.github/workflows/frontend.yml
     with:
       frontend_changed: ${{ needs.changes.outputs.frontend == 'true' }}
+      checkout_ref: main
     secrets: inherit
 
   backend-cpp:
@@ -190,6 +191,7 @@ jobs:
     uses: ./.github/workflows/backend-cpp.yml
     with:
       cpp_changed: ${{ needs.changes.outputs.cpp == 'true' }}
+      checkout_ref: main
     secrets: inherit
 
   docker:
@@ -202,18 +204,18 @@ jobs:
       needs.frontend.result == 'success'
     steps:
       - name: Checkout versioned source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: main
 
       - name: Download backend artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: backend-ci-artifacts
           path: ci-artifacts
 
       - name: Download frontend artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: frontend-ci-artifacts
           path: ci-artifacts/frontend
@@ -263,18 +265,20 @@ jobs:
       - name: Create release from backend version (if missing)
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           BE_VERSION: ${{ needs.version-bump.outputs.be_version }}
           FE_VERSION: ${{ needs.version-bump.outputs.fe_version }}
           IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio
         run: |
           TAG="v${BE_VERSION}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
             echo "Release $TAG already exists. Skipping."
             exit 0
           fi
 
           gh release create "$TAG" \
-            --target "$GITHUB_SHA" \
+            --repo "$GH_REPO" \
+            --target main \
             --title "$TAG" \
             --notes "$(printf 'Backend: %s\nFrontend: %s\nImage: %s:%s\nAlso pushed: %s:latest' "$BE_VERSION" "$FE_VERSION" "$IMAGE_NAME" "$BE_VERSION" "$IMAGE_NAME")"
 
