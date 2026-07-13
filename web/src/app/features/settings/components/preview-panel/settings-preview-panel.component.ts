@@ -73,7 +73,7 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
 
   readonly isConnected = signal(false);
   readonly showGrid = signal(true);
-  readonly showGizmos = signal(false);
+  readonly showGizmos = signal(true);
   readonly viewOrientation = signal<ViewOrientation>('perspective');
   readonly topicCount = computed(() => this.previewTopics().length);
 
@@ -102,33 +102,6 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
     }),
   );
 
-  constructor() {
-    // Sync pivot matrices when backend node config changes (e.g. after Apply/Reload)
-    effect(() => {
-      const nodes = this.canvasEditStore.localNodes();
-      const topics = this.previewTopics();
-      if (!topics.length || this._isDragging) return;
-
-      for (const t of topics) {
-        const node = nodes.find((n) => n.id === t.nodeId);
-        if (!node?.pose) continue;
-        // Skip if this change came from our own drag
-        if (this._draggedNodeIds.has(t.nodeId)) {
-          this._draggedNodeIds.delete(t.nodeId);
-          continue;
-        }
-        const currentPose = t.pose;
-        if (
-          node.pose.x !== currentPose.x || node.pose.y !== currentPose.y || node.pose.z !== currentPose.z ||
-          node.pose.roll !== currentPose.roll || node.pose.pitch !== currentPose.pitch || node.pose.yaw !== currentPose.yaw
-        ) {
-          // External change detected — update without triggering via untracked
-          this.syncPose(t.nodeId, node.pose);
-        }
-      }
-    });
-  }
-
   /** Add a node's topic to the preview and open its WebSocket connection. */
   addPreviewTopic(nodeId: string, nodeName: string, topic: string, initialPose?: Pose): void {
     const current = this.previewTopics();
@@ -146,15 +119,6 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
       },
     ]);
     this._connectTopic(topic);
-  }
-
-  /** Sync pose from external source (e.g. after backend save/reload). Updates the gizmo position. */
-  syncPose(nodeId: string, pose: Pose): void {
-    const topic = this.previewTopics().find((t) => t.nodeId === nodeId)?.topic;
-    if (!topic) return;
-    this.previewTopics.update((topics) =>
-      topics.map((t) => (t.nodeId === nodeId ? { ...t, pose } : t)),
-    );
   }
 
   /** Remove a node's topic from the preview and close its WebSocket. */
@@ -192,10 +156,9 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
 
   // -- Private WebSocket management --
 
-  /** Called when a pivot control is dragged; extracts pose from the local matrix and syncs to store. */
+  /** Called during pivot drag; extracts pose and updates the store live. */
   onPivotDrag(topic: string, event: any): void {
     this._isDragging = true;
-    // NgtsPivotControls (dragged) emits { l: Matrix4, deltaL: Matrix4, w: Matrix4, deltaW: Matrix4 }
     const matrix = event.l as THREE.Matrix4;
     if (!matrix || !matrix.elements) return;
 
@@ -206,46 +169,30 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
 
     const euler = new THREE.Euler().setFromQuaternion(quaternion, 'XYZ');
     const RAD2DEG = 180 / Math.PI;
-    const SNAP_T = this.TRANSLATION_SNAP;
-    const SNAP_R = this.ROTATION_SNAP;
-
     const snap = (v: number, step: number) => Math.round(v / step) * step;
+    const base = this.previewTopics().find((t) => t.topic === topic)?.pose ?? ZERO_POSE;
 
-    this._lastDragPose = {
-      x: snap(position.x, SNAP_T),
-      y: snap(position.y, SNAP_T),
-      z: snap(position.z, SNAP_T),
-      roll: snap(euler.x * RAD2DEG, SNAP_R),
-      pitch: snap(euler.y * RAD2DEG, SNAP_R),
-      yaw: snap(euler.z * RAD2DEG, SNAP_R),
+    const pose: Pose = {
+      x: snap(base.x + position.x, this.TRANSLATION_SNAP),
+      y: snap(base.y + position.y, this.TRANSLATION_SNAP),
+      z: snap(base.z + position.z, this.TRANSLATION_SNAP),
+      roll: snap(base.roll + euler.x * RAD2DEG, this.ROTATION_SNAP),
+      pitch: snap(base.pitch + euler.y * RAD2DEG, this.ROTATION_SNAP),
+      yaw: snap(base.yaw + euler.z * RAD2DEG, this.ROTATION_SNAP),
     };
 
-    this._lastDragTopic = topic;
-  }
-
-  /** Called when a pivot control drag ends; commits the pose to the store. */
-  onPivotDragEnd(topic: string): void {
-    const pose = this._lastDragPose;
-    if (!pose || this._lastDragTopic !== topic) return;
-
-    // Sync pose to the flow-canvas node store (marks isDirty, enables Apply button)
     const previewTopic = this.previewTopics().find((t) => t.topic === topic);
     if (previewTopic) {
-      this._draggedNodeIds.add(previewTopic.nodeId);
-      console.log(`Syncing pose for node ${previewTopic.nodeId}:`, pose);
       this.canvasEditStore.updateNode(previewTopic.nodeId, { pose });
     }
+  }
 
-    this._lastDragPose = null;
-    this._lastDragTopic = null;
+  /** Called when pivot drag ends. */
+  onPivotDragEnd(_topic: string): void {
     this._isDragging = false;
   }
 
-  private _lastDragPose: Pose | null = null;
-  private _lastDragTopic: string | null = null;
   private _isDragging = false;
-  /** Node IDs whose pose was changed by drag — skip sync effect for these */
-  private _draggedNodeIds = new Set<string>();
 
   private _connectTopic(topic: string): void {
     if (this.subscriptions.has(topic)) return;
