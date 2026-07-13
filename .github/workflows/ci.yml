@@ -43,27 +43,52 @@ jobs:
               - 'docker/Dockerfile.ci'
               - 'setup/Dockerfile'
 
-  frontend:
-    name: Frontend Pipeline
+  frontend-test:
+    name: Frontend Tests
     needs: [changes]
-    uses: ./.github/workflows/frontend.yml
-    with:
-      frontend_changed: ${{ needs.changes.outputs.frontend == 'true' }}
-    secrets: inherit
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  backend-cpp:
-    name: Backend Cpp Pipeline
-    needs: [changes]
-    uses: ./.github/workflows/backend-cpp.yml
-    with:
-      cpp_changed: ${{ needs.changes.outputs.cpp == 'true' }}
-    secrets: inherit
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Restore pnpm dependencies
+        id: pnpm-deps
+        uses: actions/cache/restore@v4
+        with:
+          path: web/node_modules
+          key: frontend-deps-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/pnpm-workspace.yaml') }}
+
+      - name: Install dependencies
+        if: steps.pnpm-deps.outputs.cache-hit != 'true'
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Run frontend tests
+        working-directory: web
+        run: npm run test
+        env:
+          CI: true
 
   version-bump:
     name: Bump Semver
     runs-on: ubuntu-latest
-    needs: [changes, frontend]
-    if: needs.frontend.result == 'success'
+    needs: [changes, frontend-test]
+    if: |
+      needs.changes.result == 'success' &&
+      (needs.frontend-test.result == 'success' || needs.frontend-test.result == 'skipped')
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
       fe_version: ${{ steps.bump.outputs.fe_version }}
@@ -148,6 +173,24 @@ jobs:
           git add web/package.json pyproject.toml
           git diff --cached --quiet || git commit -m "chore: bump versions fe=${{ steps.bump.outputs.fe_version }} be=${{ steps.bump.outputs.be_version }} [skip ci]"
           git push origin HEAD:main
+
+  frontend:
+    name: Frontend Pipeline
+    needs: [changes, version-bump]
+    if: needs.version-bump.result == 'success'
+    uses: ./.github/workflows/frontend.yml
+    with:
+      frontend_changed: ${{ needs.changes.outputs.frontend == 'true' }}
+    secrets: inherit
+
+  backend-cpp:
+    name: Backend Cpp Pipeline
+    needs: [changes, version-bump]
+    if: needs.version-bump.result == 'success'
+    uses: ./.github/workflows/backend-cpp.yml
+    with:
+      cpp_changed: ${{ needs.changes.outputs.cpp == 'true' }}
+    secrets: inherit
 
   docker:
     name: Build & Push Docker Image

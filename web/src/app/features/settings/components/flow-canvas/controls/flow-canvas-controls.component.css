@@ -1,6 +1,9 @@
 :host {
-  display: inline-flex;
+  display: block;
   position: relative;
+  /* must be block so it takes the parent's constrained width */
+  max-width: 100%;
+  min-width: 0;
 }
 
 .controls-toolbar {
@@ -12,6 +15,16 @@
   border-radius: var(--syn-border-radius-medium);
   box-shadow: var(--syn-shadow-medium);
   padding: var(--syn-spacing-3x-small) var(--syn-spacing-2x-small);
+  /* scrollable on small screens */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--syn-panel-border-color) transparent;
+}
+
+/* prevent buttons from shrinking — scroll instead */
+.controls-toolbar > * {
+  flex-shrink: 0;
 }
 
 .divider {
