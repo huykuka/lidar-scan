@@ -4,6 +4,15 @@
   background: var(--syn-panel-border-color);
   transition: background var(--syn-duration-fast);
   flex-shrink: 0;
+  position: relative;
+}
+
+/* Invisible expanded hit area for easier grabbing */
+.settings-divider::before {
+  content: '';
+  position: absolute;
+  inset: 0 -6px;
+  cursor: col-resize;
 }
 
 .settings-divider:hover,
