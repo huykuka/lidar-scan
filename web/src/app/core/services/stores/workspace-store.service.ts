@@ -1,5 +1,8 @@
 import {effect, Injectable} from '@angular/core';
 import {SignalsSimpleStoreService} from '../signals-simple-store.service';
+import {TopicInfo} from '../api/topic-api.service';
+
+export type {TopicInfo};
 
 export interface TopicConfig {
   topic: string;
@@ -9,7 +12,7 @@ export interface TopicConfig {
 }
 
 export interface WorkspaceState {
-  topics: string[];
+  topics: TopicInfo[];
   currentTopic: string; // Deprecated - kept for backwards compatibility
   selectedTopics: TopicConfig[]; // New: Multiple topics with colors
   isConnected: boolean;
@@ -95,7 +98,7 @@ export class WorkspaceStoreService extends SignalsSimpleStoreService<WorkspaceSt
         : (persistedState.pointSize ?? initialState.pointSize),
       showCockpit: false, // Always start hidden; user opens explicitly
       isConnected: false, // Don't persist connection status
-      topics: [], // Don't persist topics
+      topics: [], // Don't persist topics (TopicInfo[])
       selectedTopics: (persistedState.selectedTopics || []).map((t: TopicConfig) => ({
         ...t,
         pointSize: t.pointSize ?? initialState.pointSize,

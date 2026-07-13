@@ -3,16 +3,21 @@ import {HttpClient} from '@angular/common/http';
 import {environment} from '../../../../environments/environment';
 import {firstValueFrom, map} from 'rxjs';
 
+export interface TopicInfo {
+  topic: string;
+  category: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class TopicApiService {
   private http = inject(HttpClient);
 
-  async getTopics(): Promise<string[]> {
+  async getTopics(): Promise<TopicInfo[]> {
     try {
       const data$ = this.http
-        .get<{ topics: string[] }>(`${environment.apiUrl}/topics`)
+        .get<{ topics: TopicInfo[] }>(`${environment.apiUrl}/topics`)
         .pipe(map((res) => res.topics || []));
       return await firstValueFrom(data$);
     } catch (error) {

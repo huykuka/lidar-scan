@@ -135,7 +135,7 @@ class ConfigLoader:
         
         # Register topic only if BOTH websocket_enabled AND visible are True
         if websocket_enabled and visible and enabled:
-            manager.register_topic(topic)
+            manager.register_topic(topic, category=node.get("category", "other"))
             node_instance._ws_topic = topic
             logger.debug(f"Registered WS topic '{topic}' for visible streaming node {node['id']}")
         else:

@@ -9,16 +9,22 @@ from pydantic import BaseModel
 from app.services.websocket.manager import manager
 
 
+class TopicInfo(BaseModel):
+    """A single WebSocket topic with its node category."""
+    topic: str
+    category: str
+
+
 class TopicsResponse(BaseModel):
     """Response for listing available WebSocket topics."""
-    topics: List[str]
+    topics: List[TopicInfo]
     description: Dict[str, str]
 
 
 async def list_topics():
     """Returns available websocket topics (excluding system topics)"""
     return TopicsResponse(
-        topics=manager.get_public_topics(),
+        topics=[TopicInfo(**t) for t in manager.get_public_topics()],
         description={
             "processed_points": "Stream of preprocessed data with algorithm results"
         }

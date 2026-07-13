@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from fastapi import WebSocket
 
@@ -15,13 +15,16 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self._registered_topics: set[str] = set()
+        self._topic_categories: Dict[str, str] = {}  # topic -> category
         self._interceptors: Dict[str, List[asyncio.Future]] = {}
         self._write_locks: Dict[int, asyncio.Lock] = {}
 
-    def register_topic(self, topic: str):
+    def register_topic(self, topic: str, category: Optional[str] = None):
         """Pre-registers a topic so it appears in the topic list even with no active connections."""
         topic = topic.lower()
         self._registered_topics.add(topic)
+        if category:
+            self._topic_categories[topic] = category
         if topic not in self.active_connections:
             self.active_connections[topic] = []
 
@@ -36,6 +39,7 @@ class ConnectionManager:
         """
         # 0. Remove from registered topics set
         self._registered_topics.discard(topic)
+        self._topic_categories.pop(topic, None)
 
         # 1. Gracefully close all live WebSocket connections
         connections = self.active_connections.pop(topic, [])
@@ -70,6 +74,7 @@ class ConnectionManager:
     def reset_active_connections(self):
         self.active_connections.clear()
         self._registered_topics.clear()
+        self._topic_categories.clear()
         self._interceptors.clear()
         self._write_locks.clear()
 
@@ -139,12 +144,16 @@ class ConnectionManager:
                 self._interceptors[topic].remove(future)
             raise
 
-    def get_public_topics(self) -> List[str]:
-        """Returns list of explicitly registered topics, excluding system topics."""
-        return sorted([
-            topic for topic in self._registered_topics
-            if topic not in SYSTEM_TOPICS
-        ])
+    def get_public_topics(self) -> List[Dict[str, str]]:
+        """Returns list of explicitly registered topics with their category, excluding system topics."""
+        result = []
+        for topic in sorted(self._registered_topics):
+            if topic not in SYSTEM_TOPICS:
+                result.append({
+                    "topic": topic,
+                    "category": self._topic_categories.get(topic, "other"),
+                })
+        return result
 
 
 manager = ConnectionManager()

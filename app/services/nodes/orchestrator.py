@@ -447,10 +447,13 @@ class NodeManager:
         # If visible and node_instance._ws_topic is None: derive topic, call register_topic, set _ws_topic = topic  
         elif visible and hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is None:
             from app.services.shared.topics import slugify_topic_prefix
+            from app.repositories import NodeRepository
             
             node_name = getattr(node_instance, "name", node_id)
             topic = f"{slugify_topic_prefix(node_name)}_{node_id[:8]}"
-            websocket_manager.register_topic(topic)
+            node_data = NodeRepository().get(node_id)
+            category = node_data.get("category", "other") if node_data else "other"
+            websocket_manager.register_topic(topic, category=category)
             node_instance._ws_topic = topic
             logger.debug(f"Node {node_id} set to visible - topic '{topic}' registered")
             

@@ -75,8 +75,9 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     const topics = await this.topicApi.getTopics();
     this.workspaceStore.set('topics', topics);
 
+    const topicNames = topics.map((t) => t.topic);
     const selectedTopics = this.workspaceStore.getValue('selectedTopics');
-    const validSelectedTopics = selectedTopics.filter((st) => topics.includes(st.topic));
+    const validSelectedTopics = selectedTopics.filter((st) => topicNames.includes(st.topic));
     if (validSelectedTopics.length !== selectedTopics.length) {
       this.workspaceStore.set('selectedTopics', validSelectedTopics);
     }
