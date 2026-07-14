@@ -95,6 +95,7 @@ jobs:
       be_version: ${{ steps.bump.outputs.be_version }}
       frontend_changed: ${{ steps.bump.outputs.frontend_changed }}
       backend_changed: ${{ steps.bump.outputs.backend_changed }}
+      checkout_ref: ${{ steps.resolve-ref.outputs.checkout_ref }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -130,7 +131,7 @@ jobs:
           # A version-bump commit may trigger a workflow run without the
           # platform's [skip ci] handling. Keep this job successful but do not
           # increment the version a second time.
-          if [[ "$COMMIT_MESSAGE" == chore:\ bump\ version* ]]; then
+          if [[ "$COMMIT_MESSAGE" =~ ^chore:\ bump\ versions? ]]; then
             echo "new_version=${BE_CURRENT}" >> "$GITHUB_OUTPUT"
             echo "fe_version=${FE_CURRENT}" >> "$GITHUB_OUTPUT"
             echo "be_version=${BE_CURRENT}" >> "$GITHUB_OUTPUT"
@@ -174,14 +175,18 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: bump versions fe=${{ steps.bump.outputs.fe_version }} be=${{ steps.bump.outputs.be_version }} [skip ci]"
           git push origin HEAD:main
 
+      - name: Resolve checkout ref
+        id: resolve-ref
+        run: echo "checkout_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   frontend:
     name: Frontend Pipeline
     needs: [changes, version-bump]
     if: needs.version-bump.result == 'success'
     uses: ./.github/workflows/frontend.yml
     with:
-      frontend_changed: ${{ needs.changes.outputs.frontend == 'true' }}
-      checkout_ref: main
+      frontend_changed: ${{ needs.version-bump.outputs.frontend_changed == 'true' }}
+      checkout_ref: ${{ needs.version-bump.outputs.checkout_ref }}
     secrets: inherit
 
   backend-cpp:
@@ -191,7 +196,7 @@ jobs:
     uses: ./.github/workflows/backend-cpp.yml
     with:
       cpp_changed: ${{ needs.changes.outputs.cpp == 'true' }}
-      checkout_ref: main
+      checkout_ref: ${{ needs.version-bump.outputs.checkout_ref }}
     secrets: inherit
 
   docker:
@@ -206,7 +211,7 @@ jobs:
       - name: Checkout versioned source
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ needs.version-bump.outputs.checkout_ref }}
 
       - name: Download backend artifacts
         uses: actions/download-artifact@v4
@@ -268,6 +273,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           BE_VERSION: ${{ needs.version-bump.outputs.be_version }}
           FE_VERSION: ${{ needs.version-bump.outputs.fe_version }}
+          CHECKOUT_REF: ${{ needs.version-bump.outputs.checkout_ref }}
           IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lidar-studio
         run: |
           TAG="v${BE_VERSION}"
@@ -278,7 +284,7 @@ jobs:
 
           gh release create "$TAG" \
             --repo "$GH_REPO" \
-            --target main \
+            --target "$CHECKOUT_REF" \
             --title "$TAG" \
             --notes "$(printf 'Backend: %s\nFrontend: %s\nImage: %s:%s\nAlso pushed: %s:latest' "$BE_VERSION" "$FE_VERSION" "$IMAGE_NAME" "$BE_VERSION" "$IMAGE_NAME")"
 

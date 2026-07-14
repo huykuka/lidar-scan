@@ -31,7 +31,7 @@
       <syn-icon style="margin-right: 6px" name="playlist_add" slot="prefix"></syn-icon>
       @for (group of groupedAvailableTopics(); track group.label) {
         <syn-optgroup [label]="group.label">
-          <syn-icon size="small" [name]="getCategoryIcon(group.label)" slot="prefix" />
+          <syn-icon style="font-size: var(--syn-font-size-small);" [name]="getCategoryIcon(group.label)" slot="prefix" />
           @for (topic of group.topics; track topic) {
             <syn-option [title]="topic" [value]="topic">{{ topic }}</syn-option>
           }
