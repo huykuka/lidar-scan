@@ -1,11 +1,38 @@
 <syn-header #header [label]="headerLabel()">
-  <nav slot="meta-navigation" class="flex items-center">
-    <app-system-control />
-    <app-connection-status (refresh)="onRefresh()" />
-    <app-sensor-status />
-    <!-- <app-notices-status (acknowledge)="onAcknowledge()" /> -->
-    <app-platform-guide class="header-mobile-hidden" />
-    <app-theme-switch class="header-mobile-hidden" />
+  <nav slot="meta-navigation" class="flex items-center gap-1">
+    <!-- Desktop-only: individual icons -->
+    <app-system-control class="header-desktop-only" />
+    <app-connection-status class="header-desktop-only" (refresh)="onRefresh()" />
+    <app-sensor-status class="header-desktop-only" />
+    <app-platform-guide class="header-desktop-only" />
+    <app-theme-switch class="header-desktop-only" />
+    <!-- Mobile 3-dots overflow menu: all actions inside -->
+    <syn-dropdown class="header-mobile-menu" placement="bottom-end" [distance]="8">
+      <syn-icon-button slot="trigger" name="more_vert" label="More options" size="medium" />
+      <div class="mobile-action-panel">
+        <div class="mobile-action-row">
+          <app-system-control />
+          <span class="mobile-action-label">System</span>
+        </div>
+        <div class="mobile-action-row">
+          <app-connection-status (refresh)="onRefresh()" />
+          <span class="mobile-action-label">Connection</span>
+        </div>
+        <div class="mobile-action-row">
+          <app-sensor-status />
+          <span class="mobile-action-label">Sensors</span>
+        </div>
+        <div class="mobile-action-divider"></div>
+        <div class="mobile-action-row">
+          <app-platform-guide />
+          <span class="mobile-action-label">Platform Guide</span>
+        </div>
+        <div class="mobile-action-row">
+          <app-theme-switch />
+          <span class="mobile-action-label">Theme</span>
+        </div>
+      </div>
+    </syn-dropdown>
     <app-user-info />
   </nav>
 

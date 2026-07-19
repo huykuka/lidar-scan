@@ -91,7 +91,7 @@
         },
         "serve": {
           "options": {
-            "allowedHosts": ["fedora"]
+            "allowedHosts": ["fedora", "thinkpad-p53"]
           },
           "builder": "@angular/build:dev-server",
           "configurations": {

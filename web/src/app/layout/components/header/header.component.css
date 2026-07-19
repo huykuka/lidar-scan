@@ -2,13 +2,66 @@
   display: block;
 }
 
-/* On mobile: hide headline breadcrumb slot and lower-priority meta-nav icons */
-@media (max-width: 500px) {
+/* Mobile: hide individual icons, show 3-dots menu only */
+@media (max-width: 767px) {
   .header-headline {
     display: none;
   }
 
-  .header-mobile-hidden {
-    display: none;
+  .header-desktop-only {
+    display: none !important;
   }
+
+  .header-mobile-menu {
+    display: inline-flex;
+  }
+}
+
+/* Desktop: show individual icons, hide 3-dots menu */
+@media (min-width: 768px) {
+  .header-desktop-only {
+    display: inline-flex;
+  }
+
+  .header-mobile-menu {
+    display: none !important;
+  }
+}
+
+/* Mobile action panel (dropdown content) */
+.mobile-action-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px 0;
+  background: var(--syn-panel-background-color, var(--syn-color-neutral-0));
+  border-radius: var(--syn-border-radius-large, 8px);
+  box-shadow: var(--syn-shadow-large);
+  overflow: hidden;
+}
+
+.mobile-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 12px 2px 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mobile-action-row:hover {
+  background: var(--syn-color-neutral-100);
+}
+
+.mobile-action-label {
+  font-size: 0.875rem;
+  color: var(--syn-color-neutral-700);
+  font-weight: 500;
+  user-select: none;
+}
+
+.mobile-action-divider {
+  height: 1px;
+  margin: 4px 12px;
+  background: var(--syn-color-neutral-200);
 }
