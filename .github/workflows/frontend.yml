@@ -13,7 +13,7 @@ on:
 
 jobs:
   frontend:
-    runs-on: cicd
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout requested ref
         if: inputs.checkout_ref != ''
