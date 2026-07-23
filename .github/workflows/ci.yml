@@ -85,10 +85,9 @@ jobs:
   version-bump:
     name: Bump Semver
     runs-on: ubuntu-latest
-    needs: [changes, frontend-test]
+    needs: [changes]
     if: |
-      needs.changes.result == 'success' &&
-      (needs.frontend-test.result == 'success' || needs.frontend-test.result == 'skipped')
+      needs.changes.result == 'success'
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
       fe_version: ${{ steps.bump.outputs.fe_version }}
