@@ -15,7 +15,7 @@ permissions:
 jobs:
   changes:
     name: Detect Changes
-    runs-on: ubuntu-latest
+    runs-on: cicd
     outputs:
       frontend: ${{ steps.filter.outputs.frontend }}
       backend: ${{ steps.filter.outputs.backend }}
@@ -47,7 +47,7 @@ jobs:
     name: Frontend Tests
     needs: [changes]
     if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
+    runs-on: cicd
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,7 +84,7 @@ jobs:
 
   version-bump:
     name: Bump Semver
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: [changes]
     if: |
       needs.changes.result == 'success'
@@ -200,7 +200,7 @@ jobs:
 
   docker:
     name: Build & Push Docker Image
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: [version-bump, backend-cpp, frontend]
     if: |
       needs.version-bump.result == 'success' &&
@@ -260,7 +260,7 @@ jobs:
 
   release-auto:
     name: Create GitHub Release (Auto)
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: [version-bump, docker]
     if: |
       needs.docker.result == 'success' &&

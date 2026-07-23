@@ -18,6 +18,7 @@ app = FastAPI(
     ),
     version=settings.VERSION,
     openapi_tags=OPENAPI_TAGS,
+    contact={"name": "LiDAR Studio Team"},
     license_info={"name": "Proprietary"},
     lifespan=lifespan,
 )

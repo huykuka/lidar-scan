@@ -11,7 +11,7 @@ permissions:
 jobs:
   version-sync:
     name: Sync FE/BE Version To Main
-    runs-on: ubuntu-latest
+    runs-on: cicd
     steps:
       - name: Checkout main for version sync
         uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
 
   docker:
     name: Build & Push Docker Image (Tag)
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: [version-sync, frontend, backend-cpp]
     if: |
       needs.version-sync.result == 'success' &&
@@ -108,7 +108,7 @@ jobs:
 
   release:
     name: Create GitHub Release
-    runs-on: ubuntu-latest
+    runs-on: cicd
     needs: [docker]
     if: needs.docker.result == 'success'
     steps:

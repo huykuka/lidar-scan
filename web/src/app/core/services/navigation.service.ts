@@ -23,13 +23,13 @@ export class NavigationService {
     this._headline.set(title);
     this._subtitle.set(null);
     this._showActionsSlot.set(false);
-    this.titleService.setTitle(`${title} | LiDAR Command Surface`);
+    this.titleService.setTitle(`${title}`);
   }
 
   setPageConfig(config: PageConfig) {
     this._headline.set(config.title);
     this._subtitle.set(config.subtitle || null);
     this._showActionsSlot.set(config.showActionsSlot ?? false);
-    this.titleService.setTitle(`${config.title} | LiDAR Command Surface`);
+    this.titleService.setTitle(`${config.title}`);
   }
 }
