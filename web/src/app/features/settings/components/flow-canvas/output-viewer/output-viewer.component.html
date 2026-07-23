@@ -1,7 +1,7 @@
 <div
   [class.w-0]="isCollapsed()"
   [class.w-70]="!isCollapsed()"
-  [style.borderLeft]="isCollapsed() ? '1px solid var(--syn-color-neutral-300)' : 'none'"
+  [style.borderLeft]="!isCollapsed() ? '1px solid var(--syn-color-neutral-300)' : 'none'"
   class="h-full flex flex-col relative transition-all duration-300 z-10"
   style="background: var(--syn-color-neutral-0);"
 >
