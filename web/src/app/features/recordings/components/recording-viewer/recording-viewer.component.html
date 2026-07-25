@@ -1,15 +1,17 @@
-<div
-  class="flex flex-col flex-1 h-full w-full min-h-0 animate-in fade-in duration-500 relative bg-syn-page-background-color-muted"
->
-  <!-- Top bar: back button + cockpit toggle -->
-  <div class="flex items-center gap-2 mb-3 shrink-0">
-    <syn-button variant="outline" size="small" (click)="goBack()">
-      <syn-icon name="arrow_back" slot="prefix"/>
-      Recordings
-    </syn-button>
-  </div>
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div
+    class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn relative bg-syn-page-background-color-muted"
+  >
+    <!-- Toolbar pinned on top: back button -->
+    <div class="shrink-0 flex items-center gap-2 px-4 py-3 border-b-syn">
+      <syn-button variant="text" size="small" (click)="goBack()">
+        <syn-icon name="arrow_back" slot="prefix"/>
+        Recordings
+      </syn-button>
+    </div>
 
-  <div class="flex flex-col lg:flex-row gap-4 flex-1 w-full min-h-0">
+    <!-- Content body -->
+    <div class="flex flex-col lg:flex-row gap-4 flex-1 w-full min-h-0 p-4">
     <!-- View Container (Main Area) -->
     <div
       class="viewer-canvas-area relative rounded-2xl overflow-hidden border border-syn-color-neutral-300"
@@ -97,7 +99,7 @@
           <syn-icon [name]="showCockpit() ? 'chevron_right' : 'chevron_left'" class="settings-toggle__icon"></syn-icon>
         </button>
       </syn-tooltip>
-      <div class="settings-content">
+      <div class="settings-content" [class.settings-content--collapsed]="!showCockpit()">
         <div class="panel">
           <!-- Metadata -->
           <div class="panel__header">
@@ -192,4 +194,5 @@
       </syn-alert>
     </div>
   }
+  </div>
 </div>

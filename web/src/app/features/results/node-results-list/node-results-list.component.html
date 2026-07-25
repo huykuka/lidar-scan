@@ -1,68 +1,71 @@
-<div class="flex flex-col gap-4 h-full overflow-hidden">
-  <!-- Breadcrumb -->
-  <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 shrink-0">
-    <a [routerLink]="['/results']" class="hover:text-syn-color-primary-600 cursor-pointer">Results</a>
-    <syn-icon class="text-xs" name="chevron_right"/>
-    <span class="text-syn-typography-color-text font-medium">{{ nodeName() }}</span>
-  </nav>
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+    <!-- Toolbar pinned on top -->
+    <div class="shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b-syn">
+      <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 min-w-0">
+        <a [routerLink]="['/results']" class="hover:text-syn-color-primary-600 cursor-pointer">Results</a>
+        <syn-icon class="text-xs" name="chevron_right"/>
+        <span class="text-syn-typography-color-text font-medium truncate">{{ nodeName() }}</span>
+        <span class="text-syn-color-neutral-400 shrink-0">· {{ results().length }} result(s)</span>
+      </nav>
+      <syn-button
+        (click)="loadResults(nodeId())"
+        [disabled]="isLoading()"
+        size="small"
+        variant="outline"
+      >
+        <syn-icon name="refresh" slot="prefix"/>
+        Refresh
+      </syn-button>
+    </div>
 
-  <!-- Toolbar -->
-  <div class="flex items-center justify-between shrink-0">
-    <p class="text-sm text-syn-color-neutral-600">{{ results().length }} result(s)</p>
-    <syn-button
-      (click)="loadResults(nodeId())"
-      [disabled]="isLoading()"
-      size="small"
-      variant="outline"
-    >
-      <syn-icon name="refresh" slot="prefix"/>
-      Refresh
-    </syn-button>
+    <!-- Content (single inner scroll body) -->
+    <div class="flex-1 min-h-0 overflow-y-auto p-4">
+    @if (isLoading()) {
+      <div class="flex items-center justify-center py-16">
+        <syn-spinner/>
+      </div>
+    } @else if (results().length === 0) {
+      <div class="flex flex-col items-center justify-center py-16 text-center">
+        <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="inbox"/>
+        <p class="text-syn-color-neutral-600 font-medium">No results for this node</p>
+      </div>
+    } @else {
+      <table class="syn-table--default" style="width: 100%">
+        <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Key Metadata</th>
+          <th>PCD Files</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+        </thead>
+        <tbody>
+          @for (result of results(); track result.result_id) {
+            <tr
+              (click)="goToResult(result)"
+            >
+              <td>
+                {{ formatTimestamp(result.timestamp) }}
+              </td>
+              <td>
+                {{ metaSummaryDisplay(result.metadata_summary) }}
+              </td>
+              <td>
+                <span>{{ result.pcd_count }}</span>
+              </td>
+              <td>
+                <syn-badge [variant]="statusVariant(result.status)">{{ result.status }}</syn-badge>
+              </td>
+              <td>
+                <syn-icon class="text-syn-color-neutral-400" name="chevron_right"/>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+    </div>
   </div>
-
-  @if (isLoading()) {
-    <div class="flex items-center justify-center py-16">
-      <syn-spinner/>
-    </div>
-  } @else if (results().length === 0) {
-    <div class="flex flex-col items-center justify-center py-16 text-center">
-      <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="inbox"/>
-      <p class="text-syn-color-neutral-600 font-medium">No results for this node</p>
-    </div>
-  } @else {
-    <table class="syn-table--default" style="width: 100%">
-      <thead>
-      <tr>
-        <th>Timestamp</th>
-        <th>Key Metadata</th>
-        <th>PCD Files</th>
-        <th>Status</th>
-        <th></th>
-      </tr>
-      </thead>
-      <tbody>
-        @for (result of results(); track result.result_id) {
-          <tr
-            (click)="goToResult(result)"
-          >
-            <td>
-              {{ formatTimestamp(result.timestamp) }}
-            </td>
-            <td>
-              {{ metaSummaryDisplay(result.metadata_summary) }}
-            </td>
-            <td>
-              <span>{{ result.pcd_count }}</span>
-            </td>
-            <td>
-              <syn-badge [variant]="statusVariant(result.status)">{{ result.status }}</syn-badge>
-            </td>
-            <td>
-              <syn-icon class="text-syn-color-neutral-400" name="chevron_right"/>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  }
 </div>
