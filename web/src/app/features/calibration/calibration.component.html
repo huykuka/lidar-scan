@@ -1,9 +1,19 @@
-<div class="flex flex-col shadow-md rounded-xl overflow-hidden border-syn">
-  <!-- Content -->
-  <div class="flex-1 overflow-auto p-6 items-center">
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+    <!-- Toolbar pinned on top -->
+    <div class="shrink-0 flex items-center gap-2 px-4 py-3 border-b-syn">
+      <syn-icon name="tune" style="color: var(--syn-color-primary-600)" />
+      <span class="text-sm font-semibold" style="color: var(--syn-typography-color-heading)">
+        Calibration
+      </span>
+    </div>
+
+    <!-- Content (single inner scroll body) -->
+    <div class="flex-1 min-h-0 overflow-y-auto p-6">
     @if (calibrationNodeConfigs().length === 0) {
       <!-- Empty State -->
-      <syn-card class="max-w-lg mx-auto">
+      <div class="h-full flex items-center justify-center">
+      <syn-card class="max-w-lg w-full">
         <div class="text-center p-8">
           <syn-icon class="text-6xl mb-6" name="tune"
             style="color: var(--syn-color-neutral-400)" />
@@ -19,6 +29,7 @@
           </syn-button>
         </div>
       </syn-card>
+      </div>
     } @else {
       <!-- Calibration Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -150,5 +161,6 @@
         }
       </div>
     }
+    </div>
   </div>
 </div>

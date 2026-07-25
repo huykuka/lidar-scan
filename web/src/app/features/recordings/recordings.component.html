@@ -1,16 +1,17 @@
-<div class="flex flex-col min-h-0 flex-1">
+<div class="h-full flex flex-col animate-in fade-in duration-500">
   <!-- Hidden file input for recording upload -->
   <input #fileInput (change)="onFileSelected($event)" accept=".zip" class="hidden" type="file" />
 
-  <!-- Toolbar -->
-  <div class="rounded-lg border-syn mb-6 shadow-sm bg-syn-page-background-color">
-    <div class="p-4">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+    <!-- Toolbar pinned on top -->
+    <div class="shrink-0 border-b-syn">
+      <div class="p-4">
       <div class="flex flex-col sm:flex-row sm:items-center gap-3">
         <!-- Search Bar -->
         <syn-input
           (input)="searchQuery.set($any($event.target).value)"
           [value]="searchQuery()"
-          class="flex-1 min-w-0"
+          class="flex-1 w-1/2 min-w-0"
           placeholder="Search recordings by name, topic, or sensor..."
           type="search"
         >
@@ -83,8 +84,8 @@
     </div>
   </div>
 
-  <!-- Content Area -->
-  <div class="flex-1 min-h-0 bg-syn-page-background-color rounded-lg overflow-auto border-syn p-6">
+  <!-- Content Area (single inner scroll body) -->
+  <div class="flex-1 min-h-0 overflow-auto p-6">
     @if (isLoading()) {
       <div class="flex items-center justify-center h-64">
         <syn-spinner />
@@ -120,5 +121,6 @@
         }
       </div>
     }
+  </div>
   </div>
 </div>

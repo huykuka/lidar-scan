@@ -20,7 +20,7 @@ import {pageTransition} from '@core/animations/page-transitions';
 
 @Component({
   selector: 'app-main-layout',
-  imports: [RouterOutlet, HeaderComponent, SideNavComponent, FooterComponent],
+  imports: [RouterOutlet, HeaderComponent, SideNavComponent],
   templateUrl: './main-layout.component.html',
   styleUrl: './main-layout.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
