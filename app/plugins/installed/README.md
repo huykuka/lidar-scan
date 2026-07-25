@@ -51,16 +51,20 @@ See `_template/` for a fully-annotated skeleton you can copy.
 
 ---
 
-## Upload & test
+## Pack & upload
 
 ```bash
-# Zip the package (top-level dir must be the plugin name)
-zip -r my_plugin.zip my_plugin/
+# Validate + zip the plugin (output goes to plugin_packages/<name>.zip)
+bash scripts/pack_plugin.sh app/plugins/installed/my_plugin
 
 # Upload via API
 curl -X POST http://localhost:8005/api/v1/nodes/plugins/upload \
-     -F "file=@my_plugin.zip"
+     -F "file=@plugin_packages/my_plugin.zip"
 
 # List loaded plugins
 curl http://localhost:8005/api/v1/nodes/plugins
 ```
+
+The script runs AST validation before zipping and will exit with an error if
+the plugin structure is invalid (missing registry call, wrong factory signature,
+missing `on_input` / `emit_status` / `start`/`enable`).
