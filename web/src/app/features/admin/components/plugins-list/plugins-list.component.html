@@ -112,15 +112,6 @@
                 <div class="flex-shrink-0 flex items-center gap-1">
                   @if (actionInProgress() === plugin.name) {
                     <syn-spinner style="font-size: 1rem" />
-                  } @else if (pendingRemove() === plugin.name) {
-                    <!-- Inline confirmation -->
-                    <span class="text-xs text-[var(--syn-color-neutral-600)] mr-1">Remove?</span>
-                    <syn-button size="small" variant="filled" (click)="confirmRemove(plugin)">
-                      Yes
-                    </syn-button>
-                    <syn-button size="small" variant="outline" (click)="cancelRemove()">
-                      No
-                    </syn-button>
                   } @else {
                     <syn-switch
                       [checked]="plugin.loaded"

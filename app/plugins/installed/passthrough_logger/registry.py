@@ -64,7 +64,7 @@ node_schema_registry.register(
 
 @NodeFactory.register("passthrough_logger")
 def build(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
-    from app.plugins.passthrough_logger.node import PassthroughLoggerNode  # lazy
+    from app.plugins.installed.passthrough_logger.node import PassthroughLoggerNode  # lazy
 
     config = node.get("config", {})
 
