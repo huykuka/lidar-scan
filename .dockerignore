@@ -23,6 +23,7 @@ web/
 # Upload API or mounted as a volume.  The loader module (app/plugins/__init__.py)
 # IS included so the runtime API still works.
 app/plugins/*/
+!app/plugins/__init__.py
 
 # ── Runtime / generated data ───────────────────────────────────────────────
 data/
