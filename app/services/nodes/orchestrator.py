@@ -120,7 +120,6 @@ class NodeManager:
                     )
             
             self._data_router.invalidate_shape_collector_cache()
-            logger.info(f"Initialized {len(self.nodes)} nodes. Downstream map: {dict(self.downstream_map)}")
         except Exception as e:
             logger.error(f"Error loading graph from DB: {e}", exc_info=True)
 

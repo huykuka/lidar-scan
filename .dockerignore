@@ -1,0 +1,42 @@
+# ── Dev tooling ────────────────────────────────────────────────────────────
+.git
+.github
+.gitignore
+.venv
+.vscode
+.idea
+.agents
+.claude
+.gitnexus
+
+# ── Tests & docs ───────────────────────────────────────────────────────────
+tests/
+docs/
+*.md
+!README.md
+
+# ── Frontend source (built artifact is copied from frontend-builder stage) ─
+web/
+
+# ── Plugin implementations ─────────────────────────────────────────────────
+# Plugins are NOT baked into the image — they are loaded at runtime via the
+# Upload API or mounted as a volume.  The loader module (app/plugins/__init__.py)
+# IS included so the runtime API still works.
+app/plugins/*/
+
+# ── Runtime / generated data ───────────────────────────────────────────────
+data/
+build/
+dist/
+plugin_packages/
+*.pyc
+__pycache__/
+*.pcd
+server.log
+debug_data/
+harness.db*
+
+# ── Misc ───────────────────────────────────────────────────────────────────
+sick-scan-api/
+launch/
+setup/

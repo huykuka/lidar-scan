@@ -21,7 +21,7 @@ from .service import (
     set_node_enabled, set_node_visible, reload_all_config, get_nodes_status,
     reload_single_node, get_reload_status,
     list_node_type_registry, set_node_type_enabled,
-    list_plugins, load_plugin, unload_plugin, upload_plugin,
+    list_plugins, load_plugin, unload_plugin, remove_plugin, upload_plugin,
     NodeStatusToggle, NodeVisibilityToggle, NodeTypeToggle, NodeTypeRecord, PluginRecord,
 )
 
@@ -199,6 +199,22 @@ async def nodes_plugins_load_endpoint(plugin_name: str):
 @roles_required("service")
 async def nodes_plugins_unload_endpoint(plugin_name: str):
     return await unload_plugin(plugin_name)
+
+
+@router.delete(
+    "/nodes/plugins/{plugin_name}/uninstall",
+    summary="Remove Plugin",
+    description=(
+        "Unload a plugin and permanently delete its directory from disk. "
+        "This cannot be undone — re-install by uploading a new zip."
+    ),
+    responses={
+        404: {"description": "Plugin directory not found"},
+    },
+)
+@roles_required("service")
+async def nodes_plugins_remove_endpoint(plugin_name: str):
+    return await remove_plugin(plugin_name)
 
 
 # ── Per-node wildcard routes (must come LAST) ─────────────────────────────

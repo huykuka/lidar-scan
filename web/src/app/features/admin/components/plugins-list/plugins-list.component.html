@@ -1,7 +1,13 @@
 <div class="flex flex-col gap-[var(--syn-spacing-medium)]">
   <!-- Slim toolbar -->
-  <div class="flex items-center gap-3 px-4 py-2 rounded-lg border-b-syn bg-[var(--syn-page-background-color)] shrink-0">
-    <syn-icon name="deployed_code" class="text-[var(--syn-color-neutral-500)]" style="font-size: 1rem" />
+  <div
+    class="flex items-center gap-3 px-4 py-2 rounded-lg border border-[var(--syn-color-neutral-200)] shrink-0"
+  >
+    <syn-icon
+      name="deployed_code"
+      class="text-[var(--syn-color-neutral-500)]"
+      style="font-size: 1rem"
+    />
     <span class="text-sm text-[var(--syn-color-neutral-500)]">
       <span class="font-semibold text-[var(--syn-color-neutral-900)]">{{ loadedCount() }}</span>
       / {{ totalCount() }} loaded
@@ -31,8 +37,13 @@
     } @else if (plugins().length === 0) {
       <div class="flex-1 flex items-center justify-center">
         <div class="text-center p-6">
-          <syn-icon name="extension" class="text-5xl text-[var(--syn-color-neutral-400)] mx-auto mb-2" />
-          <p class="text-sm font-semibold text-[var(--syn-color-neutral-700)]">No plugins installed</p>
+          <syn-icon
+            name="extension"
+            class="text-5xl text-[var(--syn-color-neutral-400)] mx-auto mb-2"
+          />
+          <p class="text-sm font-semibold text-[var(--syn-color-neutral-700)]">
+            No plugins installed
+          </p>
           <p class="text-xs text-[var(--syn-color-neutral-500)] mt-1">
             Drop a .zip archive here or use Upload button
           </p>
@@ -40,10 +51,17 @@
       </div>
     } @else {
       @if (isDragOver()) {
-        <div class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none bg-[var(--syn-color-primary-50)]/90 rounded">
+        <div
+          class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none bg-[var(--syn-color-primary-50)]/90 rounded"
+        >
           <div class="text-center">
-            <syn-icon name="upload" class="text-5xl text-[var(--syn-color-primary-600)] mx-auto mb-2" />
-            <span class="text-sm font-bold text-[var(--syn-color-primary-600)]">Drop to install</span>
+            <syn-icon
+              name="upload"
+              class="text-5xl text-[var(--syn-color-primary-600)] mx-auto mb-2"
+            />
+            <span class="text-sm font-bold text-[var(--syn-color-primary-600)]"
+              >Drop to install</span
+            >
           </div>
         </div>
       }
@@ -55,37 +73,68 @@
               <div class="flex items-start gap-3">
                 <div
                   class="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0"
-                  [class]="plugin.loaded ? 'bg-[var(--syn-color-primary-100)]' : 'bg-[var(--syn-color-neutral-100)]'"
+                  [class]="
+                    plugin.loaded
+                      ? 'bg-[var(--syn-color-primary-100)]'
+                      : 'bg-[var(--syn-color-neutral-100)]'
+                  "
                 >
                   <syn-icon
                     name="extension"
-                    [class]="plugin.loaded ? 'text-[var(--syn-color-primary-600)]' : 'text-[var(--syn-color-neutral-400)]'"
+                    [class]="
+                      plugin.loaded
+                        ? 'text-[var(--syn-color-primary-600)]'
+                        : 'text-[var(--syn-color-neutral-400)]'
+                    "
                   />
                 </div>
 
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-semibold text-[var(--syn-color-neutral-900)]">{{ plugin.name }}</p>
+                  <p class="text-sm font-semibold text-[var(--syn-color-neutral-900)]">
+                    {{ plugin.name }}
+                  </p>
                   <div class="flex flex-wrap gap-1 mt-1">
                     @for (type of plugin.types; track type) {
-                      <code class="text-xs px-1.5 py-0.5 rounded bg-[var(--syn-color-primary-100)] text-[var(--syn-color-primary-700)] font-mono">
+                      <code
+                        class="text-xs px-1.5 py-0.5 rounded bg-[var(--syn-color-primary-100)] text-[var(--syn-color-primary-700)] font-mono"
+                      >
                         {{ type }}
                       </code>
                     }
                     @if (!plugin.loaded && plugin.types.length === 0) {
-                      <span class="text-xs text-[var(--syn-color-neutral-400)] italic">not loaded</span>
+                      <span class="text-xs text-[var(--syn-color-neutral-400)] italic"
+                        >not loaded</span
+                      >
                     }
                   </div>
                 </div>
 
-                <div class="flex-shrink-0">
+                <div class="flex-shrink-0 flex items-center gap-1">
                   @if (actionInProgress() === plugin.name) {
                     <syn-spinner style="font-size: 1rem" />
+                  } @else if (pendingRemove() === plugin.name) {
+                    <!-- Inline confirmation -->
+                    <span class="text-xs text-[var(--syn-color-neutral-600)] mr-1">Remove?</span>
+                    <syn-button size="small" variant="filled" (click)="confirmRemove(plugin)">
+                      Yes
+                    </syn-button>
+                    <syn-button size="small" variant="outline" (click)="cancelRemove()">
+                      No
+                    </syn-button>
                   } @else {
                     <syn-switch
                       [checked]="plugin.loaded"
                       (syn-change)="onToggle(plugin)"
                       size="small"
                       [title]="plugin.loaded ? 'Unload plugin' : 'Load plugin'"
+                    />
+                    <syn-icon-button
+                      name="delete"
+                      label="Remove plugin"
+                      size="small"
+                      color="neutral"
+                      (click)="onRemoveClick(plugin)"
+                      style="color: var(--syn-color-error-600);"
                     />
                   }
                 </div>

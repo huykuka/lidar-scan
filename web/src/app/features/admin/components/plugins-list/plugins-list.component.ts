@@ -1,8 +1,7 @@
 import {ChangeDetectionStrategy, Component, ElementRef, inject, OnInit, signal, computed, viewChild} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {PluginsApiService, PluginRecord} from '@core/services/api/plugins-api.service';
-import {ToastService} from '@core/services';
-import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
+import { ToastService } from '@core/services';
 
 @Component({
   selector: 'app-plugins-list',
@@ -12,7 +11,6 @@ import { NodePluginRegistry } from '@core/services/node-plugin-registry.service'
 })
 export class PluginsListComponent implements OnInit {
   private pluginsApi = inject(PluginsApiService);
-  private nodePluginRegistry = inject(NodePluginRegistry);
   private toast = inject(ToastService);
 
   protected plugins = signal<PluginRecord[]>([]);
@@ -20,6 +18,7 @@ export class PluginsListComponent implements OnInit {
   protected actionInProgress = signal<string | null>(null);
   protected isUploading = signal(false);
   protected isDragOver = signal(false);
+  protected pendingRemove = signal<string | null>(null);
 
   protected loadedCount = computed(() => this.plugins().filter((p) => p.loaded).length);
   protected totalCount = computed(() => this.plugins().length);
@@ -61,8 +60,6 @@ export class PluginsListComponent implements OnInit {
           `Plugin "${plugin.name}" loaded - ${result.types.length} type(s) registered.`,
         );
       }
-      // Refresh the node palette so Settings page reflects the change immediately
-      await this.nodePluginRegistry.loadFromBackend();
     } catch (err: any) {
       this.toast.danger(err?.error?.detail ?? `Failed to toggle plugin "${plugin.name}".`);
     } finally {
@@ -108,12 +105,32 @@ export class PluginsListComponent implements OnInit {
         `Plugin "${result.plugin}" installed - ${result.types.length} type(s) registered.`,
       );
       await this.loadPlugins();
-      // Refresh the node palette so Settings page reflects the new plugin immediately
-      await this.nodePluginRegistry.loadFromBackend();
     } catch (err: any) {
       this.toast.danger(err?.error?.detail ?? 'Plugin upload failed.');
     } finally {
       this.isUploading.set(false);
+    }
+  }
+
+  protected onRemoveClick(plugin: PluginRecord) {
+    this.pendingRemove.set(plugin.name);
+  }
+
+  protected cancelRemove() {
+    this.pendingRemove.set(null);
+  }
+
+  protected async confirmRemove(plugin: PluginRecord) {
+    this.pendingRemove.set(null);
+    this.actionInProgress.set(plugin.name);
+    try {
+      await this.pluginsApi.removePlugin(plugin.name);
+      this.plugins.update((list) => list.filter((p) => p.name !== plugin.name));
+      this.toast.success(`Plugin "${plugin.name}" removed.`);
+    } catch (err: any) {
+      this.toast.danger(err?.error?.detail ?? `Failed to remove plugin "${plugin.name}".`);
+    } finally {
+      this.actionInProgress.set(null);
     }
   }
 }

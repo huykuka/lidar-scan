@@ -18,6 +18,7 @@ Runtime API
     unload_plugin("my_plugin")  # remove from registries + evict sys.modules
     install_plugin_zip(raw_bytes)  # extract zip, install, auto-load
 """
+import ast
 import importlib
 import pkgutil
 import shutil
@@ -130,6 +131,30 @@ def unload_plugin(name: str) -> Set[str]:
     return registered_types
 
 
+def remove_plugin(name: str) -> Set[str]:
+    """Unload a plugin and permanently delete its directory from disk.
+
+    Args:
+        name: Plugin package name.
+
+    Returns:
+        Set of type strings that were removed.
+
+    Raises:
+        FileNotFoundError: If the plugin directory does not exist.
+    """
+    plugin_dir = os.path.join(_PLUGINS_DIR, name)
+    if not os.path.isdir(plugin_dir):
+        raise FileNotFoundError(f"Plugin directory not found: {plugin_dir}")
+
+    # Unload from registries first (no-op if already unloaded)
+    removed_types = unload_plugin(name)
+
+    shutil.rmtree(plugin_dir)
+    logger.info(f"[plugins] Removed plugin '{name}' from disk (types: {removed_types})")
+    return removed_types
+
+
 def list_plugins() -> list[dict]:
     """Return all plugin directories with their load state and registered types."""
     result = []
@@ -143,6 +168,217 @@ def list_plugins() -> list[dict]:
             "types": sorted(loaded_types) if loaded_types else [],
         })
     return result
+
+
+# ── AST helpers (called by validate_plugin_zip, never execute plugin code) ─
+
+
+def _ast_check_registry(source: str, filename: str) -> list[str]:
+    """Parse registry.py and return a list of structural error strings."""
+    errors: list[str] = []
+    try:
+        tree = ast.parse(source, filename=filename)
+    except SyntaxError as exc:
+        return [f"Syntax error in {filename}: {exc}"]
+
+    # 1. node_schema_registry.register(NodeDefinition(...))
+    has_schema_register = any(
+        isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and isinstance(n.func.value, ast.Name)
+        and n.func.value.id == "node_schema_registry"
+        and n.func.attr == "register"
+        for n in ast.walk(tree)
+    )
+    if not has_schema_register:
+        errors.append(
+            "registry.py: missing `node_schema_registry.register(NodeDefinition(...))` call"
+        )
+
+    # 2. @NodeFactory.register('type') decorated factory function
+    factory_funcs = []
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for dec in n.decorator_list:
+                if (
+                    isinstance(dec, ast.Call)
+                    and isinstance(dec.func, ast.Attribute)
+                    and isinstance(dec.func.value, ast.Name)
+                    and dec.func.value.id == "NodeFactory"
+                    and dec.func.attr == "register"
+                ):
+                    factory_funcs.append(n)
+
+    if not factory_funcs:
+        errors.append(
+            "registry.py: missing `@NodeFactory.register('...')` decorated factory function"
+        )
+    else:
+        for fn in factory_funcs:
+            all_args = fn.args.posonlyargs + fn.args.args
+            if len(all_args) < 3:
+                errors.append(
+                    f"registry.py: factory `{fn.name}` must accept at least 3 positional "
+                    "args — (node, service_context, edges)"
+                )
+
+    return errors
+
+
+def _ast_find_module_node_classes(
+    source: str, filename: str
+) -> tuple[list[ast.ClassDef], list[str]]:
+    """Return (classes_extending_ModuleNode, errors)."""
+    try:
+        tree = ast.parse(source, filename=filename)
+    except SyntaxError as exc:
+        return [], [f"Syntax error in {filename}: {exc}"]
+
+    classes = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            for base in node.bases:
+                if (isinstance(base, ast.Name) and base.id == "ModuleNode") or (
+                    isinstance(base, ast.Attribute) and base.attr == "ModuleNode"
+                ):
+                    classes.append(node)
+
+    return classes, []
+
+
+def _ast_check_node_class(cls: ast.ClassDef, filename: str) -> list[str]:
+    """Return error strings for a single ModuleNode subclass."""
+    errors: list[str] = []
+    name = cls.name
+
+    # Direct methods only — don't descend into nested classes
+    methods: dict[str, ast.stmt] = {}
+    for item in cls.body:
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            methods[item.name] = item
+
+    # on_input must be async
+    if "on_input" not in methods:
+        errors.append(
+            f"{filename} · `{name}`: missing `async def on_input(self, payload)`"
+        )
+    elif not isinstance(methods["on_input"], ast.AsyncFunctionDef):
+        errors.append(
+            f"{filename} · `{name}`: `on_input` must be declared with `async def`"
+        )
+
+    # emit_status required (standardised status contract)
+    if "emit_status" not in methods:
+        errors.append(
+            f"{filename} · `{name}`: missing `def emit_status(self) -> NodeStatusUpdate`"
+        )
+
+    # start OR enable required for orchestrator lifecycle
+    if "start" not in methods and "enable" not in methods:
+        errors.append(
+            f"{filename} · `{name}`: must implement `def start(...)` or `def enable()` "
+            "so the orchestrator can activate it"
+        )
+
+    return errors
+
+
+def validate_plugin_zip(zip_bytes: bytes) -> str:
+    """Deep in-memory validation of a plugin zip — no bytes written to disk.
+
+    Checks (in order):
+    1. Valid zip format.
+    2. Exactly one top-level directory (ignoring ``__MACOSX``).
+    3. Required files: ``<name>/__init__.py`` and ``<name>/registry.py``.
+    4. ``registry.py`` AST:
+       - calls ``node_schema_registry.register(NodeDefinition(...))``.
+       - has ``@NodeFactory.register('...')`` decorated factory function.
+       - factory function accepts at least 3 positional parameters.
+    5. Node implementation file AST (first ``.py`` that is not ``__init__.py``
+       or ``registry.py`` and contains a ``ModuleNode`` subclass):
+       - class extends ``ModuleNode``.
+       - ``async def on_input(self, payload)`` present.
+       - ``def emit_status(self)`` present.
+       - ``def start(...)`` or ``def enable()`` present.
+
+    Returns:
+        Plugin name (top-level directory name).
+
+    Raises:
+        ValueError:         Structural or AST error (message lists all issues).
+        zipfile.BadZipFile: File is not a valid zip archive.
+    """
+    import ast
+    import io
+
+    errors: list[str] = []
+
+    with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zf:
+        names = zf.namelist()
+
+        # ── 1 + 2: layout ──────────────────────────────────────────────────
+        top_level = {
+            p.split("/")[0]
+            for p in names
+            if p.split("/")[0] and not p.startswith("__MACOSX")
+        }
+        if len(top_level) != 1:
+            raise ValueError(
+                f"Zip must contain exactly one top-level directory; found: {sorted(top_level)}"
+            )
+
+        plugin_name = next(iter(top_level)).rstrip("/")
+        file_entries = {p for p in names if not p.endswith("/")}
+
+        # ── 3: required files ──────────────────────────────────────────────
+        for required in (f"{plugin_name}/__init__.py", f"{plugin_name}/registry.py"):
+            if required not in file_entries:
+                errors.append(f"Missing required file '{required}'")
+
+        if errors:
+            raise ValueError("Plugin validation failed:\n" + "\n".join(f"  • {e}" for e in errors))
+
+        # ── 4: registry.py AST ─────────────────────────────────────────────
+        registry_src = zf.read(f"{plugin_name}/registry.py").decode("utf-8", errors="replace")
+        errors.extend(_ast_check_registry(registry_src, f"{plugin_name}/registry.py"))
+
+        # ── 5: node implementation AST ─────────────────────────────────────
+        impl_files = [
+            p for p in file_entries
+            if p.startswith(f"{plugin_name}/")
+            and p.endswith(".py")
+            and p not in {f"{plugin_name}/__init__.py", f"{plugin_name}/registry.py"}
+        ]
+
+        if not impl_files:
+            errors.append(
+                "No node implementation file found. "
+                "Add a Python file (e.g. node.py) with a class extending ModuleNode."
+            )
+        else:
+            all_node_classes: list[tuple[ast.ClassDef, str]] = []
+            for path in impl_files:
+                src = zf.read(path).decode("utf-8", errors="replace")
+                classes, parse_errors = _ast_find_module_node_classes(src, path)
+                errors.extend(parse_errors)
+                all_node_classes.extend((cls, path) for cls in classes)
+
+            if not all_node_classes and not errors:
+                errors.append(
+                    f"None of the implementation files define a class extending ModuleNode. "
+                    f"Files checked: {', '.join(impl_files)}"
+                )
+
+            for cls, path in all_node_classes:
+                errors.extend(_ast_check_node_class(cls, path))
+
+    if errors:
+        raise ValueError(
+            "Plugin validation failed:\n" + "\n".join(f"  • {e}" for e in errors)
+        )
+
+    return plugin_name
+
 
 
 def install_plugin_zip(zip_bytes: bytes, *, auto_load: bool = True) -> tuple[str, Set[str]]:

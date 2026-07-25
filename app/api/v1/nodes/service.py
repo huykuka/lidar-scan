@@ -357,6 +357,73 @@ async def load_plugin(plugin_name: str) -> dict:
     return {"status": "loaded", "plugin": plugin_name, "types": sorted(registered_types)}
 
 
+async def _evict_plugin_nodes_from_runtime(removed_types: set) -> list[str]:
+    """Stop and remove all running DAG nodes whose type belongs to an unloaded plugin.
+
+    For each affected node:
+      1. Mark disabled in DB — prevents "Unknown node type" crash on next reload.
+      2. Stop the live instance (async, honours sensor/playback stop contracts).
+      3. Remove from node_manager.nodes so it no longer receives data.
+      4. Delete all edges touching those node IDs from DB and rebuild downstream_map.
+
+    Returns the list of evicted node IDs.
+    """
+    if not removed_types:
+        return []
+
+    from app.repositories.edge_orm import EdgeRepository
+
+    repo = NodeRepository()
+    affected = [n for n in repo.list() if n.get("type") in removed_types]
+
+    evicted: list[str] = []
+    for node_data in affected:
+        node_id = node_data["id"]
+
+        # 1. Disable in DB so a subsequent reload doesn't try to re-instantiate a missing type
+        try:
+            repo.set_enabled(node_id, False)
+        except Exception as exc:
+            logger.warning(f"[unload_plugin] Could not disable node {node_id!r} in DB: {exc}")
+
+        # 2. Stop and evict from runtime if the instance is currently live
+        instance = node_manager.nodes.pop(node_id, None)
+        if instance is not None:
+            try:
+                await node_manager._lifecycle_manager._stop_node_async(instance)
+            except Exception as exc:
+                logger.warning(f"[unload_plugin] Failed to stop node {node_id!r}: {exc}")
+            evicted.append(node_id)
+
+    if evicted:
+        logger.info(
+            "[unload_plugin] Evicted %d runtime node(s) for removed types %s: %s",
+            len(evicted),
+            sorted(removed_types),
+            evicted,
+        )
+
+        # 3. Remove only edges that touch an evicted node (source or target)
+        evicted_set = set(evicted)
+        edge_repo = EdgeRepository()
+        all_edges = edge_repo.list()
+        surviving_edges = [
+            e for e in all_edges
+            if e.get("source_node") not in evicted_set
+            and e.get("target_node") not in evicted_set
+        ]
+        removed_edge_count = len(all_edges) - len(surviving_edges)
+        if removed_edge_count:
+            edge_repo.save_all(surviving_edges)
+            logger.info("[unload_plugin] Removed %d edge(s) connected to evicted nodes", removed_edge_count)
+
+        # 4. Rebuild in-memory routing state from surviving edges
+        node_manager.edges_data = surviving_edges
+        node_manager.downstream_map = node_manager._config_loader.build_downstream_map(surviving_edges)
+
+    return evicted
+
+
 async def unload_plugin(plugin_name: str) -> dict:
     """Hot-unload a plugin from app/plugins/."""
     from app.plugins import _loaded_plugins, unload_plugin as _unload
@@ -365,13 +432,49 @@ async def unload_plugin(plugin_name: str) -> dict:
         raise HTTPException(status_code=404, detail=f"Plugin '{plugin_name}' is not currently loaded")
 
     removed_types = _unload(plugin_name)
-    return {"status": "unloaded", "plugin": plugin_name, "types": sorted(removed_types)}
+    evicted = await _evict_plugin_nodes_from_runtime(removed_types)
+    return {
+        "status": "unloaded",
+        "plugin": plugin_name,
+        "types": sorted(removed_types),
+        "evicted_nodes": evicted,
+    }
+
+
+async def remove_plugin(plugin_name: str) -> dict:
+    """Unload and permanently delete a plugin from disk."""
+    from app.plugins import remove_plugin as _remove
+
+    try:
+        removed_types = _remove(plugin_name)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to remove plugin '{plugin_name}': {exc}")
+
+    evicted = await _evict_plugin_nodes_from_runtime(removed_types)
+    return {
+        "status": "removed",
+        "plugin": plugin_name,
+        "types": sorted(removed_types),
+        "evicted_nodes": evicted,
+    }
 
 
 async def upload_plugin(zip_bytes: bytes, auto_load: bool) -> dict:
-    """Install a plugin from a zip upload."""
-    from app.plugins import install_plugin_zip
+    """Validate zip structure first (in-memory), then install."""
+    from app.plugins import validate_plugin_zip, install_plugin_zip
+    import zipfile
 
+    # ── Guard: inspect structure before any bytes touch disk ──────────────
+    try:
+        validate_plugin_zip(zip_bytes)
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=422, detail="Uploaded file is not a valid zip archive.")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    # ── Structure is valid — proceed with installation ─────────────────────
     try:
         plugin_name, registered_types = install_plugin_zip(zip_bytes, auto_load=auto_load)
     except ValueError as exc:

@@ -15,14 +15,12 @@ export interface PluginActionResponse {
   types: string[];
 }
 
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class PluginsApiService {
   private http = inject(HttpClient);
 
   listPlugins(): Promise<PluginRecord[]> {
-    return firstValueFrom(
-      this.http.get<PluginRecord[]>(`${environment.apiUrl}/nodes/plugins`),
-    );
+    return firstValueFrom(this.http.get<PluginRecord[]>(`${environment.apiUrl}/nodes/plugins`));
   }
 
   loadPlugin(name: string): Promise<PluginActionResponse> {
@@ -34,6 +32,14 @@ export class PluginsApiService {
   unloadPlugin(name: string): Promise<PluginActionResponse> {
     return firstValueFrom(
       this.http.delete<PluginActionResponse>(`${environment.apiUrl}/nodes/plugins/${name}`),
+    );
+  }
+
+  removePlugin(name: string): Promise<PluginActionResponse> {
+    return firstValueFrom(
+      this.http.delete<PluginActionResponse>(
+        `${environment.apiUrl}/nodes/plugins/${name}/uninstall`,
+      ),
     );
   }
 
