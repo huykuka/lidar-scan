@@ -1,9 +1,9 @@
 <div
   [class.w-0]="isCollapsed()"
   [class.w-70]="!isCollapsed()"
-  [style.borderLeft]="!isCollapsed() ? '1px solid var(--syn-color-neutral-300)' : 'none'"
+  [style.borderLeft]="'1px solid var(--syn-color-neutral-300)'"
   class="h-full flex flex-col relative transition-all duration-300 z-10"
-  style="background: var(--syn-color-neutral-0);"
+  style="background: var(--syn-color-neutral-0)"
 >
   <!-- Toggle button -->
   <button
@@ -28,10 +28,7 @@
       class="flex items-center justify-between px-3 py-2 shrink-0 border-b-syn"
       style="background: var(--syn-color-neutral-0)"
     >
-      <span
-        class="text-xs font-semibold uppercase tracking-wide ml-3"
-        >Output</span
-      >
+      <span class="text-xs font-semibold uppercase tracking-wide ml-3">Output</span>
       <div class="flex items-center gap-0.5">
         <!-- Freeze toggle -->
         <syn-icon-button

@@ -1,0 +1,77 @@
+<div class="flex flex-col gap-[var(--syn-spacing-small)] ">
+  <!-- Toolbar: stats + search -->
+
+  @if (isLoading()) {
+    <div class="flex items-center justify-center gap-3 py-16">
+      <syn-spinner />
+      <span class="text-sm text-[var(--syn-color-neutral-600)]">Loading node types...</span>
+    </div>
+  } @else if (filteredNodeTypes().length === 0) {
+    <div class="flex flex-col items-center justify-center gap-2 py-16 text-center">
+      <syn-icon name="search_off" class="text-4xl text-[var(--syn-color-neutral-400)]" />
+      <p class="text-sm font-semibold text-[var(--syn-color-neutral-600)]">No node types found</p>
+      @if (searchQuery() || filterCategory()) {
+        <p class="text-xs text-[var(--syn-color-neutral-500)]">Try adjusting your filters</p>
+      }
+    </div>
+  } @else {
+    @for (group of groupedNodeTypes(); track group.category) {
+      <syn-details open [contained]="true">
+        <div slot="summary" class="flex items-center gap-2">
+          <syn-icon [name]="getCategoryIcon(group.category)" class="text-[var(--syn-color-neutral-600)]" />
+          <span class="text-xs font-bold uppercase text-[var(--syn-color-neutral-700)]">{{ group.category }}</span>
+          <div class="ml-4 flex items-center gap-1">
+            @if (enabledInGroup(group.types) > 0) {
+              <syn-badge variant="success" size="small" pill>{{ enabledInGroup(group.types) }} on</syn-badge>
+            }
+            @if (disabledInGroup(group.types) > 0) {
+              <syn-badge variant="neutral" size="small" pill>{{ disabledInGroup(group.types) }} off</syn-badge>
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-col">
+          @for (nt of group.types; track nt.type) {
+            <div
+              class="flex items-center gap-3 px-2 py-3 border-b border-[var(--syn-panel-border-color)] last:border-b-0 hover:bg-[var(--syn-color-neutral-50)] transition-colors"
+              [class.opacity-60]="!nt.enabled"
+            >
+              <div
+                class="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0"
+                [class]="nt.enabled ? 'bg-[var(--syn-color-primary-100)]' : 'bg-[var(--syn-color-neutral-100)]'"
+              >
+                <syn-icon
+                  [name]="nt.icon || 'extension'"
+                  [class]="nt.enabled ? 'text-[var(--syn-color-primary-600)]' : 'text-[var(--syn-color-neutral-400)]'"
+                />
+              </div>
+
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-semibold text-[var(--syn-color-neutral-900)] truncate">
+                    {{ nt.display_name }}
+                  </span>
+                  <code class="text-xs px-1.5 py-0.5 rounded bg-[var(--syn-color-neutral-100)] text-[var(--syn-color-neutral-600)] font-mono">
+                    {{ nt.type }}
+                  </code>
+                </div>
+                @if (nt.description) {
+                  <p class="text-xs text-[var(--syn-color-neutral-500)] mt-0.5 truncate">{{ nt.description }}</p>
+                }
+              </div>
+
+              <div class="flex-shrink-0">
+                @if (togglingType() === nt.type) {
+                  <syn-spinner style="font-size: 1rem" />
+                } @else {
+                  <syn-switch [checked]="nt.enabled" (syn-change)="onToggle(nt)" size="small" />
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </syn-details>
+    }
+  }
+</div>
+

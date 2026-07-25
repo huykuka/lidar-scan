@@ -1,25 +1,15 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  OnInit,
-  signal,
-  computed,
-  viewChild,
-  ElementRef,
-} from '@angular/core';
+import {ChangeDetectionStrategy, Component, ElementRef, inject, OnInit, signal, computed, viewChild} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NavigationService, ToastService} from '@core/services';
 import {PluginsApiService, PluginRecord} from '@core/services/api/plugins-api.service';
+import {ToastService} from '@core/services';
 
 @Component({
-  selector: 'app-plugins',
+  selector: 'app-plugins-list',
   imports: [SynergyComponentsModule],
-  templateUrl: './plugins.component.html',
+  templateUrl: './plugins-list.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PluginsComponent implements OnInit {
-  private navService = inject(NavigationService);
+export class PluginsListComponent implements OnInit {
   private pluginsApi = inject(PluginsApiService);
   private toast = inject(ToastService);
 
@@ -34,12 +24,8 @@ export class PluginsComponent implements OnInit {
 
   readonly fileInput = viewChild.required<ElementRef<HTMLInputElement>>('fileInput');
 
-  async ngOnInit() {
-    this.navService.setPageConfig({
-      title: 'Plugins',
-      subtitle: 'Upload and manage hot-pluggable node type extensions',
-    });
-    await this.loadPlugins();
+  ngOnInit() {
+    this.loadPlugins();
   }
 
   private async loadPlugins() {
@@ -69,7 +55,7 @@ export class PluginsComponent implements OnInit {
             p.name === plugin.name ? {...p, loaded: true, types: result.types} : p,
           ),
         );
-        this.toast.success(`Plugin "${plugin.name}" loaded — ${result.types.length} type(s) registered.`);
+        this.toast.success(`Plugin "${plugin.name}" loaded - ${result.types.length} type(s) registered.`);
       }
     } catch (err: any) {
       this.toast.danger(err?.error?.detail ?? `Failed to toggle plugin "${plugin.name}".`);
@@ -112,9 +98,7 @@ export class PluginsComponent implements OnInit {
     this.isUploading.set(true);
     try {
       const result = await this.pluginsApi.uploadPlugin(file);
-      this.toast.success(
-        `Plugin "${result.plugin}" installed — ${result.types.length} type(s) registered.`,
-      );
+      this.toast.success(`Plugin "${result.plugin}" installed - ${result.types.length} type(s) registered.`);
       await this.loadPlugins();
     } catch (err: any) {
       this.toast.danger(err?.error?.detail ?? 'Plugin upload failed.');
