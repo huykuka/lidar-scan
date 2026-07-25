@@ -52,7 +52,17 @@
   background-color: var(--syn-color-neutral-400);
 }
 
-/* ── Context Menu ── */
+.node-card--unknown {
+  border-color: var(--syn-color-warning-500);
+}
+
+.node-card--unknown .node-card__accent {
+  background-color: var(--syn-color-warning-500);
+}
+
+.node-card--unknown:hover {
+  border-color: var(--syn-color-warning-600);
+}
 .node-context-menu {
   position: absolute;
   z-index: 100;

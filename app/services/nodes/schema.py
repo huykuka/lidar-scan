@@ -48,6 +48,10 @@ class SchemaRegistry:
     def register(self, definition: NodeDefinition):
         self._definitions[definition.type] = definition
 
+    def unregister(self, type_name: str) -> bool:
+        """Remove a node definition by type. Returns True if it existed."""
+        return self._definitions.pop(type_name, None) is not None
+
     def get_all(self) -> List[NodeDefinition]:
         return list(self._definitions.values())
 

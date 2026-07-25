@@ -13,6 +13,11 @@ class NodeFactory:
         return decorator
 
     @classmethod
+    def unregister(cls, node_type: str) -> bool:
+        """Remove a builder from the registry. Returns True if it existed."""
+        return cls._registry.pop(node_type, None) is not None
+
+    @classmethod
     def create(cls, node_data: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
         """Instantiates a node using the registered builder."""
         node_type = node_data.get("type")

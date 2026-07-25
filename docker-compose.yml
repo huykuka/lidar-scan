@@ -33,7 +33,10 @@ services:
     #           capabilities: [gpu]
     volumes:
       - app_data:/app/data
+      - app_plugins:/app/app/plugins
 
 volumes:
   app_data:
+    driver: local
+  app_plugins:
     driver: local

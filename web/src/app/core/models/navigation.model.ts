@@ -10,19 +10,24 @@ export interface NavItem {
 }
 
 export const NAVIGATION_CONFIG: NavItem[] = [
-  { label: 'Workspaces', route: '/workspaces', icon: 'home', divider: false },
-  { label: 'Settings', route: '/settings', icon: 'account_tree', divider: true, footer: false },
-  { label: 'Calibration', route: '/calibration', icon: 'tune', divider: true },
-  { label: 'Recordings', route: '/recordings', icon: 'video_library', divider: true },
-  { label: 'Results', route: '/results', icon: 'analytics', divider: true },
+  { label: 'Workspaces', route: '/workspaces', icon: 'home_fill', divider: false },
   {
-    label: 'Node Definitions',
-    route: '/node-definitions',
-    icon: 'extension',
+    label: 'Settings',
+    route: '/settings',
+    icon: 'account_tree_fill',
     divider: true,
+    footer: false,
+  },
+  { label: 'Calibration', route: '/calibration', icon: 'tune_fill', divider: true },
+  { label: 'Recordings', route: '/recordings', icon: 'video_library_fill', divider: true },
+  { label: 'Results', route: '/results', icon: 'analytics_fill', divider: true },
+  {
+    label: 'Node Definitions & Plugins',
+    route: '/node-definitions',
+    icon: 'deployed_code_fill',
     footer: true,
     requiredRole: 'service',
   },
-  { label: 'Logs', route: '/logs', icon: 'terminal', divider: true, footer: true },
-  { label: 'Resource Monitor', route: '/host', icon: 'monitor_heart', divider: true },
+  { label: 'Logs', route: '/logs', icon: 'terminal_fill', divider: true, footer: true },
+  { label: 'Resource Monitor', route: '/host', icon: 'monitor_heart_fill', divider: true },
 ];

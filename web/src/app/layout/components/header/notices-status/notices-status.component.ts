@@ -65,9 +65,9 @@ export class NoticesStatusComponent {
   protected readonly icon = computed(() => {
     const notice = this.lastNotice();
     if (!notice) return 'circle_notifications';
-    if (notice.level === 'error') return 'dangerous';
-    if (notice.level === 'warning') return 'notification_important';
-    return 'circle_notifications';
+    if (notice.level === 'error') return 'dangerous_fill';
+    if (notice.level === 'warning') return 'notification_important_fill';
+    return 'circle_notifications_fill';
   });
 
   protected readonly label = computed(() => {

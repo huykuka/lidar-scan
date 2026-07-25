@@ -139,6 +139,8 @@ export class FlowCanvasNodeComponent implements OnInit, OnDestroy {
     return this.nodeStore.nodeDefinitions().find((d) => d.type === this.node().data.type);
   });
 
+  protected isDefinitionMissing = computed(() => !this.nodeDefinition());
+
   getNodeName(): string {
     return this.node().data.name || this.node().id;
   }
