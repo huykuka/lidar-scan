@@ -7,7 +7,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "web": {
+    "lidar-studio": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": { "type": "component" },
@@ -96,10 +96,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "web:build:production"
+              "buildTarget": "lidar-studio:build:production"
             },
             "development": {
-              "buildTarget": "web:build:development"
+              "buildTarget": "lidar-studio:build:development"
             }
           },
           "defaultConfiguration": "development"

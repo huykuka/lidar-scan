@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1
+# CI variant — uses pre-built Angular dist from the frontend-ci-artifacts action artifact.
+# Expected layout in build context root (project root):
+#   ci-artifacts/frontend/    — Angular production dist (contents of dist/web/browser)
+
+FROM nginx:1.27-alpine
+
+RUN apk add --no-cache bash
+
+COPY ci-artifacts/frontend                         /usr/share/nginx/html
+COPY docker/nginx/default.conf.template            /etc/nginx/conf.d/default.conf.template
+COPY docker/nginx/entrypoint.sh                    /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 80
+ENTRYPOINT ["/entrypoint.sh"]

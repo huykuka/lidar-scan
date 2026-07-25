@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1
+# ----------------------------------------
+# Stage 1: Build Angular frontend
+# ----------------------------------------
+FROM --platform=$BUILDPLATFORM node:24-slim AS builder
+ENV CI=true
+WORKDIR /web
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    corepack enable && corepack pnpm install --frozen-lockfile
+COPY web/ ./
+RUN corepack pnpm run build --configuration production
+
+# ----------------------------------------
+# Stage 2: nginx
+# ----------------------------------------
+FROM nginx:1.27-alpine
+
+RUN apk add --no-cache bash
+
+COPY --from=builder /web/dist/web/browser          /usr/share/nginx/html
+COPY docker/nginx/default.conf.template            /etc/nginx/conf.d/default.conf.template
+COPY docker/nginx/entrypoint.sh                    /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 80
+ENTRYPOINT ["/entrypoint.sh"]

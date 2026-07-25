@@ -17,4 +17,6 @@ bash "$SCRIPT_DIR/deploy_amd.sh"
 
 echo "======================================"
 echo "Deployment for AMD64 completed!"
+echo "  lidar-studio-core (backend)"
+echo "  lidar-studio-ui   (frontend)"
 echo "======================================"

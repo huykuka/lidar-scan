@@ -11,10 +11,7 @@ timestamp() {
 # ------------------------------
 # Variables
 # ------------------------------
-DOCKERFILE="docker/Dockerfile"
 DOCKER_USERNAME="010497"   # <-- change this
-DOCKER_REPO_NAME="lidar-studio"
-TAG_LATEST="$DOCKER_USERNAME/$DOCKER_REPO_NAME:latest"
 
 HOST_ARCH="$(uname -m)"
 if [[ "$HOST_ARCH" != "x86_64" && "$HOST_ARCH" != "amd64" ]]; then
@@ -22,12 +19,43 @@ if [[ "$HOST_ARCH" != "x86_64" && "$HOST_ARCH" != "amd64" ]]; then
   exit 1
 fi
 
+# Read versions from the source manifests
+BE_VERSION=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+FE_VERSION=$(grep -m1 '"version"' web/package.json | sed 's/.*"version": "\([^"]*\)".*/\1/')
+
 echo "======================================"
-echo "Building and deploying AMD64 image..."
+echo "Backend version : ${BE_VERSION}"
+echo "Frontend version: ${FE_VERSION}"
 echo "======================================"
 
 # ------------------------------
-# Build, tag and push
+# Backend — lidar-studio-core
 # ------------------------------
-docker build --platform linux/amd64 -f $DOCKERFILE . -t "$TAG_LATEST"
-docker push "$TAG_LATEST"
+CORE_REPO="$DOCKER_USERNAME/lidar-studio-core"
+echo ""
+echo "Building and deploying lidar-studio-core..."
+docker build \
+  --platform linux/amd64 \
+  -f docker/Dockerfile.backend \
+  -t "$CORE_REPO:latest" \
+  -t "$CORE_REPO:$BE_VERSION" \
+  .
+docker push "$CORE_REPO:latest"
+docker push "$CORE_REPO:$BE_VERSION"
+echo "Pushed $CORE_REPO:$BE_VERSION and :latest"
+
+# ------------------------------
+# Frontend — lidar-studio-ui
+# ------------------------------
+UI_REPO="$DOCKER_USERNAME/lidar-studio-ui"
+echo ""
+echo "Building and deploying lidar-studio-ui..."
+docker build \
+  --platform linux/amd64 \
+  -f docker/Dockerfile.frontend \
+  -t "$UI_REPO:latest" \
+  -t "$UI_REPO:$FE_VERSION" \
+  .
+docker push "$UI_REPO:latest"
+docker push "$UI_REPO:$FE_VERSION"
+echo "Pushed $UI_REPO:$FE_VERSION and :latest"

@@ -37,6 +37,3 @@ for _path, _name in [("data/recordings", "recordings"), ("data", "data")]:
     _dir = Path(_path)
     _dir.mkdir(parents=True, exist_ok=True)
     app.mount(f"/{_path.split('/')[-1]}", StaticFiles(directory=str(_dir)), name=_name)
-
-# Serve the Angular frontend
-app.frontend('/', directory="app/static", fallback="index.html")
