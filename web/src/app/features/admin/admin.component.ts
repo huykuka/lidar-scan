@@ -21,4 +21,9 @@ export class AdminComponent implements OnInit {
       subtitle: 'Manage node types and extensions',
     });
   }
+
+  protected onTabShow(event: Event) {
+    const panel = (event as CustomEvent).detail?.name as 'node-types' | 'plugins';
+    if (panel) this.activeSection.set(panel);
+  }
 }

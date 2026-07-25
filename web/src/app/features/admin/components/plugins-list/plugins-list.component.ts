@@ -2,6 +2,7 @@ import {ChangeDetectionStrategy, Component, ElementRef, inject, OnInit, signal, 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {PluginsApiService, PluginRecord} from '@core/services/api/plugins-api.service';
 import {ToastService} from '@core/services';
+import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
 
 @Component({
   selector: 'app-plugins-list',
@@ -11,6 +12,7 @@ import {ToastService} from '@core/services';
 })
 export class PluginsListComponent implements OnInit {
   private pluginsApi = inject(PluginsApiService);
+  private nodePluginRegistry = inject(NodePluginRegistry);
   private toast = inject(ToastService);
 
   protected plugins = signal<PluginRecord[]>([]);
@@ -45,18 +47,22 @@ export class PluginsListComponent implements OnInit {
       if (plugin.loaded) {
         await this.pluginsApi.unloadPlugin(plugin.name);
         this.plugins.update((list) =>
-          list.map((p) => (p.name === plugin.name ? {...p, loaded: false, types: []} : p)),
+          list.map((p) => (p.name === plugin.name ? { ...p, loaded: false, types: [] } : p)),
         );
         this.toast.warning(`Plugin "${plugin.name}" unloaded.`);
       } else {
         const result = await this.pluginsApi.loadPlugin(plugin.name);
         this.plugins.update((list) =>
           list.map((p) =>
-            p.name === plugin.name ? {...p, loaded: true, types: result.types} : p,
+            p.name === plugin.name ? { ...p, loaded: true, types: result.types } : p,
           ),
         );
-        this.toast.success(`Plugin "${plugin.name}" loaded - ${result.types.length} type(s) registered.`);
+        this.toast.success(
+          `Plugin "${plugin.name}" loaded - ${result.types.length} type(s) registered.`,
+        );
       }
+      // Refresh the node palette so Settings page reflects the change immediately
+      await this.nodePluginRegistry.loadFromBackend();
     } catch (err: any) {
       this.toast.danger(err?.error?.detail ?? `Failed to toggle plugin "${plugin.name}".`);
     } finally {
@@ -98,8 +104,12 @@ export class PluginsListComponent implements OnInit {
     this.isUploading.set(true);
     try {
       const result = await this.pluginsApi.uploadPlugin(file);
-      this.toast.success(`Plugin "${result.plugin}" installed - ${result.types.length} type(s) registered.`);
+      this.toast.success(
+        `Plugin "${result.plugin}" installed - ${result.types.length} type(s) registered.`,
+      );
       await this.loadPlugins();
+      // Refresh the node palette so Settings page reflects the new plugin immediately
+      await this.nodePluginRegistry.loadFromBackend();
     } catch (err: any) {
       this.toast.danger(err?.error?.detail ?? 'Plugin upload failed.');
     } finally {

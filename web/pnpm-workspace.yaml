@@ -8,3 +8,7 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - angular-three-soba@4.2.3
   - angular-three@4.2.3
+  - '@synergy-design-system/angular@3.21.0'
+  - '@synergy-design-system/assets@2.3.0'
+  - '@synergy-design-system/components@3.21.0'
+  - '@synergy-design-system/tokens@3.21.0'

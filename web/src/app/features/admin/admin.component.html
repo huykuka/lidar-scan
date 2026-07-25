@@ -1,13 +1,24 @@
-<syn-card class="h-full flex flex-col overflow-hidden">
-  <syn-tab-group class="shrink-0">
-    <syn-tab slot="nav" panel="node-types">
-      <syn-icon name="account_tree_fill" class="mr-1" />Node Definitions
-    </syn-tab>
-    <syn-tab slot="nav" panel="plugins">
-      <syn-icon name="extension_fill" class="mr-1" />Plugins
-    </syn-tab>
-    <!-- Empty panels required by syn-tab-group API -->
-    <syn-tab-panel name="node-types"> <app-node-types-list /></syn-tab-panel>
-    <syn-tab-panel name="plugins"><app-plugins-list /></syn-tab-panel>
-  </syn-tab-group>
-</syn-card>
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+
+    <!-- Tab navigation only — empty panels required by syn-tab-group API -->
+    <syn-tab-group (syn-tab-show)="onTabShow($event)" class="shrink-0">
+      <syn-tab slot="nav" panel="node-types">
+        <syn-icon name="account_tree" class="mr-1" />Node Definitions
+      </syn-tab>
+      <syn-tab slot="nav" panel="plugins">
+        <syn-icon name="extension" class="mr-1" />Plugins
+      </syn-tab>
+    </syn-tab-group>
+
+    <!-- Scroll container: plain div owns overflow, not a web component -->
+    <div class="flex-1 min-h-0 overflow-y-auto p-4">
+      @if (activeSection() === 'node-types') {
+        <app-node-types-list />
+      } @else {
+        <app-plugins-list />
+      }
+    </div>
+
+  </div>
+</div>

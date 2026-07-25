@@ -1,25 +1,18 @@
-<div class="flex flex-col gap-[var(--syn-spacing-medium)] h-full">
-  <!-- Compact toolbar: stats + upload -->
-  <syn-card class="shrink-0">
-    <div class="flex items-center gap-[var(--syn-spacing-medium)]">
-      <div class="flex items-center gap-[var(--syn-spacing-x-small)] shrink-0">
-        <syn-icon name="deployed_code" class="text-[var(--syn-color-primary-600)]" />
-        <span class="font-bold text-[var(--syn-color-neutral-900)]">{{ loadedCount() }}</span>
-        <span class="text-sm text-[var(--syn-color-neutral-500)]">/ {{ totalCount() }} loaded</span>
-      </div>
-      <div class="flex-1"></div>
-      <syn-button
-        (click)="onUploadClick()"
-        [loading]="isUploading()"
-        variant="filled"
-        size="small"
-      >
-        <syn-icon name="upload" slot="prefix" />
-        Upload .zip
-      </syn-button>
-      <input #fileInput type="file" accept=".zip" class="hidden" (change)="onFileSelected($event)" />
-    </div>
-  </syn-card>
+<div class="flex flex-col gap-[var(--syn-spacing-medium)]">
+  <!-- Slim toolbar -->
+  <div class="flex items-center gap-3 px-4 py-2 rounded-lg border-b-syn bg-[var(--syn-page-background-color)] shrink-0">
+    <syn-icon name="deployed_code" class="text-[var(--syn-color-neutral-500)]" style="font-size: 1rem" />
+    <span class="text-sm text-[var(--syn-color-neutral-500)]">
+      <span class="font-semibold text-[var(--syn-color-neutral-900)]">{{ loadedCount() }}</span>
+      / {{ totalCount() }} loaded
+    </span>
+    <div class="flex-1"></div>
+    <syn-button (click)="onUploadClick()" [loading]="isUploading()" variant="outline" size="small">
+      <syn-icon name="upload" slot="prefix" />
+      Upload .zip
+    </syn-button>
+    <input #fileInput type="file" accept=".zip" class="hidden" (change)="onFileSelected($event)" />
+  </div>
 
   <!-- Plugins list -->
   <syn-card

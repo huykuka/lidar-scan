@@ -34,6 +34,11 @@ class PassthroughLoggerNode(ModuleNode):
 
     # ── Lifecycle ──────────────────────────────────────────────────────────
 
+    def start(self, data_queue=None, runtime_status=None) -> None:
+        """Called by start_all_nodes(); delegates to enable() so the node
+        starts processing as soon as the orchestrator is running."""
+        self.enable()
+
     def enable(self) -> None:
         self._enabled = True
         logger.info(f"[{self.name}] enabled")
