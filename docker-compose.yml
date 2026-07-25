@@ -1,10 +1,14 @@
 services:
   lidar-standalone:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     image: 010497/lidar-studio:latest
     platform: linux/amd64
     container_name: lidar-standalone
     restart: unless-stopped
     network_mode: "host"
+    command: tail -f /dev/null
     # Larger /dev/shm so multiprocessing.Queue semaphores and any shared
     # numpy buffers used by sensor worker processes don't contend on the
     # 64 MB container default.
@@ -33,7 +37,7 @@ services:
     #           capabilities: [gpu]
     volumes:
       - app_data:/app/data
-      - app_plugins:/app/app/plugins
+      - app_plugins:/app/app/plugins/installed
 
 volumes:
   app_data:

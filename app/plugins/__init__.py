@@ -449,6 +449,8 @@ def discover_plugins() -> None:
     for info in pkgutil.iter_modules([_PLUGINS_DIR]):
         if not info.ispkg:
             continue
+        if info.name.startswith("_"):
+            continue  # skip templates / drafts (leading _ convention)
         try:
             load_plugin(info.name)
         except ModuleNotFoundError:
