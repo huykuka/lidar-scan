@@ -1,0 +1,20 @@
+@for (entry of entries(); track entry.topic) {
+  <!-- Interactive drag control: wraps point cloud, moves it during drag -->
+  <ngts-pivot-controls
+    [options]="{
+      visible: showGizmos(),
+      scale: 0.5,
+      disableScaling: true,
+      autoTransform: draggingTopic() === entry.topic,
+      offset: entry.initialOffset,
+      rotation: entry.initialRotation
+    }"
+    (dragStarted)="onDragStart(entry.topic)"
+    (dragged)="dragged.emit({ topic: entry.topic, event: $event })"
+    (dragEnded)="onDragEnd(entry.topic)"
+  >
+    <ngts-points-buffer #buf [positions]="entry.buf">
+      <ngt-points-material [size]="entry.pointSize" [color]="entry.color" [sizeAttenuation]="false"/>
+    </ngts-points-buffer>
+  </ngts-pivot-controls>
+}

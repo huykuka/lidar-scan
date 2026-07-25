@@ -5,6 +5,8 @@ import {
   HostListener,
   inject,
   input,
+  OnDestroy,
+  OnInit,
   output,
   signal,
 } from '@angular/core';
@@ -30,9 +32,10 @@ export interface CanvasNode {
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './flow-canvas-node.component.css',
 })
-export class FlowCanvasNodeComponent {
+export class FlowCanvasNodeComponent implements OnInit, OnDestroy {
   node = input.required<CanvasNode>();
   status = input<NodeStatusUpdate | null>(null);
+  liveStatus = input<boolean>(true);
   isLoading = input<boolean>(false);
   isDragging = input<boolean>(false);
   isTogglingVisibility = input<boolean>(false);
@@ -65,6 +68,9 @@ export class FlowCanvasNodeComponent {
   };
 
   protected operationalIcon = computed<{ icon: string; css: string }>(() => {
+    if (!this.liveStatus()) {
+      return { icon: 'sync_disabled', css: 'text-syn-color-neutral-300 opacity-50' };
+    }
     const status = this.status();
     if (!status) {
       return { icon: 'radio_button_unchecked', css: 'text-syn-color-neutral-300' };
@@ -159,11 +165,14 @@ export class FlowCanvasNodeComponent {
   }
 
   onContextMenu(event: MouseEvent): void {
-    if (!this.isWebsocketEnabled()) return;
     event.preventDefault();
     event.stopPropagation();
-    // Close first in case another node's menu was open
-    this.contextMenuOpen.set(false);
+
+    // Dispatch a custom event to close any other open menus
+    document.dispatchEvent(new CustomEvent('node-menu:close-all'));
+
+    if (!this.isWebsocketEnabled()) return;
+
     // Open on next tick so the document:click doesn't immediately close it
     setTimeout(() => {
       this.contextMenuPos.set({ x: event.offsetX, y: event.offsetY });
@@ -171,8 +180,22 @@ export class FlowCanvasNodeComponent {
     });
   }
 
-  onMenuSelect(event: Event): void {
+  private closeMenuListener = () => {
     this.contextMenuOpen.set(false);
-    this.onTogglePreview.emit();
+  };
+
+  ngOnInit(): void {
+    document.addEventListener('node-menu:close-all', this.closeMenuListener);
+  }
+
+  ngOnDestroy(): void {
+    document.removeEventListener('node-menu:close-all', this.closeMenuListener);
+  }
+
+  onMenuAction(action: string): void {
+    this.contextMenuOpen.set(false);
+    if (action === 'preview') {
+      this.onTogglePreview.emit();
+    }
   }
 }

@@ -30,6 +30,6 @@ export class NavigationService {
     this._headline.set(config.title);
     this._subtitle.set(config.subtitle || null);
     this._showActionsSlot.set(config.showActionsSlot ?? false);
-    this.titleService.setTitle(`${config.title} | LiDAR Command Surface`);
+    this.titleService.setTitle(`${config.title}`);
   }
 }

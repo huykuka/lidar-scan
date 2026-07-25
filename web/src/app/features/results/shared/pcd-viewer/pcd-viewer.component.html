@@ -1,5 +1,5 @@
 <div class="relative w-full h-full min-h-0">
-  <ngt-canvas style="width:100%;height:100%;display:block">
+  <ngt-canvas style="width:100%;height:100%;display:block" frameloop="demand" >
     <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
       <ngts-points-buffer
         #pointsBuf

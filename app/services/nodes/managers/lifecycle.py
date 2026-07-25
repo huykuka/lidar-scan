@@ -37,24 +37,7 @@ class LifecycleManager:
             elif hasattr(node_instance, "enable"):
                 node_instance.enable()
     
-    def stop_all_nodes(self):
-        """Stop or disable all node instances (sync — does NOT await async stop()).
-
-        .. deprecated::
-            Prefer ``stop_all_nodes_async()`` which properly awaits PlaybackNode.stop()
-            and prevents zombie task leaks during DAG reload.
-        """
-        for node_id, node_instance in self.manager.nodes.items():
-            logger.warning(
-                f"[LifecycleManager] stop_all_nodes (sync) called for node {node_id} — "
-                "use stop_all_nodes_async() to avoid zombie tasks on PlaybackNode"
-            )
-            if hasattr(node_instance, "stop"):
-                node_instance.stop()
-            elif hasattr(node_instance, "disable"):
-                node_instance.disable()
-
-    async def stop_all_nodes_async(self) -> None:
+    async def stop_all_nodes(self) -> None:
         """Async stop all node instances, properly awaiting async stop() coroutines.
 
         This prevents zombie playback tasks: PlaybackNode.stop() is a coroutine that
@@ -78,29 +61,6 @@ class LifecycleManager:
 
         await asyncio.gather(*[_stop(nid, ni) for nid, ni in items])
     
-    def remove_node(self, node_id: str):
-        """
-        Dynamically remove a node from the running pipeline.
-        
-        This stops the node and cleans up all associated resources including
-        WebSocket topics, routing maps, and runtime state.
-        
-        For async contexts (FastAPI routes), prefer remove_node_async().
-        
-        Args:
-            node_id: The ID of the node to remove
-        """
-        node_instance = self.manager.nodes.pop(node_id, None)
-        if not node_instance:
-            return
-
-        logger.info(f"[LifecycleManager] Unregistering node {node_id} (sync remove — prefer remove_node_async)")
-
-        self._stop_node(node_instance)
-        self._unregister_node_websocket_topic(node_id, node_instance)
-        self._cleanup_node_routing(node_id)
-        self._cleanup_node_state(node_id)
-    
     async def remove_node_async(self, node_id: str) -> None:
         """
         Async counterpart of remove_node with proper WebSocket teardown.
@@ -122,31 +82,6 @@ class LifecycleManager:
         self._cleanup_node_routing(node_id)
         self._cleanup_node_state(node_id)
     
-    def _stop_node(self, node_instance: Any):
-        """Stop a single node instance (sync fallback).
-
-        .. warning::
-            For PlaybackNode (which has an async stop()), this calls stop() without
-            awaiting it, leaving the asyncio.Task running until GC.
-            Use ``_stop_node_async()`` in async contexts to avoid zombie tasks.
-        """
-        if hasattr(node_instance, "stop"):
-            result = node_instance.stop()
-            if result is not None:
-                import asyncio
-                import inspect
-                if inspect.isawaitable(result):
-                    node_id = getattr(node_instance, "id", "?")
-                    logger.warning(
-                        f"[LifecycleManager] _stop_node (sync) called for async-stop node {node_id!r} — "
-                        "scheduling stop() as task; zombie risk if event loop is shutting down. "
-                        "Use _stop_node_async() instead."
-                    )
-                    try:
-                        asyncio.get_running_loop().create_task(result)
-                    except RuntimeError:
-                        pass  # No running loop — coroutine is lost
-
     async def _stop_node_async(self, node_instance: Any) -> None:
         """Async stop a single node instance, awaiting coroutine stop() if present.
 
@@ -200,42 +135,6 @@ class LifecycleManager:
                     )
             else:
                 logger.debug(f"[LifecycleManager] sync stop() completed for node {node_id!r}")
-    
-    def _unregister_node_websocket_topic(self, node_id: str, node_instance: Any):
-        """
-        Unregister WebSocket topic for a node (sync fallback - deprecated).
-        
-        NOTE: This sync version cannot properly close WebSocket connections.
-        Use _unregister_node_websocket_topic_async() for proper cleanup.
-        
-        Args:
-            node_id: The node ID
-            node_instance: The node instance
-        """
-        import asyncio
-        
-        # Use stored topic if available to guarantee key match with registration
-        if hasattr(node_instance, "_ws_topic"):
-            topic = node_instance._ws_topic
-        else:
-            node_name = getattr(node_instance, "name", node_id)
-            safe_name = slugify_topic_prefix(node_name)
-            topic = f"{safe_name}_{node_id[:8]}"
-        
-        logger.warning(f"Sync unregister_topic called for {topic} - WebSocket connections may not be properly closed")
-        
-        # Try to schedule the async version if we're in an async context
-        try:
-            loop = asyncio.get_running_loop()
-            # Schedule the async cleanup but don't wait for it
-            asyncio.create_task(manager.unregister_topic(topic))
-        except RuntimeError:
-            # No running event loop - can only remove from dicts (unsafe)
-            logger.error(f"No event loop available to properly unregister topic {topic} - potential connection leaks")
-            if topic in manager.active_connections:
-                del manager.active_connections[topic]
-            if topic in manager._interceptors:
-                del manager._interceptors[topic]
     
     async def _unregister_node_websocket_topic_async(self, node_id: str, node_instance: Any) -> None:
         """

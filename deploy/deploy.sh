@@ -16,5 +16,5 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 bash "$SCRIPT_DIR/deploy_amd.sh"
 
 echo "======================================"
-echo "Deployment for all architectures completed!"
+echo "Deployment for AMD64 completed!"
 echo "======================================"

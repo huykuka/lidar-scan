@@ -30,6 +30,11 @@ class CentroidCalculation(PipelineOperation):
 
     Args:
         compute_per_axis_stats: Add per-axis min/max/std to metadata.
+        stabilizer: Smoothing factor (0.0–1.0). 0 = no smoothing (raw centroid
+            each frame). 1 = never move (fully locked to first value).
+            Typical useful range: 0.3–0.8. Uses exponential moving average so
+            the output centroid moves gradually toward the new measurement
+            instead of jumping aggressively.
     """
 
     NUMPY_ONLY = True
@@ -37,10 +42,13 @@ class CentroidCalculation(PipelineOperation):
     def __init__(
         self,
         compute_per_axis_stats: bool = False,
+        stabilizer: float = 0.0,
         # kept for backward-compat but no longer used
         center_cloud: bool = False,
     ) -> None:
         self.compute_per_axis_stats = bool(compute_per_axis_stats)
+        self.stabilizer = float(np.clip(stabilizer, 0.0, 1.0))
+        self._prev_centroid: np.ndarray | None = None
 
     @staticmethod
     def _per_axis_stats(xyz: np.ndarray) -> Dict[str, Any]:
@@ -61,6 +69,18 @@ class CentroidCalculation(PipelineOperation):
 
         # Single row: mean of every column so attributes are representative
         centroid_row = pts.mean(axis=0, keepdims=True)  # (1, M)
+
+        # Stabilizer: exponential moving average on XYZ to prevent jumps
+        if self.stabilizer > 0.0:
+            if self._prev_centroid is None:
+                self._prev_centroid = centroid_row.copy()
+            else:
+                alpha = 1.0 - self.stabilizer  # lower stabilizer = faster response
+                centroid_row[0, :3] = (
+                    alpha * centroid_row[0, :3]
+                    + self.stabilizer * self._prev_centroid[0, :3]
+                )
+                self._prev_centroid = centroid_row.copy()
 
         meta: Dict[str, Any] = {
             "point_count": int(pts.shape[0]),

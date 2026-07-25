@@ -24,7 +24,10 @@ RUN git clone -b 3.9.0 https://github.com/SICKAG/sick_scan_xd.git /workspace/sic
     && export ROS_VERSION=0 \
     && cmake -DROS_VERSION=0 -DLDMRS=0 -G "Unix Makefiles" ../sick_scan_xd \
     && make -j4 \
-    && make install
+    && make install \
+    && find /workspace/sick_scan_xd/launch -type f -name "test_*" -delete \
+    && find /workspace/build -maxdepth 1 -type f \( -name "CMakeCache.txt" -o -name "Makefile" -o -name "cmake_install.cmake" -o -name "install_manifest.txt" \) -delete \
+    && rm -rf /workspace/build/CMakeFiles /workspace/build/CMakeTmp
 
 # Set the working directory inside the container
 WORKDIR /workspace

@@ -18,15 +18,12 @@ import {
   FCanvasComponent,
   FCreateConnectionEvent,
   FCreateNodeEvent,
-  F_DRAG_SELECT_CONTROL_SCHEME,
   FFlowComponent,
   FFlowModule,
   FMoveNodesEvent,
   FZoomDirective,
   provideFFlow,
-  withControlScheme,
   withConnectionFlow,
-  F_SCROLL_PAN_CONTROL_SCHEME,
 } from '@foblex/flow';
 
 import { NodePlugin } from '@core/models';
@@ -42,6 +39,7 @@ import { CanvasEditStoreService } from '@features/settings/services/canvas-edit-
 import { CanvasNode, FlowCanvasNodeComponent } from './node/flow-canvas-node.component';
 import { FlowCanvasPaletteComponent } from './palette/flow-canvas-palette.component';
 import { FlowCanvasControlsComponent } from './controls/flow-canvas-controls.component';
+import { CanvasControlAction } from './controls/flow-canvas-controls.component';
 import { FlowCanvasEmptyStateComponent } from './empty-state/flow-canvas-empty-state.component';
 import { DynamicNodeEditorComponent } from '../dynamic-node-editor/dynamic-node-editor.component';
 import { OutputViewerComponent } from '@features/settings/components/flow-canvas/output-viewer/output-viewer.component';
@@ -92,6 +90,9 @@ export class FlowCanvasComponent {
   protected minimapVisible = signal(
     localStorage.getItem('flow-canvas.minimapVisible') !== 'false'
   );
+  protected liveStatus = signal(
+    localStorage.getItem('flow-canvas.liveStatus') !== 'false'
+  );
   readonly gridSize = 30;
   protected isPaletteLoading = signal(true);
   protected isCanvasLoading = signal(true);
@@ -134,6 +135,16 @@ export class FlowCanvasComponent {
       const visible = this.minimapVisible();
       localStorage.setItem('flow-canvas.minimapVisible', String(visible));
     });
+
+    effect(() => {
+      const live = this.liveStatus();
+      localStorage.setItem('flow-canvas.liveStatus', String(live));
+      if (live) {
+        this.statusWs.connect();
+      } else {
+        this.statusWs.disconnect();
+      }
+    });
   }
   // ------ Foblex lifecycle events ------
 
@@ -161,6 +172,9 @@ export class FlowCanvasComponent {
 
   onCreateNode(event: FCreateNodeEvent): void {
     if (this.readOnly()) return;
+    // Guard: ignore if the editor drawer is already open (prevents duplicate
+    // nodes when fCreateNode fires multiple times for a single drop gesture).
+    if (this.drawerOpen()) return;
     this.canvasEditStore.pushUndoState();
     const type = event.data as string;
     // Snap drop position to grid when snap is on
@@ -219,7 +233,6 @@ export class FlowCanvasComponent {
     if (!confirmed) return;
     this.canvasEditStore.pushUndoState();
     this.canvasEditStore.deleteNode(node.id);
-    this.toast.success(`${name} deleted.`);
   }
 
   async onDeleteEdge(edgeId: string) {
@@ -233,7 +246,6 @@ export class FlowCanvasComponent {
     if (!confirmed) return;
     this.canvasEditStore.pushUndoState();
     this.canvasEditStore.deleteEdge(edgeId);
-    this.toast.success('Connection removed.');
   }
 
   async onToggleNodeEnabled(node: CanvasNode, enabled: boolean) {
@@ -241,11 +253,9 @@ export class FlowCanvasComponent {
     try {
       await this.nodesApi.setNodeEnabled(node.id, enabled);
       const name = node.data.name || node.id;
-      this.toast.success(`${name} ${enabled ? 'enabled' : 'disabled'}.`);
       this.canvasEditStore.updateNode(node.id, { enabled });
     } catch (error) {
       console.error('Failed to toggle node', error);
-      this.toast.danger(`Failed to update node.`);
     } finally {
       this.nodeLoadingStates.update((states) => {
         const newStates = { ...states };
@@ -297,6 +307,21 @@ export class FlowCanvasComponent {
   }
 
   // ------ Controls ------
+
+  onControlAction(action: CanvasControlAction): void {
+    switch (action) {
+      case 'fit-to-screen':    this.fitToScreen(); break;
+      case 'one-to-one':       this.resetScaleAndCenter(); break;
+      case 'zoom-in':          this.zoomIn(); break;
+      case 'zoom-out':         this.zoomOut(); break;
+      case 'snap-toggle':      this.snapToGrid.set(!this.snapToGrid()); break;
+      case 'minimap-toggle':   this.minimapVisible.set(!this.minimapVisible()); break;
+      case 'live-status-toggle': this.liveStatus.set(!this.liveStatus()); break;
+      case 'undo':             this.undo(); break;
+      case 'redo':             this.redo(); break;
+      case 'reset':            this.resetToSaved(); break;
+    }
+  }
 
   fitToScreen() {
     this._canvas()?.fitToScreen();
@@ -389,7 +414,7 @@ export class FlowCanvasComponent {
       .filter((e) => nodeIds.has(e.source_node) && nodeIds.has(e.target_node));
 
     this.clipboard.set({ nodes: structuredClone(nodes), edges: structuredClone(edges) });
-    this.toast.success(`Copied ${nodes.length} node(s).`);
+    this.toast.primary(`Copied ${nodes.length} node(s).`);
   }
 
   private _pasteNodes(): void {
@@ -446,7 +471,6 @@ export class FlowCanvasComponent {
       };
     });
 
-    this.toast.success(`Pasted ${clip.nodes.length} node(s).`);
   }
 
   private async _deleteSelectedNodes(): Promise<void> {
@@ -550,37 +574,42 @@ export class FlowCanvasComponent {
   /**
    * Returns the Foblex fCanBeConnectedTo allow-list for a source (output) connector.
    *
-   * Strategy: scan all node definitions. For each definition whose input ports declare
-   * `allowed_source_categories` containing the source node's category, add that
-   * definition's own category to the allow-list. Foblex then matches this list against
-   * the [fConnectorCategory] set on target input connectors (which is the target node's
-   * own category).
+   * Strategy: scan all canvas nodes (not just definitions) to build the per-instance
+   * allow-list. Each target input connector has a unique category of the form
+   * "<nodeCategory>__<nodeId>". We include every such compound category except
+   * the source node itself — this prevents self-connections visually during drag.
    *
-   * If a definition has input ports with NO restrictions, any source can connect — so
-   * when there are unrestricted definitions the allow-list is empty (= no restriction).
+   * Category-level restrictions from `allowed_source_categories` on input port
+   * definitions are also honoured: if a target definition restricts which source
+   * categories can connect, the target node is only included when the source's
+   * category is in that list.
    */
   getAllowedTargetCategories(node: CanvasNode): string[] {
     const sourceCategory = node.data.category?.toLowerCase() ?? '';
     const definitions = this.nodeStore.nodeDefinitions();
+    const nodes = this.canvasNodes();
 
-    // If any definition has unrestricted inputs, don't restrict at all
-    const hasUnrestrictedTargets = definitions.some(
-      (def) =>
-        def.inputs.length > 0 && def.inputs.every((p) => !p.allowed_source_categories?.length),
-    );
-    if (hasUnrestrictedTargets) return [];
+    const allowed: string[] = [];
 
-    // Collect categories of definitions whose inputs accept sourceCategory
-    const allowed = new Set<string>();
-    for (const def of definitions) {
-      if (!def.inputs.length) continue;
-      const accepts = def.inputs.some(
+    for (const targetNode of nodes) {
+      // Skip self
+      if (targetNode.id === node.id) continue;
+
+      const targetDef = definitions.find((d) => d.type === targetNode.data.type);
+      if (!targetDef || !targetDef.inputs.length) continue;
+
+      // Check if target accepts this source's category
+      const accepts = targetDef.inputs.some(
         (p) =>
           !p.allowed_source_categories?.length ||
           p.allowed_source_categories.map((c) => c.toLowerCase()).includes(sourceCategory),
       );
-      if (accepts) allowed.add(def.category.toLowerCase());
+
+      if (accepts) {
+        allowed.push(targetNode.data.category.toLowerCase() + '__' + targetNode.id);
+      }
     }
-    return [...allowed];
+
+    return allowed;
   }
 }

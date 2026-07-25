@@ -6,7 +6,7 @@
       label="Fit to screen"
       size="small"
       color="neutral"
-      (click)="onFitToScreen.emit()"
+      (click)="action.emit('fit-to-screen')"
     />
   </syn-tooltip>
 
@@ -16,7 +16,7 @@
       label="Reset zoom (1:1)"
       size="small"
       color="neutral"
-      (click)="onOneToOne.emit()"
+      (click)="action.emit('one-to-one')"
     />
   </syn-tooltip>
 
@@ -28,7 +28,7 @@
       label="Zoom out"
       size="small"
       color="neutral"
-      (click)="onZoomOut.emit()"
+      (click)="action.emit('zoom-out')"
     />
   </syn-tooltip>
 
@@ -38,7 +38,7 @@
       label="Zoom in"
       size="small"
       color="neutral"
-      (click)="onZoomIn.emit()"
+      (click)="action.emit('zoom-in')"
     />
   </syn-tooltip>
 
@@ -50,7 +50,7 @@
       label="Snap to grid"
       size="small"
       [color]="snapToGrid() ? 'primary' : 'neutral'"
-      (click)="onSnapToggle.emit()"
+      (click)="action.emit('snap-toggle')"
     />
   </syn-tooltip>
 
@@ -60,7 +60,17 @@
       label="Toggle minimap"
       size="small"
       [color]="minimapVisible() ? 'primary' : 'neutral'"
-      (click)="onMinimapToggle.emit()"
+      (click)="action.emit('minimap-toggle')"
+    />
+  </syn-tooltip>
+
+  <syn-tooltip [content]="liveStatus() ? 'Pause live status (improve performance)' : 'Resume live status'" placement="top">
+    <syn-icon-button
+      name="autorenew"
+      label="Toggle live status"
+      size="small"
+      [color]="liveStatus() ? 'primary' : 'neutral'"
+      (click)="action.emit('live-status-toggle')"
     />
   </syn-tooltip>
 
@@ -73,7 +83,7 @@
       size="small"
       color="neutral"
       [disabled]="!canUndo()"
-      (click)="onUndo.emit()"
+      (click)="action.emit('undo')"
     />
   </syn-tooltip>
 
@@ -84,7 +94,7 @@
       size="small"
       color="neutral"
       [disabled]="!canRedo()"
-      (click)="onRedo.emit()"
+      (click)="action.emit('redo')"
     />
   </syn-tooltip>
 
@@ -94,7 +104,7 @@
       label="Reset to saved state"
       size="small"
       color="neutral"
-      (click)="onReset.emit()"
+      (click)="action.emit('reset')"
     />
   </syn-tooltip>
 
@@ -138,7 +148,7 @@
     <ul class="hint-list">
       @for (h of hints; track h.key) {
         <li class="hint-row">
-          <syn-icon [name]="h.icon" class="hint-icon" />
+          <syn-icon [name]="h.icon" class="hint-icon" [style.color]="h.color" />
           <kbd class="hint-key">{{ h.key }}</kbd>
           <span class="hint-desc">{{ h.desc }}</span>
         </li>

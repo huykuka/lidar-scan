@@ -86,7 +86,10 @@ export class PoseFormComponent implements OnInit {
    * Form value is in mm; emitted pose is converted back to meters.
    */
   onXyzInput(field: string, event: Event): void {
-    const value = Number((event.target as HTMLInputElement).value);
+    const raw = (event.target as HTMLInputElement).value;
+    if (raw === '' || raw === '-' || raw === '.' || raw === '-.') return;
+    const value = Number(raw);
+    if (isNaN(value)) return;
     this.poseFormGroup.get(field)?.setValue(value);
     this.emitCurrentPose();
   }
@@ -96,7 +99,10 @@ export class PoseFormComponent implements OnInit {
    * Patches the form, emits poseChange.
    */
   onAngleInput(field: 'roll' | 'pitch' | 'yaw', event: Event): void {
-    const value = Number((event.target as any).value);
+    const raw = (event.target as any).value;
+    if (raw === '' || raw === '-' || raw === '.' || raw === '-.') return;
+    const value = Number(raw);
+    if (isNaN(value)) return;
     this.poseFormGroup.get(field)?.setValue(value);
     this.emitCurrentPose();
   }

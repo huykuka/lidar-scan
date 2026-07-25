@@ -1,13 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "autoupdate": true,
-  "instructions": [
-    "AGENTS.md"
-  ],
+  "instructions": ["AGENTS.md"],
   "agent": {
-    "compaction": {
-      "model": "github-copilot/claude-haiku-4.5"
-    },
     "plan": {
       "disable": true,
       "permission": {
@@ -26,28 +21,17 @@
   "mcp": {
     "chrome-devtools": {
       "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "chrome-devtools-mcp@latest"
-      ],
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
       "enabled": true
     },
     "synergy": {
       "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "@synergy-design-system/mcp"
-      ],
+      "command": ["npx", "-y", "@synergy-design-system/mcp"],
       "enabled": true
     },
     "gitnexus": {
       "type": "local",
-      "command": [
-        "gitnexus",
-        "mcp"
-      ],
+      "command": ["gitnexus", "mcp"],
       "enabled": true
     }
   }

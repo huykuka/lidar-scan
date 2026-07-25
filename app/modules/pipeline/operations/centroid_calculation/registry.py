@@ -35,6 +35,18 @@ node_schema_registry.register(NodeDefinition(
             help_text="Also report per-axis min, max, and standard deviation "
                       "in the node metadata.",
         ),
+        PropertySchema(
+            name="stabilizer",
+            label="Stabilizer",
+            type="number",
+            default=0.0,
+            min=0.0,
+            max=1.0,
+            step=0.05,
+            help_text="Smoothing factor (0–1). Higher values make the centroid "
+                      "move more slowly toward new positions, preventing sudden "
+                      "jumps. 0 = no smoothing, 0.5 = moderate, 0.9 = very smooth.",
+        ),
     ],
     inputs=[PortSchema(id="in", label="Input")],
     outputs=[PortSchema(id="out", label="Centroid point")],

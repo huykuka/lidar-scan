@@ -29,8 +29,13 @@
       size="small"
     >
       <syn-icon style="margin-right: 6px" name="playlist_add" slot="prefix"></syn-icon>
-      @for (topic of availableTopics(); track topic) {
-        <syn-option [title]="topic" [value]="topic">{{ topic }}</syn-option>
+      @for (group of groupedAvailableTopics(); track group.label) {
+        <syn-optgroup [label]="group.label">
+          <syn-icon style="font-size: var(--syn-font-size-small);" [name]="getCategoryIcon(group.label)" slot="prefix" />
+          @for (topic of group.topics; track topic) {
+            <syn-option [title]="topic" [value]="topic">{{ topic }}</syn-option>
+          }
+        </syn-optgroup>
       }
     </syn-select>
   }
@@ -108,9 +113,9 @@
   <!-- Empty State -->
   @if (selectedTopics().length === 0) {
     <div
-      class="flex flex-col items-center gap-[var(--syn-spacing-x-small)] py-[var(--syn-spacing-x-large)] text-[var(--syn-typography-color-text-quiet)] [font:var(--syn-body-x-small-regular)]"
+      class="flex flex-col items-center gap-[var(--syn-spacing-x-small)] py-[var(--syn-spacing-x-large)] text-[var(--syn-typography-color-text-quiet)] [font:var(--syn-body-x-medium-regular)]"
     >
-      <syn-icon class="text-[var(--syn-font-size-x-large)]" name="radar" />
+      <syn-icon style="font-size: var(--syn-font-size-x-large);" name="radar" />
       <p>No topics selected</p>
     </div>
   }

@@ -15,12 +15,38 @@ export class WorkspaceControlsComponent {
   readonly actionTaken = output<void>();
   protected selectedNewTopic = '';
   protected availableTopics = computed(() => {
-    const all = this.topics();
-    const selected = this.selectedTopics().map((t) => t.topic);
-    return all.filter((t) => !selected.includes(t));
+    const selected = this.selectedTopics().map((t: any) => t.topic);
+    return this.topics().filter((t: any) => !selected.includes(t.topic));
   });
-  private store = inject(WorkspaceStoreService);
+
+  /**
+   * Groups availableTopics by their node category (sensor / operation / fusion / other).
+   * Returns an array of { label, topics } ordered by label.
+   */
+  protected groupedAvailableTopics = computed(() => {
+    const map = new Map<string, string[]>();
+    for (const info of this.availableTopics()) {
+      const label = info.category || 'other';
+      if (!map.has(label)) map.set(label, []);
+      map.get(label)!.push(info.topic);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, topics]) => ({ label, topics }));
+  });
+  /** Maps node category to a Synergy icon name. */
+  protected readonly categoryIcon: Record<string, string> = {
+    sensor: 'sensors',
+    operation: 'filter_alt',
+    fusion: 'mediation',
+    other: 'device_unknown',
+  };
+
+  protected getCategoryIcon(category: string): string {
+    return this.categoryIcon[category] ?? this.categoryIcon['other'];
+  }
   private dataService = inject(PointCloudDataService);
+  private store = inject(WorkspaceStoreService);
   protected topics = this.store.topics;
   protected selectedTopics = this.store.selectedTopics;
   protected isConnected = this.dataService.isConnected;

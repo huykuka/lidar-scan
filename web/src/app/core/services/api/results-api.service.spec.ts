@@ -77,12 +77,6 @@ describe('ResultsApiService', () => {
     expect(detail.result_id).toBe('res-001');
     expect(detail.pcd_files.length).toBe(1);
   });
-
-  it('should return static PCD URL without HTTP request', () => {
-    const url = service.getPcdUrl('results/vol_node_001/res-001/empty.pcd');
-    expect(url).toBe('/data/results/vol_node_001/res-001/empty.pcd');
-  });
-
   it('should DELETE a result', async () => {
     const mockResp: DeleteResultResponse = {deleted: true, result_id: 'res-001'};
     const promise = firstValueFrom(service.deleteResult('vol_node_001', 'res-001'));

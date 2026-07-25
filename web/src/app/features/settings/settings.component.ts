@@ -295,7 +295,7 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
       panel.removePreviewTopic(topic);
     } else {
       const topic = this._deriveTopicName(node);
-      panel.addPreviewTopic(node.id, node.data.name || node.id, topic);
+      panel.addPreviewTopic(node.id, node.data.name || node.id, topic, node.data.pose);
       // Auto-open preview panel if closed
       if (!this.previewOpen()) {
         this.previewOpen.set(true);
@@ -330,7 +330,7 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
     const onMove = (e: PointerEvent) => {
       if (!this._dividerDragging) return;
       const delta = this._dividerStartX - e.clientX;
-      const newWidth = Math.max(250, Math.min(800, this._dividerStartWidth + delta));
+      const newWidth = Math.max(250, Math.min(1000, this._dividerStartWidth + delta));
       this.previewWidth.set(newWidth);
     };
 

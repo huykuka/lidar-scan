@@ -335,18 +335,14 @@ def lidar_worker_process(lidar_id: str, launch_args: str, data_queue: Any, stop_
             time.sleep(0.1)
 
     finally:
-        # Start a watchdog that will force-exit if cleanup blocks for too long.
-        # SickScanApiClose() sends shutdown telegrams to hardware and can hang
-        # if the sensor is unreachable or the network stack is stuck.
-        _force_exit_after(8.0, "finally cleanup", lidar_id)
+        if stop_event.is_set():
+            # Intentional stop: skip SickScanApiClose() entirely.
+            # Close sends hardware shutdown telegrams and can block for several seconds.
+            # The OS reclaims all sockets and handles when the process exits.
+            os._exit(0)
 
-        SickScanApiDeregisterCartesianPointCloudMsg(sick_scan_library, api_handle, pc_callback)
-        if imu_callback is not None:
-            try:
-                SickScanApiDeregisterImuMsg(sick_scan_library, api_handle, imu_callback)
-            except Exception:
-                pass
-        SickScanApiDeregisterDiagnosticMsg(sick_scan_library, api_handle, diagnostic_callback)
+        # Abnormal exit (exception): attempt graceful shutdown with a watchdog.
+        _force_exit_after(3.0, "finally cleanup", lidar_id)
         SickScanApiClose(sick_scan_library, api_handle)
         SickScanApiRelease(sick_scan_library, api_handle)
         SickScanApiUnloadLibrary(sick_scan_library)

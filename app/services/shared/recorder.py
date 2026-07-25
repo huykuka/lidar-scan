@@ -94,10 +94,9 @@ class RecordingService:
             # Allowing multiple isolated recording loops for the same output string ensures
             # multiple duplicate backend graph node outputs can be individually explicitly captured.
             
-            # Generate recording ID and file path
+            # Generate recording ID and a temporary file path (renamed on finalize)
             recording_id = str(uuid.uuid4())
-            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-            filename = f"capture_{timestamp}_{recording_id[:8]}.zip"
+            filename = f"recording_{recording_id}.zip"
             file_path = self.recordings_dir / filename
             
             # Prepare metadata
@@ -200,6 +199,20 @@ class RecordingService:
         # Generate thumbnail asynchronously
         thumbnail_path = None
         file_path = Path(info["file_path"])
+
+        # Rename to <node_id>_<timestamp_ms>.zip now that recording is complete
+        ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+        safe_node_id = handle.node_id.replace("/", "_").replace(" ", "_")
+        final_name = f"{safe_node_id}_{ts_ms}.zip"
+        final_path = file_path.parent / final_name
+        try:
+            file_path.rename(final_path)
+            file_path = final_path
+            info["file_path"] = str(final_path)
+            logger.info(f"Renamed recording to {final_path}")
+        except Exception as e:
+            logger.warning(f"Could not rename recording file: {e}")
+
         try:
             from app.services.shared.thumbnail import generate_thumbnail_from_file
             
@@ -227,7 +240,7 @@ class RecordingService:
         return {
             "recording_id": recording_id,
             "node_id": handle.node_id,
-            "name": handle.metadata.get("name", handle.node_id),
+            "name": handle.metadata.get("name", handle.node_id) ,
             "file_path": info["file_path"],
             "file_size_bytes": info["file_size_bytes"],
             "frame_count": actual_frame_count,  # Use writer's count (authoritative)

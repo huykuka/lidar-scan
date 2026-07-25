@@ -154,21 +154,14 @@ class LidarSensor(ModuleNode):
         if self._process and self._process.is_alive():
             logger.info(f"[{self.id}] Stopping worker process (PID: {self._process.pid})...")
 
-            # Give the process time to finish gracefully.
-            # The worker's finally block calls SickScanApiClose() which sends
-            # shutdown telegrams to the hardware — typically needs 1-3s.
-            # The worker has an 8s watchdog that will force-exit if cleanup hangs.
-            self._process.join(timeout=5.0)
+            # Worker calls os._exit(0) immediately on intentional stop,
+            # so this join typically returns in well under 1s.
+            self._process.join(timeout=1.0)
 
             if self._process.is_alive():
-                logger.warning(f"[{self.id}] Worker didn't stop gracefully after 5s, terminating...")
-                self._process.terminate()
-                self._process.join(timeout=2.0)
-
-                if self._process.is_alive():
-                    logger.error(f"[{self.id}] Worker still alive after terminate, killing...")
-                    self._process.kill()
-                    self._process.join(timeout=1.0)
+                logger.warning(f"[{self.id}] Worker didn't stop after 1s, killing...")
+                self._process.kill()
+                self._process.join(timeout=1.0)
 
         self._process = None
         self._stop_event = None
