@@ -32,7 +32,8 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-_PLUGINS_DIR: str = os.path.dirname(__file__)
+_PLUGINS_DIR: str = os.path.join(os.path.dirname(__file__), "installed")
+os.makedirs(_PLUGINS_DIR, exist_ok=True)
 
 # plugin_name -> set of node-type strings it registered
 _loaded_plugins: dict[str, Set[str]] = {}
@@ -43,7 +44,7 @@ _loaded_plugins: dict[str, Set[str]] = {}
 
 def _evict_from_sys_modules(plugin_name: str) -> None:
     """Remove all sys.modules entries belonging to a plugin package."""
-    prefix = f"{__name__}.{plugin_name}"
+    prefix = f"{__name__}.installed.{plugin_name}"
     to_remove = [
         k for k in list(sys.modules)
         if k == prefix or k.startswith(prefix + ".")
@@ -79,7 +80,7 @@ def load_plugin(name: str) -> Set[str]:
     plugin_dir = os.path.join(_PLUGINS_DIR, name)
     if not os.path.isdir(plugin_dir):
         raise FileNotFoundError(
-            f"Plugin '{name}' not found in app/plugins/ — "
+            f"Plugin '{name}' not found in app/plugins/installed/ — "
             "upload it first via POST /nodes/plugins/upload"
         )
     if not os.path.exists(os.path.join(plugin_dir, "registry.py")):
@@ -94,7 +95,7 @@ def load_plugin(name: str) -> Set[str]:
     before_schema = set(node_schema_registry._definitions.keys())
     before_factory = set(NodeFactory._registry.keys())
 
-    importlib.import_module(f".{name}.registry", package=__name__)
+    importlib.import_module(f".installed.{name}.registry", package=__name__)
 
     added_schema = set(node_schema_registry._definitions.keys()) - before_schema
     added_factory = set(NodeFactory._registry.keys()) - before_factory
