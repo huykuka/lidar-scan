@@ -1,131 +1,96 @@
 <div
-  class="flex items-stretch rounded-xl border-syn hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden flex-row relative h-full"
+  class="flex flex-col rounded-lg border-syn hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden h-full"
   style="border-color: var(--syn-color-neutral-300)"
 >
-  @if (selectable()) {
-    <div
-      (click)="$event.stopPropagation()"
-      class="flex self-center items-center justify-center px-3 z-10 py-4"
-    >
-      <syn-checkbox
-        (syn-change)="toggleSelection.emit($any($event.target).checked)"
-        [checked]="selected()"
-      />
-    </div>
-  }
-  <div class="flex-shrink-0 h-full w-24 sm:w-35 bg-slate-900 flex items-center justify-center relative">
+  <!-- Thumbnail -->
+  <div class="relative w-full aspect-video bg-slate-900 flex items-center justify-center overflow-hidden">
+    @if (selectable()) {
+      <div class="absolute top-2 left-2 z-10" (click)="$event.stopPropagation()">
+        <syn-checkbox
+          (syn-change)="toggleSelection.emit($any($event.target).checked)"
+          [checked]="selected()"
+        />
+      </div>
+    }
     @if (recording().thumbnail_path && !thumbnailLoadFailed(recording().id)) {
       <img
         (error)="onThumbnailError(recording().id)"
         (load)="onThumbnailLoad(recording().id)"
         [alt]="recording().name + ' thumbnail'"
         [src]="getThumbnailUrl(recording())"
-        [width]="140"
+        class="w-full h-full object-cover"
       />
       @if (isLoadingThumbnail(recording().id)) {
-        <div class="absolute inset-0 flex items-center justify-center bg-slate-900/50">
+        <div class="absolute inset-0 flex items-center justify-center bg-slate-900/60">
           <syn-spinner size="small" />
         </div>
       }
     } @else {
-      <div
-        class="h-14 w-14 sm:h-16 sm:w-16 rounded-lg bg-slate-800 flex items-center justify-center border border-slate-700"
-      >
-        <syn-icon class="text-2xl text-white/20" name="videocam" />
-      </div>
+      <syn-icon class="text-3xl text-white/20" name="videocam" />
     }
   </div>
 
-  <!-- Info Area -->
-  <div class="flex-1 flex flex-col justify-between p-3 sm:p-4 min-w-0">
-    <div class="flex flex-col min-w-0">
-      <div class="flex items-center justify-between gap-2 mb-0.5">
-        @if (isRenaming()) {
-          <input
-            #renameInput
-            (blur)="commitRename($event)"
-            (click)="$event.stopPropagation()"
-            (keydown)="onRenameKeydown($event)"
-            [value]="renameValue()"
-            (input)="renameValue.set($any($event.target).value)"
-            class="font-semibold text-sm sm:text-base truncate flex-1 bg-transparent border-b border-syn-color-primary-600 outline-none"
-            style="color: var(--syn-typography-color-text)"
-          />
-        } @else {
-          <h3
-            [title]="recording().name"
-            class="font-semibold text-sm sm:text-base truncate"
-            style="color: var(--syn-typography-color-text)"
-          >
-            {{ recording().name }}
-          </h3>
-        }
-        <span
-          class="text-[10px] sm:text-xs flex items-center gap-1 flex-shrink-0"
-          style="color: var(--syn-color-neutral-500)"
-        >
-          <syn-icon class="text-[10px] sm:text-xs" name="calendar_today" />
-          {{ recording().created_at | date: 'yyyy-MM-dd HH:mm:ss' }}
+  <!-- Info -->
+  <div class="flex flex-col gap-1 px-3 pt-2 pb-1 min-w-0">
+    @if (isRenaming()) {
+      <input
+        #renameInput
+        (blur)="commitRename($event)"
+        (click)="$event.stopPropagation()"
+        (keydown)="onRenameKeydown($event)"
+        [value]="renameValue()"
+        (input)="renameValue.set($any($event.target).value)"
+        class="text-sm font-semibold w-full bg-transparent border-b outline-none"
+        style="color: var(--syn-typography-color-text); border-color: var(--syn-color-primary-600)"
+      />
+    } @else {
+      <span
+        [title]="recording().name"
+        class="text-sm font-semibold truncate"
+        style="color: var(--syn-typography-color-text)"
+      >{{ recording().name }}</span>
+    }
+
+    <div class="flex items-center justify-between">
+      <!-- Metadata chips -->
+      <div class="flex items-center gap-3 text-[10px]" style="color: var(--syn-color-neutral-500)">
+        <span class="flex items-center gap-1" title="Frames">
+          <syn-icon name="layers" style="font-size: 11px" />{{ recording().frame_count }}
+        </span>
+        <span class="flex items-center gap-1" title="Duration">
+          <syn-icon name="timer" style="font-size: 11px" />{{ formatDuration(recording().duration_seconds) }}
+        </span>
+        <span class="flex items-center gap-1" title="File size">
+          <syn-icon name="sd" style="font-size: 11px" />{{ formatFileSize(recording().file_size_bytes) }}
         </span>
       </div>
-    </div>
-
-    <!-- Badges / Metadata -->
-    <div
-      class="flex items-center gap-3 sm:gap-6 text-[11px] sm:text-xs mt-auto"
-      style="color: var(--syn-color-neutral-600)"
-    >
-      <div class="flex items-center gap-1.5" title="Frames">
-        <syn-icon class="text-neutral-400" name="layers" />
-        <span class="font-medium">{{ recording().frame_count }}</span>
-      </div>
-      <div class="flex items-center gap-1.5" title="Duration">
-        <syn-icon class="text-neutral-400" name="timer" />
-        <span class="font-medium">{{ formatDuration(recording().duration_seconds) }}</span>
-      </div>
-      <div class="flex items-center gap-1.5" title="File Size">
-        <syn-icon class="text-neutral-400" name="sd" />
-        <span class="font-medium">{{ formatFileSize(recording().file_size_bytes) }}</span>
-      </div>
+      <!-- Date -->
+      <span class="text-[10px] flex items-center gap-1 shrink-0" style="color: var(--syn-color-neutral-400)">
+        <syn-icon name="calendar_today" style="font-size: 10px" />
+        {{ recording().created_at | date: 'MM-dd HH:mm' }}
+      </span>
     </div>
   </div>
 
-  <!-- Quick Actions Column -->
-  <div class="flex flex-col justify-center gap-2 px-2 sm:px-3 py-2 bg-syn-color-neutral-50 flex-shrink-0">
-    <syn-tooltip content="Play" [distance]="13" placement="top">
-      <syn-icon-button variant="text"
-        name="play_arrow"
-        color="primary"
-        (click)="play.emit(recording()); $event.stopPropagation()"
-        label="Play"
-       />
+  <!-- Actions -->
+  <div class="flex items-center justify-end px-1 pb-1">
+    <syn-tooltip content="Play" placement="top">
+      <syn-icon-button size="small" variant="filled" name="play_arrow" color="primary" label="Play"
+        (click)="play.emit(recording()); $event.stopPropagation()" />
     </syn-tooltip>
-
-    <syn-tooltip content="Rename" [distance]="13" placement="top">
-      <syn-icon-button variant="text"
-        name="edit"
-        (click)="startRename($event)"
-        label="Rename"
-        size="small"
-       />
+    <syn-tooltip content="Rename" placement="top">
+      <syn-icon-button size="small" variant="text" name="edit" label="Rename"
+        (click)="startRename($event)" />
     </syn-tooltip>
-
-    <syn-tooltip content="Download" [distance]="13" placement="top">
-      <syn-icon-button variant="text"
-        name="download"
+    <syn-tooltip content="Download" placement="top">
+      <syn-icon-button size="small" variant="text" name="download" label="Download"
         style="color: var(--syn-color-primary-600)"
-        (click)="download.emit(recording()); $event.stopPropagation()"
-        label="Download"
-       />
+        (click)="download.emit(recording()); $event.stopPropagation()" />
     </syn-tooltip>
-
-    <syn-tooltip content="Delete" [distance]="13" placement="top">
-      <syn-icon-button variant="text"
+    <syn-tooltip content="Delete" placement="top">
+      <syn-icon-button size="small" variant="text" name="delete" label="Delete"
         style="color: var(--syn-color-error-600)"
-        name="delete"
-        (click)="delete.emit(recording()); $event.stopPropagation()"
-        label="Delete"
-       />
+        (click)="delete.emit(recording()); $event.stopPropagation()" />
     </syn-tooltip>
   </div>
 </div>

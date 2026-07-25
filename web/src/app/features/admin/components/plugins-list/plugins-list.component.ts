@@ -2,6 +2,7 @@ import {ChangeDetectionStrategy, Component, ElementRef, inject, OnInit, signal, 
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {PluginsApiService, PluginRecord} from '@core/services/api/plugins-api.service';
 import { ToastService } from '@core/services';
+import { DialogService } from '@core/services/dialog.service';
 
 @Component({
   selector: 'app-plugins-list',
@@ -12,13 +13,13 @@ import { ToastService } from '@core/services';
 export class PluginsListComponent implements OnInit {
   private pluginsApi = inject(PluginsApiService);
   private toast = inject(ToastService);
+  private dialog = inject(DialogService);
 
   protected plugins = signal<PluginRecord[]>([]);
   protected isLoading = signal(true);
   protected actionInProgress = signal<string | null>(null);
   protected isUploading = signal(false);
   protected isDragOver = signal(false);
-  protected pendingRemove = signal<string | null>(null);
 
   protected loadedCount = computed(() => this.plugins().filter((p) => p.loaded).length);
   protected totalCount = computed(() => this.plugins().length);
@@ -112,16 +113,16 @@ export class PluginsListComponent implements OnInit {
     }
   }
 
-  protected onRemoveClick(plugin: PluginRecord) {
-    this.pendingRemove.set(plugin.name);
-  }
+  protected async onRemoveClick(plugin: PluginRecord) {
+    const confirmed = await this.dialog.confirm({
+      title: 'Remove plugin',
+      message: `Remove "${plugin.name}"? This will delete it from disk and unregister all its node types.`,
+      confirmLabel: 'Remove',
+      confirmIcon: 'delete',
+      confirmSeverity: 'danger',
+    });
+    if (!confirmed) return;
 
-  protected cancelRemove() {
-    this.pendingRemove.set(null);
-  }
-
-  protected async confirmRemove(plugin: PluginRecord) {
-    this.pendingRemove.set(null);
     this.actionInProgress.set(plugin.name);
     try {
       await this.pluginsApi.removePlugin(plugin.name);

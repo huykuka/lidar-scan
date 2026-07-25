@@ -112,7 +112,7 @@ node_schema_registry.register(
 @NodeFactory.register("TODO_my_plugin")         # TODO: same type key as NodeDefinition
 def build(node: Dict[str, Any], service_context: Any, edges: List[Dict[str, Any]]) -> Any:
     # ── Lazy import keeps startup fast and avoids circular deps ────────────
-    from app.plugins.installed._template.node import TemplateNode  # TODO: update import path
+    from app.plugins.installed._template.node import TemplateNode  # TODO: update import path after renaming
 
     config = node.get("config", {})
 
