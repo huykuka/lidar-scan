@@ -1,0 +1,48 @@
+2026-06-06 18:17:27 | INFO     | app.modules | Loaded module registry: application
+2026-06-06 18:17:32 | INFO     | app.modules | Loaded module registry: calibration
+2026-06-06 18:17:32 | INFO     | app.modules | Loaded module registry: flow_control
+2026-06-06 18:17:32 | INFO     | app.modules | Loaded module registry: fusion
+2026-06-06 18:17:32 | INFO     | app.modules | Loaded module registry: lidar
+2026-06-06 18:17:32 | INFO     | app.modules | Loaded module registry: pcd_injection
+2026-06-06 18:17:32 | INFO     | app.modules | Loaded module registry: pipeline
+2026-06-06 18:17:32 | INFO     | app.modules | Loaded module registry: playback
+2026-06-06 18:17:32 | INFO     | app.modules | Loaded module registry: visionary
+2026-06-06 18:17:33 | INFO     | app.services.shared.recorder | RecordingService initialized with directory: data/recordings
+2026-06-06 18:17:33 | INFO     | app.services.nodes.managers.config | Loaded 0 enabled nodes and 0 edges from DB
+2026-06-06 18:17:33 | INFO     | app.services.nodes.orchestrator | Initialized 0 nodes. Downstream map: {}
+2026-06-06 18:17:33 | INFO     | app.services.results_storage | ResultsStorageService: results directory does not exist yet (data/results)
+2026-06-06 18:17:33 | INFO     | status_aggregator | [StatusAggregator] Started
+2026-06-06 18:21:22 | INFO     | status_aggregator | [StatusAggregator] Stopped
+2026-06-06 18:21:22 | INFO     | app.services.nodes.orchestrator | All nodes stopped.
+2026-06-06 18:21:34 | INFO     | app.modules | Loaded module registry: application
+2026-06-06 18:21:35 | INFO     | app.modules | Loaded module registry: calibration
+2026-06-06 18:21:35 | INFO     | app.modules | Loaded module registry: flow_control
+2026-06-06 18:21:35 | INFO     | app.modules | Loaded module registry: fusion
+2026-06-06 18:21:35 | INFO     | app.modules | Loaded module registry: lidar
+2026-06-06 18:21:35 | INFO     | app.modules | Loaded module registry: pcd_injection
+2026-06-06 18:21:35 | INFO     | app.modules | Loaded module registry: pipeline
+2026-06-06 18:21:35 | INFO     | app.modules | Loaded module registry: playback
+2026-06-06 18:21:35 | INFO     | app.modules | Loaded module registry: visionary
+2026-06-06 18:21:36 | INFO     | app.services.shared.recorder | RecordingService initialized with directory: data/recordings
+2026-06-06 18:21:36 | INFO     | app.services.nodes.managers.config | Loaded 0 enabled nodes and 0 edges from DB
+2026-06-06 18:21:36 | INFO     | app.services.nodes.orchestrator | Initialized 0 nodes. Downstream map: {}
+2026-06-06 18:21:36 | INFO     | app.services.results_storage | ResultsStorageService: results directory does not exist yet (data/results)
+2026-06-06 18:21:36 | INFO     | status_aggregator | [StatusAggregator] Started
+2026-06-06 18:24:33 | INFO     | status_aggregator | [StatusAggregator] Stopped
+2026-06-06 18:24:33 | INFO     | app.services.nodes.orchestrator | All nodes stopped.
+2026-06-06 18:26:18 | INFO     | app.modules | Loaded module registry: application
+2026-06-06 18:26:19 | INFO     | app.modules | Loaded module registry: calibration
+2026-06-06 18:26:19 | INFO     | app.modules | Loaded module registry: flow_control
+2026-06-06 18:26:19 | INFO     | app.modules | Loaded module registry: fusion
+2026-06-06 18:26:19 | INFO     | app.modules | Loaded module registry: lidar
+2026-06-06 18:26:19 | INFO     | app.modules | Loaded module registry: pcd_injection
+2026-06-06 18:26:20 | INFO     | app.modules | Loaded module registry: pipeline
+2026-06-06 18:26:20 | INFO     | app.modules | Loaded module registry: playback
+2026-06-06 18:26:20 | INFO     | app.modules | Loaded module registry: visionary
+2026-06-06 18:26:20 | INFO     | app.services.shared.recorder | RecordingService initialized with directory: data/recordings
+2026-06-06 18:26:20 | INFO     | app.services.nodes.managers.config | Loaded 0 enabled nodes and 0 edges from DB
+2026-06-06 18:26:20 | INFO     | app.services.nodes.orchestrator | Initialized 0 nodes. Downstream map: {}
+2026-06-06 18:26:20 | INFO     | app.services.results_storage | ResultsStorageService: results directory does not exist yet (data/results)
+2026-06-06 18:26:20 | INFO     | status_aggregator | [StatusAggregator] Started
+2026-06-06 20:46:57 | INFO     | status_aggregator | [StatusAggregator] Stopped
+2026-06-06 20:46:57 | INFO     | app.services.nodes.orchestrator | All nodes stopped.
