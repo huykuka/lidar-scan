@@ -18,7 +18,7 @@ FROM nginx:1.27-alpine
 
 RUN apk add --no-cache bash
 
-COPY --from=builder /web/dist/web/browser          /usr/share/nginx/html
+COPY --from=builder /web/dist/lidar-studio/browser          /usr/share/nginx/html
 COPY docker/nginx/default.conf.template            /etc/nginx/conf.d/default.conf.template
 COPY docker/nginx/entrypoint.sh                    /entrypoint.sh
 RUN chmod +x /entrypoint.sh

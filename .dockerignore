@@ -15,8 +15,11 @@ docs/
 *.md
 !README.md
 
-# ── Frontend source (built artifact is copied from frontend-builder stage) ─
-web/
+# ── Frontend source ─────────────────────────────────────────────────────────
+# web/ is needed by Dockerfile.frontend. Exclude only the heavy parts.
+web/node_modules/
+web/.angular/
+web/dist/
 
 # ── Plugin implementations ─────────────────────────────────────────────────
 # Plugins are NOT baked into the image — they are loaded at runtime via the

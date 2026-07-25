@@ -30,7 +30,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            web/dist/web/browser
+            web/dist/lidar-studio/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/package.json', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
       - name: Setup pnpm
@@ -83,13 +83,13 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            web/dist/web/browser
+            web/dist/lidar-studio/browser
           key: frontend-build-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml', 'web/package.json', 'web/src/**', 'web/angular.json', 'web/tsconfig*.json', 'web/*.config.*') }}
 
       - name: Stage frontend artifacts
         run: |
           mkdir -p ci-artifacts/frontend
-          cp -a web/dist/web/browser/. ci-artifacts/frontend/
+          cp -a web/dist/lidar-studio/browser/. ci-artifacts/frontend/
 
       - name: Upload frontend artifacts
         uses: actions/upload-artifact@v4

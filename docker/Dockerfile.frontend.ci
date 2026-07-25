@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # CI variant — uses pre-built Angular dist from the frontend-ci-artifacts action artifact.
 # Expected layout in build context root (project root):
-#   ci-artifacts/frontend/    — Angular production dist (contents of dist/web/browser)
+#   ci-artifacts/frontend/    — Angular production dist (contents of dist/lidar-studio/browser)
 
 FROM nginx:1.27-alpine
 

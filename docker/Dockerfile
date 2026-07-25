@@ -86,7 +86,7 @@ COPY app/ ./app/
 
 # ✅ No stale static to clean — just write directly from frontend builder
 #    (remove the COPY app/ if app/static/ is the only thing under app/)
-COPY --from=frontend-builder /web/dist/web/browser/ ./app/static/
+COPY --from=frontend-builder /web/dist/lidar-studio/browser/ ./app/static/
 
 EXPOSE 8005
 CMD ["uv", "run", "--no-sync", "python", "main.py"]

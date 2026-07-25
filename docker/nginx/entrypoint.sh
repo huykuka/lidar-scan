@@ -5,7 +5,7 @@
 # Docker bridge networking.
 set -e
 
-: "${BACKEND_HOST:=127.0.0.1}"
+: "${BACKEND_HOST:=host.docker.internal}"
 : "${BACKEND_PORT:=8005}"
 export BACKEND_HOST BACKEND_PORT
 

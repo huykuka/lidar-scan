@@ -1,14 +1,12 @@
 services:
-  lidar-standalone:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    image: 010497/lidar-studio:latest
+  lidar-studio-core:
+    image: 010497/lidar-studio-core:latest
     platform: linux/amd64
-    container_name: lidar-standalone
+    container_name: lidar-studio-core
     restart: unless-stopped
+    # Host networking gives the scanner library direct access to the local
+    # network so it can reach SICK devices via UDP/TCP without NAT.
     network_mode: "host"
-    command: tail -f /dev/null
     # Larger /dev/shm so multiprocessing.Queue semaphores and any shared
     # numpy buffers used by sensor worker processes don't contend on the
     # 64 MB container default.
@@ -38,6 +36,19 @@ services:
     volumes:
       - app_data:/app/data
       - app_plugins:/app/app/plugins/installed
+
+  lidar-studio-ui:
+    image: 010497/lidar-studio-ui:latest
+    platform: linux/amd64
+    container_name: lidar-studio-ui
+    restart: unless-stopped
+    ports:
+      - "8082:80"
+    depends_on:
+      - lidar-studio-core
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 
 volumes:
   app_data:

@@ -82,7 +82,7 @@ if [ "$DO_FRONTEND" = true ]; then
         echo "Building frontend and deploying to app/static..."
         WEB_DIR="$PROJECT_ROOT/web"
         STATIC_DIR="$PROJECT_ROOT/app/static"
-        DIST_DIR="$WEB_DIR/dist/web"
+        DIST_DIR="$WEB_DIR/dist/lidar-studio"
 
         ( 
           cd "$WEB_DIR"
