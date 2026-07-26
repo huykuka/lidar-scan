@@ -14,7 +14,7 @@
       [routerLink]="[item.route]"
       routerLinkActive="current"
     >
-      <syn-icon [name]="item.icon" slot="prefix"  />
+      <syn-icon [name]="themeService.isDark() ? item.icon + '_fill' : item.icon" slot="prefix" />
       {{ item.label }}
     </syn-nav-item>
   }
@@ -28,7 +28,7 @@
       routerLinkActive="current"
       slot="footer"
     >
-      <syn-icon [name]="item.icon" slot="prefix" />
+      <syn-icon [name]="themeService.isDark() ? item.icon + '_fill' : item.icon" slot="prefix" />
       {{ item.label }}
     </syn-nav-item>
   }

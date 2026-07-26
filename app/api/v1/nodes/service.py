@@ -21,14 +21,6 @@ from app.services.nodes.schema import node_schema_registry
 logger = get_logger(__name__)
 
 
-class NodeStatusToggle(BaseModel):
-    enabled: bool
-
-
-class NodeVisibilityToggle(BaseModel):
-    visible: bool
-
-
 async def list_nodes():
     """List all configured nodes."""
     repo = NodeRepository()
@@ -133,44 +125,6 @@ async def get_node(node_id: str):
     if not node:
         raise HTTPException(status_code=404, detail="Node not found")
     return node
-
-
-async def set_node_enabled(node_id: str, req: NodeStatusToggle):
-    """Toggle node enabled state."""
-    repo = NodeRepository()
-    repo.set_enabled(node_id, req.enabled)
-    return {"status": "success"}
-
-
-async def set_node_visible(node_id: str, req: NodeVisibilityToggle):
-    """Toggle node visibility state."""
-    from app.services.websocket.manager import SYSTEM_TOPICS
-    from app.services.shared.topics import slugify_topic_prefix
-
-    repo = NodeRepository()
-
-    # Fetch node by ID; raise 404 if not found
-    node = repo.get_by_id(node_id)
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
-
-    # Derive topic name and check against SYSTEM_TOPICS
-    node_name = node.get("name", node_id)
-    topic = f"{slugify_topic_prefix(node_name)}_{node_id[:8]}"
-
-    if topic in SYSTEM_TOPICS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot change visibility of system topic '{topic}'",
-        )
-
-    # Update visibility in database
-    repo.set_visible(node_id, req.visible)
-
-    # Update orchestrator state
-    await node_manager.set_node_visible(node_id, req.visible)
-
-    return {"status": "success"}
 
 
 async def reload_all_config():

@@ -450,7 +450,7 @@ class NodeManager:
             
             node_name = getattr(node_instance, "name", node_id)
             topic = f"{slugify_topic_prefix(node_name)}_{node_id[:8]}"
-            node_data = NodeRepository().get(node_id)
+            node_data = NodeRepository().get_by_id(node_id)
             category = node_data.get("category", "other") if node_data else "other"
             websocket_manager.register_topic(topic, category=category)
             node_instance._ws_topic = topic

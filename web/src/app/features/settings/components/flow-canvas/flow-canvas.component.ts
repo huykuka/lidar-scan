@@ -29,7 +29,6 @@ import {
 import { NodePlugin } from '@core/models';
 import { Edge } from '@core/models/node.model';
 import { NodeStoreService } from '@core/services/stores';
-import { NodesApiService } from '@core/services/api';
 import { DialogService, ToastService } from '@core/services';
 import { NodePluginRegistry } from '@core/services/node-plugin-registry.service';
 import { NodeStatusService } from '@core/services/node-status.service';
@@ -107,7 +106,6 @@ export class FlowCanvasComponent {
   protected connections = this.canvasEditStore.connections;
 
   // ------ API / service deps ------
-  private nodesApi = inject(NodesApiService);
   private toast = inject(ToastService);
   private dialog = inject(DialogService);
   private pluginRegistry = inject(NodePluginRegistry);
@@ -248,34 +246,12 @@ export class FlowCanvasComponent {
     this.canvasEditStore.deleteEdge(edgeId);
   }
 
-  async onToggleNodeEnabled(node: CanvasNode, enabled: boolean) {
-    this.nodeLoadingStates.update((states) => ({ ...states, [node.id]: true }));
-    try {
-      await this.nodesApi.setNodeEnabled(node.id, enabled);
-      const name = node.data.name || node.id;
-      this.canvasEditStore.updateNode(node.id, { enabled });
-    } catch (error) {
-      console.error('Failed to toggle node', error);
-    } finally {
-      this.nodeLoadingStates.update((states) => {
-        const newStates = { ...states };
-        delete newStates[node.id];
-        return newStates;
-      });
-    }
+  onToggleNodeEnabled(node: CanvasNode, enabled: boolean) {
+    this.canvasEditStore.updateNode(node.id, { enabled });
   }
 
-  async onToggleNodeVisibility(node: CanvasNode, visible: boolean) {
-    this.isTogglingVisibility.set(node.id);
+  onToggleNodeVisibility(node: CanvasNode, visible: boolean) {
     this.canvasEditStore.updateNode(node.id, { visible });
-    try {
-      await this.nodesApi.setNodeVisible(node.id, visible);
-    } catch (error) {
-      console.error('Failed to toggle node visibility', error);
-      this.canvasEditStore.updateNode(node.id, { visible: !visible });
-    } finally {
-      this.isTogglingVisibility.set(null);
-    }
   }
 
   getNodeStatus(node: CanvasNode) {

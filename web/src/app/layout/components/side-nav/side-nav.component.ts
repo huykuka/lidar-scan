@@ -16,6 +16,7 @@ import {filter} from 'rxjs/operators';
 import {SynergyComponentsModule, SynSideNavComponent} from '@synergy-design-system/angular';
 import {NAVIGATION_CONFIG} from '@core/models';
 import {AuthService, UserRole} from '@core/services/auth.service';
+import { ThemeService } from '@app/core/services';
 
 const ROLE_LEVELS: Record<UserRole, number> = {user: 0, admin: 1, service: 2};
 const DESKTOP_BREAKPOINT = 1024;
@@ -30,6 +31,7 @@ const DESKTOP_BREAKPOINT = 1024;
 export class SideNavComponent implements OnInit {
   private router = inject(Router);
   private auth = inject(AuthService);
+  protected themeService = inject(ThemeService);
 
   readonly synSideNav = viewChild.required<SynSideNavComponent>('sideNav');
   open = input<boolean>(true);

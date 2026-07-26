@@ -1,15 +1,28 @@
-<syn-tooltip [content]="label()" [distance]="13">
-  <div
-    class="relative inline-flex items-center"
-  >
-    <syn-icon-button [name]="icon()" [label]="label()" size="medium" />
-
-    @if (count() > 0) {
-      <span
-        class="count-badge pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
-        [style.background-color]="badgeColor()"
-        >{{ count() }}</span
-      >
-    }
+@if (mobile()) {
+  <div class="flex w-full items-center gap-2 py-0.5 pl-1 pr-3 cursor-pointer transition-colors duration-150 hover:bg-syn-color-neutral-100">
+    <div class="relative inline-flex items-center">
+      <syn-icon-button [name]="icon()" [label]="label()" size="medium" />
+      @if (count() > 0) {
+        <span
+          class="count-badge pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
+          [style.background-color]="badgeColor()"
+          >{{ count() }}</span
+        >
+      }
+    </div>
+    <span class="text-sm font-medium text-syn-color-neutral-700 select-none">Sensors</span>
   </div>
-</syn-tooltip>
+} @else {
+  <syn-tooltip [content]="label()" [distance]="13">
+    <div class="relative inline-flex items-center">
+      <syn-icon-button [name]="icon()" [label]="label()" size="medium" />
+      @if (count() > 0) {
+        <span
+          class="count-badge pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
+          [style.background-color]="badgeColor()"
+          >{{ count() }}</span
+        >
+      }
+    </div>
+  </syn-tooltip>
+}

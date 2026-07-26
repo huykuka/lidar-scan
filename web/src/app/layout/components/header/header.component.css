@@ -40,26 +40,6 @@
   overflow: hidden;
 }
 
-.mobile-action-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 12px 2px 4px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.mobile-action-row:hover {
-  background: var(--syn-color-neutral-100);
-}
-
-.mobile-action-label {
-  font-size: 0.875rem;
-  color: var(--syn-color-neutral-700);
-  font-weight: 500;
-  user-select: none;
-}
-
 .mobile-action-divider {
   height: 1px;
   margin: 4px 12px;

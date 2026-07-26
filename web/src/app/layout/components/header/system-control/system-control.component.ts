@@ -1,8 +1,8 @@
-import {ChangeDetectionStrategy, Component, computed, inject, signal} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {SystemStatusService} from '@core/services/system-status.service';
-import {AuthService} from '@core/services/auth.service';
-import {ToastService} from '@core/services/toast.service';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { SystemStatusService } from '@core/services/system-status.service';
+import { AuthService } from '@core/services/auth.service';
+import { ToastService } from '@core/services/toast.service';
 
 /**
  * System start/stop toggle button for the header.
@@ -22,6 +22,7 @@ import {ToastService} from '@core/services/toast.service';
   `,
 })
 export class SystemControlComponent {
+  readonly mobile = input(false);
   private readonly systemStatus = inject(SystemStatusService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
@@ -39,9 +40,7 @@ export class SystemControlComponent {
   );
 
   protected readonly statusColor = computed(() =>
-    this.isRunning()
-      ? 'var(--syn-color-success-600)'
-      : 'var(--syn-color-error-600)',
+    this.isRunning() ? 'var(--syn-color-success-600)' : 'var(--syn-color-error-600)',
   );
 
   protected async onToggle(): Promise<void> {
@@ -49,7 +48,7 @@ export class SystemControlComponent {
     try {
       if (this.isRunning()) {
         await this.systemStatus.stopSystem();
-        this.toast.success('Data flow stopped.');
+        this.toast.danger('Data flow stopped.');
       } else {
         await this.systemStatus.startSystem();
         this.toast.success('Data flow started.');

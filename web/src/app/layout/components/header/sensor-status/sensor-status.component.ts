@@ -1,6 +1,6 @@
-import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {NodeStoreService} from '@core/services/stores';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { NodeStoreService } from '@core/services/stores';
 
 /**
  * Sensor-node health indicator.
@@ -25,6 +25,7 @@ import {NodeStoreService} from '@core/services/stores';
   `,
 })
 export class SensorStatusComponent {
+  readonly mobile = input(false);
   private readonly store = inject(NodeStoreService);
 
   private readonly sensorNodes = computed(() =>

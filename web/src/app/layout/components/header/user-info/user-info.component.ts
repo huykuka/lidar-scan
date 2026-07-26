@@ -1,7 +1,7 @@
-import {ChangeDetectionStrategy, Component, inject, signal} from '@angular/core';
-import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
-import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
-import {AuthService} from '@core/services/auth.service';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-user-info',
@@ -20,6 +20,13 @@ export class UserInfoComponent {
   protected readonly dropdownOpen = signal(false);
   protected readonly loginLoading = signal(false);
   protected readonly loginError = signal<string | null>(null);
+
+  protected readonly userIcon = computed(() => {
+    const role = this.auth.user()?.role;
+    if (role === 'admin') return 'person_fill';
+    if (role === 'service') return 'manage_accounts_fill';
+    return 'person';
+  });
 
   protected async onLogin(): Promise<void> {
     if (this.loginForm.invalid) return;

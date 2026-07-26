@@ -1,8 +1,14 @@
-<syn-tooltip [content]="label()" [distance]="13">
-  <div
-    class="relative inline-flex items-center"
-    [style.--status-color]="statusColor()"
-  >
-    <syn-icon-button [name]="icon()" [label]="label()" size="medium" (click)="onRefresh()" />
+@if (mobile()) {
+  <div class="flex w-full items-center gap-2 py-0.5 pl-1 pr-3 cursor-pointer transition-colors duration-150 hover:bg-syn-color-neutral-100" [style.--status-color]="statusColor()" (click)="onRefresh()">
+    <div class="relative inline-flex items-center">
+      <syn-icon-button [name]="icon()" [label]="label()" size="medium" />
+    </div>
+    <span class="text-sm font-medium text-syn-color-neutral-700 select-none">Connection</span>
   </div>
-</syn-tooltip>
+} @else {
+  <syn-tooltip [content]="label()" [distance]="13">
+    <div class="relative inline-flex items-center" [style.--status-color]="statusColor()">
+      <syn-icon-button [name]="icon()" [label]="label()" size="medium" (click)="onRefresh()" />
+    </div>
+  </syn-tooltip>
+}

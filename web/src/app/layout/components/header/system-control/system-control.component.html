@@ -1,12 +1,20 @@
-<syn-tooltip [content]="label()" [distance]="13">
-  <syn-button
-    variant="text"
-    size="medium"
-    [loading]="loading()"
-    [disabled]="!canEdit()"
-    (click)="onToggle()"
-    
-  >
-    <syn-icon slot="prefix" [name]="icon()" [style.color]="statusColor()" />
-  </syn-button>
-</syn-tooltip>
+@if (mobile()) {
+  <div class="flex w-full items-center gap-2 py-0.5 pl-1 pr-3 cursor-pointer transition-colors duration-150 hover:bg-syn-color-neutral-100" (click)="onToggle()">
+    <syn-button variant="text" size="medium" [loading]="loading()" [disabled]="!canEdit()">
+      <syn-icon slot="prefix" [name]="icon()" [style.color]="statusColor()" />
+    </syn-button>
+    <span class="text-sm font-medium text-syn-color-neutral-700 select-none">System</span>
+  </div>
+} @else {
+  <syn-tooltip [content]="label()" [distance]="13">
+    <syn-icon-button
+      [name]="loading() ? 'sync' : icon()"
+      [label]="label()"
+      size="medium"
+      [class.animate-spin]="loading()"
+      [style.color]="statusColor()"
+      [disabled]="!canEdit() || loading()"
+      (click)="onToggle()"
+    />
+  </syn-tooltip>
+}

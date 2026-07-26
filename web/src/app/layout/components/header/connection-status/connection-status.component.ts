@@ -1,6 +1,6 @@
-import {ChangeDetectionStrategy, Component, computed, inject, output} from '@angular/core';
-import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {SystemStatusService} from '@core/services/system-status.service';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { SynergyComponentsModule } from '@synergy-design-system/angular';
+import { SystemStatusService } from '@core/services/system-status.service';
 
 /**
  * Backend connectivity indicator.
@@ -30,6 +30,7 @@ import {SystemStatusService} from '@core/services/system-status.service';
   `,
 })
 export class ConnectionStatusComponent {
+  readonly mobile = input(false);
   readonly refresh = output<void>();
 
   private readonly svc = inject(SystemStatusService);

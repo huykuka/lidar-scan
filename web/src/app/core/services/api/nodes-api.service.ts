@@ -11,12 +11,6 @@ import {LidarConfigValidationRequest, LidarConfigValidationResponse} from '@core
 export class NodesApiService {
   private http = inject(HttpClient);
 
-  async setNodeEnabled(id: string, enabled: boolean): Promise<any> {
-    return await firstValueFrom(
-      this.http.put(`${environment.apiUrl}/nodes/${id}/enabled`, {enabled}),
-    );
-  }
-
   async reloadConfig(): Promise<any> {
     return await firstValueFrom(this.http.post(`${environment.apiUrl}/nodes/reload`, {}));
   }
@@ -49,11 +43,5 @@ export class NodesApiService {
         warnings: ['Validation endpoint unavailable - config not verified']
       };
     }
-  }
-
-  async setNodeVisible(id: string, visible: boolean): Promise<{ status: string }> {
-    return await firstValueFrom(
-      this.http.put<{ status: string }>(`${environment.apiUrl}/nodes/${id}/visible`, { visible }),
-    );
   }
 }

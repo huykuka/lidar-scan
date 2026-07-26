@@ -18,11 +18,11 @@ from app.api.v1.schemas.nodes import (
 from app.services.nodes.schema import NodeDefinition
 from .service import (
     list_nodes, list_node_definitions, get_node,
-    set_node_enabled, set_node_visible, reload_all_config, get_nodes_status,
+    reload_all_config, get_nodes_status,
     reload_single_node, get_reload_status,
     list_node_type_registry, set_node_type_enabled,
     list_plugins, load_plugin, unload_plugin, remove_plugin, upload_plugin,
-    NodeStatusToggle, NodeVisibilityToggle, NodeTypeToggle, NodeTypeRecord, PluginRecord,
+    NodeTypeToggle, NodeTypeRecord, PluginRecord,
 )
 
 # Router configuration
@@ -231,27 +231,4 @@ async def node_get_endpoint(node_id: str):
     return await get_node(node_id)
 
 
-@router.put(
-    "/nodes/{node_id}/visible",
-    response_model=StatusResponse,
-    responses={
-        400: {"description": "Cannot change visibility of system topic"},
-        404: {"description": "Node not found"}
-    },
-    summary="Set Node Visible",
-    description="Toggle node visibility state. Controls whether the node streams data to WebSocket.",
-)
-@roles_required("admin")
-async def node_visible_endpoint(node_id: str, req: NodeVisibilityToggle):
-    return await set_node_visible(node_id, req)
 
-
-@router.put(
-    "/nodes/{node_id}/enabled",
-    response_model=StatusResponse,
-    summary="Set Node Enabled",
-    description="Toggle node enabled state.",
-)
-@roles_required("admin")
-async def node_enabled_endpoint(node_id: str, req: NodeStatusToggle):
-    return await set_node_enabled(node_id, req)

@@ -6,7 +6,7 @@
   (synAfterHideEvent)="onDropdownHide()"
 >
   <syn-icon-button slot="trigger"
-    name="person_fill"
+    [name]="userIcon()"
     label="Account"
     size="medium"
     [style.color]="auth.isAuthenticated() ? 'var(--syn-color-primary-600)' : 'inherit'"
@@ -16,7 +16,7 @@
     @if (auth.isAuthenticated()) {
       <div class="account-topbar">
         <div class="account-info">
-          <syn-icon name="account_circle" class="account-avatar" />
+          <syn-icon [name]="userIcon()" class="account-avatar" />
           <div class="account-details">
             <span class="account-name">{{ auth.user()?.username }}</span>
             <span class="account-role">{{ auth.user()?.role }}</span>
