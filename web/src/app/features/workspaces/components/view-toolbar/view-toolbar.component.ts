@@ -21,6 +21,7 @@ export class ViewToolbarComponent {
 
   /** Current active layout mode — drives button highlight */
   protected activeMode = computed(() => this.layout.layoutMode());
+  protected isSmallScreen = computed(() => this.layout.isSmallScreen());
 
   /** True while the layout transition animation is in progress */
 

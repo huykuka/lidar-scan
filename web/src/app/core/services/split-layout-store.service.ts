@@ -112,6 +112,9 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     return [leftFrac, 1 - leftFrac];
   });
 
+  /** True when the viewport is narrower than the `md` Tailwind breakpoint (768 px). */
+  isSmallScreen = signal(typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
+
   constructor() {
     super();
     this.loadFromStorage();
@@ -120,6 +123,18 @@ export class SplitLayoutStoreService extends SignalsSimpleStoreService<SplitLayo
     effect(() => {
       this.saveToStorage(this.state());
     });
+
+    // Watch viewport width and force single-pane layout on small screens
+    if (typeof window !== 'undefined') {
+      const mq = window.matchMedia('(max-width: 767px)');
+      const handler = (e: MediaQueryListEvent) => {
+        this.isSmallScreen.set(e.matches);
+        if (e.matches && this.layoutMode() !== 'single') {
+          this.resetToDefault();
+        }
+      };
+      mq.addEventListener('change', handler);
+    }
   }
 
   // ── Public Mutators ───────────────────────────────────────────────────────

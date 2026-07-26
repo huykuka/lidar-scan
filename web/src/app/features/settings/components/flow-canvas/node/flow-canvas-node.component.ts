@@ -116,9 +116,20 @@ export class FlowCanvasNodeComponent implements OnInit, OnDestroy {
     return status.error_message ?? null;
   });
 
+  protected statusBadgeColor = computed<string>(() => {
+    const state = this.status()?.operational_state;
+    const map: Record<string, string> = {
+      RUNNING: '#16a34a',
+      INITIALIZE: '#d97706',
+      STOPPED: '#6b7280',
+      ERROR: '#dc2626',
+    };
+    return map[state ?? ''] ?? '#6b7280';
+  });
+
   protected cycleTimeLabel = computed<string | null>(() => {
     const ms = this.status()?.cycle_time_ms;
-    if (ms == null) return null;
+    if (ms === null || ms === undefined) return null;
     return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(ms >= 10 ? 0 : 1)}ms`;
   });
 

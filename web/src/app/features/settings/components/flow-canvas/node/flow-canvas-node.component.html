@@ -1,3 +1,4 @@
+
 <div
   data-testid="node-card"
   (click)="$event.stopPropagation()"
@@ -12,6 +13,7 @@
   [class.node-card--disabled]="!isNodeEnabled()"
   [class.node-card--unknown]="isDefinitionMissing()"
   class="node-card bg-syn-page-background-color rounded-lg shadow-md border-2 border-l-0 w-[220px] hover:shadow-lg transition-all duration-200 relative flex flex-col"
+  [title]="errorText()"
 >
   <span class="node-card__accent" aria-hidden="true"></span>
 
@@ -64,18 +66,10 @@
       </span>
     </div>
     @if (isNodeEnabled()) {
-      <syn-tooltip
-        [content]="
-          !liveStatus() ? 'Live status paused' : (status()?.operational_state ?? 'Unknown')
-        "
-        [distance]="13"
-        placement="top"
-      >
         <syn-icon
           [name]="operationalIcon().icon"
           [class]="operationalIcon().css + ' text-[20px] shrink-0'"
         />
-      </syn-tooltip>
     }
   </div>
 
@@ -91,8 +85,8 @@
         [label]="isNodeEnabled() ? 'Disable Node' : 'Enable Node'"
         [name]="isLoading() ? 'sync' : 'power_settings_new'"
         [class.animate-spin]="isLoading()"
-        [class.text-syn-color-success-600]="isNodeEnabled() && !isLoading()"
-        [class.text-syn-color-neutral-400]="!isNodeEnabled() && !isLoading()"
+        [class.text-syn-color-success-700]="isNodeEnabled() && !isLoading()"
+        [class.text-syn-color-error-600]="!isNodeEnabled() && !isLoading()"
         size="small"
       />
 
@@ -135,6 +129,7 @@
 
   } <!-- /@else isDefinitionMissing -->
 </div>
+
 
 <!-- Context Menu (lightweight custom menu with animation) -->
 @if (contextMenuOpen()) {
