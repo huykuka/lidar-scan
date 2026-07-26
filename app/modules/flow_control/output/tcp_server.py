@@ -14,7 +14,7 @@ Usage:
 import asyncio
 import json
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from app.core.logging import get_logger
 
@@ -31,6 +31,20 @@ class TcpStreamServer:
         self._port = port
         self._server: Optional[asyncio.AbstractServer] = None
         self._writers: Set[asyncio.StreamWriter] = set()
+        self._on_client_change: Optional[Callable[[], None]] = None
+
+    def set_client_change_callback(self, cb: Callable[[], None]) -> None:
+        """Register a zero-argument callback fired on every connect/disconnect."""
+        self._on_client_change = cb
+
+    # ------------------------------------------------------------------
+    # Introspection
+    # ------------------------------------------------------------------
+
+    @property
+    def client_count(self) -> int:
+        """Number of currently connected TCP clients."""
+        return len(self._writers)
 
     # ------------------------------------------------------------------
     # Factory
@@ -133,6 +147,8 @@ class TcpStreamServer:
         peer = writer.get_extra_info("peername")
         logger.info(f"TcpStreamServer: client connected from {peer}")
         self._writers.add(writer)
+        if self._on_client_change:
+            self._on_client_change()
         try:
             # Keep the connection open; drain any keep-alive bytes the client sends.
             while True:
@@ -149,6 +165,8 @@ class TcpStreamServer:
             except Exception:
                 pass
             logger.info(f"TcpStreamServer: client disconnected from {peer}")
+            if self._on_client_change:
+                self._on_client_change()
 
     # ------------------------------------------------------------------
     # Broadcasting
@@ -180,3 +198,5 @@ class TcpStreamServer:
                 writer.close()
             except Exception:
                 pass
+        if dead and self._on_client_change:
+            self._on_client_change()

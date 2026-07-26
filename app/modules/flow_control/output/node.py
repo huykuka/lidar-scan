@@ -56,6 +56,7 @@ class OutputNode(ModuleNode):
         self.last_metadata_at: Optional[float] = None
 
         if self._tcp is not None:
+            self._tcp.set_client_change_callback(lambda: notify_status_change(self.id))
             asyncio.create_task(self._tcp.start())
 
         logger.debug(
@@ -118,10 +119,24 @@ class OutputNode(ModuleNode):
         Return standardised status for this Output Node.
 
         State mapping:
-        - No data received yet → RUNNING, no application_state
-        - Data received within last 5s → RUNNING, metadata=True (blue)
-        - Data received but stale (>5s) → RUNNING, metadata=False (gray)
+        - TCP disabled, no data yet        → RUNNING, no application_state
+        - TCP disabled, data received      → RUNNING, label="metadata", value=recent bool
+        - TCP enabled                      → RUNNING, label="tcp_clients", value=<count>
         """
+        tcp_active = self._tcp is not None
+
+        if tcp_active:
+            count = self._tcp.client_count  # type: ignore[union-attr]
+            return NodeStatusUpdate(
+                node_id=self.id,
+                operational_state=OperationalState.RUNNING,
+                application_state=ApplicationState(
+                    label="tcp_clients",
+                    value=count,
+                    color="blue" if count > 0 else "gray",
+                ),
+            )
+
         if self.last_metadata_at is None:
             return NodeStatusUpdate(
                 node_id=self.id,
