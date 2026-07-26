@@ -67,19 +67,15 @@
           </syn-button>
         </syn-tooltip>
 
-        <syn-tooltip
-          content="Pull latest config from backend"
-          [distance]="13"
-          placement="bottom"
-        >
+        <syn-tooltip content="Pull latest config from backend" [distance]="13" placement="bottom">
           <syn-button
             variant="outline"
             [disabled]="canvasEditStore.isSyncing()"
             (click)="onSync()"
             [loading]="canvasEditStore.isSyncing()"
           >
-              <syn-icon name="sync" slot="prefix" />
-              <span> Sync </span>
+            <syn-icon name="sync" slot="prefix" />
+            <span> Sync </span>
           </syn-button>
         </syn-tooltip>
 
@@ -109,12 +105,10 @@
 
     <!-- Read-only notice for users without edit permission -->
     @if (!canEdit()) {
-      <div
-        class="flex items-center gap-2 px-4 py-2 bg-syn-color-neutral-100 border-b text-xs text-syn-color-neutral-600 shrink-0"
-      >
-        <syn-icon name="info" style="font-size: 1rem" />
-        <span>Read-only mode — sign in as admin to make changes</span>
-      </div>
+      <syn-alert variant="neutral" [open]="true">
+        <syn-icon slot="icon" name="status-warning" library="system"></syn-icon>
+        Read-only mode — sign in as admin to make changes<br />
+      </syn-alert>
     }
 
     <!-- Canvas + Preview split -->
@@ -145,10 +139,7 @@
 
       <!-- Resizable divider + Preview (right pane) -->
       @if (previewOpen()) {
-        <div
-          class="settings-divider"
-          (pointerdown)="onDividerDown($event)"
-        ></div>
+        <div class="settings-divider" (pointerdown)="onDividerDown($event)"></div>
         <div
           class="min-h-0 overflow-hidden relative flex flex-col"
           [style.width.px]="previewWidth()"
