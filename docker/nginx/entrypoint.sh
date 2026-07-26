@@ -6,7 +6,7 @@
 set -e
 
 : "${BACKEND_HOST:=host.docker.internal}"
-: "${BACKEND_PORT:=8005}"
+: "${BACKEND_PORT:=8004}"
 export BACKEND_HOST BACKEND_PORT
 
 envsubst '${BACKEND_HOST} ${BACKEND_PORT}' \
