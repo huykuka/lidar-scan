@@ -50,15 +50,23 @@ async def capture_frame(topic: str):
         raise HTTPException(status_code=503, detail="Topic was removed while waiting for frame. Please retry.")
 
 
+_PING_INTERVAL = 20  # seconds — must be shorter than any proxy idle timeout
+
+
 async def websocket_endpoint(websocket: WebSocket, topic: str):
     """WebSocket endpoint for real-time data streaming."""
     await manager.connect(websocket, topic)
     try:
         while True:
-            # Keep connection open; client may not send messages.
-            msg = await websocket.receive()
-            if msg.get("type") == "websocket.disconnect":
-                break
+            try:
+                # Wait for a client message; time out to send a keepalive ping.
+                msg = await asyncio.wait_for(websocket.receive(), timeout=_PING_INTERVAL)
+                if msg.get("type") == "websocket.disconnect":
+                    break
+            except asyncio.TimeoutError:
+                # No client activity — send a ping frame to keep the TCP session
+                # alive through proxies and NAT gateways.
+                await websocket.send_text("ping")
     except WebSocketDisconnect:
         pass
     except RuntimeError:

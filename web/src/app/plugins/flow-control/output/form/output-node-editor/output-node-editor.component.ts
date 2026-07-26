@@ -1,16 +1,24 @@
-import {ChangeDetectionStrategy, Component, computed, inject, OnInit, output, signal} from '@angular/core';
-import {Router} from '@angular/router';
-import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
-import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
-import {NodeEditorComponent} from '@core/models/node-plugin.model';
-import {NodeStoreService} from '@core/services/stores/node-store.service';
-import {ToastService} from '@core/services/toast.service';
-import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
-import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  output,
+  signal,
+} from '@angular/core';
+import { Router } from '@angular/router';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { SynergyComponentsModule, SynergyFormsModule } from '@synergy-design-system/angular';
+import { NodeEditorComponent } from '@core/models/node-plugin.model';
+import { NodeStoreService } from '@core/services/stores/node-store.service';
+import { ToastService } from '@core/services/toast.service';
+import { NodeEditorHeaderComponent } from '@plugins/shared/node-editor-header/node-editor-header.component';
+import { NodeEditorFacadeService } from '@features/settings/services/node-editor-facade.service';
 
 /**
  * Drawer editor for Output Node configuration.
- * Shows node name, "View Live Data" link, and the WebhookConfigComponent.
+ * Covers: node name, WebSocket live-data link, webhook settings, and TCP stream settings.
  */
 @Component({
   selector: 'app-output-node-editor',
@@ -37,9 +45,7 @@ export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {
   protected isSaving = signal(false);
 
   protected nodeId = computed(() => this.nodeStore.selectedNode()?.id ?? null);
-
   protected isEditMode = computed(() => !!this.nodeStore.selectedNode()?.id);
-
   protected definition = computed(() =>
     this.nodeStore.nodeDefinitions().find((d) => d.type === 'output_node'),
   );
@@ -48,14 +54,21 @@ export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {
 
   constructor() {
     const node = this.nodeStore.selectedNode();
+    const cfg = node?.config ?? {};
+
     this.form = new FormGroup({
-      name: new FormControl(node?.name || 'Output', [Validators.required]),
+      name: new FormControl(node?.name ?? 'Output', [Validators.required]),
+
+      // TCP stream
+      tcp_enabled: new FormControl(cfg['tcp_enabled'] ?? false),
+      tcp_port: new FormControl(cfg['tcp_port'] ?? 9000, [
+        Validators.min(1),
+        Validators.max(65535),
+      ]),
     });
   }
 
-  async ngOnInit(): Promise<void> {
-    // Webhook config skipped — not yet implemented.
-  }
+  ngOnInit(): void {}
 
   protected navigateToLiveData(): void {
     const id = this.nodeId();
@@ -66,7 +79,7 @@ export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {
 
   async onSave(): Promise<void> {
     if (!this.form.valid) {
-      this.toast.warning('Please enter a node name');
+      this.toast.warning('Please fix validation errors before saving');
       return;
     }
     const def = this.definition();
@@ -74,13 +87,20 @@ export class OutputNodeEditorComponent implements OnInit, NodeEditorComponent {
       this.toast.danger('Node definition not found');
       return;
     }
+
+    const v = this.form.value;
     this.isSaving.set(true);
+
     const success = await this.facade.saveNode({
-      name: this.form.value.name,
-      config: {},
+      name: v.name,
+      config: {
+        tcp_enabled: v.tcp_enabled,
+        tcp_port: Number(v.tcp_port),
+      },
       definition: def,
       existingNode: this.nodeStore.selectedNode() ?? {},
     });
+
     this.isSaving.set(false);
     if (success) {
       this.saved.emit();

@@ -1,12 +1,12 @@
 """
 OutputNode - Terminal sink DAG node that broadcasts metadata to WebSocket
-and optionally posts it to a configured webhook URL.
+and streams it over a configurable TCP server.
 
 This node:
 - Accepts one input connection (terminal — no downstream forwarding)
 - Extracts JSON-serializable metadata from the incoming payload
 - Broadcasts via the system_status WebSocket topic (type discriminator: output_node_metadata)
-- Optionally fires an HTTP POST webhook (fire-and-forget, 10s timeout, no retry)
+- Optionally streams over TCP (NDJSON) to all connected clients
 """
 import asyncio
 import time
@@ -16,7 +16,7 @@ from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
-from .webhook import WebhookSender
+from .tcp_server import TcpStreamServer
 
 logger = get_logger(__name__)
 
@@ -48,14 +48,20 @@ class OutputNode(ModuleNode):
         self.id = node_id
         self.name = name
         self._config = config
-        self._webhook: Optional[WebhookSender] = WebhookSender.from_config(config)
+        self._tcp: Optional[TcpStreamServer] = TcpStreamServer.from_config(config)
 
         # Runtime counters
         self.metadata_count: int = 0
         self.error_count: int = 0
         self.last_metadata_at: Optional[float] = None
 
-        logger.debug(f"Created OutputNode {node_id} (webhook={'enabled' if self._webhook else 'disabled'})")
+        if self._tcp is not None:
+            asyncio.create_task(self._tcp.start())
+
+        logger.debug(
+            f"Created OutputNode {node_id} "
+            f"(tcp={'enabled' if self._tcp else 'disabled'})"
+        )
 
     async def on_input(self, payload: Dict[str, Any]) -> None:
         try:
@@ -84,8 +90,8 @@ class OutputNode(ModuleNode):
 
             asyncio.create_task(ws_manager.broadcast("output", message))
 
-            if self._webhook is not None:
-                asyncio.create_task(self._webhook.send(message))
+            if self._tcp is not None:
+                asyncio.create_task(self._tcp.broadcast(message))
 
             self.last_metadata_at = time.time()
             self.metadata_count += 1
@@ -133,16 +139,12 @@ class OutputNode(ModuleNode):
             ),
         )
 
-    def _rebuild_webhook(self, config: Dict[str, Any]) -> None:
-        """
-        Hot-reload webhook configuration without restarting the node.
+    async def stop(self) -> None:
+        """Called by the orchestrator when the node is torn down.
 
-        Called by the PATCH /api/v1/nodes/{node_id}/webhook endpoint
-        after persisting new config to the database.
+        Declared async so the lifecycle manager awaits it, guaranteeing the
+        TCP port is fully released before a replacement node tries to bind.
         """
-        self._config = config
-        self._webhook = WebhookSender.from_config(config)
-        logger.info(
-            f"OutputNode {self.id}: Webhook config reloaded "
-            f"(webhook={'enabled' if self._webhook else 'disabled'})"
-        )
+        if self._tcp is not None:
+            await self._tcp.stop_async()
+            self._tcp = None
