@@ -89,6 +89,12 @@ export class PoseFormComponent implements OnInit {
     this.poseFormGroup.valueChanges
       .pipe(
         filter(() => this.poseFormGroup.valid),
+        filter((raw) =>
+          !['x', 'y', 'z', 'roll', 'pitch', 'yaw'].some((k) => {
+            const s = String(raw[k] ?? '');
+            return s === '-' || s.endsWith('.');
+          }),
+        ),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe(() => {
