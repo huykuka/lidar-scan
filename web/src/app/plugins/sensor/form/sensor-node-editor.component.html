@@ -33,10 +33,11 @@
           @if (prop.type === 'string') {
             <syn-validate on="live" >
               <syn-input
-                required
+                [attr.required]="prop.required || null"
                 [formControlName]="prop.name"
                 [helpText]="prop.help_text || ''"
                 [label]="prop.label"
+                ngDefaultControl
                 size="small"
               />
             </syn-validate>
@@ -45,13 +46,14 @@
           @if (prop.type === 'number') {
             <syn-validate on="live" >
               <syn-input
-                required
+                [attr.required]="prop.required || null"
                 [attr.max]="prop.max"
                 [attr.min]="prop.min"
                 [formControlName]="prop.name"
                 [helpText]="prop.help_text || ''"
                 [label]="prop.label"
                 [step]="prop.step || 1"
+                ngDefaultControl
                 size="small"
                 type="number"
               />
@@ -109,7 +111,7 @@
       }
     </div>
 
-    <app-pose-form [pose]="poseValue()" (poseChange)="onPoseChange($event)" />
+    <app-pose-form [pose]="poseValue()" (poseChange)="onPoseChange($event)" (poseValidChange)="isPoseValid.set($event)" />
 
     @if (isImuCapable() && isExistingNode()) {
       <div class="flex flex-col gap-2 rounded border border-syn-color-neutral-200">

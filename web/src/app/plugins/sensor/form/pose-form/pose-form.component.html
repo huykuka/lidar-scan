@@ -35,10 +35,10 @@
             axis | uppercase
           }}</span>
           <syn-input [formControlName]="axis"
-            type="number"
             size="small"
             [step]="0.1"
-            (synInputEvent)="onXyzInput($any(axis), $event)"
+            type="number"
+            ngDefaultControl
            />
         </div>
       }
@@ -67,19 +67,17 @@
               [min]="-180"
               [max]="180"
               [step]="0.01"
+              ngDefaultControl
               [value]="$safeNavigationMigration(poseFormGroup.get(axis.key)?.value?.toString())"
               [tooltipFormatter]="angleLabelFn"
-              size="small"
-              (synInputEvent)="onAngleInput($any(axis.key), $event)"
-              (synChangeEvent)="onAngleChange($any(axis.key), $event)"
+              [formControlName]="axis.key"
             />
           <syn-validate on="live" >
             <syn-input [formControlName]="axis.key"
               type="number"
-              size="small"
               [step]="0.01"
+              ngDefaultControl
               class="w-32 shrink-0"
-              (synInputEvent)="onAngleInput($any(axis.key), $event)"
              />
           </syn-validate>
         </div>

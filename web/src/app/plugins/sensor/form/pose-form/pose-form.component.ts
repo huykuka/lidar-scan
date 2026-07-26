@@ -6,10 +6,21 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
-import {ChangeDetectionStrategy, Component, effect, inject, input, OnInit, output} from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  OnInit,
+  output,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {UpperCasePipe} from '@angular/common';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
 import {Pose, ZERO_POSE} from '@core/models/pose.model';
+import { filter } from 'rxjs';
 
 /**
  * Conversion factor: backend stores position in meters,
@@ -47,12 +58,13 @@ export class PoseFormComponent implements OnInit {
    * Position values (x, y, z) are emitted in **meters** (backend unit).
    */
   poseChange = output<Pose>();
+  poseValidChange = output<boolean>();
 
   poseFormGroup!: FormGroup;
 
   private fb = inject(FormBuilder);
+  private destroyRef = inject(DestroyRef);
 
-  /** Tooltip formatter for syn-range: formats a number as "45°". */
   angleLabelFn = (value: number): string => `${value}°`;
 
   constructor() {
@@ -74,57 +86,31 @@ export class PoseFormComponent implements OnInit {
       pitch: [initial.pitch, [Validators.required, angleRangeValidator]],
       yaw: [initial.yaw, [Validators.required, angleRangeValidator]],
     });
+    this.poseFormGroup.valueChanges
+      .pipe(
+        filter(() => this.poseFormGroup.valid),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        this.poseChange.emit(this.formValueToPose(this.poseFormGroup.getRawValue()));
+      });
+
+    this.poseFormGroup.statusChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((status) => {
+        this.poseValidChange.emit(status === 'VALID');
+      });
   }
 
-  /** Exposes form validity for parent gate on save button. */
   get isValid(): boolean {
     return this.poseFormGroup?.valid ?? true;
   }
 
-  /**
-   * Handles numeric input for x, y, z fields.
-   * Form value is in mm; emitted pose is converted back to meters.
-   */
-  onXyzInput(field: string, event: Event): void {
-    const raw = (event.target as HTMLInputElement).value;
-    if (raw === '' || raw === '-' || raw === '.' || raw === '-.') return;
-    const value = Number(raw);
-    if (isNaN(value)) return;
-    this.poseFormGroup.get(field)?.setValue(value);
-    this.emitCurrentPose();
-  }
-
-  /**
-   * Handles syn-input event for angle number input or syn-range (live drag).
-   * Patches the form, emits poseChange.
-   */
-  onAngleInput(field: 'roll' | 'pitch' | 'yaw', event: Event): void {
-    const raw = (event.target as any).value;
-    if (raw === '' || raw === '-' || raw === '.' || raw === '-.') return;
-    const value = Number(raw);
-    if (isNaN(value)) return;
-    this.poseFormGroup.get(field)?.setValue(value);
-    this.emitCurrentPose();
-  }
-
-  /**
-   * Handles syn-change event for syn-range (committed value).
-   * Marks the field as dirty.
-   */
-  onAngleChange(field: 'roll' | 'pitch' | 'yaw', _event: Event): void {
-    this.poseFormGroup.get(field)?.markAsDirty();
-  }
-
-  /** Resets all 6 controls to ZERO_POSE and emits poseChange (meters). */
   resetPose(): void {
     this.poseFormGroup.patchValue(this.poseToFormValue(ZERO_POSE));
     this.poseChange.emit({ ...ZERO_POSE });
   }
 
-  /**
-   * Convert a backend Pose (meters) to form values (mm for position).
-   * Angles pass through unchanged.
-   */
   private poseToFormValue(p: Pose): Pose {
     return {
       x: +(p.x * M_TO_MM).toFixed(3),
@@ -136,10 +122,6 @@ export class PoseFormComponent implements OnInit {
     };
   }
 
-  /**
-   * Convert form values (mm for position) back to backend Pose (meters).
-   * Angles pass through unchanged.
-   */
   private formValueToPose(raw: Record<string, any>): Pose {
     return {
       x: +(Number(raw['x']) * MM_TO_M).toFixed(6) || 0,
@@ -149,9 +131,5 @@ export class PoseFormComponent implements OnInit {
       pitch: Number(raw['pitch']) || 0,
       yaw: Number(raw['yaw']) || 0,
     };
-  }
-
-  private emitCurrentPose(): void {
-    this.poseChange.emit(this.formValueToPose(this.poseFormGroup.getRawValue()));
   }
 }
