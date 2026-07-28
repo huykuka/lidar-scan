@@ -25,7 +25,7 @@ import {ViewOrientation} from '@core/services/split-layout-store.service';
   template: `
     <app-shared-viewport-overlay
       [orientation]="pane().orientation"
-      [showGrid]="showGridState()"
+      [showGrid]="showGrid()"
       [hasData]="hasData()"
       (orientationChange)="onOrientationChange($event)"
       (gridToggle)="onGridToggle($event)"
@@ -34,12 +34,12 @@ import {ViewOrientation} from '@core/services/split-layout-store.service';
 })
 export class ViewportOverlayComponent {
   readonly pane = input.required<ViewPane>();
+  readonly showGrid = input(true);
   readonly gridToggled = output<boolean>();
 
   private layout = inject(SplitLayoutStoreService);
   private dataService = inject(PointCloudDataService);
 
-  protected showGridState = computed(() => true);
   protected hasData = computed(() => this.dataService.frames().size > 0);
 
   onOrientationChange(value: ViewOrientation): void {

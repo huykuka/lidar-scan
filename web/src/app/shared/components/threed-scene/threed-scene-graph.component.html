@@ -10,9 +10,9 @@
 <ngts-text [text]="'Y'" [options]="{ position: [0, 42, 0], color: '#52c41a', fontSize: 1.6 }"/>
 <ngts-text [text]="'Z'" [options]="{ position: [0, 0, 42], color: '#4096ff', fontSize: 1.6 }"/> -->
 
+<ngts-grid [options]="gridOptions()" />
+<ngts-grid [options]="{ rotation: [Math.PI / 2, 0, 0], ...gridOptions() }" />
 @if (showGrid()) {
-  <ngts-grid [options]="gridOptions()" />
-  <ngts-grid [options]="{ rotation: [Math.PI / 2, 0, 0], ...gridOptions() }" />
   <ngts-grid [options]="{ rotation: [0,  0,Math.PI / 2,], ...gridOptions() }" />
 }
 
