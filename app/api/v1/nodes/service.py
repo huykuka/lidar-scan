@@ -135,7 +135,12 @@ async def reload_all_config():
             detail="A configuration reload is already in progress. Please wait and retry.",
         )
 
-    await node_manager.reload_config()
+    try:
+        await node_manager.reload_config()
+    except RuntimeError as exc:
+        # Raised when the reload watchdog aborts a hung reload. The lock has
+        # already been released, so the client can safely retry.
+        raise HTTPException(status_code=504, detail=str(exc))
     return {"status": "success"}
 
 
@@ -173,7 +178,12 @@ async def reload_single_node(node_id: str):
         )
 
     # ── Perform selective reload ───────────────────────────────────────────
-    result = await node_manager.selective_reload_node(node_id)
+    try:
+        result = await node_manager.selective_reload_node(node_id)
+    except RuntimeError as exc:
+        # Raised when the reload watchdog aborts a hung selective reload. The
+        # lock has already been released, so the client can safely retry.
+        raise HTTPException(status_code=504, detail=str(exc))
 
     if result is not None and result.status == "error":
         if result.rolled_back:

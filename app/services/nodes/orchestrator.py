@@ -34,6 +34,15 @@ from .input_gate import NodeInputGate
 
 logger = get_logger(__name__)
 
+# Watchdog timeouts (seconds) guarding the reload critical section. The
+# ``_reload_lock`` is held for the whole reload; without an upper bound a single
+# hung await (node start(), websocket register/unregister, a sensor process that
+# never releases its port, ...) would keep the lock held forever and make every
+# subsequent reload return HTTP 409. These caps force a stuck reload to abort,
+# release the lock, and surface an error so the app self-heals.
+FULL_RELOAD_TIMEOUT_S: float = 5.0
+SELECTIVE_RELOAD_TIMEOUT_S: float = 5.0
+
 
 class NodeManager:
     """
@@ -140,56 +149,79 @@ class NodeManager:
         """
         async with self._reload_lock:
             logger.info("Config reload started (lock acquired)")
-            
-            was_running = self.is_running
-            
-            logger.info("Starting config reload...")
-            # Only set flags and cancel the listener synchronously.
-            # Actual node stops are handled by stop_all_nodes() below
-            # to avoid blocking the event loop on sensor process.join().
-            self.is_running = False
-            if self._listener_task:
-                self._listener_task.cancel()
+            try:
+                await asyncio.wait_for(
+                    self._reload_config_impl(loop), timeout=FULL_RELOAD_TIMEOUT_S
+                )
+            except asyncio.TimeoutError:
+                # A step inside the reload hung. wait_for has already cancelled
+                # the inner coroutine; exiting the `async with` releases the lock
+                # so future reloads are not permanently blocked with HTTP 409.
+                self.is_running = False
+                logger.error(
+                    "Config reload exceeded %.0fs and was aborted to release the "
+                    "reload lock. The pipeline may be in a partial state — trigger "
+                    "another reload once the underlying issue is resolved.",
+                    FULL_RELOAD_TIMEOUT_S,
+                )
+                raise RuntimeError(
+                    f"Config reload timed out after {FULL_RELOAD_TIMEOUT_S:.0f}s"
+                )
 
-            # Stop all nodes properly via async path (runs sensor stop() in
-            # threads so the event loop stays responsive).
-            await self._lifecycle_manager.stop_all_nodes()
-            
-            # Snapshot all topics registered BEFORE cleanup
-            topics_before: set[str] = set(websocket_manager.active_connections.keys())
-            
-            logger.info("Cleaning up all nodes...")
-            await self._cleanup_all_nodes_async()
-            self._topic_registry.clear()
-            
-            logger.info("Waiting for process cleanup and port release...")
-            await asyncio.sleep(0.5)  # Process join already handled by stop_all_nodes (10 s timeout); this brief pause covers port release only.
-            
-            # Sweep ALL topics that don't belong to the current configuration
-            # This includes both topics that failed cleanup AND phantom topics from previous deployments
-            logger.info("Loading new config...")
-            await asyncio.to_thread(self.load_config)
-            
-            # Collect all valid topics that should exist based on current config
-            valid_topics: set[str] = set()
-            for node_instance in self.nodes.values():
-                if hasattr(node_instance, '_ws_topic'):
-                    valid_topics.add(node_instance._ws_topic)
-            
-            # Find ALL topics that shouldn't exist (phantom + orphaned)
-            current_topics: set[str] = set(websocket_manager.active_connections.keys())
-            invalid_topics: set[str] = current_topics - valid_topics - SYSTEM_TOPICS
-            
-            if invalid_topics:
-                logger.warning(f"reload_config: sweeping {len(invalid_topics)} invalid topic(s): {invalid_topics}")
-                for invalid_topic in invalid_topics:
-                    await websocket_manager.unregister_topic(invalid_topic)
-            
-            if was_running:
-                logger.info("Restarting system...")
-                await self.start(loop or self._loop)
-            
-            logger.info("Config reload complete.")
+    async def _reload_config_impl(self, loop=None) -> None:
+        """Body of :meth:`reload_config`, run under a watchdog timeout.
+
+        Must only be called while ``_reload_lock`` is held.
+        """
+        was_running = self.is_running
+
+        logger.info("Starting config reload...")
+        # Only set flags and cancel the listener synchronously.
+        # Actual node stops are handled by stop_all_nodes() below
+        # to avoid blocking the event loop on sensor process.join().
+        self.is_running = False
+        if self._listener_task:
+            self._listener_task.cancel()
+
+        # Stop all nodes properly via async path (runs sensor stop() in
+        # threads so the event loop stays responsive).
+        await self._lifecycle_manager.stop_all_nodes()
+
+        # Snapshot all topics registered BEFORE cleanup
+        topics_before: set[str] = set(websocket_manager.active_connections.keys())
+
+        logger.info("Cleaning up all nodes...")
+        await self._cleanup_all_nodes_async()
+        self._topic_registry.clear()
+
+        logger.info("Waiting for process cleanup and port release...")
+        await asyncio.sleep(0.5)  # Process join already handled by stop_all_nodes (10 s timeout); this brief pause covers port release only.
+
+        # Sweep ALL topics that don't belong to the current configuration
+        # This includes both topics that failed cleanup AND phantom topics from previous deployments
+        logger.info("Loading new config...")
+        await asyncio.to_thread(self.load_config)
+
+        # Collect all valid topics that should exist based on current config
+        valid_topics: set[str] = set()
+        for node_instance in self.nodes.values():
+            if hasattr(node_instance, '_ws_topic'):
+                valid_topics.add(node_instance._ws_topic)
+
+        # Find ALL topics that shouldn't exist (phantom + orphaned)
+        current_topics: set[str] = set(websocket_manager.active_connections.keys())
+        invalid_topics: set[str] = current_topics - valid_topics - SYSTEM_TOPICS
+
+        if invalid_topics:
+            logger.warning(f"reload_config: sweeping {len(invalid_topics)} invalid topic(s): {invalid_topics}")
+            for invalid_topic in invalid_topics:
+                await websocket_manager.unregister_topic(invalid_topic)
+
+        if was_running:
+            logger.info("Restarting system...")
+            await self.start(loop or self._loop)
+
+        logger.info("Config reload complete.")
 
     async def selective_reload_node(self, node_id: str):
         """
@@ -214,15 +246,38 @@ class NodeManager:
             self._active_reload_node_id = node_id
             try:
                 await self._broadcast_reload_event(node_id, "reloading", "selective")
-                result = await self._selective_reload_manager.reload_single_node(node_id)
+                result = await asyncio.wait_for(
+                    self._selective_reload_manager.reload_single_node(node_id),
+                    timeout=SELECTIVE_RELOAD_TIMEOUT_S,
+                )
                 self._data_router.invalidate_shape_collector_cache()
                 status = "ready" if result.status == "reloaded" else "error"
                 await self._broadcast_reload_event(
                     node_id, status, "selective", result.error_message
                 )
                 return result
+            except asyncio.TimeoutError:
+                # Abort the hung selective reload so the lock is released and the
+                # frontend loading state is cleared instead of sticking forever.
+                logger.error(
+                    "Selective reload of node %r exceeded %.0fs and was aborted "
+                    "to release the reload lock.",
+                    node_id,
+                    SELECTIVE_RELOAD_TIMEOUT_S,
+                )
+                await self._broadcast_reload_event(
+                    node_id,
+                    "error",
+                    "selective",
+                    f"Reload timed out after {SELECTIVE_RELOAD_TIMEOUT_S:.0f}s",
+                )
+                raise RuntimeError(
+                    f"Selective reload of node '{node_id}' timed out after "
+                    f"{SELECTIVE_RELOAD_TIMEOUT_S:.0f}s"
+                )
             finally:
                 self._active_reload_node_id = None
+
 
     async def hot_update_node_pose(self, node_id: str):
         """Hot-update a node's pose without stopping/restarting its worker.
