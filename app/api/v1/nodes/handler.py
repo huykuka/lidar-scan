@@ -5,7 +5,7 @@ All node creation, update, and deletion is now performed atomically via
 PUT /api/v1/dag/config. This router retains read-only and live-action endpoints.
 """
 
-from fastapi import APIRouter, UploadFile, File, Query
+from fastapi import APIRouter, UploadFile, File
 
 from app.api.v1.auth.dependencies import roles_required
 from app.api.v1.schemas.common import StatusResponse
@@ -21,7 +21,7 @@ from .service import (
     reload_all_config, get_nodes_status,
     reload_single_node, get_reload_status,
     list_node_type_registry, set_node_type_enabled,
-    list_plugins, load_plugin, unload_plugin, remove_plugin, upload_plugin,
+    list_plugins, remove_plugin, upload_plugin,
     NodeTypeToggle, NodeTypeRecord, PluginRecord,
 )
 
@@ -131,14 +131,14 @@ async def nodes_status_endpoint():
     return await get_nodes_status()
 
 
-# ── Plugin load / unload ──────────────────────────────────────────────────
+# ── Plugins ──────────────────────────────────────────────────────────────
 
 
 @router.get(
     "/nodes/plugins",
     response_model=list[PluginRecord],
     summary="List Plugins",
-    description="List all plugin packages in app/plugins/ with their current load state and registered types.",
+    description="List all installed plugin packages with their registered types and metadata.",
 )
 async def nodes_plugins_list_endpoint():
     return await list_plugins()
@@ -149,8 +149,7 @@ async def nodes_plugins_list_endpoint():
     summary="Upload Plugin",
     description=(
         "Upload a plugin as a `.zip` file. The zip must contain a single top-level "
-        "directory that has a `registry.py`. Set `auto_load=false` to install without "
-        "activating immediately."
+        "directory with a `registry.py`. The plugin is loaded immediately after install."
     ),
     responses={
         422: {"description": "Invalid zip structure or missing registry.py"},
@@ -160,52 +159,17 @@ async def nodes_plugins_list_endpoint():
 @roles_required("service")
 async def nodes_plugins_upload_endpoint(
     file: UploadFile = File(..., description="Plugin zip archive"),
-    auto_load: bool = Query(True, description="Load the plugin immediately after install"),
 ):
     zip_bytes = await file.read()
-    return await upload_plugin(zip_bytes, auto_load)
-
-
-@router.post(
-    "/nodes/plugins/{plugin_name}/load",
-    summary="Load Plugin",
-    description=(
-        "Load (or reload) an installed plugin by its directory name. "
-        "Returns the set of node types that were registered."
-    ),
-    responses={
-        404: {"description": "Plugin directory not found in app/plugins/"},
-        422: {"description": "Plugin has no registry.py"},
-        500: {"description": "Import error during load"},
-    },
-)
-@roles_required("service")
-async def nodes_plugins_load_endpoint(plugin_name: str):
-    return await load_plugin(plugin_name)
+    return await upload_plugin(zip_bytes)
 
 
 @router.delete(
     "/nodes/plugins/{plugin_name}",
-    summary="Unload Plugin",
-    description=(
-        "Unload a plugin — removes its node types from NodeFactory and SchemaRegistry "
-        "and evicts it from sys.modules. The files remain on disk; re-load with POST "
-        ".../load. Existing DAG instances keep running until the next reload."
-    ),
-    responses={
-        404: {"description": "Plugin is not currently loaded"},
-    },
-)
-@roles_required("service")
-async def nodes_plugins_unload_endpoint(plugin_name: str):
-    return await unload_plugin(plugin_name)
-
-
-@router.delete(
-    "/nodes/plugins/{plugin_name}/uninstall",
     summary="Remove Plugin",
     description=(
         "Unload a plugin and permanently delete its directory from disk. "
+        "All running DAG instances of its node types are stopped. "
         "This cannot be undone — re-install by uploading a new zip."
     ),
     responses={

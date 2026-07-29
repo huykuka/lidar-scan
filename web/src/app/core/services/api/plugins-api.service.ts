@@ -7,6 +7,8 @@ export interface PluginRecord {
   name: string;
   loaded: boolean;
   types: string[];
+  version?: string;
+  description?: string;
 }
 
 export interface PluginActionResponse {
@@ -23,34 +25,17 @@ export class PluginsApiService {
     return firstValueFrom(this.http.get<PluginRecord[]>(`${environment.apiUrl}/nodes/plugins`));
   }
 
-  loadPlugin(name: string): Promise<PluginActionResponse> {
-    return firstValueFrom(
-      this.http.post<PluginActionResponse>(`${environment.apiUrl}/nodes/plugins/${name}/load`, {}),
-    );
-  }
-
-  unloadPlugin(name: string): Promise<PluginActionResponse> {
+  removePlugin(name: string): Promise<PluginActionResponse> {
     return firstValueFrom(
       this.http.delete<PluginActionResponse>(`${environment.apiUrl}/nodes/plugins/${name}`),
     );
   }
 
-  removePlugin(name: string): Promise<PluginActionResponse> {
-    return firstValueFrom(
-      this.http.delete<PluginActionResponse>(
-        `${environment.apiUrl}/nodes/plugins/${name}/uninstall`,
-      ),
-    );
-  }
-
-  uploadPlugin(file: File, autoLoad = true): Promise<PluginActionResponse> {
+  uploadPlugin(file: File): Promise<PluginActionResponse> {
     const form = new FormData();
     form.append('file', file);
     return firstValueFrom(
-      this.http.post<PluginActionResponse>(
-        `${environment.apiUrl}/nodes/plugins/upload?auto_load=${autoLoad}`,
-        form,
-      ),
+      this.http.post<PluginActionResponse>(`${environment.apiUrl}/nodes/plugins/upload`, form),
     );
   }
 }

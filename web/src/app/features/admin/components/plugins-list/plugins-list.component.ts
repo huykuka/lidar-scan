@@ -17,7 +17,7 @@ export class PluginsListComponent implements OnInit {
 
   protected plugins = signal<PluginRecord[]>([]);
   protected isLoading = signal(true);
-  protected actionInProgress = signal<string | null>(null);
+  protected removingPlugin = signal<string | null>(null);
   protected isUploading = signal(false);
   protected isDragOver = signal(false);
 
@@ -38,33 +38,6 @@ export class PluginsListComponent implements OnInit {
       this.toast.danger('Failed to load plugins.');
     } finally {
       this.isLoading.set(false);
-    }
-  }
-
-  protected async onToggle(plugin: PluginRecord) {
-    this.actionInProgress.set(plugin.name);
-    try {
-      if (plugin.loaded) {
-        await this.pluginsApi.unloadPlugin(plugin.name);
-        this.plugins.update((list) =>
-          list.map((p) => (p.name === plugin.name ? { ...p, loaded: false, types: [] } : p)),
-        );
-        this.toast.warning(`Plugin "${plugin.name}" unloaded.`);
-      } else {
-        const result = await this.pluginsApi.loadPlugin(plugin.name);
-        this.plugins.update((list) =>
-          list.map((p) =>
-            p.name === plugin.name ? { ...p, loaded: true, types: result.types } : p,
-          ),
-        );
-        this.toast.success(
-          `Plugin "${plugin.name}" loaded - ${result.types.length} type(s) registered.`,
-        );
-      }
-    } catch (err: any) {
-      this.toast.danger(err?.error?.detail ?? `Failed to toggle plugin "${plugin.name}".`);
-    } finally {
-      this.actionInProgress.set(null);
     }
   }
 
@@ -103,7 +76,7 @@ export class PluginsListComponent implements OnInit {
     try {
       const result = await this.pluginsApi.uploadPlugin(file);
       this.toast.success(
-        `Plugin "${result.plugin}" installed - ${result.types.length} type(s) registered.`,
+        `Plugin "${result.plugin}" installed — ${result.types.length} type(s) registered.`,
       );
       await this.loadPlugins();
     } catch (err: any) {
@@ -123,7 +96,7 @@ export class PluginsListComponent implements OnInit {
     });
     if (!confirmed) return;
 
-    this.actionInProgress.set(plugin.name);
+    this.removingPlugin.set(plugin.name);
     try {
       await this.pluginsApi.removePlugin(plugin.name);
       this.plugins.update((list) => list.filter((p) => p.name !== plugin.name));
@@ -131,7 +104,7 @@ export class PluginsListComponent implements OnInit {
     } catch (err: any) {
       this.toast.danger(err?.error?.detail ?? `Failed to remove plugin "${plugin.name}".`);
     } finally {
-      this.actionInProgress.set(null);
+      this.removingPlugin.set(null);
     }
   }
 }

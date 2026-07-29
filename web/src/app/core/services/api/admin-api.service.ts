@@ -9,6 +9,8 @@ export interface NodeTypeRecord {
   category: string;
   description: string;
   use_case?: string;
+  version?: string;
+  source: 'builtin' | 'plugin';
   icon: string;
   enabled: boolean;
 }

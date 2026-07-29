@@ -7,10 +7,10 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="p-3 flex items-center justify-between gap-4 transition-all duration-300">
+    <div class="p-3 flex flex-col sm:flex-row sm:items-center gap-3 transition-all duration-300">
       <!-- Left: Search & Filter Group -->
-      <div class="flex items-center gap-4 flex-1 min-w-0">
-        <div class="relative flex-1 max-w-lg group">
+      <div class="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+        <div class="relative flex-1 min-w-[160px] group">
           <syn-input
             type="text"
             placeholder="Search logs..."
@@ -23,7 +23,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           </syn-input>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-shrink-0">
           <syn-select
             [value]="selectedLevel()"
             (syn-change)="onLevelChange($event)"
@@ -39,9 +39,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           </syn-select>
         </div>
 
-        <div
-          class="flex gap-3 items-center border-l border-syn-color-neutral-100 pl-4 hidden xl:flex"
-        >
+        <div class="hidden xl:flex gap-3 items-center border-l border-syn-color-neutral-100 pl-4">
           <syn-badge variant="neutral" size="small" class="opacity-70"
             >{{ totalCount() || 0 }} total</syn-badge
           >
@@ -52,8 +50,9 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
       </div>
 
       <!-- Right: Actions Group -->
-      <div class="flex items-center gap-2">
-        <!-- Live Stream Toggle -->
+      <div
+        class="flex items-center gap-2 flex-shrink-0 overflow-x-auto pb-1 sm:pb-0 scrollbar-thin"
+      >
         <syn-button
           [variant]="isStreaming() ? 'filled' : 'outline'"
           (click)="streamingToggled.emit(!isStreaming())"
@@ -67,16 +66,14 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           <span>{{ isStreaming() ? 'Stop Live' : 'Go Live' }}</span>
         </syn-button>
 
-        <div class="flex items-center gap-2">
-          <syn-button variant="outline" (click)="refreshClicked.emit()">
-            <syn-icon slot="prefix" name="refresh" />
-            Refresh
-          </syn-button>
-          <syn-button variant="outline" (click)="downloadClicked.emit()">
-            <syn-icon slot="prefix" name="file_download" />
-            Download Logs
-          </syn-button>
-        </div>
+        <syn-button variant="outline" (click)="refreshClicked.emit()">
+          <syn-icon slot="prefix" name="refresh" />
+          Refresh
+        </syn-button>
+        <syn-button variant="outline" (click)="downloadClicked.emit()">
+          <syn-icon slot="prefix" name="file_download" />
+          Download Logs
+        </syn-button>
       </div>
     </div>
   `,

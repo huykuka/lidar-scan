@@ -18,8 +18,8 @@
     @for (group of groupedNodeTypes(); track group.category) {
       <syn-details open [contained]="true">
         <div slot="summary" class="flex items-center gap-2">
-          <syn-icon [name]="getCategoryIcon(group.category)" class="text-[var(--syn-color-neutral-600)]" />
-          <span class="text-xs font-bold uppercase text-[var(--syn-color-neutral-700)]">{{ group.category }}</span>
+          <syn-icon [name]="getCategoryIcon(group.category)" class="text-[var(--syn-color-neutral-800)]" />
+          <span class="text-xs font-bold uppercase text-[var(--syn-color-neutral-900)]">{{ group.category }}</span>
           <div class="ml-4 flex items-center gap-1">
             @if (enabledInGroup(group.types) > 0) {
               <syn-badge variant="success" size="small" pill>{{ enabledInGroup(group.types) }} on</syn-badge>
@@ -41,22 +41,30 @@
                 [class]="nt.enabled ? 'bg-[var(--syn-color-primary-100)]' : 'bg-[var(--syn-color-neutral-100)]'"
               >
                 <syn-icon
+                   size="large"
                   [name]="nt.icon || 'extension'"
-                  [class]="nt.enabled ? 'text-[var(--syn-color-primary-600)]' : 'text-[var(--syn-color-neutral-400)]'"
+                  [class]="nt.enabled ? 'text-[var(--syn-color-primary-900)]' : 'text-[var(--syn-color-neutral-400)]'"
                 />
               </div>
 
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-sm font-semibold text-[var(--syn-color-neutral-900)] truncate">
                     {{ nt.display_name }}
                   </span>
-                  <code class="text-xs px-1.5 py-0.5 rounded bg-[var(--syn-color-neutral-100)] text-[var(--syn-color-neutral-600)] font-mono">
-                    {{ nt.type }}
-                  </code>
+                  <syn-tag> {{ nt.type }}</syn-tag>
+                  @if (nt.version) {
+                    <syn-badge variant="primary" size="small" pill>v{{ nt.version }}</syn-badge>
+                  }
+                  @if (nt.source === 'plugin') {
+                    <syn-badge variant="warning" size="small" pill>plugin</syn-badge>
+                  }
                 </div>
                 @if (nt.description) {
-                  <p class="text-xs text-[var(--syn-color-neutral-500)] mt-1 leading-relaxed">{{ nt.description }}</p>
+                  <p class="text-xs text-[var(--syn-color-neutral-800)] mt-1 leading-relaxed">{{ nt.description }}</p>
+                }
+                @if (nt.use_case) {
+                  <p class="text-xs text-[var(--syn-color-neutral-500)] mt-0.5 italic leading-relaxed">{{ nt.use_case }}</p>
                 }
               </div>
 
