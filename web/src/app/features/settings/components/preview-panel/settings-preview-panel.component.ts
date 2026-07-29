@@ -62,8 +62,8 @@ export class SettingsPreviewPanelComponent implements OnDestroy {
   private readonly canvasEditStore = inject(CanvasEditStoreService);
 
   /** Snap increments for pivot controls */
-  readonly TRANSLATION_SNAP = 0.005; // 5cm
-  readonly ROTATION_SNAP = 1; // 5 degrees
+  readonly TRANSLATION_SNAP = 0.001; // 5cm
+  readonly ROTATION_SNAP = 0.01; // 5 degrees
 
   /** Topics explicitly selected for preview via node context menu */
   readonly previewTopics = signal<PreviewTopic[]>([]);
