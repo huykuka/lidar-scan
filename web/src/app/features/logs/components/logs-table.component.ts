@@ -21,7 +21,7 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
           class="flex flex-col items-center justify-center h-full text-syn-color-neutral-400 py-12"
         >
           <syn-icon name="description" class="text-5xl opacity-20 mb-4" />
-          <p class="text-lg">No log entries found</p>
+          <h3 class="text-lg font-semibold mb-2">No log entries found</h3>
         </div>
       } @else {
         @if (isLoading()) {

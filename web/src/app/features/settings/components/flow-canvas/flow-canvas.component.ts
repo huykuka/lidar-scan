@@ -65,6 +65,7 @@ export class FlowCanvasComponent {
   // ------ Inputs ------
   readonly readOnly = input(false);
   readonly previewedNodeIds = input<Set<string>>(new Set());
+  readonly loadError = input(false);
 
   // ------ Outputs ------
   onTogglePreview = output<CanvasNode>();

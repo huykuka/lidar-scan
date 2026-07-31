@@ -105,9 +105,16 @@
 
     <!-- Read-only notice for users without edit permission -->
     @if (!canEdit()) {
-      <syn-alert variant="neutral" [open]="true">
-        <syn-icon slot="icon" name="status-warning" library="system"></syn-icon>
+      <syn-alert variant="primary" [open]="true">
+        <syn-icon slot="icon" name="status-informative" library="system"></syn-icon>
         Read-only mode — sign in as admin to make changes<br />
+      </syn-alert>
+    }
+    <!-- Canvas load failure alert (overlaid on top) -->
+    @if (loadError()) {
+      <syn-alert variant="critical" [open]="true">
+        <syn-icon slot="icon" name="warning"></syn-icon>
+        Could not load the canvas configuration.
       </syn-alert>
     }
 
@@ -117,6 +124,7 @@
       <div class="flex-1 min-w-0 min-h-0 overflow-hidden relative">
         <app-flow-canvas
           [readOnly]="!canEdit()"
+          [loadError]="loadError()"
           [previewedNodeIds]="previewedNodeIds()"
           (onTogglePreview)="onToggleNodePreview($event)"
         />

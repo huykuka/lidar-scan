@@ -35,7 +35,13 @@ import {HasUnsavedChanges} from '@core/guards/unsaved-changes.guard';
   styleUrl: './settings.component.css',
   providers: [CanvasEditStoreService],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, SynergyComponentsModule, ConfigImportDialogComponent, FlowCanvasComponent, SettingsPreviewPanelComponent],
+  imports: [
+    FormsModule,
+    SynergyComponentsModule,
+    ConfigImportDialogComponent,
+    FlowCanvasComponent,
+    SettingsPreviewPanelComponent,
+  ],
 })
 export class SettingsComponent implements OnInit, HasUnsavedChanges {
   protected auth = inject(AuthService);
@@ -61,6 +67,9 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
 
   // Phase 7.2: global initializing state — true until both node definitions + DAG config are loaded
   protected isInitializing = signal(true);
+
+  // True when the canvas configuration failed to load — surfaces a syn-alert over the canvas.
+  protected loadError = signal(false);
 
   // Import/Export state
   protected isExporting = signal(false);
@@ -124,11 +133,16 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
       title: 'Settings',
       subtitle: 'Configure LiDAR sensors, fusion nodes, and recording settings',
     });
+    await this.loadCanvas();
+  }
 
+  /** Load node definitions + DAG config; can be re-run via the alert's retry action. */
+  async loadCanvas() {
     // Phase 7.2: load node definitions + DAG config in parallel so both are
     // available before the canvas becomes interactive (fixes empty palette bug).
     // Note: NodeStatusService WS is now started at app level by MainLayoutComponent.
     this.isInitializing.set(true);
+    this.loadError.set(false);
     try {
       const [dagConfig] = await Promise.all([
         this.dagApi.getDagConfig(),
@@ -137,7 +151,7 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
       this.canvasEditStore.initFromBackend(dagConfig);
     } catch (error) {
       console.error('Failed to initialize canvas', error);
-      this.toast.danger('Failed to load canvas configuration.');
+      this.loadError.set(true);
     } finally {
       this.isInitializing.set(false);
     }

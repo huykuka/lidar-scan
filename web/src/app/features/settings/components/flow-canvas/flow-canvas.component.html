@@ -114,7 +114,7 @@
       }
 
       <!-- Loading overlay -->
-      @if (isCanvasLoading()) {
+      @if (isCanvasLoading() && !loadError()) {
         <div
           class="absolute inset-0 flex items-center justify-center bg-syn-page-background-color/80 z-30"
         >
