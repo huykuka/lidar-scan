@@ -15,11 +15,13 @@ import {
   input,
   OnInit,
   output,
+  signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {UpperCasePipe} from '@angular/common';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
 import {Pose, ZERO_POSE} from '@core/models/pose.model';
+import { NodesApiService } from '@core/services/api';
 import { filter } from 'rxjs';
 
 /**
@@ -60,10 +62,23 @@ export class PoseFormComponent implements OnInit {
   poseChange = output<Pose>();
   poseValidChange = output<boolean>();
 
+  /**
+   * Node id used for one-shot floor calibration. When null/empty the
+   * "Calibrate from Floor" button is hidden (e.g. for unsaved nodes).
+   */
+  nodeId = input<string | null>(null);
+
+  /** When true, floor calibration is disabled (IMU auto-level owns leveling). */
+  imuAutoLevel = input<boolean>(false);
+
   poseFormGroup!: FormGroup;
+
+  protected isCalibratingFloor = signal(false);
+  protected floorCalibrationMessage = signal<string | null>(null);
 
   private fb = inject(FormBuilder);
   private destroyRef = inject(DestroyRef);
+  private nodesApi = inject(NodesApiService);
 
   angleLabelFn = (value: number): string => `${value}°`;
 
@@ -89,11 +104,12 @@ export class PoseFormComponent implements OnInit {
     this.poseFormGroup.valueChanges
       .pipe(
         filter(() => this.poseFormGroup.valid),
-        filter((raw) =>
-          !['x', 'y', 'z', 'roll', 'pitch', 'yaw'].some((k) => {
-            const s = String(raw[k] ?? '');
-            return s === '-' || s.endsWith('.');
-          }),
+        filter(
+          (raw) =>
+            !['x', 'y', 'z', 'roll', 'pitch', 'yaw'].some((k) => {
+              const s = String(raw[k] ?? '');
+              return s === '-' || s.endsWith('.');
+            }),
         ),
         takeUntilDestroyed(this.destroyRef),
       )
@@ -115,6 +131,30 @@ export class PoseFormComponent implements OnInit {
   resetPose(): void {
     this.poseFormGroup.patchValue(this.poseToFormValue(ZERO_POSE));
     this.poseChange.emit({ ...ZERO_POSE });
+  }
+
+  async onCalibrateFromFloor(): Promise<void> {
+    const id = this.nodeId();
+    if (!id) return;
+
+    this.isCalibratingFloor.set(true);
+    this.floorCalibrationMessage.set(null);
+
+    try {
+      const result = await this.nodesApi.calibrateFromFloor(id);
+      if (result.pose) {
+        this.poseFormGroup.patchValue(this.poseToFormValue(result.pose), { emitEvent: false });
+        this.poseChange.emit(result.pose);
+        this.floorCalibrationMessage.set(
+          `Applied: roll=${result.pose.roll.toFixed(2)}, pitch=${result.pose.pitch.toFixed(2)}`,
+        );
+      }
+    } catch (err: any) {
+      const detail = err?.error?.detail || err?.message || 'Floor calibration failed';
+      this.floorCalibrationMessage.set(detail);
+    } finally {
+      this.isCalibratingFloor.set(false);
+    }
   }
 
   private poseToFormValue(p: Pose): Pose {

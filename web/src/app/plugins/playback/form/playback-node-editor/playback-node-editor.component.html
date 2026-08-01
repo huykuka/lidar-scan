@@ -103,5 +103,5 @@
   </div>
 
   <!-- 6-DOF Pose -->
-  <app-pose-form [pose]="poseValue()" (poseChange)="onPoseChange($event)" />
+  <app-pose-form [pose]="poseValue()" [nodeId]="nodeId()" (poseChange)="onPoseChange($event)" />
 </div>

@@ -26,6 +26,18 @@ server {
         proxy_send_timeout 3600s;
     }
 
+    # WebSocket proxy (live log streaming) — must come before /api/ (longest-prefix wins)
+    location = /api/v1/logs/ws {
+        proxy_pass         http://${BACKEND_HOST}:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade    $http_upgrade;
+        proxy_set_header   Connection "upgrade";
+        proxy_set_header   Host       $host;
+        proxy_set_header   X-Real-IP  $remote_addr;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
     # REST API proxy
     location /api/ {
         proxy_pass         http://${BACKEND_HOST}:${BACKEND_PORT};

@@ -4,10 +4,8 @@ from fastapi import APIRouter
 
 from .service import (
     calibrate_from_imu,
-    calibrate_from_floor,
     get_imu_status,
     validate_lidar_config,
-    FloorCalibrationRequest,
     LidarConfigValidationRequest, LidarConfigValidationResponse
 )
 
@@ -39,22 +37,6 @@ async def lidar_validate_endpoint(request: LidarConfigValidationRequest):
 )
 async def lidar_calibrate_from_imu_endpoint(node_id: str):
     return await calibrate_from_imu(node_id)
-
-
-@router.post(
-    "/{node_id}/calibrate-from-floor",
-    responses={
-        404: {"description": "Sensor node not found"},
-        400: {"description": "Node is not a LiDAR sensor"},
-        409: {"description": "No floor plane found, no frame yet, or IMU auto-level enabled"},
-    },
-    summary="Calibrate Sensor Pose from Floor Plane",
-    description="Segment the ground plane from the latest frame, derive the tilt "
-                "correction, apply it to the sensor pose, and persist. Disabled while "
-                "IMU auto-level is active.",
-)
-async def lidar_calibrate_from_floor_endpoint(node_id: str, request: FloorCalibrationRequest = FloorCalibrationRequest()):
-    return await calibrate_from_floor(node_id, request)
 
 
 @router.get(

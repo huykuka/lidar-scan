@@ -22,6 +22,7 @@ from .service import (
     reload_single_node, get_reload_status,
     list_node_type_registry, set_node_type_enabled,
     list_plugins, remove_plugin, upload_plugin,
+    calibrate_from_floor, FloorCalibrationRequest,
     NodeTypeToggle, NodeTypeRecord, PluginRecord,
 )
 
@@ -38,6 +39,24 @@ router = APIRouter(tags=["Nodes"])
 )
 async def nodes_list_endpoint():
     return await list_nodes()
+
+
+@router.post(
+    "/nodes/{node_id}/calibrate-from-floor",
+    responses={
+        404: {"description": "Node not found"},
+        400: {"description": "Node does not support floor calibration"},
+        409: {"description": "No floor plane found, no frame yet, or IMU auto-level enabled"},
+    },
+    summary="Calibrate Node Pose from Floor Plane",
+    description="Segment the ground plane from the latest frame, derive the tilt "
+                "correction, apply it to the node pose, and persist. Works for any "
+                "pose-bearing source node. Disabled while IMU auto-level is active.",
+)
+async def node_calibrate_from_floor_endpoint(
+    node_id: str, request: FloorCalibrationRequest = FloorCalibrationRequest()
+):
+    return await calibrate_from_floor(node_id, request)
 
 
 @router.get(

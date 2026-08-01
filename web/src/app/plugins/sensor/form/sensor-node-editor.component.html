@@ -111,7 +111,13 @@
       }
     </div>
 
-    <app-pose-form [pose]="poseValue()" (poseChange)="onPoseChange($event)" (poseValidChange)="isPoseValid.set($event)" />
+    <app-pose-form
+      [pose]="poseValue()"
+      [nodeId]="nodeId()"
+      [imuAutoLevel]="isImuAutoLevel()"
+      (poseChange)="onPoseChange($event)"
+      (poseValidChange)="isPoseValid.set($event)"
+    />
 
     @if (isImuCapable() && isExistingNode()) {
       <div class="flex flex-col gap-2 rounded border border-syn-color-neutral-200">
@@ -143,48 +149,6 @@
           </syn-button>
           @if (calibrationMessage()) {
             <p class="text-[10px] text-syn-color-neutral-600 mt-1">{{ calibrationMessage() }}</p>
-          }
-        </div>
-      </div>
-    }
-
-    @if (isExistingNode()) {
-      <div class="flex flex-col gap-2 rounded border border-syn-color-neutral-200">
-        <div
-          class="flex items-center justify-between px-3 py-1.5 bg-syn-color-neutral-100 rounded-t border-b border-syn-color-neutral-200"
-        >
-          <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-800"
-            >Floor Calibration</span
-          >
-        </div>
-        <div class="flex flex-col gap-2 px-3 pb-3">
-          <p class="text-[11px] text-syn-color-neutral-700">
-            Segment the ground plane from the live cloud and level the sensor so the floor is
-            horizontal. Adjusts roll/pitch only; run again to refine.
-          </p>
-          <syn-button
-            variant="outline"
-            size="small"
-            type="button"
-            [disabled]="isCalibratingFloor() || isImuAutoLevel()"
-            (click)="onCalibrateFromFloor()"
-          >
-            <syn-icon name="align_horizontal_center" slot="prefix" />
-            @if (isCalibratingFloor()) {
-              Calibrating...
-            } @else {
-              Calibrate from Floor
-            }
-          </syn-button>
-          @if (isImuAutoLevel()) {
-            <p class="text-[10px] text-syn-color-neutral-600 mt-1">
-              Disabled while IMU auto-level is active.
-            </p>
-          }
-          @if (floorCalibrationMessage()) {
-            <p class="text-[10px] text-syn-color-neutral-600 mt-1">
-              {{ floorCalibrationMessage() }}
-            </p>
           }
         </div>
       </div>

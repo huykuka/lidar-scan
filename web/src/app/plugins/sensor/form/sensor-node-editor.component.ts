@@ -39,8 +39,6 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
   protected isPoseValid = signal<boolean>(true);
   protected isCalibrating = signal(false);
   protected calibrationMessage = signal<string | null>(null);
-  protected isCalibratingFloor = signal(false);
-  protected floorCalibrationMessage = signal<string | null>(null);
   protected isSaveDisabled = computed(
     () => this.form?.invalid || this.configForm?.invalid || !this.isPoseValid() || this.isSaving(),
   );
@@ -54,6 +52,7 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
     return selected?.['has_imu_udp_port'] === true;
   });
   protected isExistingNode = computed(() => !!this.nodeStore.selectedNode().id);
+  protected nodeId = computed(() => this.nodeStore.selectedNode().id || null);
   protected isImuAutoLevel = computed(() => !!this.formValues()['imu_auto_level']);
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
@@ -145,29 +144,6 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
       this.calibrationMessage.set(detail);
     } finally {
       this.isCalibrating.set(false);
-    }
-  }
-
-  async onCalibrateFromFloor() {
-    const nodeId = this.nodeStore.selectedNode().id;
-    if (!nodeId) return;
-
-    this.isCalibratingFloor.set(true);
-    this.floorCalibrationMessage.set(null);
-
-    try {
-      const result = await this.lidarApi.calibrateFromFloor(nodeId);
-      if (result.pose) {
-        this.poseValue.set(result.pose);
-      }
-      this.floorCalibrationMessage.set(
-        `Applied: roll=${result.pose.roll.toFixed(2)}, pitch=${result.pose.pitch.toFixed(2)}`,
-      );
-    } catch (err: any) {
-      const detail = err?.error?.detail || err?.message || 'Floor calibration failed';
-      this.floorCalibrationMessage.set(detail);
-    } finally {
-      this.isCalibratingFloor.set(false);
     }
   }
 

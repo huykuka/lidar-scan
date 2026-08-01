@@ -8,10 +8,10 @@ per-node calls.
 """
 
 import time
-from typing import Optional, Set
+from typing import Any, Dict, Optional, Set
 
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
 from app.repositories import NodeRepository
@@ -35,6 +35,68 @@ async def list_node_definitions():
     db_rows = registry_repo.list_all()
     disabled_types = {r["type"] for r in db_rows if not r["enabled"]}
     return [d for d in node_schema_registry.get_all() if d.type not in disabled_types]
+
+
+# ── Floor calibration (node-generic pose auto-level) ──────────────────────
+
+
+def _get_calibratable_node(node_id: str):
+    """Resolve any floor-calibratable source node (lidar, playback, visionary, pcd)."""
+    from app.services.nodes.floor_calibration import FloorCalibrationMixin
+
+    node = node_manager.nodes.get(node_id)
+    if node is None:
+        raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
+    if not isinstance(node, FloorCalibrationMixin):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Node {node_id} does not support floor calibration (type: {type(node).__name__})",
+        )
+    return node
+
+
+class FloorCalibrationRequest(BaseModel):
+    """Tunable parameters for floor-plane auto-level."""
+    distance_threshold: float = Field(default=0.05, gt=0.0, description="RANSAC inlier distance (meters)")
+    max_planes: int = Field(default=3, ge=1, le=10, description="Max planes to segment while searching for the floor")
+    min_inliers: int = Field(default=50, ge=3, description="Minimum inliers for a plane to be considered")
+    verticality_threshold: float = Field(
+        default=0.7, ge=0.0, le=1.0, description="Min |normal·up| to accept a plane as near-horizontal"
+    )
+
+
+async def calibrate_from_floor(node_id: str, request: FloorCalibrationRequest) -> Dict[str, Any]:
+    """Level a source node's pose against the segmented floor plane and persist.
+
+    One-shot calibration: segments the ground plane from the latest frame,
+    derives the tilt correction, writes the updated pose to the database, and
+    hot-updates the in-memory transformation. Mutually exclusive with IMU
+    auto-level. Works for any pose-bearing source node (lidar, playback,
+    visionary, pcd injection).
+
+    Returns:
+        Dict with the new pose values.
+    """
+    node = _get_calibratable_node(node_id)
+
+    try:
+        new_pose = node.calibrate_from_floor(
+            distance_threshold=request.distance_threshold,
+            max_planes=request.max_planes,
+            min_inliers=request.min_inliers,
+            verticality_threshold=request.verticality_threshold,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+    # Hot-update the in-memory transformation so subsequent frames use the new pose
+    await node_manager.hot_update_node_pose(node_id)
+
+    return {
+        "success": True,
+        "node_id": node_id,
+        "pose": new_pose.to_flat_dict(),
+    }
 
 
 # ── Node type registry (enable / disable) ─────────────────────────────────

@@ -18,13 +18,14 @@ from app.core.logging import get_logger
 from app.modules.lidar.core import create_transformation_matrix, pose_to_dict
 from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
+from app.services.nodes.floor_calibration import FloorCalibrationMixin
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
 
 
-class VisionarySensor(ModuleNode):
+class VisionarySensor(ModuleNode, FloorCalibrationMixin):
     """Represents a single SICK Visionary 3D camera and its processing state."""
 
     name: str
@@ -246,7 +247,8 @@ class VisionarySensor(ModuleNode):
                 _frame_start = time.monotonic()
                 transformed_points = transform_points(points, self.transformation)
                 payload["points"] = transformed_points
-
+                # Cache latest world-frame cloud for one-shot floor calibration
+                self.cache_floor_frame(transformed_points)
                 frame_count = runtime_status.get(self.id, {}).get("frame_count", 0)
                 if frame_count % 100 == 1:
                     logger.debug(

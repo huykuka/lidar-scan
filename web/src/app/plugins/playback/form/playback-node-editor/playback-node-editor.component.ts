@@ -65,6 +65,7 @@ export class PlaybackNodeEditorComponent implements NodeEditorComponent, OnDestr
 
   // ── Services ─────────────────────────────────────────────────────────────────
   private nodeStore = inject(NodeStoreService);
+  protected nodeId = computed(() => this.nodeStore.selectedNode()?.id || null);
   private recordingApi = inject(RecordingApiService);
   private facade = inject(NodeEditorFacadeService);
 

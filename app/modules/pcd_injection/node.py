@@ -16,13 +16,14 @@ from app.core.logging import get_logger
 from app.modules.lidar.core import create_transformation_matrix
 from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
+from app.services.nodes.floor_calibration import FloorCalibrationMixin
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 from app.services.status_aggregator import notify_status_change
 
 logger = get_logger(__name__)
 
 
-class PcdInjectionNode(ModuleNode):
+class PcdInjectionNode(ModuleNode, FloorCalibrationMixin):
     """Source node that receives PCD data via HTTP multipart upload.
 
     Unlike hardware sensor nodes this node has no background worker process.
@@ -117,6 +118,8 @@ class PcdInjectionNode(ModuleNode):
             now = time.time()
             _start = time.monotonic()
             transformed = transform_points(points, self.transformation)
+            # Cache latest world-frame cloud for one-shot floor calibration
+            self.cache_floor_frame(transformed)
             payload: Dict[str, Any] = {
                 "points": transformed,
                 "timestamp": now,

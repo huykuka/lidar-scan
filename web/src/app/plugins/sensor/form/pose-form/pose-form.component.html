@@ -84,4 +84,38 @@
       </div>
     }
   </div>
+
+  @if (nodeId()) {
+    <div class="flex flex-col gap-2 px-3 py-2.5 border-t border-syn-color-neutral-200">
+      <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-700"
+        >Floor Calibration</span
+      >
+      <p class="text-[11px] text-syn-color-neutral-700">
+        Segment the ground plane from the live cloud and level the sensor so the floor is
+        horizontal. Adjusts roll/pitch only; run again to refine.
+      </p>
+      <syn-button
+        variant="outline"
+        size="small"
+        type="button"
+        [disabled]="isCalibratingFloor() || imuAutoLevel()"
+        (click)="onCalibrateFromFloor()"
+      >
+        <syn-icon name="align_horizontal_center" slot="prefix" />
+        @if (isCalibratingFloor()) {
+          Calibrating...
+        } @else {
+          Calibrate from Floor
+        }
+      </syn-button>
+      @if (imuAutoLevel()) {
+        <p class="text-[10px] text-syn-color-neutral-600">
+          Disabled while IMU auto-level is active.
+        </p>
+      }
+      @if (floorCalibrationMessage()) {
+        <p class="text-[10px] text-syn-color-neutral-600">{{ floorCalibrationMessage() }}</p>
+      }
+    </div>
+  }
 </div>

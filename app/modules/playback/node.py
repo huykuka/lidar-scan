@@ -20,6 +20,7 @@ from app.modules.lidar.core import create_transformation_matrix
 from app.repositories.recordings_orm import RecordingRepository
 from app.schemas.pose import Pose
 from app.services.nodes.base_module import ModuleNode
+from app.services.nodes.floor_calibration import FloorCalibrationMixin
 from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 
 logger = get_logger(__name__)
@@ -47,7 +48,7 @@ def _validate_speed(value: float) -> float:
     return value
 
 
-class PlaybackNode(ModuleNode):
+class PlaybackNode(ModuleNode, FloorCalibrationMixin):
     """Source node that streams frames from a previously recorded ZIP archive.
 
     Config:
@@ -316,6 +317,8 @@ class PlaybackNode(ModuleNode):
                 from app.modules.lidar.core.transformations import transform_points
                 _frame_start = time.monotonic()
                 points = transform_points(points, self.transformation)
+                # Cache latest world-frame cloud for one-shot floor calibration
+                self.cache_floor_frame(points)
 
                 payload: Dict[str, Any] = {
                     "lidar_id": self.id,

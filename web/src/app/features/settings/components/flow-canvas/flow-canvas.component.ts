@@ -118,7 +118,10 @@ export class FlowCanvasComponent {
   constructor() {
     effect(() => {
       if (this.canvasEditStore.isInitialized()) {
-        untracked(() => this.isCanvasLoading.set(false));
+        untracked(() => {
+          this.isCanvasLoading.set(false);
+          this.resetScaleAndCenter();
+        });
       }
     });
 

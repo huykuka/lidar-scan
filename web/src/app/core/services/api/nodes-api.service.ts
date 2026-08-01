@@ -4,6 +4,7 @@ import {environment} from '@env/environment';
 import {firstValueFrom} from 'rxjs';
 import {NodeDefinition} from '../../models/node.model';
 import {LidarConfigValidationRequest, LidarConfigValidationResponse} from '@core/models';
+import {FloorCalibrationResponse} from '../../models/imu.model';
 
 @Injectable({
   providedIn: 'root',
@@ -13,6 +14,15 @@ export class NodesApiService {
 
   async reloadConfig(): Promise<any> {
     return await firstValueFrom(this.http.post(`${environment.apiUrl}/nodes/reload`, {}));
+  }
+
+  async calibrateFromFloor(nodeId: string): Promise<FloorCalibrationResponse> {
+    return await firstValueFrom(
+      this.http.post<FloorCalibrationResponse>(
+        `${environment.apiUrl}/nodes/${encodeURIComponent(nodeId)}/calibrate-from-floor`,
+        {},
+      ),
+    );
   }
 
   async getNodeDefinitions(): Promise<NodeDefinition[]> {
