@@ -21,7 +21,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {UpperCasePipe} from '@angular/common';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
 import {Pose, ZERO_POSE} from '@core/models/pose.model';
-import { NodesApiService } from '@core/services/api';
+import { LidarApiService, NodesApiService } from '@core/services/api';
+import { DialogService } from '@core/services/dialog.service';
 import { filter } from 'rxjs';
 
 /**
@@ -71,14 +72,20 @@ export class PoseFormComponent implements OnInit {
   /** When true, floor calibration is disabled (IMU auto-level owns leveling). */
   imuAutoLevel = input<boolean>(false);
 
+  /** When true, the IMU calibration button is shown in the header. */
+  imuCapable = input<boolean>(false);
+
   poseFormGroup!: FormGroup;
 
   protected isCalibratingFloor = signal(false);
+  protected isImuCalibrating = signal(false);
   protected floorCalibrationMessage = signal<string | null>(null);
 
   private fb = inject(FormBuilder);
   private destroyRef = inject(DestroyRef);
   private nodesApi = inject(NodesApiService);
+  private lidarApi = inject(LidarApiService);
+  private dialog = inject(DialogService);
 
   angleLabelFn = (value: number): string => `${value}°`;
 
@@ -128,14 +135,57 @@ export class PoseFormComponent implements OnInit {
     return this.poseFormGroup?.valid ?? true;
   }
 
-  resetPose(): void {
+  async resetPose(): Promise<void> {
+    const ok = await this.dialog.confirm({
+      title: 'Reset pose',
+      message: 'Reset all position and orientation values to zero?',
+      confirmLabel: 'Reset',
+      confirmIcon: 'restart_alt',
+      confirmSeverity: 'warning',
+    });
+    if (!ok) return;
     this.poseFormGroup.patchValue(this.poseToFormValue(ZERO_POSE));
     this.poseChange.emit({ ...ZERO_POSE });
+  }
+
+  async onCalibrateFromImu(): Promise<void> {
+    const id = this.nodeId();
+    if (!id) return;
+
+    const ok = await this.dialog.confirm({
+      title: 'IMU calibration',
+      message: 'Apply real-time IMU roll/pitch to the sensor pose? Keep the sensor stationary before confirming.',
+      confirmLabel: 'Apply',
+      confirmIcon: 'tune',
+      confirmSeverity: 'primary',
+    });
+    if (!ok) return;
+
+    this.isImuCalibrating.set(true);
+    try {
+      const result = await this.lidarApi.calibrateFromImu(id);
+      if (result.pose) {
+        this.poseFormGroup.patchValue(this.poseToFormValue(result.pose), { emitEvent: false });
+        this.poseChange.emit(result.pose);
+      }
+    } catch {
+    } finally {
+      this.isImuCalibrating.set(false);
+    }
   }
 
   async onCalibrateFromFloor(): Promise<void> {
     const id = this.nodeId();
     if (!id) return;
+
+    const ok = await this.dialog.confirm({
+      title: 'Floor calibration',
+      message: 'Segment the ground plane and automatically level the sensor? This will update roll and pitch.',
+      confirmLabel: 'Calibrate',
+      confirmIcon: 'align_horizontal_center',
+      confirmSeverity: 'primary',
+    });
+    if (!ok) return;
 
     this.isCalibratingFloor.set(true);
     this.floorCalibrationMessage.set(null);

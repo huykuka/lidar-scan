@@ -2,16 +2,14 @@ import {ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy,
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
-import {NodeStoreService} from '@core/services/stores/node-store.service';
-
+import { NodeStoreService } from '@core/services/stores/node-store.service';
 import {NodeEditorFacadeService} from '@features/settings/services/node-editor-facade.service';
 import {LidarTypeSelectComponent} from '@plugins/sensor/lidar-type-select/lidar-type-select.component';
 import {CameraTypeSelectComponent} from '@plugins/sensor/camera-type-select/camera-type-select.component';
 import {NodeEditorComponent} from '@core/models/node-plugin.model';
 import {NodeEditorHeaderComponent} from '@plugins/shared/node-editor-header/node-editor-header.component';
 import {PoseFormComponent} from './pose-form/pose-form.component';
-import {Pose, ZERO_POSE} from '@core/models/pose.model';
-import {LidarApiService} from '@core/services/api';
+import { Pose, ZERO_POSE } from '@core/models/pose.model';
 
 @Component({
   selector: 'app-sensor-node-editor',
@@ -37,8 +35,6 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
   protected configForm!: FormGroup;
   protected poseValue = signal<Pose>(ZERO_POSE);
   protected isPoseValid = signal<boolean>(true);
-  protected isCalibrating = signal(false);
-  protected calibrationMessage = signal<string | null>(null);
   protected isSaveDisabled = computed(
     () => this.form?.invalid || this.configForm?.invalid || !this.isPoseValid() || this.isSaving(),
   );
@@ -56,7 +52,6 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
   protected isImuAutoLevel = computed(() => !!this.formValues()['imu_auto_level']);
   private fb = inject(FormBuilder);
   private nodeStore = inject(NodeStoreService);
-  private lidarApi = inject(LidarApiService);
   protected definition = computed(() => {
     const data = this.nodeStore.selectedNode();
     return this.nodeStore.nodeDefinitions().find((d) => d.type === data.type);
@@ -122,29 +117,6 @@ export class SensorNodeEditorComponent implements NodeEditorComponent, OnDestroy
 
   onCancel() {
     this.cancelled.emit();
-  }
-
-  async onCalibrateFromImu() {
-    const nodeId = this.nodeStore.selectedNode().id;
-    if (!nodeId) return;
-
-    this.isCalibrating.set(true);
-    this.calibrationMessage.set(null);
-
-    try {
-      const result = await this.lidarApi.calibrateFromImu(nodeId);
-      if (result.pose) {
-        this.poseValue.set(result.pose);
-      }
-      this.calibrationMessage.set(
-        `Applied: roll=${result.pose.roll.toFixed(2)}, pitch=${result.pose.pitch.toFixed(2)}`,
-      );
-    } catch (err: any) {
-      const detail = err?.error?.detail || err?.message || 'Calibration failed';
-      this.calibrationMessage.set(detail);
-    } finally {
-      this.isCalibrating.set(false);
-    }
   }
 
   onSelectChange(propName: string, event: Event) {

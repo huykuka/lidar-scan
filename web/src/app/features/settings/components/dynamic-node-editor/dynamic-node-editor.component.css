@@ -1,6 +1,15 @@
 :host {
   display: block;
   width: 100%;
+  /* Prevent the drawer-open event from triggering a bulk text selection */
+  user-select: none;
+}
+
+/* Re-enable selection inside actual text inputs */
+:host input,
+:host textarea,
+:host [contenteditable] {
+  user-select: text;
 }
 
 syn-checkbox {

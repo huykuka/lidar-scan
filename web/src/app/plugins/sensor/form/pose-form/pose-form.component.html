@@ -2,25 +2,62 @@
   [formGroup]="poseFormGroup"
   class="flex flex-col gap-0 rounded border border-syn-color-neutral-200"
 >
-  <!-- Header bar -->
+  <!-- Header toolbar -->
   <div
-    class="flex items-center justify-between px-3 py-1.5 bg-syn-color-neutral-100 rounded-t border-b border-syn-color-neutral-200"
+    class="flex items-center justify-between px-3 py-1 bg-syn-color-neutral-100 rounded-t border-b border-syn-color-neutral-200"
   >
-    <span class="text-[10px] font-bold uppercase tracking-widest"
+    <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-700"
       >Sensor Pose</span
     >
-    <syn-tooltip content="Reset all pose values to zero" [distance]="13" placement="top">
-      <syn-button
-        variant="text"
-        size="small"
-        type="button"
-        class="text-syn-color-primary-600"
-        (click)="resetPose()"
-      >
-        <syn-icon name="restart_alt" slot="prefix" />
-        <strong>Reset</strong>
-      </syn-button>
-    </syn-tooltip>
+
+    <div class="flex items-center">
+      <!-- Calibration actions — only visible for saved nodes -->
+      @if (nodeId()) {
+        <div class="flex items-center gap-0.5 pr-2 mr-2 border-r border-syn-color-neutral-300">
+          <syn-tooltip
+            content="Level sensor: segments the ground plane and corrects roll/pitch so the floor is horizontal. Run again to refine."
+            [distance]="13"
+            placement="top"
+          >
+            <syn-icon-button
+              variant="text"
+              size="small"
+              label="button"
+              [disabled]="isCalibratingFloor() || imuAutoLevel()"
+              (click)="onCalibrateFromFloor()"
+              [name]="isCalibratingFloor() ? 'progress_activity' : 'tools_level'"
+            >
+            </syn-icon-button>
+          </syn-tooltip>
+
+          @if (imuCapable()) {
+            <syn-tooltip
+              content="IMU level: reads real-time roll/pitch from the sensor's IMU and applies it to the pose. Sensor must be stationary."
+              [distance]="13"
+              placement="top"
+            >
+              <syn-icon-button
+                variant="text"
+                size="small"
+                label="button"
+                [disabled]="isImuCalibrating()"
+                (click)="onCalibrateFromImu()"
+                [name]="isImuCalibrating() ? 'progress_activity' : 'recenter'"
+              >
+                <syn-icon slot="prefix" />
+              </syn-icon-button>
+            </syn-tooltip>
+          }
+        </div>
+      }
+
+      <!-- Reset -->
+      <syn-tooltip content="Reset all pose values to zero" [distance]="13" placement="top">
+        <syn-icon-button  name="restart_alt" size="small" label="button" (click)="resetPose()">
+          <span class="text-[11px] font-semibold">Reset</span>
+        </syn-icon-button>
+      </syn-tooltip>
+    </div>
   </div>
 
   <!-- Position -->
@@ -34,9 +71,7 @@
           <span class="text-[11px] font-bold uppercase tracking-wide text-syn-color-neutral-700">{{
             axis | uppercase
           }}</span>
-          <syn-input [formControlName]="axis"
-            size="small"
-           />
+          <syn-input [formControlName]="axis" size="small" />
         </div>
       }
     </div>
@@ -59,21 +94,17 @@
       <div class="flex flex-col gap-1">
         <span class="text-[11px] font-semibold text-syn-color-neutral-900">{{ axis.label }}</span>
         <div class="flex items-center gap-3">
-            <syn-range
-              class="flex-1"
-              [min]="-180"
-              [max]="180"
-              [step]="0.01"
-
-              [value]="$safeNavigationMigration(poseFormGroup.get(axis.key)?.value?.toString())"
-              [tooltipFormatter]="angleLabelFn"
-              [formControlName]="axis.key"
-            />
-          <syn-validate on="live" >
-            <syn-input [formControlName]="axis.key"
-
-              class="w-32 shrink-0"
-             />
+          <syn-range
+            class="flex-1"
+            [min]="-180"
+            [max]="180"
+            [step]="0.01"
+            [value]="$safeNavigationMigration(poseFormGroup.get(axis.key)?.value?.toString())"
+            [tooltipFormatter]="angleLabelFn"
+            [formControlName]="axis.key"
+          />
+          <syn-validate on="live">
+            <syn-input [formControlName]="axis.key" class="w-32 shrink-0" />
           </syn-validate>
         </div>
         @if (poseFormGroup.get(axis.key)?.dirty && poseFormGroup.get(axis.key)?.invalid) {
@@ -84,38 +115,4 @@
       </div>
     }
   </div>
-
-  @if (nodeId()) {
-    <div class="flex flex-col gap-2 px-3 py-2.5 border-t border-syn-color-neutral-200">
-      <span class="text-[10px] font-bold uppercase tracking-widest text-syn-color-neutral-700"
-        >Floor Calibration</span
-      >
-      <p class="text-[11px] text-syn-color-neutral-700">
-        Segment the ground plane from the live cloud and level the sensor so the floor is
-        horizontal. Adjusts roll/pitch only; run again to refine.
-      </p>
-      <syn-button
-        variant="outline"
-        size="small"
-        type="button"
-        [disabled]="isCalibratingFloor() || imuAutoLevel()"
-        (click)="onCalibrateFromFloor()"
-      >
-        <syn-icon name="align_horizontal_center" slot="prefix" />
-        @if (isCalibratingFloor()) {
-          Calibrating...
-        } @else {
-          Calibrate from Floor
-        }
-      </syn-button>
-      @if (imuAutoLevel()) {
-        <p class="text-[10px] text-syn-color-neutral-600">
-          Disabled while IMU auto-level is active.
-        </p>
-      }
-      @if (floorCalibrationMessage()) {
-        <p class="text-[10px] text-syn-color-neutral-600">{{ floorCalibrationMessage() }}</p>
-      }
-    </div>
-  }
 </div>
