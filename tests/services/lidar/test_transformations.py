@@ -11,6 +11,7 @@ from app.modules.lidar.core.transformations import (
     gravity_to_roll_pitch,
     imu_gravity_alignment_matrix,
     imu_orientation_matrix,
+    plane_normal_to_roll_pitch,
     quaternion_is_valid,
     quaternion_to_rpy,
     transform_points,
@@ -420,3 +421,45 @@ class TestGravityToRollPitch:
         roll, pitch = gravity_to_roll_pitch(0.0, ay, az)
         assert abs(roll - 45.0) < 1e-4
         assert abs(pitch) < 1e-4
+
+
+class TestPlaneNormalToRollPitch:
+    """Tests for plane_normal_to_roll_pitch — floor-plane auto-level."""
+
+    def test_horizontal_normal_is_zero(self):
+        """A normal already aligned with +Z needs no correction."""
+        roll, pitch = plane_normal_to_roll_pitch(np.array([0.0, 0.0, 1.0]))
+        assert abs(roll) < 1e-9
+        assert abs(pitch) < 1e-9
+
+    def test_downward_normal_is_zero(self):
+        """Normal sign is arbitrary; -Z is oriented up and needs no correction."""
+        roll, pitch = plane_normal_to_roll_pitch(np.array([0.0, 0.0, -1.0]))
+        assert abs(roll) < 1e-9
+        assert abs(pitch) < 1e-9
+
+    @pytest.mark.parametrize(
+        "normal",
+        [
+            [math.sin(math.radians(20)), 0.0, math.cos(math.radians(20))],   # pitch tilt
+            [0.0, math.sin(math.radians(15)), math.cos(math.radians(15))],   # roll tilt
+            [0.2, -0.15, 0.97],                                              # combined tilt
+        ],
+    )
+    def test_correction_levels_normal_to_up(self, normal):
+        """Applying the derived roll/pitch rotates the plane normal onto +Z."""
+        n = np.asarray(normal, dtype=np.float64)
+        n = n / np.linalg.norm(n)
+        roll, pitch = plane_normal_to_roll_pitch(n)
+
+        T = create_transformation_matrix(0, 0, 0, roll=roll, pitch=pitch, yaw=0)
+        leveled = T[:3, :3] @ n
+
+        np.testing.assert_array_almost_equal(leveled, [0.0, 0.0, 1.0], decimal=5)
+
+    def test_zero_normal_is_safe(self):
+        """A degenerate zero-length normal returns no correction, not NaN."""
+        roll, pitch = plane_normal_to_roll_pitch(np.array([0.0, 0.0, 0.0]))
+        assert roll == 0.0
+        assert pitch == 0.0
+

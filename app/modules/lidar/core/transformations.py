@@ -175,6 +175,65 @@ def imu_gravity_alignment_matrix(ax: float, ay: float, az: float) -> np.ndarray:
     return create_transformation_matrix(0, 0, 0, roll=-roll, pitch=-pitch, yaw=0)
 
 
+def plane_normal_to_roll_pitch(
+        normal: np.ndarray,
+        up: np.ndarray = np.array([0.0, 0.0, 1.0]),
+) -> tuple[float, float]:
+    """Roll/pitch (degrees) of the minimal rotation aligning *normal* to *up*.
+
+    Used by floor-plane auto-level: given a segmented ground-plane normal
+    (in world frame), compute the tilt correction that would make the plane
+    horizontal.  Yaw is unconstrained by a single plane and is discarded.
+
+    The returned angles are a *residual* correction to be added to the current
+    pose; repeated application converges to a flat floor (normal == up).
+
+    Args:
+        normal: Plane normal (need not be unit length or oriented).
+        up: World up-axis (defaults to +Z).
+
+    Returns:
+        (roll_deg, pitch_deg) — zero when already aligned.
+    """
+    n = np.asarray(normal, dtype=np.float64)
+    n_norm = np.linalg.norm(n)
+    if n_norm < 1e-12:
+        return 0.0, 0.0
+    n = n / n_norm
+    u = np.asarray(up, dtype=np.float64)
+    u = u / np.linalg.norm(u)
+
+    # Orient the normal toward up so the correction is the minimal one.
+    if float(np.dot(n, u)) < 0.0:
+        n = -n
+
+    cos_a = float(np.clip(np.dot(n, u), -1.0, 1.0))
+    if cos_a > 1.0 - 1e-9:
+        return 0.0, 0.0  # already horizontal
+
+    axis = np.cross(n, u)
+    axis_norm = np.linalg.norm(axis)
+    if axis_norm < 1e-12:
+        return 0.0, 0.0
+    axis = axis / axis_norm
+    angle = math.acos(cos_a)
+
+    # Rodrigues' rotation matrix for (axis, angle).
+    x, y, z = axis
+    c, s = math.cos(angle), math.sin(angle)
+    C = 1.0 - c
+    R = np.array([
+        [c + x * x * C, x * y * C - z * s, x * z * C + y * s],
+        [y * x * C + z * s, c + y * y * C, y * z * C - x * s],
+        [z * x * C - y * s, z * y * C + x * s, c + z * z * C],
+    ])
+
+    # Decompose using the same ZYX convention as create_transformation_matrix.
+    pitch = math.degrees(math.asin(max(-1.0, min(1.0, -R[2, 0]))))
+    roll = math.degrees(math.atan2(R[2, 1], R[2, 2]))
+    return roll, pitch
+
+
 def pose_to_dict(
         x: float, y: float, z: float,
         roll: float, pitch: float, yaw: float

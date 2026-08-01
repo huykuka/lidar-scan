@@ -158,3 +158,46 @@ async def get_imu_status(node_id: str) -> Dict[str, Any]:
         "has_imu_data": sensor.latest_imu is not None,
         "imu": sensor.latest_imu.to_dict() if sensor.latest_imu else None,
     }
+
+
+class FloorCalibrationRequest(BaseModel):
+    """Tunable parameters for floor-plane auto-level."""
+    distance_threshold: float = Field(default=0.05, gt=0.0, description="RANSAC inlier distance (meters)")
+    max_planes: int = Field(default=3, ge=1, le=10, description="Max planes to segment while searching for the floor")
+    min_inliers: int = Field(default=50, ge=3, description="Minimum inliers for a plane to be considered")
+    verticality_threshold: float = Field(
+        default=0.7, ge=0.0, le=1.0, description="Min |normal·up| to accept a plane as near-horizontal"
+    )
+
+
+async def calibrate_from_floor(node_id: str, request: FloorCalibrationRequest) -> Dict[str, Any]:
+    """Level the sensor pose against the segmented floor plane and persist.
+
+    One-shot calibration: segments the ground plane from the latest frame,
+    derives the tilt correction, writes the updated pose to the database, and
+    hot-updates the in-memory transformation. Mutually exclusive with IMU
+    auto-level.
+
+    Returns:
+        Dict with the new pose values.
+    """
+    sensor = _get_lidar_sensor(node_id)
+
+    try:
+        new_pose = sensor.calibrate_from_floor(
+            distance_threshold=request.distance_threshold,
+            max_planes=request.max_planes,
+            min_inliers=request.min_inliers,
+            verticality_threshold=request.verticality_threshold,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+
+    # Hot-update the in-memory transformation so subsequent frames use the new pose
+    await node_manager.hot_update_node_pose(node_id)
+
+    return {
+        "success": True,
+        "node_id": node_id,
+        "pose": new_pose.to_flat_dict(),
+    }

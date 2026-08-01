@@ -33,3 +33,9 @@ export interface ImuStatusResponse {
   has_imu_data: boolean;
   imu: ImuSnapshot | null;
 }
+
+export interface FloorCalibrationResponse {
+  success: boolean;
+  node_id: string;
+  pose: Pose;
+}
