@@ -63,6 +63,9 @@ class FloorCalibrationRequest(BaseModel):
     verticality_threshold: float = Field(
         default=0.7, ge=0.0, le=1.0, description="Min |normal·up| to accept a plane as near-horizontal"
     )
+    translate_to_origin: bool = Field(
+        default=False, description="Shift sensor Z so the detected floor plane passes through world Z=0"
+    )
 
 
 async def calibrate_from_floor(node_id: str, request: FloorCalibrationRequest) -> Dict[str, Any]:
@@ -85,6 +88,7 @@ async def calibrate_from_floor(node_id: str, request: FloorCalibrationRequest) -
             max_planes=request.max_planes,
             min_inliers=request.min_inliers,
             verticality_threshold=request.verticality_threshold,
+            translate_to_origin=request.translate_to_origin,
         )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))

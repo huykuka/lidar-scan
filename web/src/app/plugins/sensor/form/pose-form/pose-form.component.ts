@@ -180,18 +180,27 @@ export class PoseFormComponent implements OnInit {
 
     const ok = await this.dialog.confirm({
       title: 'Floor calibration',
-      message: 'Segment the ground plane and automatically level the sensor? This will update roll and pitch.',
+      message:
+        'Segment the ground plane and automatically level the sensor? This will update roll and pitch.',
       confirmLabel: 'Calibrate',
       confirmIcon: 'align_horizontal_center',
       confirmSeverity: 'primary',
+      checkboxes: [
+        {
+          key: 'translate_to_origin',
+          label: 'Bring floor to origin — shift Z so the floor sits at world Z = 0',
+          checked: false,
+        },
+      ],
     });
     if (!ok) return;
 
+    const translateToOrigin = this.dialog.checkboxValues()['translate_to_origin'] ?? false;
     this.isCalibratingFloor.set(true);
     this.floorCalibrationMessage.set(null);
 
     try {
-      const result = await this.nodesApi.calibrateFromFloor(id);
+      const result = await this.nodesApi.calibrateFromFloor(id, translateToOrigin);
       if (result.pose) {
         this.poseFormGroup.patchValue(this.poseToFormValue(result.pose), { emitEvent: false });
         this.poseChange.emit(result.pose);

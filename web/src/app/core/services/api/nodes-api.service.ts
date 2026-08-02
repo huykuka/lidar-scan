@@ -16,11 +16,11 @@ export class NodesApiService {
     return await firstValueFrom(this.http.post(`${environment.apiUrl}/nodes/reload`, {}));
   }
 
-  async calibrateFromFloor(nodeId: string): Promise<FloorCalibrationResponse> {
+  async calibrateFromFloor(nodeId: string, translateToOrigin = false): Promise<FloorCalibrationResponse> {
     return await firstValueFrom(
       this.http.post<FloorCalibrationResponse>(
         `${environment.apiUrl}/nodes/${encodeURIComponent(nodeId)}/calibrate-from-floor`,
-        {},
+        { translate_to_origin: translateToOrigin },
       ),
     );
   }

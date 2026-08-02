@@ -3,6 +3,12 @@ import {Injectable, signal} from '@angular/core';
 
 export type DialogSeverity = 'danger' | 'warning' | 'success' | 'primary';
 
+export interface DialogCheckbox {
+  key: string;
+  label: string;
+  checked?: boolean;
+}
+
 export interface DialogConfig {
   title?: string;
   message: string;
@@ -11,6 +17,7 @@ export interface DialogConfig {
   confirmIcon?: string;
   confirmSeverity?: DialogSeverity;
   variant?: 'danger' | 'neutral';
+  checkboxes?: DialogCheckbox[];
   onConfirm?: () => void;
   onCancel?: () => void;
 }
@@ -31,6 +38,9 @@ export class DialogService {
   readonly cancelLabel = signal('Cancel');
   readonly confirmIcon = signal('check');
   readonly confirmSeverity = signal<DialogSeverity>('danger');
+  readonly checkboxes = signal<DialogCheckbox[]>([]);
+  /** Mutable map of checkbox states; keyed by DialogCheckbox.key. */
+  readonly checkboxValues = signal<Record<string, boolean>>({});
 
   private onConfirmCallback: (() => void) | undefined;
   private onCancelCallback: (() => void) | undefined;
@@ -38,8 +48,7 @@ export class DialogService {
   private pendingQueue: PendingDialogRequest[] = [];
 
   confirm(config: DialogConfig | string): Promise<boolean> {
-    const finalConfig: DialogConfig =
-      typeof config === 'string' ? { message: config } : config;
+    const finalConfig: DialogConfig = typeof config === 'string' ? { message: config } : config;
 
     return new Promise<boolean>((resolve) => {
       const request: PendingDialogRequest = { config: finalConfig, resolve };
@@ -51,6 +60,10 @@ export class DialogService {
 
       this.openDialog(request);
     });
+  }
+
+  toggleCheckbox(key: string): void {
+    this.checkboxValues.update((v) => ({ ...v, [key]: !v[key] }));
   }
 
   accept(): void {
@@ -96,6 +109,9 @@ export class DialogService {
     this.cancelLabel.set(cancelLabel);
     this.confirmIcon.set(confirmIcon);
     this.confirmSeverity.set(severity);
+    const boxes = finalConfig.checkboxes ?? [];
+    this.checkboxes.set(boxes);
+    this.checkboxValues.set(Object.fromEntries(boxes.map((c) => [c.key, c.checked ?? false])));
     this.onConfirmCallback = onConfirm;
     this.onCancelCallback = onCancel;
     this.resolver = request.resolve;
@@ -110,6 +126,8 @@ export class DialogService {
     this.cancelLabel.set('Cancel');
     this.confirmIcon.set('check');
     this.confirmSeverity.set('danger');
+    this.checkboxes.set([]);
+    this.checkboxValues.set({});
     this.onConfirmCallback = undefined;
     this.onCancelCallback = undefined;
     this.resolver = undefined;

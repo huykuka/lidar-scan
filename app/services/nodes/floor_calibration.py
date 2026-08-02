@@ -36,6 +36,7 @@ class FloorCalibrationMixin:
             max_planes: int = 3,
             min_inliers: int = 50,
             verticality_threshold: float = 0.7,
+            translate_to_origin: bool = False,
     ) -> Pose:
         """Level the sensor against the floor by segmenting the ground plane.
 
@@ -114,10 +115,12 @@ class FloorCalibrationMixin:
         current: Pose = self.pose_params
         new_roll = max(-180.0, min(180.0, current.roll + d_roll))
         new_pitch = max(-180.0, min(180.0, current.pitch + d_pitch))
+        # Shift Z so the floor centroid lands at world Z=0 when requested
+        new_z = (current.z - best_centroid_up) if translate_to_origin else current.z
         new_pose = Pose(
             x=current.x,
             y=current.y,
-            z=current.z,
+            z=new_z,
             roll=new_roll,
             pitch=new_pitch,
             yaw=current.yaw,
@@ -132,5 +135,6 @@ class FloorCalibrationMixin:
             f"[{self.id}] Floor calibration applied: "
             f"roll={new_roll:.2f}° pitch={new_pitch:.2f}° "
             f"(residual Δroll={d_roll:.2f}° Δpitch={d_pitch:.2f}°)"
+            + (f" z-shift to origin: {new_z:.4f}m" if translate_to_origin else "")
         )
         return new_pose

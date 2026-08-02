@@ -1,5 +1,10 @@
 import {ChangeDetectionStrategy, Component, computed, inject} from '@angular/core';
-import {SynButtonComponent, SynDialogComponent, SynIconComponent} from '@synergy-design-system/angular';
+import {
+  SynButtonComponent,
+  SynCheckboxComponent,
+  SynDialogComponent,
+  SynIconComponent,
+} from '@synergy-design-system/angular';
 import {DialogService, DialogSeverity} from '@core/services/dialog.service';
 
 /** Maps severity to Synergy color token overrides for syn-button */
@@ -29,11 +34,23 @@ const SEVERITY_STYLES: Record<DialogSeverity, string> = {
  */
 @Component({
   selector: 'app-dialog-host',
-  imports: [SynDialogComponent, SynButtonComponent, SynIconComponent],
+  imports: [SynDialogComponent, SynButtonComponent, SynIconComponent, SynCheckboxComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <syn-dialog [label]="svc.title()" [open]="svc.isOpen()" (syn-request-close)="svc.cancel()">
       <p>{{ svc.message() }}</p>
+
+      @if (svc.checkboxes().length) {
+        <div class="flex flex-col gap-2 mt-3">
+          @for (cb of svc.checkboxes(); track cb.key) {
+            <syn-checkbox
+              [checked]="svc.checkboxValues()[cb.key]"
+              (syn-change)="svc.toggleCheckbox(cb.key)"
+              >{{ cb.label }}</syn-checkbox
+            >
+          }
+        </div>
+      }
 
       <div slot="footer" class="flex justify-end gap-2">
         <syn-button variant="outline" (click)="svc.cancel()"
