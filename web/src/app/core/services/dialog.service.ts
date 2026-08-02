@@ -109,6 +109,7 @@ export class DialogService {
     this.cancelLabel.set(cancelLabel);
     this.confirmIcon.set(confirmIcon);
     this.confirmSeverity.set(severity);
+    // Reset checkbox state here so values from the previous dialog don't bleed in
     const boxes = finalConfig.checkboxes ?? [];
     this.checkboxes.set(boxes);
     this.checkboxValues.set(Object.fromEntries(boxes.map((c) => [c.key, c.checked ?? false])));
@@ -126,8 +127,7 @@ export class DialogService {
     this.cancelLabel.set('Cancel');
     this.confirmIcon.set('check');
     this.confirmSeverity.set('danger');
-    this.checkboxes.set([]);
-    this.checkboxValues.set({});
+    // checkboxes/checkboxValues intentionally NOT cleared here — caller reads them after await
     this.onConfirmCallback = undefined;
     this.onCancelCallback = undefined;
     this.resolver = undefined;
