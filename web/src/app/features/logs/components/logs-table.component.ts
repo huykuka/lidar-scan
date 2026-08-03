@@ -7,11 +7,12 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
   selector: 'app-logs-table',
   imports: [SynergyComponentsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'flex flex-1 min-h-0' },
   template: `
     <div class="flex-1 relative">
       @if (isLoading() && entries().length === 0) {
         <div
-          class="flex flex-col items-center justify-center h-full text-syn-color-neutral-400 gap-4"
+          class="absolute inset-0 flex flex-col items-center justify-center text-syn-color-neutral-400 gap-4"
         >
           <syn-spinner size="large" />
           <p class="text-sm font-medium animate-pulse">Initializing log viewer...</p>
@@ -26,9 +27,9 @@ import {SynergyComponentsModule} from '@synergy-design-system/angular';
       } @else {
         @if (isLoading()) {
           <div
-            class="absolute inset-0 flex items-center justify-center bg-syn-page-background-color/40 z-30 backdrop-blur-[1px]"
+            class="absolute inset-0 flex h-full items-center justify-center bg-syn-page-background-color/40 z-30 backdrop-blur-[1px]"
           >
-            <syn-spinner size="large" />
+            <syn-spinner style="font-size: 48px; --track-width: 8px;" size="large" />
           </div>
         }
 

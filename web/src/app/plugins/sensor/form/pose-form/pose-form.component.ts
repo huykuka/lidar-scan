@@ -24,6 +24,8 @@ import {Pose, ZERO_POSE} from '@core/models/pose.model';
 import { LidarApiService, NodesApiService } from '@core/services/api';
 import { DialogService } from '@core/services/dialog.service';
 import { filter } from 'rxjs';
+import { ToastService } from '@app/core/services/toast.service';
+import { CanvasEditStoreService } from '@app/features/settings/services/canvas-edit-store.service';
 
 /**
  * Conversion factor: backend stores position in meters,
@@ -86,6 +88,8 @@ export class PoseFormComponent implements OnInit {
   private nodesApi = inject(NodesApiService);
   private lidarApi = inject(LidarApiService);
   private dialog = inject(DialogService);
+  private toast = inject(ToastService);
+  private canvasService = inject(CanvasEditStoreService);
 
   angleLabelFn = (value: number): string => `${value}°`;
 
@@ -154,7 +158,8 @@ export class PoseFormComponent implements OnInit {
 
     const ok = await this.dialog.confirm({
       title: 'IMU calibration',
-      message: 'Apply real-time IMU roll/pitch to the sensor pose? Keep the sensor stationary before confirming.',
+      message:
+        'Apply real-time IMU roll/pitch to the sensor pose? Keep the sensor stationary before confirming.',
       confirmLabel: 'Apply',
       confirmIcon: 'tune',
       confirmSeverity: 'primary',
@@ -168,6 +173,8 @@ export class PoseFormComponent implements OnInit {
         this.poseFormGroup.patchValue(this.poseToFormValue(result.pose), { emitEvent: false });
         this.poseChange.emit(result.pose);
       }
+      this.toast.success('IMU calibration applied successfully.');
+      this.canvasService.syncFromBackend();
     } catch {
     } finally {
       this.isImuCalibrating.set(false);
@@ -207,6 +214,8 @@ export class PoseFormComponent implements OnInit {
         this.floorCalibrationMessage.set(
           `Applied: roll=${result.pose.roll.toFixed(2)}, pitch=${result.pose.pitch.toFixed(2)}`,
         );
+        this.toast.success('Floor calibration applied successfully.');
+        this.canvasService.syncFromBackend();
       }
     } catch (err: any) {
       const detail = err?.error?.detail || err?.message || 'Floor calibration failed';

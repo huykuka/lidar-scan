@@ -7,7 +7,6 @@
       disableScaling: true,
       autoTransform: draggingTopic() === entry.topic,
       offset: entry.initialOffset,
-      rotation: entry.initialRotation
     }"
     (dragStarted)="onDragStart(entry.topic)"
     (dragged)="dragged.emit({ topic: entry.topic, event: $event })"

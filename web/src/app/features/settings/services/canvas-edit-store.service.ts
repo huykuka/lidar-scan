@@ -426,7 +426,6 @@ export class CanvasEditStoreService {
     try {
       const response = await this.dagApi.getDagConfig();
       this.initFromBackend(response);
-      this.toast.neutral('Synced with backend.');
     } catch (error: any) {
       const message = error?.message ?? String(error);
       this.toast.danger(`Sync failed: ${message}`);
