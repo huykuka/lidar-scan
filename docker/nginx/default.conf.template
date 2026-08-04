@@ -6,6 +6,7 @@ server {
     error_log  /dev/stderr;
 
     gzip_static on;
+    client_max_body_size 0;
 
     # Angular SPA
     location / {
