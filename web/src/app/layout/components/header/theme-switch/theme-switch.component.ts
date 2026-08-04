@@ -39,7 +39,7 @@ export class ThemeSwitchComponent {
 
   protected readonly isDark = computed(() => this.themeService.theme() === 'dark');
 
-  protected readonly icon = computed(() => (this.isDark() ? 'light_mode' : 'dark_mode_fill'));
+  protected readonly icon = computed(() => (this.isDark() ? 'light_mode' : 'dark_mode'));
 
   protected readonly label = computed(() =>
     this.isDark() ? 'Switch to light mode' : 'Switch to dark mode',
