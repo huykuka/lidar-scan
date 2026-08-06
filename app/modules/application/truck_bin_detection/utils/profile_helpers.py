@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import numpy as np
+import open3d as o3d
 
 
 # ---------------------------------------------------------------------------
@@ -107,26 +108,53 @@ def build_height_profile(
     num_bins: int,
     cell_size: float,
     z_max: float,
+    percentile: float = 90,
 ) -> np.ndarray:
-    """Scatter points into a 1-D height profile (max Z per cell).
+    """Scatter points into a 1-D height profile (95th-percentile Z per cell).
 
-    Why max instead of 90th-percentile: z_max clipping upstream removes
-    rain/dust spikes, so max is equivalent but runs in O(N) with a single
-    vectorised scatter rather than O(N log N) sort + per-bin partition.
+    Why the 95th percentile instead of the raw max: a single stray return
+    above the bin rim (rain, dust, cargo splatter) would otherwise set a whole
+    cell's height.  The 95th percentile keeps the tall-wall signal but ignores
+    the top ~5 % of spikes.
+
+    Kept fast with one global lexsort over (z, cell) — O(N log N) at C speed,
+    no Python per-cell loop — then a single gather of each cell's nearest-rank
+    percentile element.  Empty cells stay 0.
     """
     hp = np.zeros(num_bins)
+    if len(pts) == 0:
+        return hp
+
     bin_idx = np.clip(
         ((pts[:, 0] - x_min) / cell_size).astype(np.intp), 0, num_bins - 1
     )
-    np.maximum.at(hp, bin_idx, np.minimum(pts[:, 2], z_max))
+    z = np.minimum(pts[:, 2], z_max)
+
+    # Sort by cell, then by height within each cell.
+    order = np.lexsort((z, bin_idx))
+    sorted_bins = bin_idx[order]
+    sorted_z = z[order]
+
+    counts = np.bincount(sorted_bins, minlength=num_bins)
+    valid = counts > 0   # a cell registers a height only if it has returns
+
+    # Start offset of each cell's run in the sorted array.
+    starts = np.zeros(num_bins, dtype=np.intp)
+    np.cumsum(counts[:-1], out=starts[1:])
+
+    # Nearest-rank index of the percentile element within each cell.
+    ranks = np.ceil((percentile / 100.0) * counts).astype(np.intp) - 1
+    np.clip(ranks, 0, np.maximum(counts - 1, 0), out=ranks)
+
+    gather = starts + ranks
+    hp[valid] = sorted_z[gather[valid]]
     return hp
 
 
 def fill_profile(hp: np.ndarray) -> np.ndarray:
     """Forward-fill then backward-fill empty cells in a height profile.
 
-    Why: some cells have no LiDAR return (open air above the bin cavity,
-    sparse coverage).  Empty cells (value 0) break the gradient and
+    Why: some cells have no LiDAR return (open air above the bin cavity,    sparse coverage).  Empty cells (value 0) break the gradient and
     threshold comparisons that follow.  Forward-fill carries the last
     known height rightward; backward-fill handles any leading zeros at
     the left edge that forward-fill cannot reach.

@@ -11,6 +11,8 @@ import enum
 import time
 from typing import Any, Dict, Optional
 
+import numpy as np
+
 from app.core.logging import get_logger
 from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalState
 from app.services.nodes.base_module import ModuleNode
@@ -149,6 +151,23 @@ class TruckBinDetectionNode(ModuleNode):
                 logger.debug(
                     "[%s] No valid bin cavity captured: %s", self.id, result.status
                 )
+                # Emit an empty payload so downstream consumers (WebSocket
+                # broadcast, point-cloud visualisation) clear stale data from
+                # the previous successful detection rather than keeping it on
+                # screen indefinitely.
+                _empty = np.empty((0, 3), dtype=np.float32)
+                empty_payload: Dict[str, Any] = {
+                    "node_id": self.id,
+                    "points": _empty,
+                    "timestamp": timestamp,
+                    "count": 0,
+                    "pcds": {"bin": _empty},
+                    "metadata": {
+                        "detection_number": self._detection_count,
+                        "bin": result.to_dict(),
+                    },
+                }
+                asyncio.create_task(self.manager.forward_data(self.id, empty_payload))
 
             self.last_error = None
         except Exception as e:

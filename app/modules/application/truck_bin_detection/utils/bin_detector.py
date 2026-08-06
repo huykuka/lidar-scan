@@ -68,6 +68,7 @@ class BinDetector:
         self._min_cavity_run_ratio = min_cavity_run_ratio
         self._min_bed_cells = min_bed_cells
         self._max_wall_thickness = max_wall_thickness
+        self._min_wall_run =2
 
     # ------------------------------------------------------------------
     # Private: peak / edge validators
@@ -93,7 +94,7 @@ class BinDetector:
         while j > 0 and fp[j] >= self._z_wall_threshold:
             j -= 1
         j = max(0, j - int(0.2 / self._cellsize))          # small safety gap
-        back_start = max(0, j - self._rear_peak_back_window)
+        back_start = max(0, j - self._rear_peak_back_window) if self._rear_peak_back_window > 0 else 0
         return j <= back_start or bool(np.max(fp[back_start:j]) < self._z_wall_threshold)
 
     def _rear_internal_cavity_ok(
@@ -127,8 +128,21 @@ class BinDetector:
         while j < num_bins and fp[j] >= self._z_wall_threshold:
             j += 1
         cav_start = j
-        while j < num_bins and fp[j] < self._z_wall_threshold:
-            j += 1
+        # Walk to the far end of the cavity.  A real front wall is a contiguous
+        # tall slab (>= min_wall_run cells); an interior obstruction — crossbar,
+        # horizontal brace, cargo poking above the rim — is only a 1–2 cell
+        # spike.  Step over those narrow spikes so a mid-cavity bar cannot cut
+        # the cavity run short and cause the true rear wall to be rejected.
+        while j < num_bins:
+            if fp[j] < self._z_wall_threshold:
+                j += 1
+                continue
+            slab_end = j
+            while slab_end < num_bins and fp[slab_end] >= self._z_wall_threshold:
+                slab_end += 1
+            if slab_end - j >= self._min_wall_run:
+                break                       # real front wall — cavity ends here
+            j = slab_end                    # narrow spike — cavity continues
         if j - cav_start < min_run:
             return False
         cav_hp = hp[cav_start:j]
@@ -219,7 +233,6 @@ class BinDetector:
         max_peak_cell  = int((x_max - x_min - self._min_bin_length) / self._cellsize)
         max_wall_cells = int(np.ceil(self._max_wall_thickness / self._cellsize)) + 1
         fwd_max_5a = rolling_fwd_max(fp, self._rear_forward_lookup)
-        fwd_max_5b = rolling_fwd_max(fp, 30)
 
         # Backward rolling max for step 5c: bwd_max[i] = max(fp[i-W : i]).
         # The front-wall check requires the candidate cell to be higher than
@@ -242,27 +255,47 @@ class BinDetector:
         #      gap or a low drawbar rather than a real bin floor.
         rear_bin_idx = x_rear_internal = None
 
+        # A real wall is a contiguous vertical slab spanning several adjacent
+        # cells.  A structure resting on/above the bin (crossbar, strap, cargo
+        # poking above the rim) produces only a narrow 1–2 cell spike.  Require
+        # a minimum contiguous run of tall cells so those overhead-noise spikes
+        # cannot be mistaken for a wall — applied to both rear and front walls.
+        min_wall_run = self._min_wall_run
+
+
         for i in range(min(num_bins - 1, max_peak_cell)):
 
             # 5a: reject cells below wall height or not a local forward maximum.
             if fp[i] < self._z_wall_threshold or fp[i] < fwd_max_5a[i]:
                 continue
 
+
             # 5a: reject peaks with a tall structure immediately behind them.
             if not self._rear_peak_back_ok(i, fp):
                 logger.debug("peak @%d (%.2fm): tall structure behind — skip", i, x_min + i * self._cellsize)
                 continue
 
-            # 5b: search for the inner face within max_wall_thickness.
-            inner_end = min(i + max_wall_cells + 1, num_bins - 1)
-            for j in range(i + 1, inner_end):
-                if grad[j] < 0 and fp[j] >= fwd_max_5b[j]:
-                    if not self._rear_internal_cavity_ok(j, fp, hp, num_bins):
-                        logger.debug("inner @%d (%.2fm): no valid cavity — skip", j, x_min + j * self._cellsize)
-                        continue
-                    rear_bin_idx = j
-                    x_rear_internal = x_min + j * self._cellsize
-                    break
+            # 5a: reject narrow overhead-noise spikes — a real rear wall is a
+            # contiguous tall slab, not a single-cell peak.
+            run_end = min(i + min_wall_run, num_bins)
+            # if not np.all(fp[i:run_end] >= self._z_wall_threshold):
+            #     logger.debug("peak @%d (%.2fm): no contiguous wall slab — skip", i, x_min + i * self._cellsize)
+            #     continue
+
+            # 5b: the inner face is the trailing edge of the contiguous wall
+            # slab — the last cell still at wall height before the profile drops
+            # into the cavity.  Using the slab's far edge (instead of the first
+            # negative-gradient local max) avoids overshooting several cells into
+            # the cavity when the wall top is noisy or rounded.
+            slab_end = min(i + max_wall_cells + 1, num_bins - 1)
+            j = i
+            while j + 1 < slab_end and fp[j + 1] >= self._z_wall_threshold:
+                j += 1
+            if j > i and self._rear_internal_cavity_ok(j, fp, hp, num_bins):
+                rear_bin_idx = j
+                x_rear_internal = x_min + j * self._cellsize
+            elif j > i:
+                logger.debug("inner @%d (%.2fm): no valid cavity — try next", j, x_min + j * self._cellsize)
 
             if x_rear_internal is not None:
                 break
@@ -279,8 +312,17 @@ class BinDetector:
         # cells.  That last condition confirms we are at the START of the rising
         # edge rather than somewhere in the middle of the slope.
         x_front_internal = front_bin_idx = None
+        # Same contiguous-slab guard as the rear wall (min_wall_run): a
+        # structure on top of the bin produces a narrow spike, not a real wall.
         for i in range(rear_bin_idx + int(1.5 / self._cellsize), num_bins - 1):
             if grad[i] > 0 and fp[i] >= self._z_wall_threshold and fp[i] >= bwd_max_5c[i]:
+                # Contiguous-slab guard: a mid-cavity crossbar or brace makes a
+                # narrow 1–2 cell spike, not a wall.  Require min_wall_run tall
+                # cells so the front edge cannot latch onto interior structure.
+                run_end = min(i + min_wall_run, num_bins)
+                if not np.all(fp[i:run_end] >= self._z_wall_threshold):
+                    logger.debug("front @%d (%.2fm): no contiguous slab — skip", i, x_min + i * self._cellsize)
+                    continue
                 front_bin_idx = i
                 x_front_internal = x_min + i * self._cellsize
                 break
@@ -358,13 +400,21 @@ class BinDetector:
             confidence = 1.0
 
         # --- Step 7: output --------------------------------------------------
-        # Compute the bin centre and collect the wall-face point clouds for
-        # downstream visualisation.  A window of ±cell_size around each inner
-        # edge position captures the wall slab without pulling in cavity floor
-        # or truck-frame returns.
+        # Emit only the inner-edge slice of each wall — a thin band of ±cell_size
+        # around the exact inner-face X coordinate.  This gives the viewer a clear
+        # two-line marker (rear edge + front edge) without the full wall slab.
         x_center = (x_rear_internal + x_front_internal) / 2.0
+
         rear_mask  = np.abs(pts[:, 0] - x_rear_internal)  <= eh
         front_mask = np.abs(pts[:, 0] - x_front_internal) <= eh
+
+        # Per-edge fallback: widen to ±3×cell_size if the tight slice is empty
+        # (very sparse scan at that exact X position).
+        if not np.any(rear_mask):
+            rear_mask = np.abs(pts[:, 0] - x_rear_internal) <= 3 * eh
+        if not np.any(front_mask):
+            front_mask = np.abs(pts[:, 0] - x_front_internal) <= 3 * eh
+
         edge_pts = np.concatenate([pts[rear_mask], pts[front_mask]])
 
         return BinDetectionResult(
