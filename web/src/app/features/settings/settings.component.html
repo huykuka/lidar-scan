@@ -51,22 +51,6 @@
           </span>
         }
 
-        <syn-tooltip
-          [content]="canEdit() ? 'Restart backend runtime without saving' : 'Admin access required'"
-          [distance]="13"
-          placement="bottom"
-        >
-          <syn-button
-            variant="outline"
-            [loading]="canvasEditStore.isReloading()"
-            [disabled]="canvasEditStore.isReloading() || !canEdit()"
-            (click)="onReloadRuntime()"
-          >
-            <syn-icon name="refresh" slot="prefix" />
-            <span> Reload </span>
-          </syn-button>
-        </syn-tooltip>
-
         <syn-tooltip content="Pull latest config from backend" [distance]="13" placement="bottom">
           <syn-button
             variant="outline"

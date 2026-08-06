@@ -58,7 +58,9 @@ export class SystemControlComponent {
         this.isRunning() ? 'Failed to stop data flow.' : 'Failed to start data flow.',
       );
     } finally {
-      this.loading.set(false);
+      setTimeout(() => {
+        this.loading.set(false);
+      }, 500);
     }
   }
 }

@@ -2,15 +2,17 @@
   <nav slot="meta-navigation" class="flex h-full items-center gap-1">
     <!-- Desktop-only: individual icons -->
     <app-system-control class="header-desktop-only" />
+    <app-reload-runtime class="header-desktop-only" />
     <app-connection-status class="header-desktop-only" (refresh)="onRefresh()" />
     <app-sensor-status class="header-desktop-only" />
     <app-platform-guide class="header-desktop-only" />
     <app-theme-switch class="header-desktop-only" />
     <!-- Mobile 3-dots overflow menu: all actions inside -->
-    <syn-dropdown class="header-mobile-menu" placement="bottom-end" [distance]="8">
+    <syn-dropdown #mobileMenu class="header-mobile-menu" placement="bottom-end" [distance]="8">
       <syn-icon-button slot="trigger" name="more_vert" label="More options" size="medium" />
-      <div class="mobile-action-panel">
+      <div class="mobile-action-panel" (click)="onMobileMenuAction()">
         <app-system-control [mobile]="true" />
+        <app-reload-runtime [mobile]="true" />
         <app-connection-status [mobile]="true" (refresh)="onRefresh()" />
         <app-sensor-status [mobile]="true" />
         <div class="mobile-action-divider"></div>

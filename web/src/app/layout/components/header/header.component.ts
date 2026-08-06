@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, inject, input, viewChild} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, ElementRef, inject, input, viewChild} from '@angular/core';
 import {SynergyComponentsModule, SynHeaderComponent} from '@synergy-design-system/angular';
 import {SystemStatusService} from '../../../core/services/system-status.service';
 import {NavigationService} from '../../../core/services/navigation.service';
@@ -8,6 +8,7 @@ import {SystemControlComponent} from './system-control/system-control.component'
 import {UserInfoComponent} from './user-info/user-info.component';
 import {ThemeSwitchComponent} from './theme-switch/theme-switch.component';
 import {PlatformGuideComponent} from './platform-guide/platform-guide.component';
+import {ReloadRuntimeComponent} from './reload-runtime/reload-runtime.component';
 import packageJson from '../../../../../package.json';
 
 @Component({
@@ -20,6 +21,7 @@ import packageJson from '../../../../../package.json';
     UserInfoComponent,
     ThemeSwitchComponent,
     PlatformGuideComponent,
+    ReloadRuntimeComponent,
   ],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,6 +32,7 @@ export class HeaderComponent {
   protected readonly uiVersion: string = packageJson.version;
 
   readonly synHeader = viewChild.required<SynHeaderComponent>('header');
+  readonly mobileMenu = viewChild<ElementRef>('mobileMenu');
 
   private readonly systemStatus = inject(SystemStatusService);
   private readonly navService = inject(NavigationService);
@@ -53,6 +56,11 @@ export class HeaderComponent {
 
   protected onRefresh(): void {
     this.systemStatus.refreshNow();
+  }
+
+  protected onMobileMenuAction(): void {
+    const el = this.mobileMenu()?.nativeElement ?? this.mobileMenu();
+    el?.hide?.();
   }
 
   protected onAcknowledge(): void {

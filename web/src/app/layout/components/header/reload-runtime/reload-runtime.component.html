@@ -1,0 +1,26 @@
+@if (mobile()) {
+  <div
+    class="flex w-full items-center gap-2 py-0.5 pl-1 pr-3 cursor-pointer transition-colors duration-150 hover:bg-syn-color-neutral-100"
+    [class.opacity-50]="!canEdit()"
+    (click)="onReload()"
+  >
+    <syn-button variant="text" size="medium" [loading]="loading()" [disabled]="!canEdit()">
+      <syn-icon slot="prefix" name="refresh" />
+    </syn-button>
+    <span class="text-sm font-medium text-syn-color-neutral-700 select-none">Reload Runtime</span>
+  </div>
+} @else {
+  <syn-tooltip
+    [content]="canEdit() ? 'Restart flow' : 'Admin access required'"
+    [distance]="13"
+  >
+    <syn-icon-button
+      [name]="loading() ? 'sync' : 'rule_settings'"
+      label="Reload runtime"
+      size="medium"
+      [class.animate-spin]="loading()"
+      [disabled]="!canEdit() || loading()"
+      (click)="onReload()"
+    />
+  </syn-tooltip>
+}
