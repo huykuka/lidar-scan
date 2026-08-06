@@ -19,7 +19,7 @@ from app.services.nodes.schema import NodeDefinition
 from .service import (
     list_nodes, list_node_definitions, get_node,
     reload_all_config, get_nodes_status,
-    reload_single_node, get_reload_status,
+    get_reload_status,
     list_node_type_registry, set_node_type_enabled,
     list_plugins, remove_plugin, upload_plugin,
     calibrate_from_floor, FloorCalibrationRequest,
@@ -212,6 +212,3 @@ async def nodes_plugins_remove_endpoint(plugin_name: str):
 )
 async def node_get_endpoint(node_id: str):
     return await get_node(node_id)
-
-
-
