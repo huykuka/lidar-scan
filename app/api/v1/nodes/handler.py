@@ -12,7 +12,6 @@ from app.api.v1.schemas.common import StatusResponse
 from app.api.v1.schemas.nodes import (
     NodeRecord,
     NodesStatusResponse,
-    NodeReloadResponse,
     ReloadStatusResponse,
 )
 from app.services.nodes.schema import NodeDefinition
@@ -120,24 +119,6 @@ async def nodes_reload_status_endpoint():
 @roles_required("admin")
 async def nodes_reload_endpoint():
     return await reload_all_config()
-
-
-@router.post(
-    "/nodes/{node_id}/reload",
-    response_model=NodeReloadResponse,
-    responses={
-        404: {"description": "Node not found in running DAG"},
-        409: {"description": "A reload is already in progress"},
-        500: {"description": "Reload failed"},
-    },
-    summary="Selective Node Reload",
-    description="Reload a single node's runtime in-place without affecting other nodes or WebSocket connections.",
-)
-@roles_required("admin")
-async def node_reload_endpoint(
-        node_id: str,
-):
-    return await reload_single_node(node_id)
 
 
 @router.get(

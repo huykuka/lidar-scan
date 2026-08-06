@@ -221,6 +221,30 @@ class NodeManager:
 
         logger.info("Config reload complete.")
 
+    async def selective_reload_node(self, node_id: str):
+        """
+        Reload a single node in-place without a full DAG teardown.
+
+        Acquires ``_reload_lock`` to prevent concurrent reloads, broadcasts
+        WebSocket reload-progress events, and delegates to
+        ``SelectiveReloadManager.reload_single_node()``.
+        """
+        from app.api.v1.schemas.nodes import SelectiveReloadResult  # noqa: F401
+
+        async with self._reload_lock:
+            self._active_reload_node_id = node_id
+            try:
+                await self._broadcast_reload_event(node_id, "reloading", "selective")
+                result = await self._selective_reload_manager.reload_single_node(node_id)
+                self._data_router.invalidate_shape_collector_cache()
+                status = "ready" if result.status == "reloaded" else "error"
+                await self._broadcast_reload_event(
+                    node_id, status, "selective", result.error_message
+                )
+                return result
+            finally:
+                self._active_reload_node_id = None
+
     async def hot_update_node_pose(self, node_id: str):
         """Hot-update a node's pose without stopping/restarting its worker.
 
