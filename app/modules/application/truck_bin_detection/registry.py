@@ -209,6 +209,21 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
+                name="wall_height_match_tol",
+                label="Wall Height Match Tolerance (m)",
+                type="number",
+                default=0.04,
+                min=0.01,
+                max=0.20,
+                step=0.005,
+                help_text=(
+                    "Maximum allowed height difference (m) between the rear and front wall "
+                    "top cells. Real bin walls have the same nominal height; a larger gap "
+                    "means the candidate front wall is actually a cab roof, crane, or the "
+                    "next trailer. Default 4 cm. Increase if walls are noisy or sloped."
+                ),
+            ),
+            PropertySchema(
                 name="rear_forward_lookup",
                 label="Rear Wall Peak Look-ahead (cells)",
                 type="number",

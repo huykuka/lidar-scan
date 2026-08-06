@@ -48,6 +48,7 @@ class BinDetector:
             min_cavity_run_ratio: float = 0.6,
             min_bed_cells: int = 3,
             max_wall_thickness: float = 0.5,
+            wall_height_match_tol: float = 0.04,
     ) -> None:
         self._lane_width = lane_width
         self._z_min = z_min
@@ -69,6 +70,7 @@ class BinDetector:
         self._min_bed_cells = min_bed_cells
         self._max_wall_thickness = max_wall_thickness
         self._min_wall_run =2
+        self._wall_height_match_tol = wall_height_match_tol
 
     # ------------------------------------------------------------------
     # Private: peak / edge validators
@@ -311,7 +313,15 @@ class BinDetector:
         # above wall height, AND higher than the previous front_backward_lookup
         # cells.  That last condition confirms we are at the START of the rising
         # edge rather than somewhere in the middle of the slope.
+        #
+        # Additional height-match guard: the front wall top must be within
+        # wall_height_match_tol (default 4 cm) of the rear wall top height.
+        # Bins have walls of the same nominal height; a large discrepancy means
+        # the candidate is a cab roof, a crane, or the next trailer's rear wall.
+        # Keep scanning forward until a height-matched slab is found.
         x_front_internal = front_bin_idx = None
+        rear_top_z = fp[rear_bin_idx]  # height of rear inner edge top cell
+
         # Same contiguous-slab guard as the rear wall (min_wall_run): a
         # structure on top of the bin produces a narrow spike, not a real wall.
         for i in range(rear_bin_idx + int(1.5 / self._cellsize), num_bins - 1):
@@ -323,6 +333,17 @@ class BinDetector:
                 if not np.all(fp[i:run_end] >= self._z_wall_threshold):
                     logger.debug("front @%d (%.2fm): no contiguous slab — skip", i, x_min + i * self._cellsize)
                     continue
+
+                # Height-match guard: front wall top must be close to rear wall top.
+                front_top_z = fp[i]
+                if abs(front_top_z - rear_top_z) > self._wall_height_match_tol:
+                    logger.debug(
+                        "front @%d (%.2fm): height mismatch rear=%.3fm front=%.3fm diff=%.3fm > tol=%.3fm — skip",
+                        i, x_min + i * self._cellsize, rear_top_z, front_top_z,
+                        abs(front_top_z - rear_top_z), self._wall_height_match_tol,
+                    )
+                    continue
+
                 front_bin_idx = i
                 x_front_internal = x_min + i * self._cellsize
                 break
