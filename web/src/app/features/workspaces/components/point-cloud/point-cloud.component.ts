@@ -79,7 +79,14 @@ export class PointCloudComponent implements OnDestroy {
         if (!points) return;
 
         if (!frame || frame.count === 0) {
+          // No data → drop the stale cloud instead of leaving it rendered.
           points.visible = false;
+          const geo = points.geometry;
+          if (geo) {
+            geo.setDrawRange(0, 0);
+            const attr = geo.attributes['position'];
+            if (attr) attr.needsUpdate = true;
+          }
           return;
         }
         points.visible = true;
