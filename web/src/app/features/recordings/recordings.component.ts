@@ -18,7 +18,9 @@ import {Recording} from '@core/models';
 import {RecordingCardComponent} from './components/recording-card/recording-card.component';
 import {DialogService} from '@core/services/dialog.service';
 import {firstValueFrom} from 'rxjs';
+import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 
+@UntilDestroy()
 @Component({
   selector: 'app-recordings',
   imports: [SynergyComponentsModule, RecordingCardComponent],
@@ -116,8 +118,7 @@ export class RecordingsComponent implements OnInit {
 
     this.isDeleting.set(true);
     try {
-      await this.recordingApi.deleteRecording(recording.id).toPromise();
-      await this.recordingStore.loadRecordings();
+     this.recordingApi.deleteRecording(recording.id).pipe(untilDestroyed(this)).subscribe()
     } catch (error) {
       console.error('Failed to delete recording:', error);
     } finally {

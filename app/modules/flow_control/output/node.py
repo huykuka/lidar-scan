@@ -57,12 +57,17 @@ class OutputNode(ModuleNode):
 
         if self._tcp is not None:
             self._tcp.set_client_change_callback(lambda: notify_status_change(self.id))
-            asyncio.create_task(self._tcp.start())
 
         logger.debug(
             f"Created OutputNode {node_id} "
             f"(tcp={'enabled' if self._tcp else 'disabled'})"
         )
+
+    async def start(self, *args, **kwargs) -> None:
+        """Called by LifecycleManager after construction. Starts TCP server and pushes initial status."""
+        if self._tcp is not None:
+            await self._tcp.start()
+        notify_status_change(self.id)
 
     async def on_input(self, payload: Dict[str, Any]) -> None:
         try:

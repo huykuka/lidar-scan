@@ -87,12 +87,8 @@ export class FlowCanvasComponent {
   protected drawerOpen = signal(false);
   protected availablePlugins = signal<NodePlugin[]>([]);
   protected snapToGrid = signal(true);
-  protected minimapVisible = signal(
-    localStorage.getItem('flow-canvas.minimapVisible') !== 'false'
-  );
-  protected liveStatus = signal(
-    localStorage.getItem('flow-canvas.liveStatus') !== 'false'
-  );
+  protected minimapVisible = signal(localStorage.getItem('flow-canvas.minimapVisible') !== 'false');
+  protected liveStatus = signal(localStorage.getItem('flow-canvas.liveStatus') !== 'false');
   readonly gridSize = 30;
   protected isPaletteLoading = signal(true);
   protected isCanvasLoading = signal(true);
@@ -120,7 +116,9 @@ export class FlowCanvasComponent {
       if (this.canvasEditStore.isInitialized()) {
         untracked(() => {
           this.isCanvasLoading.set(false);
-          this.fitToScreen()
+          setTimeout(() => {
+            this.fitToScreen();
+          }, 400);
         });
       }
     });
@@ -290,16 +288,36 @@ export class FlowCanvasComponent {
 
   onControlAction(action: CanvasControlAction): void {
     switch (action) {
-      case 'fit-to-screen':    this.fitToScreen(); break;
-      case 'one-to-one':       this.resetScaleAndCenter(); break;
-      case 'zoom-in':          this.zoomIn(); break;
-      case 'zoom-out':         this.zoomOut(); break;
-      case 'snap-toggle':      this.snapToGrid.set(!this.snapToGrid()); break;
-      case 'minimap-toggle':   this.minimapVisible.set(!this.minimapVisible()); break;
-      case 'live-status-toggle': this.liveStatus.set(!this.liveStatus()); break;
-      case 'undo':             this.undo(); break;
-      case 'redo':             this.redo(); break;
-      case 'reset':            this.resetToSaved(); break;
+      case 'fit-to-screen':
+        this.fitToScreen();
+        break;
+      case 'one-to-one':
+        this.resetScaleAndCenter();
+        break;
+      case 'zoom-in':
+        this.zoomIn();
+        break;
+      case 'zoom-out':
+        this.zoomOut();
+        break;
+      case 'snap-toggle':
+        this.snapToGrid.set(!this.snapToGrid());
+        break;
+      case 'minimap-toggle':
+        this.minimapVisible.set(!this.minimapVisible());
+        break;
+      case 'live-status-toggle':
+        this.liveStatus.set(!this.liveStatus());
+        break;
+      case 'undo':
+        this.undo();
+        break;
+      case 'redo':
+        this.redo();
+        break;
+      case 'reset':
+        this.resetToSaved();
+        break;
     }
   }
 
@@ -450,7 +468,6 @@ export class FlowCanvasComponent {
         })),
       };
     });
-
   }
 
   private async _deleteSelectedNodes(): Promise<void> {

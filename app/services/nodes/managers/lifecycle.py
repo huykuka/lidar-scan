@@ -15,28 +15,28 @@ logger = get_logger(__name__)
 
 class LifecycleManager:
     """Handles node lifecycle operations."""
-    
+
     def __init__(self, manager_ref):
         """
         Initialize the lifecycle manager.
-        
+
         Args:
             manager_ref: Reference to the NodeManager instance
         """
         self.manager = manager_ref
-    
+
     async def start_all_nodes(self):
         """Start or enable all node instances."""
         import inspect
         for node_id, node_instance in self.manager.nodes.items():
-            logger.info(f"[LifecycleManager] Registering/starting node {node_id}")
+            logger.info(f"[LifecycleManager] Registering/starting node {node_instance.name} (ID: {node_id})")
             if hasattr(node_instance, "start"):
                 result = node_instance.start(self.manager.data_queue, self.manager.node_runtime_status)
                 if inspect.isawaitable(result):
                     await result
             elif hasattr(node_instance, "enable"):
                 node_instance.enable()
-    
+
     async def stop_all_nodes(self) -> None:
         """Async stop all node instances, properly awaiting async stop() coroutines.
 
@@ -60,14 +60,14 @@ class LifecycleManager:
             await self._stop_node_async(node_instance)
 
         await asyncio.gather(*[_stop(nid, ni) for nid, ni in items])
-    
+
     async def remove_node_async(self, node_id: str) -> None:
         """
         Async counterpart of remove_node with proper WebSocket teardown.
-        
+
         This stops the node and cleans up all associated resources including
         WebSocket connections, topics, routing maps, and runtime state.
-        
+
         Args:
             node_id: The ID of the node to remove
         """
@@ -81,7 +81,7 @@ class LifecycleManager:
         await self._unregister_node_websocket_topic_async(node_id, node_instance)
         self._cleanup_node_routing(node_id)
         self._cleanup_node_state(node_id)
-    
+
     async def _stop_node_async(self, node_instance: Any) -> None:
         """Async stop a single node instance, awaiting coroutine stop() if present.
 
@@ -135,14 +135,14 @@ class LifecycleManager:
                     )
             else:
                 logger.debug(f"[LifecycleManager] sync stop() completed for node {node_id!r}")
-    
+
     async def _unregister_node_websocket_topic_async(self, node_id: str, node_instance: Any) -> None:
         """
         Async unregister WebSocket topic for a node with proper cleanup.
-        
+
         Reads node_instance._ws_topic first (if present) to guarantee key consistency;
         falls back to re-deriving via slugify_topic_prefix if the attribute is absent.
-        
+
         Args:
             node_id: The node ID
             node_instance: The node instance
@@ -150,7 +150,7 @@ class LifecycleManager:
         # Add early return guard at top: if hasattr(node_instance, "_ws_topic") and node_instance._ws_topic is None: return
         if hasattr(node_instance, "_ws_topic") and node_instance._ws_topic is None:
             return  # This prevents calling unregister_topic() on a non-existent topic for invisible nodes
-            
+
         # Use stored topic if available to guarantee key match with registration
         if hasattr(node_instance, "_ws_topic"):
             topic = node_instance._ws_topic
@@ -158,20 +158,20 @@ class LifecycleManager:
             node_name = getattr(node_instance, "name", node_id)
             safe_name = slugify_topic_prefix(node_name)
             topic = f"{safe_name}_{node_id[:8]}"
-        
+
         await manager.unregister_topic(topic)
-    
+
     def _cleanup_node_routing(self, node_id: str):
         """
         Remove node from downstream routing maps.
-        
+
         Args:
             node_id: The node ID to remove
         """
         # Remove as source
         if node_id in self.manager.downstream_map:
             del self.manager.downstream_map[node_id]
-        
+
         # Remove as target from all sources (all edges are port-aware dicts)
         for source, targets in list(self.manager.downstream_map.items()):
             new_targets = [t for t in targets if t.get("target_id") != node_id]
@@ -180,17 +180,17 @@ class LifecycleManager:
                     self.manager.downstream_map[source] = new_targets
                 else:
                     del self.manager.downstream_map[source]
-    
+
     def _cleanup_node_state(self, node_id: str):
         """
         Clean up runtime state for a node.
-        
+
         Args:
             node_id: The node ID to clean up
         """
         if node_id in self.manager.node_runtime_status:
             del self.manager.node_runtime_status[node_id]
-        
+
         # Cleanup throttle state
         self.manager._throttle_config.pop(node_id, None)
         self.manager._last_process_time.pop(node_id, None)

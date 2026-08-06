@@ -48,6 +48,7 @@ export class NodeStatusService {
     this.subscription = this.wsService.connect(STATUS_TOPIC, url).subscribe({
       next: (raw: any) => {
         try {
+          if (raw === 'ping') return;
           const data: SystemStatusBroadcast =
             typeof raw === 'string' ? JSON.parse(raw) : raw;
 
@@ -67,8 +68,8 @@ export class NodeStatusService {
           }
 
           if (!this.connected()) this.connected.set(true);
-        } catch {
-          console.error('[NodeStatusService] Failed to parse message');
+        } catch (err) {
+          console.error('[NodeStatusService] Failed to parse message', err, raw);
         }
       },
       error: () => {

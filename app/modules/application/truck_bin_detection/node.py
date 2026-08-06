@@ -69,6 +69,7 @@ class TruckBinDetectionNode(ModuleNode):
             min_cavity_run_ratio=float(config.get("min_cavity_run_ratio", 0.6)),
             min_bed_cells=int(config.get("min_bed_cells", 3)),
             max_wall_thickness=float(config.get("max_wall_thickness", 0.5)),
+            wall_height_match_tol=float(config.get("wall_height_match_tol", 0.04)),
         )
 
         # State machine and status

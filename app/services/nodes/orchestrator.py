@@ -13,7 +13,7 @@ Architecture:
     The orchestrator maintains a Directed Acyclic Graph (DAG) of processing nodes.
     Data flows from source nodes (sensors) through processing nodes (operations)
     to sink nodes (fusion, output). The system supports:
-    
+
     - Dynamic node creation/removal
     - WebSocket broadcasting of results
     - Recording of point cloud data
@@ -47,7 +47,7 @@ SELECTIVE_RELOAD_TIMEOUT_S: float = 5.0
 class NodeManager:
     """
     Central orchestrator for the node-based processing pipeline.
-    
+
     The NodeManager coordinates all aspects of the processing graph:
     - Loading and initializing nodes from database configurations
     - Managing node lifecycles (start, stop, reload)
@@ -56,13 +56,13 @@ class NodeManager:
     - Recording point cloud data streams
     - Throttling data flow to prevent overload
     """
-    
+
     def __init__(self):
         """Initialize the NodeManager and its sub-managers."""
         # Configuration data
         self.nodes_data: List[Dict[str, Any]] = []
         self.edges_data: List[Dict[str, Any]] = []
-        
+
         # Runtime state
         self.data_queue: Any = mp.Queue(maxsize=4)  # Small buffer — batch-drain listener keeps it near-empty
         self.is_running = False
@@ -70,17 +70,17 @@ class NodeManager:
         self._listener_task: Any = None
         self._topic_registry = TopicRegistry()
         self._reload_lock: asyncio.Lock = asyncio.Lock()  # Prevent concurrent reloads
-        
+
         # Runtime tracking instances
         self.nodes: Dict[str, Any] = {}  # node_id -> node_instance
         self.node_runtime_status: Dict[str, Dict[str, Any]] = {}  # node_id -> status_dict
         self.downstream_map: Dict[str, List[Dict[str, str]]] = {}  # source_id -> [port-aware edge dicts]
-        
+
         # Throttling state per node
         self._throttle_config: Dict[str, float] = {}  # node_id -> throttle_interval_ms
         self._last_process_time: Dict[str, float] = {}  # node_id -> last_process_timestamp
         self._throttled_count: Dict[str, int] = {}  # node_id -> count of throttled frames
-        
+
         # Sub-managers for specific responsibilities
         self._config_loader = ConfigLoader(self)
         self._lifecycle_manager = LifecycleManager(self)
@@ -97,11 +97,11 @@ class NodeManager:
     # ========================================
     # Configuration Management
     # ========================================
-    
+
     def load_config(self):
         """
         Load node and edge configurations from SQLite and initialize the DAG.
-        
+
         This method:
         1. Loads node and edge data from the database
         2. Creates node instances in topological order
@@ -127,7 +127,7 @@ class NodeManager:
                         f"{nid}:no_pose",
                         compute_node_config_hash_no_pose(node_data),
                     )
-            
+
             self._data_router.invalidate_shape_collector_cache()
         except Exception as e:
             logger.error(f"Error loading graph from DB: {e}", exc_info=True)
@@ -135,7 +135,7 @@ class NodeManager:
     async def reload_config(self, loop=None) -> None:
         """
         Reload the entire configuration from database with proper WebSocket cleanup.
-        
+
         This method:
         1. Stops all running nodes
         2. Removes all nodes and cleans up resources (including WebSocket connections)
@@ -143,7 +143,7 @@ class NodeManager:
         4. Waits for cleanup to complete
         5. Reloads configuration from database
         6. Restarts the system if it was running before
-        
+
         Args:
             loop: Optional asyncio event loop to use
         """
@@ -188,8 +188,6 @@ class NodeManager:
         await self._lifecycle_manager.stop_all_nodes()
 
         # Snapshot all topics registered BEFORE cleanup
-        topics_before: set[str] = set(websocket_manager.active_connections.keys())
-
         logger.info("Cleaning up all nodes...")
         await self._cleanup_all_nodes_async()
         self._topic_registry.clear()
@@ -230,54 +228,22 @@ class NodeManager:
         Acquires ``_reload_lock`` to prevent concurrent reloads, broadcasts
         WebSocket reload-progress events, and delegates to
         ``SelectiveReloadManager.reload_single_node()``.
-
-        Args:
-            node_id: ID of the node to reload.
-
-        Returns:
-            SelectiveReloadResult describing the outcome.
-
-        Raises:
-            ValueError: If *node_id* is not present in the running pipeline.
         """
-        from app.api.v1.schemas.nodes import SelectiveReloadResult
+        from app.api.v1.schemas.nodes import SelectiveReloadResult  # noqa: F401
 
         async with self._reload_lock:
             self._active_reload_node_id = node_id
             try:
                 await self._broadcast_reload_event(node_id, "reloading", "selective")
-                result = await asyncio.wait_for(
-                    self._selective_reload_manager.reload_single_node(node_id),
-                    timeout=SELECTIVE_RELOAD_TIMEOUT_S,
-                )
+                result = await self._selective_reload_manager.reload_single_node(node_id)
                 self._data_router.invalidate_shape_collector_cache()
                 status = "ready" if result.status == "reloaded" else "error"
                 await self._broadcast_reload_event(
                     node_id, status, "selective", result.error_message
                 )
                 return result
-            except asyncio.TimeoutError:
-                # Abort the hung selective reload so the lock is released and the
-                # frontend loading state is cleared instead of sticking forever.
-                logger.error(
-                    "Selective reload of node %r exceeded %.0fs and was aborted "
-                    "to release the reload lock.",
-                    node_id,
-                    SELECTIVE_RELOAD_TIMEOUT_S,
-                )
-                await self._broadcast_reload_event(
-                    node_id,
-                    "error",
-                    "selective",
-                    f"Reload timed out after {SELECTIVE_RELOAD_TIMEOUT_S:.0f}s",
-                )
-                raise RuntimeError(
-                    f"Selective reload of node '{node_id}' timed out after "
-                    f"{SELECTIVE_RELOAD_TIMEOUT_S:.0f}s"
-                )
             finally:
                 self._active_reload_node_id = None
-
 
     async def hot_update_node_pose(self, node_id: str):
         """Hot-update a node's pose without stopping/restarting its worker.
@@ -397,7 +363,7 @@ class NodeManager:
 
     async def _cleanup_all_nodes_async(self) -> None:
         """Async remove all nodes and their resources during reload.
-        
+
         Results are preserved (delete_results=False) because this is a transient
         reload/reconfiguration, not a permanent node removal.
         """
@@ -411,13 +377,13 @@ class NodeManager:
     async def start(self, loop=None):
         """
         Start the orchestrator and all registered nodes.
-        
+
         This method:
         1. Initializes the asyncio event loop
         2. Creates a fresh multiprocessing queue for data
         3. Starts all node instances (sensors spawn workers, others enable)
         4. Starts the queue listener task
-        
+
         Args:
             loop: Optional asyncio event loop to use
         """
@@ -431,27 +397,27 @@ class NodeManager:
     async def stop(self):
         """
         Stop the orchestrator and all running nodes.
-        
+
         This method:
         1. Sets running flag to False
         2. Cancels the queue listener task
         3. Stops all node instances properly via async stop
         """
         self.is_running = False
-        
+
         if self._listener_task:
             self._listener_task.cancel()
-        
+
         await self._lifecycle_manager.stop_all_nodes()
         logger.info("All nodes stopped.")
 
     async def remove_node_async(self, node_id: str, *, delete_results: bool = True):
         """
         Async dynamically remove a node from the running pipeline with proper cleanup.
-        
+
         This is useful for runtime reconfiguration without full restart.
         Cleans up all resources including WebSocket connections, topics, routing, and state.
-        
+
         Args:
             node_id: The ID of the node to remove
             delete_results: When True (default), permanently deletes stored results for the
@@ -476,44 +442,6 @@ class NodeManager:
                 logger.warning(
                     "[NodeManager] Failed to delete results for node '%s': %s", node_id, exc
                 )
-
-    async def set_node_visible(self, node_id: str, visible: bool) -> None:
-        """
-        Set node visibility state, managing WebSocket topic registration/unregistration.
-        
-        Args:
-            node_id: The node ID to modify
-            visible: True to make visible (register topic), False to hide (unregister topic)
-        """
-        # If node_id not in self.nodes: log at DEBUG and return (disabled nodes — DB already updated by caller)
-        if node_id not in self.nodes:
-            logger.debug(f"set_node_visible called for disabled node {node_id} - DB updated, no runtime action needed")
-            return
-        
-        node_instance = self.nodes[node_id]
-        
-        # If not visible and node_instance._ws_topic is not None: call unregister, then set _ws_topic = None
-        if not visible and hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is not None:
-            await self._lifecycle_manager._unregister_node_websocket_topic_async(node_id, node_instance)
-            node_instance._ws_topic = None
-            logger.debug(f"Node {node_id} set to invisible - topic unregistered")
-            
-        # If visible and node_instance._ws_topic is None: derive topic, call register_topic, set _ws_topic = topic  
-        elif visible and hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is None:
-            from app.services.shared.topics import slugify_topic_prefix
-            from app.repositories import NodeRepository
-            
-            node_name = getattr(node_instance, "name", node_id)
-            topic = f"{slugify_topic_prefix(node_name)}_{node_id[:8]}"
-            node_data = NodeRepository().get_by_id(node_id)
-            category = node_data.get("category", "other") if node_data else "other"
-            websocket_manager.register_topic(topic, category=category)
-            node_instance._ws_topic = topic
-            logger.debug(f"Node {node_id} set to visible - topic '{topic}' registered")
-            
-        # If visible and node_instance._ws_topic is not None: no-op (already visible)
-        elif visible and hasattr(node_instance, '_ws_topic') and node_instance._ws_topic is not None:
-            logger.debug(f"Node {node_id} already visible - no action needed")
 
     # ========================================
     # Data Flow Management
@@ -582,15 +510,15 @@ class NodeManager:
     async def forward_data(self, source_id: str, payload: Any, active_port: Optional[str] = None):
         """
         Forward data from a source node to downstream nodes.
-        
+
         This is the main entry point for data propagation through the DAG.
         Called by nodes after they finish processing to send results downstream.
-        
+
         Handles:
         - WebSocket broadcasting to subscribers
         - Recording data if active
         - Forwarding to connected downstream nodes (with throttling)
-        
+
         Args:
             source_id: The ID of the source node
             payload: The data payload to forward
@@ -606,12 +534,12 @@ class NodeManager:
     def get_throttle_stats(self, node_id: str) -> Dict[str, Any]:
         """
         Get throttling statistics for a node.
-        
+
         Used by the status API to report throttling metrics to the frontend.
-        
+
         Args:
             node_id: The node ID
-            
+
         Returns:
             Dictionary with throttle_ms, throttled_count, and last_process_time
         """

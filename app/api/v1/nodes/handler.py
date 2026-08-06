@@ -12,14 +12,13 @@ from app.api.v1.schemas.common import StatusResponse
 from app.api.v1.schemas.nodes import (
     NodeRecord,
     NodesStatusResponse,
-    NodeReloadResponse,
     ReloadStatusResponse,
 )
 from app.services.nodes.schema import NodeDefinition
 from .service import (
     list_nodes, list_node_definitions, get_node,
     reload_all_config, get_nodes_status,
-    reload_single_node, get_reload_status,
+    get_reload_status,
     list_node_type_registry, set_node_type_enabled,
     list_plugins, remove_plugin, upload_plugin,
     calibrate_from_floor, FloorCalibrationRequest,
@@ -122,24 +121,6 @@ async def nodes_reload_endpoint():
     return await reload_all_config()
 
 
-@router.post(
-    "/nodes/{node_id}/reload",
-    response_model=NodeReloadResponse,
-    responses={
-        404: {"description": "Node not found in running DAG"},
-        409: {"description": "A reload is already in progress"},
-        500: {"description": "Reload failed"},
-    },
-    summary="Selective Node Reload",
-    description="Reload a single node's runtime in-place without affecting other nodes or WebSocket connections.",
-)
-@roles_required("admin")
-async def node_reload_endpoint(
-        node_id: str,
-):
-    return await reload_single_node(node_id)
-
-
 @router.get(
     "/nodes/status/all",
     response_model=NodesStatusResponse,
@@ -212,6 +193,3 @@ async def nodes_plugins_remove_endpoint(plugin_name: str):
 )
 async def node_get_endpoint(node_id: str):
     return await get_node(node_id)
-
-
-

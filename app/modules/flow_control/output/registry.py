@@ -37,7 +37,7 @@ node_schema_registry.register(NodeDefinition(
             depends_on={"tcp_enabled": [True]},
         ),
     ],
-    inputs=[PortSchema(id="in", label="Input", data_type="pointcloud", multiple=False)],
+    inputs=[PortSchema(id="in", label="Input", data_type="pointcloud", multiple=True)],
     outputs=[],  # Terminal node — no downstream forwarding
 ))
 

@@ -16,7 +16,7 @@ from app.services.nodes.schema import (
 
 node_schema_registry.register(NodeDefinition(
     type="fusion",
-    display_name="Multi-Sensor Fusion",
+    display_name="Point Cloud Fusion",
     category="fusion",
     description="Merges multiple point cloud streams into a unified coordinate system",
     icon="hub",
