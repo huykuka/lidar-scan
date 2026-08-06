@@ -120,7 +120,7 @@ export class FlowCanvasComponent {
       if (this.canvasEditStore.isInitialized()) {
         untracked(() => {
           this.isCanvasLoading.set(false);
-          // this.resetScaleAndCenter();
+          this.fitToScreen()
         });
       }
     });
