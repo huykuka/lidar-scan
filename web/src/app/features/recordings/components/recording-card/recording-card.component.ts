@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  inject,
   input,
   output,
   signal,
@@ -11,6 +12,7 @@ import { DatePipe } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { Recording } from '@core/models';
 import { environment } from '@env/environment';
+import { AuthService } from '@core/services/auth.service';
 
 @Component({
   selector: 'app-recording-card',
@@ -25,12 +27,15 @@ export class RecordingCardComponent {
   readonly selected = input(false);
   readonly priority = input(false);
 
+  protected readonly canEdit = inject(AuthService).canEdit;
+
   readonly select = output<Recording>();
   readonly toggleSelection = output<boolean>();
   readonly play = output<Recording>();
   readonly download = output<Recording>();
   readonly delete = output<Recording>();
   readonly rename = output<{ recording: Recording; name: string }>();
+
 
   protected isRenaming = signal(false);
   protected renameValue = signal('');

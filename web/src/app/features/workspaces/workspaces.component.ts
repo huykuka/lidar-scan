@@ -75,6 +75,11 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
     const topics = await this.topicApi.getTopics();
     this.workspaceStore.set('topics', topics);
 
+    // Only prune selected topics when the backend reports a non-empty topic list.
+    // An empty list means the backend is mid-reload (transitional state) — keep
+    // the current selections so the user doesn't have to re-select after reload.
+    if (topics.length === 0) return;
+
     const topicNames = topics.map((t) => t.topic);
     const selectedTopics = this.workspaceStore.getValue('selectedTopics');
     const validSelectedTopics = selectedTopics.filter((st) => topicNames.includes(st.topic));

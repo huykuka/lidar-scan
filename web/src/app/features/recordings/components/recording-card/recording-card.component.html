@@ -80,6 +80,7 @@
     </syn-tooltip>
     <syn-tooltip content="Rename" placement="top">
       <syn-icon-button size="small" variant="text" name="edit" label="Rename"
+        [disabled]="!canEdit()"
         (click)="startRename($event)" />
     </syn-tooltip>
     <syn-tooltip content="Download" placement="top">
@@ -90,6 +91,7 @@
     <syn-tooltip content="Delete" placement="top">
       <syn-icon-button size="small" variant="text" name="delete" label="Delete"
         style="color: var(--syn-color-error-600)"
+        [disabled]="!canEdit()"
         (click)="delete.emit(recording()); $event.stopPropagation()" />
     </syn-tooltip>
   </div>

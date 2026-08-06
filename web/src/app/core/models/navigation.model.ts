@@ -18,7 +18,7 @@ export const NAVIGATION_CONFIG: NavItem[] = [
     divider: true,
     footer: false,
   },
-  { label: 'Calibration', route: '/calibration', icon: 'tune', divider: true },
+  { label: 'Calibration', route: '/calibration', icon: 'tune', divider: true ,requiredRole: 'admin',},
   { label: 'Recordings', route: '/recordings', icon: 'video_library', divider: true },
   { label: 'Results', route: '/results', icon: 'analytics', divider: true },
   {
