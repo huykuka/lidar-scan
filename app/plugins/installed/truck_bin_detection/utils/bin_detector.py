@@ -432,9 +432,9 @@ class BinDetector:
         # Per-edge fallback: widen to ±3×cell_size if the tight slice is empty
         # (very sparse scan at that exact X position).
         if not np.any(rear_mask):
-            rear_mask = np.abs(pts[:, 0] - x_rear_internal) <= 3 * eh
+            rear_mask = np.abs(pts[:, 0] - x_rear_internal) <= 6 * eh
         if not np.any(front_mask):
-            front_mask = np.abs(pts[:, 0] - x_front_internal) <= 3 * eh
+            front_mask = np.abs(pts[:, 0] - x_front_internal) <= 6 * eh
 
         edge_pts = np.concatenate([pts[rear_mask], pts[front_mask]])
 

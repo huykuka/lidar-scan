@@ -336,7 +336,7 @@ def build_truck_bin_detection(
     edges: List[Dict[str, Any]],
 ) -> Any:
     """Build a TruckBinDetectionNode from a saved pipeline configuration."""
-    from app.modules.application.truck_bin_detection.node import TruckBinDetectionNode
+    from app.plugins.installed.truck_bin_detection.node import TruckBinDetectionNode
 
     config: Dict[str, Any] = node.get("config") or {}
 
