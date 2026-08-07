@@ -304,7 +304,7 @@ def build_vehicle_profiler(
     Called by NodeFactory.create() when the orchestrator instantiates a node
     of type ``"vehicle_profiler"``.
     """
-    from app.modules.application.vehicle_profiler.node import VehicleProfilerNode
+    from app.plugins.installed.vehicle_profiler.node import VehicleProfilerNode
 
     config: Dict[str, Any] = node.get("config") or {}
 
