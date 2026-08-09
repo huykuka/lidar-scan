@@ -3,7 +3,7 @@ description: Plan reviewer — critiques the master's feature plan before any co
 mode: subagent
 color: "#10b981"
 temperature: 0.1
-model: github-copilot/claude-opus-4.8
+model: github-copilot/gpt-5.6-luna
 permission:
   edit: deny
   bash:

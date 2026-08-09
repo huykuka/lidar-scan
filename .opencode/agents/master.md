@@ -2,7 +2,7 @@
 description: Master orchestrator — clarifies feature requests with the user, then delegates implementation tasks to frontend and backend agents. Invokes the reviewer once work is complete.
 mode: primary
 color: primary
-model: github-copilot/claude-opus-4.8
+model: github-copilot/gpt-5.6-luna
 temperature: 0.1
 permission:
   todoread: allow
