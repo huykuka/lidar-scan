@@ -57,6 +57,11 @@ export class NodeStatusService {
             this.systemStatus.applyReloadEvent(data.reload_event);
           }
 
+          // Forward system status to SystemStatusService
+          if (data.system) {
+            this.systemStatus.applySystemStatus(data.system);
+          }
+
           // Cast to NodesStatusResponse for the existing status signal consumers
           this.pending = data as unknown as NodesStatusResponse;
           if (!this.debounceId) {
@@ -76,11 +81,13 @@ export class NodeStatusService {
         this.connected.set(false);
         this.subscription = null;
         this.systemStatus.clearReloadingState();
+        this.systemStatus.setOffline();
       },
       complete: () => {
         this.connected.set(false);
         this.subscription = null;
         this.systemStatus.clearReloadingState();
+        this.systemStatus.setOffline();
       },
     });
 

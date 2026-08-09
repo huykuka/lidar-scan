@@ -8,6 +8,7 @@ import {
   RecordingViewerInfo,
   StartRecordingRequest,
   StartRecordingResponse,
+  TrimRecordingRequest,
 } from '../../models/recording.model';
 
 @Injectable({
@@ -111,5 +112,13 @@ export class RecordingApiService {
       formData.append('name', name);
     }
     return this.http.post<Recording>(`${this.baseUrl}/upload`, formData);
+  }
+
+  /**
+   * Trim a recording to the given half-open frame range [start_frame, end_frame).
+   * Creates a NEW recording; original is untouched.
+   */
+  trimRecording(recordingId: string, body: TrimRecordingRequest): Observable<Recording> {
+    return this.http.post<Recording>(`${this.baseUrl}/${recordingId}/trim`, body);
   }
 }

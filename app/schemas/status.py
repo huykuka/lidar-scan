@@ -83,10 +83,29 @@ class ReloadEvent(BaseModel):
     )
 
 
+class SystemStatusInfo(BaseModel):
+    """System-level health snapshot pushed alongside node statuses.
+
+    Mirrors the REST GET /api/v1/status response so the frontend can
+    replace its polling loop with a WebSocket subscription.
+    """
+    is_running: bool = Field(..., description="True when the DAG pipeline is active")
+    active_sensors: list[str] = Field(..., description="Node IDs of all registered sensors")
+    version: str = Field(..., description="Backend application version")
+
+
 class SystemStatusBroadcast(BaseModel):
     """WebSocket payload broadcast on the system_status topic."""
     nodes: list[NodeStatusUpdate] = Field(..., description="All registered node statuses")
     reload_event: Optional[ReloadEvent] = Field(
         None,
         description="Present only during or after a reload; absent on normal status polls.",
+    )
+    system: Optional[SystemStatusInfo] = Field(
+        None,
+        description=(
+            "System-level health info (is_running, active_sensors, version). "
+            "Populated on every full-status broadcast (1 s poll + on-change). "
+            "Absent on reload-event-only broadcasts — treat as 'no update'."
+        ),
     )

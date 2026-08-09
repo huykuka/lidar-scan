@@ -7,6 +7,14 @@
   overflow: hidden;
 }
 
+/* Fix 2: smaller canvas on very short/narrow viewports so panel gets room */
+@media (max-width: 639px) {
+  .viewer-canvas-area {
+    height: 40vh;
+    min-height: 240px;
+  }
+}
+
 @media (min-width: 1024px) {
   .viewer-canvas-area {
     flex: 1 1 0;
@@ -187,6 +195,9 @@
   .workspace-settings-panel {
     width: 100%;
     position: static;
+    /* Stacked below canvas: no height cap — natural content height, outer container scrolls */
+    display: flex;
+    flex-direction: column;
   }
 
   .settings-toggle {
@@ -198,5 +209,121 @@
     width: 100%;
     opacity: 1;
     pointer-events: auto;
+    /* Natural height when stacked — outer scroll handles overflow, not inner panel */
+    overflow: visible;
+    height: auto;
+    flex: 0 0 auto;
   }
+}
+
+/* Fix 3: HUD time labels — hide on very narrow so scrubber gets room */
+@media (max-width: 399px) {
+  .hud-time {
+    display: none;
+  }
+}
+
+/* Fix 4: Set In/Out row wrapping on very narrow */
+@media (max-width: 360px) {
+  .trim-buttons-row {
+    flex-wrap: wrap;
+  }
+  .trim-buttons-row > * {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}
+
+/* Fix 5: metadata-value — ensure ellipsis within narrow panel */
+@media (max-width: 1023px) {
+  .metadata-value {
+    max-width: min(160px, 45vw);
+  }
+}
+.trim-range-overlay {
+  top: 50%;
+  height: 6px;
+  transform: translateY(-50%);
+  background: var(--syn-color-primary-500);
+  opacity: 0.35;
+  border-radius: 3px;
+  z-index: 1;
+}
+
+/* ── Scrubber tick markers ───────────────────────────────── */
+.trim-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  transform: translateX(-50%);
+  z-index: 2;
+  border-radius: 1px;
+}
+
+.trim-tick--in {
+  background: var(--syn-color-primary-600);
+}
+
+.trim-tick--out {
+  background: var(--syn-color-primary-800);
+}
+
+/* ── Trim guidance hint ──────────────────────────────────── */
+.trim-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--syn-spacing-2x-small);
+  font: var(--syn-body-2x-small-regular);
+  color: var(--syn-typography-color-text-quiet);
+  margin: 0;
+  padding: var(--syn-spacing-2x-small) 0;
+  line-height: 1.4;
+}
+
+.trim-hint--partial {
+  color: var(--syn-color-warning-700);
+}
+
+.trim-hint__icon {
+  font-size: var(--syn-font-size-x-small);
+  flex-shrink: 0;
+}
+
+/* ── Invalid range warning ───────────────────────────────── */
+.trim-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--syn-spacing-2x-small);
+  font: var(--syn-body-2x-small-regular);
+  color: var(--syn-color-warning-700);
+  background: var(--syn-color-warning-50);
+  border: var(--syn-border-width-small) solid var(--syn-color-warning-200);
+  border-radius: var(--syn-border-radius-small);
+  padding: var(--syn-spacing-2x-small) var(--syn-spacing-x-small);
+}
+
+.trim-warning__icon {
+  font-size: var(--syn-font-size-small);
+  flex-shrink: 0;
+  color: var(--syn-color-warning-600);
+}
+
+/* ── Segment summary badge line ──────────────────────────── */
+.trim-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--syn-spacing-2x-small);
+  font: var(--syn-body-2x-small-semibold);
+  color: var(--syn-color-primary-700);
+  background: var(--syn-color-primary-50);
+  border: var(--syn-border-width-small) solid var(--syn-color-primary-200);
+  border-radius: var(--syn-border-radius-small);
+  padding: var(--syn-spacing-2x-small) var(--syn-spacing-x-small);
+}
+
+.trim-summary__icon {
+  font-size: var(--syn-font-size-x-small);
+  flex-shrink: 0;
+  color: var(--syn-color-primary-500);
 }

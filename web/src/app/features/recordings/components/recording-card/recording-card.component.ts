@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ElementRef,
   inject,
   input,
@@ -36,6 +37,23 @@ export class RecordingCardComponent {
   readonly delete = output<Recording>();
   readonly rename = output<{ recording: Recording; name: string }>();
 
+  /** Derived status helpers — treat missing status as 'ready' */
+  protected readonly isProcessing = computed(() => this.recording().status === 'processing');
+  protected readonly isFailed = computed(() => this.recording().status === 'failed');
+  /** Actions disabled while processing */
+  protected readonly actionsDisabled = computed(() => this.isProcessing());
+
+  protected onPlay(event: Event): void {
+    if (this.actionsDisabled()) return;
+    event.stopPropagation();
+    this.play.emit(this.recording());
+  }
+
+  protected onDownload(event: Event): void {
+    if (this.actionsDisabled()) return;
+    event.stopPropagation();
+    this.download.emit(this.recording());
+  }
 
   protected isRenaming = signal(false);
   protected renameValue = signal('');

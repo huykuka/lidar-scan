@@ -16,7 +16,7 @@ import time
 from typing import Dict, Optional, TYPE_CHECKING
 
 from app.core.logging import get_logger
-from app.schemas.status import NodeStatusUpdate, SystemStatusBroadcast
+from app.schemas.status import NodeStatusUpdate, SystemStatusBroadcast, SystemStatusInfo
 from app.services.websocket.manager import manager
 
 if TYPE_CHECKING:
@@ -88,7 +88,19 @@ async def _collect_and_broadcast() -> None:
             else:
                 logger.debug(f"[StatusAggregator] Node {node_id} has no emit_status method - skipping")
 
-        payload = SystemStatusBroadcast(nodes=status_updates).model_dump()
+        # Build system info; guard so a failure never breaks node broadcast
+        system_info: Optional[SystemStatusInfo] = None
+        try:
+            from app.core.config import settings
+            system_info = SystemStatusInfo(
+                is_running=node_manager.is_running,
+                active_sensors=[s.id for s in node_manager.nodes.values()],
+                version=settings.VERSION,
+            )
+        except Exception as e:
+            logger.warning(f"[StatusAggregator] Failed to collect system info: {e}")
+
+        payload = SystemStatusBroadcast(nodes=status_updates, system=system_info).model_dump()
         asyncio.create_task(manager.broadcast("system_status", payload))
 
         logger.debug(f"[StatusAggregator] Broadcast {len(status_updates)} node statuses")
