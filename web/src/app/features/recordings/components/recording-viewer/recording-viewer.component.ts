@@ -138,9 +138,13 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
     else this.startPlayback();
   }
   onSeek(e: any) {
-    const frameIndex = parseInt(e.target.value, 10);
+    const raw = parseInt(e.target.value, 10);
+    if (Number.isNaN(raw)) return;
+    const max = Math.max(this.frameCount() - 1, 0);
+    const frameIndex = Math.min(Math.max(raw, 0), max);
     this.currentFrame.set(frameIndex);
     this.pendingSeekFrame = frameIndex;
+    this.resumeFrameIndex = frameIndex;
     this.playbackStream.seek(frameIndex);
   }
   goBack() {
