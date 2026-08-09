@@ -9,7 +9,7 @@ class StreamStartCommand(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     type: Literal["start"]
-    frameIndex: StrictInt
+    frameIndex: StrictInt | None = None
 
 
 class StreamSeekCommand(BaseModel):
@@ -17,3 +17,9 @@ class StreamSeekCommand(BaseModel):
 
     type: Literal["seek"]
     frameIndex: StrictInt
+
+
+class StreamPauseCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["pause"]

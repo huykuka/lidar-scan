@@ -31,7 +31,7 @@
     },
     "gitnexus": {
       "type": "local",
-      "command": ["gitnexus", "mcp"]
+      "command": ["gitnexus@1.6.10-rc.42", "mcp"]
     }
   }
 }

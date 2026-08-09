@@ -1,12 +1,14 @@
 import {Injectable} from '@angular/core';
 import {Observable, Subject} from 'rxjs';
+import {environment} from '@env/environment';
 import {parseLidrFrame, LidrFrame, LidrFrameError} from './lidr-parser';
 
 export interface ReadyEvent {type: 'ready'; frameCount: number; startFrameIndex: number; generation: number}
 export interface SeekedEvent {type: 'seeked'; frameIndex: number; generation: number}
 export interface EofEvent {type: 'eof'; frameIndex: number; generation: number}
+export interface PausedEvent {type: 'paused'; frameIndex: number; generation: number}
 export interface StreamError {type: 'error'; code: string; message: string}
-export type RecordingPlaybackEvent = ReadyEvent | SeekedEvent | LidrFrame | EofEvent | StreamError;
+export type RecordingPlaybackEvent = ReadyEvent | SeekedEvent | PausedEvent | LidrFrame | EofEvent | StreamError;
 
 @Injectable({providedIn: 'root'})
 export class RecordingPlaybackStreamService {
@@ -16,8 +18,8 @@ export class RecordingPlaybackStreamService {
 
   connect(recordingId: string): void {
     this.disconnect();
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/api/v1/recordings/${encodeURIComponent(recordingId)}/stream`;
+    const wsApiUrl = environment.apiUrl.replace(/^http/, 'ws');
+    const url = `${wsApiUrl}/recordings/${encodeURIComponent(recordingId)}/stream`;
     const socket = this.socket = new WebSocket(url);
     socket.binaryType = 'arraybuffer';
     socket.onmessage = (event) => this.handleMessage(event.data);
@@ -25,8 +27,9 @@ export class RecordingPlaybackStreamService {
     socket.onclose = () => { if (this.socket === socket) this.socket = null; };
   }
 
-  start(frameIndex: number): void { this.send({type: 'start', frameIndex}); }
+  start(frameIndex?: number): void { this.send({type: 'start', ...(frameIndex === undefined ? {} : {frameIndex})}); }
   seek(frameIndex: number): void { this.send({type: 'seek', frameIndex}); }
+  pause(): void { this.send({type: 'pause'}); }
 
   disconnect(): void {
     if (!this.socket) return;
@@ -35,7 +38,7 @@ export class RecordingPlaybackStreamService {
     this.socket = null;
   }
 
-  private send(command: {type: 'start' | 'seek'; frameIndex: number}): void {
+  private send(command: {type: 'start' | 'seek'; frameIndex?: number} | {type: 'pause'}): void {
     if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify(command));
   }
 

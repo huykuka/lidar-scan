@@ -1,8 +1,10 @@
 """Recordings business logic services - Pure business logic without routing configuration."""
 
 import asyncio
+import json
 import logging
 import os
+import struct
 import shutil
 import tempfile
 import uuid
@@ -10,7 +12,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import BackgroundTasks, HTTPException, UploadFile
+from fastapi import BackgroundTasks, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -22,21 +24,238 @@ from app.services.shared.recording import RecordingReader
 from .dto import (
     StartRecordingRequest
 )
+from .schemas import StreamPauseCommand, StreamSeekCommand, StreamStartCommand
 
 logger = logging.getLogger(__name__)
+
+_MAX_GENERATION = 0xFFFFFFFF
+
+
+def _stream_error(code: str, message: str) -> dict[str, str]:
+    return {"type": "error", "code": code, "message": message}
+
+
+def _parse_stream_command(raw: str):
+    try:
+        payload = json.loads(raw, parse_constant=lambda value: (_ for _ in ()).throw(ValueError(value)))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None, _stream_error("invalid_json", "Message must contain valid JSON.")
+
+    if not isinstance(payload, dict) or payload.get("type") not in {"start", "seek", "pause"}:
+        return None, _stream_error("unknown_command", "Command type must be 'start', 'seek', or 'pause'.")
+
+    command_type = payload["type"]
+    command_model = {
+        "start": StreamStartCommand,
+        "seek": StreamSeekCommand,
+        "pause": StreamPauseCommand,
+    }[command_type]
+    try:
+        return command_model.model_validate(payload), None
+    except ValueError:
+        return None, _stream_error("invalid_frame_index", "frameIndex must be a strict integer.")
+
+
+def _next_generation(generation: int) -> int:
+    return generation + 1 if generation < _MAX_GENERATION else 1
+
+
+def _encode_stream_frame(points, timestamp: float, frame_index: int, generation: int) -> bytes:
+    import numpy as np
+
+    array = np.asarray(points, dtype=np.float32)
+    if array.ndim != 2 or array.shape[1] < 3:
+        raise ValueError("Recording frame must contain at least x, y, z columns")
+    array = np.ascontiguousarray(array[:, :3])
+    return struct.pack(
+        "<4sIIIdI",
+        b"LIDR", 2, generation, frame_index, float(timestamp), array.shape[0],
+    ) + array.tobytes(order="C")
+
+
+async def stream_recording(websocket: WebSocket, recording: dict) -> None:
+    """Serve one bounded, seekable recording stream over one public WebSocket."""
+    reader = None
+    producer: asyncio.Task | None = None
+    receive_task: asyncio.Task | None = None
+    generation = 0
+    current_frame_index: int | None = None
+    paused = True
+
+    try:
+        await websocket.accept()
+        try:
+            reader = await asyncio.to_thread(RecordingReader, recording["file_path"])
+        except Exception:
+            logger.exception(
+                "Recording stream reader initialization failed",
+                extra={"recording_id": recording.get("id"), "file_path": recording.get("file_path")},
+            )
+            await websocket.send_json(_stream_error(
+                "recording_stream_failed", "Recording stream failed."
+            ))
+            await websocket.close(code=1011)
+            return
+
+        await websocket.send_json({
+            "type": "ready", "frameCount": int(reader.frame_count),
+            "startFrameIndex": 0, "generation": 0,
+        })
+
+        async def produce(start_index: int, stream_generation: int) -> None:
+            nonlocal current_frame_index
+            if start_index == reader.frame_count:
+                await websocket.send_json({
+                    "type": "eof", "frameIndex": start_index, "generation": stream_generation,
+                })
+                return
+            for frame_index in range(start_index, reader.frame_count):
+                points, timestamp = await asyncio.to_thread(reader.get_frame, frame_index)
+                await websocket.send_bytes(
+                    _encode_stream_frame(points, timestamp, frame_index, stream_generation)
+                )
+                current_frame_index = frame_index + 1
+
+        async def send_frame(frame_index: int, stream_generation: int) -> None:
+            nonlocal current_frame_index
+            points, timestamp = await asyncio.to_thread(reader.get_frame, frame_index)
+            await websocket.send_bytes(
+                _encode_stream_frame(points, timestamp, frame_index, stream_generation)
+            )
+            current_frame_index = frame_index + 1
+
+        while True:
+            if receive_task is None:
+                receive_task = asyncio.create_task(websocket.receive())
+            wait_tasks = {receive_task}
+            if producer is not None:
+                wait_tasks.add(producer)
+            done, _ = await asyncio.wait(wait_tasks, return_when=asyncio.FIRST_COMPLETED)
+
+            # Process command when receive and producer complete together. A
+            # completed producer must not win and discard seek/start command.
+            if receive_task in done:
+                if producer is not None and producer in done:
+                    producer.result()
+                    producer = None
+                message = receive_task.result()
+                receive_task = None
+            elif producer is not None and producer in done:
+                producer.result()
+                producer = None
+                continue
+            else:
+                continue
+
+            if message.get("type") == "websocket.disconnect":
+                raise WebSocketDisconnect
+            if message.get("type") != "websocket.receive" or message.get("text") is None:
+                await websocket.send_json(_stream_error("invalid_json", "Command must be a JSON text message."))
+                continue
+
+            command, error = _parse_stream_command(message["text"])
+            if error:
+                await websocket.send_json(error)
+                continue
+            if command.type == "pause":
+                if producer is None and generation == 0:
+                    await websocket.send_json(_stream_error("not_started", "Start stream before pausing."))
+                    continue
+                if producer is not None:
+                    producer.cancel()
+                    await asyncio.gather(producer, return_exceptions=True)
+                    producer = None
+                paused = True
+                await websocket.send_json({
+                    "type": "paused",
+                    "frameIndex": current_frame_index if current_frame_index is not None else 0,
+                    "generation": generation,
+                })
+                paused = True
+                continue
+
+            frame_index = command.frameIndex
+            if command.type == "start" and frame_index is None:
+                if not paused:
+                    await websocket.send_json(_stream_error(
+                        "invalid_frame_index", "Initial start requires frameIndex."
+                    ))
+                    continue
+                frame_index = current_frame_index if current_frame_index is not None else 0
+            if frame_index is None:
+                await websocket.send_json(_stream_error("invalid_frame_index", "frameIndex is required."))
+                continue
+            if frame_index < 0 or frame_index > reader.frame_count:
+                await websocket.send_json(_stream_error(
+                    "invalid_frame_index", f"frameIndex must be between 0 and {reader.frame_count}."
+                ))
+                continue
+            was_paused = paused
+            if producer is not None:
+                producer.cancel()
+                await asyncio.gather(producer, return_exceptions=True)
+                producer = None
+            generation = _next_generation(generation)
+            await websocket.send_json({
+                "type": "seeked", "frameIndex": frame_index, "generation": generation,
+            })
+            current_frame_index = frame_index
+            if frame_index == reader.frame_count:
+                await websocket.send_json({
+                    "type": "eof", "frameIndex": frame_index, "generation": generation,
+                })
+                paused = was_paused if command.type == "seek" else True
+                continue
+            if command.type == "seek":
+                await send_frame(frame_index, generation)
+                paused = was_paused
+                if not was_paused:
+                    producer = asyncio.create_task(produce(frame_index + 1, generation))
+            else:
+                paused = False
+                producer = asyncio.create_task(produce(frame_index, generation))
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception(
+            "Recording stream failed",
+            extra={
+                "recording_id": recording.get("id"),
+                "file_path": recording.get("file_path"),
+                "frame_index": current_frame_index,
+                "generation": generation,
+            },
+        )
+        if websocket.client_state.name != "DISCONNECTED":
+            await websocket.send_json(_stream_error(
+                "recording_stream_failed", "Recording stream failed."
+            ))
+            await websocket.close(code=1011)
+    finally:
+        if receive_task is not None:
+            receive_task.cancel()
+            await asyncio.gather(receive_task, return_exceptions=True)
+        if producer is not None:
+            producer.cancel()
+            await asyncio.gather(producer, return_exceptions=True)
+        if reader is not None:
+            close = getattr(reader, "close", None)
+            if close is None:
+                close = reader.zipf.close
+            await asyncio.to_thread(close)
 
 
 async def start_recording(request: StartRecordingRequest, db: Session):
     """
     Start recording a topic.
-    
+
     Args:
         request: Recording start request with topic and optional name
         db: Database session
-    
+
     Returns:
         Recording ID and file path
-    
+
     Raises:
         HTTPException: If topic is already being recorded or not found
     """
@@ -92,20 +311,19 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
     """
     Stop an active recording and save to database.
     Returns immediately with 'stopping' status, finalization happens in background.
-    
+
     Args:
         recording_id: Recording ID
         background_tasks: FastAPI background tasks
         db: Database session
-    
+
     Returns:
         Recording information with status='stopping'
-    
+
     Raises:
         HTTPException: If recording not found
     """
     recorder = get_recorder()
-    repo = RecordingRepository(db)
 
     try:
         # Mark recording as stopping (returns immediately)
@@ -174,11 +392,11 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
 async def list_recordings(node_id: str | None, db: Session):
     """
     List all recordings, optionally filtered by topic.
-    
+
     Args:
         node_id: Optional node ID filter
         db: Database session
-    
+
     Returns:
         List of recordings and active recordings
     """
@@ -204,14 +422,14 @@ async def list_recordings(node_id: str | None, db: Session):
 async def get_recording(recording_id: str, db: Session):
     """
     Get detailed information about a recording.
-    
+
     Args:
         recording_id: Recording ID
         db: Database session
-    
+
     Returns:
         Recording information
-    
+
     Raises:
         HTTPException: If recording not found
     """
@@ -251,15 +469,15 @@ async def rename_recording(recording_id: str, name: str, db: Session):
 async def delete_recording(recording_id: str, background_tasks: BackgroundTasks, db: Session):
     """
     Delete a recording (removes file and database entry).
-    
+
     Args:
         recording_id: Recording ID
         background_tasks: FastAPI background tasks
         db: Database session
-    
+
     Returns:
         Success message
-    
+
     Raises:
         HTTPException: If recording not found
     """
@@ -295,14 +513,14 @@ async def delete_recording(recording_id: str, background_tasks: BackgroundTasks,
 async def download_recording(recording_id: str, db: Session):
     """
     Download a recording file.
-    
+
     Args:
         recording_id: Recording ID
         db: Database session
-    
+
     Returns:
         FileResponse with the recording file
-    
+
     Raises:
         HTTPException: If recording not found or file doesn't exist
     """
@@ -332,14 +550,14 @@ async def download_recording(recording_id: str, db: Session):
 async def get_recording_viewer_info(recording_id: str, db: Session):
     """
     Get recording information for viewer (frame count, duration, metadata).
-    
+
     Args:
         recording_id: Recording ID
         db: Database session
-    
+
     Returns:
         Recording info including frame_count, duration, metadata
-    
+
     Raises:
         HTTPException: If recording not found or file doesn't exist
     """
@@ -369,16 +587,16 @@ async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, backgr
                                      db: Session):
     """
     Get a specific frame from a recording as PCD file.
-    
+
     Args:
         recording_id: Recording ID
         frame_index: Frame index (0-based)
         background_tasks: FastAPI background tasks
         db: Database session
-    
+
     Returns:
         FileResponse with PCD file
-    
+
     Raises:
         HTTPException: If recording not found, file doesn't exist, or frame index invalid
     """
@@ -569,11 +787,11 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
 async def get_recording_thumbnail(recording_id: str, db: Session):
     """
     Get thumbnail image for a recording.
-    
+
     Args:
         recording_id: Recording UUID
         db: Database session
-    
+
     Returns:
         PNG thumbnail image or placeholder
     """

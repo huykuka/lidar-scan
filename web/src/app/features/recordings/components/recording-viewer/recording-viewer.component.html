@@ -70,7 +70,7 @@
             </span>
 
             <syn-range
-              (syn-input)="onSeek($event)"
+              (syn-change)="onSeek($event)"
               [disabled]="frameCount() === 0"
               [max]="frameCount() - 1"
               [min]="0"

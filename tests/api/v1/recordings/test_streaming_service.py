@@ -1,7 +1,7 @@
 import struct
 
 import numpy as np
-from app.api.v1.recordings.schemas import StreamStartCommand
+from app.api.v1.recordings.schemas import StreamPauseCommand, StreamStartCommand
 from app.api.v1.recordings.service import (
     _encode_stream_frame,
     _next_generation,
@@ -22,8 +22,9 @@ def test_commands_require_strict_integer_frame_index():
 def test_invalid_json_and_unknown_command_stay_classified():
     _, error = _parse_stream_command("not-json")
     assert error["code"] == "invalid_json"
-    _, error = _parse_stream_command('{"type":"pause","frameIndex":0}')
-    assert error["code"] == "unknown_command"
+    command, error = _parse_stream_command('{"type":"pause"}')
+    assert isinstance(command, StreamPauseCommand)
+    assert error is None
 
 
 def test_generation_wrap_reserves_zero():

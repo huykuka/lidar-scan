@@ -1,8 +1,26 @@
 export type ReadyAction = 'start' | 'eof' | 'ignore';
+export type PlaybackAction = 'start' | 'pause';
 
 export function readyAction(frameCount: number, session: number, startedSession: number): ReadyAction {
   if (frameCount === 0) return 'eof';
   return startedSession === session ? 'ignore' : 'start';
+}
+
+export function playbackAction(isPlaying: boolean): PlaybackAction {
+  return isPlaying ? 'pause' : 'start';
+}
+
+export function nextFrameIndex(frameIndex: number, frameCount: number): number {
+  return Math.min(frameIndex + 1, Math.max(frameCount - 1, 0));
+}
+
+export function shouldApplyFrame(
+  isPlaying: boolean,
+  generation: number,
+  latestGeneration: number,
+  pendingSeekGeneration: number | null = null,
+): boolean {
+  return generation === latestGeneration && (isPlaying || generation === pendingSeekGeneration);
 }
 
 export interface PointCloudGeometryTarget {
@@ -22,31 +40,8 @@ export function copyStreamedXyz(
 ): number {
   const count = Math.min(Math.max(pointCount, 0), maxPoints, destination.length / 3, xyz.length / 3);
   destination.set(xyz.subarray(0, count * 3));
-  fitPointCloudToView(destination, count);
   flushPointCloudGeometry(target, count);
   return count;
-}
-
-/** Keep arbitrary LiDAR world coordinates inside shared scene camera bounds. */
-export function fitPointCloudToView(points: Float32Array, count: number): void {
-  if (count <= 0) return;
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  for (let i = 0; i < count * 3; i += 3) {
-    const x = points[i], y = points[i + 1], z = points[i + 2];
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
-    minX = Math.min(minX, x); minY = Math.min(minY, y); minZ = Math.min(minZ, z);
-    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); maxZ = Math.max(maxZ, z);
-  }
-  if (!Number.isFinite(minX)) return;
-  const centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2, centerZ = (minZ + maxZ) / 2;
-  const extent = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 1);
-  const scale = 8 / extent;
-  for (let i = 0; i < count * 3; i += 3) {
-    points[i] = (points[i] - centerX) * scale;
-    points[i + 1] = (points[i + 1] - centerY) * scale;
-    points[i + 2] = (points[i + 2] - centerZ) * scale;
-  }
 }
 
 /** Flush bounded stream state into already-created Three.js geometry. */

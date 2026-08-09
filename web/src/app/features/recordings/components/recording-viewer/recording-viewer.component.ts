@@ -25,7 +25,7 @@ import {NgtsPointsBuffer} from 'angular-three-soba/performances';
 import {NgtCanvas, NgtCanvasContent, NgtCanvasImpl} from 'angular-three/dom';
 import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
 import {ViewOrientation} from '@core/services/split-layout-store.service';
-import {copyStreamedXyz, flushPointCloudGeometry, readyAction} from './recording-viewer-stream-state';
+import {copyStreamedXyz, flushPointCloudGeometry, nextFrameIndex, readyAction, shouldApplyFrame} from './recording-viewer-stream-state';
 
 const MAX_POINTS = 250_000;
 
@@ -86,8 +86,11 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
 
   // ── Archive / worker ───────────────────────────────────────────────────────
   private latestGeneration = 0;
+  private pendingSeekGeneration: number | null = null;
+  private pendingSeekFrame: number | null = null;
   private streamSession = 0;
   private autoStartSession = -1;
+  private resumeFrameIndex: number | null = null;
 
   // ── Point cloud buffer ─────────────────────────────────────────────────────
   protected readonly positionsBuffer = new Float32Array(MAX_POINTS * 3);
@@ -137,6 +140,7 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
   onSeek(e: any) {
     const frameIndex = parseInt(e.target.value, 10);
     this.currentFrame.set(frameIndex);
+    this.pendingSeekFrame = frameIndex;
     this.playbackStream.seek(frameIndex);
   }
   goBack() {
@@ -190,11 +194,28 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
       this.streamState.set('streaming');
       if (action === 'ignore') return;
       this.autoStartSession = this.streamSession;
+      this.isPlaying.set(true);
       this.playbackStream.start(0);
     } else if (event.type === 'seeked') {
-      this.latestGeneration = event.generation; this.currentFrame.set(event.frameIndex); this.streamState.set('streaming');
+      this.latestGeneration = event.generation;
+      this.pendingSeekGeneration = event.generation;
+      this.currentFrame.set(event.frameIndex);
+      this.streamState.set('streaming');
+    } else if (event.type === 'paused') {
+      this.latestGeneration = event.generation;
+      this.resumeFrameIndex = event.frameIndex;
+      this.currentFrame.set(Math.min(event.frameIndex, Math.max(this.frameCount() - 1, 0)));
+      this.isPlaying.set(false);
     } else if (event.type === 'frame') {
-      if (event.generation === this.latestGeneration) this.applyFrame(event);
+      const isPendingSeekFrame = this.pendingSeekGeneration === event.generation
+        && this.pendingSeekFrame === event.frameIndex;
+      if (shouldApplyFrame(this.isPlaying(), event.generation, this.latestGeneration, isPendingSeekFrame ? event.generation : null)) {
+        this.applyFrame(event);
+        if (isPendingSeekFrame) {
+          this.pendingSeekGeneration = null;
+          this.pendingSeekFrame = null;
+        }
+      }
     } else if (event.type === 'eof') {
       this.streamState.set('eof'); this.isPlaying.set(false);
     } else if (event.type === 'error') {
@@ -220,35 +241,19 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
     this.pointCount.set(0);
     const points = this.pointsBufferRef()?.pointsRef()?.nativeElement;
     if (!points) return;
-    points.visible = false;
-    points.geometry?.dispose();
-    const material = points.material;
-    if (Array.isArray(material)) material.forEach((item) => item.dispose());
-    else material?.dispose();
+    flushPointCloudGeometry(points, 0);
   }
 
   // ── Playback ───────────────────────────────────────────────────────────────
-  private playbackInterval: number | null = null;
-
   private startPlayback() {
     this.isPlaying.set(true);
-    const fps = this.frameCount() > 0 ? this.frameCount() / this.duration() : 20;
-    const interval = 1000 / (fps * this.playbackSpeed());
-
-    this.playbackInterval = window.setInterval(() => {
-      const next = this.currentFrame() + 1;
-      if (next < this.frameCount()) {
-        this.currentFrame.set(next);
-        this.playbackStream.seek(next);
-      } else {
-        this.stopPlayback();
-      }
-    }, interval);
+    const frameIndex = this.resumeFrameIndex ?? nextFrameIndex(this.currentFrame(), this.frameCount());
+    this.resumeFrameIndex = null;
+    this.playbackStream.start(frameIndex);
   }
 
   private stopPlayback() {
     this.isPlaying.set(false);
-    if (this.playbackInterval) clearInterval(this.playbackInterval);
-    this.playbackInterval = null;
+    this.playbackStream.pause();
   }
 }

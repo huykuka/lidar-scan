@@ -358,6 +358,12 @@ class RecordingReader:
             "metadata": self.metadata
         }
 
+    def close(self) -> None:
+        """Close archive handle after streaming or random-access use."""
+        if self.zipf is not None:
+            self.zipf.close()
+            self.zipf = None
+
 
 def get_recording_info(file_path: str | Path) -> dict[str, Any]:
     reader = RecordingReader(file_path)
