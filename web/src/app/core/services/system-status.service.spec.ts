@@ -1,16 +1,16 @@
-import {TestBed} from '@angular/core/testing';
+import {TestBed, fakeAsync, tick} from '@angular/core/testing';
 import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 
 import {SystemStatusService} from './system-status.service';
 import {ToastService} from './toast.service';
-import {ReloadEvent} from '@core/models/status.model';
+import {ReloadEvent, SystemStatusInfo} from '@core/models/status.model';
 
 const toastMock = {
   primary: () => {},
-  success: () => {},
+  success: vi.fn(),
   neutral: () => {},
-  warning: () => {},
+  warning: vi.fn(),
   danger: () => {},
 };
 
@@ -19,6 +19,8 @@ describe('SystemStatusService', () => {
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
+    toastMock.success.mockClear();
+    toastMock.warning.mockClear();
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -149,4 +151,68 @@ describe('SystemStatusService', () => {
       expect(service.reloadingNodeIds().size).toBe(0);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // applySystemStatus — WS-push path
+  // ---------------------------------------------------------------------------
+  describe('applySystemStatus()', () => {
+    const info: SystemStatusInfo = {is_running: true, active_sensors: ['lidar-1'], version: '2.0.0'};
+
+    it('sets online signals', () => {
+      service.applySystemStatus(info);
+      expect(service.backendOnline()).toBe(true);
+      expect(service.backendVersion()).toBe('2.0.0');
+      expect(service.activeSensors()).toEqual(['lidar-1']);
+      expect(service.isRunning()).toBe(true);
+    });
+
+    it('toasts online on offline→online transition', () => {
+      // Force offline first
+      service.setOffline();
+      toastMock.success.mockClear();
+      service.applySystemStatus(info);
+      expect(toastMock.success).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT toast when already online', () => {
+      service.applySystemStatus(info);
+      toastMock.success.mockClear();
+      service.applySystemStatus(info);
+      expect(toastMock.success).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // setOffline — WS disconnect path
+  // ---------------------------------------------------------------------------
+  describe('setOffline()', () => {
+    it('sets offline signals', () => {
+      service.applySystemStatus({is_running: true, active_sensors: ['x'], version: '1'});
+      service.setOffline();
+      expect(service.backendOnline()).toBe(false);
+      expect(service.backendVersion()).toBeNull();
+      expect(service.activeSensors()).toEqual([]);
+    });
+
+    it('toasts offline on online→offline transition', () => {
+      service.applySystemStatus({is_running: true, active_sensors: [], version: '1'});
+      toastMock.warning.mockClear();
+      service.setOffline();
+      expect(toastMock.warning).toHaveBeenCalledTimes(1);
+    });
+
+    it('respects 30 s throttle — no double toast', () => {
+      service.applySystemStatus({is_running: true, active_sensors: [], version: '1'});
+      service.setOffline();
+      // Flip back online, then offline again quickly
+      service.applySystemStatus({is_running: true, active_sensors: [], version: '1'});
+      toastMock.warning.mockClear();
+      service.setOffline();
+      expect(toastMock.warning).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // start() — no polling, only one initial GET
+  // ---------------------------------------------------------------------------
 });

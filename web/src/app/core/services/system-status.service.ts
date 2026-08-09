@@ -1,11 +1,11 @@
 import {computed, DestroyRef, inject, Injectable, signal} from '@angular/core';
 import {HttpClient, HttpContext} from '@angular/common/http';
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
-import {catchError, firstValueFrom, interval, of, switchMap, tap} from 'rxjs';
+import {catchError, firstValueFrom, of, tap} from 'rxjs';
 import {environment} from '../../../environments/environment';
 import {ToastService} from './toast.service';
 import {TOAST_ON_ERROR} from '../interceptors/http-toast.interceptor';
-import {ReloadEvent} from '@core/models/status.model';
+import {ReloadEvent, SystemStatusInfo} from '@core/models/status.model';
 
 export type SystemNoticeLevel = 'info' | 'warning' | 'error';
 
@@ -64,19 +64,12 @@ export class SystemStatusService {
     if (res) this.isRunning.set(res.is_running ?? false);
   }
 
-  start(pollMs: number = 10000): void {
+  start(): void {
     if (this.started) return;
     this.started = true;
 
-    // Run an immediate check before interval pipeline (for fast header feedback).
+    // One-shot initial fetch for fast header feedback before first WS push arrives.
     this.fetchStatus$().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
-
-    interval(pollMs)
-      .pipe(
-        switchMap(() => this.fetchStatus$()),
-        takeUntilDestroyed(this.destroyRef),
-      )
-      .subscribe();
   }
 
   refreshNow(): void {
@@ -137,6 +130,33 @@ export class SystemStatusService {
     this.lastOfflineToastAt = now;
     this.toast.warning('Backend unreachable. Some actions may fail.');
     this.report('warning', 'Backend unreachable.');
+  }
+
+  /**
+   * Apply system status pushed via WS broadcast.
+   * Called by NodeStatusService when `data.system` is present.
+   */
+  applySystemStatus(info: SystemStatusInfo): void {
+    const wasOnline = this.backendOnline();
+    this.backendOnline.set(true);
+    this.backendVersion.set(info.version);
+    this.activeSensors.set(Array.isArray(info.active_sensors) ? info.active_sensors : []);
+    this.isRunning.set(info.is_running);
+
+    if (wasOnline === false) this.maybeToastOnline();
+  }
+
+  /**
+   * Mark backend offline — called when WS disconnects (backend unreachable).
+   * Called by NodeStatusService on WS error/complete.
+   */
+  setOffline(): void {
+    const wasOnline = this.backendOnline();
+    this.backendOnline.set(false);
+    this.backendVersion.set(null);
+    this.activeSensors.set([]);
+
+    if (wasOnline !== false) this.maybeToastOffline();
   }
 
   /**

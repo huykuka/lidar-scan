@@ -18,10 +18,19 @@ export interface ReloadEvent {
   timestamp: number;
 }
 
+/** System-level status pushed on every full-status broadcast (~1 s cadence + on change). */
+export interface SystemStatusInfo {
+  is_running: boolean;
+  active_sensors: string[];
+  version: string;
+}
+
 export interface SystemStatusBroadcast {
   nodes: NodeStatusUpdate[];
   /** Present only during/after a reload */
   reload_event?: ReloadEvent;
+  /** Present on every full-status broadcast; absent on reload-event-only messages. */
+  system?: SystemStatusInfo;
 }
 
 export interface NodeReloadResponse {

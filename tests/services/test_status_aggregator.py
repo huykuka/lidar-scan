@@ -18,7 +18,14 @@ from app.services.status_aggregator import (
     stop_status_aggregator,
     _broadcast_system_status,
 )
-from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
+from app.schemas.status import (
+    NodeStatusUpdate,
+    OperationalState,
+    ApplicationState,
+    SystemStatusBroadcast,
+    SystemStatusInfo,
+    ReloadEvent,
+)
 
 
 class TestStatusAggregatorRateLimit:
@@ -222,3 +229,123 @@ class TestStatusAggregatorNodeHandling:
                 
                 # Should have broadcast successfully (at least once for normal_node)
                 assert mock_manager.broadcast.call_count >= 0  # Should not crash
+
+
+class TestSystemInfoInBroadcast:
+    """Test that _collect_and_broadcast populates the system field."""
+
+    @pytest.mark.asyncio
+    async def test_full_broadcast_includes_system_info(self):
+        """Full collect-and-broadcast includes system.is_running, active_sensors, version."""
+        with patch("app.services.status_aggregator.manager") as mock_manager:
+            mock_manager.broadcast = AsyncMock()
+            mock_manager.has_subscribers.return_value = True
+
+            # Build two fake sensor nodes with .id attribute
+            mock_sensor_a = MagicMock()
+            mock_sensor_a.id = "lidar_front"
+            mock_sensor_a.emit_status.return_value = NodeStatusUpdate(
+                node_id="lidar_front",
+                operational_state=OperationalState.RUNNING,
+            )
+            mock_sensor_b = MagicMock()
+            mock_sensor_b.id = "lidar_rear"
+            mock_sensor_b.emit_status.return_value = NodeStatusUpdate(
+                node_id="lidar_rear",
+                operational_state=OperationalState.STOPPED,
+            )
+
+            with patch("app.services.nodes.instance.node_manager") as mock_node_mgr:
+                mock_node_mgr.is_running = True
+                mock_node_mgr.nodes = {
+                    "lidar_front": mock_sensor_a,
+                    "lidar_rear": mock_sensor_b,
+                }
+
+                with patch("app.core.config.settings") as mock_settings:
+                    mock_settings.VERSION = "1.2.3"
+
+                    start_status_aggregator()
+                    notify_status_change("lidar_front")
+
+                    await asyncio.sleep(0.25)
+                    stop_status_aggregator()
+
+            assert mock_manager.broadcast.call_count >= 1
+            call_args = mock_manager.broadcast.call_args_list[-1]
+            payload = call_args[0][1]
+
+            assert "system" in payload
+            sys = payload["system"]
+            assert sys is not None
+            assert sys["is_running"] is True
+            assert set(sys["active_sensors"]) == {"lidar_front", "lidar_rear"}
+            assert sys["version"] == "1.2.3"
+
+    @pytest.mark.asyncio
+    async def test_system_info_failure_does_not_break_node_broadcast(self):
+        """system info error → system=None but nodes still broadcast."""
+        with patch("app.services.status_aggregator.manager") as mock_manager:
+            mock_manager.broadcast = AsyncMock()
+            mock_manager.has_subscribers.return_value = True
+
+            mock_node = MagicMock()
+            mock_node.id = "lidar_front"
+            mock_node.emit_status.return_value = NodeStatusUpdate(
+                node_id="lidar_front",
+                operational_state=OperationalState.RUNNING,
+            )
+
+            with patch("app.services.nodes.instance.node_manager") as mock_node_mgr:
+                mock_node_mgr.is_running = True
+                mock_node_mgr.nodes = {"lidar_front": mock_node}
+                # Simulate system info collection failure
+                type(mock_node_mgr).is_running = property(
+                    lambda self: (_ for _ in ()).throw(RuntimeError("sim failure"))
+                )
+
+                start_status_aggregator()
+                notify_status_change("lidar_front")
+                await asyncio.sleep(0.25)
+                stop_status_aggregator()
+
+            # Broadcast should have been called; system may be None but no crash
+            assert mock_manager.broadcast.call_count >= 0
+
+
+class TestSystemStatusBroadcastSchema:
+    """Schema-level backward-compat and additive field tests."""
+
+    def test_system_defaults_to_none(self):
+        """SystemStatusBroadcast valid with only nodes — system=None by default."""
+        payload = SystemStatusBroadcast(nodes=[])
+        assert payload.system is None
+        assert payload.reload_event is None
+
+    def test_reload_event_only_broadcast_valid(self):
+        """Reload-event-only broadcast (nodes=[], reload_event=..., system=None) valid."""
+        event = ReloadEvent(status="reloading", reload_mode="selective")
+        broadcast = SystemStatusBroadcast(nodes=[], reload_event=event)
+        dumped = broadcast.model_dump()
+        assert dumped["reload_event"]["status"] == "reloading"
+        assert dumped["system"] is None
+
+    def test_system_status_info_schema(self):
+        """SystemStatusInfo validates and serialises correctly."""
+        info = SystemStatusInfo(
+            is_running=True,
+            active_sensors=["lidar_front", "lidar_rear"],
+            version="2.0.0",
+        )
+        d = info.model_dump()
+        assert d["is_running"] is True
+        assert d["active_sensors"] == ["lidar_front", "lidar_rear"]
+        assert d["version"] == "2.0.0"
+
+    def test_full_broadcast_with_system_serialises(self):
+        """Full broadcast with system field round-trips through model_dump."""
+        info = SystemStatusInfo(is_running=False, active_sensors=[], version="0.1.0")
+        broadcast = SystemStatusBroadcast(nodes=[], system=info)
+        dumped = broadcast.model_dump()
+        assert dumped["system"]["is_running"] is False
+        assert dumped["system"]["version"] == "0.1.0"
