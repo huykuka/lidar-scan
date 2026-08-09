@@ -1,5 +1,6 @@
 """Recordings router configuration and endpoint metadata."""
 
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile, WebSocket, status
@@ -24,13 +25,20 @@ router = APIRouter(tags=["Recordings"])
 
 @router.websocket("/recordings/{recording_id}/stream")
 async def recordings_stream_endpoint(websocket: WebSocket, recording_id: str):
-    db = next(get_db())
-    try:
-        recording = RecordingRepository(db).get_by_id(recording_id)
-    finally:
-        db.close()
+    # Accept FIRST so the wsproto handshake completes immediately.
+    # Blocking DB work before accept() causes a 403 under Docker (slow volume
+    # I/O delays accept past wsproto's handshake window).
+    await websocket.accept()
+
+    def _lookup():
+        db = next(get_db())
+        try:
+            return RecordingRepository(db).get_by_id(recording_id)
+        finally:
+            db.close()
+
+    recording = await asyncio.to_thread(_lookup)
     if not recording:
-        await websocket.accept()
         await websocket.close(code=1008, reason="recording_not_found")
         return
     await stream_recording(websocket, recording)

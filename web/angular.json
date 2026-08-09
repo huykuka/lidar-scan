@@ -25,7 +25,7 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "allowedCommonJsDependencies": ["jszip"],
+            "allowedCommonJsDependencies": [],
             "assets": [
               {
                 "glob": "**/*",

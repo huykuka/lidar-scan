@@ -76,7 +76,12 @@ def _encode_stream_frame(points, timestamp: float, frame_index: int, generation:
 
 
 async def stream_recording(websocket: WebSocket, recording: dict) -> None:
-    """Serve one bounded, seekable recording stream over one public WebSocket."""
+    """Serve one bounded, seekable recording stream over one public WebSocket.
+
+    Caller MUST have already called ``await websocket.accept()`` before invoking
+    this function (the endpoint does this so the wsproto handshake completes
+    immediately, before any blocking DB/file work).
+    """
     reader = None
     producer: asyncio.Task | None = None
     receive_task: asyncio.Task | None = None
@@ -85,7 +90,6 @@ async def stream_recording(websocket: WebSocket, recording: dict) -> None:
     paused = True
 
     try:
-        await websocket.accept()
         try:
             reader = await asyncio.to_thread(RecordingReader, recording["file_path"])
         except Exception:

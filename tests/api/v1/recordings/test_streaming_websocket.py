@@ -1,7 +1,10 @@
+import asyncio
 import json
 import struct
+from unittest.mock import AsyncMock, MagicMock, patch, call
 
 import numpy as np
+import pytest
 
 from app.db.models import RecordingModel
 from app.services.shared.recording import RecordingWriter
@@ -146,3 +149,79 @@ def test_recording_stream_paused_seek_emits_only_target_until_start(client, tmp_
         websocket.send_text('{"type":"start"}')
         assert websocket.receive_json() == {"type": "seeked", "frameIndex": 2, "generation": 2}
         assert websocket.receive_json() == {"type": "eof", "frameIndex": 2, "generation": 2}
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: accept-before-DB ordering (prevents docker-only 403)
+# ---------------------------------------------------------------------------
+
+def test_recording_stream_not_found_closes_after_accept(client):
+    """Not-found path: endpoint must accept() then close(1008), not 403."""
+    with client.websocket_connect("/api/v1/recordings/does-not-exist/stream") as ws:
+        msg = ws.receive()
+        # After accept, server sends a close frame with code 1008
+        assert msg.get("type") == "websocket.close"
+        assert msg.get("code") == 1008
+
+
+@pytest.mark.asyncio
+async def test_accept_called_before_db_lookup():
+    """accept() must be the FIRST awaited call — before any DB work.
+
+    Patch asyncio.to_thread (DB lookup) and websocket.accept. Verify accept
+    is awaited first, then to_thread is called for the DB work.
+    """
+    from app.api.v1.recordings.handler import recordings_stream_endpoint
+
+    call_order: list[str] = []
+
+    ws = MagicMock()
+
+    async def fake_accept():
+        call_order.append("accept")
+
+    async def fake_close(**kwargs):
+        call_order.append("close")
+
+    ws.accept = fake_accept
+    ws.close = fake_close
+
+    # to_thread returns None → recording not found path (simpler to test ordering)
+    original_to_thread = asyncio.to_thread
+
+    async def fake_to_thread(fn, *args, **kwargs):
+        call_order.append("to_thread")
+        return None  # simulate not-found
+
+    with patch("app.api.v1.recordings.handler.asyncio.to_thread", side_effect=fake_to_thread):
+        await recordings_stream_endpoint(ws, "any-id")
+
+    assert call_order[0] == "accept", "accept() must be called before DB lookup"
+    assert "to_thread" in call_order, "DB lookup must run via asyncio.to_thread"
+    assert call_order.index("accept") < call_order.index("to_thread")
+
+
+@pytest.mark.asyncio
+async def test_stream_recording_does_not_call_accept():
+    """stream_recording must NOT call websocket.accept() — endpoint owns accept now."""
+    from app.api.v1.recordings.service import stream_recording
+
+    ws = MagicMock()
+    ws.accept = AsyncMock()
+    ws.close = AsyncMock()
+    ws.send_json = AsyncMock()
+    ws.send_bytes = AsyncMock()
+    ws.receive = AsyncMock(return_value={"type": "websocket.disconnect"})
+    ws.client_state = MagicMock()
+    ws.client_state.name = "CONNECTED"
+
+    fake_recording = {
+        "id": "rec-1",
+        "file_path": "/nonexistent/path.zip",
+    }
+
+    # RecordingReader init will fail → stream_recording sends error + closes
+    await stream_recording(ws, fake_recording)
+
+    ws.accept.assert_not_called()
+
