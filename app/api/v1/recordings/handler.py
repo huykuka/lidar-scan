@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile, WebSocket
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
+from app.repositories.recordings_orm import RecordingRepository
 from .dto import (
     StartRecordingRequest, RecordingResponse, ListRecordingsResponse, RenameRecordingRequest
 )
@@ -13,11 +14,25 @@ from .service import (
     start_recording, stop_recording, list_recordings, get_recording,
     delete_recording, download_recording, get_recording_viewer_info,
     get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording,
-    rename_recording
+    rename_recording, stream_recording
 )
 
 # Router configuration
 router = APIRouter(tags=["Recordings"])
+
+
+@router.websocket("/recordings/{recording_id}/stream")
+async def recordings_stream_endpoint(websocket: WebSocket, recording_id: str):
+    db = next(get_db())
+    try:
+        recording = RecordingRepository(db).get_by_id(recording_id)
+    finally:
+        db.close()
+    if not recording:
+        await websocket.accept()
+        await websocket.close(code=1008, reason="recording_not_found")
+        return
+    await stream_recording(websocket, recording)
 
 
 # Endpoint configurations

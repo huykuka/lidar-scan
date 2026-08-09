@@ -3,11 +3,11 @@ import {
   Component,
   computed,
   CUSTOM_ELEMENTS_SCHEMA,
-  effect,
   inject,
   OnDestroy,
   OnInit,
   signal,
+  effect,
   viewChild,
 } from '@angular/core';
 import {DecimalPipe} from '@angular/common';
@@ -17,18 +17,15 @@ import {RecordingApiService} from '@core/services/api/recording-api.service';
 import {NavigationService} from '@core/services';
 import {RecordingViewerInfo} from '@core/models';
 import {FormsModule} from '@angular/forms';
-import JSZip from 'jszip';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+import {RecordingPlaybackStreamService, RecordingPlaybackEvent} from '@core/services/recording-playback-stream.service';
+import {LidrFrame} from '@core/services/lidr-parser';
 
 import {NgtsPointsBuffer} from 'angular-three-soba/performances';
-import {NgtCanvas, NgtCanvasImpl} from 'angular-three/dom';
+import {NgtCanvas, NgtCanvasContent, NgtCanvasImpl} from 'angular-three/dom';
 import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
 import {ViewOrientation} from '@core/services/split-layout-store.service';
-
-interface PCDData {
-  points: Float32Array;
-  intensities: Float32Array;
-  count: number;
-}
+import {copyStreamedXyz, flushPointCloudGeometry, readyAction} from './recording-viewer-stream-state';
 
 const MAX_POINTS = 250_000;
 
@@ -39,6 +36,7 @@ const MAX_POINTS = 250_000;
     FormsModule,
     DecimalPipe,
     NgtCanvas,
+    NgtCanvasContent,
     ThreedSceneGraphComponent,
     NgtsPointsBuffer,
     NgtCanvasImpl,
@@ -60,8 +58,7 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
   isLoading = signal(false);
   playbackSpeed = signal(1.0);
   error = signal<string | null>(null);
-  isDownloading = signal(false);
-  downloadProgress = signal<number>(-1);
+  streamState = signal<'loading' | 'streaming' | 'eof' | 'error'>('loading');
 
   // ── Display settings ───────────────────────────────────────────────────────
   pointSize = signal(0.05);
@@ -82,48 +79,30 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
 
   // ── Services ───────────────────────────────────────────────────────────────
   private recordingApi = inject(RecordingApiService);
+  private playbackStream = inject(RecordingPlaybackStreamService);
   private navService = inject(NavigationService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
 
   // ── Archive / worker ───────────────────────────────────────────────────────
-  private zip: JSZip | null = null;
-  private decodingWorker: Worker | null = null;
-  private frameCache = new Map<number, PCDData>();
-  private readonly MAX_CACHE_SIZE = 200;
-  private framesLoading = new Set<number>();
-  private lastFrameData: PCDData | null = null;
+  private latestGeneration = 0;
+  private streamSession = 0;
+  private autoStartSession = -1;
 
   // ── Point cloud buffer ─────────────────────────────────────────────────────
   protected readonly positionsBuffer = new Float32Array(MAX_POINTS * 3);
+  protected readonly pointCount = signal(0);
   private readonly pointsBufferRef = viewChild<NgtsPointsBuffer>('pointBuf');
 
   constructor() {
-    this.decodingWorker = new Worker(new URL('./pcd-decoder.worker.ts', import.meta.url), {
-      type: 'module',
-    });
+    this.playbackStream.events.pipe(takeUntilDestroyed()).subscribe((event) => this.handleStreamEvent(event));
 
+    // Stream frames can arrive before angular-three creates pointsRef(). Track
+    // count separately so geometry flush retries when viewChild becomes ready.
     effect(() => {
-      const frame = this.currentFrame();
-      this.ensureFrameBuffered(frame);
-      if (this.frameCache.has(frame)) {
-        this.applyFrame(this.frameCache.get(frame)!);
-      }
-    });
-
-    effect(() => {
-      this.minIntensity();
-      if (this.lastFrameData) this.applyFrame(this.lastFrameData);
-    });
-
-    effect(() => {
-      if (this.isPlaying()) {
-        const current = this.currentFrame();
-        for (let i = 1; i <= 20; i++) {
-          const ahead = current + i;
-          if (ahead < this.frameCount()) this.ensureFrameBuffered(ahead);
-        }
-      }
+      const points = this.pointsBufferRef()?.pointsRef()?.nativeElement;
+      if (!points) return;
+      flushPointCloudGeometry(points, this.pointCount());
     });
   }
 
@@ -146,19 +125,19 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    if (this.decodingWorker) {
-      this.decodingWorker.terminate();
-      this.decodingWorker = null;
-    }
+    this.playbackStream.disconnect();
     this.stopPlayback();
-    this.frameCache.clear();
+    this.clearPointCloud();
   }
 
   onPlay() {
-    this.isPlaying() ? this.stopPlayback() : this.startPlayback();
+    if (this.isPlaying()) this.stopPlayback();
+    else this.startPlayback();
   }
   onSeek(e: any) {
-    this.currentFrame.set(parseInt(e.target.value, 10));
+    const frameIndex = parseInt(e.target.value, 10);
+    this.currentFrame.set(frameIndex);
+    this.playbackStream.seek(frameIndex);
   }
   goBack() {
     this.router.navigate(['/recordings']);
@@ -179,138 +158,73 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
       next: (info) => {
         this.info.set(info);
         this.recordingName.set(info.name);
+        this.isLoading.set(false);
         this.navService.setPageConfig({
           title: 'Recording Insight',
           subtitle: `Analyzing: ${info.name}`,
         });
-        this.downloadRecordingArchive(id);
+        this.streamState.set('loading');
+        this.streamSession += 1;
+        this.autoStartSession = -1;
+        this.playbackStream.connect(id);
       },
       error: (err) => {
         this.error.set(`Diagnostic Failed: ${err.message}`);
         this.isLoading.set(false);
+        this.streamState.set('error');
       },
     });
   }
 
-  private async downloadRecordingArchive(id: string): Promise<void> {
-    this.isDownloading.set(true);
-    this.downloadProgress.set(-1);
-    try {
-      const blob = await this.recordingApi.getRecordingZip(id, (pct) => {
-        this.downloadProgress.set(pct);
-      });
-      this.zip = await JSZip.loadAsync(blob);
-      this.isDownloading.set(false);
-      this.downloadProgress.set(-1);
+  private handleStreamEvent(event: RecordingPlaybackEvent) {
+    if (event.type === 'ready') {
+      this.info.update((value) => value ? {...value, frame_count: event.frameCount} : value);
       this.isLoading.set(false);
-      this.ensureFrameBuffered(0);
-    } catch (err: any) {
-      this.error.set(`Stream Interrupted: ${err.message}`);
-      this.isLoading.set(false);
-      this.isDownloading.set(false);
-    }
-  }
-
-  private async ensureFrameBuffered(frameIndex: number) {
-    if (
-      !this.zip ||
-      frameIndex < 0 ||
-      this.frameCache.has(frameIndex) ||
-      this.framesLoading.has(frameIndex)
-    ) {
-      return;
-    }
-
-    if (this.frameCache.size >= this.MAX_CACHE_SIZE) {
-      const current = this.currentFrame();
-      let furthest = -1;
-      let maxDist = -1;
-      for (const idx of this.frameCache.keys()) {
-        const dist = Math.abs(idx - current);
-        if (dist > maxDist) {
-          maxDist = dist;
-          furthest = idx;
-        }
+      const action = readyAction(event.frameCount, this.streamSession, this.autoStartSession);
+      if (action === 'eof') {
+        this.streamState.set('eof');
+        this.isPlaying.set(false);
+        this.clearPointCloud();
+        return;
       }
-      this.frameCache.delete(furthest);
+      this.streamState.set('streaming');
+      if (action === 'ignore') return;
+      this.autoStartSession = this.streamSession;
+      this.playbackStream.start(0);
+    } else if (event.type === 'seeked') {
+      this.latestGeneration = event.generation; this.currentFrame.set(event.frameIndex); this.streamState.set('streaming');
+    } else if (event.type === 'frame') {
+      if (event.generation === this.latestGeneration) this.applyFrame(event);
+    } else if (event.type === 'eof') {
+      this.streamState.set('eof'); this.isPlaying.set(false);
+    } else if (event.type === 'error') {
+      this.error.set(event.message); this.streamState.set('error'); this.isLoading.set(false);
     }
-
-    this.framesLoading.add(frameIndex);
-    try {
-      await this.loadSingleFrame(frameIndex);
-      this.framesLoading.delete(frameIndex);
-      if (frameIndex === this.currentFrame()) {
-        this.applyFrame(this.frameCache.get(frameIndex)!);
-      }
-    } catch (err) {
-      this.framesLoading.delete(frameIndex);
-    }
-  }
-
-  private async loadSingleFrame(frameIndex: number): Promise<void> {
-    const filename = `frame_${frameIndex.toString().padStart(5, '0')}.pcd`;
-    const file = this.zip!.file(filename);
-    if (!file) throw new Error(`${filename} Missing`);
-
-    const buffer = await file.async('uint8array');
-    return new Promise((resolve, reject) => {
-      const onMessage = (e: MessageEvent) => {
-        if (e.data.action === 'decoded' && e.data.payload.frameIndex === frameIndex) {
-          this.decodingWorker?.removeEventListener('message', onMessage);
-          if (e.data.payload.result) {
-            this.frameCache.set(frameIndex, e.data.payload.result);
-            resolve();
-          } else reject();
-        }
-      };
-      this.decodingWorker?.addEventListener('message', onMessage);
-      this.decodingWorker?.postMessage({ action: 'decode', payload: { buffer, frameIndex } }, [
-        buffer.buffer,
-      ]);
-    });
   }
 
   // ── Point cloud update ─────────────────────────────────────────────────────
-  private applyFrame(pcdData: PCDData) {
-    this.lastFrameData = pcdData;
+  private applyFrame(frame: LidrFrame) {
+    const src = frame.xyz;
+    const count = frame.pointCount;
+    this.currentFrame.set(frame.frameIndex);
 
-    const threshold = this.minIntensity();
-    let src = pcdData.points;
-    let count = pcdData.count;
+    const points = this.pointsBufferRef()?.pointsRef()?.nativeElement;
+    const actualCount = points
+      ? copyStreamedXyz(points, this.positionsBuffer, src, count, MAX_POINTS)
+      : Math.min(count, MAX_POINTS);
+    if (!points) this.positionsBuffer.set(src.subarray(0, actualCount * 3));
+    this.pointCount.set(actualCount);
+  }
 
-    if (threshold > 0) {
-      const tmp = new Float32Array(pcdData.points.length);
-      let outIdx = 0;
-      for (let i = 0; i < pcdData.count; i++) {
-        if (pcdData.intensities[i] >= threshold) {
-          tmp[outIdx * 3] = pcdData.points[i * 3];
-          tmp[outIdx * 3 + 1] = pcdData.points[i * 3 + 1];
-          tmp[outIdx * 3 + 2] = pcdData.points[i * 3 + 2];
-          outIdx++;
-        }
-      }
-      src = tmp;
-      count = outIdx;
-    }
-
-    const actualCount = Math.min(count, MAX_POINTS);
-    this.positionsBuffer.set(src.subarray(0, actualCount * 3));
-
-    const buf = this.pointsBufferRef();
-    const points = buf?.pointsRef()?.nativeElement;
+  private clearPointCloud() {
+    this.pointCount.set(0);
+    const points = this.pointsBufferRef()?.pointsRef()?.nativeElement;
     if (!points) return;
-
-    if (actualCount === 0) {
-      points.visible = false;
-      return;
-    }
-    points.visible = true;
-
-    const geo = points.geometry;
-    if (!geo) return;
-    geo.setDrawRange(0, actualCount);
-    const attr = geo.attributes['position'];
-    if (attr) attr.needsUpdate = true;
+    points.visible = false;
+    points.geometry?.dispose();
+    const material = points.material;
+    if (Array.isArray(material)) material.forEach((item) => item.dispose());
+    else material?.dispose();
   }
 
   // ── Playback ───────────────────────────────────────────────────────────────
@@ -325,9 +239,9 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
       const next = this.currentFrame() + 1;
       if (next < this.frameCount()) {
         this.currentFrame.set(next);
+        this.playbackStream.seek(next);
       } else {
         this.stopPlayback();
-        this.currentFrame.set(0);
       }
     }, interval);
   }
