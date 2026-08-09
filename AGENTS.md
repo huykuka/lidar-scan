@@ -49,10 +49,10 @@ uv run uvicorn main:app --reload --port 8005
 uv run pytest
 
 # Frontend dev server (inside web/)
-npm start
+pnpm start
 
 # Frontend tests (inside web/)
-npm test
+pnpm test
 
 # Pack a plugin for upload
 bash scripts/pack_plugin.sh app/plugins/installed/<name>
