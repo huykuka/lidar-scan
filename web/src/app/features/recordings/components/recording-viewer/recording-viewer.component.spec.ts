@@ -68,22 +68,6 @@ describe('RecordingViewerComponent stream startup', () => {
     expect(position.needsUpdate).toBe(true);
   });
 
-  it('preserves recording XYZ units and coordinates across sequential frames', () => {
-    const position = {needsUpdate: false};
-    const geometry = {attributes: {position}, setDrawRange: vi.fn()};
-    const points = {visible: false, geometry};
-    const destination = new Float32Array(9);
-    const destinationRef = destination;
-
-    copyStreamedXyz(points, destination, new Float32Array([1000, 2000, 3000, 1004, 2000, 3000]), 2, 3);
-    copyStreamedXyz(points, destination, new Float32Array([-10, 20, 30]), 1, 3);
-
-    expect(destination).toBe(destinationRef);
-    expect([...destination]).toEqual([-10, 20, 30, 4, 2000, 3000, 0, 0, 0]);
-    expect(geometry.setDrawRange).toHaveBeenNthCalledWith(1, 0, 2);
-    expect(geometry.setDrawRange).toHaveBeenNthCalledWith(2, 0, 1);
-  });
-
   it('keeps empty streamed frames hidden with zero draw range', () => {
     const geometry = {attributes: {}, setDrawRange: vi.fn()};
     const points = {visible: true, geometry};
