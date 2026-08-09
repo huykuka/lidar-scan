@@ -40,7 +40,7 @@
       }
       @if (streamState() === 'eof') {
         <div class="absolute top-4 left-1/2 -translate-x-1/2 z-20">
-          <syn-alert open variant="neutral">End of recording</syn-alert>
+          <syn-alert open variant="neutral" [closable]="true">End of recording</syn-alert>
         </div>
       }
 
