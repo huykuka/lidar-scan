@@ -200,3 +200,14 @@
     pointer-events: auto;
   }
 }
+
+/* ── Trim range overlay on timeline scrubber ─────────────── */
+.trim-range-overlay {
+  top: 50%;
+  height: 6px;
+  transform: translateY(-50%);
+  background: var(--syn-color-primary-500);
+  opacity: 0.35;
+  border-radius: 3px;
+  z-index: 1;
+}

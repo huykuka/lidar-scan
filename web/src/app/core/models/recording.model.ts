@@ -15,6 +15,8 @@ export interface Recording {
   metadata: RecordingMetadata;
   thumbnail_path?: string;
   created_at: string;
+  /** Optional — treat missing as 'ready' for backward-compat with cached data */
+  status?: 'ready' | 'processing' | 'failed';
 }
 
 export interface RecordingMetadata {
@@ -70,4 +72,10 @@ export interface RecordingViewerInfo {
   duration_seconds: number;
   metadata: RecordingMetadata;
   recording_timestamp: string;
+}
+
+export interface TrimRecordingRequest {
+  start_frame: number;
+  end_frame: number;
+  name: string | null;
 }

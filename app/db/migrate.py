@@ -176,6 +176,14 @@ def ensure_schema(engine: Engine) -> None:
         # Backfill flat pose keys into nested config["pose"] (data-only, no DDL)
         _backfill_pose_into_config(conn)
 
+        # Add status column to recordings (recording-trim feature)
+        if "status" not in _table_cols(conn, "recordings"):
+            conn.execute(
+                text(
+                    "ALTER TABLE recordings ADD COLUMN status TEXT NOT NULL DEFAULT 'ready'"
+                )
+            )
+
     # Seed dag_meta row if table is empty (idempotent via INSERT OR IGNORE)
     with engine.begin() as conn:
         conn.execute(

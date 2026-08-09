@@ -2,7 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   ElementRef,
+  effect,
   inject,
   OnInit,
   signal,
@@ -17,8 +19,11 @@ import {Router} from '@angular/router';
 import {Recording} from '@core/models';
 import {RecordingCardComponent} from './components/recording-card/recording-card.component';
 import {DialogService} from '@core/services/dialog.service';
-import {firstValueFrom} from 'rxjs';
+import {firstValueFrom, interval, Subscription} from 'rxjs';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
+import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
+
+const POLL_INTERVAL_MS = 3000;
 
 @UntilDestroy()
 @Component({
@@ -57,6 +62,12 @@ export class RecordingsComponent implements OnInit {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   });
+
+  /** True when any recording is still processing — drives poll */
+  protected hasProcessing = computed(() =>
+    this.recordings().some((r: Recording) => r.status === 'processing')
+  );
+
   private recordingStore = inject(RecordingStoreService);
   // State
   protected recordings = this.recordingStore.recordings;
@@ -65,8 +76,24 @@ export class RecordingsComponent implements OnInit {
   private navService = inject(NavigationService);
   private router = inject(Router);
   private dialogService = inject(DialogService);
+  private destroyRef = inject(DestroyRef);
 
-  constructor() {}
+  private pollSub: Subscription | null = null;
+
+  constructor() {
+    // Start/stop poll reactively based on whether any recording is 'processing'
+    effect(() => {
+      const processing = this.hasProcessing();
+      if (processing && !this.pollSub) {
+        this.pollSub = interval(POLL_INTERVAL_MS)
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe(() => this.recordingStore.loadRecordings());
+      } else if (!processing && this.pollSub) {
+        this.pollSub.unsubscribe();
+        this.pollSub = null;
+      }
+    });
+  }
 
   async ngOnInit() {
     this.navService.setPageConfig({

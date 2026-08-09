@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import uuid
 import zipfile
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,8 +22,9 @@ from app.repositories.recordings_orm import RecordingRepository
 from app.services.nodes.instance import node_manager
 from app.services.shared.recorder import get_recorder
 from app.services.shared.recording import RecordingReader
+from app.services.shared.recording import RecordingWriter
 from .dto import (
-    StartRecordingRequest
+    StartRecordingRequest, TrimRecordingRequest
 )
 from .schemas import StreamPauseCommand, StreamSeekCommand, StreamStartCommand
 
@@ -836,3 +838,199 @@ async def get_recording_thumbnail(recording_id: str, db: Session):
 
     # Return 404 if no thumbnail available
     raise HTTPException(status_code=404, detail="Thumbnail not available")
+
+
+def _perform_trim_copy(
+    src_file_path: str,
+    dest: Path,
+    new_metadata: dict,
+    start_frame: int,
+    end_frame: int,
+) -> dict:
+    """Sync helper: copy frame range from src to dest. Runs in a worker thread.
+
+    Returns writer.finalize() dict on success.
+    Cleans up partial dest on failure and re-raises.
+    """
+    reader = RecordingReader(src_file_path)
+    try:
+        writer = RecordingWriter(dest, new_metadata)
+        writer.write_batch(list(reader.iter_frames(start_frame, end_frame)))
+        return writer.finalize()
+    except Exception:
+        for path in (dest, dest.with_suffix(".png")):
+            try:
+                if path.exists():
+                    path.unlink()
+            except Exception:
+                pass
+        raise
+    finally:
+        reader.close()
+
+
+async def trim_recording(
+    recording_id: str,
+    req: TrimRecordingRequest,
+    background_tasks: BackgroundTasks,
+    db: Session,
+):
+    """
+    Copy a half-open frame range [start_frame, end_frame) from a source recording
+    into a new recording. Original is untouched.
+
+    Returns HTTP 202 immediately with status='processing'. The actual frame copy
+    runs in a BackgroundTask; the row is updated to 'ready' (or 'failed') when done.
+
+    Raises:
+        HTTPException 404: Source recording not found.
+        HTTPException 400: Invalid frame range.
+    """
+    repo = RecordingRepository(db)
+    src = repo.get_by_id(recording_id)
+    if src is None:
+        raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
+
+    try:
+        reader = RecordingReader(src["file_path"])
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail=f"Recording file not found or corrupt: {exc}")
+
+    try:
+        source_count = reader.frame_count
+
+        # Validate range (sync, on event loop)
+        start_frame = req.start_frame
+        end_frame = req.end_frame
+
+        if source_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Source recording has no frames; cannot trim.",
+            )
+        if not (0 <= start_frame < end_frame <= source_count):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid frame range [{start_frame}, {end_frame}). "
+                    f"Allowed: start_frame >= 0, start_frame < end_frame, "
+                    f"end_frame <= {source_count} (source frame count)."
+                ),
+            )
+
+        new_id = uuid.uuid4().hex
+        recordings_dir = Path("data/recordings")
+        recordings_dir.mkdir(parents=True, exist_ok=True)
+        dest = recordings_dir / f"{new_id}.zip"
+
+        # Strip stale computed fields; writer.finalize recomputes them
+        new_metadata = deepcopy(reader.metadata)
+        for stale_key in ("frame_count", "timestamps", "start_timestamp", "end_timestamp"):
+            new_metadata.pop(stale_key, None)
+
+    finally:
+        reader.close()
+
+    # Determine recording_timestamp from source (best-effort before copy)
+    src_ts = src.get("recording_timestamp") or src.get("metadata", {}).get("recording_timestamp")
+    recording_timestamp = src_ts or datetime.now(timezone.utc).isoformat()
+    display_name = req.name or f'{src["name"]} (trim)'
+
+    # Create DB row immediately with status='processing' and placeholder numerics
+    recording_data = {
+        "id": new_id,
+        "name": display_name,
+        "node_id": src["node_id"],
+        "sensor_id": src.get("sensor_id"),
+        "file_path": str(dest),
+        "file_size_bytes": 0,
+        "frame_count": end_frame - start_frame,
+        "duration_seconds": 0.0,
+        "recording_timestamp": recording_timestamp,
+        "metadata": deepcopy(new_metadata),
+        "status": "processing",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    created = repo.create(recording_data)
+
+    # Background: copy frames, then finalize the row
+    async def _bg_trim_and_finalize() -> None:
+        from app.db.models import get_db as _get_db
+
+        try:
+            info = await asyncio.to_thread(
+                _perform_trim_copy, src["file_path"], dest, new_metadata, start_frame, end_frame
+            )
+
+            # Derive recording_timestamp from actual written start if source had none
+            if not src_ts:
+                raw_ts = info.get("start_timestamp")
+                if isinstance(raw_ts, (int, float)) and raw_ts:
+                    actual_ts = datetime.fromtimestamp(raw_ts, tz=timezone.utc).isoformat()
+                else:
+                    actual_ts = recording_timestamp
+            else:
+                actual_ts = recording_timestamp
+
+            # Finalized metadata with real timestamps
+            final_metadata = deepcopy(new_metadata)
+            final_metadata["start_timestamp"] = info.get("start_timestamp")
+            final_metadata["end_timestamp"] = info.get("end_timestamp")
+
+            bg_db_gen = _get_db()
+            bg_db = next(bg_db_gen)
+            try:
+                RecordingRepository(bg_db).update(new_id, {
+                    "file_size_bytes": info["file_size_bytes"],
+                    "frame_count": info["frame_count"],
+                    "duration_seconds": info["duration_seconds"],
+                    "recording_timestamp": actual_ts,
+                    "metadata": final_metadata,
+                    "status": "ready",
+                })
+            finally:
+                bg_db.close()
+
+            logger.info(
+                f"trim_recording: {recording_id} [{start_frame},{end_frame}) "
+                f"→ {new_id} ({info['frame_count']} frames) ready"
+            )
+
+            # Thumbnail generation (best-effort)
+            try:
+                from app.services.shared.thumbnail import generate_thumbnail_from_file
+
+                thumbnail_path = dest.with_suffix(".png")
+                success = await asyncio.to_thread(
+                    generate_thumbnail_from_file, dest, output_path=thumbnail_path
+                )
+                if success:
+                    bg_db_gen2 = _get_db()
+                    bg_db2 = next(bg_db_gen2)
+                    try:
+                        RecordingRepository(bg_db2).update(new_id, {"thumbnail_path": str(thumbnail_path)})
+                    finally:
+                        bg_db2.close()
+            except Exception as thumb_exc:
+                logger.warning(f"Thumbnail generation failed for trimmed recording {new_id}: {thumb_exc}")
+
+        except Exception as exc:
+            logger.error(f"trim_recording background task failed for {new_id}: {exc}", exc_info=True)
+            # Clean up partial file
+            for path in (dest, dest.with_suffix(".png")):
+                try:
+                    if path.exists():
+                        path.unlink()
+                except Exception:
+                    pass
+            # Mark row failed
+            bg_db_gen = _get_db()
+            bg_db = next(bg_db_gen)
+            try:
+                RecordingRepository(bg_db).update(new_id, {"status": "failed"})
+            finally:
+                bg_db.close()
+
+    background_tasks.add_task(_bg_trim_and_finalize)
+
+    return created

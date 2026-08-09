@@ -2,19 +2,20 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile, WebSocket
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile, WebSocket, status
 from sqlalchemy.orm import Session
 
 from app.db.models import get_db
 from app.repositories.recordings_orm import RecordingRepository
 from .dto import (
-    StartRecordingRequest, RecordingResponse, ListRecordingsResponse, RenameRecordingRequest
+    StartRecordingRequest, RecordingResponse, ListRecordingsResponse,
+    RenameRecordingRequest, TrimRecordingRequest
 )
 from .service import (
     start_recording, stop_recording, list_recordings, get_recording,
     delete_recording, download_recording, get_recording_viewer_info,
     get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording,
-    rename_recording, stream_recording
+    rename_recording, stream_recording, trim_recording
 )
 
 # Router configuration
@@ -218,3 +219,29 @@ async def recordings_thumbnail_endpoint(
         db: Annotated[Session, Depends(get_db)]
 ):
     return await get_recording_thumbnail(recording_id, db)
+
+
+@router.post(
+    "/recordings/{recording_id}/trim",
+    response_model=RecordingResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        400: {"description": "Invalid frame range"},
+        404: {"description": "Recording not found"},
+        500: {"description": "Internal server error"},
+    },
+    summary="Trim Recording",
+    description=(
+        "Copy a half-open frame range [start_frame, end_frame) from a source recording "
+        "into a new recording. The original recording is not modified. "
+        "Returns 202 immediately with status='processing'; the copy runs in the background. "
+        "Poll GET /recordings/{id} until status='ready' (or 'failed')."
+    ),
+)
+async def recordings_trim_endpoint(
+        recording_id: str,
+        request: TrimRecordingRequest,
+        background_tasks: BackgroundTasks,
+        db: Annotated[Session, Depends(get_db)],
+):
+    return await trim_recording(recording_id, request, background_tasks, db)

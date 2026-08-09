@@ -3,7 +3,7 @@ import {provideHttpClient} from '@angular/common/http';
 import {HttpTestingController, provideHttpClientTesting} from '@angular/common/http/testing';
 import {firstValueFrom} from 'rxjs';
 import {RecordingApiService} from './recording-api.service';
-import {ListRecordingsResponse, Recording} from '../../models/recording.model';
+import {ListRecordingsResponse, Recording, TrimRecordingRequest} from '../../models/recording.model';
 
 /** Mock data aligned to api-spec.md §5 */
 const MOCK_RECORDING: Recording = {
@@ -95,5 +95,61 @@ describe('RecordingApiService — playback-related methods', () => {
       expect(rec.duration_seconds).toBe(15.0);
       expect(rec.recording_timestamp).toBe('2026-04-01T10:00:00Z');
     });
+  });
+});
+
+describe('RecordingApiService — trimRecording()', () => {
+  let service: RecordingApiService;
+  let httpMock: HttpTestingController;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
+    service = TestBed.inject(RecordingApiService);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  const MOCK_TRIMMED: Recording = {
+    id: 'trimmed-id-00000001',
+    name: 'demo_outdoor_scan_trimmed',
+    node_id: 'sensor-001',
+    file_path: 'recordings/trimmed-id-00000001.zip',
+    file_size_bytes: 1048576,
+    frame_count: 50,
+    duration_seconds: 5.0,
+    recording_timestamp: '2026-04-01T10:00:00Z',
+    metadata: { node_id: 'sensor-001', name: 'demo_outdoor_scan_trimmed', recording_timestamp: '2026-04-01T10:00:00Z' },
+    created_at: '2026-04-01T10:01:00Z',
+  };
+
+  it('POSTs to /recordings/{id}/trim with exact body', async () => {
+    const body: TrimRecordingRequest = { start_frame: 10, end_frame: 60, name: null };
+    const p = firstValueFrom(service.trimRecording('demo0001demo0001demo0001demo0001', body));
+
+    const req = httpMock.expectOne((r) =>
+      r.method === 'POST' && r.url.endsWith('/recordings/demo0001demo0001demo0001demo0001/trim'),
+    );
+    expect(req.request.body).toEqual({ start_frame: 10, end_frame: 60, name: null });
+    req.flush(MOCK_TRIMMED);
+
+    const result = await p;
+    expect(result.id).toBe('trimmed-id-00000001');
+    expect(result.frame_count).toBe(50);
+  });
+
+  it('returns the new Recording on success', async () => {
+    const body: TrimRecordingRequest = { start_frame: 0, end_frame: 100, name: null };
+    const p = firstValueFrom(service.trimRecording('demo0001demo0001demo0001demo0001', body));
+
+    const req = httpMock.expectOne((r) => r.url.includes('/trim'));
+    req.flush(MOCK_TRIMMED);
+
+    const result = await p;
+    expect(result).toEqual(MOCK_TRIMMED);
   });
 });

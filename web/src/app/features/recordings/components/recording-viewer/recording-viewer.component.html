@@ -64,20 +64,31 @@
             {{ isPlaying() ? 'Pause' : 'Play' }}
           </syn-button>
 
-          <!-- Time + Scrubber -->
+          <!-- Time + Scrubber with trim range overlay -->
           <div class="flex items-center gap-3 flex-1 min-w-0">
             <span class="text-[11px] font-mono text-[var(--syn-typography-color-text)] w-14 text-right tabular-nums shrink-0">
               {{ formatTime(currentTime()) }}
             </span>
 
-            <syn-range
-              (syn-change)="onSeek($event)"
-              [disabled]="frameCount() === 0"
-              [max]="frameCount() > 0 ? frameCount() - 1 : 0"
-              [min]="0"
-              [value]="currentFrame().toString()"
-              class="flex-1 min-w-0"
-            />
+            <!-- Scrubber wrapper with trim range overlay -->
+            <div class="relative flex-1 min-w-0">
+              <syn-range
+                (syn-change)="onSeek($event)"
+                [disabled]="frameCount() === 0"
+                [max]="frameCount() > 0 ? frameCount() - 1 : 0"
+                [min]="0"
+                [value]="currentFrame().toString()"
+                class="flex-1 min-w-0 w-full"
+              />
+              <!-- Trim range highlight overlay -->
+              @if (trimRangeStyle()) {
+                <div
+                  class="trim-range-overlay absolute pointer-events-none"
+                  [style.left]="trimRangeStyle()!.left"
+                  [style.width]="trimRangeStyle()!.width"
+                ></div>
+              }
+            </div>
 
             <span class="text-[11px] font-mono text-[var(--syn-typography-color-text)] w-14 tabular-nums shrink-0">
               {{ formatTime(duration()) }}
@@ -122,6 +133,113 @@
               <span class="metadata-value">{{ frameCount() }} frames</span>
             </div>
           </div>
+
+          <div class="panel-divider"></div>
+
+          <!-- Trim -->
+          <div class="panel__header">
+            <syn-icon class="panel__icon" name="content_cut"/>
+            <h3 class="panel__title">Trim Recording</h3>
+          </div>
+
+          <div class="control-group">
+            <!-- In/Out markers -->
+            <div class="flex gap-2">
+              <syn-button
+                size="small"
+                variant="outline"
+                [disabled]="frameCount() === 0"
+                (click)="setInFrame()"
+                class="flex-1"
+              >
+                <syn-icon name="first_page" slot="prefix"/>
+                Set In
+              </syn-button>
+              <syn-button
+                size="small"
+                variant="outline"
+                [disabled]="frameCount() === 0"
+                (click)="setOutFrame()"
+                class="flex-1"
+              >
+                <syn-icon name="last_page" slot="prefix"/>
+                Set Out
+              </syn-button>
+            </div>
+
+            <!-- Current markers display -->
+            <div class="metadata-grid mt-2">
+              <div class="metadata-row">
+                <span class="section-label">In Frame</span>
+                <span class="metadata-value">
+                  @if (inFrame() !== null) {
+                    {{ inFrame() }}
+                  } @else {
+                    <span class="text-[var(--syn-color-neutral-500)]">—</span>
+                  }
+                </span>
+              </div>
+              <div class="metadata-row">
+                <span class="section-label">Out Frame</span>
+                <span class="metadata-value">
+                  @if (outFrame() !== null) {
+                    {{ outFrame() }}
+                  } @else {
+                    <span class="text-[var(--syn-color-neutral-500)]">—</span>
+                  }
+                </span>
+              </div>
+              @if (trimValid()) {
+                <div class="metadata-row">
+                  <span class="section-label">Frames</span>
+                  <span class="metadata-value">{{ outFrame()! - inFrame()! }}</span>
+                </div>
+              }
+            </div>
+
+            <!-- Reset -->
+            <syn-button
+              size="small"
+              variant="text"
+              [disabled]="inFrame() === null && outFrame() === null"
+              (click)="resetTrim()"
+              class="w-full mt-1"
+            >
+              <syn-icon name="close" slot="prefix"/>
+              Reset Markers
+            </syn-button>
+          </div>
+
+          @if (trimValid()) {
+            <div class="control-group">
+              <!-- Preview toggle -->
+              <syn-button
+                size="small"
+                [variant]="previewing() ? 'filled' : 'outline'"
+                (click)="togglePreview()"
+                class="w-full"
+              >
+                <syn-icon [name]="previewing() ? 'stop' : 'play_circle'" slot="prefix"/>
+                {{ previewing() ? 'Stop Preview' : 'Preview Segment' }}
+              </syn-button>
+
+              <!-- Create trimmed recording -->
+              <syn-button
+                size="small"
+                variant="filled"
+                [disabled]="!canCreate()"
+                (click)="onCreateTrim()"
+                class="w-full mt-2"
+              >
+                @if (creating()) {
+                  <syn-spinner slot="prefix"/>
+                } @else {
+                  <syn-icon name="content_cut" slot="prefix"/>
+                }
+                {{ creating() ? 'Creating...' : 'Create Trimmed Recording' }}
+              </syn-button>
+            </div>
+          }
 
           <div class="panel-divider"></div>
 

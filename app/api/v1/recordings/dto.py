@@ -38,6 +38,7 @@ class RecordingResponse(BaseModel):
     recording_timestamp: str
     metadata: dict
     thumbnail_path: str | None = None
+    status: str = "ready"
     created_at: str
 
 
@@ -61,3 +62,22 @@ class ListRecordingsResponse(BaseModel):
 class RenameRecordingRequest(BaseModel):
     """Request body for renaming a recording."""
     name: str
+
+
+class TrimRecordingRequest(BaseModel):
+    """Request body for trimming a recording to a frame range [start_frame, end_frame)."""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "start_frame": 10,
+                    "end_frame": 50,
+                    "name": "my-trimmed-clip"
+                }
+            ]
+        }
+    )
+
+    start_frame: int
+    end_frame: int
+    name: str | None = None
