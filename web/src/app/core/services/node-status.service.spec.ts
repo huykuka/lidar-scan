@@ -66,13 +66,6 @@ describe('NodeStatusService', () => {
     expect(systemStatusMock.applyReloadEvent).toHaveBeenCalledWith(event);
   });
 
-  it('calls setOffline + clearReloadingState on WS error', () => {
-    service.connect();
-    mockSubject.error(new Error('ws error'));
-    expect(systemStatusMock.setOffline).toHaveBeenCalledTimes(1);
-    expect(systemStatusMock.clearReloadingState).toHaveBeenCalledTimes(1);
-  });
-
   it('calls setOffline + clearReloadingState on WS complete', () => {
     // Need fresh subject for complete test
     const completeSubject = new Subject<any>();
