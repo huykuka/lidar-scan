@@ -18,7 +18,7 @@
     >
       <!-- 3D Canvas (angular-three) -->
       <ngt-canvas style="width:100%;height:100%;display:block">
-        <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
+         <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
           <ngts-points-buffer #pointBuf [positions]="positionsBuffer">
             <ngt-points-material [size]="pointSize()" [color]="pointColor()" [sizeAttenuation]="true"/>
           </ngts-points-buffer>
@@ -32,15 +32,15 @@
         (gridToggle)="showGrid.set($event)"
       />
 
-      <!-- Download progress overlay -->
-      @if (isDownloading()) {
+      <!-- Stream status overlay -->
+      @if (isLoading()) {
         <div class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 rounded-2xl z-20">
-          <syn-progress-ring
-            [value]="downloadProgress() >= 0 ? downloadProgress() : 0"
-            label="Downloading recording"
-            style="font-size: 1.1rem; --size: 80px;"
-          >
-          </syn-progress-ring>
+          <syn-progress-ring label="Loading recording" style="font-size: 1.1rem; --size: 80px;" />
+        </div>
+      }
+      @if (streamState() === 'eof') {
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+          <syn-alert open variant="neutral">End of recording</syn-alert>
         </div>
       }
 
@@ -55,6 +55,7 @@
           <!-- Play Button -->
           <syn-button
             (click)="onPlay()"
+            style="width: 90px"
             [disabled]="frameCount() === 0 || isLoading()"
             size="small"
             variant="outline"
@@ -65,20 +66,20 @@
 
           <!-- Time + Scrubber -->
           <div class="flex items-center gap-3 flex-1 min-w-0">
-            <span class="text-[11px] font-mono text-black w-14 text-right tabular-nums shrink-0">
+            <span class="text-[11px] font-mono text-[var(--syn-typography-color-text)] w-14 text-right tabular-nums shrink-0">
               {{ formatTime(currentTime()) }}
             </span>
 
             <syn-range
-              (syn-input)="onSeek($event)"
+              (syn-change)="onSeek($event)"
               [disabled]="frameCount() === 0"
-              [max]="frameCount() - 1"
+              [max]="frameCount() > 0 ? frameCount() - 1 : 0"
               [min]="0"
               [value]="currentFrame().toString()"
               class="flex-1 min-w-0"
             />
 
-            <span class="text-[11px] font-mono text-black w-14 tabular-nums shrink-0">
+            <span class="text-[11px] font-mono text-[var(--syn-typography-color-text)] w-14 tabular-nums shrink-0">
               {{ formatTime(duration()) }}
             </span>
           </div>

@@ -2,7 +2,6 @@ import {inject, Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
 import {environment} from '../../../../environments/environment';
-import {AuthService} from '../auth.service';
 import {
   ListRecordingsResponse,
   Recording,
@@ -16,7 +15,6 @@ import {
 })
 export class RecordingApiService {
   private http = inject(HttpClient);
-  private auth = inject(AuthService);
   private baseUrl = `${environment.apiUrl}/recordings`;
 
   /**
@@ -69,48 +67,6 @@ export class RecordingApiService {
    */
   renameRecording(recordingId: string, name: string): Observable<Recording> {
     return this.http.patch<Recording>(`${this.baseUrl}/${recordingId}/rename`, { name });
-  }
-
-  /**
-   * Download a recording zip using native fetch with progress reporting.
-   * Returns a Promise that resolves to the Blob.
-   * onProgress callback receives 0–100 (or -1 if Content-Length is absent).
-   */
-  async getRecordingZip(recordingId: string, onProgress?: (pct: number) => void): Promise<Blob> {
-    const url = `${this.baseUrl}/${recordingId}/download`;
-
-    // Include auth token manually since we bypass HttpClient/interceptors
-    const token = this.auth.getToken();
-    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-
-    const res = await fetch(url, { headers });
-
-    if (!res.ok) {
-      throw new Error(`Http failure response for ${url}: ${res.status} ${res.statusText}`);
-    }
-
-    const contentLength = res.headers.get('Content-Length');
-    const total = contentLength ? parseInt(contentLength, 10) : 0;
-
-    if (!res.body) {
-      return res.blob();
-    }
-
-    const reader = res.body.getReader();
-    const chunks: Uint8Array<ArrayBuffer>[] = [];
-    let loaded = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      loaded += value.length;
-      if (onProgress) {
-        onProgress(total > 0 ? Math.round((loaded / total) * 100) : -1);
-      }
-    }
-
-    return new Blob(chunks, { type: 'application/octet-stream' });
   }
 
   /**
