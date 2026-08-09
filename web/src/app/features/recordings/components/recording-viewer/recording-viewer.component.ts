@@ -92,6 +92,13 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
     return inF !== null && outF !== null && inF < outF;
   });
 
+  // Both set but in >= out (invalid order)
+  trimBothSetInvalid = computed(() => {
+    const inF = this.inFrame();
+    const outF = this.outFrame();
+    return inF !== null && outF !== null && inF >= outF;
+  });
+
   canCreate = computed(() => this.trimValid() && !this.creating());
 
   // Trim range width percentage for overlay
@@ -104,6 +111,45 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
     const left = (inF / fc) * 100;
     const width = ((outF - inF) / fc) * 100;
     return { left: `${left}%`, width: `${width}%` };
+  });
+
+  // Tick marker positions for in/out on scrubber
+  inMarkerStyle = computed(() => {
+    const fc = this.frameCount();
+    const inF = this.inFrame();
+    if (fc === 0 || inF === null) return null;
+    const left = (inF / Math.max(fc - 1, 1)) * 100;
+    return { left: `${left}%` };
+  });
+
+  outMarkerStyle = computed(() => {
+    const fc = this.frameCount();
+    const outF = this.outFrame();
+    if (fc === 0 || outF === null) return null;
+    const left = (outF / Math.max(fc - 1, 1)) * 100;
+    return { left: `${left}%` };
+  });
+
+  // Tooltip for disabled Preview/Create buttons
+  trimDisabledTooltip = computed(() => {
+    const inF = this.inFrame();
+    const outF = this.outFrame();
+    if (inF === null && outF === null) return 'Set both In and Out markers to enable';
+    if (inF === null) return 'Set an In marker before the Out marker';
+    if (outF === null) return 'Set an Out marker after the In marker';
+    if (inF >= outF) return 'In marker must come before Out marker';
+    return '';
+  });
+
+  // Segment summary when valid
+  segmentFrameCount = computed(() => {
+    if (!this.trimValid()) return 0;
+    return this.outFrame()! - this.inFrame()!;
+  });
+
+  segmentDuration = computed(() => {
+    if (!this.trimValid()) return 0;
+    return this.frameToTime(this.outFrame()!) - this.frameToTime(this.inFrame()!);
   });
 
   // ── Services ───────────────────────────────────────────────────────────────
@@ -187,6 +233,21 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
     const m = Math.floor(s / 60);
     const r = Math.floor(s % 60);
     return `${m}:${r.toString().padStart(2, '0')}`;
+  }
+
+  // Linear frame→time mapping: frame / (frameCount-1) * duration
+  frameToTime(frame: number): number {
+    const fc = this.frameCount();
+    const dur = this.duration();
+    if (fc <= 1) return 0;
+    return (frame / (fc - 1)) * dur;
+  }
+
+  // Display string for a frame: "128 · 7.5s"
+  frameLabel(frame: number | null): string {
+    if (frame === null) return '';
+    const t = this.frameToTime(frame);
+    return `${frame} · ${t.toFixed(1)}s`;
   }
 
   // ── Trim actions ───────────────────────────────────────────────────────────

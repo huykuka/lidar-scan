@@ -73,44 +73,46 @@
   pointer-events: none;
 }
 
-/* ── Small screens: toggle hidden, panel always visible ───── */
+/* ── Small screens (<1024px): stacked column, scrollable ───── */
 @media (max-width: 1023px) {
-  .workspace-layout { flex-direction: column; }
+  .workspace-layout {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  /* Canvas pane: fixed height so 3D scene stays usable */
+  .workspace-canvas-pane {
+    flex: none;
+    flex-shrink: 0;
+    height: 55vh;
+    min-height: 360px;
+  }
 
   .workspace-settings-panel {
     width: 100%;
     position: static;
+    flex-direction: column;
+    flex: 0 0 auto;
   }
 
+  /* Toggle hidden on narrow — panel always shown */
   .settings-toggle { display: none; }
 
   .settings-content,
   .settings-content--collapsed {
     width: 100%;
+    height: auto;
+    overflow: visible;
     opacity: 1;
     pointer-events: auto;
+    flex: 0 0 auto;
   }
 }
 
-/* Small screens */
-@media (max-width: 1023px) {
-  .workspace-layout { flex-direction: column; }
-
-  .workspace-settings-panel {
-    width: 100%;
-    flex-direction: column;
-  }
-
-  .settings-toggle {
-    width: 100%;
-    height: 18px;
-    align-self: auto;
-  }
-
-  .settings-content,
-  .settings-content--collapsed {
-    width: 100%;
-    opacity: 1;
-    pointer-events: auto;
+/* ── Extra small screens (<=639px): shrink canvas slightly ── */
+@media (max-width: 639px) {
+  .workspace-canvas-pane {
+    height: 45vh;
+    min-height: 280px;
   }
 }

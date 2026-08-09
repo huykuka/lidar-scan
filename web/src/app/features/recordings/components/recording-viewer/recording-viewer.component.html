@@ -11,7 +11,7 @@
     </div>
 
     <!-- Content body -->
-    <div class="flex flex-col lg:flex-row gap-4 flex-1 w-full min-h-0 p-4">
+    <div class="flex flex-col lg:flex-row gap-4 flex-1 w-full min-h-0 p-4 overflow-y-auto lg:overflow-hidden">
     <!-- View Container (Main Area) -->
     <div
       class="viewer-canvas-area relative rounded-2xl overflow-hidden border border-syn-color-neutral-300"
@@ -50,12 +50,12 @@
         style="bottom: 1rem; width: 100%"
       >
         <div
-          class="flex items-center gap-4 w-2/3 bg-syn-page-background-color pointer-events-auto rounded-xl px-4 py-2"
+          class="flex items-center gap-2 sm:gap-4 w-11/12 sm:w-4/5 lg:w-2/3 bg-syn-page-background-color pointer-events-auto rounded-xl px-3 py-2 flex-wrap sm:flex-nowrap"
         >
           <!-- Play Button -->
           <syn-button
             (click)="onPlay()"
-            style="width: 90px"
+            class="shrink-0"
             [disabled]="frameCount() === 0 || isLoading()"
             size="small"
             variant="outline"
@@ -66,7 +66,7 @@
 
           <!-- Time + Scrubber with trim range overlay -->
           <div class="flex items-center gap-3 flex-1 min-w-0">
-            <span class="text-[11px] font-mono text-[var(--syn-typography-color-text)] w-14 text-right tabular-nums shrink-0">
+            <span class="text-[11px] font-mono text-[var(--syn-typography-color-text)] w-10 sm:w-14 text-right tabular-nums shrink-0 hud-time">
               {{ formatTime(currentTime()) }}
             </span>
 
@@ -88,9 +88,25 @@
                   [style.width]="trimRangeStyle()!.width"
                 ></div>
               }
+              <!-- In marker tick -->
+              @if (inMarkerStyle()) {
+                <div
+                  class="trim-tick trim-tick--in absolute pointer-events-none"
+                  [style.left]="inMarkerStyle()!.left"
+                  aria-label="In marker"
+                ></div>
+              }
+              <!-- Out marker tick -->
+              @if (outMarkerStyle()) {
+                <div
+                  class="trim-tick trim-tick--out absolute pointer-events-none"
+                  [style.left]="outMarkerStyle()!.left"
+                  aria-label="Out marker"
+                ></div>
+              }
             </div>
 
-            <span class="text-[11px] font-mono text-[var(--syn-typography-color-text)] w-14 tabular-nums shrink-0">
+            <span class="text-[11px] font-mono text-[var(--syn-typography-color-text)] w-10 sm:w-14 tabular-nums shrink-0 hud-time">
               {{ formatTime(duration()) }}
             </span>
           </div>
@@ -143,8 +159,8 @@
           </div>
 
           <div class="control-group">
-            <!-- In/Out markers -->
-            <div class="flex gap-2">
+            <!-- In/Out marker buttons -->
+            <div class="flex gap-2 trim-buttons-row">
               <syn-button
                 size="small"
                 variant="outline"
@@ -167,13 +183,30 @@
               </syn-button>
             </div>
 
+            <!-- Guidance hint when neither marker set -->
+            @if (inFrame() === null && outFrame() === null) {
+              <p class="trim-hint">
+                Scrub the timeline, then Set In / Set Out to mark a segment.
+              </p>
+            } @else if (inFrame() === null) {
+              <p class="trim-hint trim-hint--partial">
+                <syn-icon name="first_page" class="trim-hint__icon"/>
+                Set an In marker to complete the segment.
+              </p>
+            } @else if (outFrame() === null) {
+              <p class="trim-hint trim-hint--partial">
+                <syn-icon name="last_page" class="trim-hint__icon"/>
+                Set an Out marker to complete the segment.
+              </p>
+            }
+
             <!-- Current markers display -->
             <div class="metadata-grid mt-2">
               <div class="metadata-row">
                 <span class="section-label">In Frame</span>
                 <span class="metadata-value">
                   @if (inFrame() !== null) {
-                    {{ inFrame() }}
+                    {{ frameLabel(inFrame()) }}
                   } @else {
                     <span class="text-[var(--syn-color-neutral-500)]">—</span>
                   }
@@ -183,19 +216,29 @@
                 <span class="section-label">Out Frame</span>
                 <span class="metadata-value">
                   @if (outFrame() !== null) {
-                    {{ outFrame() }}
+                    {{ frameLabel(outFrame()) }}
                   } @else {
                     <span class="text-[var(--syn-color-neutral-500)]">—</span>
                   }
                 </span>
               </div>
-              @if (trimValid()) {
-                <div class="metadata-row">
-                  <span class="section-label">Frames</span>
-                  <span class="metadata-value">{{ outFrame()! - inFrame()! }}</span>
-                </div>
-              }
             </div>
+
+            <!-- Invalid range warning: both set but in >= out -->
+            @if (trimBothSetInvalid()) {
+              <div class="trim-warning" role="alert">
+                <syn-icon name="warning" class="trim-warning__icon"/>
+                <span>In marker must come before Out marker.</span>
+              </div>
+            }
+
+            <!-- Segment summary: shown when valid -->
+            @if (trimValid()) {
+              <div class="trim-summary">
+                <syn-icon name="straighten" class="trim-summary__icon"/>
+                <span>{{ segmentFrameCount() }} frames · {{ segmentDuration().toFixed(1) }}s</span>
+              </div>
+            }
 
             <!-- Reset -->
             <syn-button
@@ -210,9 +253,10 @@
             </syn-button>
           </div>
 
-          @if (trimValid()) {
-            <div class="control-group">
-              <!-- Preview toggle -->
+          <!-- Preview + Create — ALWAYS rendered; disabled when invalid -->
+          <div class="control-group">
+            <!-- Preview toggle -->
+            @if (trimValid()) {
               <syn-button
                 size="small"
                 [variant]="previewing() ? 'filled' : 'outline'"
@@ -222,12 +266,25 @@
                 <syn-icon [name]="previewing() ? 'stop' : 'play_circle'" slot="prefix"/>
                 {{ previewing() ? 'Stop Preview' : 'Preview Segment' }}
               </syn-button>
+            } @else {
+              <syn-tooltip [content]="trimDisabledTooltip()" placement="left">
+                <syn-button
+                  size="small"
+                  variant="outline"
+                  disabled
+                  class="w-full"
+                >
+                  <syn-icon name="play_circle" slot="prefix"/>
+                  Preview Segment
+                </syn-button>
+              </syn-tooltip>
+            }
 
-              <!-- Create trimmed recording -->
+            <!-- Create trimmed recording -->
+            @if (canCreate()) {
               <syn-button
                 size="small"
                 variant="filled"
-                [disabled]="!canCreate()"
                 (click)="onCreateTrim()"
                 class="w-full mt-2"
               >
@@ -238,8 +295,20 @@
                 }
                 {{ creating() ? 'Creating...' : 'Create Trimmed Recording' }}
               </syn-button>
-            </div>
-          }
+            } @else {
+              <syn-tooltip [content]="trimDisabledTooltip()" placement="left">
+                <syn-button
+                  size="small"
+                  variant="filled"
+                  disabled
+                  class="w-full mt-2"
+                >
+                  <syn-icon name="content_cut" slot="prefix"/>
+                  Create Trimmed Recording
+                </syn-button>
+              </syn-tooltip>
+            }
+          </div>
 
           <div class="panel-divider"></div>
 
