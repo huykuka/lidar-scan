@@ -15,6 +15,7 @@ permission:
   task:
     "*": deny
     "explore": allow
+    "fe-reviewer": allow
 ---
 
 > **Project rules loaded from:** `.opencode/rules/frontend.md` — read this file at the start of every session before any exploration.
@@ -239,6 +240,9 @@ Before writing a single line of code, use `todowrite`:
 [ ] Run lint + tests
 [ ] Append findings to .opencode/context/features/<slug>/fe.md
 [ ] Update .opencode/context/fe-base.md only if structure changed
+[ ] Invoke @fe-reviewer with: implementation summary, AC, feature slug, files changed
+[ ] Fix any blockers from @fe-reviewer (Mode B), re-invoke reviewer until ✅ APPROVED
+[ ] Report ✅ APPROVED + summary to master
 ```
 
 ### Mode B — Fix blockers
@@ -252,7 +256,7 @@ Before writing a single line of code, use `todowrite`:
     [ ] Verify fix resolves the blocker
     [ ] Append fix note to .opencode/context/features/<slug>/fe.md
 [ ] Run lint + tests
-[ ] Report each fix back to reviewer
+[ ] Report fixes back to @fe-reviewer (do NOT report directly to master)
 ```
 
 ## Implementation rules
@@ -301,14 +305,17 @@ npm test
 
 ## Reporting
 
-When done, respond with:
-- Mode used (Feature / Fix)
+**Mode A — after @fe-reviewer returns ✅ APPROVED, report to master:**
+- ✅ APPROVED by @fe-reviewer
 - Bullet list of every file created or modified
-- New routes added (feature mode)
-- New Synergy components used (feature mode)
-- Plugin registrations added (feature mode)
-- Which blockers were resolved (fix mode)
+- New routes added
+- New Synergy components used
+- Frontend node plugin registered (if applicable)
 - Whether `.opencode/context/fe-base.md` was updated
 - Feature context: `.opencode/context/features/<slug>/fe.md`
 
-Do **not** mark done until lint and tests pass.
+**Mode B — report back to @fe-reviewer (not master):**
+- Each blocker fixed: file:line → what changed
+- Tests re-run: pass/fail
+
+Do **not** report to master until @fe-reviewer gives ✅ APPROVED.

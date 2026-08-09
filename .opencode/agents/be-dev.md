@@ -14,6 +14,8 @@ permission:
   task:
     "*": deny
     "explore": allow
+    "be-reviewer": allow
+    
 ---
 
 > **Project rules loaded from:** `.opencode/rules/backend.md` — read this file at the start of every session before any exploration.
@@ -185,12 +187,15 @@ Before writing a single line of code, use `todowrite` to record every task:
 [ ] Repository method (app/repositories/)
 [ ] Service / domain logic (app/modules/ or app/services/)
 [ ] Router endpoint (app/api/v1/<domain>/router.py)
-[ ] Plugin node.py + registry.py (if node plugin)
+[ ] Plugin node.py + registry.py (if node plugin) — load be-add-feature skill
 [ ] Unit tests (tests/unit/ or tests/modules/)
 [ ] Integration / API tests (tests/api/ or tests/integration/)
 [ ] Run lint + tests
 [ ] Append findings to .opencode/context/features/<slug>/be.md
 [ ] Update .opencode/context/be-base.md only if structure changed
+[ ] Invoke @be-reviewer with: implementation summary, AC, feature slug, files changed
+[ ] Fix any blockers from @be-reviewer (Mode B), re-invoke reviewer until ✅ APPROVED
+[ ] Report ✅ APPROVED + summary to master
 ```
 
 ### Mode B — Fix blockers
@@ -204,7 +209,7 @@ Before writing a single line of code, use `todowrite` to record every task:
     [ ] Verify fix resolves the blocker
     [ ] Append fix note to .opencode/context/features/<slug>/be.md
 [ ] Run lint + tests
-[ ] Report each fix back to reviewer
+[ ] Report fixes back to @be-reviewer (do NOT report directly to master)
 ```
 
 ## Implementation rules
@@ -240,13 +245,16 @@ uv run uvicorn main:app --reload --port 8005
 
 ## Reporting
 
-When done, respond with:
-- Mode used (Feature / Fix)
+**Mode A — after @be-reviewer returns ✅ APPROVED, report to master:**
+- ✅ APPROVED by @be-reviewer
 - Bullet list of every file created or modified
-- New API endpoints: HTTP method + path (feature mode)
+- New API endpoints: HTTP method + path
 - Migration performed (if ORM model changed)
-- Which blockers were resolved (fix mode)
 - Whether `.opencode/context/be-base.md` was updated
 - Feature context: `.opencode/context/features/<slug>/be.md`
 
-Do **not** mark done until tests pass.
+**Mode B — report back to @be-reviewer (not master):**
+- Each blocker fixed: file:line → what changed
+- Tests re-run: pass/fail
+
+Do **not** report to master until @be-reviewer gives ✅ APPROVED.
