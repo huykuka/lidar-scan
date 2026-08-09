@@ -2,7 +2,7 @@
 description: Frontend developer and fixer — tracks tasks before writing code, implements Angular 20/Three.js UI following @.opencode/rules/frontend.md. Uses signal-based components and Tailwind CSS.
 mode: subagent
 color: "#6366f1"
-model: github-copilot/claude-sonnet-4.6
+model: github-copilot/gpt-5.6-luna
 temperature: 0.2
 permission:
   edit: allow
