@@ -156,7 +156,7 @@ def generate_thumbnail_from_file(
         True if successful, False otherwise
     """
     try:
-        from app.services.shared.recording import RecordingReader
+        from app.services.shared.mcap_recording import McapRecordingReader as RecordingReader
         
         recording_path = Path(recording_path)
         

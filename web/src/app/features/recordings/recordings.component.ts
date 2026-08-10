@@ -113,7 +113,7 @@ export class RecordingsComponent implements OnInit {
 
   protected downloadRecording(recording: Recording): void {
     // Download the recording file
-    const filename = `${recording.name}_${recording.created_at.substring(0, 10)}.zip`;
+    const filename = `${recording.name}_${recording.created_at.substring(0, 10)}.mcap`;
     this.recordingApi.downloadRecording(recording.id, filename);
   }
 
@@ -236,7 +236,7 @@ export class RecordingsComponent implements OnInit {
     const input = this.fileInputRef().nativeElement;
 
     input.value = '';
-    input.accept = '.lidr'; // restrict file picker
+    input.accept = '.mcap,.zip'; // allow MCAP (new) and ZIP (legacy transitional)
     input.click();
   }
 

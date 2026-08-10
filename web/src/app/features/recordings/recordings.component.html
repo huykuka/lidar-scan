@@ -1,6 +1,6 @@
 <div class="h-full flex flex-col animate-in fade-in duration-500">
   <!-- Hidden file input for recording upload -->
-  <input #fileInput (change)="onFileSelected($event)" accept=".zip" class="hidden" type="file" />
+  <input #fileInput (change)="onFileSelected($event)" accept=".mcap,.zip" class="hidden" type="file" />
 
   <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
     <!-- Toolbar pinned on top -->
@@ -98,7 +98,7 @@
           @if (searchQuery()) {
             Try adjusting your search query
           } @else {
-            Start recording from the Settings page, or upload an existing recording file
+            Start recording from the Settings page, or upload an existing .mcap recording file
           }
         </p>
       </div>

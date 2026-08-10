@@ -21,8 +21,8 @@ from app.modules.lidar.io.pcd import save_to_pcd
 from app.repositories.recordings_orm import RecordingRepository
 from app.services.nodes.instance import node_manager
 from app.services.shared.recorder import get_recorder
-from app.services.shared.recording import RecordingReader
-from app.services.shared.recording import RecordingWriter
+from app.services.shared.mcap_recording import McapRecordingReader as RecordingReader
+from app.services.shared.mcap_recording import McapRecordingWriter as RecordingWriter
 from .dto import (
     StartRecordingRequest, TrimRecordingRequest
 )
@@ -245,10 +245,7 @@ async def stream_recording(websocket: WebSocket, recording: dict) -> None:
             producer.cancel()
             await asyncio.gather(producer, return_exceptions=True)
         if reader is not None:
-            close = getattr(reader, "close", None)
-            if close is None:
-                close = reader.zipf.close
-            await asyncio.to_thread(close)
+            await asyncio.to_thread(reader.close)
 
 
 async def start_recording(request: StartRecordingRequest, db: Session):
@@ -542,7 +539,7 @@ async def download_recording(recording_id: str, db: Session):
         raise HTTPException(status_code=404, detail=f"Recording file not found: {file_path}")
 
     # Generate a nice filename
-    filename = f"{recording['name']}_{recording['created_at'][:10]}.lidr"
+    filename = f"{recording['name']}_{recording['created_at'][:10]}.mcap"
     # Sanitize filename
     filename = "".join(c for c in filename if c.isalnum() or c in ('_', '-', '.')).rstrip()
 
@@ -659,75 +656,129 @@ async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, backgr
 
 async def upload_recording(file: UploadFile, name: str | None, background_tasks: BackgroundTasks, db: Session):
     """
-    Upload a recording ZIP archive and register it in the database.
+    Upload a recording file (.mcap primary, .zip transitional) and register it in the database.
 
-    The uploaded file must be a valid ZIP archive containing ``metadata.json``
-    and at least one ``frame_NNNNN.pcd`` entry (standard recording format).
+    Accepts:
+    - .mcap files: validated via McapRecordingReader, stored as-is.
+    - .zip files: converted to .mcap on ingest; stored always as .mcap.
+    - Other / corrupt: rejected 400.
+
+    Path-traversal safety: ZIP member names with ".." or absolute paths → 400.
 
     Args:
-        file: Multipart-uploaded ZIP file.
+        file: Multipart-uploaded .mcap or .zip file.
         name: Optional display name. Falls back to the filename stem.
         background_tasks: FastAPI background tasks (used for thumbnail generation).
         db: Database session.
 
     Returns:
-        RecordingResponse for the newly created entry.
+        RecordingResponse for the newly created entry (file_path ends .mcap).
 
     Raises:
-        HTTPException 400: If the file is not a valid recording ZIP.
+        HTTPException 400: Invalid recording file or path-traversal attempt.
         HTTPException 500: If saving fails unexpectedly.
     """
+    from app.services.shared.mcap_recording import McapRecordingWriter as _McapWriter
+
     recordings_dir = Path("data/recordings")
     recordings_dir.mkdir(parents=True, exist_ok=True)
 
     recording_id = str(uuid.uuid4()).replace("-", "")
-    original_stem = Path(file.filename or "upload").stem
+    original_name = file.filename or "upload"
+    original_stem = Path(original_name).stem
     display_name = name or original_stem
 
-    dest_path = recordings_dir / f"{recording_id}.zip"
+    dest_path = recordings_dir / f"{recording_id}.mcap"
     tmp_path: Path | None = None
+    part_path: Path | None = None
 
     try:
-        # Stream upload to a temporary file first so we can validate before committing
-        with tempfile.NamedTemporaryFile(
-                dir=str(recordings_dir), suffix=".zip.tmp", delete=False
-        ) as tmp_f:
-            tmp_path = Path(tmp_f.name)
-            content = await file.read()
-            tmp_f.write(content)
+        content = await file.read()
 
-        # Validate ZIP structure
-        if not zipfile.is_zipfile(str(tmp_path)):
-            raise HTTPException(status_code=400, detail="Uploaded file is not a valid ZIP archive.")
+        # Determine upload type from extension (primary signal)
+        suffix = Path(original_name).suffix.lower()
 
-        with zipfile.ZipFile(str(tmp_path), "r") as zf:
-            names_in_zip = zf.namelist()
-            if "metadata.json" not in names_in_zip:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid recording file: missing metadata.json inside the ZIP.",
-                )
-            frame_files = [n for n in names_in_zip if n.startswith("frame_") and n.endswith(".pcd")]
-            if not frame_files:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid recording file: no frame_NNNNN.pcd entries found.",
-                )
+        if suffix == ".zip":
+            # ---------- .zip transitional: validate + convert to .mcap ----------
+            import io as _io
 
-        # Move to final destination
-        shutil.move(str(tmp_path), str(dest_path))
-        tmp_path = None
+            if not zipfile.is_zipfile(_io.BytesIO(content)):
+                raise HTTPException(status_code=400, detail="Uploaded .zip is not a valid ZIP archive.")
 
-        # Read metadata from the ZIP
+            with zipfile.ZipFile(_io.BytesIO(content), "r") as zf:
+                names_in_zip = zf.namelist()
+                # Path-traversal safety
+                for member_name in names_in_zip:
+                    if ".." in member_name or member_name.startswith("/"):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Unsafe ZIP member name: '{member_name}'. Upload rejected."
+                        )
+                if "metadata.json" not in names_in_zip:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid recording ZIP: missing metadata.json.",
+                    )
+
+            # Convert in-memory ZIP to .mcap via _ZipRecordingReader shim
+            part_path = recordings_dir / f"{recording_id}.mcap.part"
+            try:
+                from app.services.shared.mcap_recording import _ZipRecordingReader as _ZipShim
+                # Write zip bytes to a temp file so _ZipShim can open it
+                with tempfile.NamedTemporaryFile(
+                    dir=str(recordings_dir), suffix=".zip", delete=False
+                ) as _tmp_f:
+                    tmp_path = Path(_tmp_f.name)
+                    _tmp_f.write(content)
+
+                zip_reader = _ZipShim(tmp_path)
+                try:
+                    meta_from_zip = zip_reader.metadata
+                    mcap_writer = _McapWriter(part_path, dict(meta_from_zip))
+                    mcap_writer.write_batch(list(zip_reader.iter_frames()))
+                    mcap_writer.finalize()
+                finally:
+                    zip_reader.close()
+            except Exception as conv_exc:
+                raise HTTPException(status_code=400, detail=f"Invalid recording ZIP: {conv_exc}")
+
+            import os as _os
+            _os.replace(str(part_path), str(dest_path))
+            part_path = None
+
+        elif suffix == ".mcap":
+            # ---------- .mcap primary: write to temp, validate, move ----------
+            part_path = recordings_dir / f"{recording_id}.mcap.part"
+            with open(str(part_path), "wb") as _pf:
+                _pf.write(content)
+
+            # Validate via McapRecordingReader (raises ValueError if invalid)
+            try:
+                _r = RecordingReader(str(part_path))
+                _r.close()
+            except (ValueError, FileNotFoundError) as ve:
+                raise HTTPException(status_code=400, detail=f"Invalid MCAP recording: {ve}")
+
+            import os as _os
+            _os.replace(str(part_path), str(dest_path))
+            part_path = None
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type '{suffix}'. Upload .mcap or .zip files."
+            )
+
+        # Read metadata from the final .mcap file
         reader = RecordingReader(dest_path)
         info = reader.get_info()
         meta: dict = reader.metadata
+        reader.close()
 
         recording_timestamp = meta.get(
             "recording_timestamp",
             meta.get("start_timestamp", datetime.now(timezone.utc).isoformat()),
         )
-        # Ensure recording_timestamp is a string (may be a float unix epoch)
         if isinstance(recording_timestamp, (int, float)):
             recording_timestamp = datetime.fromtimestamp(recording_timestamp, tz=timezone.utc).isoformat()
 
@@ -773,7 +824,7 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
 
         background_tasks.add_task(_generate_thumbnail)
 
-        logger.info(f"Uploaded recording '{display_name}' saved as {recording_id}")
+        logger.info(f"Uploaded recording '{display_name}' saved as {recording_id}.mcap")
         return created
 
     except HTTPException:
@@ -782,12 +833,12 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
         logger.error(f"Failed to upload recording: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to save uploaded recording: {exc}")
     finally:
-        # Clean up temp file if something went wrong before the move
-        if tmp_path and tmp_path.exists():
-            try:
-                tmp_path.unlink()
-            except Exception:
-                pass
+        for _cleanup in (tmp_path, part_path):
+            if _cleanup and _cleanup.exists():
+                try:
+                    _cleanup.unlink()
+                except Exception:
+                    pass
 
 
 async def get_recording_thumbnail(recording_id: str, db: Session):
@@ -925,7 +976,7 @@ async def trim_recording(
         new_id = uuid.uuid4().hex
         recordings_dir = Path("data/recordings")
         recordings_dir.mkdir(parents=True, exist_ok=True)
-        dest = recordings_dir / f"{new_id}.zip"
+        dest = recordings_dir / f"{new_id}.mcap"
 
         # Strip stale computed fields; writer.finalize recomputes them
         new_metadata = deepcopy(reader.metadata)

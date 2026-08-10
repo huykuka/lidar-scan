@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.services.shared.recording import RecordingWriter
+from app.services.shared.mcap_recording import McapRecordingWriter as RecordingWriter
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,7 @@ class RecordingService:
             
             # Generate recording ID and a temporary file path (renamed on finalize)
             recording_id = str(uuid.uuid4())
-            filename = f"recording_{recording_id}.zip"
+            filename = f"recording_{recording_id}.mcap"
             file_path = self.recordings_dir / filename
             
             # Prepare metadata
@@ -184,7 +184,7 @@ class RecordingService:
         try:
             info = await asyncio.to_thread(handle.writer.finalize)
             actual_frame_count = info.get('frame_count')
-            logger.info(f"Finalized ZIP file for recording {recording_id}: {actual_frame_count} frames written, {info.get('duration_seconds'):.2f}s")
+            logger.info(f"Finalized MCAP file for recording {recording_id}: {actual_frame_count} frames written, {info.get('duration_seconds'):.2f}s")
             
             # Verify frame counts match (handle.frame_count should equal writer.frame_count)
             if handle.frame_count != actual_frame_count:
@@ -203,7 +203,7 @@ class RecordingService:
         # Rename to <node_id>_<timestamp_ms>.zip now that recording is complete
         ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         safe_node_id = handle.node_id.replace("/", "_").replace(" ", "_")
-        final_name = f"{safe_node_id}_{ts_ms}.zip"
+        final_name = f"{safe_node_id}_{ts_ms}.mcap"
         final_path = file_path.parent / final_name
         try:
             file_path.rename(final_path)

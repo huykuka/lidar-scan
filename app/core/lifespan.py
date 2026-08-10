@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.logging import get_logger
-from app.db.migrate import ensure_schema
+from app.db.migrate import ensure_schema, migrate_zip_recordings_to_mcap
 from app.db.session import init_engine
 from app.services.nodes.instance import node_manager
 from app.services.shared.recorder import get_recorder
@@ -26,6 +26,12 @@ async def lifespan(_: FastAPI):
     # ── Startup ───────────────────────────────────────────────────────────────
     engine = init_engine()
     ensure_schema(engine)
+
+    # Migrate persisted .zip recordings to MCAP format (non-blocking on failure)
+    try:
+        await asyncio.to_thread(migrate_zip_recordings_to_mcap)
+    except Exception as exc:
+        logger.warning("ZIP→MCAP startup migration failed (startup continues): %s", exc)
 
     recorder = get_recorder()
     manager.recorder = recorder

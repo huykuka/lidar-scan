@@ -343,23 +343,19 @@ class TestRecordingService:
 
     @pytest.mark.asyncio
     async def test_file_naming_pattern(self, service):
-        """Test recording file naming uses capture_{timestamp}_{uuid8}.zip pattern"""
+        """Test recording file naming uses recording_{uuid}.mcap pattern"""
         rec_id, file_path = await service.start_recording(node_id="sensor1_raw_points")
 
         filename = Path(file_path).name
 
-        # Should start with 'capture_'
-        assert filename.startswith("capture_")
+        # Should start with 'recording_'
+        assert filename.startswith("recording_")
 
-        # Should have .zip extension
-        assert filename.endswith(".zip")
+        # Should have .mcap extension (MCAP format)
+        assert filename.endswith(".mcap")
 
-        # Should contain date/time stamp (YYYYMMDD_HHMMSS format)
-        import re
-        assert re.search(r"\d{8}_\d{6}", filename)
-
-        # Should contain short UUID (8 hex chars before .zip)
-        assert re.search(r"[a-f0-9]{8}\.zip$", filename)
+        # Should contain the recording UUID
+        assert rec_id in filename
 
         # Cleanup
         await service.stop_recording(rec_id)

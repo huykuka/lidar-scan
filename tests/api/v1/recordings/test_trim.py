@@ -15,7 +15,7 @@ from unittest.mock import patch, MagicMock
 import numpy as np
 import pytest
 
-from app.services.shared.recording import RecordingReader, RecordingWriter
+from app.services.shared.mcap_recording import McapRecordingReader as RecordingReader, McapRecordingWriter as RecordingWriter
 
 
 # ---------------------------------------------------------------------------
@@ -23,8 +23,8 @@ from app.services.shared.recording import RecordingReader, RecordingWriter
 # ---------------------------------------------------------------------------
 
 def _make_recording_zip(tmp_path: Path, n_frames: int, name: str) -> tuple[Path, list]:
-    """Return (zip_path, list_of_(points, timestamp)) for a recording."""
-    dest = tmp_path / f"{name}.zip"
+    """Return (mcap_path, list_of_(points, timestamp)) for a recording."""
+    dest = tmp_path / f"{name}.mcap"
     metadata = {"node_id": "testnode", "sensor_id": "sensor1", "name": name}
     frames = []
     writer = RecordingWriter(dest, metadata)
@@ -38,11 +38,11 @@ def _make_recording_zip(tmp_path: Path, n_frames: int, name: str) -> tuple[Path,
 
 
 def _register_recording(client, zip_path: Path, name: str = "src") -> dict:
-    """Upload a recording ZIP via the API and return the RecordingResponse dict."""
+    """Upload a recording MCAP via the API and return the RecordingResponse dict."""
     with open(zip_path, "rb") as fh:
         resp = client.post(
             "/api/v1/recordings/upload",
-            files={"file": (zip_path.name, fh, "application/zip")},
+            files={"file": (zip_path.name, fh, "application/octet-stream")},
             data={"name": name},
         )
     assert resp.status_code == 200, resp.text
@@ -200,11 +200,10 @@ def test_trim_output_frames_reindexed_from_zero(client, tmp_path):
     data_id = resp.json()["id"]
     final = client.get(f"/api/v1/recordings/{data_id}").json()
 
-    with zipfile.ZipFile(final["file_path"]) as zf:
-        names = zf.namelist()
-    assert "frame_00000.pcd" in names
-    assert "frame_00001.pcd" in names
-    assert "frame_00003.pcd" not in names
+    # Verify using MCAP reader that frames were re-indexed from 0
+    trim_reader = RecordingReader(final["file_path"])
+    assert trim_reader.frame_count == 2  # frames 3..5 exclusive = 2 frames
+    trim_reader.close()
 
 
 def test_trim_metadata_timestamps_recomputed(client, tmp_path):

@@ -127,7 +127,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
             "[%s] PlaybackNode.start() entered (node_id=%s, recording_id=%s)",
             self.id, self.id, self._recording_id,
         )
-        from app.services.shared.recording import RecordingReader
+        from app.services.shared.mcap_recording import McapRecordingReader as RecordingReader
 
         # Resolve recording record from DB
         try:
@@ -159,11 +159,12 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
             self._error_message = msg
             return
 
-        # Guard: file existence (RecordingReader appends .zip; check both)
+        # Guard: file existence (check .mcap first, fallback .zip also accepted by McapRecordingReader)
         from pathlib import Path
-        resolved = Path(file_path).with_suffix(".zip")
-        if not resolved.exists():
-            msg = f"Recording file not found on disk: {resolved}"
+        resolved_mcap = Path(file_path).with_suffix(".mcap")
+        resolved_zip = Path(file_path).with_suffix(".zip")
+        if not resolved_mcap.exists() and not resolved_zip.exists():
+            msg = f"Recording file not found on disk: {resolved_mcap}"
             logger.error("[%s] %s", self.id, msg)
             self._status = "error"
             self._error_message = msg
@@ -200,7 +201,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
 
         if self._reader is not None:
             try:
-                self._reader.zipf.close()
+                self._reader.close()
             except Exception:
                 pass
             self._reader = None
@@ -258,11 +259,11 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
 
     async def _run_loop(self, file_path: str, duration_seconds: float) -> None:
         """Main playback coroutine. Runs until all frames are exhausted or cancelled."""
-        from app.services.shared.recording import RecordingReader
+        from app.services.shared.mcap_recording import McapRecordingReader as RecordingReader
 
-        # Open reader on thread (ZIP open is I/O)
+        # Open reader on thread (MCAP/ZIP open is I/O)
         try:
-            reader: RecordingReader = await asyncio.to_thread(RecordingReader, file_path)
+            reader: McapRecordingReader = await asyncio.to_thread(RecordingReader, file_path)  # type: ignore[name-defined]
         except Exception as exc:
             logger.error("[%s] Failed to open RecordingReader: %s", self.id, exc)
             self._status = "error"
@@ -358,7 +359,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
             return
         finally:
             try:
-                reader.zipf.close()
+                reader.close()
             except Exception:
                 pass
             self._reader = None
