@@ -484,7 +484,7 @@ class McapRecordingReader:
                 self.frame_count = int(chan_counts.get(pc_chan_id, stats.statistics.message_count))
             else:
                 # Fallback: count message index entries (no decoding, just header scan)
-                self.frame_count = self._count_messages_from_index(stats)
+                self.frame_count = self._count_messages_from_index(stats, pc_chan_id=ch.id)
 
         except Exception:
             # Close file handle on any validation/decode error
@@ -508,13 +508,18 @@ class McapRecordingReader:
         self._cursor_iter = None   # type: Any
         self._cursor_pos: int = 0
 
-    def _count_messages_from_index(self, stats) -> int:
+    def _count_messages_from_index(self, stats, pc_chan_id: int | None = None) -> int:
         """Count pointcloud messages from summary without decoding point data."""
         if stats is None:
             return 0
-        # Try channel_message_counts first
+        # Try channel_message_counts first (pointcloud channel only)
         if stats.statistics and stats.statistics.channel_message_counts:
-            return sum(stats.statistics.channel_message_counts.values())
+            chan_counts = stats.statistics.channel_message_counts
+            if pc_chan_id is not None and pc_chan_id in chan_counts:
+                return int(chan_counts[pc_chan_id])
+            # Fallback: total (may over-count if multiple channels, but this path only
+            # reached when metadata.frame_count missing AND channel stats unavailable)
+            return sum(chan_counts.values())
         if stats.statistics and stats.statistics.message_count is not None:
             return int(stats.statistics.message_count)
         return 0
@@ -637,24 +642,29 @@ class McapRecordingReader:
         }
 
     def close(self) -> None:
-        """Close file handles and release cursor iterator."""
+        """Close file handles and release cursor iterator.
+
+        Thread-safe: acquires lock before nulling cursor and file handle so
+        an in-flight get_frame() either completes first or finds both as None.
+        """
         if self._use_shim and self._shim is not None:
             self._shim.close()
-        else:
-            if hasattr(self, "_lock"):
-                with self._lock:
-                    if self._cursor_iter is not None:
-                        try:
-                            self._cursor_iter.close()
-                        except Exception:
-                            pass
-                        self._cursor_iter = None
-            if self._file_handle is not None:
+        elif hasattr(self, "_lock"):
+            with self._lock:
+                if self._cursor_iter is not None:
+                    try:
+                        self._cursor_iter.close()
+                    except Exception:
+                        pass
+                    self._cursor_iter = None
+                fh = self._file_handle
+                self._file_handle = None
+            # Close file outside lock (blocking I/O should not hold the lock)
+            if fh is not None:
                 try:
-                    self._file_handle.close()
+                    fh.close()
                 except Exception:
                     pass
-                self._file_handle = None
 
     # ------------------------------------------------------------------
     # Context manager
