@@ -82,12 +82,10 @@ docker run --network host lidar-studio
 
 ### 1 · Backend
 
-```bash
-# Install Python dependencies + create virtual environment
-uv sync
-
 # Start the dev server (hot-reload)
-uv run uvicorn main:app --reload --port 8005
+
+```bash
+uv run python main.py --DEBUG true
 ```
 
 Backend available at **http://localhost:8005**
@@ -96,8 +94,7 @@ Backend available at **http://localhost:8005**
 
 ```bash
 cd web
-pnpm install
-pnpm start        # Dev server at http://localhost:4200
+pnpm run start        # Dev server at http://localhost:4200
 ```
 
 ### 3 · SICK Scan library (optional — real hardware only)
