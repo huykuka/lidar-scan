@@ -82,10 +82,10 @@ docker run --network host lidar-studio
 
 ### 1 · Backend
 
-```bash
-
 # Start the dev server (hot-reload)
-uv run python main.py --reload --DEBUG true
+
+```bash
+uv run python main.py --DEBUG true
 ```
 
 Backend available at **http://localhost:8005**
@@ -94,7 +94,7 @@ Backend available at **http://localhost:8005**
 
 ```bash
 cd web
-pnpm start        # Dev server at http://localhost:4200
+pnpm run start        # Dev server at http://localhost:4200
 ```
 
 ### 3 · SICK Scan library (optional — real hardware only)
