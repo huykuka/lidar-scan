@@ -75,19 +75,17 @@ docker run --network host lidar-studio
 
 | Tool | Version | Notes |
 |---|---|---|
-| Python | 3.12.x | Managed via `uv` |
-| Node.js | 22+ | For the Angular frontend |
+| Python | 3.12.x | Managed via `uv`  https://docs.astral.sh/uv/getting-started/installation/|
+| Node.js | 22+ | For the Angular frontend  https://github.com/nvm-sh/nvm|
 | pnpm | latest | `npm i -g pnpm` |
 | Docker | any | Only needed for SICK Scan native lib build |
 
 ### 1 · Backend
 
 ```bash
-# Install Python dependencies + create virtual environment
-uv sync
 
 # Start the dev server (hot-reload)
-uv run uvicorn main:app --reload --port 8005
+uv run python main.py --reload --DEBUG true
 ```
 
 Backend available at **http://localhost:8005**
@@ -96,7 +94,6 @@ Backend available at **http://localhost:8005**
 
 ```bash
 cd web
-pnpm install
 pnpm start        # Dev server at http://localhost:4200
 ```
 
