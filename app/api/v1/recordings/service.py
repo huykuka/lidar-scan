@@ -5,7 +5,6 @@ import json
 import logging
 import os
 import struct
-import shutil
 import tempfile
 import uuid
 import zipfile
@@ -20,9 +19,9 @@ from sqlalchemy.orm import Session
 from app.modules.lidar.io.pcd import save_to_pcd
 from app.repositories.recordings_orm import RecordingRepository
 from app.services.nodes.instance import node_manager
-from app.services.shared.recorder import get_recorder
 from app.services.shared.mcap_recording import McapRecordingReader as RecordingReader
 from app.services.shared.mcap_recording import McapRecordingWriter as RecordingWriter
+from app.services.shared.recorder import get_recorder
 from .dto import (
     StartRecordingRequest, TrimRecordingRequest
 )
@@ -115,8 +114,38 @@ async def stream_recording(websocket: WebSocket, recording: dict) -> None:
                     "type": "eof", "frameIndex": start_index, "generation": stream_generation,
                 })
                 return
+
+            # Even-spacing pacing: distribute frames uniformly over recording duration.
+            # Per-frame timestamps from MCAP metadata are often coarse (integer seconds)
+            # or contain genuine gaps that would cause visible ~0.5–1s stalls.
+            # Even-spacing preserves total wall-clock duration while eliminating stalls.
+            #
+            # interval = duration / (frame_count - 1) so first→last spans `duration` seconds.
+            # For a single-frame recording interval is irrelevant (no sleep needed).
+            # Seek/resume re-anchors per produce() call: anchor is always local to this run.
+            _total_frames = reader.frame_count
+            _duration = float(reader.duration) if hasattr(reader, "duration") else 0.0
+            if _total_frames > 1 and _duration > 0:
+                _interval = _duration / (_total_frames - 1)
+            else:
+                _interval = 0.0
+
+            anchor_monotonic: float | None = None
+
             for frame_index in range(start_index, reader.frame_count):
                 points, timestamp = await asyncio.to_thread(reader.get_frame, frame_index)
+
+                # Establish pacing anchor on first frame of this produce() run
+                if anchor_monotonic is None:
+                    anchor_monotonic = asyncio.get_event_loop().time()
+                else:
+                    # Target wall time = anchor + (offset from start_index) * interval
+                    offset = frame_index - start_index
+                    target_monotonic = anchor_monotonic + offset * _interval
+                    sleep_delta = target_monotonic - asyncio.get_event_loop().time()
+                    if sleep_delta > 0:
+                        await asyncio.sleep(sleep_delta)
+
                 await websocket.send_bytes(
                     _encode_stream_frame(points, timestamp, frame_index, stream_generation)
                 )

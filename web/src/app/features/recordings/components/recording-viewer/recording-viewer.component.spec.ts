@@ -43,12 +43,16 @@ describe('RecordingViewerComponent stream startup', () => {
       attributes: {position},
       setDrawRange: vi.fn(),
     };
-    const points = {visible: false, geometry};
+    const points = {visible: false, frustumCulled: true, geometry};
 
     // XYZ payload already copied into bounded positionsBuffer by component.
     flushPointCloudGeometry(points, 2);
 
     expect(points.visible).toBe(true);
+    // Fixed-size buffer + stale lazily-computed boundingSphere would otherwise
+    // frustum-cull the point cloud in/out as new frames move outside the sphere
+    // computed on the first render — that's the flicker bug. Culling must stay off.
+    expect(points.frustumCulled).toBe(false);
     expect(geometry.setDrawRange).toHaveBeenCalledWith(0, 2);
     expect(position.needsUpdate).toBe(true);
   });
@@ -56,7 +60,7 @@ describe('RecordingViewerComponent stream startup', () => {
   it('copies valid streamed XYZ into bounded buffer and makes render target ready', () => {
     const position = {needsUpdate: false};
     const geometry = {attributes: {position}, setDrawRange: vi.fn()};
-    const points = {visible: false, geometry};
+    const points = {visible: false, frustumCulled: true, geometry};
     const destination = new Float32Array(9);
 
     const count = copyStreamedXyz(points, destination, new Float32Array([1, 2, 3, 4, 5, 6]), 2, 3);
@@ -70,7 +74,7 @@ describe('RecordingViewerComponent stream startup', () => {
 
   it('keeps empty streamed frames hidden with zero draw range', () => {
     const geometry = {attributes: {}, setDrawRange: vi.fn()};
-    const points = {visible: true, geometry};
+    const points = {visible: true, frustumCulled: true, geometry};
 
     flushPointCloudGeometry(points, 0);
 

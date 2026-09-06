@@ -25,6 +25,7 @@ export function shouldApplyFrame(
 
 export interface PointCloudGeometryTarget {
   visible: boolean;
+  frustumCulled: boolean;
   geometry?: {
     setDrawRange(start: number, count: number): void;
     attributes: Record<string, {needsUpdate: boolean} | undefined>;
@@ -48,6 +49,15 @@ export function copyStreamedXyz(
 export function flushPointCloudGeometry(target: PointCloudGeometryTarget, count: number): void {
   const safeCount = Math.max(0, count);
   target.visible = safeCount > 0;
+  // The position attribute is a fixed-size (MAX_POINTS) buffer reused across every
+  // streamed frame; only drawRange changes per frame. Three.js lazily computes
+  // geometry.boundingSphere ONCE on first frustum check and never again, so as soon
+  // as new frame content differs spatially from whatever was in the buffer at that
+  // first render, the stale sphere no longer bounds the live points and the renderer
+  // frustum-culls the whole object in/out — visible as flicker. Disable culling
+  // instead of recomputing the sphere every frame (would cost an O(n) scan over up
+  // to 250k points per frame).
+  target.frustumCulled = false;
   const geometry = target.geometry;
   if (!geometry) return;
   geometry.setDrawRange(0, safeCount);

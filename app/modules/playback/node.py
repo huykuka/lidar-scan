@@ -7,7 +7,6 @@ frame payload to downstream nodes via manager.forward_data().
 from __future__ import annotations
 
 import asyncio
-import os
 import time
 from asyncio import sleep as asyncio_sleep
 from typing import Any, Dict, Optional
@@ -19,9 +18,9 @@ from app.db.session import SessionLocal
 from app.modules.lidar.core import create_transformation_matrix
 from app.repositories.recordings_orm import RecordingRepository
 from app.schemas.pose import Pose
+from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 from app.services.nodes.base_module import ModuleNode
 from app.services.nodes.floor_calibration import FloorCalibrationMixin
-from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationState
 
 logger = get_logger(__name__)
 
@@ -127,7 +126,6 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
             "[%s] PlaybackNode.start() entered (node_id=%s, recording_id=%s)",
             self.id, self.id, self._recording_id,
         )
-        from app.services.shared.mcap_recording import McapRecordingReader as RecordingReader
 
         # Resolve recording record from DB
         try:
@@ -277,9 +275,21 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
 
         # Average inter-frame interval scaled by speed
         avg_interval: float = duration_seconds / max(total - 1, 1)
-        sleep_s: float = max(0.0, avg_interval / self._playback_speed) + self._throttle_ms / 1000.0
+        frame_interval: float = max(0.0, avg_interval / self._playback_speed) + self._throttle_ms / 1000.0
 
         frame_idx: int = 0
+
+        # Anchor-based even-spacing pacing (mirrors stream_recording's produce()):
+        # target wall time for frame N = anchor + (N - loop_start_idx) * frame_interval.
+        # This self-corrects drift from variable per-frame cost (forward_data()
+        # awaits downstream node processing + recording I/O, which is NOT constant —
+        # a fixed `await asyncio_sleep(sleep_s)` after that variable-cost work made
+        # the total loop period = variable_cost + sleep_s, causing uneven/jerky
+        # playback whenever downstream processing spiked). Anchoring to wall time
+        # instead of sleeping a fixed amount keeps average frame rate correct
+        # regardless of per-frame processing jitter.
+        anchor_monotonic: Optional[float] = None
+        loop_start_idx: int = 0
 
         try:
             while True:
@@ -340,12 +350,26 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
                 await self.manager.forward_data(self.id, payload)
                 self._cycle_time_ms = (time.monotonic() - _frame_start) * 1000
 
-                await asyncio_sleep(sleep_s)
+                # Establish/advance the pacing anchor and sleep only the remaining
+                # delta to the frame's target wall time (see comment above).
+                now = time.monotonic()
+                if anchor_monotonic is None:
+                    anchor_monotonic = now
+                    loop_start_idx = frame_idx
+                else:
+                    offset = frame_idx - loop_start_idx
+                    target_monotonic = anchor_monotonic + offset * frame_interval
+                    sleep_delta = target_monotonic - now
+                    if sleep_delta > 0:
+                        await asyncio_sleep(sleep_delta)
 
                 frame_idx += 1
                 if frame_idx >= total:
                     if self._loopable:
                         frame_idx = 0
+                        # Re-anchor on loop restart so pacing doesn't try to "catch up"
+                        # across the wrap-around jump.
+                        anchor_monotonic = None
                     else:
                         break
 
