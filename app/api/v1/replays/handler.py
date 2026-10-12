@@ -2,9 +2,9 @@
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from app.api.v1.auth.dependencies import roles_required
+from app.api.v1.auth.dependencies import _make_role_guard, roles_required
 from app.repositories.replay_orm import ReplayRunRepository, ReplaySweepRepository, ReplayTargetRepository
 from app.services.replay import ReplayError, get_replay_service
 from app.services.replay.apply import apply_to_pipeline, preview_apply
@@ -26,7 +26,8 @@ from .dto import (
     TargetResponse,
 )
 
-router = APIRouter(tags=["Replays"])
+# Replays are service-only.
+router = APIRouter(tags=["Replays"], dependencies=[Depends(_make_role_guard("service"))])
 
 
 def _get_run_or_404(run_id: str, include_snapshot: bool = False) -> dict:
