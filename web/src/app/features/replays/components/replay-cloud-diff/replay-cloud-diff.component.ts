@@ -71,7 +71,7 @@ export class ReplayCloudDiffComponent {
   protected readonly showMatched = signal(true);
   protected readonly showOnlyA = signal(true);
   protected readonly showOnlyB = signal(true);
-  protected readonly pointSize = signal(0.05);
+  protected readonly pointSize = signal(0.15);
   protected readonly showGrid = signal(true);
   protected readonly viewOrientation = signal<ViewOrientation>('perspective');
 

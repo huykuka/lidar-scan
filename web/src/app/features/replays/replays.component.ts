@@ -214,6 +214,21 @@ export class ReplaysComponent implements OnInit {
     });
   }
 
+  protected async removeSweep(sweep: Sweep) {
+    const ok = await this.dialog.confirm({
+      title: 'Delete sweep',
+      message: `Delete "${sweep.label}" and all of its runs?`,
+      confirmLabel: 'Delete',
+      confirmIcon: 'delete',
+      confirmSeverity: 'danger',
+    });
+    if (!ok) return;
+    this.api.deleteSweep(sweep.id).subscribe(() => {
+      this.toast.success('Sweep deleted');
+      this.refresh(false);
+    });
+  }
+
   protected canApply(run: ReplayRun): boolean {
     return this.auth.isAdmin() && run.status === 'completed' && Object.keys(run.overrides ?? {}).length > 0;
   }

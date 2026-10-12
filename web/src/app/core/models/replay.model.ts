@@ -262,6 +262,9 @@ export interface ReplayRunInfo {
   recording_id: string;
   config_hash: string;
   overrides: Record<string, Record<string, unknown>>;
+  duration_seconds: number | null;
+  frames_processed: number;
+  frames_total: number;
 }
 
 /** A node whose point clouds were captured in both compared runs. */

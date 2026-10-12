@@ -287,7 +287,10 @@ async def compare_replays(a: str = Query(...), b: str = Query(...)):
         return compare_runs(_load_outputs_or_409(run_a), _load_outputs_or_409(run_b))
 
     result = await asyncio.to_thread(_compare)
-    info_keys = ("id", "label", "recording_id", "config_hash", "overrides")
+    info_keys = (
+        "id", "label", "recording_id", "config_hash", "overrides",
+        "duration_seconds", "frames_processed", "frames_total",
+    )
     result["run_a_info"] = {k: run_a[k] for k in info_keys}
     result["run_b_info"] = {k: run_b[k] for k in info_keys}
     result["same_recording"] = run_a["recording_id"] == run_b["recording_id"]

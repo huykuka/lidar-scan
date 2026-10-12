@@ -34,6 +34,31 @@
 
     <!-- Content (single inner scroll body) -->
     <div class="flex-1 min-h-0 overflow-y-auto p-4 relative">
+      <!-- What this page is for -->
+      <section class="mb-4 rounded-lg border border-syn-color-neutral-200 p-4 flex flex-col gap-3">
+        <div>
+          <h2 class="text-base font-bold">Test pipeline changes on a recording</h2>
+          <p class="text-sm text-syn-color-neutral-600 mt-1">
+            Replay a recording through your pipeline as fast as the CPU allows, change a parameter,
+            replay again, and compare the two runs, to see whether your change made the results better or worse.
+          </p>
+        </div>
+        <ol class="grid gap-3 md:grid-cols-3 text-sm">
+          <li class="flex gap-2">
+            <span class="font-bold text-syn-color-primary-600">1.</span>
+            <span><b>New replay</b>: pick a recording and optionally override node settings. It runs without waiting for real time.</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="font-bold text-syn-color-primary-600">2.</span>
+            <span><b>Change and repeat</b>: adjust a parameter and replay again, or use <b>Parameter sweep</b> to try many values at once.</span>
+          </li>
+          <li class="flex gap-2">
+            <span class="font-bold text-syn-color-primary-600">3.</span>
+            <span><b>Compare</b>: select two runs to see differences in values, saved results and the point cloud. Set <b>Ground truth</b> to score accuracy.</span>
+          </li>
+        </ol>
+      </section>
+
       <syn-tab-group (syn-tab-show)="setTab($any($event).detail.name)">
         <syn-tab [active]="tab() === 'runs'" panel="runs" slot="nav">Runs ({{ runs().length }})</syn-tab>
         <syn-tab [active]="tab() === 'sweeps'" panel="sweeps" slot="nav">Sweeps ({{ sweeps().length }})</syn-tab>
@@ -47,27 +72,35 @@
               <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="fast_forward" />
               <h3 class="text-lg font-semibold mb-2">No replay runs yet</h3>
               <p class="text-sm text-syn-color-neutral-500 max-w-md">
-                Replay a recording through your pipeline as fast as the CPU allows, change a parameter,
-                replay again, and compare the two runs.
+                Click <b>New replay</b> to run a recording through your pipeline, then change a parameter and
+                replay again to compare the two runs.
               </p>
             </div>
           } @else {
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pb-4">
-              <div class="stat-tile">
-                <span class="stat-label">Total runs</span>
+              <div class="stat-tile ">
+                <span class="stat-icon"><syn-icon name="fast_forward" /></span>
                 <span class="stat-value">{{ stats().total }}</span>
+                <span class="stat-label">Total runs</span>
+                <span class="stat-sub">All replay runs</span>
               </div>
               <div class="stat-tile stat-success">
-                <span class="stat-label">Completed</span>
+                <span class="stat-icon"><syn-icon name="check_circle" /></span>
                 <span class="stat-value">{{ stats().completed }}</span>
+                <span class="stat-label">Completed</span>
+                <span class="stat-sub">Finished successfully</span>
               </div>
               <div class="stat-tile stat-primary">
-                <span class="stat-label">Active</span>
+                <span class="stat-icon"><syn-icon name="play_arrow" /></span>
                 <span class="stat-value">{{ stats().active }}</span>
+                <span class="stat-label">Active</span>
+                <span class="stat-sub">Running or queued</span>
               </div>
               <div class="stat-tile stat-danger">
-                <span class="stat-label">Failed</span>
+                <span class="stat-icon"><syn-icon name="error" /></span>
                 <span class="stat-value">{{ stats().failed }}</span>
+                <span class="stat-label">Failed</span>
+                <span class="stat-sub">Needs attention</span>
               </div>
             </div>
 
@@ -199,7 +232,10 @@
                       }
                     </td>
                     <td class="text-xs text-syn-color-neutral-500 whitespace-nowrap">{{ formatDate(sweep.created_at) }}</td>
-                    <td><syn-icon class="text-syn-color-neutral-400" name="chevron_right" /></td>
+                    <td class="whitespace-nowrap">
+                      <syn-icon-button class="act act-danger" (click)="removeSweep(sweep); $event.stopPropagation()" label="Delete sweep" name="delete" title="Delete sweep and all of its runs" />
+                      <syn-icon class="text-syn-color-neutral-400 align-middle" name="chevron_right" />
+                    </td>
                   </tr>
                 }
               </tbody>

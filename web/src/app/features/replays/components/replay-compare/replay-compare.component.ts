@@ -12,7 +12,7 @@ import {
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
-import {buildPath, CHART_H, CHART_W, frameAtFraction} from '../../utils/chart-geometry';
+import {CompareChartComponent} from '../compare-chart/compare-chart.component';
 import {ApplyPreviewComponent} from '../apply-preview/apply-preview.component';
 import {ReplayCloudDiffComponent} from '../replay-cloud-diff/replay-cloud-diff.component';
 import {ReplayScoreComponent} from '../replay-score/replay-score.component';
@@ -26,14 +26,13 @@ import {
   FieldDiff,
   NodeComparison,
   ReplayComparison,
+  ReplayRunInfo,
   SavedResultsComparison,
   ValueComparison,
 } from '@core/models';
 
 export interface ChartModel {
   series: ComparisonSeries;
-  pathA: string;
-  pathB: string;
   min: number;
   max: number;
   firstFrame: number;
@@ -56,7 +55,7 @@ export interface SavedRow {
 
 @Component({
   selector: 'app-replay-compare',
-  imports: [SynergyComponentsModule, RouterLink, ReplayCloudDiffComponent, ReplayScoreComponent],
+  imports: [SynergyComponentsModule, RouterLink, ReplayCloudDiffComponent, ReplayScoreComponent, CompareChartComponent],
   templateUrl: './replay-compare.component.html',
   styleUrl: './replay-compare.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -72,8 +71,6 @@ export class ReplayCompareComponent implements OnInit {
   protected readonly auth = inject(AuthService);
   private readonly tabGroup = viewChild('tabs', {read: ElementRef});
 
-  protected readonly chartW = CHART_W;
-  protected readonly chartH = CHART_H;
 
   protected readonly comparison = signal<ReplayComparison | null>(null);
   protected readonly isLoading = signal(true);
@@ -112,18 +109,12 @@ export class ReplayCompareComponent implements OnInit {
   protected readonly charts = computed<ChartModel[]>(() =>
     (this.comparison()?.series ?? []).map((series) => {
       const all = series.points.flatMap((p) => [p.a, p.b]);
-      const min = Math.min(...all);
-      const max = Math.max(...all);
-      const first = series.points[0]?.frame ?? 0;
-      const last = series.points[series.points.length - 1]?.frame ?? 1;
       return {
         series,
-        min,
-        max,
-        firstFrame: first,
-        lastFrame: last,
-        pathA: buildPath(series.points.map((p) => ({frame: p.frame, v: p.a})), first, last, min, max),
-        pathB: buildPath(series.points.map((p) => ({frame: p.frame, v: p.b})), first, last, min, max),
+        min: Math.min(...all),
+        max: Math.max(...all),
+        firstFrame: series.points[0]?.frame ?? 0,
+        lastFrame: series.points[series.points.length - 1]?.frame ?? 1,
       };
     }),
   );
@@ -155,12 +146,8 @@ export class ReplayCompareComponent implements OnInit {
   }
 
   /** Clicking a chart jumps the visual diff to that frame. */
-  protected onChartClick(event: MouseEvent, chart: ChartModel): void {
-    const rect = (event.currentTarget as SVGElement).getBoundingClientRect();
-    if (rect.width === 0) return;
-    this.focusFrame.set(
-      frameAtFraction((event.clientX - rect.left) / rect.width, chart.firstFrame, chart.lastFrame),
-    );
+  protected onChartClick(frame: number): void {
+    this.focusFrame.set(frame);
     this.showTab('visual');
   }
 
@@ -169,7 +156,7 @@ export class ReplayCompareComponent implements OnInit {
   }
 
   /** Switch tab from code (the tab group only reacts to its own clicks otherwise). */
-  private showTab(name: CompareTab): void {
+  protected showTab(name: CompareTab): void {
     this.tab.set(name);
     (this.tabGroup()?.nativeElement as {show?: (panel: string) => void} | undefined)?.show?.(name);
   }
@@ -206,6 +193,31 @@ export class ReplayCompareComponent implements OnInit {
   }
 
   // ── Formatting ───────────────────────────────────────────────────────────
+  /** Processing speed of both runs, derived from run duration and frame counts. */
+  protected readonly speed = computed(() => {
+    const c = this.comparison();
+    if (!c) return null;
+    const one = (i: ReplayRunInfo) => {
+      const d = i.duration_seconds;
+      const ok = d !== null && d > 0 && i.frames_processed > 0;
+      return {
+        duration: d,
+        frames: i.frames_processed,
+        fps: ok ? i.frames_processed / d! : null,
+        msPerFrame: ok ? (d! * 1000) / i.frames_processed : null,
+      };
+    };
+    const a = one(c.run_a_info);
+    const b = one(c.run_b_info);
+    const change = a.msPerFrame && b.msPerFrame ? ((b.msPerFrame - a.msPerFrame) / a.msPerFrame) * 100 : null;
+    return { a, b, change };
+  });
+
+  protected seconds(value: number | null | undefined): string {
+    if (value === null || value === undefined) return '—';
+    return value >= 60 ? `${Math.floor(value / 60)}m ${(value % 60).toFixed(0)}s` : `${value.toFixed(2)} s`;
+  }
+
   protected num(value: number | null | undefined, digits = 4): string {
     if (value === null || value === undefined) return '—';
     if (Number.isInteger(value)) return String(value);

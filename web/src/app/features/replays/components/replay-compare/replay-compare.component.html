@@ -3,9 +3,9 @@
     <!-- Toolbar pinned on top -->
     <div class="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b-syn">
       <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 min-w-0">
-        <a [routerLink]="['/replays']" class="hover:text-syn-color-primary-600 cursor-pointer">Replays</a>
+        <a [routerLink]="['/replays']" class="font-bold text-syn-typography-color-text hover:text-syn-color-primary-600 cursor-pointer">Replays</a>
         <syn-icon class="text-xs" name="chevron_right" />
-        <span class="text-syn-typography-color-text font-medium truncate">Compare</span>
+        <span class="text-syn-color-neutral-600 truncate">Compare</span>
         @if (comparison(); as c) {
           <span class="text-syn-color-neutral-400 shrink-0">· {{ c.run_a_info.label }} vs {{ c.run_b_info.label }}</span>
         }
@@ -16,7 +16,7 @@
           Only differences
         </label>
         @if (canApplyB()) {
-          <syn-button (click)="applyB()" class="action-btn" size="small" variant="filled">
+          <syn-button (click)="applyB()" size="small" variant="filled">
             <syn-icon name="rocket_launch" slot="prefix" />
             Apply B to pipeline
           </syn-button>
@@ -35,24 +35,44 @@
           <a [routerLink]="['/replays']" class="mt-3 text-sm text-syn-color-primary-600 hover:underline">← Back to replays</a>
         </div>
       } @else if (comparison(); as cmp) {
+        <p class="text-sm text-syn-color-neutral-600">
+          Compares two replays of the same recording to show what your parameter change did.
+          <b>A</b> is the reference run, <b>B</b> is the run with the change. Differences are shown as B relative to A.
+        </p>
+
         <!-- The two runs -->
         <div class="grid gap-3 md:grid-cols-2">
           @for (info of [cmp.run_a_info, cmp.run_b_info]; track info.id; let i = $index) {
-            <div class="rounded-lg border border-syn-color-neutral-200 p-3 flex flex-col gap-1">
-              <div class="flex items-center gap-2">
-                <syn-badge [variant]="i === 0 ? 'neutral' : 'primary'">{{ i === 0 ? 'A · baseline' : 'B · candidate' }}</syn-badge>
-                <span class="font-medium truncate">{{ info.label }}</span>
-                <span class="ml-auto text-xs text-syn-color-neutral-500 font-mono">config {{ info.config_hash }}</span>
-              </div>
-              <div class="text-xs text-syn-color-neutral-600">
-                @for (line of overrideList(info.overrides); track line) {
-                  <div class="font-mono">{{ line }}</div>
-                } @empty {
-                  <span>pipeline as saved</span>
-                }
-              </div>
-              <app-replay-score [scores]="i === 0 ? cmp.scores_a : cmp.scores_b" />
-            </div>
+            <section class="run-card" [class.is-candidate]="i === 1">
+              <header class="run-card-head">
+                <span class="run-icon"><syn-icon [name]="i === 0 ? 'flag' : 'science'" /></span>
+                <div class="flex flex-col min-w-0">
+                  <span class="font-bold truncate" [title]="info.label">{{ info.label }}</span>
+                  <span class="text-xs text-syn-color-neutral-600">
+                    {{ i === 0 ? 'A · baseline, the reference run' : 'B · candidate, the run being tested against A' }}
+                  </span>
+                </div>
+                <span class="ml-auto font-mono text-xs run-hash" [title]="'Settings ID: same ID means same settings'">
+                  {{ info.config_hash }}
+                </span>
+              </header>
+              <dl class="run-body">
+                <div class="run-row">
+                  <dt>Changed settings</dt>
+                  <dd>
+                    @for (line of overrideList(info.overrides); track line) {
+                      <span class="run-chip">{{ line }}</span>
+                    } @empty {
+                      <span class="text-syn-color-neutral-600">None, pipeline as saved</span>
+                    }
+                  </dd>
+                </div>
+                <div class="run-row">
+                  <dt title="Error against the recording's ground truth. “—” means none is set.">Accuracy</dt>
+                  <dd><app-replay-score [scores]="i === 0 ? cmp.scores_a : cmp.scores_b" /></dd>
+                </div>
+              </dl>
+            </section>
           }
         </div>
 
@@ -62,14 +82,7 @@
             your changes.
           </syn-alert>
         }
-        @if (cmp.summary.identical) {
-          <syn-alert open variant="success">
-            <syn-icon name="check_circle" slot="icon" />
-            The two runs produced identical outputs.
-          </syn-alert>
-        }
-
-        <syn-tab-group #tabs class="compare-tabs flex-1 min-h-0" (syn-tab-show)="setTab($any($event).detail.name)">
+        <syn-tab-group #tabs class="compare-tabs flex-1 min-h-0" placement="start" (syn-tab-show)="setTab($any($event).detail.name)">
           <syn-tab panel="overview" slot="nav">Overview</syn-tab>
           <syn-tab panel="visual" slot="nav">Visual diff</syn-tab>
           <syn-tab panel="results" slot="nav">Saved results</syn-tab>
@@ -79,26 +92,68 @@
           <syn-tab-panel name="overview">
             @if (tab() === 'overview') {
               <div class="flex flex-col gap-4">
-                <div class="grid gap-3 grid-cols-2 md:grid-cols-4">
-                  <div class="rounded-lg border border-syn-color-neutral-200 p-3">
-                    <div class="text-xs text-syn-color-neutral-500">Differing values</div>
-                    <div class="text-2xl font-semibold">{{ cmp.summary.differing_value_keys }}</div>
+                <div class="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                  <div class="sum-card" [class.is-warn]="cmp.summary.differing_value_keys > 0">
+                    <span class="sum-icon"><syn-icon name="difference" /></span>
+                    <span class="sum-value">{{ cmp.summary.differing_value_keys }}</span>
+                    <span class="sum-label">Differing values</span>
+                    <span class="sum-sub">Numeric outputs that changed</span>
                   </div>
-                  <div class="rounded-lg border border-syn-color-neutral-200 p-3">
-                    <div class="text-xs text-syn-color-neutral-500">Saved results A → B</div>
-                    <div class="text-2xl font-semibold">{{ cmp.summary.saved_results_a }} → {{ cmp.summary.saved_results_b }}</div>
+                  <div class="sum-card">
+                    <span class="sum-icon"><syn-icon name="inventory_2" /></span>
+                    <span class="sum-value">{{ cmp.summary.saved_results_a }} → {{ cmp.summary.saved_results_b }}</span>
+                    <span class="sum-label">Saved results</span>
+                    <span class="sum-sub">Run A → Run B</span>
                   </div>
-                  <div class="rounded-lg border border-syn-color-neutral-200 p-3">
-                    <div class="text-xs text-syn-color-neutral-500">Results that differ</div>
-                    <div class="text-2xl font-semibold">{{ cmp.summary.saved_results_differing }}</div>
+                  <div class="sum-card" [class.is-warn]="cmp.summary.saved_results_differing > 0">
+                    <span class="sum-icon"><syn-icon name="compare_arrows" /></span>
+                    <span class="sum-value">{{ cmp.summary.saved_results_differing }}</span>
+                    <span class="sum-label">Results that differ</span>
+                    <span class="sum-sub">Stored results with changes</span>
                   </div>
-                  <div class="rounded-lg border border-syn-color-neutral-200 p-3">
-                    <div class="text-xs text-syn-color-neutral-500">Node errors A / B</div>
-                    <div class="text-2xl font-semibold" [class.text-syn-color-danger-600]="cmp.summary.errors_a + cmp.summary.errors_b > 0">
-                      {{ cmp.summary.errors_a }} / {{ cmp.summary.errors_b }}
-                    </div>
+                  <div class="sum-card" [class.is-danger]="cmp.summary.errors_a + cmp.summary.errors_b > 0">
+                    <span class="sum-icon"><syn-icon name="error" /></span>
+                    <span class="sum-value">{{ cmp.summary.errors_a }} / {{ cmp.summary.errors_b }}</span>
+                    <span class="sum-label">Node errors</span>
+                    <span class="sum-sub">Run A / Run B</span>
                   </div>
                 </div>
+
+                @if (speed(); as sp) {
+                  <section class="flex flex-col gap-2">
+                    <h2 class="text-base font-bold">Speed</h2>
+                    <p class="text-xs text-syn-color-neutral-500">
+                      How long each run took to process the recording. Use it to check that a change did not make the pipeline slower.
+                    </p>
+                    <div class="grid gap-3 grid-cols-2 md:grid-cols-4">
+                      <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                        <div class="text-xs text-syn-color-neutral-500">Total time A → B</div>
+                        <div class="text-lg font-semibold">{{ seconds(sp.a.duration) }} → {{ seconds(sp.b.duration) }}</div>
+                      </div>
+                      <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                        <div class="text-xs text-syn-color-neutral-500">Frames per second A → B</div>
+                        <div class="text-lg font-semibold">{{ num(sp.a.fps, 3) }} → {{ num(sp.b.fps, 3) }}</div>
+                      </div>
+                      <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                        <div class="text-xs text-syn-color-neutral-500">Time per frame A → B</div>
+                        <div class="text-lg font-semibold">{{ num(sp.a.msPerFrame, 3) }} → {{ num(sp.b.msPerFrame, 3) }} ms</div>
+                      </div>
+                      <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                        <div class="text-xs text-syn-color-neutral-500">B compared with A</div>
+                        @if (sp.change !== null) {
+                          <div class="text-lg font-semibold"
+                               [class.text-syn-color-danger-600]="sp.change > 5"
+                               [class.text-syn-color-success-600]="sp.change < -5">
+                            {{ pct(sp.change) }}
+                            <span class="text-xs font-normal">{{ sp.change > 5 ? 'slower' : sp.change < -5 ? 'faster' : 'about the same' }}</span>
+                          </div>
+                        } @else {
+                          <div class="text-lg font-semibold">—</div>
+                        }
+                      </div>
+                    </div>
+                  </section>
+                }
 
                 @if (charts().length > 0) {
                   <section class="flex flex-col gap-2">
@@ -116,12 +171,7 @@
                           <div class="text-sm font-medium">
                             {{ chart.series.node_name }} · <span class="font-mono text-xs">{{ chart.series.key }}</span>
                           </div>
-                          <svg (click)="onChartClick($event, chart)" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH"
-                               class="w-full h-auto cursor-pointer" role="img"
-                               [attr.aria-label]="'A vs B for ' + chart.series.key">
-                            <path [attr.d]="chart.pathA" class="series-a" fill="none" stroke-width="1.5" />
-                            <path [attr.d]="chart.pathB" class="series-b" fill="none" stroke-width="1.5" />
-                          </svg>
+                          <app-compare-chart (frameClick)="onChartClick($event)" [series]="chart.series" />
                           <div class="flex justify-between text-xs text-syn-color-neutral-500">
                             <span>frame {{ chart.firstFrame }}</span>
                             <span>{{ num(chart.min) }} … {{ num(chart.max) }}</span>
@@ -131,8 +181,26 @@
                       }
                     </div>
                   </section>
-                } @else if (!cmp.summary.identical) {
-                  <p class="text-sm text-syn-color-neutral-500">No numeric values changed between these runs.</p>
+                } @else {
+                  <div class="empty-chart">
+                    <span class="sum-icon" [class.is-ok]="cmp.summary.identical"><syn-icon [name]="cmp.summary.identical ? 'check' : 'show_chart'" /></span>
+                    <h3 class="text-base font-semibold">
+                      {{ cmp.summary.identical ? 'Nothing to chart: the runs are identical' : 'Nothing to chart: no numeric values changed' }}
+                    </h3>
+                    <p class="text-sm text-syn-color-neutral-600 max-w-md">
+                      @if (cmp.summary.identical) {
+                        Both runs produced the same outputs on every frame, so there are no differences to plot.
+                      } @else {
+                        Charts appear only for numeric values that differ between the runs. Other differences are listed in the other tabs.
+                      }
+                    </p>
+                    @if (cmp.cloud_nodes.length > 0) {
+                      <syn-button (click)="showTab('visual')" size="small" variant="outline">
+                        <syn-icon name="view_in_ar" slot="prefix" />
+                        Open visual diff
+                      </syn-button>
+                    }
+                  </div>
                 }
               </div>
             }

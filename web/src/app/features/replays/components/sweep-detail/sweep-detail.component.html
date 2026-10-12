@@ -32,7 +32,7 @@
     </div>
 
     <!-- Content body -->
-    <div class="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">
+    <div class="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
       @if (isLoading() && !detail()) {
         <div class="flex items-center justify-center py-16"><syn-spinner /></div>
       } @else if (notFound()) {
@@ -124,8 +124,8 @@
               [yLabel]="metric()?.key ?? ''"
             />
             <p class="text-xs text-syn-color-neutral-500">
-              Dots show the average over all frames; the bars show how much the value moves between frames.
-              @if (target()) { The dashed line is the ground truth and the green band its tolerance. }
+              Dots show the average over all frames; the dashed lines show how much the value moves between frames (average ± standard deviation).
+              @if (target()) { The green line is the ground truth and the green band its tolerance. }
             </p>
           }
         </section>

@@ -62,7 +62,8 @@ export class SweepFormComponent implements OnInit {
       nodeId: new FormControl('', {nonNullable: true, validators: [Validators.required]}),
       parameter: new FormControl('', {nonNullable: true, validators: [Validators.required]}),
     },
-    {validators: () => (this.valuesError() ? {values: true} : null)},
+    // The group validates itself while it is constructed, before the computed fields below exist.
+    {validators: () => (this.valuesError?.() ? {values: true} : null)},
   );
 
   // Form values mirrored as signals so computed state can react to them.

@@ -83,6 +83,20 @@
       />
     </div>
 
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold uppercase tracking-wide text-syn-color-neutral-500">Point size</span>
+        <syn-badge size="small" variant="neutral">{{ pointSize().toFixed(2) }}</syn-badge>
+      </div>
+      <syn-range
+        (synChangeEvent)="pointSize.set(+$any($event.target).value)"
+        [max]="0.5"
+        [min]="0.01"
+        [step]="0.01"
+        [value]="pointSize().toString()"
+      />
+    </div>
+
     <div class="flex flex-col gap-2 text-sm">
       <syn-checkbox (syn-change)="showMatched.set($any($event.target).checked)" [checked]="showMatched()" size="small">
         <span class="inline-block w-3 h-3 rounded-full align-middle mr-1" [style.background]="colors.matched"></span>Same
