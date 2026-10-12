@@ -57,6 +57,9 @@ class NodeManager:
     - Throttling data flow to prevent overload
     """
 
+    #: True for offline replay managers: no websocket topics, recording or live side effects.
+    isolated: bool = False
+
     def __init__(self):
         """Initialize the NodeManager and its sub-managers."""
         # Configuration data

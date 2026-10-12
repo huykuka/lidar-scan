@@ -1,0 +1,50 @@
+:host {
+  @apply block h-full;
+}
+
+.series-a {
+  stroke: var(--syn-color-neutral-600);
+}
+
+.series-b {
+  stroke: var(--syn-color-primary-600);
+}
+
+.compare-tabs {
+  display: flex;
+  flex-direction: column;
+
+  &::part(base) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+
+  &::part(body) {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+syn-tab-panel {
+  height: 100%;
+
+  &::part(base) {
+    height: 100%;
+    padding-block: 0.75rem 0;
+  }
+}
+
+.action-btn {
+  &::part(base) {
+    background-color: var(--syn-color-primary-600);
+    border-color: var(--syn-color-primary-600);
+    color: #fff;
+  }
+  &:hover::part(base) {
+    background-color: var(--syn-color-primary-700);
+    border-color: var(--syn-color-primary-700);
+  }
+}

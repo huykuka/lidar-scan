@@ -83,7 +83,7 @@ import {DrawerService} from '@core/services/drawer.service';
             ><syn-icon slot="prefix" name="close" aria-hidden="true" />Cancel</syn-button
           >
           <syn-button variant="filled" [disabled]="formInvalid()" (click)="submitForm()"
-            ><syn-icon slot="prefix" name="save" aria-hidden="true" />Save</syn-button
+            ><syn-icon slot="prefix" [name]="svc.submitIcon()" aria-hidden="true" />{{ svc.submitLabel() }}</syn-button
           >
         </div>
       }

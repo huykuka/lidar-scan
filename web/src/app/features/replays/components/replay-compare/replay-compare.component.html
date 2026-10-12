@@ -1,0 +1,268 @@
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+    <!-- Toolbar pinned on top -->
+    <div class="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b-syn">
+      <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 min-w-0">
+        <a [routerLink]="['/replays']" class="hover:text-syn-color-primary-600 cursor-pointer">Replays</a>
+        <syn-icon class="text-xs" name="chevron_right" />
+        <span class="text-syn-typography-color-text font-medium truncate">Compare</span>
+        @if (comparison(); as c) {
+          <span class="text-syn-color-neutral-400 shrink-0">· {{ c.run_a_info.label }} vs {{ c.run_b_info.label }}</span>
+        }
+      </nav>
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-2 text-sm text-syn-color-neutral-600">
+          <syn-switch (syn-change)="onlyDifferences.set($any($event.target).checked)" [checked]="onlyDifferences()" />
+          Only differences
+        </label>
+        @if (canApplyB()) {
+          <syn-button (click)="applyB()" class="action-btn" size="small" variant="filled">
+            <syn-icon name="rocket_launch" slot="prefix" />
+            Apply B to pipeline
+          </syn-button>
+        }
+      </div>
+    </div>
+
+    <!-- Content body -->
+    <div class="flex-1 min-h-0 p-4 flex flex-col gap-4 overflow-hidden">
+      @if (isLoading()) {
+        <div class="flex items-center justify-center py-16"><syn-spinner /></div>
+      } @else if (error()) {
+        <div class="flex flex-col items-center justify-center py-16 text-center">
+          <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="compare_arrows" />
+          <p class="text-syn-color-neutral-600 font-semibold text-lg">{{ error() }}</p>
+          <a [routerLink]="['/replays']" class="mt-3 text-sm text-syn-color-primary-600 hover:underline">← Back to replays</a>
+        </div>
+      } @else if (comparison(); as cmp) {
+        <!-- The two runs -->
+        <div class="grid gap-3 md:grid-cols-2">
+          @for (info of [cmp.run_a_info, cmp.run_b_info]; track info.id; let i = $index) {
+            <div class="rounded-lg border border-syn-color-neutral-200 p-3 flex flex-col gap-1">
+              <div class="flex items-center gap-2">
+                <syn-badge [variant]="i === 0 ? 'neutral' : 'primary'">{{ i === 0 ? 'A · baseline' : 'B · candidate' }}</syn-badge>
+                <span class="font-medium truncate">{{ info.label }}</span>
+                <span class="ml-auto text-xs text-syn-color-neutral-500 font-mono">config {{ info.config_hash }}</span>
+              </div>
+              <div class="text-xs text-syn-color-neutral-600">
+                @for (line of overrideList(info.overrides); track line) {
+                  <div class="font-mono">{{ line }}</div>
+                } @empty {
+                  <span>pipeline as saved</span>
+                }
+              </div>
+              <app-replay-score [scores]="i === 0 ? cmp.scores_a : cmp.scores_b" />
+            </div>
+          }
+        </div>
+
+        @if (!cmp.same_recording) {
+          <syn-alert open variant="warning">
+            These runs used different recordings, so differences may come from the data rather than from
+            your changes.
+          </syn-alert>
+        }
+        @if (cmp.summary.identical) {
+          <syn-alert open variant="success">
+            <syn-icon name="check_circle" slot="icon" />
+            The two runs produced identical outputs.
+          </syn-alert>
+        }
+
+        <syn-tab-group #tabs class="compare-tabs flex-1 min-h-0" (syn-tab-show)="setTab($any($event).detail.name)">
+          <syn-tab panel="overview" slot="nav">Overview</syn-tab>
+          <syn-tab panel="visual" slot="nav">Visual diff</syn-tab>
+          <syn-tab panel="results" slot="nav">Saved results</syn-tab>
+          <syn-tab panel="nodes" slot="nav">Node outputs</syn-tab>
+
+          <!-- Overview: numbers and charts -->
+          <syn-tab-panel name="overview">
+            @if (tab() === 'overview') {
+              <div class="flex flex-col gap-4">
+                <div class="grid gap-3 grid-cols-2 md:grid-cols-4">
+                  <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                    <div class="text-xs text-syn-color-neutral-500">Differing values</div>
+                    <div class="text-2xl font-semibold">{{ cmp.summary.differing_value_keys }}</div>
+                  </div>
+                  <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                    <div class="text-xs text-syn-color-neutral-500">Saved results A → B</div>
+                    <div class="text-2xl font-semibold">{{ cmp.summary.saved_results_a }} → {{ cmp.summary.saved_results_b }}</div>
+                  </div>
+                  <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                    <div class="text-xs text-syn-color-neutral-500">Results that differ</div>
+                    <div class="text-2xl font-semibold">{{ cmp.summary.saved_results_differing }}</div>
+                  </div>
+                  <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                    <div class="text-xs text-syn-color-neutral-500">Node errors A / B</div>
+                    <div class="text-2xl font-semibold" [class.text-syn-color-danger-600]="cmp.summary.errors_a + cmp.summary.errors_b > 0">
+                      {{ cmp.summary.errors_a }} / {{ cmp.summary.errors_b }}
+                    </div>
+                  </div>
+                </div>
+
+                @if (charts().length > 0) {
+                  <section class="flex flex-col gap-2">
+                    <h2 class="text-base font-semibold">Largest differences over time</h2>
+                    <div class="flex items-center gap-4 text-xs text-syn-color-neutral-600">
+                      <span class="flex items-center gap-1"><span class="inline-block w-4 h-0.5 bg-syn-color-neutral-600"></span>A</span>
+                      <span class="flex items-center gap-1"><span class="inline-block w-4 h-0.5 bg-syn-color-primary-600"></span>B</span>
+                      @if (cmp.cloud_nodes.length > 0) {
+                        <span class="text-syn-color-neutral-500">Click a chart to see that frame in the visual diff.</span>
+                      }
+                    </div>
+                    <div class="grid gap-3 lg:grid-cols-2">
+                      @for (chart of charts(); track chart.series.node_id + chart.series.key) {
+                        <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                          <div class="text-sm font-medium">
+                            {{ chart.series.node_name }} · <span class="font-mono text-xs">{{ chart.series.key }}</span>
+                          </div>
+                          <svg (click)="onChartClick($event, chart)" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH"
+                               class="w-full h-auto cursor-pointer" role="img"
+                               [attr.aria-label]="'A vs B for ' + chart.series.key">
+                            <path [attr.d]="chart.pathA" class="series-a" fill="none" stroke-width="1.5" />
+                            <path [attr.d]="chart.pathB" class="series-b" fill="none" stroke-width="1.5" />
+                          </svg>
+                          <div class="flex justify-between text-xs text-syn-color-neutral-500">
+                            <span>frame {{ chart.firstFrame }}</span>
+                            <span>{{ num(chart.min) }} … {{ num(chart.max) }}</span>
+                            <span>frame {{ chart.lastFrame }}</span>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  </section>
+                } @else if (!cmp.summary.identical) {
+                  <p class="text-sm text-syn-color-neutral-500">No numeric values changed between these runs.</p>
+                }
+              </div>
+            }
+          </syn-tab-panel>
+
+          <!-- Visual diff (rendered only while active: the 3D canvas needs a visible size) -->
+          <syn-tab-panel name="visual">
+            @if (tab() === 'visual') {
+              @if (cmp.cloud_nodes.length > 0) {
+                <app-replay-cloud-diff
+                  [nodes]="cmp.cloud_nodes"
+                  [requestedFrame]="focusFrame()"
+                  [runA]="cmp.run_a"
+                  [runB]="cmp.run_b"
+                />
+              } @else {
+                <div class="flex flex-col items-center justify-center py-12 text-center">
+                  <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="view_in_ar" />
+                  <p class="text-syn-color-neutral-600 font-medium">No point clouds were stored for both runs</p>
+                  <p class="text-sm text-syn-color-neutral-500 max-w-md mt-1">
+                    Runs started now keep the point clouds of the pipeline's final nodes automatically.
+                    Older runs, and runs started with “keep point clouds” switched off, cannot be shown in 3D.
+                  </p>
+                </div>
+              }
+            }
+          </syn-tab-panel>
+
+          <!-- Saved results (headline metrics, e.g. volume) -->
+          <syn-tab-panel name="results">
+            @if (tab() === 'results') {
+              @if (savedRows().length === 0) {
+                <div class="flex flex-col items-center justify-center py-12 text-center">
+                  <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="inbox" />
+                  <p class="text-syn-color-neutral-600 font-medium">No saved results</p>
+                  <p class="text-sm text-syn-color-neutral-500 max-w-md mt-1">
+                    Add a Result Storage node to the pipeline to compare the results it stores.
+                  </p>
+                </div>
+              }
+              <div class="flex flex-col gap-3">
+                @for (row of savedRows(); track row.nodeId) {
+                  <div class="rounded-lg border border-syn-color-neutral-200 overflow-hidden">
+                    <div class="px-3 py-2 text-sm font-medium flex items-center gap-2 bg-syn-color-neutral-100">
+                      {{ row.nodeName }}
+                      <span class="text-xs font-normal text-syn-color-neutral-500">{{ row.data.count_a }} vs {{ row.data.count_b }} results</span>
+                    </div>
+                    @if (row.data.pairs.length === 0) {
+                      <div class="px-3 py-2 text-sm text-syn-color-neutral-500">All results identical.</div>
+                    }
+                    @for (pair of row.data.pairs; track pair.index) {
+                      <div class="px-3 py-2 border-t border-syn-color-neutral-100 text-sm">
+                        <div class="text-xs text-syn-color-neutral-500">
+                          Result #{{ pair.index + 1 }} · frame A {{ pair.frame_a ?? '—' }} / B {{ pair.frame_b ?? '—' }}
+                          @if (pair.frame_a === null || pair.frame_b === null) {
+                            <syn-badge variant="warning">only in one run</syn-badge>
+                          }
+                        </div>
+                        @for (f of fieldList(pair.fields); track f.key) {
+                          <div class="flex flex-wrap items-baseline gap-x-3">
+                            <span class="w-48 truncate font-mono text-xs" [title]="f.key">{{ f.key }}</span>
+                            <span>{{ show(f.diff.a) }}</span>
+                            <span class="text-syn-color-neutral-400">→</span>
+                            <span class="font-medium">{{ show(f.diff.b) }}</span>
+                            @if (f.diff.delta !== undefined) {
+                              <span class="text-syn-color-warning-700">{{ delta(f.diff.delta) }} ({{ pct(f.diff.pct) }})</span>
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </syn-tab-panel>
+
+          <!-- Per-node table -->
+          <syn-tab-panel name="nodes">
+            @if (tab() === 'nodes') {
+              <div class="flex flex-col gap-3">
+                @for (row of nodeRows(); track row.id) {
+                  <div class="rounded-lg border border-syn-color-neutral-200 overflow-hidden">
+                    <div class="px-3 py-2 flex flex-wrap items-center gap-3 text-sm bg-syn-color-neutral-100">
+                      <span class="font-medium">{{ row.node.name }}</span>
+                      <span class="text-xs text-syn-color-neutral-500">{{ row.node.type }}</span>
+                      <span class="text-xs">emitted {{ row.node.emitted_a }} / {{ row.node.emitted_b }}</span>
+                      @if (row.node.points_differing_frames > 0) {
+                        <syn-badge variant="warning">
+                          points differ in {{ row.node.points_differing_frames }} frames (avg {{ delta(row.node.points_mean_delta) }})
+                        </syn-badge>
+                      }
+                      @if (!row.node.in_a || !row.node.in_b) {
+                        <syn-badge variant="danger">only in {{ row.node.in_a ? 'A' : 'B' }}</syn-badge>
+                      }
+                      @if (row.node.frames_only_a > 0 || row.node.frames_only_b > 0) {
+                        <syn-badge variant="warning">
+                          frames only in A: {{ row.node.frames_only_a }}, only in B: {{ row.node.frames_only_b }}
+                        </syn-badge>
+                      }
+                    </div>
+                    @if (row.values.length > 0) {
+                      <table class="syn-table--default" style="width: 100%">
+                        <thead>
+                          <tr>
+                            <th>Value</th><th class="text-right">Average A</th><th class="text-right">Average B</th>
+                            <th class="text-right">Δ</th><th class="text-right">Δ %</th><th class="text-right">Frames differ</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (v of row.values; track v.key) {
+                            <tr>
+                              <td class="font-mono text-xs" [title]="v.key">{{ v.key }}</td>
+                              <td class="text-right">{{ num(v.stats.mean_a) }}</td>
+                              <td class="text-right">{{ num(v.stats.mean_b) }}</td>
+                              <td class="text-right" [class.text-syn-color-warning-700]="changed(v.stats.mean_delta)">{{ delta(v.stats.mean_delta) }}</td>
+                              <td class="text-right">{{ pct(v.stats.mean_pct) }}</td>
+                              <td class="text-right">{{ v.stats.differing }} / {{ v.stats.compared }}</td>
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    }
+                  </div>
+                }
+              </div>
+            }
+          </syn-tab-panel>
+        </syn-tab-group>
+      }
+    </div>
+  </div>
+</div>

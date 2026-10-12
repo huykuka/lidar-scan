@@ -43,6 +43,25 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'replays',
+        loadComponent: () =>
+          import('./features/replays/replays.component').then((m) => m.ReplaysComponent),
+      },
+      {
+        path: 'replays/sweeps/:id',
+        loadComponent: () =>
+          import('./features/replays/components/sweep-detail/sweep-detail.component').then(
+            (m) => m.SweepDetailComponent,
+          ),
+      },
+      {
+        path: 'replays/compare',
+        loadComponent: () =>
+          import('./features/replays/components/replay-compare/replay-compare.component').then(
+            (m) => m.ReplayCompareComponent,
+          ),
+      },
+      {
         path: 'node-definitions',
         canActivate: [serviceGuard],
         loadComponent: () =>

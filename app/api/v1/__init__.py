@@ -13,6 +13,7 @@ from .logs import router as logs_router
 from .nodes import router as nodes_router
 from .pcd_injection import router as pcd_injection_router
 from .recordings import router as recordings_router
+from .replays import router as replays_router
 from .results.router import router as results_router
 from .system import router as system_router
 from .websocket import router as ws_router
@@ -23,6 +24,7 @@ router.include_router(nodes_router)
 router.include_router(edges_router)
 router.include_router(config_router)
 router.include_router(recordings_router)
+router.include_router(replays_router)
 router.include_router(results_router)
 router.include_router(logs_router)
 router.include_router(calibration_router)

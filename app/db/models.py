@@ -277,6 +277,135 @@ class NodeTypeRegistryModel(Base):
         }
 
 
+class ReplayRunModel(Base):
+    """SQLAlchemy model for replay_runs table.
+
+    One offline replay of a recording through a snapshot of the DAG.  Per-frame
+    outputs live in ``data/replays/<id>.json``; the row keeps config + summary.
+    """
+
+    __tablename__ = "replay_runs"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    label: Mapped[str] = mapped_column(String, nullable=False, default="")
+    recording_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    playback_node_id: Mapped[str] = mapped_column(String, nullable=False)
+    # queued | running | completed | failed
+    status: Mapped[str] = mapped_column(String, nullable=False, default="queued")
+    frames_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    frames_processed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    config_hash: Mapped[str] = mapped_column(String, nullable=False, default="")
+    overrides_json: Mapped[str] = mapped_column("overrides", String, nullable=False, default="{}")
+    config_snapshot_json: Mapped[str] = mapped_column(
+        "config_snapshot", String, nullable=False, default="{}"
+    )
+    summary_json: Mapped[str] = mapped_column("summary", String, nullable=False, default="{}")
+    error: Mapped[str | None] = mapped_column(String)
+    created_at: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
+    finished_at: Mapped[str | None] = mapped_column(String)
+    duration_seconds: Mapped[float | None] = mapped_column(Float)
+    # Parameter sweep this run belongs to (None for stand-alone runs).
+    sweep_id: Mapped[str | None] = mapped_column(String, index=True)
+    # Nodes whose point clouds were stored; "null" = unknown (runs created before this existed).
+    capture_nodes_json: Mapped[str] = mapped_column(
+        "capture_nodes", String, nullable=False, default="null"
+    )
+
+    def to_dict(self, include_snapshot: bool = False) -> dict:
+        import json
+
+        data = {
+            "sweep_id": self.sweep_id,
+            "capture_nodes": json.loads(self.capture_nodes_json or "null"),
+            "id": self.id,
+            "label": self.label,
+            "recording_id": self.recording_id,
+            "playback_node_id": self.playback_node_id,
+            "status": self.status,
+            "frames_total": self.frames_total,
+            "frames_processed": self.frames_processed,
+            "config_hash": self.config_hash,
+            "overrides": json.loads(self.overrides_json or "{}"),
+            "summary": json.loads(self.summary_json or "{}"),
+            "error": self.error,
+            "created_at": self.created_at,
+            "finished_at": self.finished_at,
+            "duration_seconds": self.duration_seconds,
+        }
+        if include_snapshot:
+            data["config_snapshot"] = json.loads(self.config_snapshot_json or "{}")
+        return data
+
+
+class ReplaySweepModel(Base):
+    """A parameter sweep: one replay run per value of a single node parameter."""
+
+    __tablename__ = "replay_sweeps"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    label: Mapped[str] = mapped_column(String, nullable=False, default="")
+    recording_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    playback_node_id: Mapped[str] = mapped_column(String, nullable=False)
+    node_id: Mapped[str] = mapped_column(String, nullable=False)
+    parameter: Mapped[str] = mapped_column(String, nullable=False)
+    values_json: Mapped[str] = mapped_column("values", String, nullable=False, default="[]")
+    created_at: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
+
+    def to_dict(self) -> dict:
+        import json
+
+        return {
+            "id": self.id,
+            "label": self.label,
+            "recording_id": self.recording_id,
+            "playback_node_id": self.playback_node_id,
+            "node_id": self.node_id,
+            "parameter": self.parameter,
+            "values": json.loads(self.values_json or "[]"),
+            "created_at": self.created_at,
+        }
+
+
+class ReplayTargetModel(Base):
+    """Ground truth for a recording: the value a metric is expected to have."""
+
+    __tablename__ = "replay_targets"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    recording_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    node_id: Mapped[str] = mapped_column(String, nullable=False)
+    metric_key: Mapped[str] = mapped_column(String, nullable=False)
+    label: Mapped[str] = mapped_column(String, nullable=False, default="")
+    expected: Mapped[float] = mapped_column(Float, nullable=False)
+    # Absolute tolerance (same unit as the metric); None = informational only.
+    tolerance: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "recording_id": self.recording_id,
+            "node_id": self.node_id,
+            "metric_key": self.metric_key,
+            "label": self.label,
+            "expected": self.expected,
+            "tolerance": self.tolerance,
+            "created_at": self.created_at,
+        }
+
+
 def init_db() -> None:
     # Kept for backwards-compatibility; prefer `app.db.migrate.ensure_schema`.
     from app.db.session import get_engine

@@ -1,0 +1,212 @@
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+    <!-- Toolbar pinned on top -->
+    <div class="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b-syn">
+      <div class="flex items-center gap-2">
+        <syn-icon name="fast_forward" style="color: var(--syn-color-primary-600)" />
+        <span class="text-sm font-semibold" style="color: var(--syn-typography-color-heading)">Replays</span>
+        <span class="text-sm text-syn-color-neutral-600">
+          · {{ runs().length }} run(s) · {{ sweeps().length }} sweep(s)
+        </span>
+        @if (stats().active > 0) {
+          <syn-badge variant="primary" pulse>{{ stats().active }} running</syn-badge>
+        }
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <syn-button (click)="refresh()" [disabled]="isLoading()" size="small" variant="outline">
+          <syn-icon name="refresh" slot="prefix" />
+          Refresh
+        </syn-button>
+        <syn-button (click)="openGroundTruth()" size="small" variant="outline">
+          <syn-icon name="rule" slot="prefix" />
+          Ground truth
+        </syn-button>
+        <syn-button (click)="openSweepForm()" size="small" variant="outline">
+          <syn-icon name="tune" slot="prefix" />
+          Parameter sweep
+        </syn-button>
+        <syn-button (click)="openNewReplay()" size="small" variant="filled">
+          <syn-icon name="play_arrow" slot="prefix" />
+          New replay
+        </syn-button>
+      </div>
+    </div>
+
+    <!-- Content (single inner scroll body) -->
+    <div class="flex-1 min-h-0 overflow-y-auto p-4 relative">
+      <syn-tab-group (syn-tab-show)="setTab($any($event).detail.name)">
+        <syn-tab [active]="tab() === 'runs'" panel="runs" slot="nav">Runs ({{ runs().length }})</syn-tab>
+        <syn-tab [active]="tab() === 'sweeps'" panel="sweeps" slot="nav">Sweeps ({{ sweeps().length }})</syn-tab>
+
+        <!-- Runs -->
+        <syn-tab-panel name="runs">
+          @if (isLoading() && runs().length === 0) {
+            <div class="flex items-center justify-center py-16"><syn-spinner /></div>
+          } @else if (runs().length === 0) {
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+              <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="fast_forward" />
+              <h3 class="text-lg font-semibold mb-2">No replay runs yet</h3>
+              <p class="text-sm text-syn-color-neutral-500 max-w-md">
+                Replay a recording through your pipeline as fast as the CPU allows, change a parameter,
+                replay again, and compare the two runs.
+              </p>
+            </div>
+          } @else {
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pb-4">
+              <div class="stat-tile">
+                <span class="stat-label">Total runs</span>
+                <span class="stat-value">{{ stats().total }}</span>
+              </div>
+              <div class="stat-tile stat-success">
+                <span class="stat-label">Completed</span>
+                <span class="stat-value">{{ stats().completed }}</span>
+              </div>
+              <div class="stat-tile stat-primary">
+                <span class="stat-label">Active</span>
+                <span class="stat-value">{{ stats().active }}</span>
+              </div>
+              <div class="stat-tile stat-danger">
+                <span class="stat-label">Failed</span>
+                <span class="stat-value">{{ stats().failed }}</span>
+              </div>
+            </div>
+
+            <div class="compare-bar flex items-center gap-3 mb-3 px-3 py-2 rounded-lg" [class.is-ready]="canCompare()">
+              <syn-icon name="compare_arrows" class="text-syn-color-neutral-500" />
+              <span class="text-xs text-syn-color-neutral-600 flex-1">
+                @if (selectedIds().length === 0) {
+                  Tick two completed runs to compare them.
+                } @else {
+                  {{ selectedIds().length }} of 2 selected
+                }
+              </span>
+              <syn-button class="compare-btn" (click)="compareSelected()" [disabled]="!canCompare()" size="small" variant="filled">
+                Compare
+              </syn-button>
+            </div>
+
+            <table class="syn-table--default replay-table" style="width: 100%">
+              <thead>
+                <tr>
+                  <th style="width: 2.5rem"></th>
+                  <th>Run</th>
+                  <th>Status</th>
+                  <th>Result</th>
+                  <th>Ground truth</th>
+                  <th>Created</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (run of runs(); track run.id) {
+                  <tr>
+                    <td>
+                      <syn-checkbox
+                        (syn-change)="toggleSelect(run, $any($event.target).checked)"
+                        [checked]="isSelected(run.id)"
+                        [disabled]="run.status !== 'completed'"
+                      />
+                    </td>
+                    <td>
+                      <div class="font-medium text-syn-typography-color-text">{{ run.label }}</div>
+                      <div class="text-xs text-syn-color-neutral-500">
+                        {{ recordingName(run.recording_id) }} · {{ overrideSummary(run) }}
+                      </div>
+                    </td>
+                    <td style="min-width: 9rem">
+                      <syn-badge [variant]="statusVariant(run.status)">{{ run.status }}</syn-badge>
+                      @if (run.status === 'running' || run.status === 'queued') {
+                        <syn-progress-bar class="mt-1" [value]="progress(run)" />
+                      }
+                      @if (run.status === 'failed' && run.error) {
+                        <div class="text-xs text-syn-color-danger-600 mt-1">{{ run.error }}</div>
+                      }
+                    </td>
+                    <td>
+                      @if (run.status === 'completed') {
+                        <div class="text-sm">{{ run.frames_total }} frames</div>
+                        <div class="text-xs text-syn-color-neutral-500">in {{ run.duration_seconds?.toFixed(1) }}s</div>
+                      } @else if (run.status === 'running' || run.status === 'queued') {
+                        <span class="text-xs text-syn-color-neutral-500">{{ run.frames_processed }} / {{ run.frames_total }} frames</span>
+                      } @else {
+                        <span class="text-syn-color-neutral-400">—</span>
+                      }
+                    </td>
+                    <td><app-replay-score [scores]="run.scores" /></td>
+                    <td class="text-xs text-syn-color-neutral-500 whitespace-nowrap">{{ formatDate(run.created_at) }}</td>
+                    <td class="whitespace-nowrap text-right">
+                      @if (run.status === 'running' || run.status === 'queued') {
+                        <syn-button (click)="cancel(run)" size="small" variant="outline">Cancel</syn-button>
+                      } @else {
+                        <syn-icon-button class="act act-primary" (click)="rerun(run)" label="Re-run with changes" name="content_copy" title="Re-run with changes" />
+                        @if (canApply(run)) {
+                          <syn-icon-button class="act act-success" (click)="applyToPipeline(run)" label="Apply to pipeline" name="rocket_launch" title="Apply these parameters to the pipeline" />
+                        }
+                        <syn-icon-button class="act act-danger" (click)="remove(run)" label="Delete run" name="delete" title="Delete" />
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </syn-tab-panel>
+
+        <!-- Sweeps -->
+        <syn-tab-panel name="sweeps">
+          @if (sweeps().length === 0) {
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+              <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="tune" />
+              <h3 class="text-lg font-semibold mb-2">No parameter sweeps yet</h3>
+              <p class="text-sm text-syn-color-neutral-500 max-w-md">
+                A sweep replays a recording once for each value of one parameter and plots the result,
+                so you can see which value works best.
+              </p>
+            </div>
+          } @else {
+            <table class="syn-table--default" style="width: 100%">
+              <thead>
+                <tr>
+                  <th>Sweep</th>
+                  <th>Parameter</th>
+                  <th>Values</th>
+                  <th>Progress</th>
+                  <th>Created</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (sweep of sweeps(); track sweep.id) {
+                  <tr (click)="openSweep(sweep)" class="cursor-pointer">
+                    <td>
+                      <div class="font-medium text-syn-typography-color-text">{{ sweep.label }}</div>
+                      <div class="text-xs text-syn-color-neutral-500">{{ recordingName(sweep.recording_id) }}</div>
+                    </td>
+                    <td>
+                      <div class="text-sm">{{ nodeName(sweep.node_id) }}</div>
+                      <div class="font-mono text-xs text-syn-color-neutral-500">{{ sweep.parameter }}</div>
+                    </td>
+                    <td class="text-sm">{{ describeValues(sweep.values) }}</td>
+                    <td style="min-width: 10rem">
+                      @if (sweep.progress; as p) {
+                        <syn-progress-bar [value]="sweepProgress(sweep)" />
+                        <span class="text-xs text-syn-color-neutral-500">
+                          {{ p.completed }} / {{ p.total }} done
+                          @if (p.failed > 0) {
+                            · <span class="text-syn-color-danger-600">{{ p.failed }} failed</span>
+                          }
+                        </span>
+                      }
+                    </td>
+                    <td class="text-xs text-syn-color-neutral-500 whitespace-nowrap">{{ formatDate(sweep.created_at) }}</td>
+                    <td><syn-icon class="text-syn-color-neutral-400" name="chevron_right" /></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </syn-tab-panel>
+      </syn-tab-group>
+    </div>
+  </div>
+</div>

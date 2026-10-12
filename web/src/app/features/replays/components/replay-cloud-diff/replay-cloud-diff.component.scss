@@ -1,0 +1,36 @@
+:host {
+  @apply block h-full;
+}
+
+.diff-canvas-area {
+  position: relative;
+  min-height: 240px;
+  overflow: hidden;
+}
+
+.action-btn {
+  &::part(base) {
+    background-color: var(--syn-color-primary-600);
+    border-color: var(--syn-color-primary-600);
+    color: #fff;
+  }
+  &:hover:not([disabled])::part(base) {
+    background-color: var(--syn-color-primary-700);
+    border-color: var(--syn-color-primary-700);
+  }
+  &[disabled]::part(base) {
+    opacity: 0.4;
+  }
+}
+
+.diff-layout {
+  grid-template-columns: minmax(0, 1fr);
+
+  @media (min-width: 1024px) {
+    grid-template-columns: minmax(0, 1fr) 20rem;
+  }
+}
+
+.diff-canvas-area {
+  max-height: 70vh;
+}

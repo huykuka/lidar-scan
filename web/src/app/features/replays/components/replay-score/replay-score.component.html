@@ -1,0 +1,11 @@
+@if (scores()?.overall; as overall) {
+  <span class="inline-flex items-center gap-2 text-sm whitespace-nowrap" [title]="tooltip()">
+    <syn-badge [variant]="variant()">{{ label() }}</syn-badge>
+    <span class="font-mono text-xs text-syn-color-neutral-600">{{ error() }}</span>
+    @if (extra() > 0) {
+      <span class="text-xs text-syn-color-neutral-500">+{{ extra() }} more</span>
+    }
+  </span>
+} @else {
+  <span class="text-syn-color-neutral-400" title="No ground truth set for this recording">—</span>
+}

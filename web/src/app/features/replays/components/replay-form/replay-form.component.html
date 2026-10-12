@@ -1,0 +1,172 @@
+<form (ngSubmit)="onSubmit()" [formGroup]="form" class="flex flex-col gap-4">
+  <syn-validate on="live">
+    <syn-input
+      formControlName="label"
+      help-text="Optional, e.g. “baseline” or “radius 1.5”"
+      label="Label"
+      [maxlength]="80"
+    />
+  </syn-validate>
+
+  <syn-validate on="live">
+    <syn-select
+      formControlName="playbackNodeId"
+      help-text="The replay runs everything downstream of this node"
+      label="Playback node"
+      required
+    >
+      @for (node of playbackNodes(); track node.id) {
+        <syn-option [value]="node.id">{{ node.name }}</syn-option>
+      }
+    </syn-select>
+  </syn-validate>
+  @if (playbackNodes().length === 0) {
+    <syn-alert open variant="warning">
+      No enabled Playback node in the pipeline. Add one in Settings and connect it to your
+      processing nodes.
+    </syn-alert>
+  }
+
+  <syn-validate on="live">
+    <syn-select formControlName="recordingId" label="Recording" required>
+      @for (rec of recordings(); track rec.id) {
+        <syn-option [value]="rec.id">
+          {{ rec.name }} ({{ rec.frame_count }} frames, {{ rec.duration_seconds.toFixed(1) }}s)
+        </syn-option>
+      }
+    </syn-select>
+  </syn-validate>
+
+  <!-- Point clouds for visual diff -->
+  <div class="flex flex-col gap-2">
+    <span class="text-sm font-medium">Point clouds to keep for visual diff</span>
+    @if (capturableNodes().length === 0) {
+      <p class="text-xs text-[var(--syn-color-neutral-600)]">Choose a Playback node first.</p>
+    } @else {
+      <div class="flex flex-col gap-1">
+        @for (node of capturableNodes(); track node.id) {
+          <syn-checkbox
+            (syn-change)="toggleCapture(node.id, $any($event.target).checked)"
+            [checked]="isCaptured(node.id)"
+          >
+            {{ node.name }}
+          </syn-checkbox>
+        }
+      </div>
+      <p class="text-xs text-[var(--syn-color-neutral-600)]">
+        Pre-selected: the pipeline's final nodes and the nodes feeding them. Each kept node uses
+        disk space (about 12 bytes per point per frame).
+      </p>
+    }
+  </div>
+
+  <!-- Parameter overrides -->
+  <div class="flex flex-col gap-2">
+    <div class="flex items-center justify-between">
+      <span class="text-sm font-medium">Parameter overrides (this run only)</span>
+      <syn-button (click)="addOverride()" size="small" type="button" variant="outline">
+        <syn-icon name="add" slot="prefix" />
+        Add
+      </syn-button>
+    </div>
+
+    <div class="flex flex-col gap-3" formArrayName="overrides">
+      @for (row of overrideRows; track row; let i = $index) {
+        <div
+          [formGroupName]="i"
+          class="flex flex-col gap-2 rounded-lg border-syn p-3"
+          style="border-color: var(--syn-color-neutral-300)"
+        >
+          <div class="flex items-start gap-2">
+            <syn-select class="flex-1 min-w-0" formControlName="nodeId" label="Node" size="small">
+              @for (node of overrideTargets(); track node.id) {
+                <syn-option [value]="node.id">{{ node.name }}</syn-option>
+              }
+            </syn-select>
+            <syn-button
+              (click)="removeOverride(i)"
+              aria-label="Remove override"
+              class="mt-6"
+              size="small"
+              type="button"
+              variant="text"
+            >
+              <syn-icon name="close" />
+            </syn-button>
+          </div>
+          @let nodeId = row.controls['nodeId'].value;
+          @let key = row.controls['key'].value;
+          @let prop = propertyFor(nodeId, key);
+
+          <syn-select
+            [disabled]="!nodeId"
+            formControlName="key"
+            [helpText]="nodeId && propertiesFor(nodeId).length === 0 ? 'This node has no parameters that can be overridden' : ''"
+            label="Parameter"
+            placeholder="Choose a parameter"
+            size="small"
+          >
+            @for (p of propertiesFor(nodeId); track p.name) {
+              <syn-option [value]="p.name">{{ p.label }} ({{ p.name }})</syn-option>
+            }
+          </syn-select>
+
+          @if (prop) {
+            @switch (prop.type) {
+              @case ('boolean') {
+                <syn-select formControlName="value" label="Value" size="small">
+                  <syn-option value="true">true</syn-option>
+                  <syn-option value="false">false</syn-option>
+                </syn-select>
+              }
+              @case ('select') {
+                <syn-select formControlName="value" label="Value" size="small">
+                  @for (o of prop.options ?? []; track o.value) {
+                    <syn-option [value]="'' + o.value">{{ o.label }}</syn-option>
+                  }
+                </syn-select>
+              }
+              @case ('number') {
+                <syn-input
+                  [attr.max]="prop.max ?? null"
+                  [attr.min]="prop.min ?? null"
+                  [attr.step]="prop.step ?? 'any'"
+                  formControlName="value"
+                  label="Value"
+                  size="small"
+                  type="number"
+                />
+              }
+              @default {
+                <syn-input
+                  formControlName="value"
+                  label="Value"
+                  placeholder="e.g. [-10, -10, -2]"
+                  size="small"
+                />
+              }
+            }
+            <span class="text-xs text-[var(--syn-color-neutral-600)]">
+              Current: <code>{{ currentValueText(nodeId, key) || '—' }}</code>
+              @if (prop.help_text) {
+                · {{ prop.help_text }}
+              }
+            </span>
+          } @else {
+            <syn-input [readonly]="true" formControlName="value" label="Value" placeholder="Choose a parameter first" size="small" />
+          }
+          @if (row.errors?.['incompleteOverride'] && row.touched) {
+            <span class="text-xs text-[var(--syn-color-error-600)]">
+              Choose a node, a parameter and a value.
+            </span>
+          }
+        </div>
+      }
+    </div>
+
+    <p class="text-xs text-[var(--syn-color-neutral-600)]">
+      Your saved pipeline is never modified. Throttling is disabled during replays, so
+      <code>throttle_ms</code> is not offered.
+    </p>
+  </div>
+</form>

@@ -118,7 +118,12 @@ class ConfigLoader:
             node_instance: Created node instance
         """
         from ..schema import node_schema_registry
-        
+
+        # Isolated (offline replay) managers must never touch the global WS manager.
+        if getattr(self.manager, "isolated", False) is True:
+            node_instance._ws_topic = None
+            return
+
         # Check if node type supports WebSocket streaming
         node_type = node.get("type")
         node_definition = node_schema_registry.get(node_type)

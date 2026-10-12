@@ -1,0 +1,98 @@
+:host {
+  @apply block h-full;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--syn-color-neutral-300);
+  border-left: 3px solid var(--syn-color-neutral-400);
+  background: var(--syn-panel-background-color, transparent);
+
+  &.stat-success {
+    border-left-color: var(--syn-color-success-600);
+  }
+  &.stat-primary {
+    border-left-color: var(--syn-color-primary-600);
+  }
+  &.stat-danger {
+    border-left-color: var(--syn-color-error-600, var(--syn-color-danger-600));
+  }
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--syn-color-neutral-600);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--syn-typography-color-heading);
+}
+
+.compare-bar {
+  border: 1px dashed var(--syn-color-neutral-400);
+  transition:
+    border-color 150ms,
+    background-color 150ms;
+
+  &.is-ready {
+    border-style: solid;
+    border-color: var(--syn-color-primary-600);
+    background: color-mix(in srgb, var(--syn-color-primary-600) 10%, transparent);
+  }
+}
+
+.replay-table {
+  border-collapse: separate;
+  border-spacing: 0;
+
+  tbody tr {
+    transition: background-color 120ms;
+
+    &:hover {
+      background: color-mix(in srgb, var(--syn-color-primary-600) 8%, transparent);
+    }
+
+    td {
+      vertical-align: middle;
+      border-bottom: 1px solid var(--syn-color-neutral-200);
+    }
+  }
+
+  td,
+  th {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.act {
+  --act-color: var(--syn-color-neutral-700);
+  &::part(base) {
+    color: var(--act-color);
+    border-radius: 0.5rem;
+    transition: background-color 120ms, color 120ms;
+  }
+  &:hover::part(base) {
+    background: color-mix(in srgb, var(--act-color) 18%, transparent);
+  }
+  &.act-primary { --act-color: var(--syn-color-primary-600); }
+  &.act-success { --act-color: var(--syn-color-success-600); }
+  &.act-danger { --act-color: var(--syn-color-error-600, var(--syn-color-danger-600)); }
+}
+
+.compare-btn[disabled]::part(base),
+.compare-btn::part(base):disabled {
+  background: var(--syn-color-neutral-300);
+  color: var(--syn-color-neutral-700);
+  border-color: transparent;
+  opacity: 1;
+}

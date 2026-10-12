@@ -1,0 +1,69 @@
+:host {
+  @apply block;
+}
+
+.grid {
+  stroke: var(--syn-color-neutral-200);
+  stroke-width: 1;
+}
+
+.axis {
+  stroke: var(--syn-color-neutral-400);
+  stroke-width: 1;
+}
+
+.tick,
+.axis-label {
+  fill: var(--syn-color-neutral-600);
+  font-size: 11px;
+}
+
+.band {
+  fill: var(--syn-color-success-100);
+  opacity: 0.6;
+}
+
+.expected {
+  stroke: var(--syn-color-success-600);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.expected-label {
+  fill: var(--syn-color-success-700);
+  font-size: 11px;
+}
+
+.series {
+  stroke: var(--syn-color-primary-400);
+  stroke-width: 1.5;
+}
+
+.err {
+  stroke: var(--syn-color-neutral-500);
+  stroke-width: 1.5;
+}
+
+.dot {
+  fill: var(--syn-color-primary-600);
+  stroke: var(--syn-color-neutral-0);
+  stroke-width: 2;
+  cursor: pointer;
+
+  &:hover {
+    fill: var(--syn-color-primary-800);
+  }
+
+  &.best {
+    fill: var(--syn-color-success-600);
+  }
+
+  &.selected {
+    stroke: var(--syn-color-neutral-900);
+  }
+}
+
+.missing {
+  fill: var(--syn-color-danger-600);
+  font-size: 14px;
+}

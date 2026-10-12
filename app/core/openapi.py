@@ -6,6 +6,7 @@ OPENAPI_TAGS: list[dict] = [
     {"name": "Edges",         "description": "Read-only access to directed connections between DAG nodes. Edge creation and deletion is performed atomically via PUT /api/v1/dag/config."},
     {"name": "Configuration", "description": "Full-graph import/export and validation. Allows backup and restore of the entire node-edge topology."},
     {"name": "Recordings",    "description": "Start, stop, list, and download point-cloud recordings."},
+    {"name": "Replays",       "description": "Offline replay of recordings through an isolated copy of the DAG, and comparison of runs."},
     {"name": "Logs",          "description": "Access and stream application logs. Live streaming via GET /api/v1/logs/ws WebSocket."},
     {"name": "Calibration",   "description": "ICP multi-sensor calibration. Trigger alignment, accept/reject results, rollback."},
     {"name": "LiDAR",         "description": "SICK LiDAR device profiles and configuration validation."},
