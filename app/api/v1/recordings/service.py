@@ -116,31 +116,15 @@ async def stream_recording(websocket: WebSocket, recording: dict) -> None:
                 })
                 return
             loop = asyncio.get_running_loop()
-            # Fallback interval when per-frame timestamps are missing/invalid.
+            # Constant pacing, same as the playback node: average interval derived
+            # from recording duration. Per-frame timestamps can be bursty/non-monotonic.
             duration = float(recording.get("duration_seconds") or 0.0)
-            fallback_interval = duration / max(reader.frame_count - 1, 1) if duration > 0 else 0.1
-            wall_anchor: float | None = None
-            ts_anchor: float | None = None
-            prev_ts: float | None = None
-            virtual_ts = 0.0
+            interval = duration / max(reader.frame_count - 1, 1) if duration > 0 else 0.1
+            wall_anchor = loop.time()
             for frame_index in range(start_index, reader.frame_count):
                 points, timestamp = await asyncio.to_thread(reader.get_frame, frame_index)
-                # Build monotonic recording-time axis (tolerates bad/non-increasing timestamps)
-                ts = float(timestamp)
-                if prev_ts is None:
-                    virtual_ts = 0.0
-                else:
-                    delta = ts - prev_ts
-                    if not (0.0 < delta < 5.0):
-                        delta = fallback_interval
-                    virtual_ts += delta
-                prev_ts = ts
-                if wall_anchor is None:
-                    wall_anchor = loop.time()
-                    ts_anchor = virtual_ts
-                # Sleep until frame's due time relative to stream start (no drift accumulation)
-                due = wall_anchor + (virtual_ts - ts_anchor)
-                delay = due - loop.time()
+                # Due time relative to stream start (no drift accumulation)
+                delay = wall_anchor + (frame_index - start_index) * interval - loop.time()
                 if delay > 0:
                     await asyncio.sleep(delay)
                 await websocket.send_bytes(
