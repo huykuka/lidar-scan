@@ -11,6 +11,10 @@ export interface DrawerConfig<T = unknown> {
   inputs?: Partial<Record<keyof T, unknown>>;
   /** Whether to render the default footer actions (Cancel/Save). Defaults to true. */
   showFooter?: boolean;
+  /** Label of the footer's primary button. Defaults to 'Save'. */
+  submitLabel?: string;
+  /** Material icon of the footer's primary button. Defaults to 'save'. */
+  submitIcon?: string;
   /** Called after the drawer has fully closed */
   onClose?: () => void;
 }
@@ -26,6 +30,8 @@ export class DrawerService {
   readonly placement = signal<'end' | 'start' | 'top' | 'bottom'>('end');
   readonly size = signal<string | null>(null);
   readonly showFooter = signal(true);
+  readonly submitLabel = signal('Save');
+  readonly submitIcon = signal('save');
 
   private _component = signal<Type<unknown> | null>(null);
   private _inputs = signal<Record<string, unknown>>({});
@@ -41,6 +47,8 @@ export class DrawerService {
     this.placement.set(config.placement ?? 'end');
     this.size.set(config.size ?? null);
     this.showFooter.set(config.showFooter ?? true);
+    this.submitLabel.set(config.submitLabel ?? 'Save');
+    this.submitIcon.set(config.submitIcon ?? 'save');
     this._onClose = config.onClose;
     this.isOpen.set(true);
 
@@ -53,6 +61,8 @@ export class DrawerService {
       this._component.set(null);
       this._inputs.set({});
       this.showFooter.set(true);
+      this.submitLabel.set('Save');
+      this.submitIcon.set('save');
       this._onClose?.();
       this._onClose = undefined;
     }, 300);

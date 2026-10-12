@@ -1,0 +1,134 @@
+<div class="diff-layout grid gap-4 h-full min-h-0">
+  <div class="flex flex-col gap-3 min-h-0 min-w-0">
+  @if (node()?.truncated) {
+    <syn-alert open variant="warning">
+      Capture stopped early because the size limit was reached, so some frames are missing.
+    </syn-alert>
+  }
+  <!-- 3D view -->
+  <div class="diff-canvas-area flex-1 rounded-2xl border border-syn-color-neutral-300">
+    <ngt-canvas style="width:100%;height:100%;display:block">
+      <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
+        <ngts-points-buffer #matchedPts [positions]="matchedBuffer">
+          <ngt-points-material [color]="colors.matched" [size]="pointSize()" [sizeAttenuation]="true" />
+        </ngts-points-buffer>
+        <ngts-points-buffer #onlyAPts [positions]="onlyABuffer">
+          <ngt-points-material [color]="colors.onlyA" [size]="pointSize() * 1.6" [sizeAttenuation]="true" />
+        </ngts-points-buffer>
+        <ngts-points-buffer #onlyBPts [positions]="onlyBBuffer">
+          <ngt-points-material [color]="colors.onlyB" [size]="pointSize() * 1.6" [sizeAttenuation]="true" />
+        </ngts-points-buffer>
+      </app-threed-scene-graph>
+    </ngt-canvas>
+    <app-shared-viewport-overlay
+      (gridToggle)="showGrid.set($event)"
+      (orientationChange)="viewOrientation.set($event)"
+      [hasData]="stats() !== null"
+      [orientation]="viewOrientation()"
+      [showGrid]="showGrid()"
+    />
+    @if (isLoading()) {
+      <div class="absolute top-3 right-3 z-20"><syn-spinner /></div>
+    }
+  </div>
+  @if (error()) {
+    <syn-alert open variant="danger">{{ error() }}</syn-alert>
+  }
+  <!-- Frame scrubber -->
+  <div class="shrink-0 flex items-center gap-3">
+    <syn-button class="action-btn" (click)="step(-1)" [disabled]="frameIndex() <= 0" aria-label="Previous frame" size="small" variant="filled">
+      <syn-icon name="chevron_left" />
+    </syn-button>
+    <syn-range
+      (syn-change)="setFrameIndex($any($event.target).value)"
+      [disabled]="frames().length === 0"
+      [max]="frames().length > 0 ? frames().length - 1 : 0"
+      [min]="0"
+      [value]="'' + frameIndex()"
+      class="flex-1 min-w-0"
+    />
+    <syn-button class="action-btn" (click)="step(1)" [disabled]="frameIndex() >= frames().length - 1" aria-label="Next frame" size="small" variant="filled">
+      <syn-icon name="chevron_right" />
+    </syn-button>
+    <span class="w-28 text-right text-sm tabular-nums">Frame {{ frame() ?? '—' }}</span>
+  </div>
+  </div>
+  <aside class="flex flex-col gap-3 min-h-0 overflow-y-auto">
+  <!-- Controls -->
+  <div class="controls-bar shrink-0 flex flex-col items-stretch gap-4 rounded-xl border border-syn-color-neutral-300 p-3">
+    <div class="flex items-center gap-2">
+      <span class="text-xs font-semibold uppercase tracking-wide text-syn-color-neutral-500">Node</span>
+      <syn-select
+        (syn-change)="selectNode($any($event.target).value)"
+        [value]="nodeId()"
+        class="flex-1 min-w-0"
+        size="small"
+      >
+        @for (n of nodes(); track n.node_id) {
+          <syn-option [value]="n.node_id">{{ n.name }}</syn-option>
+        }
+      </syn-select>
+    </div>
+
+    <div class="flex items-center gap-2" title="Max distance to count as the same point">
+      <span class="text-xs font-semibold uppercase tracking-wide text-syn-color-neutral-500">Tolerance</span>
+      <syn-input
+        (syn-change)="setTolerance($any($event.target).value)"
+        [value]="'' + tolerance()"
+        class="flex-1 min-w-0"
+        size="small"
+        type="number"
+        [attr.min]="0.001"
+        [attr.step]="0.01"
+      />
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-semibold uppercase tracking-wide text-syn-color-neutral-500">Point size</span>
+        <syn-badge size="small" variant="neutral">{{ pointSize().toFixed(2) }}</syn-badge>
+      </div>
+      <syn-range
+        (synChangeEvent)="pointSize.set(+$any($event.target).value)"
+        [max]="0.5"
+        [min]="0.01"
+        [step]="0.01"
+        [value]="pointSize().toString()"
+      />
+    </div>
+
+    <div class="flex flex-col gap-2 text-sm">
+      <syn-checkbox (syn-change)="showMatched.set($any($event.target).checked)" [checked]="showMatched()" size="small">
+        <span class="inline-block w-3 h-3 rounded-full align-middle mr-1" [style.background]="colors.matched"></span>Same
+      </syn-checkbox>
+      <syn-checkbox (syn-change)="showOnlyA.set($any($event.target).checked)" [checked]="showOnlyA()" size="small">
+        <span class="inline-block w-3 h-3 rounded-full align-middle mr-1" [style.background]="colors.onlyA"></span>Only in A
+      </syn-checkbox>
+      <syn-checkbox (syn-change)="showOnlyB.set($any($event.target).checked)" [checked]="showOnlyB()" size="small">
+        <span class="inline-block w-3 h-3 rounded-full align-middle mr-1" [style.background]="colors.onlyB"></span>Only in B
+      </syn-checkbox>
+    </div>
+  </div>
+  <!-- Stats -->
+  @if (stats(); as s) {
+    <div class="shrink-0 grid gap-2 grid-cols-2 text-sm">
+      <div class="rounded-lg border-syn p-2" style="border-color: var(--syn-color-neutral-300)">
+        <div class="text-xs text-[var(--syn-color-neutral-600)]">Points A / B</div>
+        <div class="font-medium">{{ s.countA }} / {{ s.countB }}</div>
+      </div>
+      <div class="rounded-lg border-syn p-2" style="border-color: var(--syn-color-neutral-300)">
+        <div class="text-xs text-[var(--syn-color-neutral-600)]">Only in A</div>
+        <div class="font-medium" [style.color]="s.onlyA ? colors.onlyA : null">{{ s.onlyA }}</div>
+      </div>
+      <div class="rounded-lg border-syn p-2" style="border-color: var(--syn-color-neutral-300)">
+        <div class="text-xs text-[var(--syn-color-neutral-600)]">Only in B</div>
+        <div class="font-medium" [style.color]="s.onlyB ? colors.onlyB : null">{{ s.onlyB }}</div>
+      </div>
+      <div class="rounded-lg border-syn p-2" style="border-color: var(--syn-color-neutral-300)">
+        <div class="text-xs text-[var(--syn-color-neutral-600)]">Mean nearest distance A→B / B→A</div>
+        <div class="font-medium">{{ fmt(s.meanDistA, 3) }} / {{ fmt(s.meanDistB, 3) }}</div>
+      </div>
+    </div>
+  }
+  </aside>
+</div>

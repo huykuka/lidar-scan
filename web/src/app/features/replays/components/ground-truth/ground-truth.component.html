@@ -1,0 +1,129 @@
+<div class="flex flex-col gap-5">
+  <p class="text-sm text-syn-color-neutral-600">
+    Tell the app what a metric <em>should</em> be for a recording, for example the real length of a
+    truck bin. Replay runs of that recording are then marked <strong>Pass</strong> or
+    <strong>Fail</strong>, and parameter sweeps show which value comes closest.
+  </p>
+
+  <syn-select
+    (syn-change)="selectRecording($any($event.target).value)"
+    [value]="selectedRecording()"
+    label="Recording"
+  >
+    @for (rec of recordings(); track rec.id) {
+      <syn-option [value]="rec.id">{{ rec.name }}</syn-option>
+    }
+  </syn-select>
+
+  @if (isLoading()) {
+    <div class="flex justify-center py-6"><syn-spinner /></div>
+  } @else if (selectedRecording()) {
+    <!-- Existing targets -->
+    <section class="flex flex-col gap-2">
+      <h3 class="text-sm font-semibold text-syn-typography-color-text">Ground truth for this recording</h3>
+      @if (targets().length === 0) {
+        <p class="text-sm text-syn-color-neutral-500">None yet.</p>
+      }
+      @for (t of targets(); track t.id) {
+        <div class="flex items-center gap-3 rounded-lg border border-syn-color-neutral-200 px-3 py-2">
+          <div class="min-w-0 flex-1">
+            <div class="font-medium text-sm truncate">{{ t.label || t.metric_key }}</div>
+            <div class="text-xs text-syn-color-neutral-500 truncate">
+              {{ nodeName(t.node_id) }} · <span class="font-mono">{{ t.metric_key }}</span>
+            </div>
+          </div>
+          <div class="text-sm font-mono whitespace-nowrap">
+            {{ fmt(t.expected) }}
+            @if (t.tolerance !== null) {
+              <span class="text-syn-color-neutral-500">± {{ fmt(t.tolerance) }}</span>
+            }
+          </div>
+          <syn-icon-button (click)="remove(t)" label="Delete ground truth" name="delete" />
+        </div>
+      }
+    </section>
+
+    <!-- Add a target -->
+    <section class="flex flex-col gap-3">
+      <h3 class="text-sm font-semibold text-syn-typography-color-text">Add ground truth</h3>
+
+      @if (nodeOptions().length === 0) {
+        <syn-alert open variant="neutral">
+          This recording has no completed replay yet. Run a replay first; then you can pick which
+          measured value to score.
+        </syn-alert>
+      } @else {
+        <syn-select (syn-change)="selectNode($any($event.target).value)" [value]="nodeId()" label="Node" size="small">
+          @for (n of nodeOptions(); track n.id) {
+            <syn-option [value]="n.id">{{ n.name }}</syn-option>
+          }
+        </syn-select>
+
+        <syn-select
+          (syn-change)="metricKey.set($any($event.target).value)"
+          [disabled]="!nodeId()"
+          [value]="metricKey()"
+          label="Measured value"
+          placeholder="Choose a value"
+          size="small"
+        >
+          @for (key of keyOptions(); track key) {
+            <syn-option [value]="key">{{ key }}</syn-option>
+          }
+        </syn-select>
+
+        @if (observed(); as o) {
+          <p class="text-xs text-syn-color-neutral-600 -mt-1">
+            Latest run measured <strong>{{ fmt(o.mean) }}</strong>
+            @if (o.std !== undefined) {
+              (± {{ fmt(o.std) }} across frames)
+            }
+            over {{ o.count }} frames.
+          </p>
+        }
+
+        <div class="flex gap-3">
+          <syn-input
+            (syn-input)="expected.set($any($event.target).value)"
+            [value]="expected()"
+            class="flex-1"
+            label="Expected value"
+            size="small"
+            step="any"
+            type="number"
+          />
+          <syn-input
+            (syn-input)="tolerance.set($any($event.target).value)"
+            [value]="tolerance()"
+            class="flex-1"
+            help-text="Optional, ± same unit"
+            label="Tolerance"
+            min="0"
+            size="small"
+            step="any"
+            type="number"
+          />
+        </div>
+
+        <syn-input
+          (syn-input)="label.set($any($event.target).value)"
+          [value]="label()"
+          label="Name (optional)"
+          placeholder="e.g. Bin length"
+          size="small"
+        />
+
+        <div class="flex justify-end">
+          <syn-button (click)="add()" [disabled]="!canAdd()" variant="filled">
+            @if (isSaving()) {
+              <syn-spinner slot="prefix" size="small" />
+            } @else {
+              <syn-icon name="add" slot="prefix" />
+            }
+            Add
+          </syn-button>
+        </div>
+      }
+    </section>
+  }
+</div>

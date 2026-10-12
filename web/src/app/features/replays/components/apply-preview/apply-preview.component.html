@@ -1,0 +1,94 @@
+<div class="flex flex-col gap-4">
+  @if (isLoading()) {
+    <div class="flex items-center justify-center py-12"><syn-spinner /></div>
+  } @else if (error()) {
+    <syn-alert open variant="danger">{{ error() }}</syn-alert>
+  } @else if (preview(); as p) {
+    <p class="text-sm text-syn-color-neutral-600">
+      These parameters from <strong class="text-syn-typography-color-text">{{ p.label }}</strong> will be written to
+      your saved pipeline. The affected nodes reload immediately, so the live pipeline starts using them.
+    </p>
+
+    @if (p.missing_nodes.length > 0) {
+      <syn-alert open variant="danger">
+        <syn-icon name="error" slot="icon" />
+        Some nodes are no longer in the pipeline, so this run cannot be applied.
+      </syn-alert>
+    }
+
+    @if (changes().length === 0 && p.missing_nodes.length === 0) {
+      <syn-alert open variant="neutral">
+        <syn-icon name="check_circle" slot="icon" />
+        The pipeline already has these values. Nothing to apply.
+      </syn-alert>
+    }
+
+    @if (changes().length > 0) {
+      <div class="rounded-lg border border-syn-color-neutral-200 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-syn-color-neutral-100">
+            <tr>
+              <th class="px-3 py-2 text-left font-semibold text-syn-color-neutral-700">Node · parameter</th>
+              <th class="px-3 py-2 text-left font-semibold text-syn-color-neutral-700">Now</th>
+              <th class="px-3 py-2 text-left font-semibold text-syn-color-neutral-700">After</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of changes(); track c.node_id + c.key) {
+              <tr class="border-t border-syn-color-neutral-100">
+                <td class="px-3 py-2">
+                  <div class="font-medium text-syn-typography-color-text">{{ c.node_name }}</div>
+                  <div class="font-mono text-xs text-syn-color-neutral-500">{{ c.key }}</div>
+                </td>
+                <td class="px-3 py-2 font-mono text-syn-color-neutral-600">{{ show(c.current) }}</td>
+                <td class="px-3 py-2 font-mono font-semibold text-syn-color-primary-700">{{ show(c.new) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (unchanged().length > 0) {
+      <p class="text-xs text-syn-color-neutral-500">
+        Already set, no change:
+        @for (c of unchanged(); track c.node_id + c.key; let last = $last) {
+          <span class="font-mono">{{ c.node_name }}.{{ c.key }}</span>{{ last ? '' : ', ' }}
+        }
+      </p>
+    }
+
+    @if (p.pipeline_changed_since_run.length > 0) {
+      <syn-alert open variant="warning">
+        <syn-icon name="warning" slot="icon" />
+        <strong>The pipeline changed after this run.</strong> Results may not match what you get live:
+        <ul class="mt-1 list-disc pl-5 text-xs">
+          @for (d of p.pipeline_changed_since_run; track d.node_id + d.key) {
+            <li>
+              @if (d.key === null) {
+                {{ d.node_name }} was removed
+              } @else {
+                {{ d.node_name }} · <span class="font-mono">{{ d.key }}</span>: {{ show(d.run_value) }} → {{ show(d.live_value) }}
+              }
+            </li>
+          }
+        </ul>
+      </syn-alert>
+    }
+  }
+
+  <div class="flex justify-end gap-2 pt-2">
+    <syn-button (click)="close()" variant="outline">
+      <syn-icon name="close" slot="prefix" />
+      Cancel
+    </syn-button>
+    <syn-button (click)="apply()" [disabled]="!canApply()" variant="filled">
+      @if (isApplying()) {
+        <syn-spinner slot="prefix" size="small" />
+      } @else {
+        <syn-icon name="rocket_launch" slot="prefix" />
+      }
+      Apply to pipeline
+    </syn-button>
+  </div>
+</div>

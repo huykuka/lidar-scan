@@ -20,6 +20,7 @@ export const NAVIGATION_CONFIG: NavItem[] = [
   },
   { label: 'Calibration', route: '/calibration', icon: 'tune', divider: true ,requiredRole: 'admin',},
   { label: 'Recordings', route: '/recordings', icon: 'video_library', divider: true },
+  { label: 'Replays', route: '/replays', icon: 'fast_forward', divider: true, requiredRole: 'service' },
   { label: 'Results', route: '/results', icon: 'analytics', divider: true },
   {
     label: 'Node Definitions & Plugins',

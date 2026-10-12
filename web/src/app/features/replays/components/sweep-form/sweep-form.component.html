@@ -1,0 +1,130 @@
+<form (ngSubmit)="onSubmit()" [formGroup]="form" class="flex flex-col gap-4">
+  <p class="text-sm text-syn-color-neutral-600">
+    Replays the recording once for each value of one parameter, so you can see which value works best.
+    Your saved pipeline is never changed.
+  </p>
+
+  <syn-validate on="live">
+    <syn-input
+      formControlName="label"
+      help-text="Optional, e.g. “outlier radius”"
+      label="Name"
+      [maxlength]="80"
+    />
+  </syn-validate>
+
+  <syn-validate on="live">
+    <syn-select formControlName="playbackNodeId" label="Playback node" required>
+      @for (node of playbackNodes(); track node.id) {
+        <syn-option [value]="node.id">{{ node.name }}</syn-option>
+      }
+    </syn-select>
+  </syn-validate>
+  @if (playbackNodes().length === 0) {
+    <syn-alert open variant="warning">
+      No enabled Playback node in the pipeline. Add one in Settings and connect it to your processing nodes.
+    </syn-alert>
+  }
+
+  <syn-validate on="live">
+    <syn-select formControlName="recordingId" label="Recording" required>
+      @for (rec of recordings(); track rec.id) {
+        <syn-option [value]="rec.id">{{ rec.name }} ({{ rec.frame_count }} frames)</syn-option>
+      }
+    </syn-select>
+  </syn-validate>
+
+  <!-- What to sweep -->
+  <div class="flex flex-col gap-3 rounded-lg border border-syn-color-neutral-200 p-3">
+    <span class="text-sm font-semibold text-syn-typography-color-text">Parameter to vary</span>
+
+    <syn-select formControlName="nodeId" label="Node" size="small" placeholder="Choose a node">
+      @for (node of sweepTargets(); track node.id) {
+        <syn-option [value]="node.id">{{ node.name }}</syn-option>
+      }
+    </syn-select>
+
+    <syn-select
+      [helpText]="nodeId() && properties().length === 0 ? 'This node has no parameter that can be swept' : ''"
+      formControlName="parameter"
+      label="Parameter"
+      placeholder="Choose a parameter"
+      size="small"
+    >
+      @for (p of properties(); track p.name) {
+        <syn-option [value]="p.name">{{ p.label }} ({{ p.name }})</syn-option>
+      }
+    </syn-select>
+
+    @if (prop(); as p) {
+      <p class="text-xs text-syn-color-neutral-600">
+        Current value: <code>{{ currentText() || '—' }}</code>
+        @if (p.help_text) {
+          · {{ p.help_text }}
+        }
+      </p>
+
+      @switch (p.type) {
+        @case ('number') {
+          <syn-radio-group (syn-change)="setMode($any($event.target).value)" [value]="mode()" label="Values" size="small">
+            <syn-radio-button value="range">Range</syn-radio-button>
+            <syn-radio-button value="list">List</syn-radio-button>
+          </syn-radio-group>
+
+          @if (mode() === 'range') {
+            <div class="flex gap-2">
+              <syn-input (syn-input)="start.set($any($event.target).value)" [value]="start()" class="flex-1 min-w-0" label="From" size="small" step="any" type="number" />
+              <syn-input (syn-input)="end.set($any($event.target).value)" [value]="end()" class="flex-1 min-w-0" label="To" size="small" step="any" type="number" />
+              <syn-input (syn-input)="step.set($any($event.target).value)" [value]="step()" class="flex-1 min-w-0" label="Step" size="small" step="any" type="number" />
+            </div>
+          } @else {
+            <syn-input
+              (syn-input)="listText.set($any($event.target).value)"
+              [value]="listText()"
+              help-text="Separate with commas or spaces"
+              label="Values"
+              placeholder="0.3, 0.5, 0.7, 1.0"
+              size="small"
+            />
+          }
+        }
+        @case ('boolean') {
+          <p class="text-sm">Runs once with <code>true</code> and once with <code>false</code>.</p>
+        }
+        @case ('select') {
+          <div class="flex flex-col gap-1">
+            <span class="text-sm">Options to try</span>
+            @for (o of p.options ?? []; track $index) {
+              <syn-checkbox (syn-change)="toggleOption($index, $any($event.target).checked)" [checked]="isChosen($index)">
+                {{ o.label }}
+              </syn-checkbox>
+            }
+          </div>
+        }
+      }
+
+      <!-- Summary -->
+      @if (valuesError()) {
+        <span class="text-xs text-syn-color-danger-600">{{ valuesError() }}</span>
+      } @else {
+        <span class="text-xs text-syn-color-neutral-600">
+          {{ preview() }} ·
+          <strong [class.text-syn-color-danger-600]="overLimit()">{{ runCount() }} run(s)</strong>
+          @if (overLimit()) {
+            (limit {{ maxRuns }})
+          }
+        </span>
+      }
+    }
+  </div>
+
+  @if (prop() && currentValue() !== undefined) {
+    <syn-checkbox (syn-change)="includeCurrent.set($any($event.target).checked)" [checked]="includeCurrent()">
+      Also run the current value ({{ currentText() }}) as a baseline
+    </syn-checkbox>
+  }
+  <syn-checkbox (syn-change)="keepClouds.set($any($event.target).checked)" [checked]="keepClouds()">
+    Keep point clouds for visual diff
+    <span class="text-xs text-syn-color-neutral-500">(uses disk space for every run)</span>
+  </syn-checkbox>
+</form>

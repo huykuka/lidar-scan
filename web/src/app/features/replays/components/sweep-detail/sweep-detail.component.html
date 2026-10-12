@@ -1,0 +1,195 @@
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+    <!-- Toolbar pinned on top -->
+    <div class="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b-syn">
+      <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 min-w-0">
+        <a [routerLink]="['/replays']" [queryParams]="{tab: 'sweeps'}" class="hover:text-syn-color-primary-600 cursor-pointer">Replays</a>
+        <syn-icon class="text-xs" name="chevron_right" />
+        <span class="text-syn-typography-color-text font-medium truncate">{{ sweep()?.label ?? 'Sweep' }}</span>
+        @if (sweep(); as s) {
+          <span class="text-syn-color-neutral-400 shrink-0">· {{ s.progress?.total ?? 0 }} run(s)</span>
+        }
+      </nav>
+      <div class="flex flex-wrap items-center gap-2">
+        <syn-button (click)="load()" [disabled]="isLoading()" size="small" variant="outline">
+          <syn-icon name="refresh" slot="prefix" />
+          Refresh
+        </syn-button>
+        <syn-button (click)="openGroundTruth()" size="small" variant="outline">
+          <syn-icon name="rule" slot="prefix" />
+          Ground truth
+        </syn-button>
+        <syn-button (click)="compare()" [disabled]="!canCompare()" size="small" variant="outline">
+          <syn-icon name="compare_arrows" slot="prefix" />
+          Compare ({{ compareIds().length }}/2)
+        </syn-button>
+        @if (isActive()) {
+          <syn-button (click)="cancelSweep()" size="small" variant="outline">Cancel sweep</syn-button>
+        } @else if (sweep()) {
+          <syn-icon-button (click)="deleteSweep()" label="Delete sweep" name="delete" title="Delete sweep" />
+        }
+      </div>
+    </div>
+
+    <!-- Content body -->
+    <div class="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
+      @if (isLoading() && !detail()) {
+        <div class="flex items-center justify-center py-16"><syn-spinner /></div>
+      } @else if (notFound()) {
+        <div class="flex flex-col items-center justify-center py-16 text-center">
+          <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="search_off" />
+          <p class="text-syn-color-neutral-600 font-semibold text-lg">Sweep not found</p>
+          <a [routerLink]="['/replays']" [queryParams]="{tab: 'sweeps'}" class="mt-3 text-sm text-syn-color-primary-600 hover:underline">← Back to sweeps</a>
+        </div>
+      } @else if (sweep(); as s) {
+        <!-- Summary -->
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <span class="flex items-center gap-1 text-syn-color-neutral-600"><syn-icon name="video_library" /> {{ recordingName() }}</span>
+          <span class="flex items-center gap-1 text-syn-color-neutral-600">
+            <syn-icon name="tune" /> {{ nodeName() }} · <span class="font-mono">{{ s.parameter }}</span>
+          </span>
+          @if (isActive()) {
+            <span class="flex items-center gap-2">
+              <syn-spinner style="font-size: 1rem" />
+              <span class="text-syn-color-neutral-600">{{ s.progress?.completed }} / {{ s.progress?.total }} done</span>
+              <syn-progress-bar class="w-40" [value]="progressPercent()" />
+            </span>
+          } @else if ((s.progress?.failed ?? 0) > 0) {
+            <syn-badge variant="danger">{{ s.progress?.failed }} failed</syn-badge>
+          }
+        </div>
+
+        <!-- Best value / call to set ground truth -->
+        @if (best(); as b) {
+          <div class="flex flex-wrap items-center gap-3 rounded-lg border border-syn-color-success-300 bg-syn-color-success-50 px-4 py-3">
+            <syn-icon class="text-syn-color-success-700 text-2xl" name="emoji_events" />
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-semibold text-syn-color-success-800">
+                Closest to ground truth: {{ s.parameter }} = {{ valueText(b.x) }}{{ b.run.is_baseline ? ' (current setting)' : '' }}
+              </div>
+              <div class="text-xs text-syn-color-neutral-600">
+                <app-replay-score [scores]="b.run.scores" />
+              </div>
+            </div>
+            @if (canApply(b.run)) {
+              <syn-button (click)="applyToPipeline(b.run)" size="small" variant="filled">
+                <syn-icon name="rocket_launch" slot="prefix" />
+                Apply to pipeline
+              </syn-button>
+            }
+          </div>
+        } @else if (detail()!.targets.length === 0 && !isActive()) {
+          <div class="flex flex-wrap items-center gap-3 rounded-lg border border-syn-color-neutral-200 px-4 py-3">
+            <syn-icon class="text-syn-color-neutral-500 text-2xl" name="rule" />
+            <div class="flex-1 min-w-0 text-sm text-syn-color-neutral-600">
+              Tell the app the correct value for this recording and it will point out the best
+              parameter value for you.
+            </div>
+            <syn-button (click)="openGroundTruth()" size="small" variant="outline">Set ground truth</syn-button>
+          </div>
+        }
+
+        <!-- Chart -->
+        <section class="rounded-lg border border-syn-color-neutral-200 p-4 flex flex-col gap-3">
+          <div class="flex flex-wrap items-end gap-3">
+            <h2 class="text-base font-semibold mr-auto">Measured value by parameter</h2>
+            @if (metrics().length > 0) {
+              <syn-select
+                (syn-change)="selectMetric($any($event.target).value)"
+                [value]="metricId()"
+                class="w-80"
+                label="Value to plot"
+                size="small"
+              >
+                @for (m of metrics(); track idOf(m)) {
+                  <syn-option [value]="idOf(m)">{{ m.nodeName }} · {{ m.key }}</syn-option>
+                }
+              </syn-select>
+            }
+          </div>
+
+          @if (metrics().length === 0) {
+            <p class="text-sm text-syn-color-neutral-500 py-8 text-center">
+              @if (isActive()) { Waiting for the first runs to finish… } @else { No measured values to plot for these runs. }
+            </p>
+          } @else {
+            <app-sweep-chart
+              (pointClick)="selectedRunId.set($event)"
+              [bestRunId]="detail()!.best_run_id"
+              [expected]="target()?.expected ?? null"
+              [points]="points()"
+              [selectedRunId]="selectedRunId()"
+              [tolerance]="target()?.tolerance ?? null"
+              [xLabel]="s.parameter"
+              [yLabel]="metric()?.key ?? ''"
+            />
+            <p class="text-xs text-syn-color-neutral-500">
+              Dots show the average over all frames; the dashed lines show how much the value moves between frames (average ± standard deviation).
+              @if (target()) { The green line is the ground truth and the green band its tolerance. }
+            </p>
+          }
+        </section>
+
+        <!-- Runs -->
+        <section class="rounded-lg border border-syn-color-neutral-200 overflow-hidden">
+          <table class="syn-table--default" style="width: 100%">
+            <thead>
+              <tr>
+                <th style="width: 2.5rem"></th>
+                <th>{{ s.parameter }}</th>
+                <th>Status</th>
+                <th>Average</th>
+                <th>± Spread</th>
+                <th>Error vs ground truth</th>
+                <th>Result</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.run.id) {
+                <tr
+                  (click)="selectedRunId.set(row.run.id)"
+                  [class.bg-syn-color-primary-50]="row.run.id === selectedRunId()"
+                  class="cursor-pointer"
+                >
+                  <td (click)="$event.stopPropagation()">
+                    <syn-checkbox
+                      (syn-change)="toggleCompare(row.run, $any($event.target).checked)"
+                      [checked]="compareIds().includes(row.run.id)"
+                      [disabled]="row.run.status !== 'completed'"
+                    />
+                  </td>
+                  <td>
+                    <span class="font-mono font-medium">{{ valueText(row.x) }}</span>
+                    @if (row.run.is_baseline) {
+                      <syn-badge class="ml-1" variant="neutral">current</syn-badge>
+                    }
+                    @if (row.run.id === detail()!.best_run_id) {
+                      <syn-badge class="ml-1" variant="success">best</syn-badge>
+                    }
+                  </td>
+                  <td>
+                    <syn-badge [variant]="statusVariant(row.run.status)">{{ row.run.status }}</syn-badge>
+                    @if (row.run.status === 'failed' && row.run.error) {
+                      <div class="text-xs text-syn-color-danger-600">{{ row.run.error }}</div>
+                    }
+                  </td>
+                  <td class="font-mono">{{ fmt(row.mean) }}</td>
+                  <td class="font-mono text-syn-color-neutral-600">{{ row.std === null ? '—' : fmt(row.std) }}</td>
+                  <td class="font-mono text-xs">{{ errorText(row.score) }}</td>
+                  <td><app-replay-score [scores]="row.run.scores" /></td>
+                  <td class="whitespace-nowrap text-right" (click)="$event.stopPropagation()">
+                    <syn-icon-button (click)="rerun(row.run)" label="Re-run with changes" name="content_copy" title="Re-run with changes" />
+                    @if (canApply(row.run)) {
+                      <syn-icon-button (click)="applyToPipeline(row.run)" label="Apply to pipeline" name="rocket_launch" title="Apply this value to the pipeline" />
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </section>
+      }
+    </div>
+  </div>
+</div>

@@ -30,6 +30,13 @@ async def lifespan(_: FastAPI):
     recorder = get_recorder()
     manager.recorder = recorder
 
+    # Replay runs left queued/running by a crash can never finish.
+    try:
+        from app.services.replay import get_replay_service
+        get_replay_service().recover_interrupted()
+    except Exception as exc:
+        logger.warning("Replay run recovery failed: %s", exc)
+
     node_manager.load_config()
     await node_manager.start(asyncio.get_running_loop())
 

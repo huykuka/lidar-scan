@@ -184,6 +184,17 @@ def ensure_schema(engine: Engine) -> None:
                 )
             )
 
+    # Replay runs: sweep link + captured nodes (added after the table first shipped)
+    with engine.begin() as conn:
+        replay_cols = _table_cols(conn, "replay_runs")
+        if replay_cols:  # table exists (create_all above makes it on fresh DBs)
+            if "sweep_id" not in replay_cols:
+                conn.execute(text("ALTER TABLE replay_runs ADD COLUMN sweep_id TEXT"))
+            if "capture_nodes" not in replay_cols:
+                conn.execute(
+                    text("ALTER TABLE replay_runs ADD COLUMN capture_nodes TEXT NOT NULL DEFAULT 'null'")
+                )
+
     # Seed dag_meta row if table is empty (idempotent via INSERT OR IGNORE)
     with engine.begin() as conn:
         conn.execute(

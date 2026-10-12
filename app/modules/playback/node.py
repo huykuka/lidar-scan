@@ -71,6 +71,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
         playback_speed: float = 1.0,
         loopable: bool = False,
         throttle_ms: float = 0,
+        fast_mode: bool = False,
     ) -> None:
         self.manager = manager
         self.id = node_id
@@ -85,6 +86,8 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
         self._playback_speed: float = _validate_speed(float(playback_speed))
         self._loopable: bool = bool(loopable)
         self._throttle_ms: float = float(throttle_ms)
+        # Offline replay: no inter-frame sleep; downstream is awaited per frame.
+        self._fast_mode: bool = bool(fast_mode)
 
         # Runtime state
         self._reader: Any = None          # RecordingReader | None
@@ -180,6 +183,29 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
             "[%s] Playback task created (task_name=playback-%s): %d frames, speed=%.2f×, loopable=%s",
             self.id, self.id, frame_count, self._playback_speed, self._loopable,
         )
+
+    async def wait_finished(self) -> None:
+        """Block until the playback loop has exhausted all frames (or failed)."""
+        task = self._task
+        if task is not None:
+            await asyncio.shield(task)
+
+    @property
+    def current_frame(self) -> int:
+        """1-based index of the frame most recently emitted (0 before first)."""
+        return self._current_frame
+
+    @property
+    def total_frames(self) -> int:
+        return self._total_frames
+
+    @property
+    def status(self) -> str:
+        return self._status
+
+    @property
+    def error_message(self) -> Optional[str]:
+        return self._error_message
 
     async def stop(self) -> None:
         """Cancel the playback task and reset state."""
@@ -337,9 +363,16 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
                 }
 
                 await self.manager.forward_data(self.id, payload)
+                if self._fast_mode:
+                    # Offline replay: let fire-and-forget downstream hops settle so the
+                    # whole frame is processed before the next one is emitted.
+                    wait_idle = getattr(self.manager, "wait_idle", None)
+                    if wait_idle is not None:
+                        await wait_idle()
                 self._cycle_time_ms = (time.monotonic() - _frame_start) * 1000
 
-                await asyncio_sleep(sleep_s)
+                # Fast mode: just yield to the event loop, downstream already awaited.
+                await asyncio_sleep(0 if self._fast_mode else sleep_s)
 
                 frame_idx += 1
                 if frame_idx >= total:
