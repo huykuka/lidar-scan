@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libegl1 \
   libgl1 \
   libgomp1 \
+  libusb-1.0-0 \
   libstdc++6 \
   libgcc-s1 \
   && rm -rf /var/lib/apt/lists/* \
