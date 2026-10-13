@@ -54,15 +54,16 @@ async def recordings_stream_endpoint(websocket: WebSocket, recording_id: str):
     },
     summary="Upload Recording",
     description=(
-            "Upload a recording ZIP archive to import it into the library. "
-            "The file must be a valid ZIP produced by the recorder (contains metadata.json and frame PCD files). "
+            "Upload a recording to import it into the library. "
+            "Accepts an MCAP file with foxglove.PointCloud messages, or a legacy ZIP archive "
+            "(metadata.json + frame PCD files) which is converted to MCAP. "
             "An optional `name` field overrides the display name."
     ),
 )
 async def recordings_upload_endpoint(
         background_tasks: BackgroundTasks,
         db: Annotated[Session, Depends(get_db)],
-        file: UploadFile = File(..., description="Recording ZIP archive"),
+        file: UploadFile = File(..., description="Recording MCAP file (or legacy ZIP archive)"),
         name: str | None = Form(None, description="Optional display name for the recording"),
 ):
     return await upload_recording(file, name, background_tasks, db)

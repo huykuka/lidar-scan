@@ -166,44 +166,47 @@ def generate_thumbnail_from_file(
         
         # Open recording
         reader = RecordingReader(str(recording_path))
+        try:
         
-        # Handle specific frame index explicitly
-        if frame_index is not None:
-            if frame_index >= reader.frame_count:
-                logger.warning(f"Frame index {frame_index} out of range (max: {reader.frame_count - 1})")
-                frame_index = max(0, reader.frame_count - 1)
-            frames_to_try = [frame_index]
-        else:
-            # Auto-select frames: try up to 10 frames starting from 10% to find a non-empty one
-            if reader.frame_count == 0:
-                logger.warning("Recording has 0 frames, cannot generate thumbnail")
-                return False
+            # Handle specific frame index explicitly
+            if frame_index is not None:
+                if frame_index >= reader.frame_count:
+                    logger.warning(f"Frame index {frame_index} out of range (max: {reader.frame_count - 1})")
+                    frame_index = max(0, reader.frame_count - 1)
+                frames_to_try = [frame_index]
+            else:
+                # Auto-select frames: try up to 10 frames starting from 10% to find a non-empty one
+                if reader.frame_count == 0:
+                    logger.warning("Recording has 0 frames, cannot generate thumbnail")
+                    return False
                 
-            frames_to_try = []
-            start_pct = 0.1
-            for i in range(10):
-                pct = start_pct + i * ((1.0 - start_pct) / 10.0)
-                idx = min(int(reader.frame_count * pct), reader.frame_count - 1)
-                if idx not in frames_to_try:
-                    frames_to_try.append(idx)
+                frames_to_try = []
+                start_pct = 0.1
+                for i in range(10):
+                    pct = start_pct + i * ((1.0 - start_pct) / 10.0)
+                    idx = min(int(reader.frame_count * pct), reader.frame_count - 1)
+                    if idx not in frames_to_try:
+                        frames_to_try.append(idx)
                     
-            if not frames_to_try:
-                frames_to_try = [0]
+                if not frames_to_try:
+                    frames_to_try = [0]
         
-        # Read frames and try generating
-        for target_index in frames_to_try:
-            points, _ = reader.get_frame(target_index)
+            # Read frames and try generating
+            for target_index in frames_to_try:
+                points, _ = reader.get_frame(target_index)
             
-            # Quick check if it's completely empty before attempting full generation
-            if points.shape[0] == 0 or np.all(points == 0):
-                continue
+                # Quick check if it's completely empty before attempting full generation
+                if points.shape[0] == 0 or np.all(points == 0):
+                    continue
                 
-            success = generate_thumbnail(points, output_path, size, view)
-            if success:
-                return True
+                success = generate_thumbnail(points, output_path, size, view)
+                if success:
+                    return True
                 
-        logger.warning(f"All tried frames were empty or invalid for {recording_path}")
-        return False
+            logger.warning(f"All tried frames were empty or invalid for {recording_path}")
+            return False
+        finally:
+            reader.close()
     
     except Exception as e:
         logger.error(f"Failed to generate thumbnail from file: {e}", exc_info=True)

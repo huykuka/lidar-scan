@@ -8,7 +8,6 @@ POST returns we can immediately query the row and observe status='ready'.
 
 import asyncio
 import hashlib
-import zipfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -22,9 +21,9 @@ from app.services.shared.recording import RecordingReader, RecordingWriter
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_recording_zip(tmp_path: Path, n_frames: int, name: str) -> tuple[Path, list]:
-    """Return (zip_path, list_of_(points, timestamp)) for a recording."""
-    dest = tmp_path / f"{name}.zip"
+def _make_recording(tmp_path: Path, n_frames: int, name: str) -> tuple[Path, list]:
+    """Return (mcap_path, list_of_(points, timestamp)) for a recording."""
+    dest = tmp_path / f"{name}.mcap"
     metadata = {"node_id": "testnode", "sensor_id": "sensor1", "name": name}
     frames = []
     writer = RecordingWriter(dest, metadata)
@@ -38,11 +37,11 @@ def _make_recording_zip(tmp_path: Path, n_frames: int, name: str) -> tuple[Path,
 
 
 def _register_recording(client, zip_path: Path, name: str = "src") -> dict:
-    """Upload a recording ZIP via the API and return the RecordingResponse dict."""
+    """Upload a recording via the API and return the RecordingResponse dict."""
     with open(zip_path, "rb") as fh:
         resp = client.post(
             "/api/v1/recordings/upload",
-            files={"file": (zip_path.name, fh, "application/zip")},
+            files={"file": (zip_path.name, fh, "application/octet-stream")},
             data={"name": name},
         )
     assert resp.status_code == 200, resp.text
@@ -70,7 +69,7 @@ def test_trim_route_registered():
 # ---------------------------------------------------------------------------
 
 def test_trim_returns_202_immediately(client, tmp_path):
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=10, name="full")
+    zip_path, _ = _make_recording(tmp_path, n_frames=10, name="full")
     src = _register_recording(client, zip_path, "full")
 
     resp = client.post(
@@ -82,7 +81,7 @@ def test_trim_returns_202_immediately(client, tmp_path):
 
 def test_trim_happy_path_returns_recording_response(client, tmp_path):
     """After TestClient runs the background task, status flips to 'ready' with correct data."""
-    zip_path, frames = _make_recording_zip(tmp_path, n_frames=10, name="full")
+    zip_path, frames = _make_recording(tmp_path, n_frames=10, name="full")
     src = _register_recording(client, zip_path, "full")
 
     resp = client.post(
@@ -113,7 +112,7 @@ def test_trim_happy_path_returns_recording_response(client, tmp_path):
 
 def test_trim_processing_row_created_before_background(client, tmp_path):
     """Initial 202 response body shows status='processing'."""
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="proc")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="proc")
     src = _register_recording(client, zip_path, "proc")
 
     # Intercept before bg runs — patch _perform_trim_copy to block briefly
@@ -130,7 +129,7 @@ def test_trim_processing_row_created_before_background(client, tmp_path):
 
 
 def test_trim_custom_name(client, tmp_path):
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="orig")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="orig")
     src = _register_recording(client, zip_path, "orig")
 
     resp = client.post(
@@ -142,7 +141,7 @@ def test_trim_custom_name(client, tmp_path):
 
 
 def test_trim_new_recording_visible_in_list(client, tmp_path):
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="r")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="r")
     src = _register_recording(client, zip_path, "r")
 
     trim_resp = client.post(
@@ -161,7 +160,7 @@ def test_trim_new_recording_visible_in_list(client, tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_trim_output_frames_match_source_slice(client, tmp_path):
-    zip_path, frames = _make_recording_zip(tmp_path, n_frames=8, name="s")
+    zip_path, frames = _make_recording(tmp_path, n_frames=8, name="s")
     src = _register_recording(client, zip_path, "s")
 
     start, end = 2, 6
@@ -189,7 +188,7 @@ def test_trim_output_frames_match_source_slice(client, tmp_path):
 
 
 def test_trim_output_frames_reindexed_from_zero(client, tmp_path):
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="ri")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="ri")
     src = _register_recording(client, zip_path, "ri")
 
     resp = client.post(
@@ -200,15 +199,17 @@ def test_trim_output_frames_reindexed_from_zero(client, tmp_path):
     data_id = resp.json()["id"]
     final = client.get(f"/api/v1/recordings/{data_id}").json()
 
-    with zipfile.ZipFile(final["file_path"]) as zf:
-        names = zf.namelist()
-    assert "frame_00000.pcd" in names
-    assert "frame_00001.pcd" in names
-    assert "frame_00003.pcd" not in names
+    assert final["file_path"].endswith(".mcap")
+    reader = RecordingReader(final["file_path"])
+    try:
+        assert reader.frame_count == 2
+        assert [float(reader.get_frame(i)[0][0][0]) for i in range(2)] == [3.0, 4.0]
+    finally:
+        reader.close()
 
 
 def test_trim_metadata_timestamps_recomputed(client, tmp_path):
-    zip_path, frames = _make_recording_zip(tmp_path, n_frames=6, name="ts")
+    zip_path, frames = _make_recording(tmp_path, n_frames=6, name="ts")
     src = _register_recording(client, zip_path, "ts")
 
     start, end = 1, 4
@@ -231,7 +232,7 @@ def test_trim_metadata_timestamps_recomputed(client, tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_trim_single_first_frame(client, tmp_path):
-    zip_path, frames = _make_recording_zip(tmp_path, n_frames=5, name="b1")
+    zip_path, frames = _make_recording(tmp_path, n_frames=5, name="b1")
     src = _register_recording(client, zip_path, "b1")
 
     resp = client.post(
@@ -251,7 +252,7 @@ def test_trim_single_first_frame(client, tmp_path):
 
 def test_trim_single_last_frame(client, tmp_path):
     n = 5
-    zip_path, frames = _make_recording_zip(tmp_path, n_frames=n, name="b2")
+    zip_path, frames = _make_recording(tmp_path, n_frames=n, name="b2")
     src = _register_recording(client, zip_path, "b2")
 
     resp = client.post(
@@ -280,7 +281,7 @@ def test_trim_single_last_frame(client, tmp_path):
     ({"start_frame": 0, "end_frame": 100}, "Invalid frame range"),
 ])
 def test_trim_400_invalid_range(client, tmp_path, body, detail_substr):
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="val")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="val")
     src = _register_recording(client, zip_path, "val")
 
     before_list = client.get("/api/v1/recordings").json()["recordings"]
@@ -315,7 +316,7 @@ def test_trim_404_unknown_recording(client):
 # ---------------------------------------------------------------------------
 
 def test_trim_original_db_row_unchanged(client, tmp_path):
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="orig2")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="orig2")
     src = _register_recording(client, zip_path, "orig2")
 
     orig_frame_count = src["frame_count"]
@@ -334,7 +335,7 @@ def test_trim_original_db_row_unchanged(client, tmp_path):
 
 
 def test_trim_original_file_bytes_unchanged(client, tmp_path):
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="orig3")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="orig3")
     src = _register_recording(client, zip_path, "orig3")
 
     orig_path = Path(src["file_path"])
@@ -358,7 +359,7 @@ def test_trim_failure_sets_status_failed(client, tmp_path):
     """If the copy raises, the bg task sets status='failed' and removes partial file."""
     import app.api.v1.recordings.service as svc
 
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="fail")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="fail")
     src = _register_recording(client, zip_path, "fail")
 
     with patch.object(svc, "_perform_trim_copy", side_effect=RuntimeError("disk full")):
@@ -388,7 +389,7 @@ def test_trim_copy_offloaded_to_thread(client, tmp_path):
     """Assert _perform_trim_copy runs via asyncio.to_thread, not inline on the event loop."""
     import app.api.v1.recordings.service as svc
 
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=5, name="offload")
+    zip_path, _ = _make_recording(tmp_path, n_frames=5, name="offload")
     src = _register_recording(client, zip_path, "offload")
 
     calls = []
@@ -433,7 +434,7 @@ def test_migration_recordings_status_column_exists(client):
 
 def test_existing_recordings_have_status_ready(client, tmp_path):
     """Rows inserted without explicit status (simulating old rows) default to 'ready'."""
-    zip_path, _ = _make_recording_zip(tmp_path, n_frames=3, name="legacy")
+    zip_path, _ = _make_recording(tmp_path, n_frames=3, name="legacy")
     src = _register_recording(client, zip_path, "legacy")
 
     # Uploaded rows don't set status explicitly — they should default to 'ready'

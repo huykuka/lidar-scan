@@ -21,8 +21,12 @@ from app.modules.lidar.io.pcd import save_to_pcd
 from app.repositories.recordings_orm import RecordingRepository
 from app.services.nodes.instance import node_manager
 from app.services.shared.recorder import get_recorder
-from app.services.shared.recording import RecordingReader
-from app.services.shared.recording import RecordingWriter
+from app.services.shared.recording import (
+    McapRecordingReader,
+    RecordingReader,
+    RecordingWriter,
+    convert_zip_to_mcap,
+)
 from .dto import (
     StartRecordingRequest, TrimRecordingRequest
 )
@@ -258,10 +262,7 @@ async def stream_recording(websocket: WebSocket, recording: dict) -> None:
             producer.cancel()
             await asyncio.gather(producer, return_exceptions=True)
         if reader is not None:
-            close = getattr(reader, "close", None)
-            if close is None:
-                close = reader.zipf.close
-            await asyncio.to_thread(close)
+            await asyncio.to_thread(reader.close)
 
 
 async def start_recording(request: StartRecordingRequest, db: Session):
@@ -555,7 +556,7 @@ async def download_recording(recording_id: str, db: Session):
         raise HTTPException(status_code=404, detail=f"Recording file not found: {file_path}")
 
     # Generate a nice filename
-    filename = f"{recording['name']}_{recording['created_at'][:10]}.lidr"
+    filename = f"{recording['name']}_{recording['created_at'][:10]}{Path(file_path).suffix}"
     # Sanitize filename
     filename = "".join(c for c in filename if c.isalnum() or c in ('_', '-', '.')).rstrip()
 
@@ -633,14 +634,16 @@ async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, backgr
     # Open recording and read frame
     try:
         reader = RecordingReader(file_path)
+        try:
+            if frame_index < 0 or frame_index >= reader.frame_count:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid frame index {frame_index}. Recording has {reader.frame_count} frames."
+                )
 
-        if frame_index < 0 or frame_index >= reader.frame_count:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid frame index {frame_index}. Recording has {reader.frame_count} frames."
-            )
-
-        points, timestamp = reader.get_frame(frame_index)
+            points, timestamp = reader.get_frame(frame_index)
+        finally:
+            reader.close()
 
         # Convert to PCD and save to temp file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.pcd', delete=False) as tmp_file:
@@ -672,13 +675,13 @@ async def get_recording_frame_as_pcd(recording_id: str, frame_index: int, backgr
 
 async def upload_recording(file: UploadFile, name: str | None, background_tasks: BackgroundTasks, db: Session):
     """
-    Upload a recording ZIP archive and register it in the database.
+    Upload a recording and register it in the database.
 
-    The uploaded file must be a valid ZIP archive containing ``metadata.json``
-    and at least one ``frame_NNNNN.pcd`` entry (standard recording format).
+    Accepts an MCAP file holding foxglove.PointCloud messages, or a legacy ZIP
+    archive (``metadata.json`` + ``frame_NNNNN.pcd``), which is converted to MCAP.
 
     Args:
-        file: Multipart-uploaded ZIP file.
+        file: Multipart-uploaded MCAP (or legacy ZIP) file.
         name: Optional display name. Falls back to the filename stem.
         background_tasks: FastAPI background tasks (used for thumbnail generation).
         db: Database session.
@@ -687,7 +690,7 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
         RecordingResponse for the newly created entry.
 
     Raises:
-        HTTPException 400: If the file is not a valid recording ZIP.
+        HTTPException 400: If the file is not a valid recording.
         HTTPException 500: If saving fails unexpectedly.
     """
     recordings_dir = Path("data/recordings")
@@ -697,44 +700,54 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
     original_stem = Path(file.filename or "upload").stem
     display_name = name or original_stem
 
-    dest_path = recordings_dir / f"{recording_id}.zip"
+    dest_path = recordings_dir / f"{recording_id}.mcap"
     tmp_path: Path | None = None
 
     try:
         # Stream upload to a temporary file first so we can validate before committing
         with tempfile.NamedTemporaryFile(
-                dir=str(recordings_dir), suffix=".zip.tmp", delete=False
+                dir=str(recordings_dir), suffix=".upload.tmp", delete=False
         ) as tmp_f:
             tmp_path = Path(tmp_f.name)
             content = await file.read()
             tmp_f.write(content)
 
-        # Validate ZIP structure
-        if not zipfile.is_zipfile(str(tmp_path)):
-            raise HTTPException(status_code=400, detail="Uploaded file is not a valid ZIP archive.")
-
-        with zipfile.ZipFile(str(tmp_path), "r") as zf:
-            names_in_zip = zf.namelist()
-            if "metadata.json" not in names_in_zip:
+        if zipfile.is_zipfile(str(tmp_path)):
+            # Legacy ZIP PCD archive: validate, then convert to MCAP
+            with zipfile.ZipFile(str(tmp_path), "r") as zf:
+                names_in_zip = zf.namelist()
+                if "metadata.json" not in names_in_zip:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid recording file: missing metadata.json inside the ZIP.",
+                    )
+                if not any(n.startswith("frame_") and n.endswith(".pcd") for n in names_in_zip):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid recording file: no frame_NNNNN.pcd entries found.",
+                    )
+            await asyncio.to_thread(convert_zip_to_mcap, tmp_path, dest_path)
+        else:
+            if content[:8] != b"\x89MCAP0\r\n":
                 raise HTTPException(
                     status_code=400,
-                    detail="Invalid recording file: missing metadata.json inside the ZIP.",
+                    detail="Uploaded file is not a valid MCAP recording (or legacy ZIP archive).",
                 )
-            frame_files = [n for n in names_in_zip if n.startswith("frame_") and n.endswith(".pcd")]
-            if not frame_files:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid recording file: no frame_NNNNN.pcd entries found.",
-                )
+            # Validate that it holds a foxglove.PointCloud channel before committing
+            try:
+                McapRecordingReader(tmp_path).close()
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"Invalid recording file: {exc}")
+            shutil.move(str(tmp_path), str(dest_path))
+            tmp_path = None
 
-        # Move to final destination
-        shutil.move(str(tmp_path), str(dest_path))
-        tmp_path = None
-
-        # Read metadata from the ZIP
+        # Read metadata from the stored MCAP
         reader = RecordingReader(dest_path)
-        info = reader.get_info()
-        meta: dict = reader.metadata
+        try:
+            info = reader.get_info()
+            meta: dict = reader.metadata
+        finally:
+            reader.close()
 
         recording_timestamp = meta.get(
             "recording_timestamp",
@@ -870,11 +883,14 @@ def _perform_trim_copy(
     Cleans up partial dest on failure and re-raises.
     """
     reader = RecordingReader(src_file_path)
+    writer: RecordingWriter | None = None
     try:
         writer = RecordingWriter(dest, new_metadata)
         writer.write_batch(list(reader.iter_frames(start_frame, end_frame)))
         return writer.finalize()
     except Exception:
+        if writer is not None:
+            writer.abort()
         for path in (dest, dest.with_suffix(".png")):
             try:
                 if path.exists():
@@ -938,7 +954,7 @@ async def trim_recording(
         new_id = uuid.uuid4().hex
         recordings_dir = Path("data/recordings")
         recordings_dir.mkdir(parents=True, exist_ok=True)
-        dest = recordings_dir / f"{new_id}.zip"
+        dest = recordings_dir / f"{new_id}.mcap"
 
         # Strip stale computed fields; writer.finalize recomputes them
         new_metadata = deepcopy(reader.metadata)

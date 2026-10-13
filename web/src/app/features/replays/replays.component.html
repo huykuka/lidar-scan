@@ -77,26 +77,26 @@
               </p>
             </div>
           } @else {
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 pb-4">
-              <div class="stat-tile ">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2 pb-3">
+              <div title="All replay runs" class="stat-tile ">
                 <span class="stat-icon"><syn-icon name="fast_forward" /></span>
                 <span class="stat-value">{{ stats().total }}</span>
                 <span class="stat-label">Total runs</span>
                 <span class="stat-sub">All replay runs</span>
               </div>
-              <div class="stat-tile stat-success">
+              <div title="Finished successfully" class="stat-tile stat-success">
                 <span class="stat-icon"><syn-icon name="check_circle" /></span>
                 <span class="stat-value">{{ stats().completed }}</span>
                 <span class="stat-label">Completed</span>
                 <span class="stat-sub">Finished successfully</span>
               </div>
-              <div class="stat-tile stat-primary">
+              <div title="Running or queued" class="stat-tile stat-primary">
                 <span class="stat-icon"><syn-icon name="play_arrow" /></span>
                 <span class="stat-value">{{ stats().active }}</span>
                 <span class="stat-label">Active</span>
                 <span class="stat-sub">Running or queued</span>
               </div>
-              <div class="stat-tile stat-danger">
+              <div title="Needs attention" class="stat-tile stat-danger">
                 <span class="stat-icon"><syn-icon name="error" /></span>
                 <span class="stat-value">{{ stats().failed }}</span>
                 <span class="stat-label">Failed</span>

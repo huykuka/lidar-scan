@@ -1,5 +1,5 @@
 """
-Unit tests for recording format module - ZIP PCD archive encoding/decoding.
+Unit tests for recording format module - MCAP (foxglove.PointCloud) encoding/decoding.
 """
 import tempfile
 from pathlib import Path
@@ -14,28 +14,28 @@ from app.services.shared.recording import (
 )
 
 
-def zip_path(p: Path) -> Path:
-    """Return the .zip equivalent of a path (writer always renames to .zip)."""
-    return p.with_suffix(".zip")
+def mcap_path(p: Path) -> Path:
+    """Return the .mcap equivalent of a path (writer always stores .mcap)."""
+    return p.with_suffix(".mcap")
 
 
 class TestRecordingWriter:
     """Tests for RecordingWriter class"""
 
     def test_create_recording_file(self, tmp_path):
-        """Test creating a new recording file (always stored as .zip)"""
+        """Test creating a new recording file (always stored as .mcap)"""
         file_path = tmp_path / "test_recording.lidr"
         metadata = {"sensor_id": "test_sensor", "topic": "test_topic"}
 
         writer = RecordingWriter(file_path, metadata)
-        # Writer opens the ZIP immediately; zipf is the open ZipFile
-        assert writer.zipf is not None
+        # Writer opens the file immediately
+        assert writer._writer is not None
         assert writer.frame_count == 0
         assert writer.metadata == metadata
         writer.finalize()
 
-        # Stored as .zip regardless of input extension
-        assert zip_path(file_path).exists()
+        # Stored as .mcap regardless of input extension
+        assert mcap_path(file_path).exists()
 
     def test_write_single_frame(self, tmp_path):
         """Test writing a single frame"""
@@ -59,7 +59,7 @@ class TestRecordingWriter:
 
         assert info["frame_count"] == 1
         assert info["duration_seconds"] == 0.0
-        assert info["file_path"] == str(zip_path(file_path))
+        assert info["file_path"] == str(mcap_path(file_path))
 
     def test_write_multiple_frames(self, tmp_path):
         """Test writing multiple frames"""
@@ -111,9 +111,9 @@ class TestRecordingWriter:
             writer.write_frame(points, 1000.0)
             assert writer.frame_count == 1
 
-        # File should be finalized and closed (zipf set to None)
-        assert zip_path(file_path).exists()
-        assert writer.zipf is None
+        # File should be finalized and closed (writer released)
+        assert mcap_path(file_path).exists()
+        assert writer._writer is None
 
 
 class TestRecordingReader:
@@ -244,7 +244,7 @@ class TestRecordingReader:
         info = reader.get_info()
 
         assert info["frame_count"] == 100
-        assert info["file_path"] == str(zip_path(file_path))
+        assert info["file_path"] == str(mcap_path(file_path))
         assert info["file_size_bytes"] > 0
         assert abs(info["duration_seconds"] - 9.9) < 0.1
         assert abs(info["average_fps"] - 10.0) < 0.5
@@ -256,23 +256,63 @@ class TestRecordingReader:
 class TestRecordingFormat:
     """Tests for recording file format structure"""
 
-    def test_zip_file_structure(self, tmp_path):
-        """Test that the recording is a valid ZIP with PCD frames and metadata"""
+    def test_mcap_file_structure(self, tmp_path):
+        """Recording is a valid MCAP with one foxglove.PointCloud message per frame"""
+        from mcap.reader import make_reader
+
+        file_path = tmp_path / "test_recording.mcap"
+
+        with RecordingWriter(file_path, {"node_id": "n1"}) as writer:
+            writer.write_frame(np.array([[1.0, 2.0, 3.0]], dtype=np.float32), 1000.0)
+            writer.write_frame(np.array([[4.0, 5.0, 6.0]], dtype=np.float32), 1000.0)  # duplicate ts
+
+        with open(mcap_path(file_path), "rb") as fh:
+            assert fh.read(8) == b"\x89MCAP0\r\n"
+            fh.seek(0)
+            summary = make_reader(fh).get_summary()
+            assert [c.topic for c in summary.channels.values()] == ["/n1/points"]
+            assert [s.name for s in summary.schemas.values()] == ["foxglove.PointCloud"]
+            assert summary.statistics.message_count == 2
+
+        reader = RecordingReader(file_path)
+        try:
+            assert reader.frame_count == 2
+            assert reader.get_frame(1)[0].tolist() == [[4.0, 5.0, 6.0]]
+        finally:
+            reader.close()
+
+    def test_legacy_zip_still_readable_and_convertible(self, tmp_path):
+        """Legacy ZIP archives open via RecordingReader and convert to MCAP"""
+        import json
         import zipfile
 
-        file_path = tmp_path / "test_recording.zip"
+        from app.services.shared.recording import convert_zip_to_mcap, pack_pcd_bytes
 
-        with RecordingWriter(file_path, {"test": "data"}) as writer:
-            points = np.array([[1.0, 2.0, 3.0]], dtype=np.float32)
-            writer.write_frame(points, 1000.0)
+        zip_file = tmp_path / "legacy.zip"
+        pts = [np.random.rand(5 + i, 3).astype(np.float32) for i in range(3)]
+        with zipfile.ZipFile(zip_file, "w") as zf:
+            for i, p in enumerate(pts):
+                zf.writestr(f"frame_{i:05d}.pcd", pack_pcd_bytes(p))
+            zf.writestr("metadata.json", json.dumps({
+                "node_id": "n", "frame_count": 3, "timestamps": [1.0, 2.0, 3.0],
+                "start_timestamp": 1.0, "end_timestamp": 3.0,
+            }))
 
-        # File should be a valid ZIP
-        assert zipfile.is_zipfile(zip_path(file_path))
+        legacy = RecordingReader(zip_file)
+        assert legacy.frame_count == 3
+        legacy.close()
 
-        with zipfile.ZipFile(zip_path(file_path), 'r') as zf:
-            names = zf.namelist()
-            assert "metadata.json" in names
-            assert "frame_00000.pcd" in names
+        info = convert_zip_to_mcap(zip_file, tmp_path / "legacy.mcap")
+        assert info["frame_count"] == 3
+        reader = RecordingReader(tmp_path / "legacy.mcap")
+        try:
+            for i, p in enumerate(pts):
+                got, ts = reader.get_frame(i)
+                np.testing.assert_array_equal(got, p)
+                assert ts == float(i + 1)
+            assert [f[1] for f in reader.iter_frames(1, 3)] == [2.0, 3.0]
+        finally:
+            reader.close()
 
     def test_frame_index_integrity(self, tmp_path):
         """Test that frame index correctly points to frames"""

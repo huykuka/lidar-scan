@@ -18,7 +18,7 @@ def _receive_json_after_streamed_frames(websocket):
 
 
 def _recording(tmp_path, db_session):
-    archive = tmp_path / "playback.zip"
+    archive = tmp_path / "playback.mcap"
     with RecordingWriter(archive, {"name": "playback"}) as writer:
         writer.write_frame(np.array([[1.0, 2.0, 3.0] + list(range(4, 17))], dtype=np.float32), 10.0)
         writer.write_frame(np.array([[4.0, 5.0, 6.0] + list(range(7, 20))], dtype=np.float32), 11.0)

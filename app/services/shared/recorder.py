@@ -96,7 +96,7 @@ class RecordingService:
             
             # Generate recording ID and a temporary file path (renamed on finalize)
             recording_id = str(uuid.uuid4())
-            filename = f"recording_{recording_id}.zip"
+            filename = f"recording_{recording_id}.mcap"
             file_path = self.recordings_dir / filename
             
             # Prepare metadata
@@ -179,31 +179,31 @@ class RecordingService:
         # Wait a brief moment for any in-flight writes to complete
         await asyncio.sleep(0.1)
         
-        # Finalize recording file in thread pool (since it acquires the ZIP lock)
+        # Finalize recording file in thread pool (since it acquires the writer lock)
         info = None
         try:
             info = await asyncio.to_thread(handle.writer.finalize)
             actual_frame_count = info.get('frame_count')
-            logger.info(f"Finalized ZIP file for recording {recording_id}: {actual_frame_count} frames written, {info.get('duration_seconds'):.2f}s")
+            logger.info(f"Finalized MCAP file for recording {recording_id}: {actual_frame_count} frames written, {info.get('duration_seconds'):.2f}s")
             
             # Verify frame counts match (handle.frame_count should equal writer.frame_count)
             if handle.frame_count != actual_frame_count:
                 logger.warning(
                     f"Frame count mismatch for recording {recording_id}: "
-                    f"handle counted {handle.frame_count}, but ZIP has {actual_frame_count} frames"
+                    f"handle counted {handle.frame_count}, but MCAP has {actual_frame_count} frames"
                 )
         except Exception as e:
-            logger.error(f"Error finalizing ZIP for recording {recording_id}: {e}", exc_info=True)
+            logger.error(f"Error finalizing MCAP for recording {recording_id}: {e}", exc_info=True)
             raise
         
         # Generate thumbnail asynchronously
         thumbnail_path = None
         file_path = Path(info["file_path"])
 
-        # Rename to <node_id>_<timestamp_ms>.zip now that recording is complete
+        # Rename to <node_id>_<timestamp_ms>.mcap now that recording is complete
         ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         safe_node_id = handle.node_id.replace("/", "_").replace(" ", "_")
-        final_name = f"{safe_node_id}_{ts_ms}.zip"
+        final_name = f"{safe_node_id}_{ts_ms}.mcap"
         final_path = file_path.parent / final_name
         try:
             file_path.rename(final_path)
@@ -229,7 +229,7 @@ class RecordingService:
         except Exception as e:
             logger.warning(f"Failed to generate thumbnail for recording {recording_id}: {e}")
         
-        # Use the actual frame count from the ZIP file (authoritative source)
+        # Use the actual frame count from the MCAP file (authoritative source)
         actual_frame_count = info["frame_count"]
         
         logger.info(

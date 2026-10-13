@@ -162,11 +162,12 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
             self._error_message = msg
             return
 
-        # Guard: file existence (RecordingReader appends .zip; check both)
-        from pathlib import Path
-        resolved = Path(file_path).with_suffix(".zip")
-        if not resolved.exists():
-            msg = f"Recording file not found on disk: {resolved}"
+        # Guard: file existence (.mcap, or a legacy .zip sibling)
+        from app.services.shared.recording import resolve_recording_path
+        try:
+            resolve_recording_path(file_path)
+        except FileNotFoundError:
+            msg = f"Recording file not found on disk: {file_path}"
             logger.error("[%s] %s", self.id, msg)
             self._status = "error"
             self._error_message = msg
@@ -226,7 +227,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
 
         if self._reader is not None:
             try:
-                self._reader.zipf.close()
+                self._reader.close()
             except Exception:
                 pass
             self._reader = None
@@ -391,7 +392,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
             return
         finally:
             try:
-                reader.zipf.close()
+                reader.close()
             except Exception:
                 pass
             self._reader = None
