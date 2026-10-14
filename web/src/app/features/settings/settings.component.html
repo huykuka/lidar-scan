@@ -38,6 +38,13 @@
             Import
           </syn-button>
         </syn-tooltip>
+
+        <syn-tooltip content="Scan network for LiDAR devices" [distance]="13" placement="bottom">
+          <syn-button (click)="discoveryOpen.set(true)" variant="filled">
+            <syn-icon name="search" slot="prefix" />
+            <span> Scan devices </span>
+          </syn-button>
+        </syn-tooltip>
       </div>
 
       <!-- Right: dirty badge + canvas actions -->
@@ -166,3 +173,5 @@
     [validationResult]="validationResult()"
   />
 </div>
+
+<app-device-discovery-drawer [open]="discoveryOpen()" (closed)="discoveryOpen.set(false)" />
