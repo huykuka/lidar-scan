@@ -7,37 +7,25 @@
     >
       <!-- Left: file actions + system control -->
       <div class="flex items-center gap-2 flex-shrink-0">
-        <syn-tooltip
-          [content]="canEdit() ? 'Export configuration' : 'Admin access required'"
-          [distance]="13"
-          placement="bottom"
-        >
-          <syn-button
-            (click)="onExportConfig()"
-            [disabled]="isExporting()"
-            [loading]="isExporting()"
-            variant="outline"
-          >
-            <syn-icon name="download" slot="prefix" />
-            Export
+        <syn-dropdown placement="bottom-start" [distance]="8">
+          <syn-button slot="trigger" variant="outline" caret>
+            <syn-icon name="settings" slot="prefix" />
+            Flow Config
           </syn-button>
-        </syn-tooltip>
-
-        <syn-tooltip
-          [content]="canEdit() ? 'Import configuration' : 'Admin access required'"
-          [distance]="13"
-          placement="bottom"
-        >
-          <syn-button
-            (click)="onImportConfigClick()"
-            [disabled]="isImporting() || !canEdit()"
-            [loading]="isImporting()"
-            variant="outline"
-          >
-            <syn-icon name="upload" slot="prefix" />
-            Import
-          </syn-button>
-        </syn-tooltip>
+          <syn-menu>
+            <syn-menu-item [disabled]="isExporting()" (click)="onExportConfig()">
+              <syn-icon name="download" slot="prefix" />
+              {{ isExporting() ? 'Exporting...' : 'Export' }}
+            </syn-menu-item>
+            <syn-menu-item [disabled]="isImporting() || !canEdit()" (click)="onImportConfigClick()">
+              <syn-icon name="upload" slot="prefix" />
+              {{ isImporting() ? 'Importing...' : 'Import' }}
+              @if (!canEdit()) {
+                <span slot="suffix" class="text-xs">Admin only</span>
+              }
+            </syn-menu-item>
+          </syn-menu>
+        </syn-dropdown>
 
         <syn-tooltip content="Scan network for LiDAR devices" [distance]="13" placement="bottom">
           <syn-button (click)="discoveryOpen.set(true)" variant="filled">
