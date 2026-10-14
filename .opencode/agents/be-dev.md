@@ -3,7 +3,7 @@ description: Backend developer and fixer — tracks tasks before writing code, i
 mode: subagent
 color: "#f59e0b"
 temperature: 0.2
-model: 	github-copilot/claude-sonnet-4.6
+model: 	github-copilot/claude-sonnet-5.5
 permission:
   todowrite: allow
   todoread: allow

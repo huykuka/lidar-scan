@@ -8,6 +8,7 @@ SYSTEM_TOPICS = {
     "output",
     "system_status",  # Real-time node status updates
     "shapes",         # 3D shape overlay broadcast (always-on system topic)
+    "device_discovery",  # LiDAR device scan progress (auth-protected)
 }
 
 

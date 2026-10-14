@@ -19,6 +19,7 @@ import {DagApiService} from '@core/services/api/dag-api.service';
 import {ConfigTransferService} from '@core/services/api/config-transfer.service';
 import {ConfigExport, ConfigValidationResponse} from '@core/models/config.model';
 import {ConfigImportDialogComponent} from './components/config-import-dialog/config-import-dialog.component';
+import {DeviceDiscoveryDrawerComponent} from './components/device-discovery-drawer/device-discovery-drawer.component';
 import {FlowCanvasComponent} from './components/flow-canvas/flow-canvas.component';
 import {SettingsPreviewPanelComponent} from './components/preview-panel/settings-preview-panel.component';
 import {CanvasNode} from './components/flow-canvas/node/flow-canvas-node.component';
@@ -40,6 +41,7 @@ import {HasUnsavedChanges} from '@core/guards/unsaved-changes.guard';
     SynergyComponentsModule,
     ConfigImportDialogComponent,
     FlowCanvasComponent,
+    DeviceDiscoveryDrawerComponent,
     SettingsPreviewPanelComponent,
   ],
 })
@@ -78,6 +80,9 @@ export class SettingsComponent implements OnInit, HasUnsavedChanges {
   protected validationResult = signal<ConfigValidationResponse | null>(null);
   protected pendingImportConfig = signal<ConfigExport | null>(null);
   protected importMergeMode = signal(false);
+
+  // Device discovery drawer
+  protected discoveryOpen = signal(false);
 
   // Preview panel state
   protected previewOpen = signal(false);

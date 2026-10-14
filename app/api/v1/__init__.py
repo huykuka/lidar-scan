@@ -5,6 +5,7 @@ from .auth import router as auth_router
 from .calibration import router as calibration_router
 from .config import router as config_router
 from .dag import router as dag_router
+from .discovery import router as discovery_router
 from .edges import router as edges_router
 from .flow_control import router as flow_control_router
 from .host import router as host_router
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/api/v1")
 router.include_router(system_router)
 router.include_router(nodes_router)
 router.include_router(edges_router)
+router.include_router(discovery_router)
 router.include_router(config_router)
 router.include_router(recordings_router)
 router.include_router(replays_router)
