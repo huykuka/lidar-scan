@@ -11,7 +11,9 @@ import ipaddress
 import re
 import socket
 import threading
+import json
 import time
+import urllib.request
 import uuid
 from datetime import datetime, timezone
 
@@ -30,6 +32,9 @@ MAX_HOSTS = 4096
 DEFAULT_PORT = 2111
 BROADCAST_INTERVAL = 0.2
 _PROBE_PAYLOAD = b"\x02sRN DeviceIdent\x03"
+_ORDNUM_PAYLOAD = b"\x02sRN OrdNum\x03"
+REST_TIMEOUT = 0.5
+_REST_ENDPOINTS = ("/api/v1/system/info", "/rest/system/info")
 
 _lock = threading.Lock()
 _job: ScanJob | None = None
@@ -95,6 +100,88 @@ _FAMILY_FALLBACKS: dict[str, str] = {
 _TYPE_KEYS = sorted(_TYPE_PREFIXES, key=len, reverse=True)
 
 
+# SICK part number -> (variant label, profile model_id). multiScan166 has no
+# dedicated profile; closest existing is multiscan165.
+SICK_PART_TABLE: dict[str, tuple[str, str]] = {
+    "1156324": ("multiScan165 (MULS1AA-114322)", "multiscan165"),
+    "1140133": ("multiScan136 (MULS1AA-112211)", "multiscan136"),
+    "1154495": ("multiScan136 3DOD-A", "multiscan136"),
+    "1154598": ("multiScan166 (MULS1AA-115511)", "multiscan165"),
+    "1151596": ("multiScan165S (MULS1AAS-114322)", "multiscan165"),
+    "1143873": ("multiScan165S (MULS1AAS-114322)", "multiscan165"),
+    "1155238": ("multiScan166 (MULS1AA-115511)", "multiscan165"),
+    "1131164": ("multiScan136 (MULS1AA-112211)", "multiscan136"),
+    "1137723": ("multiScan165 (MULS1AA-114322)", "multiscan165"),
+    "1154496": ("multiScan165 3DOD-A", "multiscan165"),
+    "1140134": ("multiScan136 (MULS1AA-112211)", "multiscan136"),
+    "1140110": ("multiScan136 (MULS1AA-112211)", "multiscan136"),
+    "1141496": ("multiScan165 (MULS1AA-114322)", "multiscan165"),
+    "1147803": ("multiScan165 (MULS1AA-114322)", "multiscan165"),
+    "1134608": ("PICS150-01000 Core-1", "picoscan_150"),
+    "1134610": ("PICS150-01000 Pro-1", "picoscan_150"),
+    "1142270": ("PICS150-01000 Core-2 6 I/O", "picoscan_150"),
+    "1142273": ("PICS150-01000 Pro-2 6 I/O", "picoscan_150"),
+    "1134609": ("PICS150-01000 Prime-1", "picoscan_150"),
+    "1141751": ("PICS120-AX1100 (picoScan120)", "picoscan_120"),
+    "1141397": ("PICS150-01000 LOC Pro", "picoscan_150"),
+    "1134607": ("PICS150-01000 Core w/o add-ons", "picoscan_150"),
+    "1141396": ("PICS150-01000 LOC Prime", "picoscan_150"),
+    "1142269": ("PICS150-01000 Core 6 I/O w/o add-ons", "picoscan_150"),
+    "1142272": ("PICS150-01000 Prime-2 6 I/O", "picoscan_150"),
+    "1141395": ("PICS150-01000 LOC Core", "picoscan_150"),
+}
+
+
+def resolve_variant_name(device_name: str | None, part_number: str | None) -> str | None:
+    """Table label for part number, else family-based fallback, else None."""
+    if part_number and part_number in SICK_PART_TABLE:
+        return SICK_PART_TABLE[part_number][0]
+    if part_number:
+        low = (device_name or "").lower()
+        if "picoscan" in low:
+            return f"picoScan Series (Part No: {part_number})"
+        if "multiscan" in low:
+            return f"multiScan Series (Part No: {part_number})"
+        return f"Part No: {part_number}"
+    return None
+
+
+def resolve_lidar_type(device_name: str | None, part_number: str | None) -> str | None:
+    """Priority: exact part number -> device name variant/family -> None."""
+    if part_number and part_number in SICK_PART_TABLE:
+        return SICK_PART_TABLE[part_number][1]
+    return map_lidar_type(device_name)
+
+
+def parse_order_number(resp: bytes | None) -> str | None:
+    if not resp or b"OrdNum" not in resp:
+        return None
+    tokens = _decode_raw(resp).split()
+    if len(tokens) < 3:
+        return None
+    return tokens[-1] or None
+
+
+def query_rest_order_number(ip: str, timeout: float = REST_TIMEOUT) -> str | None:
+    for ep in _REST_ENDPOINTS:
+        try:
+            req = urllib.request.Request(
+                f"http://{ip}{ep}",
+                headers={"User-Agent": "SICK-Scanner", "Accept": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                body = r.read(65536).decode("utf-8", errors="ignore")
+            if not body.strip().startswith("{"):
+                continue
+            data = json.loads(body)
+            order = data.get("orderNumber") or data.get("partNumber") or data.get("deviceId")
+            if order:
+                return str(order).strip() or None
+        except Exception:  # noqa: BLE001
+            continue
+    return None
+
+
 def map_lidar_type(device_name: str | None) -> str | None:
     if not device_name:
         return None
@@ -132,7 +219,8 @@ def _read_field(rest: str) -> tuple[str, str] | None:
     return value, rest[start + n:]
 
 
-def parse_device_ident(ip: str, resp: bytes, port: int = DEFAULT_PORT) -> Device:
+def parse_device_ident(ip: str, resp: bytes, port: int = DEFAULT_PORT,
+                       part_number: str | None = None) -> Device:
     raw = _decode_raw(resp)
     name = version = None
     m = re.match(r"^sRA\s+DeviceIdent\s+(.*)$", raw, re.DOTALL)
@@ -144,7 +232,8 @@ def parse_device_ident(ip: str, resp: bytes, port: int = DEFAULT_PORT) -> Device
                 name, version = first[0], second[0]
     return Device(
         ip=ip, port=port, device_name=name, firmware_version=version,
-        serial=None, raw=raw, lidar_type=map_lidar_type(name),
+        serial=None, raw=raw, lidar_type=resolve_lidar_type(name, part_number),
+        part_number=part_number, variant_name=resolve_variant_name(name, part_number),
     )
 
 
@@ -230,15 +319,26 @@ def resolve_targets(cidrs: list[str] | None) -> tuple[list[str], list[str]]:
 # Probe / scan
 # ---------------------------------------------------------------------------
 
-def probe_sick_device(ip: str, port: int = DEFAULT_PORT, timeout: float = SEARCH_TIMEOUT) -> bytes | None:
+def probe_sick_device(ip: str, port: int = DEFAULT_PORT, timeout: float = SEARCH_TIMEOUT
+                      ) -> tuple[bytes, str | None] | None:
+    """Returns (DeviceIdent reply, order number|None) or None if not a CoLa device."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(timeout)
     try:
         s.connect((ip, port))
         s.sendall(_PROBE_PAYLOAD)
         resp = s.recv(256)
-        if resp and b"DeviceIdent" in resp:
-            return resp
+        if not (resp and b"DeviceIdent" in resp):
+            return None
+        order = None
+        try:
+            s.sendall(_ORDNUM_PAYLOAD)
+            order = parse_order_number(s.recv(256))
+        except OSError:
+            pass
+        if order is None:
+            order = query_rest_order_number(ip)
+        return resp, order
     except OSError:
         pass
     finally:
@@ -258,6 +358,7 @@ def _ip_key(ip: str) -> tuple:
 
 
 def _snapshot() -> ScanJob | None:
+    """Deep copy of current job (kept until next scan or restart)."""
     with _lock:
         if _job is None:
             return None
@@ -285,15 +386,15 @@ def _scan_blocking(job_id: str, hosts: list[str], loop: asyncio.AbstractEventLoo
         for fut in concurrent.futures.as_completed(futures):
             ip = futures[fut]
             try:
-                resp = fut.result()
+                res = fut.result()
             except Exception:
-                resp = None
+                res = None
             with _lock:
                 if _job is None or _job.id != job_id:
                     continue
                 _job.scanned += 1
-                if resp:
-                    _job.devices.append(parse_device_ident(ip, resp))
+                if res:
+                    _job.devices.append(parse_device_ident(ip, res[0], part_number=res[1]))
                     _job.devices.sort(key=lambda d: _ip_key(d.ip))
             now = time.monotonic()
             if now - last_emit >= BROADCAST_INTERVAL:

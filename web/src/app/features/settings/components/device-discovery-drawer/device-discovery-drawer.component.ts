@@ -48,7 +48,6 @@ export class DeviceDiscoveryDrawerComponent {
   private readonly profiles = inject(LidarProfilesApiService);
 
   protected readonly canEdit = this.auth.canEdit;
-  protected readonly cidrText = signal('');
   protected readonly skeletonRows = [0, 1, 2, 3];
 
   protected readonly job = this.discovery.job;
@@ -59,6 +58,17 @@ export class DeviceDiscoveryDrawerComponent {
     const j = this.job();
     if (!j || j.total <= 0) return 0;
     return Math.min(100, Math.round((j.scanned / j.total) * 100));
+  });
+
+  protected readonly deviceCount = computed(() => this.job()?.devices.length ?? 0);
+  protected readonly addedCount = computed(() => this.rows().filter((r) => r.added).length);
+  protected readonly newCount = computed(() => this.rows().length - this.addedCount());
+
+  protected readonly duration = computed(() => {
+    const j = this.job();
+    if (!j?.finished_at) return null;
+    const ms = new Date(j.finished_at).getTime() - new Date(j.started_at).getTime();
+    return isNaN(ms) || ms < 0 ? null : `${(ms / 1000).toFixed(1)}s`;
   });
 
   protected readonly showSkeleton = computed(
@@ -77,7 +87,8 @@ export class DeviceDiscoveryDrawerComponent {
     const nodes = this.canvasEditStore.localNodes();
     return devices.map((device) => {
       const profile = device.lidar_type ? this.profiles.getProfileByModelId(device.lidar_type) : null;
-      const model = profile?.display_name ?? device.device_name ?? device.lidar_type;
+      const model =
+        device.variant_name ?? profile?.display_name ?? device.device_name ?? device.lidar_type;
       const dType = device.lidar_type?.trim().toLowerCase() || null;
       let added = false;
       let ipOnlyMatch = false;
@@ -119,21 +130,26 @@ export class DeviceDiscoveryDrawerComponent {
     this.closed.emit();
   }
 
-  protected onCidrInput(event: Event): void {
-    this.cidrText.set((event.target as HTMLInputElement).value ?? '');
-  }
-
   protected async onScan(): Promise<void> {
-    const cidrs = this.cidrText()
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean);
-    await this.discovery.startScan(cidrs.length ? cidrs : undefined);
+    await this.discovery.startScan();
   }
 
   protected onRetry(): void {
     this.discovery.clearError();
     void this.onScan();
+  }
+
+  protected openDevicePage(ip: string): void {
+    window.open(`http://${ip}`, '_blank', 'noopener');
+  }
+
+  protected async copyIp(ip: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(ip);
+      this.toast.primary(`Copied ${ip}`);
+    } catch {
+      this.toast.warning('Copy failed');
+    }
   }
 
   protected formatTime(iso: string | null | undefined): string {

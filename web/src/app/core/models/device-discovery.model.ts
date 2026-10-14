@@ -8,6 +8,8 @@ export interface DiscoveredDevice {
   serial: string | null;
   raw: unknown;
   lidar_type: string | null;
+  part_number?: string | null;
+  variant_name?: string | null;
 }
 
 export interface ScanJob {
