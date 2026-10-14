@@ -15,6 +15,8 @@ class Device(BaseModel):
     serial: str | None = None
     raw: str
     lidar_type: str | None = None
+    part_number: str | None = None
+    variant_name: str | None = None
 
 
 class ScanJob(BaseModel):

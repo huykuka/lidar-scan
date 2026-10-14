@@ -1,1 +1,66 @@
-:host { display: contents; }
+:host {
+  display: contents;
+}
+
+syn-drawer::part(body) {
+  overflow: hidden;
+}
+
+.dd-card {
+  border: 1px solid var(--syn-color-neutral-300);
+  border-left-width: 3px;
+  background: var(--syn-panel-background-color);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: var(--syn-color-primary-600);
+    box-shadow: 0 1px 6px rgb(0 0 0 / 0.18);
+  }
+
+  &--added {
+    border-left-color: var(--syn-color-success-600);
+  }
+}
+
+.dd-tile {
+  background: var(--syn-color-neutral-100);
+  border: 1px solid var(--syn-color-neutral-200);
+}
+
+/* Non-editable text: no selection highlight / background artifacts. */
+.dd-text {
+  user-select: none;
+  background: transparent;
+
+  &::selection {
+    background: transparent;
+  }
+}
+
+.dd-ip {
+  font-family: var(--syn-font-mono, ui-monospace, monospace);
+  user-select: text;
+}
+
+.dd-chip {
+  font-size: 0.6875rem;
+}
+
+.dd-progress {
+  --height: 6px;
+  --track-color: var(--syn-color-neutral-200);
+  border-radius: 999px;
+  overflow: hidden;
+
+  &--running {
+    animation: dd-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes dd-pulse {
+  50% {
+    opacity: 0.65;
+  }
+}

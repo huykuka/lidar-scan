@@ -107,7 +107,7 @@
   background: var(--syn-panel-background-color);
   border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
   border-radius: var(--syn-border-radius-large);
-  height: 100%;
+  min-height: 100%;
   box-sizing: border-box;
   box-shadow: var(--syn-shadow-medium);
 }

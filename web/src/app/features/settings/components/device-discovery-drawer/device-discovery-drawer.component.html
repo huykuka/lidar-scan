@@ -1,129 +1,218 @@
 <syn-drawer
   [open]="open()"
   (syn-request-close)="onRequestClose()"
-  label="Device discovery"
   placement="end"
-  style="--size: 520px"
+  style="--size: 560px"
 >
-  <div class="flex flex-col gap-4">
-    <!-- Header: status + progress -->
-    @if (job(); as j) {
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center justify-between gap-2">
-          <syn-badge
-            [variant]="j.status === 'running' ? 'primary' : j.status === 'completed' ? 'success' : 'error'"
-          >
-            {{ j.status }}
-          </syn-badge>
-          <span class="text-sm text-[var(--syn-color-neutral-600)]">
-            {{ j.scanned }} / {{ j.total }} hosts
-          </span>
-        </div>
-        <syn-progress-bar [value]="percent()" label="Scan progress" />
-        <div class="flex flex-col gap-0.5 text-xs text-[var(--syn-color-neutral-600)]">
-          <span>Subnets: {{ j.subnets.length ? j.subnets.join(', ') : '—' }}</span>
-          <span>Started: {{ formatTime(j.started_at) }} · Finished: {{ formatTime(j.finished_at) }}</span>
-        </div>
-      </div>
-    }
+  <div slot="label" class="flex items-center gap-2">
+    <syn-icon name="radar" class="text-[var(--syn-color-primary-600)]" />
+    <span>Device discovery</span>
+  </div>
 
-    <!-- Scan controls -->
-    <div class="flex items-end gap-2">
-      <syn-input
-        class="flex-1"
-        label="CIDR ranges (optional)"
-        placeholder="192.168.1.0/24, 10.0.0.0/24"
-        size="small"
-        [value]="cidrText()"
-        [disabled]="!canEdit() || scanBusy()"
-        (syn-input)="onCidrInput($event)"
-      />
-      <syn-tooltip [content]="canEdit() ? 'Scan network for LiDAR devices' : 'Admin access required'">
-        <syn-button
-          variant="filled"
-          [disabled]="!canEdit() || scanBusy()"
-          [loading]="scanBusy()"
-          (click)="onScan()"
-        >
-          <syn-icon name="search" slot="prefix" />
-          {{ job() ? 'Rescan' : 'Scan' }}
-        </syn-button>
-      </syn-tooltip>
+  <div class="flex h-full min-h-0 flex-col gap-4">
+    <p class="dd-text m-0 text-sm text-[var(--syn-color-neutral-600)]">Find SICK sensors on your network</p>
+
+    <!-- Status card -->
+    <div class="flex flex-col gap-3 rounded-xl border border-[var(--syn-color-neutral-300)] p-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          @if (job(); as j) {
+            @switch (j.status) {
+              @case ('running') {
+                <syn-badge variant="primary" class="inline-flex items-center gap-1.5">
+                  <syn-spinner class="text-xs"></syn-spinner>
+                  Scanning
+                </syn-badge>
+              }
+              @case ('completed') {
+                <syn-badge variant="success" class="inline-flex items-center gap-1">
+                  <syn-icon name="check_circle" />
+                  Completed
+                </syn-badge>
+              }
+              @default {
+                <syn-badge variant="error" class="inline-flex items-center gap-1">
+                  <syn-icon name="error" />
+                  Failed
+                </syn-badge>
+              }
+            }
+            <syn-badge variant="neutral" class="inline-flex items-center gap-1">
+              <syn-icon name="devices" />
+              {{ j.devices.length }} {{ j.devices.length === 1 ? 'device' : 'devices' }}
+            </syn-badge>
+          } @else {
+            <syn-badge variant="neutral">Idle</syn-badge>
+          }
+        </div>
+        <syn-tooltip [content]="canEdit() ? 'Scan network for LiDAR devices' : 'Admin access required'">
+          <syn-button
+            variant="filled"
+            size="small"
+            [disabled]="!canEdit() || scanBusy()"
+            [loading]="scanBusy()"
+            (click)="onScan()"
+          >
+            <syn-icon [name]="job() ? 'sync' : 'radar'" slot="prefix" />
+            <span>{{ job() ? 'Rescan' : 'Scan' }}</span>
+          </syn-button>
+        </syn-tooltip>
+      </div>
+
+      @if (job(); as j) {
+
+        <syn-progress-bar
+          class="dd-progress"
+          [class.dd-progress--running]="j.status === 'running'"
+          [value]="percent()"
+          label="Scan progress"
+        />
+
+        <div class="flex flex-wrap items-center gap-1.5">
+          <syn-icon name="lan" class="text-[var(--syn-color-neutral-600)]" />
+          @for (net of j.subnets; track net) {
+            <syn-badge variant="neutral" pill>{{ net }}</syn-badge>
+          } @empty {
+            <span class="dd-text text-xs text-[var(--syn-color-neutral-600)]">—</span>
+          }
+        </div>
+
+      }
     </div>
 
     <!-- Error -->
     @if (discovery.error(); as err) {
-      <syn-alert variant="error" [open]="true">
-        <syn-icon slot="icon" name="warning" />
-        <div class="flex items-center justify-between gap-2">
-          <span>{{ err }}</span>
-          <syn-button size="small" variant="outline" [disabled]="!canEdit() || scanBusy()" (click)="onRetry()">
-            Retry
-          </syn-button>
-        </div>
-      </syn-alert>
-    }
-
-    <!-- Skeleton -->
-    @if (showSkeleton()) {
-      <div class="flex flex-col gap-2" aria-busy="true" aria-label="Loading devices">
-        @for (i of skeletonRows; track i) {
-          <div class="flex items-center gap-3 rounded border border-[var(--syn-color-neutral-300)] p-3">
-            <div class="h-4 w-28 animate-pulse rounded bg-[var(--syn-color-neutral-200)]"></div>
-            <div class="h-4 w-24 animate-pulse rounded bg-[var(--syn-color-neutral-200)]"></div>
-            <div class="h-4 w-16 animate-pulse rounded bg-[var(--syn-color-neutral-200)]"></div>
-            <div class="ml-auto h-8 w-16 animate-pulse rounded bg-[var(--syn-color-neutral-200)]"></div>
-          </div>
-        }
+      <div
+        class="flex flex-col items-center gap-3 rounded-xl border border-[var(--syn-color-error-600)] p-6 text-center"
+      >
+        <syn-icon name="error" class="text-4xl text-[var(--syn-color-error-600)]" />
+        <span class="text-sm">{{ err }}</span>
+        <syn-button size="small" variant="outline" [disabled]="!canEdit() || scanBusy()" (click)="onRetry()">
+          <syn-icon name="sync" slot="prefix" />
+          Retry
+        </syn-button>
       </div>
     }
 
-    <!-- Empty -->
-    @if (showEmpty()) {
-      <syn-alert variant="neutral" [open]="true">
-        <syn-icon slot="icon" name="info" />
-        No devices found
-      </syn-alert>
-    }
+    <!-- Devices section -->
+    <div class="flex min-h-0 flex-1 flex-col gap-2">
+      <div class="flex items-center gap-2">
+        <h3 class="dd-text m-0 text-base font-semibold">Devices</h3>
+        <syn-badge variant="neutral" pill>{{ deviceCount() }}</syn-badge>
+        <span class="ml-auto flex items-center gap-1.5">
+          <syn-badge variant="success" class="inline-flex items-center gap-1">
+            <syn-icon name="check" />
+            {{ addedCount() }} added
+          </syn-badge>
+          <syn-badge variant="primary" class="inline-flex items-center gap-1">
+            <syn-icon name="add" />
+            {{ newCount() }} new
+          </syn-badge>
+        </span>
+      </div>
 
-    <!-- Device rows -->
-    <div class="flex flex-col gap-2">
+      <!-- Skeleton -->
+      @if (showSkeleton()) {
+        <div class="flex flex-col gap-2" aria-busy="true" aria-label="Loading devices">
+          @for (i of skeletonRows; track i) {
+            <div class="dd-card flex items-center gap-3 rounded-lg px-3 py-2">
+              <div class="h-10 w-10 shrink-0 animate-pulse rounded-md bg-[var(--syn-color-neutral-200)]"></div>
+              <div class="flex flex-1 flex-col gap-1.5">
+                <div class="h-3.5 w-44 animate-pulse rounded bg-[var(--syn-color-neutral-200)]"></div>
+                <div class="h-3 w-32 animate-pulse rounded bg-[var(--syn-color-neutral-200)]"></div>
+              </div>
+              <div class="h-7 w-14 animate-pulse rounded bg-[var(--syn-color-neutral-200)]"></div>
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Empty -->
+      @if (showEmpty()) {
+        <div
+          class="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[var(--syn-color-neutral-400)] p-8 text-center"
+        >
+          <syn-icon name="search" class="text-4xl text-[var(--syn-color-neutral-500)]" />
+          <span class="dd-text font-semibold">No devices found</span>
+          <span class="dd-text text-sm text-[var(--syn-color-neutral-600)]">
+            Check the network range and that sensors are powered on, then rescan.
+          </span>
+        </div>
+      }
+
+      <!-- Device rows (scrollable) -->
+      <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
       @for (row of rows(); track row.device.ip) {
-        <div class="flex items-center gap-3 rounded border border-[var(--syn-color-neutral-300)] p-3">
-          <img
-            class="h-10 w-10 shrink-0 object-contain"
-            [src]="thumbnail(row.device.lidar_type)"
-            [alt]="row.model ?? 'LiDAR'"
-            loading="lazy"
-          />
-          <div class="flex min-w-0 flex-1 flex-col">
-            <span class="text-sm font-semibold">{{ row.device.ip }}</span>
-            <span class="truncate text-xs text-[var(--syn-color-neutral-600)]">
-              {{ row.model ?? 'Unknown model' }}
-              @if (row.device.firmware_version) {
-                · FW {{ row.device.firmware_version }}
-              }
-            </span>
+        <div class="dd-card flex items-center gap-3 rounded-lg px-3 py-2" [class.dd-card--added]="row.added">
+          <div class="dd-tile flex h-10 w-10 shrink-0 items-center justify-center rounded-md p-0.5">
+            <img
+              class="h-full w-full object-contain"
+              [src]="thumbnail(row.device.lidar_type)"
+              [alt]="row.model ?? 'LiDAR'"
+              loading="lazy"
+            />
           </div>
+
+          <div class="flex min-w-0 flex-1 flex-col gap-1">
+            <div class="flex min-w-0 items-center gap-1">
+              <span class="dd-ip text-xs font-semibold">{{ row.device.ip }}</span>
+              <syn-tooltip content="Copy IP">
+                <syn-icon-button name="content_copy" label="Copy IP" size="small" (click)="copyIp(row.device.ip)" />
+              </syn-tooltip>
+              <syn-tooltip [content]="(row.device.lidar_type ?? 'unknown type') + ' · :' + row.device.port">
+                <span class="dd-text min-w-0 truncate text-sm text-[var(--syn-color-neutral-800)]">
+                  {{ row.model ?? 'Unknown model' }}
+                </span>
+              </syn-tooltip>
+            </div>
+            <div class="flex flex-nowrap items-center gap-1 overflow-hidden">
+              @if (row.device.part_number) {
+                <syn-badge variant="neutral" class="dd-chip inline-flex items-center gap-1">
+                  <syn-icon name="sell" />
+                  P/N {{ row.device.part_number }}
+                </syn-badge>
+              }
+              @if (row.device.firmware_version) {
+                <syn-badge variant="neutral" class="dd-chip inline-flex items-center gap-1">
+                  <syn-icon name="memory" />
+                  FW {{ row.device.firmware_version }}
+                </syn-badge>
+              }
+              @if (!row.device.lidar_type) {
+                <syn-badge variant="warning" class="dd-chip inline-flex items-center gap-1">
+                  <syn-icon name="warning" />
+                  Model unknown
+                </syn-badge>
+              }
+            </div>
+          </div>
+
+          <syn-tooltip content="Open device page">
+            <syn-icon-button
+              name="open_in_new"
+              label="Open device page"
+              size="small"
+              (click)="openDevicePage(row.device.ip)"
+            />
+          </syn-tooltip>
 
           @if (row.added) {
             @if (row.ipOnlyMatch) {
               <syn-tooltip content="Model unknown, matched by IP">
-                <syn-badge variant="warning">Added</syn-badge>
+                <syn-badge variant="warning" class="inline-flex items-center gap-1">
+                  <syn-icon name="check_circle" />
+                  Added
+                </syn-badge>
               </syn-tooltip>
             } @else {
-              <syn-badge variant="success">Added</syn-badge>
+              <syn-badge variant="success" class="inline-flex items-center gap-1">
+                <syn-icon name="check_circle" />
+                Added
+              </syn-badge>
             }
           } @else {
-            <syn-tooltip
-              [content]="canEdit() ? 'Add as sensor node (unsaved)' : 'Admin access required'"
-            >
-              <syn-button
-                size="small"
-                variant="outline"
-                [disabled]="!canEdit()"
-                (click)="onAdd(row.device)"
-              >
+            <syn-tooltip [content]="canEdit() ? 'Add as sensor node (unsaved)' : 'Admin access required'">
+              <syn-button size="small" variant="filled" [disabled]="!canEdit()" (click)="onAdd(row.device)">
                 <syn-icon name="add" slot="prefix" />
                 Add
               </syn-button>
@@ -131,6 +220,7 @@
           }
         </div>
       }
+      </div>
     </div>
   </div>
 </syn-drawer>
