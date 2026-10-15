@@ -65,5 +65,6 @@ def build_fusion(node: Dict[str, Any], service_context: Any, edges: List[Dict[st
         service_context,
         sensor_ids=sensor_ids,
         fusion_id=node["id"],
-        throttle_ms=throttle_ms
+        throttle_ms=throttle_ms,
+        name=node.get("name")
     )

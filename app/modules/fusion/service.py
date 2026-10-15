@@ -42,12 +42,13 @@ class FusionService(ModuleNode):
             node_manager,
             sensor_ids: Optional[List[str]] = None,
             fusion_id: Optional[str] = None,
-            throttle_ms: float = 0
+            throttle_ms: float = 0,
+            name: Optional[str] = None
     ):
         self._service = node_manager
         self.manager = node_manager
         self.id = fusion_id or f"fusion_{id(self)}"
-        self.name = "Fusion"
+        self.name = name or "Fusion"
         self._filter: Optional[Set[str]] = set(sensor_ids) if sensor_ids else None
         self._latest_frames: Dict[str, np.ndarray] = {}
         self._enabled = True
