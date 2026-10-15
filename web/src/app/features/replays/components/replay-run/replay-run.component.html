@@ -1,0 +1,317 @@
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+    <div class="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b-syn">
+      <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 min-w-0">
+        <a [routerLink]="['/replays']" class="hover:text-syn-color-primary-600 cursor-pointer">Replays</a>
+        <syn-icon class="text-xs" name="chevron_right" />
+        <span class="text-syn-typography-color-text font-medium truncate">{{ run()?.label ?? 'Run' }}</span>
+        @if (run(); as r) {
+          <syn-badge class="ml-1" [variant]="statusVariant(r.status)">{{ r.status }}</syn-badge>
+        }
+      </nav>
+      <div class="flex flex-wrap items-center gap-2">
+        <syn-button (click)="load()" [disabled]="isLoading()" size="small" variant="outline">
+          <syn-icon name="refresh" slot="prefix" />
+          Refresh
+        </syn-button>
+        @if (isActive()) {
+          <syn-button (click)="cancel()" size="small" variant="outline">Cancel</syn-button>
+        } @else if (run()) {
+          <syn-button (click)="rerun()" size="small" variant="outline">
+            <syn-icon name="content_copy" slot="prefix" />
+            Re-run with changes
+          </syn-button>
+          @if (canApply()) {
+            <syn-button (click)="applyToPipeline()" size="small" variant="outline">
+              <syn-icon name="rocket_launch" slot="prefix" />
+              Apply to pipeline
+            </syn-button>
+          }
+          <syn-icon-button (click)="remove()" label="Delete run" name="delete" title="Delete run" />
+        }
+      </div>
+    </div>
+
+    <div class="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
+      @if (isLoading() && !run()) {
+        <div class="flex items-center justify-center py-16"><syn-spinner /></div>
+      } @else if (notFound()) {
+        <div class="flex flex-col items-center justify-center py-16 text-center">
+          <syn-icon class="text-5xl text-syn-color-neutral-400 mb-3" name="search_off" />
+          <p class="text-syn-color-neutral-600 font-semibold text-lg">Run not found</p>
+          <a [routerLink]="['/replays']" class="mt-3 text-sm text-syn-color-primary-600 hover:underline">← Back to replays</a>
+        </div>
+      } @else if (run(); as r) {
+        <!-- Run facts -->
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-syn-color-neutral-600">
+          <span class="flex items-center gap-1.5"><syn-icon name="video_library" /> {{ recordingName() }}</span>
+          <span class="flex items-center gap-1.5"><syn-icon name="schedule" /> {{ formatDate(r.created_at) }}</span>
+          @if (r.scores?.overall) { <app-replay-score [scores]="r.scores" /> }
+          @if (overrides().length > 0) {
+            <span class="flex flex-wrap items-center gap-1.5">
+              <syn-icon name="tune" />
+              @for (o of overrides(); track o.node + o.key) {
+                <syn-badge variant="neutral">{{ o.node }} · {{ o.key }} = {{ o.value }}</syn-badge>
+              }
+            </span>
+          } @else {
+            <span class="flex items-center gap-1.5 text-syn-color-neutral-500"><syn-icon name="tune" /> Pipeline settings as saved</span>
+          }
+        </div>
+
+        @if (isActive()) {
+          <div class="flex items-center gap-3 rounded-lg border border-syn-color-neutral-200 px-4 py-3">
+            <syn-spinner style="font-size: 1.25rem" />
+            <span class="text-sm text-syn-color-neutral-600">{{ r.frames_processed }} / {{ r.frames_total }} frames</span>
+            <syn-progress-bar class="flex-1" [value]="progressPercent()" />
+          </div>
+        } @else if (r.status === 'failed') {
+          <div class="flex items-start gap-3 rounded-lg border border-syn-color-danger-300 bg-syn-color-danger-50 px-4 py-3">
+            <syn-icon class="text-syn-color-danger-700 text-2xl" name="error" />
+            <div class="text-sm text-syn-color-danger-800">{{ r.error || 'The run failed.' }}</div>
+          </div>
+        }
+
+        <!-- Numbers -->
+        <div class="stat-strip">
+          <div class="stat-cell">
+            <syn-icon name="movie" />
+            <div><div class="stat-value">{{ r.frames_processed }}</div><div class="stat-label">Frames <span>of {{ r.frames_total }}</span></div></div>
+          </div>
+          <div class="stat-cell">
+            <syn-icon name="timer" />
+            <div>
+              <div class="stat-value">{{ r.duration_seconds === null ? '—' : r.duration_seconds.toFixed(1) + 's' }}</div>
+              <div class="stat-label">Duration
+                @if (r.duration_seconds) { <span>{{ (r.frames_processed / r.duration_seconds).toFixed(0) }} frames/s</span> }
+              </div>
+            </div>
+          </div>
+          <div class="stat-cell">
+            <syn-icon name="inventory_2" />
+            <div><div class="stat-value">{{ r.summary.saved_results_total ?? 0 }}</div><div class="stat-label">Saved results</div></div>
+          </div>
+          <div class="stat-cell" [class.is-danger]="(r.summary.errors_total ?? 0) > 0" [class.is-ok]="isCompleted() && !(r.summary.errors_total ?? 0)">
+            <syn-icon [name]="(r.summary.errors_total ?? 0) > 0 ? 'error' : 'check_circle'" />
+            <div><div class="stat-value">{{ r.summary.errors_total ?? 0 }}</div><div class="stat-label">Errors</div></div>
+          </div>
+        </div>
+
+        <!-- Ground truth -->
+        @if (r.scores && r.scores.targets.length > 0) {
+          <section class="rounded-lg border border-syn-color-neutral-200 overflow-hidden">
+            <table class="syn-table--default" style="width: 100%">
+              <thead>
+                <tr><th>Ground truth</th><th>Measured</th><th>Expected</th><th>Error</th><th>Result</th></tr>
+              </thead>
+              <tbody>
+                @for (t of r.scores.targets; track t.target_id) {
+                  <tr>
+                    <td>{{ t.label }}</td>
+                    <td class="font-mono">{{ fmt(t.value) }}</td>
+                    <td class="font-mono">{{ fmt(t.expected) }}{{ t.tolerance === null ? '' : ' ± ' + fmt(t.tolerance) }}</td>
+                    <td class="font-mono text-xs">{{ errorText(t) }}</td>
+                    <td><app-replay-score [scores]="{overall: t.status, targets: [t]}" /></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+        }
+
+        @if (isCompleted()) {
+          <syn-tab-group>
+            <syn-tab panel="values" slot="nav">Values</syn-tab>
+            <syn-tab panel="frame" slot="nav">Frame inspector</syn-tab>
+            <syn-tab panel="saved" slot="nav">Saved results ({{ r.summary.saved_results_total ?? 0 }})</syn-tab>
+            <syn-tab panel="errors" slot="nav">Errors ({{ r.summary.errors_total ?? 0 }})</syn-tab>
+
+            <!-- Values: pick a node on the left, see all its metadata on the right -->
+            <syn-tab-panel name="values">
+              @if (nodeList().length === 0) {
+                <p class="text-sm text-syn-color-neutral-500 py-10 text-center">No node produced output during this run.</p>
+              } @else {
+                <div class="values-layout">
+                  <aside class="metric-list">
+                    @for (n of nodeList(); track n.id) {
+                      <button type="button" class="node-item" [class.is-active]="n.id === activeNodeId()" (click)="selectNode(n.id)">
+                        <span class="flex flex-col min-w-0 text-left">
+                          <span class="truncate font-medium">{{ n.name }}</span>
+                          <span class="text-xs text-syn-color-neutral-500">{{ n.type }}</span>
+                        </span>
+                        @if (n.fields !== null) { <syn-badge variant="neutral">{{ n.fields }}</syn-badge> }
+                      </button>
+                    }
+                  </aside>
+
+                  <section class="flex flex-col gap-3 min-w-0">
+                    <div class="flex flex-wrap items-baseline gap-2">
+                      <h2 class="text-base font-semibold truncate">{{ activeNode()?.name }}</h2>
+                      <span class="text-xs text-syn-color-neutral-500">{{ activeNode()?.type }} · {{ activeNode()?.emitted }} outputs</span>
+                    </div>
+
+                    @if (outputsFailed()) {
+                      <p class="text-sm text-syn-color-danger-600 py-8 text-center">
+                        The captured frames could not be loaded.
+                        <a class="underline cursor-pointer" (click)="load()">Retry</a>
+                      </p>
+                    } @else if (!outputs()) {
+                      <div class="flex items-center justify-center py-12"><syn-spinner /></div>
+                    } @else if (active().numeric.length === 0 && active().category.length === 0) {
+                      <p class="text-sm text-syn-color-neutral-500 py-8 text-center">This node emitted no metadata.</p>
+                    } @else {
+                      <div class="grid gap-3 xl:grid-cols-2">
+                        @for (c of active().numeric; track c.key) {
+                          <div class="rounded-lg border border-syn-color-neutral-200 p-3">
+                            <div class="flex items-center justify-between gap-2">
+                              <span class="text-sm font-medium truncate">
+                                {{ activeNode()?.name }} · <span class="font-mono text-xs">{{ c.label }}</span>
+                              </span>
+                              @if (c.std === 0) { <syn-badge variant="neutral">constant</syn-badge> }
+                            </div>
+                            <app-run-chart [compact]="true" [label]="c.label" [mean]="c.mean" [points]="c.points" />
+                            <div class="flex justify-between text-xs text-syn-color-neutral-500">
+                              <span>frame {{ c.firstFrame }}</span>
+                              <span>{{ fmt(c.min) }} … {{ fmt(c.max) }} · avg {{ fmt(c.mean) }} · ± {{ fmt(c.std) }}</span>
+                              <span>frame {{ c.lastFrame }}</span>
+                            </div>
+                          </div>
+                        }
+                      </div>
+
+                      @if (active().category.length > 0) {
+                        <h3 class="text-sm font-semibold mt-1">Text and true/false fields</h3>
+                        <div class="grid gap-3 xl:grid-cols-2">
+                          @for (c of active().category; track c.key) {
+                            <div class="rounded-lg border border-syn-color-neutral-200 p-3 flex flex-col gap-2">
+                              <span class="font-mono text-xs font-medium break-all">{{ c.key }}</span>
+                              @for (v of c.shares; track v.value) {
+                                <div class="flex items-center gap-2 text-sm">
+                                  <span class="font-mono truncate w-40 shrink-0" [title]="v.value">{{ v.value }}</span>
+                                  <syn-progress-bar class="flex-1" [value]="v.percent" />
+                                  <span class="text-xs tabular-nums w-20 text-right text-syn-color-neutral-600">{{ v.percent.toFixed(0) }}% · {{ v.count }}</span>
+                                </div>
+                              }
+                              @if (c.shares.length === 1) {
+                                <span class="text-xs text-syn-color-neutral-500">Never changed during the run.</span>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+                    }
+                  </section>
+                </div>
+              }
+            </syn-tab-panel>
+
+            <!-- Every metadata field of every node at one frame -->
+            <syn-tab-panel name="frame">
+              @if (!outputs()) {
+                <div class="flex items-center justify-center py-8"><syn-spinner /></div>
+              } @else if (!range()) {
+                <p class="text-sm text-syn-color-neutral-500 py-10 text-center">No frames were captured.</p>
+              } @else {
+                <div class="flex flex-col gap-3 pt-2">
+                  <div class="flex items-center gap-3">
+                    <syn-button (click)="stepFrame(-1)" [disabled]="inspected().frame <= range()!.min" aria-label="Previous frame" size="small" variant="outline">
+                      <syn-icon name="chevron_left" />
+                    </syn-button>
+                    <syn-range
+                      (syn-change)="setFrame($any($event.target).value)"
+                      [max]="range()!.max"
+                      [min]="range()!.min"
+                      [value]="'' + inspected().frame"
+                      class="flex-1 min-w-0"
+                    />
+                    <syn-button (click)="stepFrame(1)" [disabled]="inspected().frame >= range()!.max" aria-label="Next frame" size="small" variant="outline">
+                      <syn-icon name="chevron_right" />
+                    </syn-button>
+                    <span class="w-32 text-right text-sm tabular-nums">Frame {{ inspected().frame }} / {{ range()!.max }}</span>
+                  </div>
+
+                  @if (inspected().nodes.length === 0) {
+                    <p class="text-sm text-syn-color-neutral-500 py-6 text-center">No node produced output at this frame.</p>
+                  }
+                  <div class="grid gap-3 md:grid-cols-2">
+                    @for (n of inspected().nodes; track n.nodeId) {
+                      <div class="rounded-lg border border-syn-color-neutral-200 overflow-hidden">
+                        <div class="flex items-center justify-between gap-2 px-3 py-2 bg-syn-color-neutral-100">
+                          <span class="font-medium truncate">{{ n.name }} <span class="text-xs text-syn-color-neutral-500">{{ n.type }}</span></span>
+                          @if (n.points !== null) { <syn-badge variant="neutral">{{ n.points }} points</syn-badge> }
+                        </div>
+                        @if (n.entries.length === 0) {
+                          <p class="text-xs text-syn-color-neutral-500 px-3 py-2">No metadata, only points.</p>
+                        } @else {
+                          <table class="w-full text-sm">
+                            <tbody>
+                              @for (e of n.entries; track e.key) {
+                                <tr class="border-t border-syn-color-neutral-200">
+                                  <td class="px-3 py-1 text-syn-color-neutral-600 break-all">{{ e.key }}</td>
+                                  <td class="px-3 py-1 font-mono text-right break-all">{{ show(e.value) }}</td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </syn-tab-panel>
+
+            <syn-tab-panel name="saved">
+              @if (!outputs()) {
+                <div class="flex items-center justify-center py-8"><syn-spinner /></div>
+              } @else if (savedResults().length === 0) {
+                <div class="flex flex-col items-center py-10 text-center">
+                  <syn-icon class="text-5xl text-syn-color-neutral-400 mb-2" name="inventory_2" />
+                  <p class="text-syn-color-neutral-600">No result node saved anything during this run.</p>
+                </div>
+              } @else {
+                <table class="syn-table--default" style="width: 100%">
+                  <thead><tr><th>Frame</th><th>Node</th><th>Status</th><th>Values</th></tr></thead>
+                  <tbody>
+                    @for (s of savedResults(); track $index) {
+                      <tr>
+                        <td class="font-mono">{{ s.frame }}</td>
+                        <td>{{ nameOf(s.node_id) }}</td>
+                        <td><syn-badge [variant]="s.status === 'success' || s.status === 'ok' ? 'success' : 'neutral'">{{ s.status }}</syn-badge></td>
+                        <td class="text-xs font-mono text-syn-color-neutral-600">{{ valuesText(s.values) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </syn-tab-panel>
+
+            <syn-tab-panel name="errors">
+              @if (!outputs()) {
+                <div class="flex items-center justify-center py-8"><syn-spinner /></div>
+              } @else if (errors().length === 0) {
+                <div class="flex flex-col items-center py-10 text-center">
+                  <syn-icon class="text-5xl text-syn-color-success-600 mb-2" name="check_circle" />
+                  <p class="text-syn-color-neutral-600">No node raised an error.</p>
+                </div>
+              } @else {
+                <table class="syn-table--default" style="width: 100%">
+                  <thead><tr><th>Frame</th><th>Node</th><th>Error</th></tr></thead>
+                  <tbody>
+                    @for (e of errors(); track $index) {
+                      <tr>
+                        <td class="font-mono">{{ e.frame }}</td>
+                        <td>{{ nameOf(e.node_id) }}</td>
+                        <td class="text-xs font-mono text-syn-color-danger-700">{{ e.error }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </syn-tab-panel>
+          </syn-tab-group>
+        }
+      }
+    </div>
+  </div>
+</div>

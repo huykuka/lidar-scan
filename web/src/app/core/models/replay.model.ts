@@ -302,3 +302,33 @@ export interface ReplayComparison {
   scores_b?: RunScores;
   errors: {a: unknown[]; b: unknown[]};
 }
+
+// ── Captured outputs of one run ─────────────────────────────────────────────
+
+export interface CapturedFrame {
+  frame: number;
+  timestamp: number | null;
+  points: number | null;
+  values: Record<string, unknown>;
+}
+
+export interface CapturedSavedResult {
+  frame: number;
+  node_id: string;
+  status: string;
+  pcd_labels: string[];
+  values: Record<string, unknown>;
+}
+
+export interface CapturedError {
+  frame: number;
+  source: string;
+  node_id: string;
+  error: string;
+}
+
+export interface ReplayOutputs {
+  nodes: Record<string, {name: string; type: string; frames: CapturedFrame[]}>;
+  saved_results: CapturedSavedResult[];
+  errors: CapturedError[];
+}

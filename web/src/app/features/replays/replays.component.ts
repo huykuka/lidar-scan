@@ -166,6 +166,10 @@ export class ReplaysComponent implements OnInit {
     return describeValues(values);
   }
 
+  protected openRun(run: ReplayRun): void {
+    this.router.navigate(['/replays', run.id]);
+  }
+
   protected formatDate(iso: string): string {
     const d = new Date(iso);
     return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();

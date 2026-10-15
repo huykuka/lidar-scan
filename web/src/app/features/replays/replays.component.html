@@ -132,8 +132,8 @@
               </thead>
               <tbody>
                 @for (run of runs(); track run.id) {
-                  <tr>
-                    <td>
+                  <tr (click)="openRun(run)" class="cursor-pointer">
+                    <td (click)="$event.stopPropagation()">
                       <syn-checkbox
                         (syn-change)="toggleSelect(run, $any($event.target).checked)"
                         [checked]="isSelected(run.id)"
@@ -167,10 +167,11 @@
                     </td>
                     <td><app-replay-score [scores]="run.scores" /></td>
                     <td class="text-xs text-syn-color-neutral-500 whitespace-nowrap">{{ formatDate(run.created_at) }}</td>
-                    <td class="whitespace-nowrap text-right">
+                    <td class="whitespace-nowrap text-right" (click)="$event.stopPropagation()">
                       @if (run.status === 'running' || run.status === 'queued') {
                         <syn-button (click)="cancel(run)" size="small" variant="outline">Cancel</syn-button>
                       } @else {
+                        <syn-icon-button class="act act-primary" (click)="openRun(run)" label="View statistics" name="query_stats" title="View statistics" />
                         <syn-icon-button class="act act-primary" (click)="rerun(run)" label="Re-run with changes" name="content_copy" title="Re-run with changes" />
                         @if (canApply(run)) {
                           <syn-icon-button class="act act-success" (click)="applyToPipeline(run)" label="Apply to pipeline" name="rocket_launch" title="Apply these parameters to the pipeline" />

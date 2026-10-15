@@ -65,6 +65,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'replays/:id',
+        canActivate: [serviceGuard],
+        loadComponent: () =>
+          import('./features/replays/components/replay-run/replay-run.component').then(
+            (m) => m.ReplayRunComponent,
+          ),
+      },
+      {
         path: 'node-definitions',
         canActivate: [serviceGuard],
         loadComponent: () =>

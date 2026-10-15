@@ -12,6 +12,7 @@ import {
   ListReplayRunsResponse,
   ListSweepsResponse,
   ReplayComparison,
+  ReplayOutputs,
   ReplayRun,
   Sweep,
   SweepDetail,
@@ -36,6 +37,11 @@ export class ReplayApiService {
 
   getReplay(runId: string): Observable<ReplayRun> {
     return this.http.get<ReplayRun>(`${this.baseUrl}/${encodeURIComponent(runId)}`);
+  }
+
+  /** Per-node, per-frame captured outputs of a completed run. */
+  getOutputs(runId: string): Observable<ReplayOutputs> {
+    return this.http.get<ReplayOutputs>(`${this.baseUrl}/${encodeURIComponent(runId)}/outputs`);
   }
 
   cancelReplay(runId: string): Observable<ReplayRun> {
