@@ -63,10 +63,6 @@ class TruckBinDetectionNode(ModuleNode):
 
             min_bin_length=float(config.get("min_bin_length", 3.0)),
             max_bin_length=float(config.get("max_bin_length", 8.5)),
-            rear_forward_lookup=int(config.get("rear_forward_lookup", 30)),
-            front_backward_lookup=int(config.get("front_backward_lookup", 5)),
-            rear_peak_back_window=int(config.get("rear_peak_back_window", 7)),
-            min_cavity_run_ratio=float(config.get("min_cavity_run_ratio", 0.6)),
             min_bed_cells=int(config.get("min_bed_cells", 3)),
             max_wall_thickness=float(config.get("max_wall_thickness", 0.5)),
             wall_height_match_tol=float(config.get("wall_height_match_tol", 0.04)),

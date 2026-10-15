@@ -9,7 +9,7 @@ Each function is tested with:
 import numpy as np
 import pytest
 
-from app.modules.application.truck_bin_detection.utils.profile_helpers import (
+from app.plugins.installed.truck_bin_detection.utils.profile_helpers import (
     BinDetectionResult,
     build_height_profile,
     fill_profile,

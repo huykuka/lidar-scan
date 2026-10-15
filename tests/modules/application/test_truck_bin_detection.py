@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 import numpy as np
 import pytest
 
-from app.modules.application.truck_bin_detection.utils.bin_detector import (
+from app.plugins.installed.truck_bin_detection.utils.bin_detector import (
     BinDetector,
     BinDetectionResult,
 )
@@ -441,7 +441,7 @@ class TestWallLineCheck:
 class TestTruckBinDetectionNode:
 
     def _make_node(self, config: Optional[Dict[str, Any]] = None):
-        from app.modules.application.truck_bin_detection.node import TruckBinDetectionNode
+        from app.plugins.installed.truck_bin_detection.node import TruckBinDetectionNode
         manager = MagicMock()
         manager.forward_data = AsyncMock()
         if config is None:
@@ -557,7 +557,7 @@ class TestTruckBinDetectionNode:
 class TestRegistry:
 
     def setup_method(self):
-        import app.modules.application.truck_bin_detection.registry  # noqa: F401
+        import app.plugins.installed.truck_bin_detection.registry  # noqa: F401
 
     def test_schema_registered(self):
         from app.services.nodes.schema import node_schema_registry
@@ -594,7 +594,7 @@ class TestRegistry:
 
     def test_factory_builds_node_instance(self):
         from app.services.nodes.node_factory import NodeFactory
-        from app.modules.application.truck_bin_detection.node import TruckBinDetectionNode
+        from app.plugins.installed.truck_bin_detection.node import TruckBinDetectionNode
         node = NodeFactory.create(
             {"id": "reg_test_1", "name": "Test", "type": "truck_bin_detection", "config": {}},
             MagicMock(),
