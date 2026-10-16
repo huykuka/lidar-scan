@@ -68,9 +68,13 @@ class TruckBinDetectionNode(ModuleNode):
             min_bed_cells=int(config.get("min_bed_cells", 3)),
             max_wall_thickness=float(config.get("max_wall_thickness", 0.5)),
             wall_height_match_tol=float(config.get("wall_height_match_tol", 0.04)),
+            front_edge_lookahead=float(config.get("front_edge_lookahead", 0.3)),
+            front_step_min=float(config.get("front_step_min", 0.3)),
+            front_plateau_tol=float(config.get("front_plateau_tol", 0.15)),
+            front_min_plateau_cells=int(config.get("front_min_plateau_cells", 1)),
         )
 
-        # Bin length stabilisation
+        # Bin length stabilisation: once stable, find the rear and place the front at rear + length
         self._stabilize_window = max(0.0, float(config.get("stabilize_window_s", 2.0)))
         self._stabilize_tol = float(config.get("stabilize_tolerance", 0.15))
         self._length_hist: deque = deque()  # (timestamp, length)
@@ -201,7 +205,7 @@ class TruckBinDetectionNode(ModuleNode):
         self._locked_wall_top = None
 
     def _update_length_lock(self, result: BinDetectionResult, now: float) -> None:
-        """Track bin length over the stabilize window and lock it once stable."""
+        """Track the bin length over the stabilize window and lock it once stable."""
         if self._stabilize_window <= 0:
             return
         if not result.detected:
@@ -211,7 +215,7 @@ class TruckBinDetectionNode(ModuleNode):
             return
         self._last_hit_at = now
         if self._locked_length is not None:
-            return  # rear wall is inferred; keep the locked length
+            return  # length stays locked; only the rear is searched
         hist = self._length_hist
         hist.append((now, result.length))
         while hist and now - hist[0][0] > self._stabilize_window:

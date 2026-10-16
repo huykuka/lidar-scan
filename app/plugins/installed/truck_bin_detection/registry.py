@@ -226,6 +226,54 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
+                name="front_edge_lookahead",
+                label="Front Edge Plateau Window (m)",
+                type="number",
+                default=0.3,
+                min=0.0,
+                max=2.0,
+                step=0.05,
+                help_text=(
+                    "The front edge is the cell where the height suddenly jumps up. It is "
+                    "confirmed only when the cells just ahead of it, within this distance, "
+                    "stay at a similar height (the wall top). Rejects slopes, piles and "
+                    "noise. 0 disables the step check."
+                ),
+            ),
+            PropertySchema(
+                name="front_step_min",
+                label="Front Step Min Rise (m)",
+                type="number",
+                default=0.3,
+                min=0.05,
+                max=3.0,
+                step=0.05,
+                help_text=(
+                    "Smallest single-cell height jump that counts as the front wall rising "
+                    "vertically from the cargo bed."
+                ),
+            ),
+            PropertySchema(
+                name="front_plateau_tol",
+                label="Front Plateau Tolerance (m)",
+                type="number",
+                default=0.15,
+                min=0.01,
+                max=1.0,
+                step=0.01,
+                help_text="How close in height the cells ahead of the jump must be to count as level.",
+            ),
+            PropertySchema(
+                name="front_min_plateau_cells",
+                label="Front Min Level Cells",
+                type="number",
+                default=1,
+                min=0,
+                max=20,
+                step=1,
+                help_text="Minimum number of level cells required ahead of the jump.",
+            ),
+            PropertySchema(
                 name="min_bed_cells",
                 label="Min Cargo Bed Returns",
                 type="number",
@@ -254,8 +302,8 @@ node_schema_registry.register(
                 help_text=(
                     "The detected bin length is tracked over this many seconds. Once it "
                     "stays within the tolerance for the whole window, the length is locked: "
-                    "only the front wall is searched and the rear wall is placed that length "
-                    "behind it, which removes flicker. 0 disables locking."
+                    "from then on only the rear wall is searched and the front wall is placed "
+                    "that length ahead of it, which removes flicker. 0 disables locking."
                 ),
             ),
             PropertySchema(

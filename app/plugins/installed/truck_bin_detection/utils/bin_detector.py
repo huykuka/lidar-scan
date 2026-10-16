@@ -38,6 +38,10 @@ class BinDetector:
             min_bed_cells: int = 3,
             max_wall_thickness: float = 0.5,
             wall_height_match_tol: float = 0.04,
+            front_edge_lookahead: float = 0.3,
+            front_step_min: float = 0.3,
+            front_plateau_tol: float = 0.15,
+            front_min_plateau_cells: int = 1,
     ) -> None:
         self._lane_width = lane_width
         self._z_min = z_min
@@ -55,6 +59,10 @@ class BinDetector:
         self._min_bed_cells = min_bed_cells
         self._max_wall_thickness = max_wall_thickness
         self._wall_height_match_tol = wall_height_match_tol
+        self._front_edge_lookahead = front_edge_lookahead
+        self._front_step_min = front_step_min
+        self._front_plateau_tol = front_plateau_tol
+        self._front_min_plateau_cells = front_min_plateau_cells
 
     # ------------------------------------------------------------------
     # Private: wall / bin search on the raw height profile
@@ -74,16 +82,52 @@ class BinDetector:
         ends = np.flatnonzero(d == -1) - 1
         return [(int(s), int(e), float(np.median(hp[s:e + 1]))) for s, e in zip(starts, ends)]
 
-    def _find_front_only(
+    def _front_step_edge(self, hp: np.ndarray, first_tall: int) -> int | None:
+        """Pin the front edge to the cell where the height suddenly jumps up.
+
+        The front wall rises almost vertically: one cell sits at bed level and the next
+        is far higher.  Starting at the first cell at wall height, look back a few cells
+        for the biggest single-cell rise (>= front_step_min).  The jump is only
+        confirmed when the cells just ahead of it (within front_edge_lookahead) stay at
+        a similar height (within front_plateau_tol) -- the top of the wall -- for at
+        least front_min_plateau_cells cells.  Returns the jump cell, or None when this
+        is not a vertical step with a level top (slope, pile, noise).
+
+        With front_edge_lookahead == 0 the check is off and ``first_tall`` is returned.
+        """
+        window = int(np.ceil(self._front_edge_lookahead / self._cellsize))
+        if window <= 0:
+            return first_tall
+        n = len(hp)
+        best_idx, best_rise = None, self._front_step_min
+        for i in range(first_tall, max(first_tall - 4, 0), -1):
+            # Bed level: last real return before the jump (skips empty cells).
+            j = i - 1
+            while j >= 0 and hp[j] <= 0 and i - j <= 3:
+                j -= 1
+            prev = hp[j] if j >= 0 else 0.0
+            rise = hp[i] - prev
+            if rise >= best_rise:
+                best_idx, best_rise = i, rise
+        if best_idx is None:
+            return None
+        top = hp[best_idx]
+        ahead = hp[best_idx + 1:min(best_idx + 1 + window, n)]
+        level = np.count_nonzero(np.abs(ahead[ahead > 0] - top) <= self._front_plateau_tol)
+        if level < self._front_min_plateau_cells:
+            return None
+        return best_idx
+
+    def _find_rear_for_length(
             self, hp: np.ndarray, length: float, wall_top: float | None
     ) -> tuple[int, int, float] | str:
-        """Locate the front wall alone and offset the rear wall by a known length.
+        """Length is stable: find only the rear wall; the front is rear + length.
 
-        Used once the bin length is stable: no rear-wall search is done.  The
-        front wall is the first thin slab (matching ``wall_top`` when known)
-        with bed-height returns in the ``length`` metres behind it.
+        The rear is the first thin slab (matching ``wall_top`` when known) with
+        bed-height returns in the ``length`` metres ahead of it.  No front wall is
+        searched for.
 
-        Returns (rear_inner_cell, front_inner_cell, wall_top) or a reason string.
+        Returns (rear_inner_cell, front_cell, wall_top) or a reason string.
         """
         cs = self._cellsize
         max_wall_cells = int(np.ceil(self._max_wall_thickness / cs)) + 1
@@ -95,13 +139,12 @@ class BinDetector:
             if wall_top is not None and abs(top - wall_top) > self._wall_height_match_tol:
                 reached = "HEIGHT MISMATCH"
                 continue
-            rear = start - len_cells
-            cav = hp[max(rear + 1, 0):start]
+            cav = hp[end + 1:end + 1 + len_cells]
             n_bed = np.count_nonzero((cav >= self._z_cavity_min) & (cav < self._z_wall_threshold))
             if n_bed < self._min_bed_cells:
                 reached = "NO BED"
                 continue
-            return rear, start, top
+            return end, end + len_cells, top
         return reached
 
     def _find_bin(self, hp: np.ndarray) -> tuple[int, int, float] | str:
@@ -139,6 +182,12 @@ class BinDetector:
                     continue
                 # First height-matched slab ahead is the only front-wall
                 # candidate: anything further is behind another wall.
+                # The front edge is the cell where the height jumps up vertically.
+                edge = self._front_step_edge(hp, front_start)
+                if edge is None:
+                    reached = "NO STEP"
+                    break
+                front_start = edge
                 length = (front_start - rear_end) * cs
                 if not self._min_bin_length <= length <= self._max_bin_length:
                     reached = "BAD LENGTH"
@@ -165,10 +214,9 @@ class BinDetector:
 
         Args:
             points: Nx3 or Nx4 array of XYZ(intensity) points.
-            known_length: stable bin length (m).  When given, only the front
-                wall is searched and the rear wall is placed ``known_length``
-                behind it.
-            known_wall_top: wall top height of the stable bin, to match the front wall.
+            known_length: stable bin length (m).  When given, only the rear wall is
+                searched and the front wall is placed ``known_length`` ahead of it.
+            known_wall_top: wall top height of the stable bin, to match the rear wall.
 
         Returns:
             BinDetectionResult with wall positions and cavity length.
@@ -206,18 +254,21 @@ class BinDetector:
         # --- Step 3: pair rear and front wall --------------------------------
         inferred = known_length is not None
         if inferred:
-            found = self._find_front_only(hp, known_length, known_wall_top)
+            found = self._find_rear_for_length(hp, known_length, known_wall_top)
             if isinstance(found, str):
-                return miss(f"TRACK / FRONT EDGE NOT FOUND ({found})")
+                return miss(f"TRACK / REAR EDGE NOT FOUND ({found})")
+            rear_bin_idx, front_bin_idx, wall_top = found
         else:
             found = self._find_bin(hp)
             if isinstance(found, str):
                 logger.info("Bin not found: %s", found)
                 return miss(f"SEARCH / REAR EDGE NOT FOUND ({found})")
-        rear_bin_idx, front_bin_idx, wall_top = found
+            rear_bin_idx, front_bin_idx, wall_top = found
         x_rear_internal = x_min + rear_bin_idx * self._cellsize
-        x_front_internal = x_min + front_bin_idx * self._cellsize
+        x_front_internal = x_rear_internal + known_length if inferred else x_min + front_bin_idx * self._cellsize
         length = x_front_internal - x_rear_internal
+        if not inferred and not self._min_bin_length <= length <= self._max_bin_length:
+            return miss(f"SEARCH / BAD LENGTH ({length:.2f} m)")
 
         # --- Step 4: bed-plane confirmation ---------------------------------
         # Crop the 3-D cloud to the interior of the cavity and verify that a
@@ -305,5 +356,5 @@ class BinDetector:
             status="TRACKING" if inferred else "DETECTED",
             bin_points=edge_pts if len(edge_pts) > 0 else pts,
             wall_top=wall_top,
-            rear_inferred=inferred,
+            front_inferred=inferred,
         )

@@ -28,7 +28,7 @@ class BinDetectionResult:
     status: str = "SEARCH"
     bin_points: Optional[np.ndarray] = None  # wall edge point clouds (rear + front)
     wall_top: float = 0.0          # median top height of the walls (m)
-    rear_inferred: bool = False    # True when the rear wall was offset from the front, not searched
+    front_inferred: bool = False   # True when the front wall was placed rear + locked length, not searched
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -39,7 +39,7 @@ class BinDetectionResult:
             "length": round(self.length, 3),
             "confidence": round(self.confidence, 2),
             "status": self.status,
-            "rear_inferred": self.rear_inferred,
+            "front_inferred": self.front_inferred,
         }
 
 
