@@ -19,6 +19,7 @@ from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalSt
 from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 
+from . import __version__
 from .utils.bin_detector import BinDetectionResult, BinDetector
 
 logger = get_logger(__name__)
@@ -152,6 +153,7 @@ class TruckBinDetectionNode(ModuleNode):
                         "bin": result.bin_points,
                     },
                     "metadata": {
+                        "plugin_version": __version__,
                         "detection_number": self._detection_count,
                         "bin": result.to_dict(),
                     },
@@ -175,6 +177,7 @@ class TruckBinDetectionNode(ModuleNode):
                     "count": 0,
                     "pcds": {"bin": _empty},
                     "metadata": {
+                        "plugin_version": __version__,
                         "detection_number": self._detection_count,
                         "bin": result.to_dict(),
                     },

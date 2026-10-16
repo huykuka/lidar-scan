@@ -9,6 +9,7 @@ imports it when load_plugin("passthrough_logger") is called.
 """
 from typing import Any, Dict, List
 
+from app.plugins.installed.passthrough_logger import __version__
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition,
@@ -24,6 +25,7 @@ node_schema_registry.register(
     NodeDefinition(
         type="passthrough_logger",
         display_name="Passthrough Logger",
+        version=__version__,
         category="operation",
         description=(
             "Forwards point-cloud data downstream unchanged while logging "

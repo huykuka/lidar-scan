@@ -40,6 +40,7 @@ Output payload
             "loaded": np.ndarray,
         },
         "metadata": {
+            "plugin_version": __version__,
             "volume_m3":           float,
             "volume_l":            float,
             "icp_fitness":         float,
@@ -63,6 +64,7 @@ from app.schemas.status import ApplicationState, NodeStatusUpdate, OperationalSt
 from app.services.nodes.base_module import ModuleNode
 from app.services.status_aggregator import notify_status_change
 
+from . import __version__
 from .utils.calculator import VolumeCalculator
 
 logger = get_logger(__name__)
@@ -286,6 +288,7 @@ class VolumeCalculationNode(ModuleNode):
                     "loaded": loaded_pts,
                 },
                 "metadata": {
+                    "plugin_version": __version__,
                     "volume_m3": result.volume_m3,
                     "volume_l": result.volume_l,
                     "icp_fitness": result.icp_fitness,

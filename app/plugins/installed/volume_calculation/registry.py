@@ -6,6 +6,7 @@ Loaded automatically when :mod:`app.modules.application.registry` is imported.
 """
 from typing import Any, Dict
 
+from app.plugins.installed.volume_calculation import __version__
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition,
@@ -22,6 +23,7 @@ node_schema_registry.register(
     NodeDefinition(
         type="volume_calculation",
         display_name="Volume Calculation",
+        version=__version__,
         category="application",
         description=(
             "Estimates the volume of material on a surface by comparing two "

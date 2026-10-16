@@ -10,6 +10,8 @@ globally unique (convention: <vendor>_<purpose>, e.g. "acme_bandpass").
 """
 from typing import Any, Dict, List
 
+# TODO: replace `_template` with your package name once copied
+from app.plugins.installed._template import __version__
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition,
@@ -35,6 +37,7 @@ node_schema_registry.register(
     NodeDefinition(
         type="TODO_my_plugin",                  # TODO: unique snake_case type key
         display_name="TODO My Plugin",          # TODO: human label
+        version=__version__,
         category="operation",                   # TODO: "sensor" | "fusion" | "operation"
         description="TODO one-sentence description.",
         use_case="TODO when would someone use this?",

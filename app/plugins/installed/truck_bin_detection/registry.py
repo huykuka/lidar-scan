@@ -8,6 +8,7 @@ editor and can be wired up inside a processing graph.
 from typing import Any, Dict, List
 
 from app.services.nodes.node_factory import NodeFactory
+from app.plugins.installed.truck_bin_detection import __version__
 from app.services.nodes.schema import (
     NodeDefinition,
     PortSchema,
@@ -19,6 +20,7 @@ node_schema_registry.register(
     NodeDefinition(
         type="truck_bin_detection",
         display_name="Truck Bin Detection",
+        version=__version__,
         category="application",
         description=(
             "Finds the open-top cargo bin on a dump truck and measures its position "

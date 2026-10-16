@@ -35,6 +35,7 @@ from app.services.shared.binary import pack_points_binary
 from app.services.status_aggregator import notify_status_change
 from app.services.websocket.manager import manager as ws_manager
 
+from . import __version__
 from .utils.detector import VehicleDetector
 from .utils.profiler import ProfileAccumulator
 
@@ -301,6 +302,7 @@ class VehicleProfilerNode(ModuleNode):
                     "profile": profile.points,
                 },
                 "metadata": {
+                    "plugin_version": __version__,
                     "vehicle_number": self._vehicles_counted,
                     "scan_count": profile.scan_count,
                     "estimated_length": profile.estimated_length,

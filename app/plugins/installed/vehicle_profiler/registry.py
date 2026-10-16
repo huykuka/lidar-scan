@@ -14,6 +14,7 @@ Side-effects executed at import time:
 """
 from typing import Any, Dict, List
 
+from app.plugins.installed.vehicle_profiler import __version__
 from app.services.nodes.node_factory import NodeFactory
 from app.services.nodes.schema import (
     NodeDefinition,
@@ -30,6 +31,7 @@ node_schema_registry.register(
     NodeDefinition(
         type="vehicle_profiler",
         display_name="Vehicle Profiler",
+        version=__version__,
         category="application",
         description=(
             "Multi-2D-LiDAR vehicle profiling node. Uses one vertically-mounted "

@@ -65,3 +65,6 @@ Travel Axis                 X         Which axis = vehicle travel direction
 Min Scan Lines              10        Minimum scans to emit a valid profile
 ==========================  ========  ==============================================
 """
+
+# Bump on every behavioural change (semver). Shown in the node palette.
+__version__ = "1.0.0"
