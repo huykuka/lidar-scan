@@ -28,7 +28,13 @@
   }
 
   <syn-validate on="live">
-    <syn-select formControlName="recordingId" label="Recording" required>
+    <syn-select
+      formControlName="recordingIds"
+      help-text="Pick several to start one replay per recording"
+      label="Recordings"
+      multiple
+      required
+    >
       @for (rec of recordings(); track rec.id) {
         <syn-option [value]="rec.id">
           {{ rec.name }} ({{ rec.frame_count }} frames, {{ rec.duration_seconds.toFixed(1) }}s)

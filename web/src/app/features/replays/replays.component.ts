@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
-import {interval} from 'rxjs';
+import {catchError, forkJoin, interval, map, of} from 'rxjs';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NavigationService} from '@core/services';
 import {AuthService} from '@core/services/auth.service';
@@ -29,7 +29,7 @@ import {runToPrefill} from './utils/clone-run';
 import {describeValues} from './utils/sweep-values';
 
 const POLL_INTERVAL_MS = 1000;
-const MAX_COMPARE = 2;
+const COMPARE_COUNT = 2;
 
 export type ReplaysTab = 'runs' | 'sweeps';
 
@@ -59,7 +59,23 @@ export class ReplaysComponent implements OnInit {
   protected readonly isLoading = signal(false);
   protected readonly selectedIds = signal<string[]>([]);
 
-  protected readonly canCompare = computed(() => this.selectedIds().length === MAX_COMPARE);
+  /** Runs that can be selected: anything not queued/running (those must be cancelled first). */
+  protected readonly selectableIds = computed(() =>
+    this.runs()
+      .filter((r) => r.status !== 'queued' && r.status !== 'running')
+      .map((r) => r.id),
+  );
+  protected readonly allSelected = computed(
+    () => this.selectableIds().length > 0 && this.selectedIds().length === this.selectableIds().length,
+  );
+  protected readonly someSelected = computed(() => this.selectedIds().length > 0 && !this.allSelected());
+  /** Compare needs exactly two completed runs. */
+  protected readonly canCompare = computed(() => {
+    const ids = this.selectedIds();
+    if (ids.length !== COMPARE_COUNT) return false;
+    const byId = new Map(this.runs().map((r) => [r.id, r]));
+    return ids.every((id) => byId.get(id)?.status === 'completed');
+  });
   protected readonly stats = computed(() => {
     const runs = this.runs();
     const count = (s: string) => runs.filter((r) => r.status === s).length;
@@ -103,8 +119,10 @@ export class ReplaysComponent implements OnInit {
       .subscribe({
         next: (res) => {
           this.runs.set(res.runs);
-          // Drop selections for runs that no longer exist or are not comparable.
-          const valid = new Set(res.runs.filter((r) => r.status === 'completed').map((r) => r.id));
+          // Drop selections for runs that no longer exist or are now active.
+          const valid = new Set(
+            res.runs.filter((r) => r.status !== 'queued' && r.status !== 'running').map((r) => r.id),
+          );
           this.selectedIds.update((ids) => ids.filter((id) => valid.has(id)));
           this.isLoading.set(false);
         },
@@ -184,8 +202,39 @@ export class ReplaysComponent implements OnInit {
     this.selectedIds.update((ids) => {
       const without = ids.filter((id) => id !== run.id);
       if (!checked) return without;
-      // Keep the most recent selection when exceeding the limit.
-      return [...without, run.id].slice(-MAX_COMPARE);
+      return [...without, run.id];
+    });
+  }
+
+  protected toggleSelectAll(checked: boolean) {
+    this.selectedIds.set(checked ? [...this.selectableIds()] : []);
+  }
+
+  protected async removeSelected() {
+    const ids = this.selectedIds();
+    if (ids.length === 0) return;
+    const ok = await this.dialog.confirm({
+      title: 'Delete replay runs',
+      message: `Delete ${ids.length} selected run${ids.length === 1 ? '' : 's'}? Their captured outputs will be removed.`,
+      confirmLabel: `Delete ${ids.length}`,
+      confirmIcon: 'delete',
+      confirmSeverity: 'danger',
+    });
+    if (!ok) return;
+    forkJoin(
+      ids.map((id) =>
+        this.api.deleteReplay(id).pipe(
+          map(() => true),
+          catchError(() => of(false)),
+        ),
+      ),
+    ).subscribe((results) => {
+      const deleted = results.filter(Boolean).length;
+      const failed = results.length - deleted;
+      if (deleted) this.toast.success(`Deleted ${deleted} replay run${deleted === 1 ? '' : 's'}`);
+      if (failed) this.toast.danger(`${failed} run${failed === 1 ? '' : 's'} could not be deleted`);
+      this.selectedIds.set([]);
+      this.refresh(false);
     });
   }
 

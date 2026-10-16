@@ -1,5 +1,6 @@
 import {ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, OnInit, signal} from '@angular/core';
 import {takeUntilDestroyed, toSignal} from '@angular/core/rxjs-interop';
+import {catchError, forkJoin, map, of} from 'rxjs';
 import {FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {SynergyComponentsModule, SynergyFormsModule} from '@synergy-design-system/angular';
 import {NodesApiService} from '@core/services/api/nodes-api.service';
@@ -66,7 +67,8 @@ export class ReplayFormComponent implements OnInit {
   readonly form = new FormGroup({
     label: new FormControl('', {nonNullable: true, validators: [Validators.maxLength(80)]}),
     playbackNodeId: new FormControl('', {nonNullable: true, validators: [Validators.required]}),
-    recordingId: new FormControl('', {nonNullable: true, validators: [Validators.required]}),
+    /** One or more recordings; a separate run is started for each. */
+    recordingIds: new FormControl<string[]>([], {nonNullable: true, validators: [Validators.required]}),
     overrides: new FormArray<FormGroup>([]),
   });
 
@@ -104,7 +106,7 @@ export class ReplayFormComponent implements OnInit {
       this.form.controls.playbackNodeId.setValue(nodes[0].id);
       const current = nodes[0].config?.['recording_id'];
       if (current && this.recordings().some((r) => r.id === current)) {
-        this.form.controls.recordingId.setValue(current);
+        this.form.controls.recordingIds.setValue([current]);
       }
     }
   }
@@ -116,6 +118,10 @@ export class ReplayFormComponent implements OnInit {
   protected toggleCapture(nodeId: string, checked: boolean): void {
     const current = this.captureIds().filter((id) => id !== nodeId);
     this.captureOverride.set(checked ? [...current, nodeId] : current);
+  }
+
+  private recordingName(id: string): string {
+    return this.recordings().find((r) => r.id === id)?.name ?? id.slice(0, 8);
   }
 
   protected get overrideRows(): FormGroup[] {
@@ -150,7 +156,7 @@ export class ReplayFormComponent implements OnInit {
     const f = this.form.controls;
     // Setting the playback node resets the capture choice, so apply the choice afterwards.
     f.playbackNodeId.setValue(prefill.playbackNodeId);
-    f.recordingId.setValue(prefill.recordingId);
+    f.recordingIds.setValue([prefill.recordingId]);
     f.label.setValue(prefill.label);
     if (prefill.captureNodes !== null) this.captureOverride.set(prefill.captureNodes);
     for (const row of prefill.overrides) this.addOverride(row);
@@ -202,22 +208,31 @@ export class ReplayFormComponent implements OnInit {
     }
 
     this.isSubmitting.set(true);
-    this.api
-      .startReplay({
-        recording_id: raw.recordingId,
-        playback_node_id: raw.playbackNodeId,
-        label: raw.label.trim(),
-        overrides,
-        capture_nodes: this.captureIds(),
-      })
-      .subscribe({
-        next: () => {
-          this.isSubmitting.set(false);
-          this.toast.success('Replay started');
-          this.onStarted()?.();
-          this.drawer.close();
-        },
-        error: () => this.isSubmitting.set(false), // http-toast interceptor shows the error
-      });
+    const recordingIds = raw.recordingIds;
+    const label = raw.label.trim();
+    const requests = recordingIds.map((recordingId) =>
+      this.api
+        .startReplay({
+          recording_id: recordingId,
+          playback_node_id: raw.playbackNodeId,
+          // A shared label would be ambiguous across recordings, so append the recording name.
+          label: label && recordingIds.length > 1 ? `${label} · ${this.recordingName(recordingId)}` : label,
+          overrides,
+          capture_nodes: this.captureIds(),
+        })
+        .pipe(
+          map(() => true),
+          catchError(() => of(false)), // http-toast interceptor shows the error
+        ),
+    );
+    forkJoin(requests).subscribe((results) => {
+      this.isSubmitting.set(false);
+      const started = results.filter(Boolean).length;
+      if (started === 0) return; // keep the drawer open so the user can retry
+      this.toast.success(started === 1 ? 'Replay started' : `${started} replays started`);
+      if (started < results.length) this.toast.warning(`${results.length - started} replay(s) could not be started`);
+      this.onStarted()?.();
+      this.drawer.close();
+    });
   }
 }

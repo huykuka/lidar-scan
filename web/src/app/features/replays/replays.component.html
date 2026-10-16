@@ -108,12 +108,22 @@
               <syn-icon name="compare_arrows" class="text-syn-color-neutral-500" />
               <span class="text-xs text-syn-color-neutral-600 flex-1">
                 @if (selectedIds().length === 0) {
-                  Tick two completed runs to compare them.
+                  Tick runs to delete them, or two completed runs to compare them.
                 } @else {
-                  {{ selectedIds().length }} of 2 selected
+                  {{ selectedIds().length }} selected
                 }
               </span>
+              <syn-button
+                (click)="removeSelected()"
+                [disabled]="selectedIds().length === 0"
+                size="small"
+                variant="outline"
+              >
+                <syn-icon slot="prefix" name="delete" />
+                Delete selected
+              </syn-button>
               <syn-button class="compare-btn" (click)="compareSelected()" [disabled]="!canCompare()" size="small" variant="filled">
+                <syn-icon slot="prefix" name="compare_arrows" />
                 Compare
               </syn-button>
             </div>
@@ -121,7 +131,14 @@
             <table class="syn-table--default replay-table" style="width: 100%">
               <thead>
                 <tr>
-                  <th style="width: 2.5rem"></th>
+                  <th style="width: 2.5rem">
+                    <syn-checkbox
+                      title="Select all"
+                      (syn-change)="toggleSelectAll($any($event.target).checked)"
+                      [checked]="allSelected()"
+                      [indeterminate]="someSelected()"
+                    />
+                  </th>
                   <th>Run</th>
                   <th>Status</th>
                   <th>Result</th>
@@ -137,7 +154,7 @@
                       <syn-checkbox
                         (syn-change)="toggleSelect(run, $any($event.target).checked)"
                         [checked]="isSelected(run.id)"
-                        [disabled]="run.status !== 'completed'"
+                        [disabled]="run.status === 'queued' || run.status === 'running'"
                       />
                     </td>
                     <td>
@@ -147,9 +164,10 @@
                       </div>
                     </td>
                     <td style="min-width: 9rem">
-                      <syn-badge [variant]="statusVariant(run.status)">{{ run.status }}</syn-badge>
-                      @if (run.status === 'running' || run.status === 'queued') {
-                        <syn-progress-bar class="mt-1" [value]="progress(run)" />
+                      @if (run.status === 'running') {
+                        <syn-progress-bar [value]="progress(run)" />
+                      } @else {
+                        <syn-badge [variant]="statusVariant(run.status)">{{ run.status }}</syn-badge>
                       }
                       @if (run.status === 'failed' && run.error) {
                         <div class="text-xs text-syn-color-danger-600 mt-1">{{ run.error }}</div>
@@ -169,7 +187,10 @@
                     <td class="text-xs text-syn-color-neutral-500 whitespace-nowrap">{{ formatDate(run.created_at) }}</td>
                     <td class="whitespace-nowrap text-right" (click)="$event.stopPropagation()">
                       @if (run.status === 'running' || run.status === 'queued') {
-                        <syn-button (click)="cancel(run)" size="small" variant="outline">Cancel</syn-button>
+                        <syn-button (click)="cancel(run)" size="small" variant="outline">
+                          <syn-icon slot="prefix" name="cancel" />
+                          Cancel
+                        </syn-button>
                       } @else {
                         <syn-icon-button class="act act-primary" (click)="openRun(run)" label="View statistics" name="query_stats" title="View statistics" />
                         <syn-icon-button class="act act-primary" (click)="rerun(run)" label="Re-run with changes" name="content_copy" title="Re-run with changes" />
