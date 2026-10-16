@@ -3,23 +3,19 @@
     type="button"
     class="upload-dock bottom-6 right-6 z-50"
     [class.is-hidden]="!collapsed()"
-    [class.is-active]="activeCount() > 0"
     (click)="collapsed.set(false)"
-    aria-label="Show uploads"
+    [attr.aria-label]="activeCount() > 0 ? 'Show uploads (' + overall() + '%)' : 'Show uploads'"
+    [title]="activeCount() > 0 ? 'Uploading ' + doneCount() + '/' + items().length : 'Uploads'"
   >
-    <span class="upload-dock__icon">
-      <syn-icon [name]="activeCount() > 0 ? 'upload' : 'cloud_done'" />
-    </span>
-    <span class="upload-dock__text">
+    <syn-progress-ring class="upload-ring upload-ring--dock" [value]="activeCount() > 0 ? overall() : 100">
       @if (activeCount() > 0) {
-        <span class="upload-dock__title">Uploading {{ doneCount() }}/{{ items().length }}</span>
+        <span class="upload-dock__pct">{{ overall() }}</span>
       } @else {
-        <span class="upload-dock__title">Uploads ({{ items().length }})</span>
+        <syn-icon name="check" class="text-syn-color-success-600" />
       }
-    </span>
-    @if (activeCount() > 0) {
-      <span class="upload-dock__pct">{{ overall() }}%</span>
-      <span class="upload-dock__bar"><span [style.width.%]="overall()"></span></span>
+    </syn-progress-ring>
+    @if (items().length > 1) {
+      <span class="upload-dock__count">{{ doneCount() }}/{{ items().length }}</span>
     }
   </button>
 
@@ -39,9 +35,6 @@
           Uploads complete
         }
       </span>
-      @if (activeCount() > 0) {
-        <syn-badge variant="primary" pill>{{ overall() }}%</syn-badge>
-      }
       <syn-icon-button
         (click)="collapsed.set(true)"
         name="expand_more"
@@ -54,34 +47,41 @@
 
       <div class="flex flex-col max-h-64 overflow-auto pt-1">
         @for (item of items(); track item.id; let last = $last) {
-          <div class="flex flex-col gap-1 py-2">
+          <div class="flex flex-col gap-1 py-1.5">
             <div class="flex items-center gap-2 text-sm">
-              <syn-icon name="description" class="shrink-0 text-syn-color-neutral-500" />
-              <span class="truncate flex-1" [title]="item.name">{{ item.name }}</span>
               @switch (item.status) {
                 @case ('done') {
-                  <syn-badge variant="success" pill>Done</syn-badge>
+                  <syn-icon name="check_circle" class="upload-row-icon text-syn-color-success-600" />
                 }
                 @case ('error') {
-                  <syn-badge variant="error" pill>Failed</syn-badge>
-                  <syn-icon-button (click)="uploader.retry(item.id)" name="refresh" label="Retry" />
-                  <syn-icon-button (click)="uploader.dismiss(item.id)" name="close" label="Dismiss" />
-                }
-                @case ('queued') {
-                  <syn-badge variant="neutral" pill>Queued</syn-badge>
+                  <syn-icon name="error" class="upload-row-icon text-syn-color-error-600" />
                 }
                 @case ('processing') {
-                  <syn-badge variant="warning" pill>Processing</syn-badge>
+                  <syn-progress-ring class="upload-ring upload-ring--row upload-ring--spin" [value]="30" />
                 }
                 @default {
-                  <syn-badge variant="primary" pill>{{ item.progress }}%</syn-badge>
+                  <syn-progress-ring class="upload-ring upload-ring--row" [value]="item.progress" />
+                }
+              }
+              <span class="truncate flex-1" [title]="item.name">{{ item.name }}</span>
+              @switch (item.status) {
+                @case ('error') {
+                  <syn-icon-button (click)="uploader.retry(item.id)" name="refresh" label="Retry" title="Retry" />
+                  <syn-icon-button (click)="uploader.dismiss(item.id)" name="close" label="Dismiss" title="Dismiss" />
+                }
+                @case ('queued') {
+                  <span class="text-xs text-syn-color-neutral-500">Queued</span>
+                }
+                @case ('processing') {
+                  <span class="text-xs text-syn-color-neutral-500">Processing</span>
+                }
+                @case ('uploading') {
+                  <span class="text-xs tabular-nums text-syn-color-neutral-500">{{ item.progress }}%</span>
                 }
               }
             </div>
             @if (item.status === 'error') {
-              <span class="text-xs text-syn-color-error-600">{{ item.error }}</span>
-            } @else if (item.status !== 'done') {
-              <syn-progress-bar [value]="item.progress" [indeterminate]="item.status === 'processing'" />
+              <span class="text-xs text-syn-color-error-600 pl-7">{{ item.error }}</span>
             }
           </div>
           @if (!last) {
