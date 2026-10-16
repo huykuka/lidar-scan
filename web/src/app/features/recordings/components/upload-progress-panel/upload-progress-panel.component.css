@@ -5,26 +5,36 @@
     opacity 200ms ease,
     transform 200ms ease,
     visibility 0s linear 0s;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.3);
 }
 
 .upload-panel {
   transform-origin: bottom right;
+  display: block;
+  /* host needs its own radius, otherwise the shadow is drawn on a square box */
+  border-radius: 12px;
   --border-radius: 12px;
+}
+
+.upload-panel::part(base) {
+  border-radius: 12px;
 }
 
 .upload-dock {
   transform-origin: bottom right;
+  position: fixed;
   display: inline-flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 1rem 0.5rem 0.5rem;
-  border-radius: 9999px;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  overflow: hidden;
+  border-radius: 8px;
   border: 1px solid var(--syn-color-neutral-300);
-  background: var(--syn-page-background-color, #000);
+  background: var(--syn-panel-background-color, var(--syn-page-background-color, #000));
   color: var(--syn-typography-color-text);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -38,38 +48,26 @@
 }
 
 .upload-dock__icon {
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 9999px;
-  background: var(--syn-color-primary-600);
-  color: #fff;
+  display: inline-flex;
   font-size: 1.125rem;
-}
-
-.upload-dock.is-active .upload-dock__icon {
-  animation: dock-pulse 1.6s ease-in-out infinite;
+  color: var(--syn-color-primary-600);
 }
 
 .upload-dock__text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  min-width: 5.5rem;
+  display: contents;
 }
 
 .upload-dock__title {
   font-weight: 600;
-  line-height: 1;
+  white-space: nowrap;
 }
 
+/* progress runs along the bottom edge of the dock */
 .upload-dock__bar {
-  display: block;
+  position: absolute;
+  inset: auto 0 0 0;
   height: 3px;
-  border-radius: 9999px;
-  background: var(--syn-color-neutral-300);
-  overflow: hidden;
+  background: var(--syn-color-neutral-200);
 }
 
 .upload-dock__bar > span {
@@ -83,12 +81,6 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: var(--syn-color-primary-600);
-}
-
-@keyframes dock-pulse {
-  50% {
-    opacity: 0.6;
-  }
 }
 
 .upload-panel.is-hidden {

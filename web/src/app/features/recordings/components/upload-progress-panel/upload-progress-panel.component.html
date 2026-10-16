@@ -1,7 +1,7 @@
 @if (items().length > 0) {
   <button
     type="button"
-    class="upload-dock fixed bottom-4 right-4 z-50"
+    class="upload-dock bottom-6 right-6 z-50"
     [class.is-hidden]="!collapsed()"
     [class.is-active]="activeCount() > 0"
     (click)="collapsed.set(false)"
@@ -13,18 +13,18 @@
     <span class="upload-dock__text">
       @if (activeCount() > 0) {
         <span class="upload-dock__title">Uploading {{ doneCount() }}/{{ items().length }}</span>
-        <span class="upload-dock__bar"><span [style.width.%]="overall()"></span></span>
       } @else {
         <span class="upload-dock__title">Uploads ({{ items().length }})</span>
       }
     </span>
     @if (activeCount() > 0) {
       <span class="upload-dock__pct">{{ overall() }}%</span>
+      <span class="upload-dock__bar"><span [style.width.%]="overall()"></span></span>
     }
   </button>
 
   <syn-card
-    class="upload-panel fixed bottom-4 right-4 z-50 w-96 max-w-[calc(100vw-2rem)]"
+    class="upload-panel fixed bottom-6 right-6 z-50 w-96 max-w-[calc(100vw-2rem)]"
     [class.is-hidden]="collapsed()"
     [attr.aria-hidden]="collapsed()"
     role="status"
