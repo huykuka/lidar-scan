@@ -9,6 +9,7 @@ peak and slope extraction, and tracking target stable thresholds.
 import asyncio
 import enum
 import time
+from collections import deque
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -68,6 +69,14 @@ class TruckBinDetectionNode(ModuleNode):
             wall_height_match_tol=float(config.get("wall_height_match_tol", 0.04)),
         )
 
+        # Bin length stabilisation
+        self._stabilize_window = max(0.0, float(config.get("stabilize_window_s", 2.0)))
+        self._stabilize_tol = float(config.get("stabilize_tolerance", 0.15))
+        self._length_hist: deque = deque()  # (timestamp, length)
+        self._locked_length: Optional[float] = None
+        self._locked_wall_top: Optional[float] = None
+        self._last_hit_at: float = 0.0
+
         # State machine and status
         self._state = _State.IDLE
         self._detection_count: int = 0
@@ -107,7 +116,13 @@ class TruckBinDetectionNode(ModuleNode):
             # the event loop without dispatching to a thread.  asyncio.to_thread
             # adds 1-5 ms of scheduling overhead (GIL, context switch, thread
             # pool latency) which dominates the actual compute time.
-            result = self._detector.detect(points)
+            now = time.time()
+            result = self._detector.detect(
+                points,
+                known_length=self._locked_length,
+                known_wall_top=self._locked_wall_top,
+            )
+            self._update_length_lock(result, now)
             self.processing_time_ms = (time.time() - start_time) * 1000
 
             if result.detected:
@@ -177,6 +192,36 @@ class TruckBinDetectionNode(ModuleNode):
             self._state = _State.IDLE
             notify_status_change(self.id)
 
+    def _reset_length_lock(self) -> None:
+        self._length_hist.clear()
+        self._locked_length = None
+        self._locked_wall_top = None
+
+    def _update_length_lock(self, result: BinDetectionResult, now: float) -> None:
+        """Track bin length over the stabilize window and lock it once stable."""
+        if self._stabilize_window <= 0:
+            return
+        if not result.detected:
+            # Tolerate short drop-outs; a long one means the truck has left.
+            if now - self._last_hit_at > self._stabilize_window:
+                self._reset_length_lock()
+            return
+        self._last_hit_at = now
+        if self._locked_length is not None:
+            return  # rear wall is inferred; keep the locked length
+        hist = self._length_hist
+        hist.append((now, result.length))
+        while hist and now - hist[0][0] > self._stabilize_window:
+            hist.popleft()
+        # Window must be fully covered by samples (oldest ~ window old).
+        if len(hist) < 3 or now - hist[0][0] < self._stabilize_window * 0.9:
+            return
+        lengths = [l for _, l in hist]
+        if max(lengths) - min(lengths) <= self._stabilize_tol:
+            self._locked_length = float(np.median(lengths))
+            self._locked_wall_top = result.wall_top
+            logger.info("[%s] Bin length locked at %.3f m", self.id, self._locked_length)
+
     def emit_status(self) -> NodeStatusUpdate:
         cycle_ms = round(self.processing_time_ms, 1) if self.processing_time_ms else None
 
@@ -232,11 +277,13 @@ class TruckBinDetectionNode(ModuleNode):
 
     def start(self, data_queue: Any = None, runtime_status: Any = None) -> None:
         self._filtered_center = None
+        self._reset_length_lock()
         notify_status_change(self.id)
 
     def stop(self) -> None:
         self._state = _State.IDLE
         self._filtered_center = None
+        self._reset_length_lock()
         self.last_error = None
         notify_status_change(self.id)
 

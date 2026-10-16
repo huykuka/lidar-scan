@@ -239,6 +239,36 @@ node_schema_registry.register(
                     "Increase if false positives occur in sparse scans."
                 ),
             ),
+
+            # ── Length stabilisation ─────────────────────────────────────────
+            PropertySchema(
+                name="stabilize_window_s",
+                label="Stabilize Window (s)",
+                type="number",
+                default=2.0,
+                min=0.0,
+                max=60.0,
+                step=0.1,
+                help_text=(
+                    "The detected bin length is tracked over this many seconds. Once it "
+                    "stays within the tolerance for the whole window, the length is locked: "
+                    "only the front wall is searched and the rear wall is placed that length "
+                    "behind it, which removes flicker. 0 disables locking."
+                ),
+            ),
+            PropertySchema(
+                name="stabilize_tolerance",
+                label="Stabilize Tolerance (m)",
+                type="number",
+                default=0.15,
+                min=0.01,
+                max=1.0,
+                step=0.01,
+                help_text=(
+                    "Maximum spread (max - min) of the bin length inside the stabilize "
+                    "window for the length to count as stable."
+                ),
+            ),
         ],
         inputs=[
             PortSchema(

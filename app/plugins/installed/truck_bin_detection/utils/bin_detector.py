@@ -74,10 +74,40 @@ class BinDetector:
         ends = np.flatnonzero(d == -1) - 1
         return [(int(s), int(e), float(np.median(hp[s:e + 1]))) for s, e in zip(starts, ends)]
 
-    def _find_bin(self, hp: np.ndarray) -> tuple[int, int] | str:
+    def _find_front_only(
+            self, hp: np.ndarray, length: float, wall_top: float | None
+    ) -> tuple[int, int, float] | str:
+        """Locate the front wall alone and offset the rear wall by a known length.
+
+        Used once the bin length is stable: no rear-wall search is done.  The
+        front wall is the first thin slab (matching ``wall_top`` when known)
+        with bed-height returns in the ``length`` metres behind it.
+
+        Returns (rear_inner_cell, front_inner_cell, wall_top) or a reason string.
+        """
+        cs = self._cellsize
+        max_wall_cells = int(np.ceil(self._max_wall_thickness / cs)) + 1
+        len_cells = int(round(length / cs))
+        reached = "NO WALL"
+        for start, end, top in self._wall_runs(hp):
+            if end - start + 1 > max_wall_cells:
+                continue
+            if wall_top is not None and abs(top - wall_top) > self._wall_height_match_tol:
+                reached = "HEIGHT MISMATCH"
+                continue
+            rear = start - len_cells
+            cav = hp[max(rear + 1, 0):start]
+            n_bed = np.count_nonzero((cav >= self._z_cavity_min) & (cav < self._z_wall_threshold))
+            if n_bed < self._min_bed_cells:
+                reached = "NO BED"
+                continue
+            return rear, start, top
+        return reached
+
+    def _find_bin(self, hp: np.ndarray) -> tuple[int, int, float] | str:
         """Pair a rear wall with a front wall around a floored cavity.
 
-        Returns (rear_inner_cell, front_inner_cell) for the first valid pair,
+        Returns (rear_inner_cell, front_inner_cell, wall_top) for the first valid pair,
         or a short reason string naming the furthest check any pair reached.
 
         A pair is valid when:
@@ -118,18 +148,27 @@ class BinDetector:
                 if n_bed < self._min_bed_cells:
                     reached = "NO BED"
                     break
-                return rear_end, front_start
+                return rear_end, front_start, rear_top
         return reached
 
     # ------------------------------------------------------------------
     # Public: main detection
     # ------------------------------------------------------------------
 
-    def detect(self, points: np.ndarray) -> BinDetectionResult:
+    def detect(
+            self,
+            points: np.ndarray,
+            known_length: float | None = None,
+            known_wall_top: float | None = None,
+    ) -> BinDetectionResult:
         """Find the bin in a fused LiDAR point cloud.
 
         Args:
             points: Nx3 or Nx4 array of XYZ(intensity) points.
+            known_length: stable bin length (m).  When given, only the front
+                wall is searched and the rear wall is placed ``known_length``
+                behind it.
+            known_wall_top: wall top height of the stable bin, to match the front wall.
 
         Returns:
             BinDetectionResult with wall positions and cavity length.
@@ -165,11 +204,17 @@ class BinDetector:
         hp = build_height_profile(pts, x_min, num_bins, self._cellsize, self._z_max)
 
         # --- Step 3: pair rear and front wall --------------------------------
-        found = self._find_bin(hp)
-        if isinstance(found, str):
-            logger.info("Bin not found: %s", found)
-            return miss(f"SEARCH / REAR EDGE NOT FOUND ({found})")
-        rear_bin_idx, front_bin_idx = found
+        inferred = known_length is not None
+        if inferred:
+            found = self._find_front_only(hp, known_length, known_wall_top)
+            if isinstance(found, str):
+                return miss(f"TRACK / FRONT EDGE NOT FOUND ({found})")
+        else:
+            found = self._find_bin(hp)
+            if isinstance(found, str):
+                logger.info("Bin not found: %s", found)
+                return miss(f"SEARCH / REAR EDGE NOT FOUND ({found})")
+        rear_bin_idx, front_bin_idx, wall_top = found
         x_rear_internal = x_min + rear_bin_idx * self._cellsize
         x_front_internal = x_min + front_bin_idx * self._cellsize
         length = x_front_internal - x_rear_internal
@@ -222,7 +267,7 @@ class BinDetector:
             # must be below z_cavity_max.  If the minimum is too high there is
             # no open cavity — we may have latched onto a closed container or
             # the truck chassis.
-            cav = hp[rear_bin_idx + 1:front_bin_idx]
+            cav = hp[max(rear_bin_idx + 1, 0):front_bin_idx]
             if len(cav) == 0:
                 return miss("SEARCH / NO CAVITY")
             nz = cav[cav > 0]
@@ -257,6 +302,8 @@ class BinDetector:
             x_center=x_center,
             length=length,
             confidence=confidence,
-            status="DETECTED",
+            status="TRACKING" if inferred else "DETECTED",
             bin_points=edge_pts if len(edge_pts) > 0 else pts,
+            wall_top=wall_top,
+            rear_inferred=inferred,
         )
