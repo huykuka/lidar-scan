@@ -236,7 +236,7 @@ export class RecordingsComponent implements OnInit {
     const input = this.fileInputRef().nativeElement;
 
     input.value = '';
-    input.accept = '.lidr'; // restrict file picker
+    input.accept = '.mcap'; // restrict file picker
     input.click();
   }
 

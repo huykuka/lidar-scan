@@ -132,7 +132,7 @@
               </thead>
               <tbody>
                 @for (run of runs(); track run.id) {
-                  <tr (click)="openRun(run)" class="cursor-pointer">
+                  <tr >
                     <td (click)="$event.stopPropagation()">
                       <syn-checkbox
                         (syn-change)="toggleSelect(run, $any($event.target).checked)"
