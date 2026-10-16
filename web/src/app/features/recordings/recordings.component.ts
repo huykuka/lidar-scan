@@ -5,6 +5,7 @@ import {
   DestroyRef,
   ElementRef,
   effect,
+  HostListener,
   inject,
   OnInit,
   signal,
@@ -17,6 +18,8 @@ import {RecordingApiService} from '@core/services/api/recording-api.service';
 import {NavigationService} from '@core/services';
 import {Router} from '@angular/router';
 import {Recording} from '@core/models';
+import {UploadProgressPanelComponent} from './components/upload-progress-panel/upload-progress-panel.component';
+import {RecordingUploadService} from '@core/services/recording-upload.service';
 import {RecordingCardComponent} from './components/recording-card/recording-card.component';
 import {DialogService} from '@core/services/dialog.service';
 import {firstValueFrom, interval, Subscription} from 'rxjs';
@@ -28,7 +31,7 @@ const POLL_INTERVAL_MS = 3000;
 @UntilDestroy()
 @Component({
   selector: 'app-recordings',
-  imports: [SynergyComponentsModule, RecordingCardComponent],
+  imports: [SynergyComponentsModule, RecordingCardComponent, UploadProgressPanelComponent],
   templateUrl: './recordings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './recordings.component.css',
@@ -39,8 +42,7 @@ export class RecordingsComponent implements OnInit {
   protected searchQuery = signal<string>('');
   protected selectedRecording = signal<Recording | null>(null);
   protected isDeleting = signal<boolean>(false);
-  protected isUploading = signal<boolean>(false);
-  protected uploadError = signal<string | null>(null);
+  private readonly uploader = inject(RecordingUploadService);
   // Selection state
   protected isSelectionMode = signal<boolean>(false);
   protected selectedRecordingIds = signal<Set<string>>(new Set());
@@ -145,7 +147,8 @@ export class RecordingsComponent implements OnInit {
 
     this.isDeleting.set(true);
     try {
-     this.recordingApi.deleteRecording(recording.id).pipe(untilDestroyed(this)).subscribe()
+      await firstValueFrom(this.recordingStore.deleteRecording(recording.id));
+      await this.recordingStore.loadRecordings();
     } catch (error) {
       console.error('Failed to delete recording:', error);
     } finally {
@@ -228,11 +231,50 @@ export class RecordingsComponent implements OnInit {
     }
   }
 
+  // --- Ctrl + drag marquee selection ---
+
+  protected marquee = signal<{x: number; y: number; w: number; h: number} | null>(null);
+  private marqueeStart: {x: number; y: number} | null = null;
+  private marqueeBase = new Set<string>();
+
+  protected onGridMouseDown(event: MouseEvent): void {
+    if (event.button !== 0 || !(event.ctrlKey || event.metaKey)) return;
+    event.preventDefault(); // avoid text selection while dragging
+    this.marqueeStart = {x: event.clientX, y: event.clientY};
+    this.marqueeBase = new Set(this.selectedRecordingIds());
+    this.isSelectionMode.set(true);
+    this.marquee.set({x: event.clientX, y: event.clientY, w: 0, h: 0});
+  }
+
+  protected onGridMouseMove(event: MouseEvent): void {
+    const start = this.marqueeStart;
+    if (!start) return;
+    const x = Math.min(start.x, event.clientX);
+    const y = Math.min(start.y, event.clientY);
+    const w = Math.abs(event.clientX - start.x);
+    const h = Math.abs(event.clientY - start.y);
+    this.marquee.set({x, y, w, h});
+
+    const next = new Set(this.marqueeBase);
+    document.querySelectorAll<HTMLElement>('app-recording-card[data-rec-id]').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.right >= x && r.left <= x + w && r.bottom >= y && r.top <= y + h) {
+        next.add(el.dataset['recId']!);
+      }
+    });
+    this.selectedRecordingIds.set(next);
+  }
+
+  @HostListener('document:mouseup')
+  protected onGridMouseUp(): void {
+    if (!this.marqueeStart) return;
+    this.marqueeStart = null;
+    this.marquee.set(null);
+  }
+
   // --- Upload Methods ---
 
   protected triggerUpload(): void {
-    this.uploadError.set(null);
-
     const input = this.fileInputRef().nativeElement;
 
     input.value = '';
@@ -240,22 +282,11 @@ export class RecordingsComponent implements OnInit {
     input.click();
   }
 
-  protected async onFileSelected(event: Event): Promise<void> {
+  protected onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
-
-    this.isUploading.set(true);
-    this.uploadError.set(null);
-    try {
-      await firstValueFrom(this.recordingApi.uploadRecording(file));
-      await this.recordingStore.loadRecordings();
-    } catch (err: any) {
-      const detail = err?.error?.detail ?? err?.message ?? 'Upload failed.';
-      this.uploadError.set(detail);
-      console.error('Failed to upload recording:', err);
-    } finally {
-      this.isUploading.set(false);
-    }
+    const files = Array.from(input.files ?? []);
+    if (!files.length) return;
+    this.uploader.enqueue(files);
+    input.value = '';
   }
 }

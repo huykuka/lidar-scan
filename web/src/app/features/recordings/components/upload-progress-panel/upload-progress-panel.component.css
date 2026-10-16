@@ -1,0 +1,134 @@
+/* Show/hide animation: both the card and the dock stay in the DOM and cross-fade. */
+.upload-panel,
+.upload-dock {
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease,
+    visibility 0s linear 0s;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+
+.upload-panel {
+  transform-origin: bottom right;
+  --border-radius: 12px;
+}
+
+.upload-dock {
+  transform-origin: bottom right;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 1rem 0.5rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--syn-color-neutral-300);
+  background: var(--syn-page-background-color, #000);
+  color: var(--syn-typography-color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.upload-dock:hover {
+  border-color: var(--syn-color-primary-600);
+}
+
+.upload-dock:focus-visible {
+  outline: 2px solid var(--syn-color-primary-600);
+  outline-offset: 2px;
+}
+
+.upload-dock__icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: var(--syn-color-primary-600);
+  color: #fff;
+  font-size: 1.125rem;
+}
+
+.upload-dock.is-active .upload-dock__icon {
+  animation: dock-pulse 1.6s ease-in-out infinite;
+}
+
+.upload-dock__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 5.5rem;
+}
+
+.upload-dock__title {
+  font-weight: 600;
+  line-height: 1;
+}
+
+.upload-dock__bar {
+  display: block;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--syn-color-neutral-300);
+  overflow: hidden;
+}
+
+.upload-dock__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--syn-color-primary-600);
+  transition: width 200ms ease;
+}
+
+.upload-dock__pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--syn-color-primary-600);
+}
+
+@keyframes dock-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.upload-panel.is-hidden {
+  opacity: 0;
+  transform: translateY(12px) scale(0.92);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease,
+    visibility 0s linear 200ms;
+}
+
+.upload-dock.is-hidden {
+  opacity: 0;
+  transform: scale(0.8);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease,
+    visibility 0s linear 150ms;
+}
+
+/* Entry animation when the first upload is queued */
+@keyframes upload-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+.upload-panel:not(.is-hidden),
+.upload-dock:not(.is-hidden) {
+  animation: upload-in 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upload-panel,
+  .upload-dock {
+    transition: none;
+    animation: none;
+  }
+}

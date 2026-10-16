@@ -1,0 +1,93 @@
+@if (items().length > 0) {
+  <button
+    type="button"
+    class="upload-dock fixed bottom-4 right-4 z-50"
+    [class.is-hidden]="!collapsed()"
+    [class.is-active]="activeCount() > 0"
+    (click)="collapsed.set(false)"
+    aria-label="Show uploads"
+  >
+    <span class="upload-dock__icon">
+      <syn-icon [name]="activeCount() > 0 ? 'upload' : 'cloud_done'" />
+    </span>
+    <span class="upload-dock__text">
+      @if (activeCount() > 0) {
+        <span class="upload-dock__title">Uploading {{ doneCount() }}/{{ items().length }}</span>
+        <span class="upload-dock__bar"><span [style.width.%]="overall()"></span></span>
+      } @else {
+        <span class="upload-dock__title">Uploads ({{ items().length }})</span>
+      }
+    </span>
+    @if (activeCount() > 0) {
+      <span class="upload-dock__pct">{{ overall() }}%</span>
+    }
+  </button>
+
+  <syn-card
+    class="upload-panel fixed bottom-4 right-4 z-50 w-96 max-w-[calc(100vw-2rem)]"
+    [class.is-hidden]="collapsed()"
+    [attr.aria-hidden]="collapsed()"
+    role="status"
+    aria-live="polite"
+  >
+    <div class="flex items-center gap-2 pb-2 border-b border-[var(--syn-color-neutral-300)]">
+      <syn-icon [name]="activeCount() > 0 ? 'upload' : 'cloud_done'" />
+      <span class="flex-1 font-semibold">
+        @if (activeCount() > 0) {
+          Uploading {{ doneCount() }}/{{ items().length }}
+        } @else {
+          Uploads complete
+        }
+      </span>
+      @if (activeCount() > 0) {
+        <syn-badge variant="primary" pill>{{ overall() }}%</syn-badge>
+      }
+      <syn-icon-button
+        (click)="collapsed.set(true)"
+        name="expand_more"
+        label="Hide to dock" title="Hide to dock"
+      />
+      @if (activeCount() === 0) {
+        <syn-icon-button (click)="uploader.clearFinished()" name="close" label="Close" title="Close" />
+      }
+    </div>
+
+      <div class="flex flex-col max-h-64 overflow-auto pt-1">
+        @for (item of items(); track item.id; let last = $last) {
+          <div class="flex flex-col gap-1 py-2">
+            <div class="flex items-center gap-2 text-sm">
+              <syn-icon name="description" class="shrink-0 text-syn-color-neutral-500" />
+              <span class="truncate flex-1" [title]="item.name">{{ item.name }}</span>
+              @switch (item.status) {
+                @case ('done') {
+                  <syn-badge variant="success" pill>Done</syn-badge>
+                }
+                @case ('error') {
+                  <syn-badge variant="error" pill>Failed</syn-badge>
+                  <syn-icon-button (click)="uploader.retry(item.id)" name="refresh" label="Retry" />
+                  <syn-icon-button (click)="uploader.dismiss(item.id)" name="close" label="Dismiss" />
+                }
+                @case ('queued') {
+                  <syn-badge variant="neutral" pill>Queued</syn-badge>
+                }
+                @case ('processing') {
+                  <syn-badge variant="warning" pill>Processing</syn-badge>
+                }
+                @default {
+                  <syn-badge variant="primary" pill>{{ item.progress }}%</syn-badge>
+                }
+              }
+            </div>
+            @if (item.status === 'error') {
+              <span class="text-xs text-syn-color-error-600">{{ item.error }}</span>
+            } @else if (item.status !== 'done') {
+              <syn-progress-bar [value]="item.progress" [indeterminate]="item.status === 'processing'" />
+            }
+          </div>
+          @if (!last) {
+            <syn-divider class="my-0" />
+          }
+        }
+      </div>
+  </syn-card>
+}

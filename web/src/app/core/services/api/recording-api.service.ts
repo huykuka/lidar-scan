@@ -1,5 +1,5 @@
 import {inject, Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
+import {HttpClient, HttpEvent} from '@angular/common/http';
 import {Observable} from 'rxjs';
 import {environment} from '../../../../environments/environment';
 import {
@@ -112,6 +112,16 @@ export class RecordingApiService {
       formData.append('name', name);
     }
     return this.http.post<Recording>(`${this.baseUrl}/upload`, formData);
+  }
+
+  /** Same as uploadRecording but emits HttpEvents (upload progress + final response). */
+  uploadRecordingWithProgress(file: File): Observable<HttpEvent<Recording>> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    return this.http.post<Recording>(`${this.baseUrl}/upload`, formData, {
+      observe: 'events',
+      reportProgress: true,
+    });
   }
 
   /**
