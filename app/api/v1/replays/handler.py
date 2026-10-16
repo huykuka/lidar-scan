@@ -2,9 +2,11 @@
 import asyncio
 from typing import Optional
 
+import numpy as np
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
-from app.api.v1.auth.dependencies import _make_role_guard, roles_required
+from app.api.v1.auth.dependencies import roles_required
 from app.repositories.replay_orm import ReplayRunRepository, ReplaySweepRepository, ReplayTargetRepository
 from app.services.replay import ReplayError, get_replay_service
 from app.services.replay.apply import apply_to_pipeline, preview_apply
@@ -27,7 +29,7 @@ from .dto import (
 )
 
 # Replays are service-only.
-router = APIRouter(tags=["Replays"], dependencies=[Depends(_make_role_guard("service"))])
+router = APIRouter(tags=["Replays"])
 
 
 def _get_run_or_404(run_id: str, include_snapshot: bool = False) -> dict:
@@ -103,6 +105,7 @@ def _load_outputs_or_409(run: dict) -> dict:
         404: {"description": "Recording or node not found"},
     },
 )
+@roles_required("admin")
 async def start_replay(request: CreateReplayRequest):
     try:
         # Runs on the event loop thread: it only does small DB reads and schedules the run task.
@@ -157,6 +160,7 @@ async def list_replays(
     ),
     responses={400: {"description": "Invalid request"}, 404: {"description": "Recording or node not found"}},
 )
+@roles_required("admin")
 async def start_sweep(request: CreateSweepRequest):
     try:
         sweep = get_replay_service().create_sweep(
@@ -214,6 +218,7 @@ async def get_sweep(sweep_id: str):
     summary="Cancel Sweep",
     responses={404: {"description": "Sweep not found"}},
 )
+@roles_required("admin")
 async def cancel_sweep(sweep_id: str):
     await asyncio.to_thread(_get_sweep_or_404, sweep_id)
     return {"cancelled": await get_replay_service().cancel_sweep(sweep_id)}
@@ -225,6 +230,7 @@ async def cancel_sweep(sweep_id: str):
     summary="Delete Sweep",
     responses={404: {"description": "Sweep not found"}, 409: {"description": "Sweep is still running"}},
 )
+@roles_required("admin")
 async def delete_sweep(sweep_id: str):
     sweep = await asyncio.to_thread(_get_sweep_or_404, sweep_id)
     if (await asyncio.to_thread(_sweep_progress, sweep))["progress"]["active"]:
@@ -247,6 +253,7 @@ async def list_targets(recording_id: Optional[str] = Query(default=None)):
     summary="Create Ground Truth Target",
     responses={404: {"description": "Recording not found"}},
 )
+@roles_required("admin")
 async def create_target(request: CreateTargetRequest):
     import uuid
 
@@ -269,6 +276,7 @@ async def create_target(request: CreateTargetRequest):
     summary="Delete Ground Truth Target",
     responses={404: {"description": "Target not found"}},
 )
+@roles_required("admin")
 async def delete_target(target_id: str):
     if not await asyncio.to_thread(ReplayTargetRepository().delete, target_id):
         raise HTTPException(status_code=404, detail=f"Target {target_id} not found")
@@ -345,6 +353,37 @@ async def compare_replay_cloud(
 
 
 @router.get(
+    "/replays/{run_id}/cloud",
+    summary="Point Cloud of One Frame",
+    description=(
+        "The captured point cloud of one node at one frame of a single run. Binary response: "
+        "little-endian float32 xyz triples (point count = byte length / 12)."
+    ),
+    response_class=Response,
+    responses={
+        200: {"content": {"application/octet-stream": {}}},
+        404: {"description": "Run, node or frame not captured"},
+    },
+)
+async def get_replay_cloud(
+    run_id: str,
+    node_id: str = Query(...),
+    frame: int = Query(..., ge=0),
+):
+    _get_run_or_404(run_id)
+    cloud = await asyncio.to_thread(get_replay_service().get_cloud, run_id, node_id, frame)
+    if cloud is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No captured point cloud for node {node_id} at frame {frame}",
+        )
+    return Response(
+        content=np.ascontiguousarray(cloud, dtype="<f4").tobytes(),
+        media_type="application/octet-stream",
+    )
+
+
+@router.get(
     "/replays/{run_id}",
     response_model=ReplayRunResponse,
     summary="Get Replay Run",
@@ -406,6 +445,7 @@ async def get_replay_outputs(run_id: str):
     summary="Cancel Replay Run",
     responses={404: {"description": "Run not found"}, 409: {"description": "Run is not active"}},
 )
+@roles_required("admin")
 async def cancel_replay(run_id: str):
     await asyncio.to_thread(_get_run_or_404, run_id)
     if not await get_replay_service().cancel(run_id):
@@ -419,6 +459,7 @@ async def cancel_replay(run_id: str):
     summary="Delete Replay Run",
     responses={404: {"description": "Run not found"}, 409: {"description": "Run is still active"}},
 )
+@roles_required("admin")
 async def delete_replay(run_id: str):
     run = await asyncio.to_thread(_get_run_or_404, run_id)
     if run["status"] in ("queued", "running"):

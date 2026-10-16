@@ -4,7 +4,7 @@
     <div class="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b-syn">
       <div class="flex items-center gap-2">
         <syn-icon name="fast_forward" style="color: var(--syn-color-primary-600)" />
-        <span class="text-sm font-semibold" style="color: var(--syn-typography-color-heading)">Replays</span>
+        <span class="text-sm font-bold" style="color: var(--syn-typography-color-heading)">Replays</span>
         <span class="text-sm text-syn-color-neutral-600">
           · {{ runs().length }} run(s) · {{ sweeps().length }} sweep(s)
         </span>
@@ -17,47 +17,51 @@
           <syn-icon name="refresh" slot="prefix" />
           Refresh
         </syn-button>
-        <syn-button (click)="openGroundTruth()" size="small" variant="outline">
-          <syn-icon name="rule" slot="prefix" />
-          Ground truth
-        </syn-button>
-        <syn-button (click)="openSweepForm()" size="small" variant="outline">
-          <syn-icon name="tune" slot="prefix" />
-          Parameter sweep
-        </syn-button>
-        <syn-button (click)="openNewReplay()" size="small" variant="filled">
-          <syn-icon name="play_arrow" slot="prefix" />
-          New replay
-        </syn-button>
+        @if (auth.isAdmin()) {
+          <syn-button (click)="openGroundTruth()" size="small" variant="outline">
+            <syn-icon name="rule" slot="prefix" />
+            Ground truth
+          </syn-button>
+          <syn-button (click)="openSweepForm()" size="small" variant="outline">
+            <syn-icon name="tune" slot="prefix" />
+            Parameter sweep
+          </syn-button>
+          <syn-button (click)="openNewReplay()" size="small" variant="filled">
+            <syn-icon name="play_arrow" slot="prefix" />
+            New replay
+          </syn-button>
+        }
       </div>
     </div>
 
     <!-- Content (single inner scroll body) -->
     <div class="flex-1 min-h-0 overflow-y-auto p-4 relative">
       <!-- What this page is for -->
-      <section class="mb-4 rounded-lg border border-syn-color-neutral-200 p-4 flex flex-col gap-3">
-        <div>
-          <h2 class="text-base font-bold">Test pipeline changes on a recording</h2>
-          <p class="text-sm text-syn-color-neutral-600 mt-1">
-            Replay a recording through your pipeline as fast as the CPU allows, change a parameter,
-            replay again, and compare the two runs, to see whether your change made the results better or worse.
-          </p>
+      <syn-details class="mb-4" summary="How replays work">
+        <div class="flex flex-col gap-3">
+          <div>
+            <h2 class="text-base font-bold">Test pipeline changes on a recording</h2>
+            <p class="text-sm text-syn-color-neutral-600 mt-1">
+              Replay a recording through your pipeline as fast as the CPU allows, change a parameter,
+              replay again, and compare the two runs, to see whether your change made the results better or worse.
+            </p>
+          </div>
+          <ol class="grid gap-3 md:grid-cols-3 text-sm">
+            <li class="flex gap-2">
+              <span class="font-bold text-syn-color-primary-600">1.</span>
+              <span><b>New replay</b>: pick a recording and optionally override node settings. It runs without waiting for real time.</span>
+            </li>
+            <li class="flex gap-2">
+              <span class="font-bold text-syn-color-primary-600">2.</span>
+              <span><b>Change and repeat</b>: adjust a parameter and replay again, or use <b>Parameter sweep</b> to try many values at once.</span>
+            </li>
+            <li class="flex gap-2">
+              <span class="font-bold text-syn-color-primary-600">3.</span>
+              <span><b>Compare</b>: select two runs to see differences in values, saved results and the point cloud. Set <b>Ground truth</b> to score accuracy.</span>
+            </li>
+          </ol>
         </div>
-        <ol class="grid gap-3 md:grid-cols-3 text-sm">
-          <li class="flex gap-2">
-            <span class="font-bold text-syn-color-primary-600">1.</span>
-            <span><b>New replay</b>: pick a recording and optionally override node settings. It runs without waiting for real time.</span>
-          </li>
-          <li class="flex gap-2">
-            <span class="font-bold text-syn-color-primary-600">2.</span>
-            <span><b>Change and repeat</b>: adjust a parameter and replay again, or use <b>Parameter sweep</b> to try many values at once.</span>
-          </li>
-          <li class="flex gap-2">
-            <span class="font-bold text-syn-color-primary-600">3.</span>
-            <span><b>Compare</b>: select two runs to see differences in values, saved results and the point cloud. Set <b>Ground truth</b> to score accuracy.</span>
-          </li>
-        </ol>
-      </section>
+      </syn-details>
 
       <syn-tab-group (syn-tab-show)="setTab($any($event).detail.name)">
         <syn-tab [active]="tab() === 'runs'" panel="runs" slot="nav">Runs ({{ runs().length }})</syn-tab>
@@ -104,30 +108,78 @@
               </div>
             </div>
 
-            <div class="compare-bar flex items-center gap-3 mb-3 px-3 py-2 rounded-lg" [class.is-ready]="canCompare()">
-              <syn-icon name="compare_arrows" class="text-syn-color-neutral-500" />
-              <span class="text-xs text-syn-color-neutral-600 flex-1">
-                @if (selectedIds().length === 0) {
-                  Tick runs to delete them, or two completed runs to compare them.
-                } @else {
-                  {{ selectedIds().length }} selected
+            <!-- Toolbox: filter the list, act on the selection -->
+            <div class="toolbox mb-3 rounded-lg" [class.is-ready]="canCompare()">
+              <div class="toolbox-row">
+                <span class="toolbox-label"><syn-icon name="filter_alt" /> Filter</span>
+                <syn-input
+                  (input)="setSearch($any($event.target).value)"
+                  [value]="searchQuery()"
+                  class="flex-1 min-w-[12rem]"
+                  placeholder="Search by run label or recording..."
+                  size="small"
+                  type="search"
+                >
+                  <syn-icon name="search" slot="prefix" />
+                </syn-input>
+                <syn-select
+                  (syn-change)="setStatusFilter($any($event.target).value)"
+                  [value]="statusFilter()"
+                  class="w-full sm:w-44"
+                  size="small"
+                >
+                  <syn-option value="all">All statuses</syn-option>
+                  <syn-option value="completed">Completed</syn-option>
+                  <syn-option value="running">Running</syn-option>
+                  <syn-option value="queued">Queued</syn-option>
+                  <syn-option value="failed">Failed</syn-option>
+                  <syn-option value="cancelled">Cancelled</syn-option>
+                </syn-select>
+                <syn-select
+                  (syn-change)="setRecordingFilter($any($event.target).value)"
+                  [value]="recordingFilter()"
+                  class="w-full sm:w-56"
+                  size="small"
+                >
+                  <syn-option value="all">All recordings</syn-option>
+                  @for (rec of recordingOptions(); track rec.id) {
+                    <syn-option [value]="rec.id">{{ rec.name }}</syn-option>
+                  }
+                </syn-select>
+                <syn-button (click)="clearFilters()" [disabled]="!hasFilters" size="small" variant="text">
+                  <syn-icon slot="prefix" name="filter_alt_off" />
+                  Clear
+                </syn-button>
+              </div>
+              <div class="toolbox-row toolbox-actions">
+                <span class="toolbox-label"><syn-icon name="checklist" /> Selection</span>
+                <span class="text-xs text-syn-color-neutral-600 flex-1">
+                  @if (selectedIds().length === 0) {
+                    Tick runs to delete them, or two completed runs to compare them.
+                  } @else {
+                    <b>{{ selectedIds().length }}</b> selected
+                    @if (canCompare()) { · ready to compare }
+                  }
+                </span>
+                @if (auth.isAdmin()) {
+                  <syn-button
+                    (click)="removeSelected()"
+                    [disabled]="selectedIds().length === 0"
+                    size="small"
+                    variant="outline"
+                  >
+                    <syn-icon slot="prefix" name="delete" />
+                    Delete selected
+                  </syn-button>
                 }
-              </span>
-              <syn-button
-                (click)="removeSelected()"
-                [disabled]="selectedIds().length === 0"
-                size="small"
-                variant="outline"
-              >
-                <syn-icon slot="prefix" name="delete" />
-                Delete selected
-              </syn-button>
-              <syn-button class="compare-btn" (click)="compareSelected()" [disabled]="!canCompare()" size="small" variant="filled">
-                <syn-icon slot="prefix" name="compare_arrows" />
-                Compare
-              </syn-button>
+                <syn-button class="compare-btn" (click)="compareSelected()" [disabled]="!canCompare()" size="small" variant="filled">
+                  <syn-icon slot="prefix" name="compare_arrows" />
+                  Compare
+                </syn-button>
+              </div>
             </div>
 
+            <div class="table-scroll">
             <table class="syn-table--default replay-table" style="width: 100%">
               <thead>
                 <tr>
@@ -140,6 +192,7 @@
                     />
                   </th>
                   <th>Run</th>
+                  <th>Recording</th>
                   <th>Status</th>
                   <th>Result</th>
                   <th>Ground truth</th>
@@ -148,7 +201,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (run of runs(); track run.id) {
+                @for (run of pagedRuns(); track run.id) {
                   <tr >
                     <td (click)="$event.stopPropagation()">
                       <syn-checkbox
@@ -160,8 +213,11 @@
                     <td>
                       <div class="font-medium text-syn-typography-color-text">{{ run.label }}</div>
                       <div class="text-xs text-syn-color-neutral-500">
-                        {{ recordingName(run.recording_id) }} · {{ overrideSummary(run) }}
+                        {{ overrideSummary(run) }}
                       </div>
+                    </td>
+                    <td>
+                      <syn-tag size="small">{{ recordingName(run.recording_id) }}</syn-tag>
                     </td>
                     <td style="min-width: 9rem">
                       @if (run.status === 'running') {
@@ -187,23 +243,46 @@
                     <td class="text-xs text-syn-color-neutral-500 whitespace-nowrap">{{ formatDate(run.created_at) }}</td>
                     <td class="whitespace-nowrap text-right" (click)="$event.stopPropagation()">
                       @if (run.status === 'running' || run.status === 'queued') {
-                        <syn-button (click)="cancel(run)" size="small" variant="outline">
-                          <syn-icon slot="prefix" name="cancel" />
-                          Cancel
-                        </syn-button>
+                        @if (auth.isAdmin()) {
+                          <syn-button (click)="cancel(run)" size="small" variant="outline">
+                            <syn-icon slot="prefix" name="cancel" />
+                            Cancel
+                          </syn-button>
+                        }
                       } @else {
                         <syn-icon-button class="act act-primary" (click)="openRun(run)" label="View statistics" name="query_stats" title="View statistics" />
-                        <syn-icon-button class="act act-primary" (click)="rerun(run)" label="Re-run with changes" name="content_copy" title="Re-run with changes" />
+                        @if (auth.isAdmin()) {
+                          <syn-icon-button class="act act-primary" (click)="rerun(run)" label="Re-run with changes" name="content_copy" title="Re-run with changes" />
+                        }
                         @if (canApply(run)) {
                           <syn-icon-button class="act act-success" (click)="applyToPipeline(run)" label="Apply to pipeline" name="rocket_launch" title="Apply these parameters to the pipeline" />
                         }
-                        <syn-icon-button class="act act-danger" (click)="remove(run)" label="Delete run" name="delete" title="Delete" />
+                        @if (auth.isAdmin()) {
+                          <syn-icon-button class="act act-danger" (click)="remove(run)" label="Delete run" name="delete" title="Delete" />
+                        }
                       }
                     </td>
                   </tr>
                 }
               </tbody>
             </table>
+            </div>
+
+            @if (filteredRuns().length === 0) {
+              <div class="py-10 text-center text-sm text-syn-color-neutral-500">No runs match the current filters.</div>
+            } @else {
+              <syn-pagination
+                (syn-pagination-page-changed)="onPageChanged($any($event).detail.currentPage)"
+                (syn-pagination-page-size-changed)="onPageSizeChanged($any($event).detail.currentPageSize)"
+                [currentPage]="currentPage()"
+                [pageSize]="pageSize()"
+                [pageSizeOptions]="pageSizeOptions"
+                [totalItems]="filteredRuns().length"
+                aria-label="Replay runs pagination"
+                divider
+                size="small"
+              />
+            }
           }
         </syn-tab-panel>
 
@@ -255,7 +334,9 @@
                     </td>
                     <td class="text-xs text-syn-color-neutral-500 whitespace-nowrap">{{ formatDate(sweep.created_at) }}</td>
                     <td class="whitespace-nowrap">
-                      <syn-icon-button class="act act-danger" (click)="removeSweep(sweep); $event.stopPropagation()" label="Delete sweep" name="delete" title="Delete sweep and all of its runs" />
+                      @if (auth.isAdmin()) {
+                        <syn-icon-button class="act act-danger" (click)="removeSweep(sweep); $event.stopPropagation()" label="Delete sweep" name="delete" title="Delete sweep and all of its runs" />
+                      }
                       <syn-icon class="text-syn-color-neutral-400 align-middle" name="chevron_right" />
                     </td>
                   </tr>

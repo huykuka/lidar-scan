@@ -30,6 +30,9 @@ import {describeValues} from './utils/sweep-values';
 
 const POLL_INTERVAL_MS = 1000;
 const COMPARE_COUNT = 2;
+const DEFAULT_PAGE_SIZE = 10;
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const ALL = 'all';
 
 export type ReplaysTab = 'runs' | 'sweeps';
 
@@ -59,16 +62,54 @@ export class ReplaysComponent implements OnInit {
   protected readonly isLoading = signal(false);
   protected readonly selectedIds = signal<string[]>([]);
 
-  /** Runs that can be selected: anything not queued/running (those must be cancelled first). */
+  // ── Filter / paging ──────────────────────────────────────────────────────
+  protected readonly pageSizeOptions = PAGE_SIZE_OPTIONS;
+  protected readonly searchQuery = signal('');
+  protected readonly statusFilter = signal<string>(ALL);
+  protected readonly recordingFilter = signal<string>(ALL);
+  protected readonly pageSize = signal(DEFAULT_PAGE_SIZE);
+  private readonly requestedPage = signal(1);
+
+  /** Recordings that have at least one run, for the filter dropdown. */
+  protected readonly recordingOptions = computed(() =>
+    [...new Set(this.runs().map((r) => r.recording_id))]
+      .map((id) => ({id, name: this.recordingName(id)}))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  );
+  protected readonly filteredRuns = computed(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const status = this.statusFilter();
+    const recording = this.recordingFilter();
+    return this.runs().filter(
+      (r) =>
+        (status === ALL || r.status === status) &&
+        (recording === ALL || r.recording_id === recording) &&
+        (!q || `${r.label} ${this.recordingName(r.recording_id)}`.toLowerCase().includes(q)),
+    );
+  });
+  /** Current page, clamped when filtering or deleting leaves fewer pages. */
+  protected readonly currentPage = computed(() => {
+    const pages = Math.max(1, Math.ceil(this.filteredRuns().length / this.pageSize()));
+    return Math.min(this.requestedPage(), pages);
+  });
+  protected readonly pagedRuns = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize();
+    return this.filteredRuns().slice(start, start + this.pageSize());
+  });
+
+  /** Runs on the current page that can be selected: anything not queued/running (cancel those first). */
   protected readonly selectableIds = computed(() =>
-    this.runs()
+    this.pagedRuns()
       .filter((r) => r.status !== 'queued' && r.status !== 'running')
       .map((r) => r.id),
   );
-  protected readonly allSelected = computed(
-    () => this.selectableIds().length > 0 && this.selectedIds().length === this.selectableIds().length,
+  protected readonly allSelected = computed(() => {
+    const selected = new Set(this.selectedIds());
+    return this.selectableIds().length > 0 && this.selectableIds().every((id) => selected.has(id));
+  });
+  protected readonly someSelected = computed(
+    () => !this.allSelected() && this.selectableIds().some((id) => this.selectedIds().includes(id)),
   );
-  protected readonly someSelected = computed(() => this.selectedIds().length > 0 && !this.allSelected());
   /** Compare needs exactly two completed runs. */
   protected readonly canCompare = computed(() => {
     const ids = this.selectedIds();
@@ -206,8 +247,48 @@ export class ReplaysComponent implements OnInit {
     });
   }
 
+  /** Select-all applies to the rows on the current page only. */
   protected toggleSelectAll(checked: boolean) {
-    this.selectedIds.set(checked ? [...this.selectableIds()] : []);
+    const page = new Set(this.selectableIds());
+    this.selectedIds.update((ids) => {
+      const others = ids.filter((id) => !page.has(id));
+      return checked ? [...others, ...page] : others;
+    });
+  }
+
+  protected setSearch(value: string) {
+    this.searchQuery.set(value);
+    this.requestedPage.set(1);
+  }
+
+  protected setStatusFilter(value: string) {
+    this.statusFilter.set(value || ALL);
+    this.requestedPage.set(1);
+  }
+
+  protected setRecordingFilter(value: string) {
+    this.recordingFilter.set(value || ALL);
+    this.requestedPage.set(1);
+  }
+
+  protected clearFilters() {
+    this.searchQuery.set('');
+    this.statusFilter.set(ALL);
+    this.recordingFilter.set(ALL);
+    this.requestedPage.set(1);
+  }
+
+  protected get hasFilters(): boolean {
+    return !!this.searchQuery() || this.statusFilter() !== ALL || this.recordingFilter() !== ALL;
+  }
+
+  protected onPageChanged(page: number) {
+    this.requestedPage.set(page);
+  }
+
+  protected onPageSizeChanged(size: number) {
+    this.pageSize.set(size);
+    this.requestedPage.set(1);
   }
 
   protected async removeSelected() {

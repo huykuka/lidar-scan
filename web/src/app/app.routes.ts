@@ -44,13 +44,11 @@ export const routes: Routes = [
       },
       {
         path: 'replays',
-        canActivate: [serviceGuard],
         loadComponent: () =>
           import('./features/replays/replays.component').then((m) => m.ReplaysComponent),
       },
       {
         path: 'replays/sweeps/:id',
-        canActivate: [serviceGuard],
         loadComponent: () =>
           import('./features/replays/components/sweep-detail/sweep-detail.component').then(
             (m) => m.SweepDetailComponent,
@@ -58,7 +56,6 @@ export const routes: Routes = [
       },
       {
         path: 'replays/compare',
-        canActivate: [serviceGuard],
         loadComponent: () =>
           import('./features/replays/components/replay-compare/replay-compare.component').then(
             (m) => m.ReplayCompareComponent,
@@ -66,7 +63,6 @@ export const routes: Routes = [
       },
       {
         path: 'replays/:id',
-        canActivate: [serviceGuard],
         loadComponent: () =>
           import('./features/replays/components/replay-run/replay-run.component').then(
             (m) => m.ReplayRunComponent,

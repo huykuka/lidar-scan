@@ -15,15 +15,19 @@
           <syn-icon name="refresh" slot="prefix" />
           Refresh
         </syn-button>
-        <syn-button (click)="openGroundTruth()" size="small" variant="outline">
-          <syn-icon name="rule" slot="prefix" />
-          Ground truth
-        </syn-button>
+        @if (auth.isAdmin()) {
+          <syn-button (click)="openGroundTruth()" size="small" variant="outline">
+            <syn-icon name="rule" slot="prefix" />
+            Ground truth
+          </syn-button>
+        }
         <syn-button (click)="compare()" [disabled]="!canCompare()" size="small" variant="outline">
           <syn-icon name="compare_arrows" slot="prefix" />
           Compare ({{ compareIds().length }}/2)
         </syn-button>
-        @if (isActive()) {
+        @if (!auth.isAdmin()) {
+          <!-- read-only for operators -->
+        } @else if (isActive()) {
           <syn-button (click)="cancelSweep()" size="small" variant="outline">Cancel sweep</syn-button>
         } @else if (sweep()) {
           <syn-icon-button (click)="deleteSweep()" label="Delete sweep" name="delete" title="Delete sweep" />
@@ -78,7 +82,7 @@
               </syn-button>
             }
           </div>
-        } @else if (detail()!.targets.length === 0 && !isActive()) {
+        } @else if (detail()!.targets.length === 0 && !isActive() && auth.isAdmin()) {
           <div class="flex flex-wrap items-center gap-3 rounded-lg border border-syn-color-neutral-200 px-4 py-3">
             <syn-icon class="text-syn-color-neutral-500 text-2xl" name="rule" />
             <div class="flex-1 min-w-0 text-sm text-syn-color-neutral-600">
@@ -179,7 +183,9 @@
                   <td class="font-mono text-xs">{{ errorText(row.score) }}</td>
                   <td><app-replay-score [scores]="row.run.scores" /></td>
                   <td class="whitespace-nowrap text-right" (click)="$event.stopPropagation()">
-                    <syn-icon-button (click)="rerun(row.run)" label="Re-run with changes" name="content_copy" title="Re-run with changes" />
+                    @if (auth.isAdmin()) {
+                      <syn-icon-button (click)="rerun(row.run)" label="Re-run with changes" name="content_copy" title="Re-run with changes" />
+                    }
                     @if (canApply(row.run)) {
                       <syn-icon-button (click)="applyToPipeline(row.run)" label="Apply to pipeline" name="rocket_launch" title="Apply this value to the pipeline" />
                     }

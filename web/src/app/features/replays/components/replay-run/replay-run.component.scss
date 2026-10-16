@@ -2,44 +2,6 @@
   @apply block h-full;
 }
 
-.stat-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  border: 1px solid var(--syn-color-neutral-300);
-  border-radius: 0.75rem;
-  overflow: hidden;
-}
-
-.stat-cell {
-  --accent: var(--syn-color-neutral-600);
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-left: 1px solid var(--syn-color-neutral-200);
-
-  &:first-child { border-left: 0; }
-  &.is-danger { --accent: var(--syn-color-danger-600); }
-  &.is-ok { --accent: var(--syn-color-success-600); }
-
-  > syn-icon { font-size: 1.5rem; color: var(--accent); }
-}
-
-.stat-value {
-  font-size: 1.375rem;
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  color: var(--accent);
-}
-
-.stat-label {
-  font-size: 0.8rem;
-  color: var(--syn-color-neutral-600);
-
-  span { margin-left: 0.25rem; color: var(--syn-color-neutral-500); }
-}
-
 .values-layout {
   display: grid;
   grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
@@ -89,4 +51,39 @@
 
   span:first-child { font-size: 0.75rem; color: var(--syn-color-neutral-600); }
   span:last-child { font-family: var(--syn-font-mono, monospace); font-weight: 600; }
+}
+
+/* Cloud + metrics fit the viewport: the cloud card fills the height, the metric list scrolls beside it. */
+.frame-split {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+
+  @media (min-width: 1024px) {
+    &.has-cloud {
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      height: max(26rem, calc(100vh - 19rem));
+    }
+  }
+}
+
+.frame-cloud {
+  min-height: 0;
+  height: 28rem;
+
+  @media (min-width: 1024px) {
+    height: 100%;
+  }
+}
+
+.frame-metrics {
+  min-width: 0;
+
+  @media (min-width: 1024px) {
+    .has-cloud & {
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+  }
 }

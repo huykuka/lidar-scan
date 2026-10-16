@@ -1,0 +1,61 @@
+<div class="h-full flex flex-col rounded-xl border border-syn-color-neutral-300 overflow-hidden">
+  <!-- Header: what is shown + view controls -->
+  <div class="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 bg-syn-color-neutral-100 border-b border-syn-color-neutral-300">
+    <div class="flex items-center gap-2 min-w-0">
+      <syn-icon name="view_in_ar" class="text-syn-color-primary-600" />
+            <syn-select
+        (syn-change)="selectNode($any($event.target).value)"
+        [value]="nodeId()"
+        class="w-44"
+        size="small"
+      >
+        @for (n of nodes(); track n.id) {
+          <syn-option [value]="n.id">{{ n.name }}</syn-option>
+        }
+      </syn-select>
+    </div>
+    <div class="flex items-center gap-2 flex-1 min-w-[9rem]">
+      <span class="text-xs font-semibold uppercase tracking-wide text-syn-color-neutral-600 whitespace-nowrap">Point size</span>
+      <syn-range
+        (synChangeEvent)="pointSize.set(+$any($event.target).value)"
+        [max]="0.5"
+        [min]="0.01"
+        [step]="0.01"
+        [value]="pointSize().toString()"
+        class="flex-1"
+      />
+    </div>
+    <syn-badge variant="neutral">{{ count() }} points</syn-badge>
+  </div>
+
+  <!-- 3D view -->
+  <div class="relative flex-1 min-h-[16rem]">
+    <ngt-canvas style="width:100%;height:100%;display:block">
+      <app-threed-scene-graph *canvasContent [showGrid]="showGrid()" [viewType]="viewOrientation()">
+        <ngts-points-buffer #pts [positions]="buffer">
+          <ngt-points-material color="#38bdf8" [size]="pointSize()" [sizeAttenuation]="true" />
+        </ngts-points-buffer>
+      </app-threed-scene-graph>
+    </ngt-canvas>
+    <app-shared-viewport-overlay
+      (gridToggle)="showGrid.set($event)"
+      (orientationChange)="viewOrientation.set($event)"
+      [hasData]="count() > 0"
+      [orientation]="viewOrientation()"
+      [showGrid]="showGrid()"
+    />
+    @if (isLoading()) {
+      <div class="absolute top-3 right-3 z-20"><syn-spinner /></div>
+    }
+    @if (missing() && !isLoading()) {
+      <div class="absolute inset-0 flex items-center justify-center text-sm text-syn-color-neutral-500 pointer-events-none">
+        No point cloud was captured for this node at this frame.
+      </div>
+    }
+  </div>
+
+  <!-- Projected footer, e.g. the frame scrubber -->
+  <div class="shrink-0 px-3 py-1 border-t border-syn-color-neutral-300 empty:hidden">
+    <ng-content select="[footer]" />
+  </div>
+</div>

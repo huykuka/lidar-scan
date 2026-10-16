@@ -18,6 +18,8 @@ import {ReplayScoreComponent} from '../replay-score/replay-score.component';
 import {RunChartComponent} from '../run-chart/run-chart.component';
 import {runToPrefill} from '../../utils/clone-run';
 import {formatOverrideValue} from '../../utils/override-values';
+import {NgTemplateOutlet} from '@angular/common';
+import {ReplayFrameCloudComponent} from '../replay-frame-cloud/replay-frame-cloud.component';
 import {formatValue, frameRange, frameSnapshot, NodeMetrics, nodeMetrics} from '../../utils/run-metadata';
 import {describeError, formatNumber} from '../../utils/score-format';
 
@@ -26,7 +28,7 @@ const POLL_INTERVAL_MS = 1000;
 /** Statistics of one replay run: what each node produced, frame by frame. */
 @Component({
   selector: 'app-replay-run',
-  imports: [SynergyComponentsModule, RouterLink, ReplayScoreComponent, RunChartComponent],
+  imports: [SynergyComponentsModule, NgTemplateOutlet, RouterLink, ReplayScoreComponent, RunChartComponent, ReplayFrameCloudComponent],
   templateUrl: './replay-run.component.html',
   styleUrl: './replay-run.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -45,6 +47,11 @@ export class ReplayRunComponent implements OnInit {
   protected readonly auth = inject(AuthService);
 
   private runId = '';
+
+  /** Vertical tabs need width; below this breakpoint they go back on top. */
+  private readonly wideQuery = window.matchMedia('(min-width: 1024px)');
+  protected readonly isWide = signal(this.wideQuery.matches);
+  private readonly onWideChange = (e: MediaQueryListEvent) => this.isWide.set(e.matches);
   protected readonly run = signal<ReplayRun | null>(null);
   protected readonly outputs = signal<ReplayOutputs | null>(null);
   protected readonly isLoading = signal(true);
@@ -75,8 +82,37 @@ export class ReplayRunComponent implements OnInit {
   protected readonly active = computed(() => this.metricsByNode().get(this.activeNodeId()) ?? {numeric: [], category: []});
 
   // ── Frame inspector ──
+  /** Nodes whose point clouds were captured, for the cloud view. Empty for older runs. */
+  protected readonly cloudNodes = computed(() =>
+    Object.entries(this.run()?.summary?.clouds ?? {}).map(([id, c]) => ({id, name: c.name})),
+  );
   protected readonly range = computed(() => frameRange(this.outputs()));
   protected readonly inspectFrame = signal<number | null>(null);
+  /** Open accordion items by node id; ``null`` until the user toggles one (then the first node is open). */
+  private readonly openNodes = signal<Set<string> | null>(null);
+
+  protected isNodeOpen(nodeId: string): boolean {
+    const open = this.openNodes();
+    return open ? open.has(nodeId) : nodeId === this.inspected().nodes[0]?.nodeId;
+  }
+
+  protected setNodeOpen(nodeId: string, open: boolean): void {
+    this.openNodes.update((current) => {
+      const next = new Set(current ?? this.defaultOpenNodes());
+      if (open) next.add(nodeId);
+      else next.delete(nodeId);
+      return next;
+    });
+  }
+
+  protected setAllNodesOpen(open: boolean): void {
+    this.openNodes.set(open ? new Set(this.inspected().nodes.map((n) => n.nodeId)) : new Set());
+  }
+
+  private defaultOpenNodes(): string[] {
+    const first = this.inspected().nodes[0]?.nodeId;
+    return first ? [first] : [];
+  }
   protected readonly inspected = computed(() => {
     const r = this.range();
     const f = this.inspectFrame() ?? r?.min ?? 0;
@@ -102,6 +138,8 @@ export class ReplayRunComponent implements OnInit {
 
   ngOnInit(): void {
     this.runId = this.route.snapshot.paramMap.get('id') ?? '';
+    this.wideQuery.addEventListener('change', this.onWideChange);
+    this.destroyRef.onDestroy(() => this.wideQuery.removeEventListener('change', this.onWideChange));
     this.nav.setPageConfig({title: 'Replays', subtitle: 'Run statistics'});
     this.nodeStore.loadNodesIfEmpty();
     this.recordingStore.loadRecordings();

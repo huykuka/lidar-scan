@@ -59,17 +59,52 @@
   color: var(--syn-color-neutral-600);
 }
 
-.compare-bar {
-  border: 1px dashed var(--syn-color-neutral-400);
-  transition:
-    border-color 150ms,
-    background-color 150ms;
+.toolbox {
+  border: 1px solid var(--syn-color-neutral-300);
+  background: color-mix(in srgb, var(--syn-color-neutral-100) 40%, transparent);
+  overflow: hidden;
+  transition: border-color 150ms;
 
   &.is-ready {
-    border-style: solid;
     border-color: var(--syn-color-primary-600);
+  }
+}
+
+.toolbox-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+
+  & + & {
+    border-top: 1px solid var(--syn-color-neutral-300);
+  }
+}
+
+.toolbox-actions {
+  background: color-mix(in srgb, var(--syn-color-neutral-200) 35%, transparent);
+
+  .is-ready & {
     background: color-mix(in srgb, var(--syn-color-primary-600) 10%, transparent);
   }
+}
+
+.toolbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 6.5rem;
+  flex-shrink: 0;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--syn-color-neutral-600);
 }
 
 .replay-table {
@@ -116,4 +151,12 @@
   color: var(--syn-color-neutral-700);
   border-color: transparent;
   opacity: 1;
+}
+
+/* Wide table scrolls sideways on small screens instead of breaking the layout. */
+.table-scroll {
+  overflow-x: auto;
+}
+.table-scroll > table {
+  min-width: 52rem;
 }

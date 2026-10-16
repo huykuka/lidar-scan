@@ -52,6 +52,14 @@ export class ReplayApiService {
     return this.http.delete<void>(`${this.baseUrl}/${encodeURIComponent(runId)}`);
   }
 
+  /** Raw float32 xyz triples of one node/frame of a single run. */
+  getRunCloud(runId: string, nodeId: string, frame: number): Observable<ArrayBuffer> {
+    return this.http.get(`${this.baseUrl}/${encodeURIComponent(runId)}/cloud`, {
+      params: {node_id: nodeId, frame: String(frame)},
+      responseType: 'arraybuffer',
+    });
+  }
+
   /** Binary visual-diff payload for one node/frame; decode with `parseCloudDiff`. */
   getCloudDiff(
     a: string,

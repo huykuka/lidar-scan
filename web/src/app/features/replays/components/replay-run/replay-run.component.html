@@ -2,7 +2,7 @@
   <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
     <div class="shrink-0 flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b-syn">
       <nav class="flex items-center gap-1 text-sm text-syn-color-neutral-500 min-w-0">
-        <a [routerLink]="['/replays']" class="hover:text-syn-color-primary-600 cursor-pointer">Replays</a>
+        <a [routerLink]="['/replays']" class="font-bold hover:text-syn-color-primary-600 cursor-pointer">Replays</a>
         <syn-icon class="text-xs" name="chevron_right" />
         <span class="text-syn-typography-color-text font-medium truncate">{{ run()?.label ?? 'Run' }}</span>
         @if (run(); as r) {
@@ -15,8 +15,10 @@
           Refresh
         </syn-button>
         @if (isActive()) {
-          <syn-button (click)="cancel()" size="small" variant="outline">Cancel</syn-button>
-        } @else if (run()) {
+          @if (auth.isAdmin()) {
+            <syn-button (click)="cancel()" size="small" variant="outline">Cancel</syn-button>
+          }
+        } @else if (run() && auth.isAdmin()) {
           <syn-button (click)="rerun()" size="small" variant="outline">
             <syn-icon name="content_copy" slot="prefix" />
             Re-run with changes
@@ -46,6 +48,26 @@
         <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-syn-color-neutral-600">
           <span class="flex items-center gap-1.5"><syn-icon name="video_library" /> {{ recordingName() }}</span>
           <span class="flex items-center gap-1.5"><syn-icon name="schedule" /> {{ formatDate(r.created_at) }}</span>
+          <span class="flex items-center gap-1.5" title="Frames processed">
+            <syn-icon name="movie" /> <b class="text-syn-color-neutral-900">{{ r.frames_processed }}</b> / {{ r.frames_total }} frames
+          </span>
+          <span class="flex items-center gap-1.5" title="Duration">
+            <syn-icon name="timer" />
+            <b class="text-syn-color-neutral-900">{{ r.duration_seconds === null ? '—' : r.duration_seconds.toFixed(1) + 's' }}</b>
+            @if (r.duration_seconds) { <span class="text-syn-color-neutral-500">· {{ (r.frames_processed / r.duration_seconds).toFixed(0) }} frames/s</span> }
+          </span>
+          <span class="flex items-center gap-1.5" title="Saved results">
+            <syn-icon name="inventory_2" /> <b class="text-syn-color-neutral-900">{{ r.summary.saved_results_total ?? 0 }}</b> saved
+          </span>
+          <span
+            class="flex items-center gap-1.5"
+            [class.text-syn-color-danger-600]="(r.summary.errors_total ?? 0) > 0"
+            [class.text-syn-color-success-600]="isCompleted() && !(r.summary.errors_total ?? 0)"
+            title="Errors"
+          >
+            <syn-icon [name]="(r.summary.errors_total ?? 0) > 0 ? 'error' : 'check_circle'" />
+            <b>{{ r.summary.errors_total ?? 0 }}</b> errors
+          </span>
           @if (r.scores?.overall) { <app-replay-score [scores]="r.scores" /> }
           @if (overrides().length > 0) {
             <span class="flex flex-wrap items-center gap-1.5">
@@ -72,31 +94,6 @@
           </div>
         }
 
-        <!-- Numbers -->
-        <div class="stat-strip">
-          <div class="stat-cell">
-            <syn-icon name="movie" />
-            <div><div class="stat-value">{{ r.frames_processed }}</div><div class="stat-label">Frames <span>of {{ r.frames_total }}</span></div></div>
-          </div>
-          <div class="stat-cell">
-            <syn-icon name="timer" />
-            <div>
-              <div class="stat-value">{{ r.duration_seconds === null ? '—' : r.duration_seconds.toFixed(1) + 's' }}</div>
-              <div class="stat-label">Duration
-                @if (r.duration_seconds) { <span>{{ (r.frames_processed / r.duration_seconds).toFixed(0) }} frames/s</span> }
-              </div>
-            </div>
-          </div>
-          <div class="stat-cell">
-            <syn-icon name="inventory_2" />
-            <div><div class="stat-value">{{ r.summary.saved_results_total ?? 0 }}</div><div class="stat-label">Saved results</div></div>
-          </div>
-          <div class="stat-cell" [class.is-danger]="(r.summary.errors_total ?? 0) > 0" [class.is-ok]="isCompleted() && !(r.summary.errors_total ?? 0)">
-            <syn-icon [name]="(r.summary.errors_total ?? 0) > 0 ? 'error' : 'check_circle'" />
-            <div><div class="stat-value">{{ r.summary.errors_total ?? 0 }}</div><div class="stat-label">Errors</div></div>
-          </div>
-        </div>
-
         <!-- Ground truth -->
         @if (r.scores && r.scores.targets.length > 0) {
           <section class="rounded-lg border border-syn-color-neutral-200 overflow-hidden">
@@ -120,7 +117,7 @@
         }
 
         @if (isCompleted()) {
-          <syn-tab-group>
+          <syn-tab-group [placement]="isWide() ? 'start' : 'top'">
             <syn-tab panel="values" slot="nav">Values</syn-tab>
             <syn-tab panel="frame" slot="nav">Frame inspector</syn-tab>
             <syn-tab panel="saved" slot="nav">Saved results ({{ r.summary.saved_results_total ?? 0 }})</syn-tab>
@@ -212,11 +209,10 @@
               } @else if (!range()) {
                 <p class="text-sm text-syn-color-neutral-500 py-10 text-center">No frames were captured.</p>
               } @else {
-                <div class="flex flex-col gap-3 pt-2">
-                  <div class="flex items-center gap-3">
-                    <syn-button (click)="stepFrame(-1)" [disabled]="inspected().frame <= range()!.min" aria-label="Previous frame" size="small" variant="outline">
-                      <syn-icon name="chevron_left" />
-                    </syn-button>
+                <div class="flex flex-col gap-3 py-3">
+                  <ng-template #scrubber>
+                  <div class="flex items-center gap-2">
+                    <syn-icon-button (click)="stepFrame(-1)" [disabled]="inspected().frame <= range()!.min" label="Previous frame" name="chevron_left" />
                     <syn-range
                       (syn-change)="setFrame($any($event.target).value)"
                       [max]="range()!.max"
@@ -224,38 +220,71 @@
                       [value]="'' + inspected().frame"
                       class="flex-1 min-w-0"
                     />
-                    <syn-button (click)="stepFrame(1)" [disabled]="inspected().frame >= range()!.max" aria-label="Next frame" size="small" variant="outline">
-                      <syn-icon name="chevron_right" />
-                    </syn-button>
-                    <span class="w-32 text-right text-sm tabular-nums">Frame {{ inspected().frame }} / {{ range()!.max }}</span>
+                    <syn-icon-button (click)="stepFrame(1)" [disabled]="inspected().frame >= range()!.max" label="Next frame" name="chevron_right" />
+                    <span class="w-24 sm:w-32 text-right text-xs sm:text-sm font-medium tabular-nums">Frame {{ inspected().frame }} / {{ range()!.max }}</span>
                   </div>
+                  </ng-template>
 
-                  @if (inspected().nodes.length === 0) {
-                    <p class="text-sm text-syn-color-neutral-500 py-6 text-center">No node produced output at this frame.</p>
-                  }
-                  <div class="grid gap-3 md:grid-cols-2">
-                    @for (n of inspected().nodes; track n.nodeId) {
-                      <div class="rounded-lg border border-syn-color-neutral-200 overflow-hidden">
-                        <div class="flex items-center justify-between gap-2 px-3 py-2 bg-syn-color-neutral-100">
-                          <span class="font-medium truncate">{{ n.name }} <span class="text-xs text-syn-color-neutral-500">{{ n.type }}</span></span>
-                          @if (n.points !== null) { <syn-badge variant="neutral">{{ n.points }} points</syn-badge> }
-                        </div>
-                        @if (n.entries.length === 0) {
-                          <p class="text-xs text-syn-color-neutral-500 px-3 py-2">No metadata, only points.</p>
-                        } @else {
-                          <table class="w-full text-sm">
-                            <tbody>
-                              @for (e of n.entries; track e.key) {
-                                <tr class="border-t border-syn-color-neutral-200">
-                                  <td class="px-3 py-1 text-syn-color-neutral-600 break-all">{{ e.key }}</td>
-                                  <td class="px-3 py-1 font-mono text-right break-all">{{ show(e.value) }}</td>
-                                </tr>
-                              }
-                            </tbody>
-                          </table>
-                        }
+                  <!-- Point cloud (left, stays in view) next to the metrics (right) -->
+                  <div class="frame-split" [class.has-cloud]="cloudNodes().length > 0">
+                    @if (cloudNodes().length > 0) {
+                      <div class="frame-cloud">
+                        <app-replay-frame-cloud [frame]="inspected().frame" [nodes]="cloudNodes()" [runId]="run()!.id">
+                          <div footer><ng-container [ngTemplateOutlet]="scrubber" /></div>
+                        </app-replay-frame-cloud>
                       </div>
                     }
+
+                    <div class="frame-metrics flex flex-col gap-3">
+                      @if (cloudNodes().length === 0) {
+                        <ng-container [ngTemplateOutlet]="scrubber" />
+                        <p class="text-xs text-syn-color-neutral-500 rounded-lg border border-dashed border-syn-color-neutral-300 px-3 py-2">
+                          No point clouds were kept for this run. Re-run it and tick the nodes under "Point clouds to keep".
+                        </p>
+                      }
+                      @if (inspected().nodes.length === 0) {
+                        <p class="text-sm text-syn-color-neutral-500 py-6 text-center">No node produced output at this frame.</p>
+                      }
+                      @if (inspected().nodes.length > 1) {
+                        <div class="flex items-center justify-end gap-1">
+                          <syn-button (click)="setAllNodesOpen(true)" size="small" variant="text">
+                            <syn-icon slot="prefix" name="unfold_more" />
+                            Expand all
+                          </syn-button>
+                          <syn-button (click)="setAllNodesOpen(false)" size="small" variant="text">
+                            <syn-icon slot="prefix" name="unfold_less" />
+                            Collapse all
+                          </syn-button>
+                        </div>
+                      }
+                      @for (n of inspected().nodes; track n.nodeId) {
+                        <syn-details
+                          contained
+                          (syn-hide)="setNodeOpen(n.nodeId, false)"
+                          (syn-show)="setNodeOpen(n.nodeId, true)"
+                          [open]="isNodeOpen(n.nodeId)"
+                        >
+                          <span slot="summary" class="flex items-center justify-between gap-2 w-full">
+                            <span class="font-medium truncate">{{ n.name }} <span class="text-xs text-syn-color-neutral-500">{{ n.type }}</span></span>
+                            @if (n.points !== null) { <syn-badge variant="neutral">{{ n.points }} points</syn-badge> }
+                          </span>
+                          @if (n.entries.length === 0) {
+                            <p class="text-xs text-syn-color-neutral-500">No metadata, only points.</p>
+                          } @else {
+                            <table class="w-full text-sm">
+                              <tbody>
+                                @for (e of n.entries; track e.key) {
+                                  <tr class="border-t border-syn-color-neutral-200 first:border-t-0">
+                                    <td class="py-1 pr-3 text-syn-color-neutral-600 break-all">{{ e.key }}</td>
+                                    <td class="py-1 font-mono text-right break-all">{{ show(e.value) }}</td>
+                                  </tr>
+                                }
+                              </tbody>
+                            </table>
+                          }
+                        </syn-details>
+                      }
+                    </div>
                   </div>
                 </div>
               }
