@@ -1,6 +1,7 @@
 import {inject, Injectable, signal} from '@angular/core';
 import {AuthService} from './auth.service';
 import {SystemStatusService} from './system-status.service';
+import {BlobStorageService} from './blob-storage.service';
 import {ThemeService} from './theme.service';
 
 @Injectable({providedIn: 'root'})
@@ -8,6 +9,7 @@ export class AppInitService {
   private readonly auth = inject(AuthService);
   private readonly systemStatus = inject(SystemStatusService);
   private readonly themeService = inject(ThemeService);
+  private readonly blobStorage = inject(BlobStorageService);
 
   /** True once init() has completed — used to show/hide the loading screen. */
   readonly isReady = signal(false);
@@ -15,6 +17,7 @@ export class AppInitService {
   async init(): Promise<void> {
     this.themeService.checkTheme();
     await this.auth.verifyToken();
+    await this.blobStorage.refresh();
     this.systemStatus.start();
     setTimeout(() => this.isReady.set(true), 0); // Ensure loading screen is visible for at least 1s
   }

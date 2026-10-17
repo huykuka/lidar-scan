@@ -6,6 +6,8 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile, WebSocket, status
 from sqlalchemy.orm import Session
 
+from app.api.v1.auth.dependencies import roles_required
+
 from app.db.models import get_db
 from app.repositories.recordings_orm import RecordingRepository
 from .dto import (
@@ -16,7 +18,8 @@ from .service import (
     start_recording, stop_recording, list_recordings, get_recording,
     delete_recording, download_recording, get_recording_viewer_info,
     get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording,
-    rename_recording, stream_recording, trim_recording
+    rename_recording, stream_recording, trim_recording,
+    get_blob_storage_status, upload_recording_to_blob,
 )
 
 # Router configuration
@@ -115,6 +118,37 @@ async def recordings_list_endpoint(
         db: Session = Depends(get_db)
 ):
     return await list_recordings(node_id, db)
+
+
+@router.get(
+    "/recordings/blob-storage/status",
+    summary="Blob Storage Status",
+    description=(
+        "Whether S3-compatible blob storage is configured and its credentials are valid. "
+        "Service role only."
+    ),
+)
+@roles_required("service")
+async def recordings_blob_status_endpoint():
+    return await get_blob_storage_status()
+
+
+@router.post(
+    "/recordings/{recording_id}/blob-upload",
+    responses={
+        404: {"description": "Recording not found"},
+        409: {"description": "Blob storage not configured or not authenticated"},
+        500: {"description": "Upload failed"},
+    },
+    summary="Upload Recording To Blob Storage",
+    description="Upload the recording file to the configured S3-compatible bucket. Service role only.",
+)
+@roles_required("service")
+async def recordings_blob_upload_endpoint(
+        recording_id: str,
+        db: Annotated[Session, Depends(get_db)]
+):
+    return await upload_recording_to_blob(recording_id, db)
 
 
 @router.get(

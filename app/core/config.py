@@ -34,5 +34,16 @@ class Settings:
     PORT: int = int(os.getenv("PORT", 8005))
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
+    # S3-compatible blob storage (AWS S3 / MinIO) used for recording backups.
+    # Leave S3_BUCKET / keys unset to disable the feature.
+    S3_ENDPOINT_URL: str = os.getenv("S3_ENDPOINT_URL", "")
+    S3_ACCESS_KEY_ID: str = os.getenv("S3_ACCESS_KEY_ID", "")
+    S3_SECRET_ACCESS_KEY: str = os.getenv("S3_SECRET_ACCESS_KEY", "")
+    S3_BUCKET: str = os.getenv("S3_BUCKET", "")
+    S3_REGION: str = os.getenv("S3_REGION", "us-east-1")
+    S3_KEY_PREFIX: str = os.getenv("S3_KEY_PREFIX", "recordings")
+    # Upload every newly recorded recording automatically (needs valid S3 credentials).
+    S3_AUTO_UPLOAD: bool = os.getenv("S3_AUTO_UPLOAD", "false").lower() == "true"
+
 
 settings = Settings()

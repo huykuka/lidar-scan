@@ -21,6 +21,8 @@ import {Recording} from '@core/models';
 import {UploadProgressPanelComponent} from './components/upload-progress-panel/upload-progress-panel.component';
 import {RecordingUploadService} from '@core/services/recording-upload.service';
 import {RecordingCardComponent} from './components/recording-card/recording-card.component';
+import {ToastService} from '@core/services/toast.service';
+import {BlobStorageService} from '@core/services/blob-storage.service';
 import {DialogService} from '@core/services/dialog.service';
 import {firstValueFrom, interval, Subscription} from 'rxjs';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
@@ -83,6 +85,8 @@ export class RecordingsComponent implements OnInit {
   private navService = inject(NavigationService);
   private router = inject(Router);
   private dialogService = inject(DialogService);
+  private toast = inject(ToastService);
+  private blobStorage = inject(BlobStorageService);
   private destroyRef = inject(DestroyRef);
 
   private pollSub: Subscription | null = null;
@@ -134,6 +138,26 @@ export class RecordingsComponent implements OnInit {
     for (const [i, recording] of selected.entries()) {
       if (i > 0) await new Promise((resolve) => setTimeout(resolve, 500));
       this.downloadRecording(recording);
+    }
+  }
+
+  protected blobUploadingIds = signal<Set<string>>(new Set());
+
+  protected async uploadToBlob(recording: Recording): Promise<void> {
+    this.blobUploadingIds.update((s) => new Set(s).add(recording.id));
+    try {
+      const res = await firstValueFrom(this.recordingApi.uploadToBlobStorage(recording.id));
+      this.toast.success(`Uploaded ${recording.name} to ${res.bucket}`);
+      await this.recordingStore.loadRecordings(); // pick up the new 'uploaded' state
+    } catch (err: any) {
+      this.toast.danger(err?.error?.detail ?? 'Blob upload failed');
+      void this.blobStorage.refresh(); // credentials may have gone stale
+    } finally {
+      this.blobUploadingIds.update((s) => {
+        const next = new Set(s);
+        next.delete(recording.id);
+        return next;
+      });
     }
   }
 

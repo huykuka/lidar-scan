@@ -114,6 +114,22 @@
         [disabled]="actionsDisabled()"
         (click)="onDownload($event)" />
     </syn-tooltip>
+    @if (isService()) {
+      @if (uploadedInfo(); as up) {
+        <syn-tooltip [content]="'Uploaded to ' + up.bucket + '/' + up.key" placement="top">
+          <syn-icon-button size="small" variant="text" name="cloud_done" label="Uploaded to blob storage"
+            style="color: var(--syn-color-success-600)"
+            (click)="onBlobUpload($event)" />
+        </syn-tooltip>
+      } @else {
+        <syn-tooltip [content]="blobUploading() ? 'Uploading…' : blob.available() ? 'Upload to blob storage' : 'Blob storage unavailable: ' + (blob.reason() ?? '')" placement="top">
+          <syn-icon-button size="small" variant="text" [name]="blobUploading() ? 'sync' : 'cloud_upload'" label="Upload to blob storage"
+            [class.animate-spin]="blobUploading()"
+            [disabled]="!blob.available() || actionsDisabled() || blobUploading()"
+            (click)="onBlobUpload($event)" />
+        </syn-tooltip>
+      }
+    }
     <syn-tooltip content="Delete" placement="top">
       <syn-icon-button size="small" variant="text" name="delete" label="Delete"
         style="color: var(--syn-color-error-600)"

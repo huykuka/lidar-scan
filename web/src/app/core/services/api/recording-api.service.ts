@@ -11,6 +11,15 @@ import {
   TrimRecordingRequest,
 } from '../../models/recording.model';
 
+export interface BlobStorageStatus {
+  configured: boolean;
+  authenticated: boolean;
+  /** configured AND credentials valid */
+  available: boolean;
+  bucket: string | null;
+  reason: string | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -130,5 +139,15 @@ export class RecordingApiService {
    */
   trimRecording(recordingId: string, body: TrimRecordingRequest): Observable<Recording> {
     return this.http.post<Recording>(`${this.baseUrl}/${recordingId}/trim`, body);
+  }
+
+  /** Service role only: is S3-compatible blob storage configured with valid credentials? */
+  getBlobStorageStatus(): Observable<BlobStorageStatus> {
+    return this.http.get<BlobStorageStatus>(`${this.baseUrl}/blob-storage/status`);
+  }
+
+  /** Service role only: upload a recording file to blob storage. */
+  uploadToBlobStorage(recordingId: string): Observable<{bucket: string; key: string}> {
+    return this.http.post<{bucket: string; key: string}>(`${this.baseUrl}/${recordingId}/blob-upload`, {});
   }
 }

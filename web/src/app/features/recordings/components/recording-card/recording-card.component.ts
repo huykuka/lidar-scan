@@ -14,6 +14,7 @@ import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { Recording } from '@core/models';
 import { environment } from '@env/environment';
 import { AuthService } from '@core/services/auth.service';
+import { BlobStorageService } from '@core/services/blob-storage.service';
 
 @Component({
   selector: 'app-recording-card',
@@ -28,20 +29,33 @@ export class RecordingCardComponent {
   readonly selected = input(false);
   readonly priority = input(false);
 
+  readonly blobUploading = input(false);
+
   protected readonly canEdit = inject(AuthService).canEdit;
+  /** Service-only, hidden for everyone else. */
+  protected readonly isService = inject(AuthService).isService;
+  protected readonly blob = inject(BlobStorageService);
 
   readonly select = output<Recording>();
   readonly toggleSelection = output<boolean>();
   readonly play = output<Recording>();
   readonly download = output<Recording>();
   readonly delete = output<Recording>();
+  readonly blobUpload = output<Recording>();
   readonly rename = output<{ recording: Recording; name: string }>();
 
   /** Derived status helpers — treat missing status as 'ready' */
   protected readonly isProcessing = computed(() => this.recording().status === 'processing');
   protected readonly isFailed = computed(() => this.recording().status === 'failed');
+  protected readonly uploadedInfo = computed(() => this.recording().metadata?.blob_upload ?? null);
   /** Actions disabled while processing */
   protected readonly actionsDisabled = computed(() => this.isProcessing());
+
+  protected onBlobUpload(event: Event): void {
+    event.stopPropagation();
+    if (this.uploadedInfo() || this.blobUploading()) return; // already uploaded
+    this.blobUpload.emit(this.recording());
+  }
 
   protected onPlay(event: Event): void {
     if (this.actionsDisabled()) return;

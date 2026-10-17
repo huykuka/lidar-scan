@@ -385,6 +385,10 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
                 finally:
                     bg_db.close()
 
+                # Optional: push the new recording to blob storage (S3_AUTO_UPLOAD=true)
+                from app.services import blob_storage
+                await blob_storage.auto_upload_recording(recording_data)
+
             except Exception as e:
                 logger.error(f"Background: Error finalizing recording {recording_id}: {e}", exc_info=True)
 
@@ -1067,3 +1071,40 @@ async def trim_recording(
     background_tasks.add_task(_bg_trim_and_finalize)
 
     return created
+
+
+async def get_blob_storage_status():
+    """Report blob storage availability (configured + credentials valid)."""
+    from app.services import blob_storage
+
+    status = await blob_storage.get_status()
+    return {
+        "configured": status.configured,
+        "authenticated": status.authenticated,
+        "available": status.configured and status.authenticated,
+        "bucket": status.bucket,
+        "reason": status.reason,
+    }
+
+
+async def upload_recording_to_blob(recording_id: str, db: Session):
+    """Upload a recording's file to S3-compatible blob storage."""
+    from app.services import blob_storage
+
+    recording = RecordingRepository(db).get_by_id(recording_id)
+    if not recording:
+        raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
+
+    if not Path(recording["file_path"]).exists():
+        raise HTTPException(status_code=404, detail="Recording file not found on disk")
+
+    status = await blob_storage.get_status(force=True)
+    if not (status.configured and status.authenticated):
+        raise HTTPException(status_code=409, detail=status.reason or "Blob storage unavailable")
+
+    try:
+        bucket, key = await blob_storage.upload_recording(recording)
+    except Exception as exc:
+        logger.error(f"Blob upload failed for recording {recording_id}: {exc}")
+        raise HTTPException(status_code=500, detail="Blob upload failed")
+    return {"bucket": bucket, "key": key}

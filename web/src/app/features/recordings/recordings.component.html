@@ -97,6 +97,8 @@
       <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); grid-auto-rows: 1fr">
         @for (recording of sortedRecordings(); track recording.id; let idx = $index) {
           <app-recording-card
+            (blobUpload)="uploadToBlob($event)"
+            [blobUploading]="blobUploadingIds().has(recording.id)"
             (delete)="confirmDelete($event)"
             (download)="downloadRecording($event)"
             (play)="loadForPlayback($event)"

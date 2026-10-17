@@ -20,6 +20,8 @@ export interface Recording {
 }
 
 export interface RecordingMetadata {
+  /** Set by the backend once the file has been uploaded to blob storage. */
+  blob_upload?: {bucket: string; key: string; uploaded_at: string};
   sensor_id?: string;
   sensor_name?: string;
   node_id: string;

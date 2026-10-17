@@ -72,6 +72,7 @@ class TruckBinDetectionNode(ModuleNode):
             front_step_min=float(config.get("front_step_min", 0.3)),
             front_plateau_tol=float(config.get("front_plateau_tol", 0.15)),
             front_min_plateau_cells=int(config.get("front_min_plateau_cells", 1)),
+            min_wall_cells=int(config.get("min_wall_cells", 3)),
         )
 
         # Bin length stabilisation: once stable, find the rear and place the front at rear + length

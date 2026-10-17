@@ -274,6 +274,21 @@ node_schema_registry.register(
                 help_text="Minimum number of level cells required ahead of the jump.",
             ),
             PropertySchema(
+                name="min_wall_cells",
+                label="Min Wall Width (cells)",
+                type="number",
+                default=3,
+                min=1,
+                max=20,
+                step=1,
+                help_text=(
+                    "A rear or front wall must be at least this many adjacent cells wide at "
+                    "wall height. Narrower slabs (1-2 cells) are treated as a crossbar, frame "
+                    "member or noise between the edges and skipped; the search continues to "
+                    "the next slab. 1 accepts any slab."
+                ),
+            ),
+            PropertySchema(
                 name="min_bed_cells",
                 label="Min Cargo Bed Returns",
                 type="number",

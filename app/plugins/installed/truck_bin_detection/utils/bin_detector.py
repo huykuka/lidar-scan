@@ -42,6 +42,7 @@ class BinDetector:
             front_step_min: float = 0.3,
             front_plateau_tol: float = 0.15,
             front_min_plateau_cells: int = 1,
+            min_wall_cells: int = 3,
     ) -> None:
         self._lane_width = lane_width
         self._z_min = z_min
@@ -63,6 +64,7 @@ class BinDetector:
         self._front_step_min = front_step_min
         self._front_plateau_tol = front_plateau_tol
         self._front_min_plateau_cells = front_min_plateau_cells
+        self._min_wall_cells = max(1, min_wall_cells)
 
     # ------------------------------------------------------------------
     # Private: wall / bin search on the raw height profile
@@ -73,14 +75,20 @@ class BinDetector:
 
         Works on the raw profile only.  Empty cells are never "tall", so a
         tall object far behind the truck cannot bleed into the wall through
-        forward-filled gaps.  A 1-cell slab is valid: seen from above, a bin
-        rim is only a few centimetres thick.
+        forward-filled gaps.  Slabs narrower than ``min_wall_cells`` (1-2 cells by
+        default) are dropped: a lone thin return at wall height is a horizontal
+        crossbar, frame member or noise lying between the edges, not a wall, so the
+        search simply goes on to the next slab.
         """
         tall = np.concatenate(([0], hp >= self._z_wall_threshold, [0])).astype(np.int8)
         d = np.diff(tall)
         starts = np.flatnonzero(d == 1)
         ends = np.flatnonzero(d == -1) - 1
-        return [(int(s), int(e), float(np.median(hp[s:e + 1]))) for s, e in zip(starts, ends)]
+        return [
+            (int(s), int(e), float(np.median(hp[s:e + 1])))
+            for s, e in zip(starts, ends)
+            if e - s + 1 >= self._min_wall_cells
+        ]
 
     def _front_step_edge(self, hp: np.ndarray, first_tall: int) -> int | None:
         """Pin the front edge to the cell where the height suddenly jumps up.
