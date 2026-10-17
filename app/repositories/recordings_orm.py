@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import cast
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db.models import RecordingModel
@@ -32,6 +33,43 @@ class RecordingRepository:
         
         recordings = query.order_by(RecordingModel.created_at.desc()).all()
         return [r.to_dict() for r in recordings]
+
+    def list_page(
+        self,
+        node_id: str | None = None,
+        q: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        """
+        List recordings newest-first with optional search and paging.
+
+        Args:
+            node_id: Optional node ID filter
+            q: Case-insensitive substring matched against name, node ID and metadata (sensor name, ...)
+            limit: Page size (None = everything)
+            offset: Rows to skip
+
+        Returns:
+            (rows for this page, total rows matching the filters)
+        """
+        query = self.db.query(RecordingModel)
+
+        if node_id:
+            query = query.filter(RecordingModel.node_id == node_id)
+        if q:
+            like = f"%{q.strip().lower().replace('%', '').replace('_', ' ')}%"
+            query = query.filter(
+                func.lower(RecordingModel.name).like(like)
+                | func.lower(RecordingModel.node_id).like(like)
+                | func.lower(RecordingModel.metadata_json).like(like)
+            )
+
+        total = query.count()
+        query = query.order_by(RecordingModel.created_at.desc())
+        if limit is not None:
+            query = query.offset(max(0, offset)).limit(limit)
+        return [r.to_dict() for r in query.all()], total
 
     def get_by_id(self, recording_id: str) -> dict | None:
         """

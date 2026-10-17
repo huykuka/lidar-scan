@@ -13,7 +13,6 @@ export interface Recording {
   duration_seconds: number;
   recording_timestamp: string;
   metadata: RecordingMetadata;
-  thumbnail_path?: string;
   created_at: string;
   /** Optional — treat missing as 'ready' for backward-compat with cached data */
   status?: 'ready' | 'processing' | 'failed';
@@ -25,6 +24,8 @@ export interface BlobUploadState {
   bucket?: string;
   key?: string;
   started_at?: string;
+  /** Seconds after started_at at which a queued/uploading state is treated as abandoned. */
+  timeout_s?: number;
   uploaded_at?: string;
   failed_at?: string;
   /** Live transfer progress while uploading (pushed over WebSocket, not persisted). */
@@ -77,8 +78,17 @@ export interface StartRecordingResponse {
   started_at: string;
 }
 
+export interface RecordingsPageQuery {
+  /** Server-side search (name, node id, sensor name) */
+  q?: string;
+  limit: number;
+  offset: number;
+}
+
 export interface ListRecordingsResponse {
   recordings: Recording[];
+  /** Recordings matching the filters across all pages */
+  total?: number;
   active_recordings: ActiveRecording[];
 }
 

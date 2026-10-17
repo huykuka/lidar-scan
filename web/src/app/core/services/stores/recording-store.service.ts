@@ -1,12 +1,14 @@
 import {computed, inject, Injectable} from '@angular/core';
 import {map, Observable, tap} from 'rxjs';
 import {SignalsSimpleStoreService} from '../signals-simple-store.service';
-import {ActiveRecording, BlobUploadState, Recording} from '../../models/recording.model';
+import {ListRecordingsResponse, ActiveRecording, BlobUploadState, Recording, RecordingsPageQuery} from '../../models/recording.model';
 import {ToastService} from '../toast.service';
 import {RecordingApiService} from '../api/recording-api.service';
 
 export interface RecordingState {
   recordings: Recording[];
+  /** Total matching the current query (== recordings.length when everything is loaded) */
+  total: number;
   activeRecordings: ActiveRecording[];
   selectedRecording: Recording | null;
   isLoading: boolean;
@@ -15,6 +17,7 @@ export interface RecordingState {
 
 const initialState: RecordingState = {
   recordings: [],
+  total: 0,
   activeRecordings: [],
   selectedRecording: null,
   isLoading: false,
@@ -27,6 +30,7 @@ const initialState: RecordingState = {
 export class RecordingStoreService extends SignalsSimpleStoreService<RecordingState> {
   // Selectors
   recordings = this.select('recordings');
+  total = this.select('total');
   activeRecordings = this.select('activeRecordings');
   selectedRecording = this.select('selectedRecording');
   isLoading = this.select('isLoading');
@@ -67,12 +71,34 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
    * Load all recordings, optionally filtered by node_id
    */
   loadRecordings(nodeId?: string): Promise<void> {
+    this.pageQuery = null;
+    return this.fetch(this.recordingApi.listRecordings(nodeId));
+  }
+
+  /**
+   * Load one page (used by the Recordings page). Remembered so refresh() can reload the same page.
+   * Other screens call loadRecordings(), which switches the store back to the full list.
+   */
+  loadPage(query: RecordingsPageQuery): Promise<void> {
+    this.pageQuery = query;
+    return this.fetch(this.recordingApi.listRecordingsPage(query));
+  }
+
+  /** Reload whatever was loaded last (the current page, or the full list). */
+  refresh(): Promise<void> {
+    return this.pageQuery ? this.loadPage(this.pageQuery) : this.loadRecordings();
+  }
+
+  private pageQuery: RecordingsPageQuery | null = null;
+
+  private fetch(source$: Observable<ListRecordingsResponse>): Promise<void> {
     this.setState({isLoading: true, error: null});
     return new Promise((resolve, reject) => {
-      this.recordingApi.listRecordings(nodeId).subscribe({
+      source$.subscribe({
         next: (data) => {
           this.setState({
             recordings: data.recordings,
+            total: data.total ?? data.recordings.length,
             activeRecordings: data.active_recordings,
             isLoading: false,
           });
@@ -96,7 +122,7 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
     return this.recordingApi.startRecording({node_id: nodeId, name}).pipe(
       tap(() => {
         // Reload recordings to get updated active list
-        this.loadRecordings();
+        void this.refresh();
       }),
       map((response) => response.recording_id),
     );
@@ -127,7 +153,7 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
     return this.recordingApi.stopRecording(recordingId).pipe(
       tap(() => {
         // Reload recordings
-        this.loadRecordings();
+        void this.refresh();
       }),
     );
   }
@@ -141,6 +167,7 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
         // Remove from state
         const recordings = this.recordings();
         this.setState({
+          total: Math.max(0, this.total() - 1),
           recordings: recordings.filter((r) => r.id !== recordingId),
         });
       }),

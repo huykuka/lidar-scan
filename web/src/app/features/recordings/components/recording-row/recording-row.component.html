@@ -1,0 +1,118 @@
+@if (selectable()) {
+  <td class="align-middle" (click)="$event.stopPropagation()">
+    <syn-checkbox
+      (syn-change)="toggleSelection.emit($any($event.target).checked)"
+      [checked]="selected()"
+    />
+  </td>
+}
+<td class="align-middle">
+  <div class="flex items-center gap-2 min-w-0">
+    <syn-icon name="videocam" class="shrink-0 text-syn-color-neutral-500" />
+    @if (isRenaming()) {
+      <input
+        #renameInput
+        (blur)="commitRename($event)"
+        (click)="$event.stopPropagation()"
+        (keydown)="onRenameKeydown($event)"
+        [value]="renameValue()"
+        (input)="renameValue.set($any($event.target).value)"
+        class="text-sm w-full bg-transparent border-b outline-none"
+        style="color: var(--syn-typography-color-text); border-color: var(--syn-color-primary-600)"
+      />
+    } @else {
+      <span
+        [title]="recording().name"
+        class="truncate"
+        style="color: var(--syn-typography-color-text)"
+      >{{ recording().name }}</span>
+    }
+    @if (isProcessing()) {
+      <syn-badge variant="warning" pill>
+        <syn-spinner style="font-size: 10px; --syn-spinner-size: 10px" />
+        Processing
+      </syn-badge>
+    } @else if (isFailed()) {
+      <syn-badge variant="error" pill>Failed</syn-badge>
+    }
+  </div>
+</td>
+<td class="whitespace-nowrap align-middle text-syn-color-neutral-600">{{ recording().frame_count }}</td>
+<td class="whitespace-nowrap align-middle text-syn-color-neutral-600">{{ formatDuration(recording().duration_seconds) }}</td>
+<td class="whitespace-nowrap align-middle text-syn-color-neutral-600">{{ formatFileSize(recording().file_size_bytes) }}</td>
+<td class="whitespace-nowrap align-middle text-syn-color-neutral-500">{{ recording().created_at | date: 'yyyy-MM-dd HH:mm' }}</td>
+@if (isService()) {
+  <td class="whitespace-nowrap align-middle" (click)="$event.stopPropagation()">
+    <div class="flex items-center gap-1">
+        @switch (blobStatus()) {
+          @case ('uploaded') {
+            <syn-tooltip [content]="'Uploaded to ' + blobState()?.bucket + '/' + blobState()?.key" placement="top">
+              <syn-icon-button size="small" variant="text" name="cloud_done" label="Uploaded to blob storage"
+                style="color: var(--syn-color-success-600)"
+                (click)="onBlobUpload($event)" />
+            </syn-tooltip>
+          }
+          @case ('queued') {
+            <syn-tooltip content="Waiting for other uploads to finish…" placement="top">
+              <syn-icon name="schedule" class="px-1 text-syn-color-neutral-500" />
+            </syn-tooltip>
+            <syn-tooltip content="Cancel upload" placement="top">
+              <syn-icon-button size="small" variant="text" name="close" label="Cancel upload"
+                (click)="onBlobCancel($event)" />
+            </syn-tooltip>
+          }
+          @case ('uploading') {
+            <syn-tooltip [content]="blobProgressLabel()" placement="top">
+              <span class="upload-ring-btn" role="img" aria-label="Uploading">
+                <syn-progress-ring class="upload-ring" [value]="blobProgress()" />
+                <span class="upload-ring-btn__pct">{{ blobProgress() }}</span>
+              </span>
+            </syn-tooltip>
+            <syn-tooltip content="Cancel upload" placement="top">
+              <syn-icon-button size="small" variant="text" name="close" label="Cancel upload"
+                (click)="onBlobCancel($event)" />
+            </syn-tooltip>
+          }
+          @case ('failed') {
+            <syn-tooltip [content]="'Upload failed: ' + blobError() + ' (click to retry)'" placement="top">
+              <syn-icon-button size="small" variant="text" name="cloud_off" label="Upload failed, retry"
+                style="color: var(--syn-color-error-600)"
+                [disabled]="!blob.available() || actionsDisabled() || blobUploading()"
+                (click)="onBlobUpload($event)" />
+            </syn-tooltip>
+          }
+          @default {
+            <syn-tooltip [content]="blob.available() ? 'Upload to blob storage' : 'Blob storage unavailable: ' + (blob.reason() ?? '')" placement="top">
+              <syn-icon-button size="small" variant="text" name="cloud_upload" label="Upload to blob storage"
+                [disabled]="!blob.available() || actionsDisabled() || blobUploading()"
+                (click)="onBlobUpload($event)" />
+            </syn-tooltip>
+          }
+        }
+    </div>
+  </td>
+}
+<td class="whitespace-nowrap text-right align-middle" (click)="$event.stopPropagation()">
+  <syn-tooltip content="Play" placement="top">
+    <syn-icon-button size="small" variant="filled" name="play_arrow" color="primary" label="Play"
+      [disabled]="actionsDisabled()"
+      (click)="onPlay($event)" />
+  </syn-tooltip>
+  <syn-tooltip content="Rename" placement="top">
+    <syn-icon-button size="small" variant="text" name="edit" label="Rename"
+      [disabled]="!canEdit() || actionsDisabled()"
+      (click)="startRename($event)" />
+  </syn-tooltip>
+  <syn-tooltip content="Download" placement="top">
+    <syn-icon-button size="small" variant="text" name="download" label="Download"
+      style="color: var(--syn-color-primary-600)"
+      [disabled]="actionsDisabled()"
+      (click)="onDownload($event)" />
+  </syn-tooltip>
+    <syn-tooltip content="Delete" placement="top">
+    <syn-icon-button size="small" variant="text" name="delete" label="Delete"
+      style="color: var(--syn-color-error-600)"
+      [disabled]="!canEdit() || actionsDisabled()"
+      (click)="delete.emit(recording()); $event.stopPropagation()" />
+  </syn-tooltip>
+</td>

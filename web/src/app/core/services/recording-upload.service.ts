@@ -70,7 +70,7 @@ export class RecordingUploadService {
         } else if (event.type === HttpEventType.Response) {
           this.patch(id, {progress: 100, status: 'done'});
           this.files.delete(id);
-          this.store.loadRecordings();
+          this.store.refresh();
         }
       },
       error: (err) => {

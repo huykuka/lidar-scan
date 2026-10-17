@@ -80,7 +80,6 @@ async def build_key(recording: dict, strategy: StorageStrategy | None = None) ->
     return key
 
 
-STALE_UPLOAD_S = 15 * 60  # an 'uploading' state older than this is considered abandoned (e.g. restart)
 
 
 class UploadCancelled(Exception):
@@ -138,6 +137,11 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _timeout_s() -> int:
+    """Age after which a queued/uploading state counts as abandoned."""
+    return settings.STORAGE_UPLOAD_TIMEOUT_MINUTES * 60
+
+
 def is_upload_in_progress(recording: dict) -> bool:
     """True if a fresh 'uploading' state is recorded (guards against duplicate jobs)."""
     from datetime import datetime, timezone
@@ -149,7 +153,7 @@ def is_upload_in_progress(recording: dict) -> bool:
         started = datetime.fromisoformat(state["started_at"])
     except (KeyError, ValueError):
         return False
-    return (datetime.now(timezone.utc) - started).total_seconds() < STALE_UPLOAD_S
+    return (datetime.now(timezone.utc) - started).total_seconds() < _timeout_s()
 
 
 async def begin_upload(recording: dict) -> threading.Event:
@@ -157,7 +161,7 @@ async def begin_upload(recording: dict) -> threading.Event:
     cancel = threading.Event()
     _cancel_events[recording["id"]] = cancel
     strategy = get_strategy()
-    state = {"status": "queued", "backend": strategy.name if strategy else None, "started_at": _now()}
+    state = {"status": "queued", "timeout_s": _timeout_s(), "backend": strategy.name if strategy else None, "started_at": _now()}
     await _persist_and_emit(recording["id"], state)
     return cancel
 
@@ -204,7 +208,7 @@ def _make_progress_reporter(
             return
         last_emit, last_pct = now, pct
         state = {
-            "status": "uploading", "backend": backend, "started_at": started_at,
+            "status": "uploading", "timeout_s": _timeout_s(), "backend": backend, "started_at": started_at,
             "progress": pct, "bytes_sent": sent, "bytes_total": total,
         }
         asyncio.run_coroutine_threadsafe(_emit(recording_id, state, reliable=False), loop)
@@ -242,7 +246,8 @@ async def _run_upload(recording: dict, cancel: threading.Event) -> None:
     started_at = _now()
     try:
         await _persist_and_emit(
-            recording["id"], {"status": "uploading", "backend": backend, "started_at": started_at}
+            recording["id"],
+            {"status": "uploading", "timeout_s": _timeout_s(), "backend": backend, "started_at": started_at},
         )
         reporter = _make_progress_reporter(
             recording["id"], backend, started_at, asyncio.get_running_loop(), cancel

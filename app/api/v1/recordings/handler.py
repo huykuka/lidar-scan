@@ -17,7 +17,7 @@ from .dto import (
 from .service import (
     start_recording, stop_recording, list_recordings, get_recording,
     delete_recording, download_recording, get_recording_viewer_info,
-    get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording,
+    get_recording_frame_as_pcd, upload_recording,
     rename_recording, stream_recording, trim_recording,
     get_blob_storage_status, upload_recording_to_blob, cancel_recording_blob_upload,
 )
@@ -111,13 +111,19 @@ async def recordings_stop_endpoint(
     "/recordings",
     response_model=ListRecordingsResponse,
     summary="List Recordings",
-    description="List all recordings with optional node filtering.",
+    description=(
+        "List recordings newest-first with optional node filtering, search and paging. "
+        "Without `limit` every recording is returned. `total` is the match count across all pages."
+    ),
 )
 async def recordings_list_endpoint(
         node_id: Annotated[str | None, Query(description="Filter by node ID")] = None,
+        q: Annotated[str | None, Query(description="Search name, node ID or sensor name")] = None,
+        limit: Annotated[int | None, Query(ge=1, le=500, description="Page size")] = None,
+        offset: Annotated[int, Query(ge=0, description="Rows to skip")] = 0,
         db: Session = Depends(get_db)
 ):
-    return await list_recordings(node_id, db)
+    return await list_recordings(node_id, db, q=q, limit=limit, offset=offset)
 
 
 @router.get(
@@ -268,22 +274,6 @@ async def recordings_frame_endpoint(
         db: Annotated[Session, Depends(get_db)]
 ):
     return await get_recording_frame_as_pcd(recording_id, frame_index, background_tasks, db)
-
-
-@router.get(
-    "/recordings/{recording_id}/thumbnail",
-    responses={
-        404: {"description": "Recording not found"},
-        500: {"description": "Internal server error"}
-    },
-    summary="Get Recording Thumbnail",
-    description="Get the thumbnail image for a recording.",
-)
-async def recordings_thumbnail_endpoint(
-        recording_id: str,
-        db: Annotated[Session, Depends(get_db)]
-):
-    return await get_recording_thumbnail(recording_id, db)
 
 
 @router.post(

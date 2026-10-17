@@ -29,8 +29,12 @@ class S3Strategy(StorageStrategy):
     def _client(self):
         import boto3  # imported lazily so the app still boots without the dependency
 
+        from botocore.config import Config
+
         return boto3.client(
             "s3",
+            # Generous timeouts + retries so slow or flaky links don't abort big uploads
+            config=Config(connect_timeout=30, read_timeout=300, retries={"max_attempts": 10, "mode": "standard"}),
             endpoint_url=settings.S3_ENDPOINT_URL or None,
             aws_access_key_id=settings.S3_ACCESS_KEY_ID,
             aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,

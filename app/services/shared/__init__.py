@@ -8,7 +8,6 @@ from .topics import TopicRegistry, slugify_topic_prefix, generate_unique_topic_p
 from .binary import pack_points_binary, unpack_points_binary, MAGIC_BYTES, VERSION
 from .recorder import RecordingService, RecordingHandle, get_recorder
 from .recording import RecordingWriter, RecordingReader, get_recording_info
-from .thumbnail import generate_thumbnail, generate_thumbnail_from_file
 
 __all__ = [
     # Topics
@@ -27,7 +26,4 @@ __all__ = [
     "RecordingWriter",
     "RecordingReader",
     "get_recording_info",
-    # Thumbnail
-    "generate_thumbnail",
-    "generate_thumbnail_from_file",
 ]

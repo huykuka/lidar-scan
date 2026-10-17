@@ -149,7 +149,7 @@ class RecordingService:
     
     async def finalize_recording(self, recording_id: str) -> dict[str, Any]:
         """
-        Finalize a stopping recording (flush buffers, write metadata, generate thumbnail).
+        Finalize a stopping recording (flush buffers, write metadata).
         Should be called as a background task after stop_recording.
         
         Args:
@@ -196,8 +196,6 @@ class RecordingService:
             logger.error(f"Error finalizing MCAP for recording {recording_id}: {e}", exc_info=True)
             raise
         
-        # Generate thumbnail asynchronously
-        thumbnail_path = None
         file_path = Path(info["file_path"])
 
         # Rename to <node_id>_<timestamp_ms>.mcap now that recording is complete
@@ -213,22 +211,6 @@ class RecordingService:
         except Exception as e:
             logger.warning(f"Could not rename recording file: {e}")
 
-        try:
-            from app.services.shared.thumbnail import generate_thumbnail_from_file
-            
-            thumbnail_output = file_path.with_suffix(".png")
-            success = await asyncio.to_thread(
-                generate_thumbnail_from_file,
-                file_path,
-                output_path=thumbnail_output,
-                view="top"
-            )
-            if success:
-                thumbnail_path = str(thumbnail_output)
-                logger.info(f"Generated thumbnail: {thumbnail_path}")
-        except Exception as e:
-            logger.warning(f"Failed to generate thumbnail for recording {recording_id}: {e}")
-        
         # Use the actual frame count from the MCAP file (authoritative source)
         actual_frame_count = info["frame_count"]
         
@@ -247,7 +229,6 @@ class RecordingService:
             "duration_seconds": info["duration_seconds"],
             "average_fps": info["average_fps"],
             "metadata": handle.metadata,
-            "thumbnail_path": thumbnail_path,
             "status": "stopped",
         }
     

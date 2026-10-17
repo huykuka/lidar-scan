@@ -270,18 +270,6 @@
 
             @if (filteredRuns().length === 0) {
               <div class="py-10 text-center text-sm text-syn-color-neutral-500">No runs match the current filters.</div>
-            } @else {
-              <syn-pagination
-                (syn-pagination-page-changed)="onPageChanged($any($event).detail.currentPage)"
-                (syn-pagination-page-size-changed)="onPageSizeChanged($any($event).detail.currentPageSize)"
-                [currentPage]="currentPage()"
-                [pageSize]="pageSize()"
-                [pageSizeOptions]="pageSizeOptions"
-                [totalItems]="filteredRuns().length"
-                aria-label="Replay runs pagination"
-                divider
-                size="small"
-              />
             }
           }
         </syn-tab-panel>
@@ -347,5 +335,21 @@
         </syn-tab-panel>
       </syn-tab-group>
     </div>
+
+    <!-- Pagination pinned at the bottom (runs tab) -->
+    @if (tab() === 'runs' && filteredRuns().length > 0) {
+      <div class="shrink-0 border-t-syn px-4 py-2">
+        <syn-pagination
+          (syn-pagination-page-changed)="onPageChanged($any($event).detail.currentPage)"
+          (syn-pagination-page-size-changed)="onPageSizeChanged($any($event).detail.currentPageSize)"
+          [currentPage]="currentPage()"
+          [pageSize]="pageSize()"
+          [pageSizeOptions]="pageSizeOptions"
+          [totalItems]="filteredRuns().length"
+          aria-label="Replay runs pagination"
+          size="small"
+        />
+      </div>
+    }
   </div>
 </div>

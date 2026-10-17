@@ -4,6 +4,7 @@ import {Observable} from 'rxjs';
 import {environment} from '../../../../environments/environment';
 import {
   ListRecordingsResponse,
+  RecordingsPageQuery,
   Recording,
   RecordingViewerInfo,
   StartRecordingRequest,
@@ -47,6 +48,13 @@ export class RecordingApiService {
   listRecordings(topic?: string): Observable<ListRecordingsResponse> {
     const params = topic ? { topic } : undefined;
     return this.http.get<ListRecordingsResponse>(this.baseUrl, { params });
+  }
+
+  /** One page of recordings (newest first) with optional server-side search. */
+  listRecordingsPage(query: RecordingsPageQuery): Observable<ListRecordingsResponse> {
+    const params: Record<string, string | number> = {limit: query.limit, offset: query.offset};
+    if (query.q) params['q'] = query.q;
+    return this.http.get<ListRecordingsResponse>(this.baseUrl, {params});
   }
 
   /**

@@ -142,7 +142,7 @@ def test_in_progress_detection():
     from datetime import datetime, timedelta, timezone
 
     fresh = datetime.now(timezone.utc).isoformat()
-    stale = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    stale = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
     mk = lambda st, t: {"metadata": {"blob_upload": {"status": st, "started_at": t}}}
     assert blob_storage.is_upload_in_progress(mk("uploading", fresh))
     assert not blob_storage.is_upload_in_progress(mk("uploading", stale))

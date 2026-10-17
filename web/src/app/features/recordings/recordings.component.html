@@ -9,7 +9,7 @@
       <div class="flex flex-col sm:flex-row sm:items-center gap-3">
         <!-- Search Bar -->
         <syn-input
-          (input)="searchQuery.set($any($event.target).value)"
+          (input)="onSearch($any($event.target).value)"
           [value]="searchQuery()"
           class="flex-1 min-w-0 sm:max-w-xs"
           placeholder="Search recordings by name, topic, or sensor..."
@@ -27,7 +27,7 @@
               variant="outline"
             >
               <syn-icon name="done_all" slot="prefix" />
-              {{ allFilteredSelected() ? 'Clear All' : 'Select All' }}
+              {{ allFilteredSelected() ? 'Clear Page' : 'Select Page' }}
             </syn-button>
             <syn-button
               (click)="downloadSelected()"
@@ -72,7 +72,7 @@
 
   <!-- Content Area (single inner scroll body) -->
   <div
-    class="flex-1 min-h-0 overflow-auto p-6 relative select-none"
+    class="flex-1 min-h-0 overflow-auto relative select-none"
     (mousedown)="onGridMouseDown($event)"
     (mousemove)="onGridMouseMove($event)"
   >
@@ -93,29 +93,69 @@
         </p>
       </div>
     } @else {
-      <!-- Recordings Grid -->
-      <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); grid-auto-rows: 1fr">
-        @for (recording of sortedRecordings(); track recording.id; let idx = $index) {
-          <app-recording-card
-            (blobUpload)="uploadToBlob($event)"
-            (blobCancel)="cancelBlobUpload($event)"
-            [blobUploading]="blobUploadingIds().has(recording.id)"
-            (delete)="confirmDelete($event)"
-            (download)="downloadRecording($event)"
-            (play)="loadForPlayback($event)"
-            (rename)="renameRecording($event)"
-            (select)="selectRecording($event)"
-            (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
-            [attr.data-rec-id]="recording.id"
-            [priority]="idx < 4"
-            [recording]="recording"
-            [selectable]="isSelectionMode()"
-            [selected]="selectedRecordingIds().has(recording.id)"
-          />
-        }
-      </div>
+      <!-- Recordings table -->
+      <table class="syn-table--default" style="width: 100%">
+        <thead>
+          <tr>
+            @if (isSelectionMode()) {
+              <th style="width: 2.5rem">
+                <syn-checkbox
+                  title="Select page"
+                  (syn-change)="selectAllFiltered()"
+                  [checked]="allFilteredSelected()"
+                />
+              </th>
+            }
+            <th>Name</th>
+            <th>Frames</th>
+            <th>Duration</th>
+            <th>Size</th>
+            <th>Created</th>
+            @if (isService()) {
+              <th>Storage</th>
+            }
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (recording of sortedRecordings(); track recording.id) {
+            <tr
+              app-recording-row
+              (blobUpload)="uploadToBlob($event)"
+              (blobCancel)="cancelBlobUpload($event)"
+              [blobUploading]="blobUploadingIds().has(recording.id)"
+              (delete)="confirmDelete($event)"
+              (download)="downloadRecording($event)"
+              (play)="loadForPlayback($event)"
+              (rename)="renameRecording($event)"
+              (select)="selectRecording($event)"
+              (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
+              [attr.data-rec-id]="recording.id"
+              [recording]="recording"
+              [selectable]="isSelectionMode()"
+              [selected]="selectedRecordingIds().has(recording.id)"
+            ></tr>
+          }
+        </tbody>
+      </table>
     }
   </div>
+
+  <!-- Pagination -->
+  @if (total() > 0) {
+    <div class="shrink-0 border-t-syn px-4 py-2">
+      <syn-pagination
+        (syn-pagination-page-changed)="goToPage($any($event).detail.currentPage)"
+        (syn-pagination-page-size-changed)="onPageSizeChange($any($event).detail.currentPageSize)"
+        [currentPage]="currentPage()"
+        [pageSize]="pageSize()"
+        [pageSizeOptions]="pageSizeOptions"
+        [totalItems]="total()"
+        aria-label="Recordings pagination"
+        size="small"
+      />
+    </div>
+  }
   </div>
 </div>
 

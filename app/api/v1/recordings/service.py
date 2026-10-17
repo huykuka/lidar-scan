@@ -352,7 +352,7 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
         # Schedule finalization in background
         async def finalize_and_save():
             try:
-                # Finalize the recording (flush, compress, thumbnail)
+                # Finalize the recording (flush, compress)
                 final_info = await recorder.finalize_recording(recording_id)
 
                 # Save to database
@@ -370,9 +370,6 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
                     "metadata": final_info["metadata"],
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
-
-                if final_info.get("thumbnail_path"):
-                    recording_data["thumbnail_path"] = final_info["thumbnail_path"]
 
                 # Need a new DB session for background task
                 from app.db.models import get_db
@@ -413,22 +410,30 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
         raise HTTPException(status_code=500, detail=f"Failed to stop recording: {str(e)}")
 
 
-async def list_recordings(node_id: str | None, db: Session):
+async def list_recordings(
+    node_id: str | None,
+    db: Session,
+    q: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+):
     """
-    List all recordings, optionally filtered by topic.
+    List recordings (newest first), optionally filtered, searched and paged.
 
     Args:
         node_id: Optional node ID filter
         db: Database session
+        q: Optional search text (name, node ID, sensor name, ...)
+        limit: Page size; omit to return everything (backwards compatible)
+        offset: Rows to skip
 
     Returns:
-        List of recordings and active recordings
+        This page of recordings, the total number matching, and the active recordings
     """
     recorder = get_recorder()
     repo = RecordingRepository(db)
 
-    # Get saved recordings
-    recordings = repo.list(node_id=node_id)
+    recordings, total = repo.list_page(node_id=node_id, q=q, limit=limit, offset=offset)
 
     # Get active recordings
     active = recorder.get_active_recordings()
@@ -439,6 +444,7 @@ async def list_recordings(node_id: str | None, db: Session):
 
     return {
         "recordings": recordings,
+        "total": total,
         "active_recordings": active
     }
 
@@ -512,7 +518,7 @@ async def delete_recording(recording_id: str, background_tasks: BackgroundTasks,
         raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
 
     file_path = recording["file_path"]
-    thumbnail_path = recording.get("thumbnail_path")
+    thumbnail_path = recording.get("thumbnail_path")  # legacy: thumbnails are no longer generated
 
     # Delete from database
     repo.delete(recording_id)
@@ -687,7 +693,7 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
     Args:
         file: Multipart-uploaded MCAP (or legacy ZIP) file.
         name: Optional display name. Falls back to the filename stem.
-        background_tasks: FastAPI background tasks (used for thumbnail generation).
+        background_tasks: FastAPI background tasks (currently unused).
         db: Database session.
 
     Returns:
@@ -778,31 +784,6 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
         repo = RecordingRepository(db)
         created = repo.create(recording_data)
 
-        # Attempt thumbnail generation in the background
-        async def _generate_thumbnail() -> None:
-            try:
-                from app.services.shared.thumbnail import generate_thumbnail_from_file
-
-                thumbnail_path = dest_path.with_suffix(".png")
-                success = await asyncio.to_thread(
-                    generate_thumbnail_from_file, dest_path, output_path=thumbnail_path
-                )
-                if success:
-                    from app.db.models import get_db as _get_db
-
-                    bg_db_gen = _get_db()
-                    bg_db = next(bg_db_gen)
-                    try:
-                        RecordingRepository(bg_db).update(
-                            recording_id, {"thumbnail_path": str(thumbnail_path)}
-                        )
-                    finally:
-                        bg_db.close()
-            except Exception as exc:
-                logger.warning(f"Thumbnail generation failed for uploaded recording {recording_id}: {exc}")
-
-        background_tasks.add_task(_generate_thumbnail)
-
         logger.info(f"Uploaded recording '{display_name}' saved as {recording_id}")
         return created
 
@@ -818,60 +799,6 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
                 tmp_path.unlink()
             except Exception:
                 pass
-
-
-async def get_recording_thumbnail(recording_id: str, db: Session):
-    """
-    Get thumbnail image for a recording.
-
-    Args:
-        recording_id: Recording UUID
-        db: Database session
-
-    Returns:
-        PNG thumbnail image or placeholder
-    """
-    repo = RecordingRepository(db)
-    recording = repo.get_by_id(recording_id)
-
-    if not recording:
-        raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
-
-    # Check if thumbnail exists
-    if recording.get("thumbnail_path") and os.path.exists(recording["thumbnail_path"]):
-        return FileResponse(
-            path=recording["thumbnail_path"],
-            media_type="image/png",
-            headers={"Cache-Control": "public, max-age=86400"}  # Cache for 24 hours
-        )
-
-    # Try to generate thumbnail if missing
-    file_path = Path(recording["file_path"])
-    if file_path.exists():
-        try:
-            from app.services.shared.thumbnail import generate_thumbnail_from_file
-
-            thumbnail_path = file_path.with_suffix(".png")
-            success = await asyncio.to_thread(
-                generate_thumbnail_from_file,
-                file_path,
-                output_path=thumbnail_path
-            )
-
-            if success:
-                # Update database with thumbnail path
-                repo.update(recording_id, {"thumbnail_path": str(thumbnail_path)})
-
-                return FileResponse(
-                    path=str(thumbnail_path),
-                    media_type="image/png",
-                    headers={"Cache-Control": "public, max-age=86400"}
-                )
-        except Exception as e:
-            logger.warning(f"Failed to generate thumbnail on-demand: {e}")
-
-    # Return 404 if no thumbnail available
-    raise HTTPException(status_code=404, detail="Thumbnail not available")
 
 
 def _perform_trim_copy(
@@ -1032,24 +959,6 @@ async def trim_recording(
                 f"trim_recording: {recording_id} [{start_frame},{end_frame}) "
                 f"→ {new_id} ({info['frame_count']} frames) ready"
             )
-
-            # Thumbnail generation (best-effort)
-            try:
-                from app.services.shared.thumbnail import generate_thumbnail_from_file
-
-                thumbnail_path = dest.with_suffix(".png")
-                success = await asyncio.to_thread(
-                    generate_thumbnail_from_file, dest, output_path=thumbnail_path
-                )
-                if success:
-                    bg_db_gen2 = _get_db()
-                    bg_db2 = next(bg_db_gen2)
-                    try:
-                        RecordingRepository(bg_db2).update(new_id, {"thumbnail_path": str(thumbnail_path)})
-                    finally:
-                        bg_db2.close()
-            except Exception as thumb_exc:
-                logger.warning(f"Thumbnail generation failed for trimmed recording {new_id}: {thumb_exc}")
 
         except Exception as exc:
             logger.error(f"trim_recording background task failed for {new_id}: {exc}", exc_info=True)

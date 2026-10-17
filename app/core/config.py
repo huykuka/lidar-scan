@@ -55,6 +55,10 @@ class Settings:
     # How many recordings upload to storage at the same time (the rest wait as 'queued').
     STORAGE_MAX_CONCURRENT_UPLOADS: int = max(1, int(os.getenv("STORAGE_MAX_CONCURRENT_UPLOADS", "2")))
 
+    # An upload still 'queued'/'uploading' after this long is treated as abandoned (e.g. server restart)
+    # and can be retried. Raise it for slow links / very large recordings.
+    STORAGE_UPLOAD_TIMEOUT_MINUTES: int = max(1, int(os.getenv("STORAGE_UPLOAD_TIMEOUT_MINUTES", "120")))
+
     # S3-compatible backend (AWS S3 / MinIO). Leave unset to disable.
     S3_ENDPOINT_URL: str = os.getenv("S3_ENDPOINT_URL", "")
     S3_ACCESS_KEY_ID: str = os.getenv("S3_ACCESS_KEY_ID", "")

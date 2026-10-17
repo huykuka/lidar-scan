@@ -12,22 +12,26 @@ import {
 import { DatePipe } from '@angular/common';
 import { SynergyComponentsModule } from '@synergy-design-system/angular';
 import { Recording } from '@core/models';
-import { environment } from '@env/environment';
 import { AuthService } from '@core/services/auth.service';
 import { BlobStorageService } from '@core/services/blob-storage.service';
 
 @Component({
-  selector: 'app-recording-card',
+  // Attribute selector so the component renders as a real <tr> inside the recordings table
+  selector: 'tr[app-recording-row]',
   imports: [SynergyComponentsModule, DatePipe],
-  templateUrl: './recording-card.component.html',
+  templateUrl: './recording-row.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styleUrl: './recording-card.component.css',
+  styleUrl: './recording-row.component.css',
+  host: {
+    '[class.is-selected]': 'selected()',
+    '[class.is-selectable]': 'selectable()',
+    '(click)': 'select.emit(recording())',
+  },
 })
-export class RecordingCardComponent {
+export class RecordingRowComponent {
   readonly recording = input.required<Recording>();
   readonly selectable = input(false);
   readonly selected = input(false);
-  readonly priority = input(false);
 
   readonly blobUploading = input(false);
 
@@ -55,7 +59,7 @@ export class RecordingCardComponent {
     if (!st) return 'idle';
     if (st.status === 'queued' || st.status === 'uploading') {
       const started = st.started_at ? Date.parse(st.started_at) : NaN;
-      return Number.isFinite(started) && Date.now() - started > 15 * 60_000 ? 'failed' : st.status;
+      return Number.isFinite(started) && Date.now() - started > (st.timeout_s ?? 7200) * 1000 ? 'failed' : st.status;
     }
     return st.status;
   });
@@ -131,10 +135,6 @@ export class RecordingCardComponent {
     else if (event.key === 'Escape') this.cancelRename(event);
   }
 
-  // Thumbnail state
-  private failedThumbnails = signal<Set<string>>(new Set());
-  private loadedThumbnails = signal<Set<string>>(new Set());
-
   protected formatDuration(seconds: number): string {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -147,34 +147,5 @@ export class RecordingCardComponent {
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
-  }
-
-  protected thumbnailLoadFailed(recordingId: string): boolean {
-    return this.failedThumbnails().has(recordingId);
-  }
-
-  protected isLoadingThumbnail(recordingId: string): boolean {
-    return !this.loadedThumbnails().has(recordingId) && !this.failedThumbnails().has(recordingId);
-  }
-
-  protected onThumbnailLoad(recordingId: string): void {
-    const loaded = new Set(this.loadedThumbnails());
-    loaded.add(recordingId);
-    this.loadedThumbnails.set(loaded);
-  }
-
-  protected onThumbnailError(recordingId: string): void {
-    const failed = new Set(this.failedThumbnails());
-    failed.add(recordingId);
-    this.failedThumbnails.set(failed);
-  }
-
-  protected getThumbnailUrl(recording: Recording): string {
-    if (!recording.thumbnail_path) {
-      return '';
-    }
-    // Served by the API (not a static file path) so it keeps working however the backend
-    // mounts its data folders, and the backend can regenerate a missing thumbnail.
-    return `${environment.apiUrl}/recordings/${recording.id}/thumbnail`;
   }
 }

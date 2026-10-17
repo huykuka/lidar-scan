@@ -20,11 +20,12 @@ import {Router} from '@angular/router';
 import {Recording} from '@core/models';
 import {UploadProgressPanelComponent} from './components/upload-progress-panel/upload-progress-panel.component';
 import {RecordingUploadService} from '@core/services/recording-upload.service';
-import {RecordingCardComponent} from './components/recording-card/recording-card.component';
+import {RecordingRowComponent} from './components/recording-row/recording-row.component';
+import {AuthService} from '@core/services/auth.service';
 import {ToastService} from '@core/services/toast.service';
 import {BlobStorageService} from '@core/services/blob-storage.service';
 import {DialogService} from '@core/services/dialog.service';
-import {firstValueFrom, interval, Subscription} from 'rxjs';
+import {debounceTime, distinctUntilChanged, firstValueFrom, interval, Subject, Subscription} from 'rxjs';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import {takeUntilDestroyed} from '@angular/core/rxjs-interop';
 
@@ -33,7 +34,7 @@ const POLL_INTERVAL_MS = 3000;
 @UntilDestroy()
 @Component({
   selector: 'app-recordings',
-  imports: [SynergyComponentsModule, RecordingCardComponent, UploadProgressPanelComponent],
+  imports: [SynergyComponentsModule, RecordingRowComponent, UploadProgressPanelComponent],
   templateUrl: './recordings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './recordings.component.css',
@@ -49,28 +50,19 @@ export class RecordingsComponent implements OnInit {
   protected isSelectionMode = signal<boolean>(false);
   protected selectedRecordingIds = signal<Set<string>>(new Set());
   // Computed
-  protected filteredRecordings = computed(() => {
-    const query = this.searchQuery().toLowerCase();
-    const recs = this.recordings();
-    if (!query || !recs) return recs || [];
-
-    return recs.filter(
-      (r: Recording) =>
-        r.name.toLowerCase().includes(query) ||
-        r.node_id.toLowerCase().includes(query) ||
-        (r.metadata?.sensor_name && r.metadata.sensor_name.toLowerCase().includes(query)),
-    );
-  });
+  // Filtering, sorting and paging happen on the server; these are the rows of the current page.
+  protected filteredRecordings = computed(() => this.recordings());
+  protected sortedRecordings = this.filteredRecordings;
+  protected total = computed(() => this.recordingStore.total());
   protected allFilteredSelected = computed(() => {
     const filtered = this.filteredRecordings();
     const sel = this.selectedRecordingIds();
     return filtered.length > 0 && filtered.every((r: Recording) => sel.has(r.id));
   });
-  protected sortedRecordings = computed(() => {
-    return [...this.filteredRecordings()].sort((a, b) => {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
-  });
+  protected currentPage = signal(1);
+  protected pageSize = signal(25);
+  protected readonly pageSizeOptions = [10, 25, 50, 100];
+  private readonly searchInput$ = new Subject<string>();
 
   /** True when any recording is still processing — drives poll */
   protected hasProcessing = computed(() =>
@@ -86,6 +78,7 @@ export class RecordingsComponent implements OnInit {
   private router = inject(Router);
   private dialogService = inject(DialogService);
   private toast = inject(ToastService);
+  protected readonly isService = inject(AuthService).isService;
   private blobStorage = inject(BlobStorageService);
   private destroyRef = inject(DestroyRef);
 
@@ -96,13 +89,20 @@ export class RecordingsComponent implements OnInit {
     // Capture phase so the click ending a drag is swallowed before the cards see it
     this.host.nativeElement.addEventListener('click', this.onGridClickCapture, true);
     this.destroyRef.onDestroy(() => this.host.nativeElement.removeEventListener('click', this.onGridClickCapture, true));
+    this.searchInput$
+      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((value) => {
+        this.searchQuery.set(value.trim());
+        this.goToPage(1);
+      });
+
     // Start/stop poll reactively based on whether any recording is 'processing'
     effect(() => {
       const processing = this.hasProcessing();
       if (processing && !this.pollSub) {
         this.pollSub = interval(POLL_INTERVAL_MS)
           .pipe(takeUntilDestroyed(this.destroyRef))
-          .subscribe(() => this.recordingStore.loadRecordings());
+          .subscribe(() => this.reload());
       } else if (!processing && this.pollSub) {
         this.pollSub.unsubscribe();
         this.pollSub = null;
@@ -115,11 +115,47 @@ export class RecordingsComponent implements OnInit {
       title: 'Recordings',
       subtitle: 'Browse and manage your LiDAR recording files',
     });
-    await this.recordingStore.loadRecordings();
+    await this.reload();
+  }
+
+  /** Load the current page; if it no longer exists (e.g. after deletes) fall back to the last one. */
+  private async reload(): Promise<void> {
+    const load = () =>
+      this.recordingStore.loadPage({
+        q: this.searchQuery() || undefined,
+        limit: this.pageSize(),
+        offset: (this.currentPage() - 1) * this.pageSize(),
+      });
+    await load();
+    const lastPage = Math.max(1, Math.ceil(this.total() / this.pageSize()));
+    if (this.currentPage() > lastPage) {
+      this.currentPage.set(lastPage);
+      await load();
+    }
+  }
+
+  protected onSearch(value: string): void {
+    this.searchInput$.next(value);
+  }
+
+  protected goToPage(page: number): void {
+    this.currentPage.set(page);
+    this.clearSelection();
+    void this.reload();
+  }
+
+  protected onPageSizeChange(size: number): void {
+    this.pageSize.set(size);
+    this.goToPage(1);
+  }
+
+  /** Selection only ever covers the visible page, so drop it when the page changes. */
+  private clearSelection(): void {
+    this.selectedRecordingIds.set(new Set());
   }
 
   protected async refreshRecordings(): Promise<void> {
-    await this.recordingStore.loadRecordings();
+    await this.reload();
   }
 
   protected async loadForPlayback(recording: Recording): Promise<void> {
@@ -185,7 +221,7 @@ export class RecordingsComponent implements OnInit {
   }): Promise<void> {
     try {
       await firstValueFrom(this.recordingApi.renameRecording(recording.id, name));
-      await this.recordingStore.loadRecordings();
+      await this.reload();
     } catch (error) {
       console.error('Failed to rename recording:', error);
     }
@@ -205,7 +241,7 @@ export class RecordingsComponent implements OnInit {
     this.isDeleting.set(true);
     try {
       await firstValueFrom(this.recordingStore.deleteRecording(recording.id));
-      await this.recordingStore.loadRecordings();
+      await this.reload();
     } catch (error) {
       console.error('Failed to delete recording:', error);
     } finally {
@@ -278,7 +314,7 @@ export class RecordingsComponent implements OnInit {
       // Since recordingApi.deleteRecording takes a single ID, we loop.
       await Promise.all(ids.map((id) => this.recordingApi.deleteRecording(id).toPromise()));
 
-      await this.recordingStore.loadRecordings();
+      await this.reload();
       this.selectedRecordingIds.set(new Set());
       this.isSelectionMode.set(false);
     } catch (error) {
@@ -324,7 +360,7 @@ export class RecordingsComponent implements OnInit {
     this.marquee.set({x, y, w, h});
 
     const next = new Set(this.marqueeBase);
-    document.querySelectorAll<HTMLElement>('app-recording-card[data-rec-id]').forEach((el) => {
+    document.querySelectorAll<HTMLElement>('tr[data-rec-id]').forEach((el) => {
       const r = el.getBoundingClientRect();
       if (r.right >= x && r.left <= x + w && r.bottom >= y && r.top <= y + h) {
         next.add(el.dataset['recId']!);

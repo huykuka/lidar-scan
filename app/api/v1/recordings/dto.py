@@ -37,7 +37,6 @@ class RecordingResponse(BaseModel):
     duration_seconds: float
     recording_timestamp: str
     metadata: dict
-    thumbnail_path: str | None = None
     status: str = "ready"
     created_at: str
 
@@ -56,6 +55,8 @@ class ActiveRecordingResponse(BaseModel):
 class ListRecordingsResponse(BaseModel):
     """Response for listing recordings."""
     recordings: list[RecordingResponse]
+    #: number of recordings matching the filters (across all pages)
+    total: int = 0
     active_recordings: list[ActiveRecordingResponse]
 
 
