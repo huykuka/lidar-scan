@@ -1,16 +1,24 @@
 <div
-  class="flex flex-col rounded-lg border-syn hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden h-full"
-  style="border-color: var(--syn-color-neutral-300)"
+  class="recording-card flex flex-col rounded-lg border-syn hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden h-full"
+  [class.is-selected]="selected()"
+  [class.is-selectable]="selectable()"
 >
   <!-- Thumbnail -->
   <div class="relative w-full aspect-video bg-slate-900 flex items-center justify-center overflow-hidden">
     @if (selectable()) {
-      <div class="absolute top-2 left-2 z-10" (click)="$event.stopPropagation()">
-        <syn-checkbox
-          (syn-change)="toggleSelection.emit($any($event.target).checked)"
-          [checked]="selected()"
-        />
-      </div>
+      <button
+        type="button"
+        class="select-check"
+        [class.is-on]="selected()"
+        [attr.aria-pressed]="selected()"
+        aria-label="Select recording"
+        (click)="$event.stopPropagation(); toggleSelection.emit(!selected())"
+      >
+        <syn-icon name="check" />
+      </button>
+    }
+    @if (selected()) {
+      <div class="absolute inset-0 pointer-events-none select-tint"></div>
     }
 
     <!-- Status overlay badges -->

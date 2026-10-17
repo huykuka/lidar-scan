@@ -11,7 +11,7 @@
         <syn-input
           (input)="searchQuery.set($any($event.target).value)"
           [value]="searchQuery()"
-          class="flex-1 w-1/2 min-w-0"
+          class="flex-1 min-w-0 sm:max-w-xs"
           placeholder="Search recordings by name, topic, or sensor..."
           type="search"
         >
@@ -19,7 +19,7 @@
         </syn-input>
 
         <!-- Actions -->
-        <div class="flex items-center gap-3 overflow-x-auto pb-1 sm:pb-0 flex-shrink-0 scrollbar-thin">
+        <div class="flex items-center gap-3 overflow-x-auto pb-1 sm:pb-0 flex-shrink-0 scrollbar-thin sm:ml-auto">
           @if (isSelectionMode()) {
             <syn-button
               (click)="selectAllFiltered()"
@@ -27,7 +27,15 @@
               variant="outline"
             >
               <syn-icon name="done_all" slot="prefix" />
-              Select All
+              {{ allFilteredSelected() ? 'Clear All' : 'Select All' }}
+            </syn-button>
+            <syn-button
+              (click)="downloadSelected()"
+              [disabled]="selectedRecordingIds().size === 0"
+              variant="outline"
+            >
+              <syn-icon name="download" slot="prefix" />
+              Download ({{ selectedRecordingIds().size }})
             </syn-button>
             <syn-button
               (click)="confirmBulkDelete()"
@@ -64,7 +72,7 @@
 
   <!-- Content Area (single inner scroll body) -->
   <div
-    class="flex-1 min-h-0 overflow-auto p-6 relative"
+    class="flex-1 min-h-0 overflow-auto p-6 relative select-none"
     (mousedown)="onGridMouseDown($event)"
     (mousemove)="onGridMouseMove($event)"
   >

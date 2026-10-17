@@ -27,6 +27,7 @@ import {RecordingStoreService} from '@core/services/stores/recording-store.servi
 import {NgtsPointsBuffer} from 'angular-three-soba/performances';
 import {NgtCanvas, NgtCanvasContent, NgtCanvasImpl} from 'angular-three/dom';
 import {ThreedSceneGraphComponent, ViewportOverlayComponent} from '@shared/components';
+import {ORTHO_ZOOM} from '@shared/components/threed-scene/threed-scene-graph.component';
 import {ViewOrientation} from '@core/services/split-layout-store.service';
 import {copyStreamedXyz, flushPointCloudGeometry, nextFrameIndex, readyAction, shouldApplyFrame} from './recording-viewer-stream-state';
 
@@ -74,6 +75,15 @@ export class RecordingViewerComponent implements OnInit, OnDestroy {
   pointColor = signal('red');
   showGrid = signal(true);
   viewOrientation = signal<ViewOrientation>('perspective');
+  /**
+   * three.js only applies size attenuation with a perspective camera; with an orthographic
+   * camera `size` is raw screen pixels, so convert world units to pixels via the camera zoom.
+   */
+  renderPointSize = computed(() =>
+    this.viewOrientation() === 'perspective'
+      ? this.pointSize()
+      : Math.max(1, this.pointSize() * ORTHO_ZOOM),
+  );
   minIntensity = signal(0);
   showCockpit = signal(true);
 

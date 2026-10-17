@@ -16,6 +16,9 @@ import {ViewOrientation} from '@core/services/split-layout-store.service';
 // Z-is-up coordinate system (THREE.Object3D.DEFAULT_UP = [0,0,1])
 const D = 5;
 
+/** Orthographic camera zoom = pixels per world unit. */
+export const ORTHO_ZOOM = 20;
+
 const ORTHO_POS: Record<Exclude<ViewOrientation, 'perspective'>, [number, number, number]> = {
   top:    [0, 0,  D],
   bottom: [0, 0, -D],
@@ -86,7 +89,7 @@ export class ThreedSceneGraphComponent {
     const vt = this.viewType() as Exclude<ViewOrientation, 'perspective'>;
     return {
       makeDefault: true,
-      zoom: 20,
+      zoom: ORTHO_ZOOM,
       near: 0.1,
       far: 1000,
       position: ORTHO_POS[vt],

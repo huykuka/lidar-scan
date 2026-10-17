@@ -59,6 +59,11 @@ export class RecordingsComponent implements OnInit {
         (r.metadata?.sensor_name && r.metadata.sensor_name.toLowerCase().includes(query)),
     );
   });
+  protected allFilteredSelected = computed(() => {
+    const filtered = this.filteredRecordings();
+    const sel = this.selectedRecordingIds();
+    return filtered.length > 0 && filtered.every((r: Recording) => sel.has(r.id));
+  });
   protected sortedRecordings = computed(() => {
     return [...this.filteredRecordings()].sort((a, b) => {
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -81,8 +86,12 @@ export class RecordingsComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
 
   private pollSub: Subscription | null = null;
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   constructor() {
+    // Capture phase so the click ending a drag is swallowed before the cards see it
+    this.host.nativeElement.addEventListener('click', this.onGridClickCapture, true);
+    this.destroyRef.onDestroy(() => this.host.nativeElement.removeEventListener('click', this.onGridClickCapture, true));
     // Start/stop poll reactively based on whether any recording is 'processing'
     effect(() => {
       const processing = this.hasProcessing();
@@ -117,6 +126,15 @@ export class RecordingsComponent implements OnInit {
     // Download the recording file
     const filename = `${recording.name}_${recording.created_at.substring(0, 10)}.zip`;
     this.recordingApi.downloadRecording(recording.id, filename);
+  }
+
+  /** Download every selected recording, staggered so the browser doesn't drop the extra downloads. */
+  protected async downloadSelected(): Promise<void> {
+    const selected = this.recordings().filter((r: Recording) => this.selectedRecordingIds().has(r.id));
+    for (const [i, recording] of selected.entries()) {
+      if (i > 0) await new Promise((resolve) => setTimeout(resolve, 500));
+      this.downloadRecording(recording);
+    }
   }
 
   protected async renameRecording({
@@ -231,28 +249,39 @@ export class RecordingsComponent implements OnInit {
     }
   }
 
-  // --- Ctrl + drag marquee selection ---
+  // --- Drag marquee selection (press and drag over cards to select them) ---
 
   protected marquee = signal<{x: number; y: number; w: number; h: number} | null>(null);
   private marqueeStart: {x: number; y: number} | null = null;
   private marqueeBase = new Set<string>();
+  private marqueeActive = false;
+  private suppressNextClick = false;
 
   protected onGridMouseDown(event: MouseEvent): void {
-    if (event.button !== 0 || !(event.ctrlKey || event.metaKey)) return;
-    event.preventDefault(); // avoid text selection while dragging
+    if (event.button !== 0) return;
+    // Let buttons, inputs and other controls behave normally
+    const target = event.target as HTMLElement;
+    if (target.closest('button, a, input, textarea, syn-button, syn-icon-button, syn-input, syn-checkbox')) return;
     this.marqueeStart = {x: event.clientX, y: event.clientY};
-    this.marqueeBase = new Set(this.selectedRecordingIds());
-    this.isSelectionMode.set(true);
-    this.marquee.set({x: event.clientX, y: event.clientY, w: 0, h: 0});
+    this.marqueeBase = event.ctrlKey || event.metaKey || event.shiftKey ? new Set(this.selectedRecordingIds()) : new Set();
+    this.marqueeActive = false;
   }
 
   protected onGridMouseMove(event: MouseEvent): void {
     const start = this.marqueeStart;
     if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (!this.marqueeActive) {
+      if (Math.hypot(dx, dy) < 6) return; // below threshold: still a click
+      this.marqueeActive = true;
+      this.isSelectionMode.set(true);
+    }
+    event.preventDefault();
     const x = Math.min(start.x, event.clientX);
     const y = Math.min(start.y, event.clientY);
-    const w = Math.abs(event.clientX - start.x);
-    const h = Math.abs(event.clientY - start.y);
+    const w = Math.abs(dx);
+    const h = Math.abs(dy);
     this.marquee.set({x, y, w, h});
 
     const next = new Set(this.marqueeBase);
@@ -265,12 +294,28 @@ export class RecordingsComponent implements OnInit {
     this.selectedRecordingIds.set(next);
   }
 
+  @HostListener('document:keydown.escape')
+  protected onEscape(): void {
+    if (this.isSelectionMode()) this.toggleSelectionMode();
+  }
+
   @HostListener('document:mouseup')
   protected onGridMouseUp(): void {
     if (!this.marqueeStart) return;
+    this.suppressNextClick = this.marqueeActive;
     this.marqueeStart = null;
+    this.marqueeActive = false;
     this.marquee.set(null);
   }
+
+  /** Swallow the click that follows a drag so cards don't toggle/open. */
+  private onGridClickCapture = (event: MouseEvent): void => {
+    if (this.suppressNextClick) {
+      event.stopPropagation();
+      event.preventDefault();
+      this.suppressNextClick = false;
+    }
+  };
 
   // --- Upload Methods ---
 

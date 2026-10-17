@@ -69,8 +69,10 @@ server {
         proxy_set_header   Host $host;
     }
 
-    # Recordings
-    location /recordings/ {
+    # Recording files (static, have an extension). Regex on purpose: a plain
+    # `location /recordings/` makes nginx 301 `/recordings` -> `/recordings/`
+    # (dropping the port) and shadows the Angular /recordings routes on refresh.
+    location ~ ^/recordings/.+\.[A-Za-z0-9]+$ {
         proxy_pass         http://${BACKEND_HOST}:${BACKEND_PORT};
         proxy_http_version 1.1;
         proxy_set_header   Host $host;
