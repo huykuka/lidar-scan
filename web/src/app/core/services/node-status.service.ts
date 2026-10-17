@@ -6,6 +6,7 @@ import {SystemStatusBroadcast} from '@core/models/status.model';
 import {MultiWebsocketService} from './multi-websocket.service';
 import {MOCK_SYSTEM_STATUS, startMockStatusCycling} from './mock-status.helper';
 import {SystemStatusService} from './system-status.service';
+import {RecordingStoreService} from './stores/recording-store.service';
 
 const STATUS_TOPIC = 'system_status';
 const DEBOUNCE_MS = 50;
@@ -27,6 +28,7 @@ export class NodeStatusService {
 
   private readonly wsService = inject(MultiWebsocketService);
   private readonly systemStatus = inject(SystemStatusService);
+  private readonly recordingStore = inject(RecordingStoreService);
   private subscription: Subscription | null = null;
   private debounceId: ReturnType<typeof setTimeout> | null = null;
   private pending: NodesStatusResponse | null = null;
@@ -51,6 +53,15 @@ export class NodeStatusService {
           if (raw === 'ping') return;
           const data: SystemStatusBroadcast =
             typeof raw === 'string' ? JSON.parse(raw) : raw;
+
+          // Recording upload events are standalone messages: apply and stop (no node status inside)
+          if (data.recording_upload) {
+            this.recordingStore.applyBlobUpload(
+              data.recording_upload.recording_id,
+              data.recording_upload.blob_upload,
+            );
+            return;
+          }
 
           // Forward reload events to SystemStatusService
           if (data.reload_event) {

@@ -2,6 +2,7 @@ import {effect, inject, Injectable, signal, untracked} from '@angular/core';
 import {catchError, firstValueFrom, of} from 'rxjs';
 import {AuthService} from './auth.service';
 import {RecordingApiService} from './api/recording-api.service';
+import {NodeStatusService} from './node-status.service';
 
 /**
  * Tracks whether recording upload to S3-compatible blob storage is usable.
@@ -12,6 +13,7 @@ import {RecordingApiService} from './api/recording-api.service';
 export class BlobStorageService {
   private readonly auth = inject(AuthService);
   private readonly api = inject(RecordingApiService);
+  private readonly statusWs = inject(NodeStatusService);
 
   /** Configured on the server AND credentials verified. */
   readonly available = signal(false);
@@ -21,7 +23,15 @@ export class BlobStorageService {
   constructor() {
     effect(() => {
       const isService = this.auth.isService();
-      untracked(() => void (isService ? this.refresh() : this.reset()));
+      untracked(() => {
+        if (isService) {
+          // Upload results are pushed over the system_status WebSocket (idempotent connect)
+          this.statusWs.connect();
+          void this.refresh();
+        } else {
+          this.reset();
+        }
+      });
     });
   }
 

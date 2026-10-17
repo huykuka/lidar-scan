@@ -32,8 +32,13 @@ app.add_middleware(
 
 app.include_router(api_router)
 
-# Static mounts — created eagerly so the mount never fails on a fresh checkout
-for _path, _name in [("data/recordings", "recordings"), ("data", "data")]:
-    _dir = Path(_path)
+# Static mounts — created eagerly so the mount never fails on a fresh checkout.
+# Only expose what the UI fetches directly. NEVER mount ``data`` itself: it contains the
+# SQLite database (``data/config/data.db``) with password hashes and stored credentials.
+for _mount, _dir_name, _name in [
+    ("/recordings", "data/recordings", "recordings"),
+    ("/data/results", "data/results", "results"),
+]:
+    _dir = Path(_dir_name)
     _dir.mkdir(parents=True, exist_ok=True)
-    app.mount(f"/{_path.split('/')[-1]}", StaticFiles(directory=str(_dir)), name=_name)
+    app.mount(_mount, StaticFiles(directory=str(_dir)), name=_name)

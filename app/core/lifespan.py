@@ -27,6 +27,9 @@ async def lifespan(_: FastAPI):
     engine = init_engine()
     ensure_schema(engine)
 
+    from app.services.app_settings import load_overrides
+    load_overrides()
+
     recorder = get_recorder()
     manager.recorder = recorder
 
@@ -50,12 +53,17 @@ async def lifespan(_: FastAPI):
     manager.register_topic("shapes")
 
     start_status_aggregator()
+
+    from app.services.retention import start_retention
+    start_retention()
     for node_id in node_manager.nodes:
         notify_status_change(node_id)
 
     yield
 
     # ── Shutdown ──────────────────────────────────────────────────────────────
+    from app.services.retention import stop_retention
+    stop_retention()
     stop_status_aggregator()
     await recorder.stop_all_recordings()
     await node_manager.stop()

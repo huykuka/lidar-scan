@@ -1,7 +1,8 @@
 import {computed, inject, Injectable} from '@angular/core';
 import {map, Observable, tap} from 'rxjs';
 import {SignalsSimpleStoreService} from '../signals-simple-store.service';
-import {ActiveRecording, Recording} from '../../models/recording.model';
+import {ActiveRecording, BlobUploadState, Recording} from '../../models/recording.model';
+import {ToastService} from '../toast.service';
 import {RecordingApiService} from '../api/recording-api.service';
 
 export interface RecordingState {
@@ -53,6 +54,7 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
     };
   });
   private recordingApi = inject(RecordingApiService);
+  private toast = inject(ToastService);
 
   constructor() {
     super();
@@ -98,6 +100,24 @@ export class RecordingStoreService extends SignalsSimpleStoreService<RecordingSt
       }),
       map((response) => response.recording_id),
     );
+  }
+
+  /** Patch a recording's blob-upload state in place (pushed over the WebSocket). */
+  applyBlobUpload(recordingId: string, blobUpload: BlobUploadState | null): void {
+    const prev = this.recordings().find((r) => r.id === recordingId);
+    const prevStatus = prev?.metadata?.blob_upload?.status;
+    if (prev && blobUpload && (prevStatus === 'queued' || prevStatus === 'uploading')) {
+      if (blobUpload.status === 'uploaded') {
+        this.toast.success(`Uploaded ${prev.name} to ${blobUpload.bucket}`);
+      } else if (blobUpload.status === 'failed') {
+        this.toast.danger(`Upload of ${prev.name} failed: ${blobUpload.error ?? 'unknown error'}`, 6000);
+      }
+    }
+    this.setState({
+      recordings: this.recordings().map((r) =>
+        r.id === recordingId ? {...r, metadata: {...r.metadata, blob_upload: blobUpload ?? undefined}} : r,
+      ),
+    });
   }
 
   /**

@@ -98,6 +98,7 @@
         @for (recording of sortedRecordings(); track recording.id; let idx = $index) {
           <app-recording-card
             (blobUpload)="uploadToBlob($event)"
+            (blobCancel)="cancelBlobUpload($event)"
             [blobUploading]="blobUploadingIds().has(recording.id)"
             (delete)="confirmDelete($event)"
             (download)="downloadRecording($event)"

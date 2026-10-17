@@ -19,9 +19,25 @@ export interface Recording {
   status?: 'ready' | 'processing' | 'failed';
 }
 
+export interface BlobUploadState {
+  status: 'queued' | 'uploading' | 'uploaded' | 'failed';
+  backend?: string | null;
+  bucket?: string;
+  key?: string;
+  started_at?: string;
+  uploaded_at?: string;
+  failed_at?: string;
+  /** Live transfer progress while uploading (pushed over WebSocket, not persisted). */
+  progress?: number;
+  bytes_sent?: number;
+  bytes_total?: number;
+  /** Why the upload failed (status === 'failed'). */
+  error?: string;
+}
+
 export interface RecordingMetadata {
   /** Set by the backend once the file has been uploaded to blob storage. */
-  blob_upload?: {bucket: string; key: string; uploaded_at: string};
+  blob_upload?: BlobUploadState;
   sensor_id?: string;
   sensor_name?: string;
   node_id: string;

@@ -12,6 +12,7 @@
 
 /* Side-specific */
 .border-b-syn        { border-bottom: 1px solid var(--syn-color-neutral-300); }
+.border-t-syn        { border-top: 1px solid var(--syn-color-neutral-300); }
 .border-b-syn-subtle { border-bottom: 1px solid var(--syn-color-neutral-200); }
 
 /* ── Global Tailwind border-neutral-* normalization ──────────────────────────

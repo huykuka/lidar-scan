@@ -385,7 +385,7 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
                 finally:
                     bg_db.close()
 
-                # Optional: push the new recording to blob storage (S3_AUTO_UPLOAD=true)
+                # Optional: push the new recording to blob storage (STORAGE_AUTO_UPLOAD=true)
                 from app.services import blob_storage
                 await blob_storage.auto_upload_recording(recording_data)
 
@@ -1082,13 +1082,14 @@ async def get_blob_storage_status():
         "configured": status.configured,
         "authenticated": status.authenticated,
         "available": status.configured and status.authenticated,
+        "backend": status.backend,
         "bucket": status.bucket,
         "reason": status.reason,
     }
 
 
-async def upload_recording_to_blob(recording_id: str, db: Session):
-    """Upload a recording's file to S3-compatible blob storage."""
+async def upload_recording_to_blob(recording_id: str, background_tasks: BackgroundTasks, db: Session):
+    """Queue a background upload of a recording to the configured storage backend."""
     from app.services import blob_storage
 
     recording = RecordingRepository(db).get_by_id(recording_id)
@@ -1098,13 +1099,29 @@ async def upload_recording_to_blob(recording_id: str, db: Session):
     if not Path(recording["file_path"]).exists():
         raise HTTPException(status_code=404, detail="Recording file not found on disk")
 
+    if blob_storage.is_upload_in_progress(recording):
+        raise HTTPException(status_code=409, detail="Upload already in progress")
+
     status = await blob_storage.get_status(force=True)
     if not (status.configured and status.authenticated):
         raise HTTPException(status_code=409, detail=status.reason or "Blob storage unavailable")
 
-    try:
-        bucket, key = await blob_storage.upload_recording(recording)
-    except Exception as exc:
-        logger.error(f"Blob upload failed for recording {recording_id}: {exc}")
-        raise HTTPException(status_code=500, detail="Blob upload failed")
-    return {"bucket": bucket, "key": key}
+    cancel = await blob_storage.begin_upload(recording)
+    background_tasks.add_task(blob_storage.run_upload_job, recording, cancel)
+    return {"recording_id": recording_id, "status": "queued"}
+
+
+async def cancel_recording_blob_upload(recording_id: str, db: Session):
+    """Cancel a queued or running blob upload."""
+    from app.services import blob_storage
+
+    recording = RecordingRepository(db).get_by_id(recording_id)
+    if not recording:
+        raise HTTPException(status_code=404, detail=f"Recording {recording_id} not found")
+
+    state = (recording.get("metadata") or {}).get("blob_upload") or {}
+    if state.get("status") not in ("queued", "uploading"):
+        raise HTTPException(status_code=409, detail="No upload in progress")
+
+    await blob_storage.cancel_upload(recording_id)
+    return {"recording_id": recording_id, "status": "cancelled"}

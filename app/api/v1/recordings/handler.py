@@ -19,7 +19,7 @@ from .service import (
     delete_recording, download_recording, get_recording_viewer_info,
     get_recording_frame_as_pcd, get_recording_thumbnail, upload_recording,
     rename_recording, stream_recording, trim_recording,
-    get_blob_storage_status, upload_recording_to_blob,
+    get_blob_storage_status, upload_recording_to_blob, cancel_recording_blob_upload,
 )
 
 # Router configuration
@@ -137,18 +137,40 @@ async def recordings_blob_status_endpoint():
     "/recordings/{recording_id}/blob-upload",
     responses={
         404: {"description": "Recording not found"},
-        409: {"description": "Blob storage not configured or not authenticated"},
-        500: {"description": "Upload failed"},
+        409: {"description": "Storage unavailable or an upload is already in progress"},
     },
+    status_code=status.HTTP_202_ACCEPTED,
     summary="Upload Recording To Blob Storage",
-    description="Upload the recording file to the configured S3-compatible bucket. Service role only.",
+    description=(
+        "Queue a background upload of the recording to the configured storage backend. "
+        "Returns immediately; the outcome is stored in `metadata.blob_upload` "
+        "(`status`: uploading | uploaded | failed). Service role only."
+    ),
 )
 @roles_required("service")
 async def recordings_blob_upload_endpoint(
         recording_id: str,
+        background_tasks: BackgroundTasks,
         db: Annotated[Session, Depends(get_db)]
 ):
-    return await upload_recording_to_blob(recording_id, db)
+    return await upload_recording_to_blob(recording_id, background_tasks, db)
+
+
+@router.post(
+    "/recordings/{recording_id}/blob-upload/cancel",
+    responses={
+        404: {"description": "Recording not found"},
+        409: {"description": "No upload in progress"},
+    },
+    summary="Cancel Recording Blob Upload",
+    description="Cancel a queued or running upload to blob storage. Service role only.",
+)
+@roles_required("service")
+async def recordings_blob_cancel_endpoint(
+        recording_id: str,
+        db: Annotated[Session, Depends(get_db)]
+):
+    return await cancel_recording_blob_upload(recording_id, db)
 
 
 @router.get(

@@ -6,6 +6,7 @@
  */
 
 import {NodeStatusUpdate} from './node-status.model';
+import {BlobUploadState} from './recording.model';
 
 export interface ReloadEvent {
   /** null for full DAG reload events */
@@ -25,7 +26,16 @@ export interface SystemStatusInfo {
   version: string;
 }
 
+/** One-shot push when a recording's blob-storage upload changes state. */
+export interface RecordingUploadEvent {
+  recording_id: string;
+  /** null when the upload was cancelled (state cleared) */
+  blob_upload: BlobUploadState | null;
+}
+
 export interface SystemStatusBroadcast {
+  /** Present only on upload-state events (message carries no node status). */
+  recording_upload?: RecordingUploadEvent;
   nodes: NodeStatusUpdate[];
   /** Present only during/after a reload */
   reload_event?: ReloadEvent;

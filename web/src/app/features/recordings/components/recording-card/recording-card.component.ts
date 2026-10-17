@@ -42,19 +42,45 @@ export class RecordingCardComponent {
   readonly download = output<Recording>();
   readonly delete = output<Recording>();
   readonly blobUpload = output<Recording>();
+  readonly blobCancel = output<Recording>();
   readonly rename = output<{ recording: Recording; name: string }>();
 
   /** Derived status helpers — treat missing status as 'ready' */
   protected readonly isProcessing = computed(() => this.recording().status === 'processing');
   protected readonly isFailed = computed(() => this.recording().status === 'failed');
-  protected readonly uploadedInfo = computed(() => this.recording().metadata?.blob_upload ?? null);
+  protected readonly blobState = computed(() => this.recording().metadata?.blob_upload ?? null);
+  /** 'uploading' for too long (server restart) is treated as abandoned so it can be retried. */
+  protected readonly blobStatus = computed<'idle' | 'queued' | 'uploading' | 'uploaded' | 'failed'>(() => {
+    const st = this.blobState();
+    if (!st) return 'idle';
+    if (st.status === 'queued' || st.status === 'uploading') {
+      const started = st.started_at ? Date.parse(st.started_at) : NaN;
+      return Number.isFinite(started) && Date.now() - started > 15 * 60_000 ? 'failed' : st.status;
+    }
+    return st.status;
+  });
+  protected readonly blobProgress = computed(() => Math.round(this.blobState()?.progress ?? 0));
+  protected readonly blobProgressLabel = computed(() => {
+    const st = this.blobState();
+    if (!st?.bytes_total) return 'Uploading…';
+    const mb = (n: number) => (n / 1024 / 1024).toFixed(1);
+    return `Uploading… ${this.blobProgress()}% (${mb(st.bytes_sent ?? 0)} / ${mb(st.bytes_total)} MB)`;
+  });
+  protected readonly blobError = computed(() =>
+    this.blobState()?.error ?? (this.blobStatus() === 'failed' ? 'Upload timed out' : ''),
+  );
   /** Actions disabled while processing */
   protected readonly actionsDisabled = computed(() => this.isProcessing());
 
   protected onBlobUpload(event: Event): void {
     event.stopPropagation();
-    if (this.uploadedInfo() || this.blobUploading()) return; // already uploaded
+    if (['uploaded', 'queued', 'uploading'].includes(this.blobStatus())) return;
     this.blobUpload.emit(this.recording());
+  }
+
+  protected onBlobCancel(event: Event): void {
+    event.stopPropagation();
+    this.blobCancel.emit(this.recording());
   }
 
   protected onPlay(event: Event): void {
@@ -147,12 +173,8 @@ export class RecordingCardComponent {
     if (!recording.thumbnail_path) {
       return '';
     }
-    // Remove /api/v1 from apiUrl to get base URL (e.g., http://localhost:8004)
-    const baseUrl = environment.apiUrl.replace('/api/v1', '');
-
-    // Normalize path: support legacy 'config/' prefix and ensure it starts with / recordigns
-    const cleanPath = recording.thumbnail_path.replace(/^config\//, '');
-
-    return `${baseUrl}/${cleanPath}`;
+    // Served by the API (not a static file path) so it keeps working however the backend
+    // mounts its data folders, and the backend can regenerate a missing thumbnail.
+    return `${environment.apiUrl}/recordings/${recording.id}/thumbnail`;
   }
 }

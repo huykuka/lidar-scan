@@ -74,7 +74,7 @@ export class RecordingsComponent implements OnInit {
 
   /** True when any recording is still processing — drives poll */
   protected hasProcessing = computed(() =>
-    this.recordings().some((r: Recording) => r.status === 'processing')
+    this.recordings().some((r: Recording) => r.status === 'processing'),
   );
 
   private recordingStore = inject(RecordingStoreService);
@@ -146,11 +146,15 @@ export class RecordingsComponent implements OnInit {
   protected async uploadToBlob(recording: Recording): Promise<void> {
     this.blobUploadingIds.update((s) => new Set(s).add(recording.id));
     try {
-      const res = await firstValueFrom(this.recordingApi.uploadToBlobStorage(recording.id));
-      this.toast.success(`Uploaded ${recording.name} to ${res.bucket}`);
-      await this.recordingStore.loadRecordings(); // pick up the new 'uploaded' state
+      await firstValueFrom(this.recordingApi.uploadToBlobStorage(recording.id));
+      this.toast.neutral(`Uploading ${recording.name} in the background…`);
+      // Optimistic: the server pushes the final state (uploaded / failed) over the WebSocket
+      this.recordingStore.applyBlobUpload(recording.id, {
+        status: 'queued',
+        started_at: new Date().toISOString(),
+      });
     } catch (err: any) {
-      this.toast.danger(err?.error?.detail ?? 'Blob upload failed');
+      this.toast.danger(err?.error?.detail ?? 'Could not start upload');
       void this.blobStorage.refresh(); // credentials may have gone stale
     } finally {
       this.blobUploadingIds.update((s) => {
@@ -158,6 +162,17 @@ export class RecordingsComponent implements OnInit {
         next.delete(recording.id);
         return next;
       });
+    }
+  }
+
+  protected async cancelBlobUpload(recording: Recording): Promise<void> {
+    try {
+      await firstValueFrom(this.recordingApi.cancelBlobUpload(recording.id));
+      this.recordingStore.applyBlobUpload(recording.id, null);
+      this.toast.neutral(`Upload of ${recording.name} cancelled`);
+    } catch (err: any) {
+      // 409 = it already finished/failed; the pushed state will update the card
+      this.toast.warning(err?.error?.detail ?? 'Could not cancel upload');
     }
   }
 

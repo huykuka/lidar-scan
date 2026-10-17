@@ -31,4 +31,5 @@ export const NAVIGATION_CONFIG: NavItem[] = [
   },
   { label: 'Logs', route: '/logs', icon: 'terminal', divider: true, footer: true },
   { label: 'Resource Monitor', route: '/host', icon: 'monitor_heart', divider: true },
+  { label: 'App Settings', route: '/app-settings', icon: 'settings', divider: true, footer: true, requiredRole: 'service' },
 ];

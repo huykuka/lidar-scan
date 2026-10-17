@@ -1,0 +1,257 @@
+<div class="h-full flex flex-col animate-in fade-in duration-500">
+  <div class="rounded-xl shadow-sm overflow-hidden flex flex-col flex-1 min-h-0 border-syn">
+
+    <!-- Tab navigation only — empty panels required by syn-tab-group API -->
+    <syn-tab-group (syn-tab-show)="select($any($event).detail.name)" class="shrink-0">
+      @for (e of navEntries(); track e.id) {
+        <syn-tab slot="nav" [panel]="e.id" [active]="e.id === activeId()">
+          <syn-icon [name]="e.icon" class="mr-1" />{{ e.label }}
+          @if ((dirtyByCategory()[e.id] ?? 0) > 0) {
+            <syn-badge class="ml-2" variant="warning" pill>{{ dirtyByCategory()[e.id] }}</syn-badge>
+          }
+        </syn-tab>
+      }
+    </syn-tab-group>
+
+    <!-- Scroll container: plain div owns overflow, not a web component -->
+    <div class="flex-1 min-h-0 overflow-y-auto p-4">
+  <section class="max-w-4xl">
+    <header class="mb-4">
+      <h2 class="text-xl font-semibold">{{ activeEntry().label }}</h2>
+      <p class="text-sm text-syn-color-neutral-500">{{ activeEntry().description }}</p>
+    </header>
+
+    @switch (activeId()) {
+      @case ('appearance') {
+        <syn-card class="mb-4 block">
+          <div slot="header" class="font-semibold">Theme</div>
+          <syn-radio-group [value]="theme.theme()" (syn-change)="onThemeChange($event)" label="Color mode">
+            <syn-radio-button value="light"><syn-icon name="light_mode" slot="prefix" />Light</syn-radio-button>
+            <syn-radio-button value="dark"><syn-icon name="dark_mode" slot="prefix" />Dark</syn-radio-button>
+          </syn-radio-group>
+        </syn-card>
+
+        <syn-card class="mb-4 block">
+          <div slot="header" class="font-semibold">Flow editor</div>
+          <div class="flex flex-col gap-3">
+            <syn-switch [checked]="minimapVisible()" (syn-change)="onMinimapChange($event)">Show minimap</syn-switch>
+            <syn-switch [checked]="liveStatus()" (syn-change)="onLiveStatusChange($event)">Show live node status</syn-switch>
+            <p class="text-sm text-syn-color-neutral-500">Applies the next time the flow editor is opened.</p>
+          </div>
+        </syn-card>
+
+        <syn-card class="block">
+          <div slot="header" class="font-semibold">Browser data</div>
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <p class="max-w-md text-sm text-syn-color-neutral-500">
+              Clear saved viewer layouts and workspace view settings stored in this browser. Theme and sign-in are kept.
+            </p>
+            <syn-button variant="outline" size="small" (click)="resetLocalData()">Clear saved layouts</syn-button>
+          </div>
+        </syn-card>
+      }
+
+      @case ('account') {
+        <syn-card class="block">
+          @if (auth.user(); as u) {
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <span class="text-lg">{{ u.username }}</span>
+                <syn-badge variant="neutral">{{ u.role }}</syn-badge>
+              </div>
+              <syn-button variant="outline" size="small" (click)="auth.logout()">
+                <syn-icon name="logout" slot="prefix" />Sign out
+              </syn-button>
+            </div>
+          } @else {
+            <p class="text-sm text-syn-color-neutral-500">
+              You are not signed in. Use the user menu in the header to sign in.
+            </p>
+          }
+        </syn-card>
+      }
+
+      @case ('about') {
+        <syn-card class="block">
+          <div class="flex flex-wrap gap-2">
+            <syn-badge [variant]="status.backendOnline() ? 'success' : 'neutral'">Backend: {{ status.backendLabel() }}</syn-badge>
+            <syn-badge variant="neutral">Version: {{ status.backendVersion() ?? '—' }}</syn-badge>
+          </div>
+        </syn-card>
+      }
+
+      @default {
+        <!-- Backend-driven category -->
+        @if (activeCategory(); as cat) {
+          @if (cat.id === 'storage' && !encryptionAvailable()) {
+            <syn-alert class="mb-4" open variant="warning">
+              <syn-icon slot="icon" name="key_off" />
+              <strong>Secrets cannot be saved.</strong> {{ encryptionError() }}. Set
+              <code>SETTINGS_ENCRYPTION_KEY</code> (any string) in the server's <code>.env</code> or environment and restart the backend.
+            </syn-alert>
+          }
+
+          @if (cat.id === 'retention' && retentionWarning()) {
+            <syn-alert class="mb-4" open variant="warning">
+              <syn-icon slot="icon" name="warning" />
+              Recordings that were never uploaded will be permanently deleted once they pass the limit.
+            </syn-alert>
+          }
+
+          <syn-card class="block">
+            <ul>
+              @for (s of cat.settings; track s.key) {
+                @if (!$first) { <syn-divider class="my-0"></syn-divider> }
+                <li class="grid gap-2 py-4 sm:grid-cols-[1fr_16rem] sm:gap-6">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                      <label class="font-medium" [class.opacity-50]="isDisabled(s)">{{ s.label }}</label>
+                      @if (isDirty(s)) {
+                        <syn-badge variant="warning" pill>Unsaved</syn-badge>
+                      } @else if (s.modified) {
+                        <syn-badge variant="neutral" pill>Customized</syn-badge>
+                      }
+                    </div>
+                    @if (s.description) {
+                      <p class="text-sm text-syn-color-neutral-500">{{ s.description }}</p>
+                    }
+                    @if (canReset(s)) {
+                      <syn-button class="mt-1" size="small" variant="text" (click)="resetToDefault(s)">
+                        <syn-icon name="undo" slot="prefix" />Reset to default
+                      </syn-button>
+                    }
+                  </div>
+
+                  <div class="flex min-w-0 flex-col gap-1 sm:items-end">
+                    @switch (s.type) {
+                      @case ('bool') {
+                        <syn-switch
+                          [checked]="!!valueOf(s.key)"
+                          [disabled]="isDisabled(s)"
+                          (syn-change)="onBool(s, $event)"
+                        >{{ valueOf(s.key) ? 'On' : 'Off' }}</syn-switch>
+                      }
+                      @case ('int') {
+                        <syn-input
+                          class="w-full"
+                          type="number"
+                          size="small"
+                          [attr.min]="s.min"
+                          [attr.max]="s.max"
+                          [value]="'' + valueOf(s.key)"
+                          [disabled]="isDisabled(s)"
+                          [attr.aria-label]="s.label"
+                          (input)="onNumber(s, $event)"
+                        >
+                          @if (s.unit) { <span slot="suffix">{{ s.unit }}</span> }
+                        </syn-input>
+                      }
+                      @case ('select') {
+                        <syn-select class="w-full" size="small" [value]="'' + valueOf(s.key)" (syn-change)="onSelect(s, $event)">
+                          @for (o of s.options ?? []; track o) {
+                            <syn-option [value]="o">{{ o }}</syn-option>
+                          }
+                        </syn-select>
+                      }
+                      @case ('secret') {
+                        @if (isEditingSecret(s)) {
+                          <div class="flex w-full items-center gap-2">
+                            <syn-input
+                              class="flex-1"
+                              type="password"
+                              size="small"
+                              password-toggle
+                              autocomplete="new-password"
+                              [attr.aria-label]="s.label"
+                              [disabled]="!encryptionAvailable()"
+                              [placeholder]="s.is_set ? 'Enter new secret' : 'Not set'"
+                              (input)="onText(s, $event)"
+                            />
+                            @if (s.is_set) {
+                              <syn-button size="small" variant="text" (click)="cancelSecret(s)">Cancel</syn-button>
+                            }
+                          </div>
+                        } @else {
+                          <div class="flex w-full items-center justify-between gap-2">
+                            <span class="text-sm tracking-widest text-syn-color-neutral-600">••••••••</span>
+                            <syn-button size="small" variant="outline" [disabled]="!encryptionAvailable()" (click)="editSecret(s)">Change</syn-button>
+                          </div>
+                        }
+                      }
+                      @default {
+                        <syn-input
+                          class="w-full"
+                          size="small"
+                          autocomplete="off"
+                          [value]="'' + (valueOf(s.key) ?? '')"
+                          [placeholder]="s.placeholder"
+                          [attr.aria-label]="s.label"
+                          (input)="onText(s, $event)"
+                        />
+                      }
+                    }
+                    @if (fieldErrors()[s.key]; as err) {
+                      <span class="text-xs text-syn-color-error-600" role="alert">{{ err }}</span>
+                    }
+                  </div>
+                </li>
+              }
+            </ul>
+          </syn-card>
+
+          @if (cat.id === 'storage') {
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+              <syn-button variant="outline" size="small" [loading]="testing()" [disabled]="dirtyCount() > 0 || testing()" (click)="testStorage()">
+                <syn-icon name="wifi_tethering" slot="prefix" />Test connection
+              </syn-button>
+              @if (dirtyCount() > 0) {
+                <span class="text-sm text-syn-color-neutral-500">Save your changes to test them.</span>
+              }
+            </div>
+            @if (testResult(); as r) {
+              <syn-alert class="mt-3" open [variant]="r.authenticated ? 'success' : 'warning'">
+                <syn-icon slot="icon" [name]="r.authenticated ? 'check_circle' : 'warning'" />
+                @if (r.authenticated) {
+                  Connected to <strong>{{ r.bucket }}</strong> ({{ r.backend }}).
+                } @else {
+                  {{ r.reason ?? 'Connection failed' }}
+                }
+              </syn-alert>
+            }
+          }
+
+        }
+      }
+    }
+
+    @if (activeEntry().backend) {
+      @if (!auth.isService()) {
+        <syn-alert open variant="neutral">
+          <syn-icon slot="icon" name="lock" />
+          Service access is required to view and change these settings.
+        </syn-alert>
+      } @else if (loading()) {
+        <div class="flex h-40 items-center justify-center"><syn-spinner></syn-spinner></div>
+      } @else if (loadError(); as err) {
+        <syn-alert open variant="danger">
+          <syn-icon slot="icon" name="error" />
+          {{ err }}
+          <syn-button slot="action" size="small" variant="text" (click)="load()">Retry</syn-button>
+        </syn-alert>
+      }
+    }
+  </section>
+    </div>
+
+    <!-- Save bar pinned to the bottom of the shell -->
+    @if (dirtyCount() > 0) {
+      <div class="shrink-0 border-t-syn flex items-center justify-between gap-4 px-4 py-3" role="region" aria-label="Unsaved changes">
+        <span class="text-sm font-medium">{{ dirtyCount() }} unsaved {{ dirtyCount() === 1 ? 'change' : 'changes' }}</span>
+        <div class="flex gap-2">
+          <syn-button variant="outline" [disabled]="saving()" (click)="discard()">Discard</syn-button>
+          <syn-button variant="filled" [loading]="saving()" (click)="save()">Save changes</syn-button>
+        </div>
+      </div>
+    }
+  </div>
+</div>

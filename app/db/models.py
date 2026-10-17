@@ -413,6 +413,20 @@ def init_db() -> None:
     Base.metadata.create_all(bind=get_engine())
 
 
+class AppSettingModel(Base):
+    """Runtime-editable application setting (overrides the env default)."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value_json: Mapped[str] = mapped_column(String, nullable=False)
+    updated_at: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        default=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    )
+
+
 def get_db():
     from app.db.session import SessionLocal
 

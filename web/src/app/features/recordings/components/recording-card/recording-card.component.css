@@ -38,3 +38,30 @@
   border-color: var(--syn-color-primary-600);
   color: #fff;
 }
+
+.upload-ring-btn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+}
+
+.upload-ring {
+  --size: 24px;
+  --track-width: 3px;
+  --indicator-color: var(--syn-color-primary-600);
+  --track-color: var(--syn-color-neutral-300);
+}
+
+.upload-ring-btn__pct {
+  position: absolute;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--syn-typography-color-text);
+}

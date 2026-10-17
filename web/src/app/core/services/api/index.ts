@@ -14,3 +14,4 @@ export * from './dag-api.service'
 export * from './config-transfer.service'
 export * from './node-reload-api.service'
 export * from './plugins-api.service';
+export * from './app-settings-api.service';

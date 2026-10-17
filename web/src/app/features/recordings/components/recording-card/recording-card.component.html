@@ -115,19 +115,50 @@
         (click)="onDownload($event)" />
     </syn-tooltip>
     @if (isService()) {
-      @if (uploadedInfo(); as up) {
-        <syn-tooltip [content]="'Uploaded to ' + up.bucket + '/' + up.key" placement="top">
-          <syn-icon-button size="small" variant="text" name="cloud_done" label="Uploaded to blob storage"
-            style="color: var(--syn-color-success-600)"
-            (click)="onBlobUpload($event)" />
-        </syn-tooltip>
-      } @else {
-        <syn-tooltip [content]="blobUploading() ? 'Uploading…' : blob.available() ? 'Upload to blob storage' : 'Blob storage unavailable: ' + (blob.reason() ?? '')" placement="top">
-          <syn-icon-button size="small" variant="text" [name]="blobUploading() ? 'sync' : 'cloud_upload'" label="Upload to blob storage"
-            [class.animate-spin]="blobUploading()"
-            [disabled]="!blob.available() || actionsDisabled() || blobUploading()"
-            (click)="onBlobUpload($event)" />
-        </syn-tooltip>
+      @switch (blobStatus()) {
+        @case ('uploaded') {
+          <syn-tooltip [content]="'Uploaded to ' + blobState()?.bucket + '/' + blobState()?.key" placement="top">
+            <syn-icon-button size="small" variant="text" name="cloud_done" label="Uploaded to blob storage"
+              style="color: var(--syn-color-success-600)"
+              (click)="onBlobUpload($event)" />
+          </syn-tooltip>
+        }
+        @case ('queued') {
+          <syn-tooltip content="Waiting for other uploads to finish…" placement="top">
+            <syn-icon name="schedule" class="px-1 text-syn-color-neutral-500" />
+          </syn-tooltip>
+          <syn-tooltip content="Cancel upload" placement="top">
+            <syn-icon-button size="small" variant="text" name="close" label="Cancel upload"
+              (click)="onBlobCancel($event)" />
+          </syn-tooltip>
+        }
+        @case ('uploading') {
+          <syn-tooltip [content]="blobProgressLabel()" placement="top">
+            <span class="upload-ring-btn" role="img" aria-label="Uploading">
+              <syn-progress-ring class="upload-ring" [value]="blobProgress()" />
+              <span class="upload-ring-btn__pct">{{ blobProgress() }}</span>
+            </span>
+          </syn-tooltip>
+          <syn-tooltip content="Cancel upload" placement="top">
+            <syn-icon-button size="small" variant="text" name="close" label="Cancel upload"
+              (click)="onBlobCancel($event)" />
+          </syn-tooltip>
+        }
+        @case ('failed') {
+          <syn-tooltip [content]="'Upload failed: ' + blobError() + ' (click to retry)'" placement="top">
+            <syn-icon-button size="small" variant="text" name="cloud_off" label="Upload failed, retry"
+              style="color: var(--syn-color-error-600)"
+              [disabled]="!blob.available() || actionsDisabled() || blobUploading()"
+              (click)="onBlobUpload($event)" />
+          </syn-tooltip>
+        }
+        @default {
+          <syn-tooltip [content]="blob.available() ? 'Upload to blob storage' : 'Blob storage unavailable: ' + (blob.reason() ?? '')" placement="top">
+            <syn-icon-button size="small" variant="text" name="cloud_upload" label="Upload to blob storage"
+              [disabled]="!blob.available() || actionsDisabled() || blobUploading()"
+              (click)="onBlobUpload($event)" />
+          </syn-tooltip>
+        }
       }
     }
     <syn-tooltip content="Delete" placement="top">

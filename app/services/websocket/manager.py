@@ -94,7 +94,12 @@ class ConnectionManager:
                 pass
         self._write_locks.pop(id(websocket), None)
 
-    async def broadcast(self, topic: str, message: Any):
+    async def broadcast(self, topic: str, message: Any, reliable: bool = False):
+        """Send to all subscribers of ``topic``.
+
+        By default a connection that is mid-write is skipped (fine for high-rate streams).
+        Pass ``reliable=True`` for one-shot events: the send then waits for the write lock.
+        """
 
         # Handle active websocket connections
         if topic in self.active_connections:
@@ -102,7 +107,7 @@ class ConnectionManager:
                 lock = self._write_locks.get(id(connection))
                 if lock is None:
                     continue
-                if lock.locked():
+                if lock.locked() and not reliable:
                     continue
 
                 async def _send(conn=connection, msg=message, wlock=lock):

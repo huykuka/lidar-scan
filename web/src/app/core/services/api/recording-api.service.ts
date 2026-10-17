@@ -146,8 +146,16 @@ export class RecordingApiService {
     return this.http.get<BlobStorageStatus>(`${this.baseUrl}/blob-storage/status`);
   }
 
-  /** Service role only: upload a recording file to blob storage. */
-  uploadToBlobStorage(recordingId: string): Observable<{bucket: string; key: string}> {
-    return this.http.post<{bucket: string; key: string}>(`${this.baseUrl}/${recordingId}/blob-upload`, {});
+  /** Service role only: queue a background upload (202). Outcome lands in metadata.blob_upload. */
+  uploadToBlobStorage(recordingId: string): Observable<{recording_id: string; status: 'queued'}> {
+    return this.http.post<{recording_id: string; status: 'queued'}>(`${this.baseUrl}/${recordingId}/blob-upload`, {});
+  }
+
+  /** Service role only: cancel a queued or running blob upload. */
+  cancelBlobUpload(recordingId: string): Observable<{recording_id: string; status: 'cancelled'}> {
+    return this.http.post<{recording_id: string; status: 'cancelled'}>(
+      `${this.baseUrl}/${recordingId}/blob-upload/cancel`,
+      {},
+    );
   }
 }

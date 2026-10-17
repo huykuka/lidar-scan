@@ -31,6 +31,14 @@ export const routes: Routes = [
           import('./features/settings/settings.component').then((m) => m.SettingsComponent),
       },
       {
+        path: 'app-settings',
+        canActivate: [serviceGuard],
+        loadComponent: () =>
+          import('./features/app-settings/app-settings.component').then(
+            (m) => m.AppSettingsComponent,
+          ),
+      },
+      {
         path: 'recordings',
         loadComponent: () =>
           import('./features/recordings/recordings.component').then((m) => m.RecordingsComponent),

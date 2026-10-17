@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from .app_settings import router as app_settings_router
 from .assets import router as assets_router
 from .auth import router as auth_router
 from .calibration import router as calibration_router
@@ -38,3 +39,4 @@ router.include_router(dag_router)
 router.include_router(host_router)
 router.include_router(ws_router)
 router.include_router(auth_router)
+router.include_router(app_settings_router)
