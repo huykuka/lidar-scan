@@ -1,5 +1,5 @@
 <div
-  class="flex items-center justify-between gap-3 p-3 bg-syn-color-neutral-50 rounded-lg border sticky"
+  class="flex items-center justify-between gap-3 p-3 bg-syn-color-neutral-50 rounded-lg border sticky top-0 z-10"
   [class.mb-2]="description()"
   [class.mb-4]="!description()"
 >
@@ -16,7 +16,28 @@
     </div>
   </div>
 
-  <div class="flex gap-2 shrink-0">
+  <div class="flex gap-2 shrink-0 items-center">
+    <syn-dropdown placement="bottom-end" [distance]="8">
+      <syn-icon-button slot="trigger" name="more_vert" label="Node config actions" size="small" />
+      <syn-menu>
+        <syn-menu-item (click)="exportConfig()">
+          <syn-icon name="download" slot="prefix" />
+          Export config
+        </syn-menu-item>
+        <syn-menu-item (click)="importInput.click()">
+          <syn-icon name="upload" slot="prefix" />
+          Import config
+        </syn-menu-item>
+      </syn-menu>
+    </syn-dropdown>
+    <input
+      #importInput
+      type="file"
+      accept="application/json,.json"
+      class="hidden"
+      data-testid="node-import-input"
+      (change)="onImportFileSelected($event)"
+    />
     <syn-button (click)="cancel.emit()" size="small" variant="outline">
       <syn-icon name="close" />
       Cancel

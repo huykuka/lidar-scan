@@ -62,25 +62,25 @@ REC = {"id": "abcdef1234", "name": "My scan/1", "created_at": "2026-10-17T10:00:
 
 
 def test_unknown_backend(monkeypatch):
-    monkeypatch.setattr(settings, "STORAGE_BACKEND", "nope")
+    monkeypatch.setattr(settings, "UPLOAD_BACKEND", "nope")
     status = asyncio.run(blob_storage.get_status(force=True))
     assert not status.configured and "Unknown" in status.reason
 
 
 def test_registry_selects_s3_by_default(monkeypatch):
-    monkeypatch.setattr(settings, "STORAGE_BACKEND", "s3")
+    monkeypatch.setattr(settings, "UPLOAD_BACKEND", "s3")
     assert isinstance(registry.get_strategy(), S3Strategy)
 
 
 def test_s3_not_configured(monkeypatch):
-    for name in ("S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"):
+    for name in ("UPLOAD_S3_BUCKET", "UPLOAD_S3_ACCESS_KEY_ID", "UPLOAD_S3_SECRET_ACCESS_KEY"):
         monkeypatch.setattr(settings, name, "")
     status = S3Strategy().check()
     assert not status.configured and not status.authenticated
 
 
 def test_s3_bad_credentials(monkeypatch):
-    for name, value in (("S3_BUCKET", "b"), ("S3_ACCESS_KEY_ID", "i"), ("S3_SECRET_ACCESS_KEY", "s")):
+    for name, value in (("UPLOAD_S3_BUCKET", "b"), ("UPLOAD_S3_ACCESS_KEY_ID", "i"), ("UPLOAD_S3_SECRET_ACCESS_KEY", "s")):
         monkeypatch.setattr(settings, name, value)
     strategy = S3Strategy()
     monkeypatch.setattr(strategy, "_client", lambda: (_ for _ in ()).throw(Exception("403")))
@@ -150,7 +150,7 @@ def test_in_progress_detection():
 
 
 def test_auto_upload_disabled_does_nothing(monkeypatch):
-    monkeypatch.setattr(settings, "STORAGE_AUTO_UPLOAD", False)
+    monkeypatch.setattr(settings, "UPLOAD_AUTO", False)
     fake = FakeStrategy()
     _use(monkeypatch, fake)
     asyncio.run(blob_storage.auto_upload_recording(REC))
@@ -158,7 +158,7 @@ def test_auto_upload_disabled_does_nothing(monkeypatch):
 
 
 def test_auto_upload_skipped_when_unauthenticated(monkeypatch):
-    monkeypatch.setattr(settings, "STORAGE_AUTO_UPLOAD", True)
+    monkeypatch.setattr(settings, "UPLOAD_AUTO", True)
     fake = FakeStrategy(ok=False)
     _use(monkeypatch, fake)
     asyncio.run(blob_storage.auto_upload_recording(REC))
@@ -166,7 +166,7 @@ def test_auto_upload_skipped_when_unauthenticated(monkeypatch):
 
 
 def test_concurrency_limit(monkeypatch):
-    monkeypatch.setattr(settings, "STORAGE_MAX_CONCURRENT_UPLOADS", 2)
+    monkeypatch.setattr(settings, "UPLOAD_MAX_CONCURRENT", 2)
     monkeypatch.setattr(blob_storage, "_slots", None)
     running = peak = 0
 

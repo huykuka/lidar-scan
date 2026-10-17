@@ -23,7 +23,7 @@ def encryption_key(monkeypatch):
 @pytest.fixture(autouse=True)
 def restore_settings():
     snapshot = {k: getattr(settings, k) for k in (
-        "STORAGE_AUTO_UPLOAD", "S3_BUCKET", "S3_SECRET_ACCESS_KEY", "S3_ACCESS_KEY_ID", "RECORDINGS_RETENTION_DAYS")}
+        "UPLOAD_AUTO", "UPLOAD_S3_BUCKET", "UPLOAD_S3_SECRET_ACCESS_KEY", "UPLOAD_S3_ACCESS_KEY_ID", "RETENTION_RECORDINGS_DAYS")}
     yield
     for k, v in snapshot.items():
         setattr(settings, k, v)
@@ -43,35 +43,35 @@ def test_requires_service_role(client, admin):
 
 def test_update_persists_and_applies(client, admin):
     res = client.put("/api/v1/app-settings", headers=admin,
-                     json={"values": {"S3_BUCKET": " my-bucket ", "STORAGE_AUTO_UPLOAD": True}})
+                     json={"values": {"UPLOAD_S3_BUCKET": " my-bucket ", "UPLOAD_AUTO": True}})
     assert res.status_code == 200
-    assert settings.S3_BUCKET == "my-bucket"
-    assert settings.STORAGE_AUTO_UPLOAD is True
-    assert _find(res.json(), "S3_BUCKET")["modified"] is True
+    assert settings.UPLOAD_S3_BUCKET == "my-bucket"
+    assert settings.UPLOAD_AUTO is True
+    assert _find(res.json(), "UPLOAD_S3_BUCKET")["modified"] is True
 
 
 def test_validation_errors(client, admin):
     res = client.put("/api/v1/app-settings", headers=admin, json={"values": {
-        "RECORDINGS_RETENTION_DAYS": -1, "STORAGE_BACKEND": "ftp", "NOPE": 1}})
+        "RETENTION_RECORDINGS_DAYS": -1, "UPLOAD_BACKEND": "ftp", "NOPE": 1}})
     assert res.status_code == 422
-    assert set(res.json()["detail"]) == {"RECORDINGS_RETENTION_DAYS", "STORAGE_BACKEND", "NOPE"}
+    assert set(res.json()["detail"]) == {"RETENTION_RECORDINGS_DAYS", "UPLOAD_BACKEND", "NOPE"}
 
 
 def test_secret_never_returned_and_kept_when_omitted(client, admin):
-    client.put("/api/v1/app-settings", headers=admin, json={"values": {"S3_SECRET_ACCESS_KEY": "s3cr3t"}})
-    body = client.put("/api/v1/app-settings", headers=admin, json={"values": {"S3_BUCKET": "b"}}).json()
-    item = _find(body, "S3_SECRET_ACCESS_KEY")
+    client.put("/api/v1/app-settings", headers=admin, json={"values": {"UPLOAD_S3_SECRET_ACCESS_KEY": "s3cr3t"}})
+    body = client.put("/api/v1/app-settings", headers=admin, json={"values": {"UPLOAD_S3_BUCKET": "b"}}).json()
+    item = _find(body, "UPLOAD_S3_SECRET_ACCESS_KEY")
     assert item["value"] is None and item["is_set"] is True
-    assert settings.S3_SECRET_ACCESS_KEY == "s3cr3t"
+    assert settings.UPLOAD_S3_SECRET_ACCESS_KEY == "s3cr3t"
     assert "s3cr3t" not in client.get("/api/v1/app-settings", headers=admin).text
 
 
 def test_reset_restores_default(client, admin):
-    default = settings.RECORDINGS_RETENTION_DAYS
-    client.put("/api/v1/app-settings", headers=admin, json={"values": {"RECORDINGS_RETENTION_DAYS": 30}})
-    assert settings.RECORDINGS_RETENTION_DAYS == 30
-    client.put("/api/v1/app-settings", headers=admin, json={"reset": ["RECORDINGS_RETENTION_DAYS"]})
-    assert settings.RECORDINGS_RETENTION_DAYS == default
+    default = settings.RETENTION_RECORDINGS_DAYS
+    client.put("/api/v1/app-settings", headers=admin, json={"values": {"RETENTION_RECORDINGS_DAYS": 30}})
+    assert settings.RETENTION_RECORDINGS_DAYS == 30
+    client.put("/api/v1/app-settings", headers=admin, json={"reset": ["RETENTION_RECORDINGS_DAYS"]})
+    assert settings.RETENTION_RECORDINGS_DAYS == default
 
 
 def test_retention_sweep(client, tmp_path, monkeypatch):
@@ -91,10 +91,10 @@ def test_retention_sweep(client, tmp_path, monkeypatch):
                      "file_size_bytes": 1, "frame_count": 1, "duration_seconds": 1.0,
                      "recording_timestamp": old, "metadata": meta, "created_at": old})
 
-    monkeypatch.setattr(settings, "RECORDINGS_RETENTION_DAYS", 0)
+    monkeypatch.setattr(settings, "RETENTION_RECORDINGS_DAYS", 0)
     assert sweep_recordings_sync() == 0
 
-    monkeypatch.setattr(settings, "RECORDINGS_RETENTION_DAYS", 30)
+    monkeypatch.setattr(settings, "RETENTION_RECORDINGS_DAYS", 30)
     monkeypatch.setattr(settings, "RETENTION_ONLY_UPLOADED", True)
     assert sweep_recordings_sync() == 1
     assert not files["uploaded"].exists() and files["local"].exists()
@@ -110,32 +110,32 @@ def test_secret_encrypted_at_rest_and_restored_on_load(client, admin):
     from app.db.session import SessionLocal
     from app.services.app_settings import load_overrides
 
-    client.put("/api/v1/app-settings", headers=admin, json={"values": {"S3_SECRET_ACCESS_KEY": "s3cr3t"}})
+    client.put("/api/v1/app-settings", headers=admin, json={"values": {"UPLOAD_S3_SECRET_ACCESS_KEY": "s3cr3t"}})
     db = SessionLocal()
-    stored = db.get(AppSettingModel, "S3_SECRET_ACCESS_KEY").value_json
+    stored = db.get(AppSettingModel, "UPLOAD_S3_SECRET_ACCESS_KEY").value_json
     db.close()
     assert "s3cr3t" not in stored and "enc:v1:" in stored
 
-    settings.S3_SECRET_ACCESS_KEY = ""
+    settings.UPLOAD_S3_SECRET_ACCESS_KEY = ""
     load_overrides()
-    assert settings.S3_SECRET_ACCESS_KEY == "s3cr3t"
+    assert settings.UPLOAD_S3_SECRET_ACCESS_KEY == "s3cr3t"
 
 
 def test_wrong_key_does_not_crash_or_leak(client, admin, monkeypatch):
     from app.services.app_settings import load_overrides
 
-    client.put("/api/v1/app-settings", headers=admin, json={"values": {"S3_SECRET_ACCESS_KEY": "s3cr3t"}})
-    settings.S3_SECRET_ACCESS_KEY = ""
+    client.put("/api/v1/app-settings", headers=admin, json={"values": {"UPLOAD_S3_SECRET_ACCESS_KEY": "s3cr3t"}})
+    settings.UPLOAD_S3_SECRET_ACCESS_KEY = ""
     monkeypatch.setattr(settings, "SETTINGS_ENCRYPTION_KEY", "a different passphrase")
     load_overrides()
-    assert settings.S3_SECRET_ACCESS_KEY == ""
+    assert settings.UPLOAD_S3_SECRET_ACCESS_KEY == ""
 
 
 def test_secret_rejected_without_encryption_key(client, admin, monkeypatch):
     monkeypatch.setattr(settings, "SETTINGS_ENCRYPTION_KEY", "")
-    res = client.put("/api/v1/app-settings", headers=admin, json={"values": {"S3_SECRET_ACCESS_KEY": "x"}})
+    res = client.put("/api/v1/app-settings", headers=admin, json={"values": {"UPLOAD_S3_SECRET_ACCESS_KEY": "x"}})
     assert res.status_code == 422
-    assert "S3_SECRET_ACCESS_KEY" in res.json()["detail"]
+    assert "UPLOAD_S3_SECRET_ACCESS_KEY" in res.json()["detail"]
     assert client.get("/api/v1/app-settings", headers=admin).json()["encryption_available"] is False
 
 
@@ -149,18 +149,61 @@ def test_access_key_id_is_secret_and_encrypted(client, admin):
     from app.db.session import SessionLocal
 
     body = client.put("/api/v1/app-settings", headers=admin,
-                      json={"values": {"S3_ACCESS_KEY_ID": "AKIAEXAMPLE"}}).json()
-    item = _find(body, "S3_ACCESS_KEY_ID")
+                      json={"values": {"UPLOAD_S3_ACCESS_KEY_ID": "AKIAEXAMPLE"}}).json()
+    item = _find(body, "UPLOAD_S3_ACCESS_KEY_ID")
     assert item["value"] is None and item["is_set"] is True
     assert "AKIAEXAMPLE" not in client.get("/api/v1/app-settings", headers=admin).text
     db = SessionLocal()
-    assert "AKIAEXAMPLE" not in db.get(AppSettingModel, "S3_ACCESS_KEY_ID").value_json
+    assert "AKIAEXAMPLE" not in db.get(AppSettingModel, "UPLOAD_S3_ACCESS_KEY_ID").value_json
     db.close()
-    settings.S3_ACCESS_KEY_ID = ""
+    settings.UPLOAD_S3_ACCESS_KEY_ID = ""
 
 
 def test_any_string_works_as_key(client, admin, monkeypatch):
     monkeypatch.setattr(settings, "SETTINGS_ENCRYPTION_KEY", "x")
-    res = client.put("/api/v1/app-settings", headers=admin, json={"values": {"S3_SECRET_ACCESS_KEY": "v"}})
+    res = client.put("/api/v1/app-settings", headers=admin, json={"values": {"UPLOAD_S3_SECRET_ACCESS_KEY": "v"}})
     assert res.status_code == 200
     assert res.json()["encryption_available"] is True
+
+
+def test_log_level_applies_and_validates(client, admin):
+    import logging
+
+    root = logging.getLogger()
+    before = root.level
+    try:
+        res = client.put("/api/v1/app-settings", headers=admin, json={"values": {"APP_LOG_LEVEL": "debug"}})
+        assert res.status_code == 200
+        assert settings.APP_LOG_LEVEL == "DEBUG" and root.level == logging.DEBUG
+        bad = client.put("/api/v1/app-settings", headers=admin, json={"values": {"APP_LOG_LEVEL": "LOUD"}})
+        assert bad.status_code == 422
+    finally:
+        root.setLevel(before)
+        settings.APP_LOG_LEVEL = "INFO"
+
+
+def test_upload_max_concurrent_is_validated(client, admin):
+    assert client.put("/api/v1/app-settings", headers=admin,
+                      json={"values": {"UPLOAD_MAX_CONCURRENT": 0}}).status_code == 422
+    client.put("/api/v1/app-settings", headers=admin, json={"values": {"UPLOAD_MAX_CONCURRENT": 4}})
+    assert settings.UPLOAD_MAX_CONCURRENT == 4
+    client.put("/api/v1/app-settings", headers=admin, json={"reset": ["UPLOAD_MAX_CONCURRENT"]})
+
+
+def test_legacy_keys_are_migrated(client):
+    import json
+
+    from app.db.models import AppSettingModel
+    from app.db.session import SessionLocal
+    from app.services.app_settings import load_overrides
+
+    db = SessionLocal()
+    db.add(AppSettingModel(key="S3_BUCKET", value_json=json.dumps("old-bucket"), updated_at="2026-01-01"))
+    db.commit()
+    db.close()
+    load_overrides()
+    db = SessionLocal()
+    assert db.get(AppSettingModel, "S3_BUCKET") is None
+    assert json.loads(db.get(AppSettingModel, "UPLOAD_S3_BUCKET").value_json) == "old-bucket"
+    db.close()
+    assert settings.UPLOAD_S3_BUCKET == "old-bucket"

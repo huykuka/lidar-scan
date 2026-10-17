@@ -1,6 +1,6 @@
 """Recording upload service (strategy pattern).
 
-The storage backend is chosen with ``STORAGE_BACKEND`` (see ``registry.py``); this facade holds
+The storage backend is chosen with ``UPLOAD_BACKEND`` (see ``registry.py``); this facade holds
 the backend-independent logic: cached credential status, readable object naming, persisting the
 "uploaded" state on the recording and the auto-upload hook.
 """
@@ -36,7 +36,7 @@ def _check_sync() -> StorageStatus:
     strategy = get_strategy()
     if strategy is None:
         return StorageStatus(
-            False, False, settings.STORAGE_BACKEND,
+            False, False, settings.UPLOAD_BACKEND,
             reason=f"Unknown storage backend (available: {', '.join(available_backends())})",
         )
     return strategy.check()
@@ -139,7 +139,7 @@ def _now() -> str:
 
 def _timeout_s() -> int:
     """Age after which a queued/uploading state counts as abandoned."""
-    return settings.STORAGE_UPLOAD_TIMEOUT_MINUTES * 60
+    return settings.UPLOAD_TIMEOUT_MINUTES * 60
 
 
 def is_upload_in_progress(recording: dict) -> bool:
@@ -181,7 +181,7 @@ async def upload_recording(
     """Upload a recording row's file under a readable name. Returns (bucket, key)."""
     strategy = get_strategy()
     if strategy is None:
-        raise RuntimeError(f"Unknown storage backend '{settings.STORAGE_BACKEND}'")
+        raise RuntimeError(f"Unknown storage backend '{settings.UPLOAD_BACKEND}'")
     key = await build_key(recording, strategy)
     await asyncio.to_thread(strategy.upload, Path(recording["file_path"]), key, on_progress)
     logger.info("Uploaded %s via %s to %s/%s", recording["file_path"], strategy.name, strategy.location, key)
@@ -216,15 +216,20 @@ def _make_progress_reporter(
     return report
 
 
-_slots: asyncio.Semaphore | None = None
+_slots: tuple[int, asyncio.Semaphore] | None = None
 
 
 def _get_slots() -> asyncio.Semaphore:
-    """Limits concurrent uploads to STORAGE_MAX_CONCURRENT_UPLOADS; extra jobs wait as 'queued'."""
+    """Limits concurrent uploads to UPLOAD_MAX_CONCURRENT; extra jobs wait as 'queued'.
+
+    The limit is editable at runtime: a new semaphore is used for jobs that start after a change
+    (uploads already running finish under the old one).
+    """
     global _slots
-    if _slots is None:
-        _slots = asyncio.Semaphore(settings.STORAGE_MAX_CONCURRENT_UPLOADS)
-    return _slots
+    limit = settings.UPLOAD_MAX_CONCURRENT
+    if _slots is None or _slots[0] != limit:
+        _slots = (limit, asyncio.Semaphore(limit))
+    return _slots[1]
 
 
 async def run_upload_job(recording: dict, cancel: threading.Event | None = None) -> None:
@@ -271,7 +276,7 @@ async def _run_upload(recording: dict, cancel: threading.Event) -> None:
 
 async def auto_upload_recording(recording: dict) -> None:
     """Fire-and-forget hook for newly created recordings; never raises."""
-    if not settings.STORAGE_AUTO_UPLOAD:
+    if not settings.UPLOAD_AUTO:
         return
     try:
         status = await get_status(force=True)

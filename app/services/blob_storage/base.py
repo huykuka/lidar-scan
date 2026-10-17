@@ -22,7 +22,7 @@ class StorageStatus:
 
 
 class StorageStrategy(ABC):
-    #: identifier used by the STORAGE_BACKEND setting
+    #: identifier used by the UPLOAD_BACKEND setting
     name: str
 
     @property

@@ -83,7 +83,7 @@
       @default {
         <!-- Backend-driven category -->
         @if (activeCategory(); as cat) {
-          @if (cat.id === 'storage' && !encryptionAvailable()) {
+          @if (cat.id === 'upload' && !encryptionAvailable()) {
             <syn-alert class="mb-4" open variant="warning">
               <syn-icon slot="icon" name="key_off" />
               <strong>Secrets cannot be saved.</strong> {{ encryptionError() }}. Set
@@ -199,7 +199,7 @@
             </ul>
           </syn-card>
 
-          @if (cat.id === 'storage') {
+          @if (cat.id === 'upload') {
             <div class="mt-4 flex flex-wrap items-center gap-3">
               <syn-button variant="outline" size="small" [loading]="testing()" [disabled]="dirtyCount() > 0 || testing()" (click)="testStorage()">
                 <syn-icon name="wifi_tethering" slot="prefix" />Test connection

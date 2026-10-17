@@ -3,6 +3,8 @@ import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from app.core.config import settings
+
 LOG_DIR = Path("data/logs")
 LOG_FILE = LOG_DIR / "app.log"
 
@@ -13,7 +15,7 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Python 'logging' root config
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, settings.APP_LOG_LEVEL, logging.INFO),
     format=LOG_FORMAT,
     datefmt=DATE_FORMAT,
     handlers=[
@@ -31,3 +33,8 @@ logging.basicConfig(
 def get_logger(name: str) -> logging.Logger:
     """Return a configured logger with the given module name."""
     return logging.getLogger(name)
+
+
+def set_log_level(level: str) -> None:
+    """Change the verbosity of the running app (root logger)."""
+    logging.getLogger().setLevel(getattr(logging, level.upper(), logging.INFO))

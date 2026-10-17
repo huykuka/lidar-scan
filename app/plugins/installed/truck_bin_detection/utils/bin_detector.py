@@ -188,15 +188,19 @@ class BinDetector:
                     if reached in ("NO WALL", "WALL TOO THICK"):
                         reached = "HEIGHT MISMATCH"
                     continue
-                # First height-matched slab ahead is the only front-wall
-                # candidate: anything further is behind another wall.
-                # The front edge is the cell where the height jumps up vertically.
+                # The rear wall is the reference: its height picks the front.  A slab
+                # that is not a vertical step with a level top (frame member, slope,
+                # pile) is not the front wall - keep going forward.
                 edge = self._front_step_edge(hp, front_start)
                 if edge is None:
-                    reached = "NO STEP"
-                    break
+                    if reached in ("NO WALL", "WALL TOO THICK", "HEIGHT MISMATCH"):
+                        reached = "NO STEP"
+                    continue
                 front_start = edge
                 length = (front_start - rear_end) * cs
+                # A height-matched, step-confirmed slab is the only front candidate:
+                # anything further is behind another wall (e.g. a stray wall must not
+                # pair across the next bin's rear wall).
                 if not self._min_bin_length <= length <= self._max_bin_length:
                     reached = "BAD LENGTH"
                     break

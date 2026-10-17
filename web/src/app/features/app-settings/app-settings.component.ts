@@ -112,7 +112,7 @@ export class AppSettingsComponent implements OnInit {
   });
 
   protected readonly retentionWarning = computed(() => {
-    const days = Number(this.valueOf('RECORDINGS_RETENTION_DAYS'));
+    const days = Number(this.valueOf('RETENTION_RECORDINGS_DAYS'));
     return days > 0 && this.valueOf('RETENTION_ONLY_UPLOADED') === false;
   });
 

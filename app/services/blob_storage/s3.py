@@ -17,14 +17,14 @@ class S3Strategy(StorageStrategy):
 
     @property
     def key_prefix(self) -> str:
-        return settings.S3_KEY_PREFIX.strip("/")
+        return settings.UPLOAD_S3_KEY_PREFIX.strip("/")
 
     @property
     def location(self) -> str:
-        return settings.S3_BUCKET
+        return settings.UPLOAD_S3_BUCKET
 
     def is_configured(self) -> bool:
-        return bool(settings.S3_BUCKET and settings.S3_ACCESS_KEY_ID and settings.S3_SECRET_ACCESS_KEY)
+        return bool(settings.UPLOAD_S3_BUCKET and settings.UPLOAD_S3_ACCESS_KEY_ID and settings.UPLOAD_S3_SECRET_ACCESS_KEY)
 
     def _client(self):
         import boto3  # imported lazily so the app still boots without the dependency
@@ -35,25 +35,25 @@ class S3Strategy(StorageStrategy):
             "s3",
             # Generous timeouts + retries so slow or flaky links don't abort big uploads
             config=Config(connect_timeout=30, read_timeout=300, retries={"max_attempts": 10, "mode": "standard"}),
-            endpoint_url=settings.S3_ENDPOINT_URL or None,
-            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
-            region_name=settings.S3_REGION,
+            endpoint_url=settings.UPLOAD_S3_ENDPOINT_URL or None,
+            aws_access_key_id=settings.UPLOAD_S3_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.UPLOAD_S3_SECRET_ACCESS_KEY,
+            region_name=settings.UPLOAD_S3_REGION,
         )
 
     def check(self) -> StorageStatus:
         if not self.is_configured():
             return StorageStatus(False, False, self.name, reason="Not configured")
         try:
-            self._client().head_bucket(Bucket=settings.S3_BUCKET)
+            self._client().head_bucket(Bucket=settings.UPLOAD_S3_BUCKET)
         except Exception as exc:  # ClientError, endpoint/connection errors, missing boto3, ...
             logger.warning("S3 credential check failed: %s", exc)
-            return StorageStatus(True, False, self.name, settings.S3_BUCKET, "Authentication failed")
-        return StorageStatus(True, True, self.name, settings.S3_BUCKET)
+            return StorageStatus(True, False, self.name, settings.UPLOAD_S3_BUCKET, "Authentication failed")
+        return StorageStatus(True, True, self.name, settings.UPLOAD_S3_BUCKET)
 
     def exists(self, key: str) -> bool:
         try:
-            self._client().head_object(Bucket=settings.S3_BUCKET, Key=key)
+            self._client().head_object(Bucket=settings.UPLOAD_S3_BUCKET, Key=key)
             return True
         except Exception:
             return False
@@ -77,7 +77,7 @@ class S3Strategy(StorageStrategy):
                 on_progress(min(current, total), total)
 
         self._client().upload_file(
-            str(file_path), settings.S3_BUCKET, key, Callback=_callback if on_progress else None
+            str(file_path), settings.UPLOAD_S3_BUCKET, key, Callback=_callback if on_progress else None
         )
 
     def describe_error(self, exc: Exception) -> str:

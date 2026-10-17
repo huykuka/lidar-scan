@@ -1,4 +1,4 @@
-"""Maps the STORAGE_BACKEND setting to a strategy implementation."""
+"""Maps the UPLOAD_BACKEND setting to a strategy implementation."""
 
 from app.core.config import settings
 
@@ -14,8 +14,8 @@ _instances: dict[str, StorageStrategy] = {}
 
 
 def get_strategy() -> StorageStrategy | None:
-    """Strategy selected by ``STORAGE_BACKEND`` (default ``s3``); None if the name is unknown."""
-    name = settings.STORAGE_BACKEND.lower()
+    """Strategy selected by ``UPLOAD_BACKEND`` (default ``s3``); None if the name is unknown."""
+    name = settings.UPLOAD_BACKEND.lower()
     cls = _STRATEGIES.get(name)
     if cls is None:
         return None

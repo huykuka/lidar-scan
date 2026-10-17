@@ -1,4 +1,4 @@
-"""Recording retention: periodically delete recordings older than RECORDINGS_RETENTION_DAYS."""
+"""Recording retention: periodically delete recordings older than RETENTION_RECORDINGS_DAYS."""
 
 import asyncio
 import os
@@ -24,7 +24,7 @@ def _parse(ts: str | None) -> datetime | None:
 
 def sweep_recordings_sync(now: datetime | None = None) -> int:
     """Delete expired recordings (DB row + files). Returns how many were removed."""
-    days = settings.RECORDINGS_RETENTION_DAYS
+    days = settings.RETENTION_RECORDINGS_DAYS
     if days <= 0:
         return 0
     cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=days)

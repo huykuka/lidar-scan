@@ -38,16 +38,48 @@ def _backends() -> list[str]:
 
 def _apply(key: str, value: Any) -> None:
     setattr(settings, key, value)
-    if key.startswith(("S3_", "STORAGE_")):
+    if key.startswith("UPLOAD_"):
         from app.services import blob_storage
 
         blob_storage.invalidate_status_cache()
+    elif key == "APP_LOG_LEVEL":
+        from app.core.logging import set_log_level
+
+        set_log_level(value)
+
+
+# Keys renamed to <CATEGORY>_<NAME>; rows saved under the old name are moved on startup.
+LEGACY_KEYS: dict[str, str] = {
+    "STORAGE_BACKEND": "UPLOAD_BACKEND",
+    "STORAGE_AUTO_UPLOAD": "UPLOAD_AUTO",
+    "STORAGE_MAX_CONCURRENT_UPLOADS": "UPLOAD_MAX_CONCURRENT",
+    "STORAGE_UPLOAD_TIMEOUT_MINUTES": "UPLOAD_TIMEOUT_MINUTES",
+    "S3_ENDPOINT_URL": "UPLOAD_S3_ENDPOINT_URL",
+    "S3_ACCESS_KEY_ID": "UPLOAD_S3_ACCESS_KEY_ID",
+    "S3_SECRET_ACCESS_KEY": "UPLOAD_S3_SECRET_ACCESS_KEY",
+    "S3_BUCKET": "UPLOAD_S3_BUCKET",
+    "S3_REGION": "UPLOAD_S3_REGION",
+    "S3_KEY_PREFIX": "UPLOAD_S3_KEY_PREFIX",
+    "RECORDINGS_RETENTION_DAYS": "RETENTION_RECORDINGS_DAYS",
+}
+
+
+def _migrate_legacy_keys(db) -> None:
+    for old, new in LEGACY_KEYS.items():
+        row = db.get(AppSettingModel, old)
+        if row is None:
+            continue
+        if db.get(AppSettingModel, new) is None:
+            db.add(AppSettingModel(key=new, value_json=row.value_json, updated_at=row.updated_at))
+        db.delete(row)
+    db.commit()
 
 
 def load_overrides() -> None:
     """Apply persisted overrides at startup. Bad rows are skipped, never fatal."""
     db = SessionLocal()
     try:
+        _migrate_legacy_keys(db)
         for row in db.query(AppSettingModel).all():
             defn = BY_KEY.get(row.key)
             if defn is None:
@@ -92,7 +124,7 @@ def get_all() -> dict:
                 "min": d.min,
                 "max": d.max,
                 "depends_on": d.depends_on,
-                "options": backends if d.type == "select" else None,
+                "options": (list(d.options) or backends) if d.type == "select" else None,
                 "value": None if d.type == "secret" else current,
                 "is_set": bool(current) if d.type == "secret" else None,
                 "default": None if d.type == "secret" else _DEFAULTS[d.key],

@@ -382,7 +382,7 @@ async def stop_recording(recording_id: str, background_tasks: BackgroundTasks, d
                 finally:
                     bg_db.close()
 
-                # Optional: push the new recording to blob storage (STORAGE_AUTO_UPLOAD=true)
+                # Optional: push the new recording to blob storage (UPLOAD_AUTO=true)
                 from app.services import blob_storage
                 await blob_storage.auto_upload_recording(recording_data)
 
