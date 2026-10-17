@@ -14,6 +14,13 @@ def client(tmp_path, monkeypatch):
     db_file = tmp_path / "test.db"
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{db_file}")
 
+    # Keep recording files (uploads, trims, recorder) out of the real data/recordings
+    from app.core.config import settings
+    from app.services.shared import recorder as recorder_module
+
+    monkeypatch.setattr(settings, "RECORDINGS_DIR", str(tmp_path / "recordings"))
+    monkeypatch.setattr(recorder_module, "_recorder", None)
+
     from app.db.migrate import ensure_schema
     from app.db.session import init_engine
 

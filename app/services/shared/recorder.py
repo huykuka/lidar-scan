@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from app.core.config import settings
 from app.services.shared.recording import RecordingWriter
 
 logger = logging.getLogger(__name__)
@@ -59,7 +60,7 @@ class RecordingService:
             recordings_dir: Directory for storing recordings (default: data/recordings)
         """
         if recordings_dir is None:
-            recordings_dir = Path("data/recordings")
+            recordings_dir = Path(settings.RECORDINGS_DIR)
         
         self.recordings_dir = Path(recordings_dir)
         self.recordings_dir.mkdir(parents=True, exist_ok=True)

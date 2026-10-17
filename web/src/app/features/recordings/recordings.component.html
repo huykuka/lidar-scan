@@ -72,9 +72,7 @@
 
   <!-- Content Area (single inner scroll body) -->
   <div
-    class="flex-1 min-h-0 overflow-auto relative select-none"
-    (mousedown)="onGridMouseDown($event)"
-    (mousemove)="onGridMouseMove($event)"
+    class="flex-1 min-h-0 overflow-auto relative"
   >
     @if (isLoading()) {
       <div class="absolute inset-0 flex items-center justify-center">
@@ -130,7 +128,6 @@
               (rename)="renameRecording($event)"
               (select)="selectRecording($event)"
               (toggleSelection)="toggleRecordingSelection(recording.id, $event)"
-              [attr.data-rec-id]="recording.id"
               [recording]="recording"
               [selectable]="isSelectionMode()"
               [selected]="selectedRecordingIds().has(recording.id)"
@@ -158,15 +155,5 @@
   }
   </div>
 </div>
-
-@if (marquee(); as m) {
-  <div
-    class="fixed z-40 pointer-events-none rounded-sm border border-[var(--syn-color-primary-600)] bg-[var(--syn-color-primary-600)]/15"
-    [style.left.px]="m.x"
-    [style.top.px]="m.y"
-    [style.width.px]="m.w"
-    [style.height.px]="m.h"
-  ></div>
-}
 
 <app-upload-progress-panel />

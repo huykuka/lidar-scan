@@ -83,12 +83,8 @@ export class RecordingsComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
 
   private pollSub: Subscription | null = null;
-  private host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   constructor() {
-    // Capture phase so the click ending a drag is swallowed before the cards see it
-    this.host.nativeElement.addEventListener('click', this.onGridClickCapture, true);
-    this.destroyRef.onDestroy(() => this.host.nativeElement.removeEventListener('click', this.onGridClickCapture, true));
     this.searchInput$
       .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
       .subscribe((value) => {
@@ -324,73 +320,10 @@ export class RecordingsComponent implements OnInit {
     }
   }
 
-  // --- Drag marquee selection (press and drag over cards to select them) ---
-
-  protected marquee = signal<{x: number; y: number; w: number; h: number} | null>(null);
-  private marqueeStart: {x: number; y: number} | null = null;
-  private marqueeBase = new Set<string>();
-  private marqueeActive = false;
-  private suppressNextClick = false;
-
-  protected onGridMouseDown(event: MouseEvent): void {
-    if (event.button !== 0) return;
-    // Let buttons, inputs and other controls behave normally
-    const target = event.target as HTMLElement;
-    if (target.closest('button, a, input, textarea, syn-button, syn-icon-button, syn-input, syn-checkbox')) return;
-    this.marqueeStart = {x: event.clientX, y: event.clientY};
-    this.marqueeBase = event.ctrlKey || event.metaKey || event.shiftKey ? new Set(this.selectedRecordingIds()) : new Set();
-    this.marqueeActive = false;
-  }
-
-  protected onGridMouseMove(event: MouseEvent): void {
-    const start = this.marqueeStart;
-    if (!start) return;
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    if (!this.marqueeActive) {
-      if (Math.hypot(dx, dy) < 6) return; // below threshold: still a click
-      this.marqueeActive = true;
-      this.isSelectionMode.set(true);
-    }
-    event.preventDefault();
-    const x = Math.min(start.x, event.clientX);
-    const y = Math.min(start.y, event.clientY);
-    const w = Math.abs(dx);
-    const h = Math.abs(dy);
-    this.marquee.set({x, y, w, h});
-
-    const next = new Set(this.marqueeBase);
-    document.querySelectorAll<HTMLElement>('tr[data-rec-id]').forEach((el) => {
-      const r = el.getBoundingClientRect();
-      if (r.right >= x && r.left <= x + w && r.bottom >= y && r.top <= y + h) {
-        next.add(el.dataset['recId']!);
-      }
-    });
-    this.selectedRecordingIds.set(next);
-  }
-
   @HostListener('document:keydown.escape')
   protected onEscape(): void {
     if (this.isSelectionMode()) this.toggleSelectionMode();
   }
-
-  @HostListener('document:mouseup')
-  protected onGridMouseUp(): void {
-    if (!this.marqueeStart) return;
-    this.suppressNextClick = this.marqueeActive;
-    this.marqueeStart = null;
-    this.marqueeActive = false;
-    this.marquee.set(null);
-  }
-
-  /** Swallow the click that follows a drag so cards don't toggle/open. */
-  private onGridClickCapture = (event: MouseEvent): void => {
-    if (this.suppressNextClick) {
-      event.stopPropagation();
-      event.preventDefault();
-      this.suppressNextClick = false;
-    }
-  };
 
   // --- Upload Methods ---
 

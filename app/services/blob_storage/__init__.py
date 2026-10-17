@@ -102,6 +102,9 @@ def _set_upload_state_sync(recording_id: str, state: dict | None) -> None:
         if not current:
             return
         metadata = dict(current.get("metadata") or {})
+        existing = metadata.get("blob_upload") or {}
+        if state and state.get("progress") is not None and existing.get("status") != "uploading":
+            return  # late progress tick after the upload finished, failed or was cancelled
         if state is None:
             metadata.pop("blob_upload", None)
         else:
@@ -188,18 +191,20 @@ async def upload_recording(
     return strategy.location, key
 
 
+_PROGRESS_PERSIST_INTERVAL_S = 5.0
 _PROGRESS_MIN_INTERVAL_S = 0.5
 
 
 def _make_progress_reporter(
     recording_id: str, backend: str | None, started_at: str, loop, cancel: threading.Event | None = None
 ):
-    """Throttled thread-safe callback that pushes transfer progress to clients (not persisted)."""
+    """Throttled thread-safe callback that pushes transfer progress to clients and saves it to the DB."""
     last_emit = 0.0
+    last_saved = 0.0
     last_pct = -1
 
     def report(sent: int, total: int) -> None:
-        nonlocal last_emit, last_pct
+        nonlocal last_emit, last_pct, last_saved
         if cancel is not None and cancel.is_set():
             raise UploadCancelled()  # aborts the transfer (multipart uploads are aborted by the SDK)
         pct = int(sent * 100 / total) if total else 0
@@ -211,7 +216,11 @@ def _make_progress_reporter(
             "status": "uploading", "timeout_s": _timeout_s(), "backend": backend, "started_at": started_at,
             "progress": pct, "bytes_sent": sent, "bytes_total": total,
         }
-        asyncio.run_coroutine_threadsafe(_emit(recording_id, state, reliable=False), loop)
+        if now - last_saved >= _PROGRESS_PERSIST_INTERVAL_S:
+            last_saved = now
+            asyncio.run_coroutine_threadsafe(_persist_and_emit(recording_id, state), loop)
+        else:
+            asyncio.run_coroutine_threadsafe(_emit(recording_id, state, reliable=False), loop)
 
     return report
 

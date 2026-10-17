@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.modules.lidar.io.pcd import save_to_pcd
 from app.repositories.recordings_orm import RecordingRepository
 from app.services.nodes.instance import node_manager
+from app.core.config import settings
 from app.services.shared.recorder import get_recorder
 from app.services.shared.recording import (
     McapRecordingReader,
@@ -703,7 +704,7 @@ async def upload_recording(file: UploadFile, name: str | None, background_tasks:
         HTTPException 400: If the file is not a valid recording.
         HTTPException 500: If saving fails unexpectedly.
     """
-    recordings_dir = Path("data/recordings")
+    recordings_dir = Path(settings.RECORDINGS_DIR)
     recordings_dir.mkdir(parents=True, exist_ok=True)
 
     recording_id = str(uuid.uuid4()).replace("-", "")
@@ -883,7 +884,7 @@ async def trim_recording(
             )
 
         new_id = uuid.uuid4().hex
-        recordings_dir = Path("data/recordings")
+        recordings_dir = Path(settings.RECORDINGS_DIR)
         recordings_dir.mkdir(parents=True, exist_ok=True)
         dest = recordings_dir / f"{new_id}.mcap"
 

@@ -80,6 +80,7 @@ class Settings:
     RETENTION_RECORDINGS_DAYS: int = int(_env("RETENTION_RECORDINGS_DAYS", "RECORDINGS_RETENTION_DAYS", default="0"))
     # Safety net: only delete recordings that were already uploaded to external storage.
     RETENTION_ONLY_UPLOADED: bool = os.getenv("RETENTION_ONLY_UPLOADED", "true").lower() == "true"
+    RECORDINGS_DIR: str = os.getenv("RECORDINGS_DIR", "data/recordings")
 
 
 settings = Settings()
