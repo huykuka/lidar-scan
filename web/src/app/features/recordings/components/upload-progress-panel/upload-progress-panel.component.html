@@ -71,12 +71,14 @@
                 }
                 @case ('queued') {
                   <span class="text-xs text-syn-color-neutral-500">Queued</span>
+                  <syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" title="Cancel upload" />
                 }
                 @case ('processing') {
                   <span class="text-xs text-syn-color-neutral-500">Processing</span>
                 }
                 @case ('uploading') {
                   <span class="text-xs tabular-nums text-syn-color-neutral-500">{{ item.progress }}%</span>
+                  <syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" title="Cancel upload" />
                 }
               }
             </div>

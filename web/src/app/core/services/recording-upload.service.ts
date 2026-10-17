@@ -1,4 +1,5 @@
 import {inject, Injectable, signal} from '@angular/core';
+import {Subscription} from 'rxjs';
 import {HttpEventType} from '@angular/common/http';
 import {RecordingApiService} from './api/recording-api.service';
 import {RecordingStoreService} from './stores/recording-store.service';
@@ -23,6 +24,7 @@ export class RecordingUploadService {
 
   readonly items = signal<UploadItem[]>([]);
   private files = new Map<number, File>();
+  private subs = new Map<number, Subscription>();
   private nextId = 1;
 
   enqueue(files: File[]): void {
@@ -37,6 +39,14 @@ export class RecordingUploadService {
 
   retry(id: number): void {
     this.patch(id, {status: 'queued', progress: 0, error: undefined});
+    this.pump();
+  }
+
+  /** Abort a queued or in-flight transfer (aborting the request stops the browser sending) and drop it. */
+  cancel(id: number): void {
+    this.subs.get(id)?.unsubscribe();
+    this.subs.delete(id);
+    this.dismiss(id);
     this.pump();
   }
 
@@ -62,7 +72,7 @@ export class RecordingUploadService {
     const file = this.files.get(id);
     if (!file) return;
     this.patch(id, {status: 'uploading', progress: 0});
-    this.api.uploadRecordingWithProgress(file).subscribe({
+    const sub = this.api.uploadRecordingWithProgress(file).subscribe({
       next: (event) => {
         if (event.type === HttpEventType.UploadProgress) {
           const pct = event.total ? Math.round((event.loaded / event.total) * 100) : 0;
@@ -77,8 +87,12 @@ export class RecordingUploadService {
         this.patch(id, {status: 'error', error: err?.error?.detail ?? err?.message ?? 'Upload failed.'});
         this.pump();
       },
-      complete: () => this.pump(),
+      complete: () => {
+        this.subs.delete(id);
+        this.pump();
+      },
     });
+    this.subs.set(id, sub);
   }
 
   private patch(id: number, changes: Partial<UploadItem>): void {
