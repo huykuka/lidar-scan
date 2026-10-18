@@ -249,43 +249,32 @@ node_schema_registry.register(
                 help_text="How close in height the cells ahead of the jump must be to count as level.",
             ),
             PropertySchema(
-                name="min_wall_cells",
-                label="Min Wall Width (cells)",
+                name="edge_cells",
+                label="Edge Cells",
                 type="number",
                 default=3,
                 min=1,
                 max=20,
                 step=1,
                 help_text=(
-                    "A rear or front wall must be at least this many adjacent cells wide at "
-                    "wall height. Narrower slabs (1-2 cells) are treated as a crossbar, frame "
-                    "member or noise between the edges and skipped; the search continues to "
-                    "the next slab. 1 accepts any slab."
+                    "Cell count used at both wall edges. A rear or front wall must be at least "
+                    "this many adjacent cells wide at wall height (narrower slabs are crossbars "
+                    "or noise and are skipped). It is also the window checked just past the "
+                    "edge: rear, all cells after the skip must carry a return (no empty "
+                    "space); front, the jump must be followed by a level top within it."
                 ),
             ),
             PropertySchema(
-                name="rear_confirm_skip",
-                label="Rear Confirm Skip (cells)",
+                name="edge_skip",
+                label="Edge Skip (cells)",
                 type="number",
                 default=2,
                 min=0,
                 max=20,
                 step=1,
-                help_text="While tracking, cells to jump past a rear wall candidate before checking for returns.",
-            ),
-            PropertySchema(
-                name="edge_confirm_cells",
-                label="Edge Confirm Cells",
-                type="number",
-                default=5,
-                min=0,
-                max=30,
-                step=1,
                 help_text=(
-                    "Cells checked just past a wall edge. Rear: after the skip, all must carry "
-                    "a return (no empty space). Front: the jump must be followed by a level "
-                    "top within this window. Rejects stray slabs, slopes, piles and noise. "
-                    "0 disables both checks."
+                    "Cells to jump past a wall edge (rear and front) before checking for returns, "
+                    "so the wall's inner face and edge noise are ignored."
                 ),
             ),
             PropertySchema(

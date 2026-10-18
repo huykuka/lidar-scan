@@ -41,9 +41,8 @@ class BinDetector:
             wall_height_match_tol: float = 0.04,
             front_step_min: float = 0.3,
             front_plateau_tol: float = 0.15,
-            min_wall_cells: int = 3,
-            rear_confirm_skip: int = 2,
-            edge_confirm_cells: int = 5,
+            edge_cells: int = 3,
+            edge_skip: int = 2,
             max_rear_x: float = 50.0,
     ) -> None:
         self._lane_width = lane_width
@@ -65,9 +64,8 @@ class BinDetector:
         self._wall_height_match_tol = wall_height_match_tol
         self._front_step_min = front_step_min
         self._front_plateau_tol = front_plateau_tol
-        self._min_wall_cells = max(1, min_wall_cells)
-        self._rear_confirm_skip = max(0, rear_confirm_skip)
-        self._edge_confirm_cells = max(0, edge_confirm_cells)
+        self._edge_cells = max(1, edge_cells)
+        self._edge_skip = max(0, edge_skip)
         self._max_rear_x = max_rear_x
 
     # ------------------------------------------------------------------
@@ -79,7 +77,7 @@ class BinDetector:
 
         Works on the raw profile only.  Empty cells are never "tall", so a
         tall object far behind the truck cannot bleed into the wall through
-        forward-filled gaps.  Slabs narrower than ``min_wall_cells`` (1-2 cells by
+        forward-filled gaps.  Slabs narrower than ``edge_cells`` (1-2 cells by
         default) are dropped: a lone thin return at wall height is a horizontal
         crossbar, frame member or noise lying between the edges, not a wall, so the
         search simply goes on to the next slab.
@@ -91,7 +89,7 @@ class BinDetector:
         return [
             (int(s), int(e), float(np.median(hp[s:e + 1])))
             for s, e in zip(starts, ends)
-            if e - s + 1 >= self._min_wall_cells
+            if e - s + 1 >= self._edge_cells
         ]
 
     def _front_step_edge(self, hp: np.ndarray, first_tall: int) -> int | None:
@@ -100,15 +98,12 @@ class BinDetector:
         The front wall rises almost vertically: one cell sits at bed level and the next
         is far higher.  Starting at the first cell at wall height, look back a few cells
         for the biggest single-cell rise (>= front_step_min).  The jump is only
-        confirmed when at least one of the ``edge_confirm_cells`` cells just ahead of it
-        stays at a similar height (within front_plateau_tol) -- the top of the wall.  Returns the jump cell, or None when this
-        is not a vertical step with a level top (slope, pile, noise).
-
-        With edge_confirm_cells == 0 the check is off and ``first_tall`` is returned.
+        confirmed when at least one of the ``edge_cells`` cells just ahead of it
+        stays at a similar height (within front_plateau_tol) -- the top of the wall.
+        Returns the jump cell, or None when this is not a vertical step with a level
+        top (slope, pile, noise).
         """
-        window = self._edge_confirm_cells
-        if window <= 0:
-            return first_tall
+        window = self._edge_cells
         n = len(hp)
         best_idx, best_rise = None, self._front_step_min
         for i in range(first_tall, max(first_tall - 4, 0), -1):
@@ -141,19 +136,25 @@ class BinDetector:
         n_bed = np.count_nonzero((cav >= self._z_cavity_min) & (cav < self._z_wall_threshold))
         return "NO BED" if n_bed < self._min_bed_cells else None
 
-    def _rear_has_bed_ahead(self, hp: np.ndarray, wall_end: int) -> bool:
-        """Confirm a rear wall candidate: jump a few cells past it and require solid returns.
+    def _rear_reject(
+            self, hp: np.ndarray, end: int, top: float, len_cells: int, wall_top: float | None
+    ) -> str | None:
+        """Run the rear-wall checks on one thin slab, in order.  None = accepted, else the reason.
 
-        Skips ``rear_confirm_skip`` cells (the wall's inner face and edge noise), then every one
-        of the next ``edge_confirm_cells`` cells must carry a return -- no empty cell.  A real
-        rear wall is followed straight away by the cargo bed; a slab with empty space behind it
-        is a stray return, not a wall.  ``edge_confirm_cells == 0`` turns the check off.
+        1. HEIGHT MISMATCH -- the slab top differs from the known ``wall_top``.
+        2. EMPTY AHEAD     -- after ``edge_skip`` cells (inner face, edge noise), any of
+                              the next ``edge_cells`` cells has no return: a stray slab.
+        3. cargo bed       -- the ``len_cells`` cells ahead must look like a bed (``_has_bed``).
         """
-        if self._edge_confirm_cells == 0:
-            return True
-        first = wall_end + 1 + self._rear_confirm_skip
-        ahead = hp[first:first + self._edge_confirm_cells]
-        return len(ahead) == self._edge_confirm_cells and bool(np.all(ahead > 0))
+        if wall_top is not None and abs(top - wall_top) > self._wall_height_match_tol:
+            return "HEIGHT MISMATCH"
+
+        first = end + 1 + self._edge_skip
+        ahead = hp[first:first + self._edge_cells]
+        if len(ahead) < self._edge_cells or not np.all(ahead > 0):
+            return "EMPTY AHEAD"
+
+        return self._has_bed(hp[end + 1:end + 1 + len_cells])
 
     def _find_rear_for_length(
             self, hp: np.ndarray, length: float, wall_top: float | None,
@@ -161,71 +162,81 @@ class BinDetector:
     ) -> tuple[int, int, float] | str:
         """Length is stable: find only the rear wall; the front is rear + length.
 
-        The search starts at ``max_rear_idx`` (the max rear edge position) and walks
-        backward: slabs ending beyond it are ignored and the first thin slab (matching
-        ``wall_top`` when known) with bed-height returns in the ``length`` metres ahead
-        of it wins.  No front wall is searched for.
+        Walks the thin wall slabs from ``max_rear_idx`` (the max rear edge position)
+        backward and returns the first one that passes ``_rear_reject``.  No front wall
+        is searched for.
 
         Returns (rear_inner_cell, front_cell, wall_top) or a reason string.
         """
-        cs = self._cellsize
-        max_wall_cells = int(np.ceil(self._max_wall_thickness / cs)) + 1
-        len_cells = int(round(length / cs))
-        reached = "NO WALL"
+        max_wall_cells = int(np.ceil(self._max_wall_thickness / self._cellsize)) + 1
+        len_cells = int(round(length / self._cellsize))
+
         runs = self._wall_runs(hp)
         if max_rear_idx is not None:
             runs = [r for r in runs if r[1] <= max_rear_idx]
+
+        reached = "NO WALL"
         for start, end, top in reversed(runs):
             if end - start + 1 > max_wall_cells:
                 continue
-            if wall_top is not None and abs(top - wall_top) > self._wall_height_match_tol:
-                reached = "HEIGHT MISMATCH"
-                continue
-            if not self._rear_has_bed_ahead(hp, end):
-                reached = "EMPTY AHEAD"
-                continue
-            cav = hp[end + 1:end + 1 + len_cells]
-            bad = self._has_bed(cav)
-            if bad:
-                reached = bad
-                continue
-            return end, end + len_cells, top
+            reason = self._rear_reject(hp, end, top, len_cells, wall_top)
+            if reason is None:
+                return end, end + len_cells, top
+            reached = reason
         return reached
+
+    def _front_reject(
+            self, hp: np.ndarray, start: int, end: int, top: float, len_cells: int,
+            wall_top: float | None,
+    ) -> tuple[int, int] | str:
+        """Run the front-wall checks on one thin slab, in order.
+
+        Returns (rear_cell, front_edge_cell) when accepted, else the reason string.
+
+        1. HEIGHT MISMATCH -- the slab top differs from the known ``wall_top``.
+        2. NOTHING AFTER   -- none of the ``edge_cells`` cells past the slab (after
+                              ``edge_skip``) has a return: a lone frame, not a wall.
+        3. NO STEP         -- no vertical jump with a level top at the slab's start.
+        4. cargo bed       -- the ``len_cells`` cells behind the edge must look like a bed.
+        """
+        if wall_top is not None and abs(top - wall_top) > self._wall_height_match_tol:
+            return "HEIGHT MISMATCH"
+
+        first = end + 1 + self._edge_skip
+        if not np.any(hp[first:first + self._edge_cells] > 0):
+            return "NOTHING AFTER"
+
+        edge = self._front_step_edge(hp, start)
+        if edge is None:
+            return "NO STEP"
+
+        rear = edge - len_cells
+        bad = self._has_bed(hp[max(rear + 1, 0):edge])
+        return bad if bad else (rear, edge)
 
     def _find_front_for_length(
             self, hp: np.ndarray, length: float, wall_top: float | None
     ) -> tuple[int, int, float] | str:
         """Length is stable but the rear wall is out of view: find the front wall; rear = front - length.
 
-        The truck drove far to the other side, so only the front wall is in the scan.  Same
-        validation as everywhere else: a thin slab matching ``wall_top``, confirmed as a
-        vertical step with a level top, with bed-height returns in the ``length`` metres
-        behind it (clipped at the start of the scan).  The first slab that passes wins.
+        The truck drove far to the other side, so only the front wall is in the scan.  Walks
+        the thin wall slabs and returns the first one that passes ``_front_reject``.
 
         Returns (rear_cell, front_edge_cell, wall_top) or a reason string; the rear cell may
         be before the start of the scan.
         """
-        cs = self._cellsize
-        max_wall_cells = int(np.ceil(self._max_wall_thickness / cs)) + 1
-        len_cells = int(round(length / cs))
+        max_wall_cells = int(np.ceil(self._max_wall_thickness / self._cellsize)) + 1
+        len_cells = int(round(length / self._cellsize))
+
         reached = "NO WALL"
         for start, end, top in self._wall_runs(hp):
             if end - start + 1 > max_wall_cells:
                 continue
-            if wall_top is not None and abs(top - wall_top) > self._wall_height_match_tol:
-                reached = "HEIGHT MISMATCH"
+            result = self._front_reject(hp, start, end, top, len_cells, wall_top)
+            if isinstance(result, str):
+                reached = result
                 continue
-            edge = self._front_step_edge(hp, start)
-            if edge is None:
-                reached = "NO STEP"
-                continue
-            rear = edge - len_cells
-            cav = hp[max(rear + 1, 0):edge]
-            bad = self._has_bed(cav)
-            if bad:
-                reached = bad
-                continue
-            return rear, edge, top
+            return result[0], result[1], top
         return reached
 
     def _find_bin(self, hp: np.ndarray) -> tuple[int, int, float] | str:

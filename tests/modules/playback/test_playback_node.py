@@ -240,6 +240,14 @@ class TestPlaybackNodeEmitStatus:
         val = str(node.emit_status().application_state.value)
         assert "5" in val and "10" in val
 
+    def test_playing_application_state_shows_recording_name(self):
+        node = self._node()
+        node._status = "playing"
+        node._recording_name = "truck_run_01"
+        status = node.emit_status().application_state
+        assert status.label == "recording"
+        assert str(status.value).startswith("truck_run_01")
+
     def test_error_maps_to_error_state(self):
         from app.schemas.status import OperationalState
         node = self._node()

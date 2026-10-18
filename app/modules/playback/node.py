@@ -96,6 +96,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
         self._current_frame: int = 0
         self._total_frames: int = 0
         self._error_message: Optional[str] = None
+        self._recording_name: Optional[str] = None  # display name of the record being played
         self._cycle_time_ms: Optional[float] = None  # last frame processing duration
 
     def set_pose(self, pose: Pose) -> "PlaybackNode":
@@ -150,6 +151,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
             self._error_message = msg
             return
 
+        self._recording_name = record.get("name") or None
         file_path: str = record.get("file_path", "")
         frame_count: int = int(record.get("frame_count", 0))
         duration_seconds: float = float(record.get("duration_seconds", 0.0))
@@ -249,8 +251,11 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
         if self._status == "playing":
             operational_state = OperationalState.RUNNING
             app_state = ApplicationState(
-                label="status",
-                value=f"playing ({self._current_frame}/{self._total_frames})",
+                label="recording",
+                value=(
+                    f"{self._recording_name or self._recording_id} "
+                    f"| {self._current_frame}/{self._total_frames}"
+                ),
                 color="green",
             )
             error_msg = None

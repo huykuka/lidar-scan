@@ -71,9 +71,8 @@ class TruckBinDetectionNode(ModuleNode):
             wall_height_match_tol=float(config.get("wall_height_match_tol", 0.04)),
             front_step_min=float(config.get("front_step_min", 0.3)),
             front_plateau_tol=float(config.get("front_plateau_tol", 0.15)),
-            min_wall_cells=int(config.get("min_wall_cells", 3)),
-            rear_confirm_skip=int(config.get("rear_confirm_skip", 2)),
-            edge_confirm_cells=int(config.get("edge_confirm_cells", 5)),
+            edge_cells=int(config.get("edge_cells", 3)),
+            edge_skip=int(config.get("edge_skip", 2)),
             max_rear_x=float(config.get("max_rear_x", 2.0)),
         )
 
@@ -92,6 +91,8 @@ class TruckBinDetectionNode(ModuleNode):
 
         # Temporal filter state
         self._filtered_center: Optional[float] = None
+        self._last_center: Optional[float] = None  # last detected centroid, shown in status
+        self._last_length: Optional[float] = None  # last detected length, shown until locked
 
         # Node statistics
         self.last_input_at: Optional[float] = None
@@ -143,6 +144,8 @@ class TruckBinDetectionNode(ModuleNode):
                     )
 
                 result.x_center = self._filtered_center
+                self._last_center = result.x_center
+                self._last_length = result.length
 
                 self._detection_count += 1
                 self.last_output_at = time.time()
@@ -262,18 +265,21 @@ class TruckBinDetectionNode(ModuleNode):
             )
 
         lock = "locked" if self._locked_length is not None else "unlocked"
+        center = f"center: {self._last_center:+.2f}m" if self._last_center is not None else "center: n/a"
+        length = self._locked_length if self._locked_length is not None else self._last_length
+        center += f" | length: {length:.2f}m" if length is not None else " | length: n/a"
         if self._last_result and self._last_result.detected:
             r = self._last_result
             value = (
-                f"{r.status} | {lock} | "
+                f"{r.status} | {lock} | {center} | "
                 f"rear: {r.x_rear_internal:+.2f}m, front: {r.x_front_internal:+.2f}m"
             )
             color = "green"
         elif self._last_result:
-            value = f"{self._last_result.status} | {lock}"
+            value = f"{self._last_result.status} | {lock} | {center}"
             color = "gray"
         else:
-            value = "idle"
+            value = f"idle | {center}"
             color = "gray"
 
         return NodeStatusUpdate(
@@ -290,12 +296,16 @@ class TruckBinDetectionNode(ModuleNode):
 
     def start(self, data_queue: Any = None, runtime_status: Any = None) -> None:
         self._filtered_center = None
+        self._last_center = None
+        self._last_length = None
         self._reset_length_lock()
         notify_status_change(self.id)
 
     def stop(self) -> None:
         self._state = _State.IDLE
         self._filtered_center = None
+        self._last_center = None
+        self._last_length = None
         self._reset_length_lock()
         self.last_error = None
         notify_status_change(self.id)
