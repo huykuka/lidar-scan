@@ -23,6 +23,7 @@ function definitionToPlugin(def: NodeDefinition): NodePlugin {
     category: def.category,
     displayName: def.display_name,
     description: def.description ?? '',
+    isPlugin: def.is_plugin ?? false,
     icon: def.icon ?? 'extension',
     style: {color: NODE_COLOR},
     ports: {

@@ -105,6 +105,25 @@
               class="flex-1"
             />
           </div>
+
+          @if (topicStatuses().get(topicConfig.topic); as status) {
+            <div class="flex items-start justify-between gap-2 text-[10px]" data-testid="topic-status">
+              <div class="flex items-start gap-1.5 min-w-0">
+                <span class="w-2 h-2 shrink-0 mt-[3px]" [style.background-color]="status.color"></span>
+                @if (status.text) {
+                  <span class="text-syn-typography-color-text break-words min-w-0">{{ status.text }}</span>
+                }
+              </div>
+              @if (status.cycle) {
+                <span
+                  class="shrink-0 tabular-nums text-[var(--syn-typography-color-text-quiet)]"
+                  data-testid="topic-cycle-time"
+                  title="Processing time"
+                  >{{ status.cycle }}</span
+                >
+              }
+            </div>
+          }
         </div>
       }
     </div>

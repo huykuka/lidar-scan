@@ -41,6 +41,7 @@ export class FlowCanvasNodeComponent implements OnInit, OnDestroy {
   isTogglingVisibility = input<boolean>(false);
   isReloading = input<boolean>(false);
   isPreviewed = input<boolean>(false);
+  isUnsaved = input<boolean>(false);
   onEdit = output<void>();
   onToggleEnabled = output<boolean>();
   onToggleVisibility = output<boolean>();

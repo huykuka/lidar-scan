@@ -2,6 +2,7 @@ import {ChangeDetectionStrategy, Component, inject, input, output} from '@angula
 import {NgClass} from '@angular/common';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
+import {AuthService} from '@core/services/auth.service';
 import {ToastService} from '@core/services/toast.service';
 
 @Component({
@@ -21,8 +22,18 @@ export class NodeEditorHeaderComponent {
   save = output<void>();
   cancel = output<void>();
 
-  private nodeStore = inject(NodeStoreService);
+  protected nodeStore = inject(NodeStoreService);
+  protected auth = inject(AuthService);
   private toast = inject(ToastService);
+
+  protected async copyNodeId(id: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(id);
+      this.toast.success('Node ID copied');
+    } catch {
+      this.toast.danger('Could not copy node ID');
+    }
+  }
 
   protected exportConfig(): void {
     const { type, name, config, pose } = this.nodeStore.selectedNode();

@@ -261,14 +261,16 @@ class TruckBinDetectionNode(ModuleNode):
                 cycle_time_ms=cycle_ms,
             )
 
+        lock = "locked" if self._locked_length is not None else "unlocked"
         if self._last_result and self._last_result.detected:
+            r = self._last_result
             value = (
-                f"{self._last_result.status} "
-                f"(X: {self._last_result.x_center:+.2f}m, L: {self._last_result.length:.2f}m)"
+                f"{r.status} | {lock} | "
+                f"rear: {r.x_rear_internal:+.2f}m, front: {r.x_front_internal:+.2f}m"
             )
             color = "green"
         elif self._last_result:
-            value = self._last_result.status
+            value = f"{self._last_result.status} | {lock}"
             color = "gray"
         else:
             value = "idle"

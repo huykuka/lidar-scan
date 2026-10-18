@@ -51,6 +51,8 @@ export interface NodeDefinition {
   category: string; // Dynamic from backend (sensor, fusion, operation, calibration, etc.)
   description?: string;
   use_case?: string;
+  /** True when the node type is provided by an installed plugin. */
+  is_plugin?: boolean;
   icon: string;
   /** When false, the node does not stream data via WebSocket. Hides visibility & recording controls in the canvas UI. */
   websocket_enabled: boolean;

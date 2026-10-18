@@ -89,6 +89,7 @@
                   (onToggleVisibility)="!readOnly() ? onToggleNodeVisibility(node, $event) : null"
                   (onTogglePreview)="onTogglePreview.emit(node)"
                   [isPreviewed]="previewedNodeIds().has(node.id)"
+                  [isUnsaved]="canvasEditStore.dirtyNodeIds().has(node.id)"
                   [isLoading]="isNodeLoading(node.id)"
                   [isReloading]="reloadingNodeIds().has(node.data.id)"
                   [isTogglingVisibility]="isNodeTogglingVisibility(node.id)"

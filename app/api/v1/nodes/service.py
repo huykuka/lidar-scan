@@ -34,7 +34,17 @@ async def list_node_definitions():
     registry_repo = NodeTypeRegistryRepository()
     db_rows = registry_repo.list_all()
     disabled_types = {r["type"] for r in db_rows if not r["enabled"]}
-    return [d for d in node_schema_registry.get_all() if d.type not in disabled_types]
+    from app.plugins import _loaded_plugins
+
+    plugin_types: set[str] = set()
+    for types in _loaded_plugins.values():
+        plugin_types |= types
+
+    return [
+        d.model_copy(update={"is_plugin": d.type in plugin_types})
+        for d in node_schema_registry.get_all()
+        if d.type not in disabled_types
+    ]
 
 
 # ── Floor calibration (node-generic pose auto-level) ──────────────────────

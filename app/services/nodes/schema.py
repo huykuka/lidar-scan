@@ -36,6 +36,7 @@ class NodeDefinition(BaseModel):
     description: Optional[str] = None
     use_case: Optional[str] = None
     version: Optional[str] = None
+    is_plugin: bool = False  # Set at list time for nodes provided by an installed plugin
     icon: str = "settings_input_component"
     websocket_enabled: bool = True  # When False, node does not stream data; hides visibility & recording controls in UI
     properties: List[PropertySchema] = []

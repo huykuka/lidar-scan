@@ -82,6 +82,14 @@
                     <span class="node-label truncate text-[11px] font-bold leading-none">
                       {{ plugin.displayName }}
                     </span>
+                    @if (plugin.isPlugin) {
+                      <syn-icon
+                        name="extension"
+                        class="ml-auto text-[12px] shrink-0"
+                        style="color: var(--syn-color-neutral-500)"
+                        title="Plugin"
+                      />
+                    }
                   </div>
                 </div>
               }

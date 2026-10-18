@@ -3,26 +3,28 @@
     @for (item of items(); track item.id; let last = $last) {
       <div class="flex flex-col gap-1.5 py-2">
         <div class="flex items-center gap-2 text-sm">
-          <span class="truncate flex-1" [title]="item.name">{{ item.name }}</span>
+          <syn-tooltip [content]="item.name" class="min-w-0 flex-1" [distance]="8">
+            <span class="block truncate">{{ item.name }}</span>
+          </syn-tooltip>
           @switch (item.status) {
             @case ('done') {
               <syn-badge variant="success" pill>Done</syn-badge>
             }
             @case ('error') {
               <syn-badge variant="error" pill>Failed</syn-badge>
-              <syn-icon-button (click)="uploader.retry(item.id)" name="refresh" label="Retry" title="Retry" />
-              <syn-icon-button (click)="uploader.dismiss(item.id)" name="close" label="Dismiss" title="Dismiss" />
+              <syn-tooltip content="Retry" [distance]="8"><syn-icon-button (click)="uploader.retry(item.id)" name="refresh" label="Retry" /></syn-tooltip>
+              <syn-tooltip content="Dismiss" [distance]="8"><syn-icon-button (click)="uploader.dismiss(item.id)" name="close" label="Dismiss" /></syn-tooltip>
             }
             @case ('queued') {
               <syn-badge variant="neutral" pill>Queued</syn-badge>
-              <syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" title="Cancel upload" />
+              <syn-tooltip content="Cancel upload" [distance]="8"><syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" /></syn-tooltip>
             }
             @case ('processing') {
               <syn-badge variant="warning" pill>Processing</syn-badge>
             }
             @case ('uploading') {
               <syn-badge variant="primary" pill>{{ item.progress }}%</syn-badge>
-              <syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" title="Cancel upload" />
+              <syn-tooltip content="Cancel upload" [distance]="8"><syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" /></syn-tooltip>
             }
           }
         </div>
@@ -46,13 +48,31 @@
 </ng-template>
 
 @if (mobile()) {
-  <div class="flex w-full flex-col gap-1 py-1 pl-3 pr-3" (click)="$event.stopPropagation()">
-    <span class="text-sm font-medium text-syn-color-neutral-700 select-none">{{ label() }}</span>
+  <div class="flex w-full flex-col" (click)="$event.stopPropagation()">
+    <div class="flex w-full items-center gap-2 py-0.5 pl-1 pr-3">
+      <span class="relative inline-flex">
+        <syn-button variant="text" size="medium">
+          <syn-icon
+            slot="prefix"
+            [name]="items().length === 0 ? 'cloud_upload' : activeCount() > 0 ? 'upload' : 'cloud_done'"
+          />
+        </syn-button>
+        @if (items().length > 0) {
+          <span
+            class="pointer-events-none absolute right-0 top-0 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white"
+            [style.background-color]="activeCount() > 0 ? 'var(--syn-color-primary-600)' : 'var(--syn-color-success-600)'"
+          >{{ activeCount() > 0 ? activeCount() : items().length }}</span>
+        }
+      </span>
+      <span class="flex-1 text-sm font-medium text-syn-color-neutral-700 select-none">{{ label() }}</span>
+      @if (items().length > 0 && activeCount() === 0) {
+        <syn-button variant="text" size="small" (click)="clear()">Clear</syn-button>
+      }
+    </div>
     @if (items().length > 0) {
-      <ng-container [ngTemplateOutlet]="list" />
-    }
-    @if (items().length > 0 && activeCount() === 0) {
-      <syn-button variant="text" size="small" (click)="clear()">Clear</syn-button>
+      <div class="pl-12 pr-3 pb-1 w-full">
+        <ng-container [ngTemplateOutlet]="list" />
+      </div>
     }
   </div>
 } @else {
@@ -60,10 +80,11 @@
     placement="bottom-end"
     [distance]="8"
     [open]="dropdownOpen()"
-    (synAfterShowEvent)="dropdownOpen.set(true)"
-    (synAfterHideEvent)="dropdownOpen.set(false)"
+    (synAfterShowEvent)="$event.target === $event.currentTarget && dropdownOpen.set(true)"
+    (synAfterHideEvent)="$event.target === $event.currentTarget && dropdownOpen.set(false)"
   >
-    <div slot="trigger" class="relative inline-flex items-center" [title]="label()">
+    <div slot="trigger" class="relative inline-flex items-center">
+      <syn-tooltip [content]="label()" [distance]="13">
       @if (items().length === 0) {
         <syn-icon-button name="cloud_upload" label="No uploads" size="medium" class="upload-idle" />
       } @else if (activeCount() > 0) {
@@ -71,6 +92,7 @@
       } @else {
         <syn-icon-button name="cloud_done" label="Uploads complete" size="medium" class="upload-done" />
       }
+      </syn-tooltip>
       @if (items().length > 0) {
         <span
           class="pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"

@@ -34,6 +34,9 @@ export interface NodePlugin {
   /** Description shown in the palette */
   description: string;
 
+  /** True when provided by an installed plugin (not built-in) */
+  isPlugin?: boolean;
+
   /** Icon name (Synergy Design System icon) */
   icon: string;
 

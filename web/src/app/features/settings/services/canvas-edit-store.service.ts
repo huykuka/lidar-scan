@@ -99,6 +99,22 @@ export class CanvasEditStoreService {
     );
   });
 
+  /**
+   * IDs of nodes whose settings differ from the last-known backend state
+   * (new nodes included). Canvas position is ignored: only settings count.
+   */
+  readonly dirtyNodeIds = computed<Set<string>>(() => {
+    const dirty = new Set<string>();
+    if (!this._isInitialized()) return dirty;
+    const saved = new Map(this.nodeStore.nodes().map((n) => [n.id, n]));
+    const strip = ({ x, y, ...rest }: NodeConfig) => rest;
+    for (const node of this._localNodes()) {
+      const base = saved.get(node.id);
+      if (!base || !deepEqual(strip(node), strip(base))) dirty.add(node.id);
+    }
+    return dirty;
+  });
+
   // ------ Computed: validation ------
   readonly validationErrors = computed<ValidationError[]>(() => {
     const cycleErrors = detectCycles(this._localNodes(), this._localEdges());
