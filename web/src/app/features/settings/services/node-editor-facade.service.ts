@@ -20,14 +20,26 @@ export class NodeEditorFacadeService {
   private toast = inject(ToastService);
   private canvasEditStore = inject(CanvasEditStoreService);
 
+  /**
+   * Draft nodes (one object per opened editor drawer) that were already staged.
+   * Editors reset `isSaving` as soon as saveNode resolves, but the drawer keeps
+   * its Save button clickable while it animates closed — a second click/Enter
+   * would otherwise stage the same new node twice at the same position.
+   */
+  private stagedDrafts = new WeakSet<object>();
+
   async saveNode(payload: NodeSavePayload): Promise<boolean> {
     const {name, config: rawConfig, definition, existingNode, pose} = payload;
+
+    if (this.stagedDrafts.has(existingNode)) return true;
 
     const validation = await this.validateSensorConfig(rawConfig, definition);
     if (!validation.valid) {
       this.toast.danger(validation.message!);
       return false;
     }
+    // Re-check: a concurrent save of the same draft may have finished during validation.
+    if (this.stagedDrafts.has(existingNode)) return true;
 
     const config = this.buildConfig(rawConfig, definition);
 
@@ -51,6 +63,7 @@ export class NodeEditorFacadeService {
     if (!isTempId && existingNode.id) {
       this.canvasEditStore.updateNode(existingNode.id, nodePayload);
     } else {
+      this.stagedDrafts.add(existingNode);
       this.canvasEditStore.addNode(nodePayload);
     }
 

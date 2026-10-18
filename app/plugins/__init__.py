@@ -92,6 +92,7 @@ def load_plugin(name: str) -> Set[str]:
     else:
         _evict_from_sys_modules(name)
 
+    importlib.invalidate_caches()
     before_schema = set(node_schema_registry._definitions.keys())
     before_factory = set(NodeFactory._registry.keys())
 
@@ -429,8 +430,10 @@ def install_plugin_zip(zip_bytes: bytes, *, auto_load: bool = True) -> tuple[str
 
         if os.path.exists(dst):
             shutil.rmtree(dst)
-        shutil.copytree(src, dst)
+        # Never ship stale bytecode from the archive — it can shadow new sources.
+        shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
 
+    importlib.invalidate_caches()
     logger.info(f"[plugins] Installed plugin '{plugin_name}' to {dst}")
 
     if auto_load:
