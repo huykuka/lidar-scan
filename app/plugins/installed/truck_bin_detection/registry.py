@@ -226,21 +226,6 @@ node_schema_registry.register(
                 ),
             ),
             PropertySchema(
-                name="front_edge_lookahead",
-                label="Front Edge Plateau Window (m)",
-                type="number",
-                default=0.3,
-                min=0.0,
-                max=2.0,
-                step=0.05,
-                help_text=(
-                    "The front edge is the cell where the height suddenly jumps up. It is "
-                    "confirmed only when the cells just ahead of it, within this distance, "
-                    "stay at a similar height (the wall top). Rejects slopes, piles and "
-                    "noise. 0 disables the step check."
-                ),
-            ),
-            PropertySchema(
                 name="front_step_min",
                 label="Front Step Min Rise (m)",
                 type="number",
@@ -264,16 +249,6 @@ node_schema_registry.register(
                 help_text="How close in height the cells ahead of the jump must be to count as level.",
             ),
             PropertySchema(
-                name="front_min_plateau_cells",
-                label="Front Min Level Cells",
-                type="number",
-                default=1,
-                min=0,
-                max=20,
-                step=1,
-                help_text="Minimum number of level cells required ahead of the jump.",
-            ),
-            PropertySchema(
                 name="min_wall_cells",
                 label="Min Wall Width (cells)",
                 type="number",
@@ -286,6 +261,45 @@ node_schema_registry.register(
                     "wall height. Narrower slabs (1-2 cells) are treated as a crossbar, frame "
                     "member or noise between the edges and skipped; the search continues to "
                     "the next slab. 1 accepts any slab."
+                ),
+            ),
+            PropertySchema(
+                name="rear_confirm_skip",
+                label="Rear Confirm Skip (cells)",
+                type="number",
+                default=2,
+                min=0,
+                max=20,
+                step=1,
+                help_text="While tracking, cells to jump past a rear wall candidate before checking for returns.",
+            ),
+            PropertySchema(
+                name="edge_confirm_cells",
+                label="Edge Confirm Cells",
+                type="number",
+                default=5,
+                min=0,
+                max=30,
+                step=1,
+                help_text=(
+                    "Cells checked just past a wall edge. Rear: after the skip, all must carry "
+                    "a return (no empty space). Front: the jump must be followed by a level "
+                    "top within this window. Rejects stray slabs, slopes, piles and noise. "
+                    "0 disables both checks."
+                ),
+            ),
+            PropertySchema(
+                name="max_rear_x",
+                label="Max Rear Edge Position (m)",
+                type="number",
+                default=50.0,
+                step=0.1,
+                help_text=(
+                    "Maximum X position of the rear edge, in the same frame as the input "
+                    "cloud. A rear edge beyond this is a wrong detection and the frame is "
+                    "reported as a miss. Tracking also searches for the rear wall starting at "
+                    "this position and walking backward. Default 50 m is "
+                    "effectively off; set it to the farthest point a rear wall can reach."
                 ),
             ),
             PropertySchema(
@@ -302,6 +316,21 @@ node_schema_registry.register(
                     "Height Threshold). A drawbar/coupling sits lower than the bed; a gap "
                     "between trailers has almost no returns — both are rejected. "
                     "Increase if false positives occur in sparse scans."
+                ),
+            ),
+            PropertySchema(
+                name="max_bed_structure_cells",
+                label="Max Vertical Structure Cells",
+                type="number",
+                default=0,
+                min=0,
+                max=20,
+                step=1,
+                help_text=(
+                    "A real cargo bed is flat: no cell between the rear and front walls may "
+                    "reach wall height. If more than this many cells in the cavity are at "
+                    "wall height (another wall, post, frame standing on the bed) the pair is "
+                    "rejected. Raise it to tolerate a thin cross frame inside the bin."
                 ),
             ),
 

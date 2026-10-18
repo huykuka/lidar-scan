@@ -131,12 +131,12 @@ class TestPlaybackNodeConstruction:
                 recording_id="rec", playback_speed=0.75,
             )
 
-    def test_speed_greater_than_1_raises_value_error(self):
+    def test_speed_unsupported_high_raises_value_error(self):
         from app.modules.playback.node import PlaybackNode
         with pytest.raises(ValueError, match="playback_speed"):
             PlaybackNode(
                 manager=_make_mock_manager(), node_id="n1", name="T",
-                recording_id="rec", playback_speed=2.0,
+                recording_id="rec", playback_speed=3.0,
             )
 
     def test_speed_zero_raises_value_error(self):
@@ -540,7 +540,7 @@ class TestValidSpeeds:
 
     def test_valid_speeds_set(self):
         from app.modules.playback.node import VALID_SPEEDS
-        assert VALID_SPEEDS == frozenset({0.1, 0.25, 0.5, 1.0})
+        assert VALID_SPEEDS == frozenset({0.1, 0.25, 0.5, 1.0, 2.0, 4.0})
 
     def test_all_valid_speeds_accepted(self):
         from app.modules.playback.node import PlaybackNode, VALID_SPEEDS

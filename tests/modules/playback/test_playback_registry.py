@@ -53,16 +53,16 @@ class TestPlaybackNodeDefinition:
         names = [p.name for p in defn.properties]
         assert "playback_speed" in names
 
-    def test_playback_speed_has_four_options(self):
+    def test_playback_speed_has_six_options(self):
         defn = self._get_def()
         prop = next(p for p in defn.properties if p.name == "playback_speed")
-        assert len(prop.options) == 4
+        assert len(prop.options) == 6
 
     def test_playback_speed_options_values(self):
         defn = self._get_def()
         prop = next(p for p in defn.properties if p.name == "playback_speed")
         values = {opt["value"] for opt in prop.options}
-        assert values == {0.1, 0.25, 0.5, 1.0}
+        assert values == {0.1, 0.25, 0.5, 1.0, 2.0, 4.0}
 
     def test_playback_speed_default_is_1_0(self):
         defn = self._get_def()

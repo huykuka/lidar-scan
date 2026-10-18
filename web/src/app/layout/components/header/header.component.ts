@@ -8,6 +8,7 @@ import {SystemControlComponent} from './system-control/system-control.component'
 import {UserInfoComponent} from './user-info/user-info.component';
 import {ThemeSwitchComponent} from './theme-switch/theme-switch.component';
 import {PlatformGuideComponent} from './platform-guide/platform-guide.component';
+import {UploadStatusComponent} from './upload-status/upload-status.component';
 import {ReloadRuntimeComponent} from './reload-runtime/reload-runtime.component';
 import packageJson from '../../../../../package.json';
 
@@ -22,6 +23,7 @@ import packageJson from '../../../../../package.json';
     ThemeSwitchComponent,
     PlatformGuideComponent,
     ReloadRuntimeComponent,
+    UploadStatusComponent,
   ],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

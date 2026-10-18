@@ -18,7 +18,6 @@ import {RecordingApiService} from '@core/services/api/recording-api.service';
 import {NavigationService} from '@core/services';
 import {Router} from '@angular/router';
 import {Recording} from '@core/models';
-import {UploadProgressPanelComponent} from './components/upload-progress-panel/upload-progress-panel.component';
 import {RecordingUploadService} from '@core/services/recording-upload.service';
 import {RecordingRowComponent} from './components/recording-row/recording-row.component';
 import {AuthService} from '@core/services/auth.service';
@@ -34,7 +33,7 @@ const POLL_INTERVAL_MS = 3000;
 @UntilDestroy()
 @Component({
   selector: 'app-recordings',
-  imports: [SynergyComponentsModule, RecordingRowComponent, UploadProgressPanelComponent],
+  imports: [SynergyComponentsModule, RecordingRowComponent],
   templateUrl: './recordings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './recordings.component.css',

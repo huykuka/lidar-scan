@@ -1,0 +1,100 @@
+<ng-template #list>
+  <div class="flex flex-col max-h-72 overflow-auto">
+    @for (item of items(); track item.id; let last = $last) {
+      <div class="flex flex-col gap-1.5 py-2">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="truncate flex-1" [title]="item.name">{{ item.name }}</span>
+          @switch (item.status) {
+            @case ('done') {
+              <syn-badge variant="success" pill>Done</syn-badge>
+            }
+            @case ('error') {
+              <syn-badge variant="error" pill>Failed</syn-badge>
+              <syn-icon-button (click)="uploader.retry(item.id)" name="refresh" label="Retry" title="Retry" />
+              <syn-icon-button (click)="uploader.dismiss(item.id)" name="close" label="Dismiss" title="Dismiss" />
+            }
+            @case ('queued') {
+              <syn-badge variant="neutral" pill>Queued</syn-badge>
+              <syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" title="Cancel upload" />
+            }
+            @case ('processing') {
+              <syn-badge variant="warning" pill>Processing</syn-badge>
+            }
+            @case ('uploading') {
+              <syn-badge variant="primary" pill>{{ item.progress }}%</syn-badge>
+              <syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" title="Cancel upload" />
+            }
+          }
+        </div>
+        @switch (item.status) {
+          @case ('uploading') {
+            <syn-progress-bar [value]="item.progress" />
+          }
+          @case ('processing') {
+            <syn-progress-bar indeterminate />
+          }
+          @case ('error') {
+            <span class="text-xs text-syn-color-error-600">{{ item.error }}</span>
+          }
+        }
+      </div>
+      @if (!last) {
+        <syn-divider class="my-0" />
+      }
+    }
+  </div>
+</ng-template>
+
+@if (mobile()) {
+  <div class="flex w-full flex-col gap-1 py-1 pl-3 pr-3" (click)="$event.stopPropagation()">
+    <span class="text-sm font-medium text-syn-color-neutral-700 select-none">{{ label() }}</span>
+    @if (items().length > 0) {
+      <ng-container [ngTemplateOutlet]="list" />
+    }
+    @if (items().length > 0 && activeCount() === 0) {
+      <syn-button variant="text" size="small" (click)="clear()">Clear</syn-button>
+    }
+  </div>
+} @else {
+  <syn-dropdown
+    placement="bottom-end"
+    [distance]="8"
+    [open]="dropdownOpen()"
+    (synAfterShowEvent)="dropdownOpen.set(true)"
+    (synAfterHideEvent)="dropdownOpen.set(false)"
+  >
+    <div slot="trigger" class="relative inline-flex items-center" [title]="label()">
+      @if (items().length === 0) {
+        <syn-icon-button name="cloud_upload" label="No uploads" size="medium" class="upload-idle" />
+      } @else if (activeCount() > 0) {
+        <syn-icon-button name="upload" label="Uploads in progress" size="medium" class="upload-active" />
+      } @else {
+        <syn-icon-button name="cloud_done" label="Uploads complete" size="medium" class="upload-done" />
+      }
+      @if (items().length > 0) {
+        <span
+          class="pointer-events-none absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white ring-2 ring-white"
+          [style.background-color]="activeCount() > 0 ? 'var(--syn-color-primary-600)' : 'var(--syn-color-success-600)'"
+        >{{ activeCount() > 0 ? activeCount() : items().length }}</span>
+      }
+    </div>
+
+    <div class="upload-panel rounded-xl">
+      <div class="flex items-center gap-2 pb-2">
+        <syn-icon [name]="items().length === 0 ? 'cloud_upload' : activeCount() > 0 ? 'upload' : 'cloud_done'" />
+        <span class="flex-1 font-semibold">{{ label() }}</span>
+        @if (items().length > 0 && activeCount() === 0) {
+          <syn-button variant="text" size="small" (click)="clear()">Clear</syn-button>
+        }
+      </div>
+      @if (activeCount() > 0 && items().length > 1) {
+        <syn-progress-bar [value]="overall()" class="pb-1" />
+      }
+      @if (items().length > 0) {
+        <ng-container [ngTemplateOutlet]="list" />
+      } @else {
+        <span class="text-sm text-syn-color-neutral-500">No upload jobs</span>
+      }
+    </div>
+  </syn-dropdown>
+}

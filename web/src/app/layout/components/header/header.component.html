@@ -3,6 +3,8 @@
     <!-- Desktop-only: individual icons -->
     <app-system-control class="header-desktop-only" />
     <app-reload-runtime class="header-desktop-only" />
+    <app-upload-status class="header-desktop-only" />
+
     <app-connection-status class="header-desktop-only" (refresh)="onRefresh()" />
     <app-sensor-status class="header-desktop-only" />
     <app-platform-guide class="header-desktop-only" />
@@ -13,6 +15,8 @@
       <div class="mobile-action-panel" (click)="onMobileMenuAction()">
         <app-system-control [mobile]="true" />
         <app-reload-runtime [mobile]="true" />
+        <app-upload-status [mobile]="true" />
+
         <app-connection-status [mobile]="true" (refresh)="onRefresh()" />
         <app-sensor-status [mobile]="true" />
         <div class="mobile-action-divider"></div>
@@ -25,11 +29,12 @@
 
   @if (headline()) {
     <span slot="label" class="header-headline flex items-center gap-2 h-full">
-      <span class="font-semibold text-lg whitespace-nowrap">
-        {{ label() }} v{{ uiVersion }}
-      </span>
+      <span class="font-semibold text-lg whitespace-nowrap"> {{ label() }} v{{ uiVersion }} </span>
       <syn-icon name="chevron_right" class="text-neutral-500 flex-shrink-0" />
-      <span class="text-base font-bold self-center whitespace-nowrap" style="color: var(--syn-color-neutral-700)">
+      <span
+        class="text-base font-bold self-center whitespace-nowrap"
+        style="color: var(--syn-color-neutral-700)"
+      >
         {{ headline() }}
       </span>
     </span>

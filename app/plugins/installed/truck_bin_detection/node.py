@@ -66,13 +66,15 @@ class TruckBinDetectionNode(ModuleNode):
             min_bin_length=float(config.get("min_bin_length", 3.0)),
             max_bin_length=float(config.get("max_bin_length", 8.5)),
             min_bed_cells=int(config.get("min_bed_cells", 3)),
+            max_bed_structure_cells=int(config.get("max_bed_structure_cells", 0)),
             max_wall_thickness=float(config.get("max_wall_thickness", 0.5)),
             wall_height_match_tol=float(config.get("wall_height_match_tol", 0.04)),
-            front_edge_lookahead=float(config.get("front_edge_lookahead", 0.3)),
             front_step_min=float(config.get("front_step_min", 0.3)),
             front_plateau_tol=float(config.get("front_plateau_tol", 0.15)),
-            front_min_plateau_cells=int(config.get("front_min_plateau_cells", 1)),
             min_wall_cells=int(config.get("min_wall_cells", 3)),
+            rear_confirm_skip=int(config.get("rear_confirm_skip", 2)),
+            edge_confirm_cells=int(config.get("edge_confirm_cells", 5)),
+            max_rear_x=float(config.get("max_rear_x", 2.0)),
         )
 
         # Bin length stabilisation: once stable, find the rear and place the front at rear + length
@@ -261,7 +263,8 @@ class TruckBinDetectionNode(ModuleNode):
 
         if self._last_result and self._last_result.detected:
             value = (
-                f"{self._last_result.status} (X: {self._last_result.x_center:+.2f}m)"
+                f"{self._last_result.status} "
+                f"(X: {self._last_result.x_center:+.2f}m, L: {self._last_result.length:.2f}m)"
             )
             color = "green"
         elif self._last_result:

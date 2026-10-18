@@ -26,11 +26,11 @@ from app.schemas.status import NodeStatusUpdate, OperationalState, ApplicationSt
 logger = get_logger(__name__)
 
 # Allowed playback speed values — validated at construction and in the factory.
-VALID_SPEEDS: frozenset = frozenset({0.1, 0.25, 0.5, 1.0})
+VALID_SPEEDS: frozenset = frozenset({0.1, 0.25, 0.5, 1.0, 2.0, 4.0})
 
 
 def _validate_speed(value: float) -> float:
-    """Validate that *value* is one of the four allowed playback speeds.
+    """Validate that *value* is one of the allowed playback speeds.
 
     Args:
         value: Candidate playback_speed value.
@@ -53,7 +53,7 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
 
     Config:
         recording_id  — DB UUID resolved to file_path at start()
-        playback_speed — one of {0.1, 0.25, 0.5, 1.0}; validated at construction
+        playback_speed — one of {0.1, 0.25, 0.5, 1.0, 2.0, 4.0}; validated at construction
         loopable       — if True, replay from frame 0 after the last frame
         throttle_ms    — extra fixed sleep added per frame (milliseconds)
     """
@@ -303,12 +303,14 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
 
         # Average inter-frame interval scaled by speed
         avg_interval: float = duration_seconds / max(total - 1, 1)
-        sleep_s: float = max(0.0, avg_interval / self._playback_speed) + self._throttle_ms / 1000.0
+        target_interval_s: float = max(0.0, avg_interval / self._playback_speed)
+        throttle_s: float = self._throttle_ms / 1000.0
 
         frame_idx: int = 0
 
         try:
             while True:
+                _iter_start = time.monotonic()
                 # Read frame off the event loop thread
                 try:
                     points, timestamp = await asyncio.to_thread(reader.get_frame, frame_idx)
@@ -373,6 +375,10 @@ class PlaybackNode(ModuleNode, FloorCalibrationMixin):
                 self._cycle_time_ms = (time.monotonic() - _frame_start) * 1000
 
                 # Fast mode: just yield to the event loop, downstream already awaited.
+                # Subtract the time already spent reading/processing so the target
+                # rate holds (otherwise work time is added on top of the interval
+                # and speed-ups have no visible effect once work dominates).
+                sleep_s = max(0.0, target_interval_s - (time.monotonic() - _iter_start)) + throttle_s
                 await asyncio_sleep(0 if self._fast_mode else sleep_s)
 
                 frame_idx += 1

@@ -43,6 +43,8 @@ node_schema_registry.register(NodeDefinition(
             type="select",
             default=1.0,
             options=[
+                {"label": "4.0×", "value": 4.0},
+                {"label": "2.0×", "value": 2.0},
                 {"label": "1.0×", "value": 1.0},
                 {"label": "0.5×", "value": 0.5},
                 {"label": "0.25×", "value": 0.25},
