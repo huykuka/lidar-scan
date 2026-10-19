@@ -23,14 +23,19 @@
               <syn-badge variant="warning" pill>Processing</syn-badge>
             }
             @case ('uploading') {
-              <syn-badge variant="primary" pill>{{ item.progress }}%</syn-badge>
+              <syn-badge variant="primary" pill>{{ item.progress > 0 ? item.progress + '%' : 'Starting' }}</syn-badge>
               <syn-tooltip content="Cancel upload" [distance]="8"><syn-icon-button (click)="uploader.cancel(item.id)" name="close" label="Cancel upload" /></syn-tooltip>
             }
           }
         </div>
         @switch (item.status) {
           @case ('uploading') {
-            <syn-progress-bar [value]="item.progress" />
+            @if (item.progress > 0) {
+              <syn-progress-bar [value]="item.progress" />
+            } @else {
+              <!-- the browser reports nothing until the first chunk is sent -->
+              <syn-progress-bar indeterminate />
+            }
           }
           @case ('processing') {
             <syn-progress-bar indeterminate />
