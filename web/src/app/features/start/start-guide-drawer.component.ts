@@ -3,6 +3,7 @@ import {Router} from '@angular/router';
 import {SynIconComponent} from '@synergy-design-system/angular';
 
 import {DrawerService} from '@core/services/drawer.service';
+import {OnboardingService} from '@core/services/onboarding.service';
 
 @Component({
   selector: 'app-start-guide-drawer',
@@ -45,6 +46,15 @@ import {DrawerService} from '@core/services/drawer.service';
   template: `
     <div class="w-full overflow-auto p-1 sm:p-2">
       <div class="w-full mx-auto space-y-5 sm:space-y-6">
+        <div class="flex justify-end">
+          <button
+            type="button"
+            class="guide-chip rounded-full px-3 py-1 text-sm cursor-pointer"
+            (click)="startTour()"
+          >
+            Take the guided tour
+          </button>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           <div
             (click)="navigateTo('/workspaces')"
@@ -173,6 +183,12 @@ import {DrawerService} from '@core/services/drawer.service';
 export class StartGuideDrawerComponent {
   private readonly router = inject(Router);
   private readonly drawer = inject(DrawerService);
+  private readonly onboarding = inject(OnboardingService);
+
+  protected startTour(): void {
+    this.drawer.close();
+    this.onboarding.reopen();
+  }
 
   protected navigateTo(route: string): void {
     this.drawer.close();

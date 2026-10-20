@@ -58,11 +58,13 @@ class RecordingRepository:
         if node_id:
             query = query.filter(RecordingModel.node_id == node_id)
         if q:
-            like = f"%{q.strip().lower().replace('%', '').replace('_', ' ')}%"
+            # Escape LIKE wildcards so "_" / "%" in the search text match literally
+            term = q.strip().lower().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            like = f"%{term}%"
             query = query.filter(
-                func.lower(RecordingModel.name).like(like)
-                | func.lower(RecordingModel.node_id).like(like)
-                | func.lower(RecordingModel.metadata_json).like(like)
+                func.lower(RecordingModel.name).like(like, escape="\\")
+                | func.lower(RecordingModel.node_id).like(like, escape="\\")
+                | func.lower(RecordingModel.metadata_json).like(like, escape="\\")
             )
 
         total = query.count()

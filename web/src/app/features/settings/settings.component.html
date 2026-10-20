@@ -17,22 +17,23 @@
               <syn-icon name="download" slot="prefix" />
               {{ isExporting() ? 'Exporting...' : 'Export' }}
             </syn-menu-item>
-            <syn-menu-item [disabled]="isImporting() || !canEdit()" (click)="onImportConfigClick()">
-              <syn-icon name="upload" slot="prefix" />
-              {{ isImporting() ? 'Importing...' : 'Import' }}
-              @if (!canEdit()) {
-                <span slot="suffix" class="text-xs">Admin only</span>
-              }
-            </syn-menu-item>
+            @if (canEdit()) {
+              <syn-menu-item [disabled]="isImporting()" (click)="onImportConfigClick()">
+                <syn-icon name="upload" slot="prefix" />
+                {{ isImporting() ? 'Importing...' : 'Import' }}
+              </syn-menu-item>
+            }
           </syn-menu>
         </syn-dropdown>
 
-        <syn-tooltip content="Scan network for LiDAR devices" [distance]="13" placement="bottom">
-          <syn-button (click)="discoveryOpen.set(true)" variant="filled">
-            <syn-icon name="search" slot="prefix" />
-            <span> Scan devices </span>
-          </syn-button>
-        </syn-tooltip>
+        @if (canEdit()) {
+          <syn-tooltip content="Scan network for LiDAR devices" [distance]="13" placement="bottom">
+            <syn-button (click)="discoveryOpen.set(true)" variant="filled">
+              <syn-icon name="search" slot="prefix" />
+              <span> Scan devices </span>
+            </syn-button>
+          </syn-tooltip>
+        }
       </div>
 
       <!-- Right: dirty badge + canvas actions -->

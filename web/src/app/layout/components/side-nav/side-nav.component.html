@@ -10,6 +10,7 @@
     <syn-nav-item
       #rla="routerLinkActive"
       [attr.divider]="item.divider ? '' : null"
+      [attr.data-tour]="'nav-' + item.route"
       [current]="rla.isActive"
       [routerLink]="[item.route]"
       routerLinkActive="current"

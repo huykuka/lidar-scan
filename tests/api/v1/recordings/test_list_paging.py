@@ -47,3 +47,16 @@ def test_search_total_counts_matches_not_page(repo):
     assert total == 5 and len(rows) == 2
     _, by_sensor = repo.list_page(q="PICOSCAN")
     assert by_sensor == 25
+
+
+def test_search_is_substring_and_underscore_is_literal(repo):
+    repo.create({
+        "id": "u1", "name": "multiscan_front_left", "node_id": "n1",
+        "file_path": "/x/u1.mcap", "file_size_bytes": 1, "frame_count": 1, "duration_seconds": 1.0,
+        "recording_timestamp": "t", "metadata": {}, "created_at": "2026-11-01T00:00:00+00:00",
+    })
+    assert [r["id"] for r in repo.list_page(q="scan_front")[0]] == ["u1"]
+    assert [r["id"] for r in repo.list_page(q="FRONT")[0]] == ["u1"]
+    # "_" must not act as a single-char wildcard
+    _, total = repo.list_page(q="scan_0")
+    assert total == 0

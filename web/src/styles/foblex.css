@@ -68,3 +68,28 @@ f-flow .f-connection-drag-handle,
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ── Edge flow animation ──────────────────────────────────────────────────── */
+/*
+  Marching dashes on every pipeline edge (.flow-edge on <f-connection>) so data
+  direction reads at a glance. Paths run source → target, so a negative
+  dashoffset moves the dashes downstream. Dash + gap must equal the offset.
+*/
+@keyframes flow-edge-march {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+.flow-edge .f-connection-path {
+  stroke-dasharray: 8 8;
+  stroke-linecap: round;
+  animation: flow-edge-march 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-edge .f-connection-path {
+    stroke-dasharray: none;
+    animation: none;
+  }
+}

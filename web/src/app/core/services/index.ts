@@ -8,3 +8,4 @@ export * from './stores/lidar-store.service';
 export * from './stores/workspace-store.service';
 export * from './lidar-images.service';
 export * from './theme.service';
+export * from './onboarding.service';
