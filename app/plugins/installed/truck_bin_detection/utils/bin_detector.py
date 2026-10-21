@@ -43,6 +43,7 @@ class BinDetector:
             front_plateau_tol: float = 0.15,
             edge_cells: int = 3,
             edge_skip: int = 2,
+            front_ramp_cells: int = 6,
             max_rear_x: float = 50.0,
     ) -> None:
         self._lane_width = lane_width
@@ -66,6 +67,7 @@ class BinDetector:
         self._front_plateau_tol = front_plateau_tol
         self._edge_cells = max(1, edge_cells)
         self._edge_skip = max(0, edge_skip)
+        self._front_ramp_cells = max(0, front_ramp_cells)
         self._max_rear_x = max_rear_x
 
     # ------------------------------------------------------------------
@@ -116,13 +118,40 @@ class BinDetector:
             if rise >= best_rise:
                 best_idx, best_rise = i, rise
         if best_idx is None:
-            return None
+            return self._front_ramp_edge(hp, first_tall)
         top = hp[best_idx]
         ahead = hp[best_idx + 1:min(best_idx + 1 + window, n)]
         level = np.count_nonzero(np.abs(ahead[ahead > 0] - top) <= self._front_plateau_tol)
         if level < 1:
             return None
         return best_idx
+
+    def _front_ramp_edge(self, hp: np.ndarray, first_tall: int) -> int | None:
+        """Fallback for a front wall with an inclined plate on its bed side.
+
+        The height climbs over several cells instead of jumping in one, so no single-cell
+        rise reaches front_step_min.  Accept it when, within ``front_ramp_cells`` cells
+        before the first wall-height cell, the profile rises steadily (no dip beyond
+        a third of front_plateau_tol) by at least front_step_min, and the cells ahead
+        hold a level top.  The edge is pinned to the first wall-height cell.
+        """
+        n = len(hp)
+        if self._front_ramp_cells <= 0 or first_tall <= 0:
+            return None
+        base = hp[max(first_tall - self._front_ramp_cells, 0):first_tall]
+        base = base[base > 0]
+        if len(base) == 0:
+            return None
+        seq = np.append(base, hp[first_tall])
+        if hp[first_tall] - seq.min() < self._front_step_min:
+            return None
+        if np.any(np.diff(seq) < -self._front_plateau_tol / 3.0):
+            return None
+        ahead = hp[first_tall:min(first_tall + 1 + self._edge_cells, n)]
+        ahead = ahead[ahead > 0]
+        if np.count_nonzero(np.abs(ahead - ahead.max()) <= self._front_plateau_tol) < 2:
+            return None
+        return first_tall
 
     def _has_bed(self, cav: np.ndarray) -> str | None:
         """Check the cells between the walls look like a cargo bed.
@@ -171,7 +200,8 @@ class BinDetector:
         max_wall_cells = int(np.ceil(self._max_wall_thickness / self._cellsize)) + 1
         len_cells = int(round(length / self._cellsize))
 
-        runs = self._wall_runs(hp)
+        all_runs = self._wall_runs(hp)
+        runs = all_runs
         if max_rear_idx is not None:
             runs = [r for r in runs if r[1] <= max_rear_idx]
 
@@ -181,7 +211,15 @@ class BinDetector:
                 continue
             reason = self._rear_reject(hp, end, top, len_cells, wall_top)
             if reason is None:
-                return end, end + len_cells, top
+                # A wall slab at the expected front that is not the rear's height means
+                # this rear is the wrong one - keep going.  No slab there is fine (front
+                # out of view or sloped), so only a mismatch rejects.
+                front = end + len_cells
+                near = [t for s, e, t in all_runs if s <= front + max_wall_cells and e >= front - max_wall_cells]
+                if near and all(abs(t - top) > self._wall_height_match_tol for t in near):
+                    reached = "FRONT HEIGHT MISMATCH"
+                    continue
+                return end, front, top
             reached = reason
         return reached
 

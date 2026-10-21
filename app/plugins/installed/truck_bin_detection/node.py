@@ -71,6 +71,7 @@ class TruckBinDetectionNode(ModuleNode):
             wall_height_match_tol=float(config.get("wall_height_match_tol", 0.04)),
             front_step_min=float(config.get("front_step_min", 0.3)),
             front_plateau_tol=float(config.get("front_plateau_tol", 0.15)),
+            front_ramp_cells=int(config.get("front_ramp_cells", 6)),
             edge_cells=int(config.get("edge_cells", 3)),
             edge_skip=int(config.get("edge_skip", 2)),
             max_rear_x=float(config.get("max_rear_x", 2.0)),
@@ -79,6 +80,11 @@ class TruckBinDetectionNode(ModuleNode):
         # Bin length stabilisation: once stable, find the rear and place the front at rear + length
         self._stabilize_window = max(0.0, float(config.get("stabilize_window_s", 2.0)))
         self._stabilize_tol = float(config.get("stabilize_tolerance", 0.15))
+        self._release_timeout = max(0.0, float(config.get("lock_release_timeout_s", 2.0)))
+        # Miss hold: re-emit the last good detection for this long after a missed frame
+        self._miss_hold = max(0.0, float(config.get("miss_hold_s", 0.5)))
+        self._last_detect_at: float = 0.0
+        self._last_out_payload: Optional[Dict[str, Any]] = None
         self._length_hist: deque = deque()  # (timestamp, length)
         self._locked_length: Optional[float] = None
         self._locked_wall_top: Optional[float] = None
@@ -168,9 +174,22 @@ class TruckBinDetectionNode(ModuleNode):
                         "bin": result.to_dict(),
                     },
                 }
+                self._last_detect_at = now
+                self._last_out_payload = out_payload
                 asyncio.create_task(self.manager.forward_data(self.id, out_payload))
+            elif (
+                self._last_out_payload is not None
+                and now - self._last_detect_at <= self._miss_hold
+            ):
+                # Short drop-out: hold the last good detection to avoid flicker.
+                logger.debug(
+                    "[%s] Miss held (%s)", self.id, result.status
+                )
+                held_payload = {**self._last_out_payload, "timestamp": timestamp}
+                asyncio.create_task(self.manager.forward_data(self.id, held_payload))
             else:
                 self._filtered_center = None
+                self._last_out_payload = None
                 self._last_result = result
                 logger.debug(
                     "[%s] No valid bin cavity captured: %s", self.id, result.status
@@ -206,6 +225,7 @@ class TruckBinDetectionNode(ModuleNode):
             notify_status_change(self.id)
 
     def _reset_length_lock(self) -> None:
+        self._last_out_payload = None
         self._length_hist.clear()
         self._locked_length = None
         self._locked_wall_top = None
@@ -216,7 +236,7 @@ class TruckBinDetectionNode(ModuleNode):
             return
         if not result.detected:
             # Tolerate short drop-outs; a long one means the truck has left.
-            if now - self._last_hit_at > self._stabilize_window:
+            if now - self._last_hit_at > self._release_timeout:
                 self._reset_length_lock()
             return
         self._last_hit_at = now

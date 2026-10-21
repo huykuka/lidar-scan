@@ -249,6 +249,21 @@ node_schema_registry.register(
                 help_text="How close in height the cells ahead of the jump must be to count as level.",
             ),
             PropertySchema(
+                name="front_ramp_cells",
+                label="Front Ramp Cells",
+                type="number",
+                default=6,
+                min=0,
+                max=30,
+                step=1,
+                help_text=(
+                    "Front wall with an inclined plate on its bed side: the height climbs over "
+                    "several cells instead of jumping in one. The edge is accepted when the "
+                    "profile rises steadily by the front step height within this many cells "
+                    "before the wall top. 0 disables the ramp fallback."
+                ),
+            ),
+            PropertySchema(
                 name="edge_cells",
                 label="Edge Cells",
                 type="number",
@@ -350,6 +365,34 @@ node_schema_registry.register(
                 help_text=(
                     "Maximum spread (max - min) of the bin length inside the stabilize "
                     "window for the length to count as stable."
+                ),
+            ),
+            PropertySchema(
+                name="lock_release_timeout_s",
+                label="Lock Release Timeout (s)",
+                type="number",
+                default=2.0,
+                min=0.0,
+                max=60.0,
+                step=0.1,
+                help_text=(
+                    "A locked length is released after this many seconds without a "
+                    "successful detection (the truck has left). Shorter drop-outs keep "
+                    "the lock. Independent of the stabilize window."
+                ),
+            ),
+            PropertySchema(
+                name="miss_hold_s",
+                label="Miss Hold (s)",
+                type="number",
+                default=0.5,
+                min=0.0,
+                max=10.0,
+                step=0.1,
+                help_text=(
+                    "When a frame fails to detect the bin, keep outputting the last good "
+                    "detection for this many seconds instead of clearing it, so brief "
+                    "drop-outs do not flicker downstream. 0 disables the hold."
                 ),
             ),
         ],

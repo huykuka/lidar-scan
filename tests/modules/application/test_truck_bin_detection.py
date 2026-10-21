@@ -8,6 +8,7 @@ Covers:
 - DAG node integration (TruckBinDetectionNode)
 - Registry schema and factory
 """
+import asyncio
 from typing import Any, Dict, Optional
 from unittest.mock import AsyncMock, MagicMock
 
@@ -351,6 +352,52 @@ class TestMultiBinScenarios:
 # TestAreaCheck — 3D interior XY area validation (enable_area_check=True)
 # ---------------------------------------------------------------------------
 
+class TestFrontRamp:
+    """Front wall with an inclined plate: the height climbs over several cells."""
+
+    # bed (1.0) -> slope -> wall top (2.5) with a level lip
+    # (no single-cell rise reaches front_step_min=0.3; first wall-height cell is index 8)
+    RAMP = np.array([1.0, 1.0, 1.0, 1.3, 1.5, 1.7, 1.9, 2.1, 2.3, 2.5, 2.5, 2.5])
+
+    def test_ramp_edge_found(self):
+        det = _default_detector()
+        assert det._front_step_edge(self.RAMP, 8) == 8
+
+    def test_ramp_edge_disabled(self):
+        det = _default_detector(front_ramp_cells=0)
+        assert det._front_step_edge(self.RAMP, 8) is None
+
+    def test_flat_profile_is_not_a_ramp(self):
+        hp = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.5, 2.5, 2.5, 2.5])
+        det = _default_detector(front_ramp_cells=6)
+        # a real one-cell step is still found by the step test, at the jump cell
+        assert det._front_step_edge(hp, 6) == 6
+
+
+class TestLockedFrontHeight:
+    """Length locked: a front wall whose height differs from the rear's rejects the rear."""
+
+    @staticmethod
+    def _profile(front_top: float) -> np.ndarray:
+        # rear wall (3 cells) | 20 bed cells | front wall (3 cells)
+        return np.array([2.5] * 3 + [1.0] * 20 + [front_top] * 3)
+
+    def test_matching_front_accepted(self):
+        det = _default_detector()
+        found = det._find_rear_for_length(self._profile(2.5), 1.4, None)
+        assert found == (2, 22, 2.5)
+
+    def test_lower_front_rejected(self):
+        det = _default_detector()
+        found = det._find_rear_for_length(self._profile(2.3), 1.4, None)
+        assert found == "FRONT HEIGHT MISMATCH"
+
+    def test_no_front_slab_still_accepted(self):
+        det = _default_detector()
+        hp = np.array([2.5] * 3 + [1.0] * 23)
+        assert det._find_rear_for_length(hp, 1.4, None) == (2, 22, 2.5)
+
+
 class TestAreaCheck:
 
     def test_real_bin_passes_area_check(self):
@@ -513,12 +560,28 @@ class TestTruckBinDetectionNode:
     @pytest.mark.asyncio
     async def test_no_detection_resets_filtered_center(self):
         node, manager = self._make_node()
+        node._miss_hold = 0.0  # hold disabled: a miss clears immediately
         # Prime the filter with a valid detection
         await node.on_input({"node_id": "up", "points": _make_bin(), "timestamp": 1.0})
         assert node._filtered_center is not None
         # Send garbage that won't detect
         await node.on_input({"node_id": "up", "points": np.ones((5, 3)), "timestamp": 2.0})
         assert node._filtered_center is None
+
+    @pytest.mark.asyncio
+    async def test_miss_within_hold_reemits_last_detection(self):
+        node, manager = self._make_node()
+        node._miss_hold = 5.0
+        await node.on_input({"node_id": "up", "points": _make_bin(), "timestamp": 1.0})
+        await asyncio.sleep(0)  # let the forward_data task run
+        manager.forward_data.reset_mock()
+        await node.on_input({"node_id": "up", "points": np.ones((5, 3)), "timestamp": 2.0})
+        await asyncio.sleep(0)
+        # Filter state is kept and the last good payload is forwarded, not an empty one
+        assert node._filtered_center is not None
+        payload = manager.forward_data.call_args[0][1]
+        assert payload["count"] > 0
+        assert payload["timestamp"] == 2.0
 
     def test_emit_status_idle(self):
         node, _ = self._make_node()
