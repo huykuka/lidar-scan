@@ -1,0 +1,46 @@
+@if (items().length > 0) {
+  <div class="legend">
+    <button
+      type="button"
+      class="legend__toggle"
+      [class.legend__toggle--active]="expanded()"
+      [attr.aria-expanded]="expanded()"
+      [attr.aria-label]="expanded() ? 'Hide topic legend' : 'Show topic legend'"
+      (click)="expanded.set(!expanded())"
+    >
+      <syn-icon name="layers" class="legend__icon"></syn-icon>
+      <span class="legend__count">{{ items().length }}</span>
+    </button>
+
+    @if (expanded()) {
+      <ul class="legend__panel">
+        @for (item of items(); track item.topic) {
+          <li class="legend__item" [class.legend__item--idle]="!item.live" [title]="item.topic">
+            <!-- Display-only: not removable, no click handling -->
+            <syn-tag size="small" class="legend__tag">
+              <span class="legend__row">
+                <span class="legend__name">{{ item.label }}</span>
+                <span
+                  class="legend__dot"
+                  [style.background-color]="item.color"
+                  [style.color]="item.color"
+                ></span>
+              </span>
+            </syn-tag>
+            @if (item.status; as status) {
+              <div class="legend__meta" data-testid="legend-status">
+                <span class="legend__state" [style.background-color]="status.color"></span>
+                @if (status.text) {
+                  <span class="legend__meta-text">{{ status.text }}</span>
+                }
+                @if (status.cycle) {
+                  <span class="legend__cycle" title="Processing time">{{ status.cycle }}</span>
+                }
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </div>
+}

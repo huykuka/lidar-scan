@@ -1,0 +1,126 @@
+/* Only for stacked (<1024px) layout; desktop uses the settings panel. */
+:host {
+  position: absolute;
+  top: var(--syn-spacing-small);
+  right: var(--syn-spacing-small);
+  bottom: var(--syn-spacing-small);
+  z-index: 10;
+  display: block;
+  width: min(calc(100% - 64px), 240px);
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  :host { display: none; }
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-height: 100%;
+}
+
+/* Same family as the viewport overlay buttons */
+.legend__toggle {
+  flex-shrink: 0;
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--syn-panel-background-color);
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+  border-radius: var(--syn-border-radius-small);
+  color: var(--syn-typography-color-text);
+  cursor: pointer;
+  outline: none;
+  transition: background var(--syn-duration-fast);
+}
+.legend__toggle:hover { background: var(--syn-interactive-background-color-hover); }
+.legend__toggle:focus-visible { box-shadow: var(--syn-focus-ring); }
+.legend__toggle--active {
+  background: var(--syn-interactive-emphasis-color);
+  border-color: var(--syn-interactive-emphasis-color);
+  color: var(--syn-typography-color-text-inverted);
+}
+.legend__toggle--active:hover { background: var(--syn-interactive-emphasis-color-hover); }
+
+.legend__icon { font-size: 18px; }
+.legend__count { font: var(--syn-body-x-small-bold); }
+
+/* One solid panel; rows share the same width so nothing looks ragged */
+.legend__panel {
+  pointer-events: auto;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: var(--syn-spacing-x-small);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--syn-spacing-x-small);
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--syn-panel-background-color);
+  border: var(--syn-border-width-small) solid var(--syn-panel-border-color);
+  border-radius: var(--syn-border-radius-medium);
+  box-shadow: var(--syn-shadow-medium);
+}
+
+.legend__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.legend__item--idle { opacity: 0.55; }
+
+.legend__tag { display: block; width: 100%; }
+.legend__tag::part(base) { width: 100%; box-sizing: border-box; }
+.legend__tag::part(content) { display: block; flex: 1 1 auto; width: 100%; min-width: 0; }
+
+.legend__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.legend__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend__dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  /* `color` carries the topic color so the glow follows it */
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 30%, transparent),
+              0 0 6px currentColor;
+}
+
+/* Status line: ■ text ........ cycle */
+.legend__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 0 var(--syn-spacing-2x-small);
+  min-width: 0;
+  font: var(--syn-body-2x-small-regular);
+  color: var(--syn-typography-color-text-quiet);
+}
+.legend__state { width: 6px; height: 6px; flex-shrink: 0; margin-top: 0.4em; border-radius: 1px; }
+.legend__meta-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.legend__cycle { flex-shrink: 0; margin-left: auto; font-variant-numeric: tabular-nums; }

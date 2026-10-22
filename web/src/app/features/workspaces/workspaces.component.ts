@@ -8,6 +8,7 @@ import {SplitLayoutStoreService} from '@core/services/split-layout-store.service
 import { WorkspaceControlsComponent } from '@features/workspaces/components/workspace-controls/workspace-controls.component';
 import { ViewToolbarComponent } from '@features/workspaces/components/view-toolbar/view-toolbar.component';
 import { SplitPaneContainerComponent } from '@features/workspaces/components/split-pane/split-pane-container/split-pane-container.component';
+import { TopicLegendComponent } from '@features/workspaces/components/topic-legend/topic-legend.component';
 
 @Component({
   selector: 'app-workspaces',
@@ -16,6 +17,7 @@ import { SplitPaneContainerComponent } from '@features/workspaces/components/spl
     WorkspaceControlsComponent,
     SplitPaneContainerComponent,
     ViewToolbarComponent,
+    TopicLegendComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './workspaces.component.html',
