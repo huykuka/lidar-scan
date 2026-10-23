@@ -4,7 +4,9 @@
   <app-dialog-host style="z-index: 1000;" />
 
   <router-outlet />
-  <app-onboarding />
+  @if (embed.show('onboarding')) {
+    <app-onboarding />
+  }
 } @else {
   <app-loading-screen />
 }

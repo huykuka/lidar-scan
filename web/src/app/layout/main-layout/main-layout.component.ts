@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import {ChildrenOutletContexts, RouterOutlet} from '@angular/router';
 
-import {NavigationService} from '@core/services';
+import {EmbedService, NavigationService} from '@core/services';
 import {NodeStatusService} from '@core/services/node-status.service';
 import {NodeStoreService} from '@core/services/stores/node-store.service';
 import {HeaderComponent} from '../components/header/header.component';
@@ -27,8 +27,10 @@ import {pageTransition} from '@core/animations/page-transitions';
   animations: [pageTransition],
 })
 export class MainLayoutComponent implements OnInit, AfterViewInit {
-  readonly header = viewChild.required<HeaderComponent>('header');
-  readonly sideNav = viewChild.required<SideNavComponent>('sideNav');
+  // Optional: either can be removed from the DOM via query flags.
+  readonly header = viewChild<HeaderComponent>('header');
+  readonly sideNav = viewChild<SideNavComponent>('sideNav');
+  protected readonly embed = inject(EmbedService);
   protected readonly isSideNavOpen = signal(false);
   private navService = inject(NavigationService);
   private nodeStore = inject(NodeStoreService);

@@ -1,5 +1,6 @@
 import {ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy, OnInit, signal,} from '@angular/core';
 import {SynergyComponentsModule} from '@synergy-design-system/angular';
+import {EmbedService} from '@core/services/embed.service';
 import {NavigationService} from '@core/services/navigation.service';
 import {TopicApiService} from '@core/services/api/topic-api.service';
 import {WorkspaceStoreService} from '@core/services/stores/workspace-store.service';
@@ -29,6 +30,7 @@ export class WorkspacesComponent implements OnInit, OnDestroy {
   private workspaceStore = inject(WorkspaceStoreService);
   private statusWs = inject(NodeStatusService);
   private splitLayout = inject(SplitLayoutStoreService);
+  protected readonly embed = inject(EmbedService);
 
   /** Hide HUD and cockpit controls when more than one pane is active */
   protected isSinglePane = computed(() => this.splitLayout.paneCount() <= 1);
