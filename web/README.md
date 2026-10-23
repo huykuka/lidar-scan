@@ -93,3 +93,19 @@ Use `ResultsApiService.getPcdUrl(entry.path)` to form this URL consistently.
 - ❌ Never use the download API (`/api/.../download`) for point cloud viewing
 - ❌ Never proxy PCD requests through the Angular dev server or any HTTP API endpoint
 - ❌ Never construct PCD URLs from `node_id` + `result_id` + `label` in components — use `PcdFileEntry.path` directly
+
+## Embedding in an iframe
+
+Add query flags to hide parts of the UI. Flags are read once at boot and survive in-app navigation.
+
+| Flag | Controls | Default |
+|---|---|---|
+| `embed=1` | Hides header, side nav and onboarding | off |
+| `header=0\|1` | Top bar | on (off with `embed=1`) |
+| `nav=0\|1` | Side navigation | on (off with `embed=1`) |
+| `onboarding=0\|1` | Onboarding overlay | on (off with `embed=1`) |
+| `toolbar=0\|1` | Workspace layout/view switcher | on |
+| `settings=0\|1` | Workspace controls panel | on |
+| `legend=0\|1` | Topic colour legend | on |
+
+An explicit flag overrides the `embed` default, e.g. `/workspaces?embed=1&settings=0`.
