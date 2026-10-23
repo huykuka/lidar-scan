@@ -13,10 +13,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ------------------------------
 # Run architecture deployments
 # ------------------------------
-bash "$SCRIPT_DIR/deploy_amd.sh"
+bash "$SCRIPT_DIR/deploy_multiarch.sh"
 
 echo "======================================"
-echo "Deployment for AMD64 completed!"
+echo "Multi-arch (amd64 + arm64) deployment completed!"
 echo "  lidar-studio-core (backend)"
 echo "  lidar-studio-ui   (frontend)"
 echo "======================================"

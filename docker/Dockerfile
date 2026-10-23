@@ -56,7 +56,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libgomp1 \
   libusb-1.0-0 \
   && rm -rf /var/lib/apt/lists/* \
-  && rm -rf /usr/lib/x86_64-linux-gnu/dri/*
+  && rm -rf /usr/lib/*-linux-gnu/dri/*
 
 # ✅ uv binary — separate layer, changes rarely
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/

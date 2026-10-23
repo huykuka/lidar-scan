@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1
 # CI variant — uses pre-built C++ artifacts from the backend-ci-artifacts action artifact.
 # Expected layout in build context root (project root):
-#   ci-artifacts/build/       — C++ .so and sick_generic_caller
+#   ci-artifacts/build-<arch>/ — C++ .so and sick_generic_caller per TARGETARCH (amd64, arm64)
 #   ci-artifacts/launch/      — SICK launch files
 #   ci-artifacts/pyproject-deps.toml — version-stripped pyproject (for layer caching)
 
 FROM python:3.12-slim-bookworm
+
+ARG TARGETARCH
 
 ENV DEBIAN_FRONTEND=noninteractive \
   PYTHONDONTWRITEBYTECODE=1 \
@@ -23,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libstdc++6 \
   libgcc-s1 \
   && rm -rf /var/lib/apt/lists/* \
-  && rm -rf /usr/lib/x86_64-linux-gnu/dri/*
+  && rm -rf /usr/lib/*-linux-gnu/dri/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
@@ -43,7 +45,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Restore real project metadata (version) in final image.
 COPY pyproject.toml ./
 
-COPY ci-artifacts/build/  /build/
+COPY ci-artifacts/build-${TARGETARCH}/  /build/
 COPY ci-artifacts/launch/ ./launch/
 RUN rm -f ./launch/test_*
 

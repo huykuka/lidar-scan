@@ -217,7 +217,8 @@ jobs:
       - name: Download backend artifacts
         uses: actions/download-artifact@v4
         with:
-          name: backend-ci-artifacts
+          pattern: backend-ci-artifacts-*
+          merge-multiple: true
           path: ci-artifacts
 
       - name: Download frontend artifacts
@@ -225,6 +226,11 @@ jobs:
         with:
           name: frontend-ci-artifacts
           path: ci-artifacts/frontend
+
+      - name: Set up QEMU (arm64 image build)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -252,7 +258,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.backend.ci
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-core.outputs.tags }}
           labels: |
@@ -279,7 +285,7 @@ jobs:
         with:
           context: .
           file: docker/Dockerfile.frontend.ci
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta-ui.outputs.tags }}
           labels: |

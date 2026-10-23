@@ -13,11 +13,12 @@ timestamp() {
 # ------------------------------
 DOCKER_USERNAME="010497"   # <-- change this
 
-HOST_ARCH="$(uname -m)"
-if [[ "$HOST_ARCH" != "x86_64" && "$HOST_ARCH" != "amd64" ]]; then
-  echo "Error: this deploy script only supports amd64 hosts (detected: $HOST_ARCH)."
-  exit 1
-fi
+PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
+
+# Multi-arch images need a buildx builder and QEMU/binfmt for foreign targets.
+docker buildx inspect lidar-multiarch >/dev/null 2>&1 || docker buildx create --name lidar-multiarch --use
+docker buildx use lidar-multiarch
+docker run --privileged --rm tonistiigi/binfmt --install all >/dev/null
 
 # Read versions from the source manifests
 BE_VERSION=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
@@ -34,14 +35,13 @@ echo "======================================"
 CORE_REPO="$DOCKER_USERNAME/lidar-studio-core"
 echo ""
 echo "Building and deploying lidar-studio-core..."
-docker build \
-  --platform linux/amd64 \
+docker buildx build \
+  --platform "$PLATFORMS" \
+  --push \
   -f docker/Dockerfile.backend \
   -t "$CORE_REPO:latest" \
   -t "$CORE_REPO:$BE_VERSION" \
   .
-docker push "$CORE_REPO:latest"
-docker push "$CORE_REPO:$BE_VERSION"
 echo "Pushed $CORE_REPO:$BE_VERSION and :latest"
 
 # ------------------------------
@@ -50,12 +50,11 @@ echo "Pushed $CORE_REPO:$BE_VERSION and :latest"
 UI_REPO="$DOCKER_USERNAME/lidar-studio-ui"
 echo ""
 echo "Building and deploying lidar-studio-ui..."
-docker build \
-  --platform linux/amd64 \
+docker buildx build \
+  --platform "$PLATFORMS" \
+  --push \
   -f docker/Dockerfile.frontend \
   -t "$UI_REPO:latest" \
   -t "$UI_REPO:$FE_VERSION" \
   .
-docker push "$UI_REPO:latest"
-docker push "$UI_REPO:$FE_VERSION"
 echo "Pushed $UI_REPO:$FE_VERSION and :latest"

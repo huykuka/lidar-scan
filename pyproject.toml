@@ -15,7 +15,9 @@ dependencies = [
     "mcap>=1.5.0",
     "mcap-protobuf-support>=0.5.4",
     "numpy>=2.4.4",
-    "open3d-cpu>=0.19.0",
+    # open3d-cpu ships x86_64 wheels only; the full open3d wheel is the CPU build on aarch64.
+    "open3d-cpu>=0.19.0; platform_machine == 'x86_64'",
+    "open3d>=0.20.0; platform_machine == 'aarch64'",
     "pillow>=12.3.0",
     "python-dotenv>=1.0.0",
     "psutil>=7.2.2",

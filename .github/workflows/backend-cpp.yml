@@ -13,7 +13,16 @@ on:
 
 jobs:
   backend_cpp:
-    runs-on: ubuntu-latest
+    name: sick_scan_xd (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout requested ref
         if: inputs.checkout_ref != ''
@@ -30,7 +39,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: cpp-staging
-          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}-${{ matrix.arch }}
 
       - name: Build sick_scan_xd Docker image
         if: steps.cpp-cache.outputs.cache-hit != 'true' || inputs.cpp_changed
@@ -50,22 +59,22 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: cpp-staging
-          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}
+          key: sick-scan-xd-3.9.0-ubuntu2204-v2-${{ runner.os }}-${{ matrix.arch }}
 
       - name: Stage backend artifacts
         run: |
-          mkdir -p ci-artifacts/build ci-artifacts/launch
-          cp cpp-staging/build/libsick_scan_xd_shared_lib.so ci-artifacts/build/
-          cp cpp-staging/build/sick_generic_caller ci-artifacts/build/
+          mkdir -p ci-artifacts/build-${{ matrix.arch }} ci-artifacts/launch
+          cp cpp-staging/build/libsick_scan_xd_shared_lib.so ci-artifacts/build-${{ matrix.arch }}/
+          cp cpp-staging/build/sick_generic_caller ci-artifacts/build-${{ matrix.arch }}/
           cp -a cpp-staging/launch/. ci-artifacts/launch/
           sed -E 's/^version = ".*"/version = "0.0.0"/' pyproject.toml > ci-artifacts/pyproject-deps.toml
 
       - name: Upload backend artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: backend-ci-artifacts
+          name: backend-ci-artifacts-${{ matrix.arch }}
           path: |
-            ci-artifacts/build/
+            ci-artifacts/build-${{ matrix.arch }}/
             ci-artifacts/launch/
             ci-artifacts/pyproject-deps.toml
           retention-days: 1
